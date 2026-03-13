@@ -5,11 +5,13 @@ This document defines the JSON structure for game scenarios. This schema will be
 ## 1. Map Configuration (Axial Hex Coordinates)
 
 We use an **Axial Coordinate System** (q, r) where:
+
 - `q`: Column index
 - `r`: Row index
 - `s = -q - r` (Implicit third axis for distance calculation)
 
 ### Hex Terrain Types
+
 - `0`: Clear
 - `1`: Ridgeline
 - `2`: Crater

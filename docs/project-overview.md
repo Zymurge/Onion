@@ -6,6 +6,31 @@ This project aims to create a web-based digital implementation of the classic bo
 
 Onion is an asymmetrical tactical wargame set in a near-future sci-fi setting where one player controls a massive cybernetic tank called the "Onion" against another player's defensive forces consisting of conventional military units like tanks, infantry, and artillery.
 
+## Technical Architecture
+
+The "Onion" project is built as a distributed system to support persistent, multiplayer play and diverse client interfaces (CLI, Web, AI).
+
+### Backend (The Onion Engine)
+
+- **Language**: Node.js with TypeScript (for strict type safety and code sharing with the frontend).
+- **API Strategy**: Fastify for high-performance REST and WebSocket endpoints.
+- **Persistence**: PostgreSQL (for users, matches, and historical state). Initial implementation will avoid Redis to minimize complexity.
+- **Rules Engine**: A stateless, functional core that processes "intent" (e.g., `MoveUnit`) and returns new state.
+
+### Frontend (Client Tier)
+
+- **Primary CLI**: A tactical console built with **Node.js** and **Ink** (React for CLI), allowing for a reactive ASCII hex-map.
+- **Future Web UI**: A React-based single-page application (SPA) sharing common TypeScript types with the engine.
+
+### AI Tier (The Swamp Brain)
+
+- **Communication**: A separate service communicating with the Onion Engine via the standard player API.
+- **Language**: Python (for heuristics/ML) or Go (for tactical tree-search performance).
+
+### Infrastructure
+
+- **Packaging**: Docker/Containerized for consistent deployment across local Debian servers and cloud VMs.
+
 ## Game Mechanics Summary
 
 Based on public domain descriptions:
@@ -18,8 +43,8 @@ Based on public domain descriptions:
   - Integration with JSON-based scenario configurations.
   - An API interface to the game engine service to allow multiple client types to play.
   - An AI engine that can play either side, via the API.
-  
-_Note: the initial implementation will be on the Mark III scenario. Some scenario configurable concepts may initiall be hard coded._
+
+_Note: The initial implementation will focus on the Mark III scenario. Some scenario-configurable concepts may initially be hard-coded._
 
 Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md). For a sample turn walkthrough, check out [example-turn.md](example-turn.md).
 
