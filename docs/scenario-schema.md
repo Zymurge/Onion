@@ -2,6 +2,8 @@
 
 This document defines the JSON structure for game scenarios. This schema will be validated using **Zod** in the Node.js engine.
 
+Core rules mechanics referenced from the public domain portions of the [OGRE Designer's Edition Rulebook (v6.0)](https://www.sjgames.com/ogre/kickstarter/ogre_rulebook.pdf) by Steve Jackson Games.
+
 ## 1. Map Configuration (Axial Hex Coordinates)
 
 We use an **Axial Coordinate System** (q, r) where:
@@ -46,19 +48,38 @@ We use an **Axial Coordinate System** (q, r) where:
       }
     },
     "defenders": [
-      { "id": "wolf-1", "type": "BigBadWolf", "pos": { "q": 5, "r": 5 } },
-      { "id": "puss-1", "type": "Puss", "pos": { "q": 6, "r": 5 } },
-      { "id": "pig-1", "type": "LittlePig", "pos": { "q": 10, "r": 5 }, "squads": 3 }
+      { "id": "wolf-1", "type": "BigBadWolf", "position": { "q": 5, "r": 5 }, "status": "operational" },
+      { "id": "puss-1", "type": "Puss", "position": { "q": 6, "r": 5 }, "status": "operational" },
+      { "id": "pigs-1", "type": "LittlePigs", "position": { "q": 10, "r": 5 }, "squads": 3, "status": "operational" }
     ]
   },
   "victoryConditions": {
-    "targetHex": { "q": 12, "r": 5 },
+    "onion": {
+      "targetHex": { "q": 12, "r": 5 },
+      "description": "Onion wins by moving onto or attacking the Castle hex."
+    },
+    "defender": {
+      "condition": "onionImmobilized",
+      "description": "Defender wins when the Onion's tread points reach 0 (MA 0). A stationary Onion cannot reach the Castle."
+    },
     "maxTurns": 20
   }
 }
 ```
 
-## 3. Zod Implementation Notes
+## 3. Map Encoding Convention
+
+Only non-clear hexes need to appear in the `hexes` array. Any hex coordinate not listed is assumed to be terrain type `0` (Clear). This keeps scenario files compact.
+
+## 4. Unit Status State Machine
+
+Defender units cycle through three states. The engine is responsible for advancing state automatically at the start of each Defender turn.
+
+- `operational`: Unit acts normally.
+- `disabled`: Unit was hit with a "D" result this turn. It cannot move or fire. At the start of the **next** Defender turn, the engine transitions it to `recovering`.
+- `recovering`: Unit was disabled last turn. It returns to `operational` at the **start of the Recovery Phase** this turn and may act normally.
+
+## 5. Zod Implementation Notes
 
 We will define the following TS interfaces:
 
@@ -69,10 +90,13 @@ const HexSchema = z.object({
   t: z.nativeEnum(TerrainType)
 });
 
+const UnitStatusSchema = z.enum(["operational", "disabled", "recovering"]);
+
 const UnitSchema = z.object({
   id: z.string(),
-  type: z.enum(["Puss", "Witch", "BigBadWolf", "LittlePig", "Dragon", "LordFarquaad"]),
-  pos: z.object({ q: z.number(), r: z.number() }),
-  squads: z.number().optional() // For Little Pig stacks
+  type: z.enum(["Puss", "Witch", "BigBadWolf", "LittlePigs", "Dragon", "LordFarquaad"]),
+  position: z.object({ q: z.number(), r: z.number() }),
+  status: UnitStatusSchema.default("operational"),
+  squads: z.number().optional() // For Little Pigs stacks only
 });
 ```

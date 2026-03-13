@@ -10,7 +10,7 @@ This document provides a detailed walkthrough of a single game round to illustra
   - **1 Puss (Heavy Tank)**: Operational.
   - **1 Witch (Missile Tank)**: Operational.
   - **1 Lord Farquaad (Howitzer)**: **Disabled** (from previous turn).
-  - **1 Little Pig (Infantry)**: In the path of the Onion.
+  - **1 Little Pigs (Infantry)**: In the path of the Onion.
 
 ---
 
@@ -19,9 +19,9 @@ This document provides a detailed walkthrough of a single game round to illustra
 ### Phase: Onion Movement
 
 1. **The Onion** moves 3 hexes.
-2. **Ramming**: On its 3rd hex, the Onion enters a hex occupied by a **Little Pig** squad.
+2. **Ramming**: On its 3rd hex, the Onion enters a hex occupied by a **Little Pigs** squad.
    - *Resolution*: Onion rolls 1D6. (1-4: Destroyed).
-   - *Roll*: **3**. The Little Pig is **Destroyed**.
+   - *Roll*: **3**. The Little Pigs is **Destroyed**.
    - *Cost*: Ramming a non-armored unit (Infantry) costs the Onion **0 treads**.
 
 ### Phase: Onion Combat
@@ -70,6 +70,6 @@ This document provides a detailed walkthrough of a single game round to illustra
 - **Defender**:
   - **Puss**: Disabled.
   - **Witch**: Destroyed.
-  - **Little Pig**: Destroyed.
+  - **Little Pigs**: Destroyed.
   - **Lord Farquaad**: Operational.
   - **Big Bad Wolf**: Relocated.

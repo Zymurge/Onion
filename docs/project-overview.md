@@ -33,7 +33,7 @@ The "Onion" project is built as a distributed system to support persistent, mult
 
 ## Game Mechanics Summary
 
-Based on public domain descriptions:
+Core rules are derived from the public domain portions of the [OGRE Designer's Edition Rulebook (v6.0)](https://www.sjgames.com/ogre/kickstarter/ogre_rulebook.pdf) by Steve Jackson Games, adapted and renamed for this project. Detailed rule mappings are in [game-rules.md](game-rules.md).
 
 - **Asymmetrical Gameplay**: One player commands the Onion, a powerful super-tank, while the other defends with a mix of infantry, armor, and artillery units.
 
@@ -59,7 +59,7 @@ To avoid proprietary issues and add a fun, thematic twist, we'll rename elements
 - **Witch**: Missile Tank.
 - **Pinocchio**: Light Tank.
 - **Dragon**: Superheavy Tank.
-- **Little Pig**: Infantry squads.
+- **Little Pigs**: Infantry squads.
 - **Castle**: Command Post.
 
 ## Next Steps
