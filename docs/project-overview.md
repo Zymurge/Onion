@@ -6,30 +6,72 @@ This project aims to create a web-based digital implementation of the classic bo
 
 Onion is an asymmetrical tactical wargame set in a near-future sci-fi setting where one player controls a massive cybernetic tank called the "Onion" against another player's defensive forces consisting of conventional military units like tanks, infantry, and artillery.
 
+## Implementation Phases
+
+| Phase | Focus | Key Deliverables |
+| :--- | :--- | :--- |
+| **1 — Core** | Working game | Engine, REST+WS API, PostgreSQL, CLI client, 2 humans matched manually |
+| **2 — Lobby** | Self-service matchmaking | Game creation, join-by-code or invite link, basic session listing |
+| **3 — AI** | Automated opponent | Go-based Swamp Brain service connected as a standard API player |
+
 ## Technical Architecture
 
-The "Onion" project is built as a distributed system to support persistent, multiplayer play and diverse client interfaces (CLI, Web, AI).
+The "Onion" project is a distributed system designed for persistent, multiplayer play across diverse client types (CLI, Web, AI).
 
 ### Backend (The Onion Engine)
 
-- **Language**: Node.js with TypeScript (for strict type safety and code sharing with the frontend).
-- **API Strategy**: Fastify for high-performance REST and WebSocket endpoints.
-- **Persistence**: PostgreSQL (for users, matches, and historical state). Initial implementation will avoid Redis to minimize complexity.
-- **Rules Engine**: A stateless, functional core that processes "intent" (e.g., `MoveUnit`) and returns new state.
+- **Language**: Node.js with TypeScript.
+- **Framework**: Fastify.
+- **Rules Engine**: A stateless, functional core that processes player intents (e.g., `MoveUnit`, `FireWeapon`) and returns a new `GameState`. No side effects — all persistence is handled at the API layer.
+- **Phase State Machine**: Turn phases advance in strict server-enforced order. Actions submitted out of phase are rejected with an error. The six phases per turn cycle:
+
+  | # | Phase | Actor |
+  | :- | :--- | :--- |
+  | 1 | `ONION_MOVE` | Onion player |
+  | 2 | `ONION_COMBAT` | Onion player |
+  | 3 | `DEFENDER_RECOVERY` | Engine (auto-advance disabled units) |
+  | 4 | `DEFENDER_MOVE` | Defender player |
+  | 5 | `DEFENDER_COMBAT` | Defender player |
+  | 6 | `GEV_SECOND_MOVE` | Defender player (Big Bad Wolf units only) |
+
+  After `GEV_SECOND_MOVE`, the engine increments `turnNumber` and cycles back to `ONION_MOVE` until a victory condition is met.
+
+- **API Protocol**:
+  - **REST**: Slow/administrative operations — register, login, create game, join game, get game state.
+  - **WebSocket**: Real-time turn events — submit action, receive state updates, phase transitions, combat roll results. Both players connect to the same match channel.
+- **Manual Matching (Phase 1)**: Player A calls `POST /games` with a scenario ID, receives a `gameId`. Player B calls `POST /games/{id}/join`. No lobby UI required — `gameId` is shared out-of-band.
+- **Persistence**: PostgreSQL. Core tables:
+  - `users` — id, username, hashed password, created_at.
+  - `matches` — id, scenario_id, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.
+  - `game_state` — match_id (FK), state JSONB, updated_at.
+- **`game_state` JSONB Shape**: A mutable copy of the scenario's `initialState`, evolved in place by gameplay. Contains: Onion position/treads/batteries/missiles, all defender unit positions/statuses. Victory conditions and map terrain remain static in the `matches` row (copied from scenario at game creation) and are never stored in `game_state`.
+- **Authentication**: JWT (stateless). Issued on login, required for all game API calls. Simple and infrastructure-free for Phase 1. Future phases can layer in refresh tokens or third-party OAuth if needed.
 
 ### Frontend (Client Tier)
 
-- **Primary CLI**: A tactical console built with **Node.js** and **Ink** (React for CLI), allowing for a reactive ASCII hex-map.
-- **Future Web UI**: A React-based single-page application (SPA) sharing common TypeScript types with the engine.
+- **Phase 1 — CLI**: Built with **Node.js** and **Ink** (React for terminals). Renders the ASCII hex map reactively as game state updates arrive over WebSocket.
+- **Phase 2+ — Web UI**: React SPA sharing TypeScript types with the engine. Reuses the existing hex-grid JS implementation once reviewed.
 
 ### AI Tier (The Swamp Brain)
 
-- **Communication**: A separate service communicating with the Onion Engine via the standard player API.
-- **Language**: Python (for heuristics/ML) or Go (for tactical tree-search performance).
+- **Phase**: 3 — deferred until core game and lobby are stable.
+- **Design**: Runs as a separate service, connecting to the engine as a standard API player over the same WebSocket interface used by humans.
+- **Language**: Go (penciled in for tactical tree-search performance).
+
+### Testing Strategy
+
+- **Methodology**: Test-driven development (TDD) from Phase 1. Tests are written before or alongside implementation, not after.
+- **Framework**: **Vitest** — fast, native ESM support, TypeScript-first, compatible with the Node.js/Fastify stack.
+- **Layers**:
+  - **Unit tests**: Stateless rules engine functions (movement legality, CRT resolution, phase transitions, tread damage). No I/O.
+  - **Integration tests**: Fastify route handlers against a test database (or in-memory mock). Covers REST endpoints and WebSocket event flows.
+  - **E2E tests**: Deferred to Phase 2 — full CLI-to-server round trips.
 
 ### Infrastructure
 
-- **Packaging**: Docker/Containerized for consistent deployment across local Debian servers and cloud VMs.
+- **Local and VM deployment**: Docker Compose. A single `docker-compose.yml` covers both local dev and production on the Debian server — one command to bring up the engine and PostgreSQL together.
+- **Target environments**: Developer laptop (Debian), self-hosted Debian VM. Managed cloud services are out of scope until scale demands it (KISS).
+- **Future cloud path**: If needed, the Compose setup maps cleanly to a single VM on any cloud provider without rearchitecting.
 
 ## Game Mechanics Summary
 
@@ -62,7 +104,9 @@ To avoid proprietary issues and add a fun, thematic twist, we'll rename elements
 - **Little Pigs**: Infantry squads.
 - **Castle**: Command Post.
 
-## Next Steps
+## Next Steps (Phase 1)
 
-- **JSON Scenario Configuration**: Define a schema for loading maps, unit allotments, and victory conditions to avoid hard-coding.
-- **Turn Engine**: Implement the state machine for movement, combat, and recovery phases.
+- **Project scaffolding**: Initialize Node.js/TypeScript repo structure, Fastify server, and Docker Compose dev environment.
+- **Turn engine**: Implement the state machine for movement, combat, and recovery phases against the scenario schema.
+- **API surface**: Define REST and WebSocket endpoints for game creation, player actions, and state sync.
+- **CLI client**: Build the Ink-based terminal interface against the API.
