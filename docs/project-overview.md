@@ -18,6 +18,8 @@ Based on public domain descriptions:
   - Integration with JSON-based scenario configurations.
   - An API interface to the game engine service to allow multiple client types to play.
   - An AI engine that can play either side, via the API.
+  
+_Note: the initial implementation will be on the Mark III scenario. Some scenario configurable concepts may initiall be hard coded._
 
 Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md). For a sample turn walkthrough, check out [example-turn.md](example-turn.md).
 

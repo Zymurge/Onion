@@ -2,6 +2,8 @@
 
 This document maps the game rules for the "Onion" project, a thematic reimplementation of a classic asymmetrical tactical wargame.
 
+_Note: the initial implementation will be based on the Mark III scenario, and the rules may be overly specific to that on the first pass_
+
 ## Overview
 
 Onion is a hexagonal-grid tactical wargame where one player controls a single, massive super-tank called the **Onion**, and the other player controls a diverse force of conventional units (**Little Pigs**, **Big Bad Wolves**, **Puss**, etc.) defending a **Castle**.
