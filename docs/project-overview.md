@@ -22,7 +22,7 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 
 - **Language**: Node.js with TypeScript.
 - **Framework**: Fastify.
-- **Rules Engine**: A stateless, functional core that processes player intents (e.g., `MoveUnit`, `FireWeapon`) and returns a new `GameState`. No side effects — all persistence is handled at the API layer.
+- **Rules Engine**: A functional core that processes player intents (e.g., `MoveUnit`, `FireWeapon`) by mutating `EngineGameState` in place. All engine functions (`executeOnionMovement`, `executeUnitFire`, `advancePhase`, etc.) take a state reference and modify it directly. Persistence is handled at the API layer, which snapshots the mutated state after each action.
 - **Phase State Machine**: Turn phases advance in strict server-enforced order. Actions submitted out of phase are rejected with an error. The six phases per turn cycle:
 
   | # | Phase | Actor | Side-effects on entry |
