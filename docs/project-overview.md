@@ -25,16 +25,35 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 - **Rules Engine**: A stateless, functional core that processes player intents (e.g., `MoveUnit`, `FireWeapon`) and returns a new `GameState`. No side effects — all persistence is handled at the API layer.
 - **Phase State Machine**: Turn phases advance in strict server-enforced order. Actions submitted out of phase are rejected with an error. The six phases per turn cycle:
 
-  | # | Phase | Actor |
-  | :- | :--- | :--- |
-  | 1 | `ONION_MOVE` | Onion player |
-  | 2 | `ONION_COMBAT` | Onion player |
-  | 3 | `DEFENDER_RECOVERY` | Engine (auto-advance disabled units) |
-  | 4 | `DEFENDER_MOVE` | Defender player |
-  | 5 | `DEFENDER_COMBAT` | Defender player |
-  | 6 | `GEV_SECOND_MOVE` | Defender player (Big Bad Wolf units only) |
+  | # | Phase | Actor | Side-effects on entry |
+  | :- | :--- | :--- | :--- |
+  | 1 | `ONION_MOVE` | Onion player | `turn++`; `ramsThisTurn = 0`; `disabled → recovering` |
+  | 2 | `ONION_COMBAT` | Onion player | — |
+  | 3 | `DEFENDER_RECOVERY` | Engine (auto) | `recovering → operational`; immediately advances to `DEFENDER_MOVE` |
+  | 4 | `DEFENDER_MOVE` | Defender player | — |
+  | 5 | `DEFENDER_COMBAT` | Defender player | — |
+  | 6 | `GEV_SECOND_MOVE` | Defender player (Big Bad Wolf only) | — |
 
-  After `GEV_SECOND_MOVE`, the engine increments `turnNumber` and cycles back to `ONION_MOVE` until a victory condition is met.
+  Phase transitions are handled by `advancePhase(state)` in `src/engine/phases.ts`. It mutates `EngineGameState` in place, applies any entry side-effects for the new phase, and auto-advances through engine-controlled phases (`DEFENDER_RECOVERY`) without waiting for player input.
+
+- **`EngineGameState`** (defined in `src/engine/units.ts`) is the engine's authoritative mutable game state. It contains:
+  - `onion: OnionUnit` — position, treads, weapon statuses
+  - `defenders: Record<string, DefenderUnit>` — all conventional units keyed by ID
+  - `currentPhase: TurnPhase` — which phase is currently active
+  - `turn: number` — current turn number (1-based; incremented on entry to `ONION_MOVE`)
+  - `ramsThisTurn: number` — how many times the Onion has rammed this turn (max 2; reset on entry to `ONION_MOVE`)
+
+- **Unit Disabled/Recovery flow**: Defender units hit by a "D" (Disabled) combat result are set to `status: 'disabled'`. The `UnitStatus` lifecycle is:
+
+  ```
+  operational  ←─────────────────────────────────────────┐
+      │                                                   │
+      │ (D result from combat)                            │
+      ▼                                                   │
+   disabled  ──[entry to ONION_MOVE]──►  recovering  ──[DEFENDER_RECOVERY]──►  operational
+  ```
+
+  This means a unit disabled during the Onion's combat phase cannot act during that same defender turn. It transitions to `recovering` at the start of the *next* turn (entry to `ONION_MOVE`), and becomes `operational` again during that turn's `DEFENDER_RECOVERY` phase — just in time for `DEFENDER_MOVE`. A unit that enters turn N already in `recovering` (disabled on turn N-1) is fully operational by turn N's `DEFENDER_MOVE`.
 
 - **API Protocol**:
   - **REST**: Slow/administrative operations — register, login, create game, join game, get game state.

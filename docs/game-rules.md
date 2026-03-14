@@ -101,15 +101,24 @@ The Onion does not follow the standard CRT for destruction. Attackers must targe
 ## Turn Structure
 
 1. **Onion Player Turn**
-   - **Movement Phase**: Move the Onion (including ramming).
-   - **Combat Phase**: Fire Onion weapons.
+   - **Movement Phase** (`ONION_MOVE`): Move the Onion (including ramming). On entry: turn counter increments, ram count resets, and any `disabled` units transition to `recovering`.
+   - **Combat Phase** (`ONION_COMBAT`): Fire Onion weapons. Combat "D" results set defender units to `disabled`.
 2. **Defender Player Turn**
-   - **Recovery Phase**: "Disabled" units from previous turn return to normal.
-   - **Movement Phase**: Move all conventional units.
-   - **Combat Phase**: Fire all conventional units.
-   - **Big Bad Wolf Second Move Phase**: Big Bad Wolves move their remaining 3 hexes.
+   - **Recovery Phase** (`DEFENDER_RECOVERY`): Engine-controlled; automatically processed. Units in `recovering` state return to `operational`. Units newly set to `disabled` this turn are **not** affected — they must wait until the next turn's `ONION_MOVE` entry to transition to `recovering`.
+   - **Movement Phase** (`DEFENDER_MOVE`): Move all conventional units. Only `operational` units may move.
+   - **Combat Phase** (`DEFENDER_COMBAT`): Fire all conventional units. Only `operational` units may fire.
+   - **Big Bad Wolf Second Move Phase** (`GEV_SECOND_MOVE`): Big Bad Wolves move their remaining 3 hexes.
 
-For a practical demonstration of these rules in action, see the [Example Turn](example-turn.md).
+### Unit Status Lifecycle
+
+| Status | Meaning | Transitions |
+| :--- | :--- | :--- |
+| `operational` | Active; can move and fire | → `disabled` on "D" combat result; → `destroyed` on "X" combat result |
+| `disabled` | Knocked out this turn | → `recovering` on entry to `ONION_MOVE` (start of next turn) |
+| `recovering` | Was disabled last turn | → `operational` during `DEFENDER_RECOVERY` |
+| `destroyed` | Permanently removed | No further transitions |
+
+A unit disabled on turn N is recovered and operational by turn N+1's `DEFENDER_MOVE`.
 
 ## Victory Conditions
 
