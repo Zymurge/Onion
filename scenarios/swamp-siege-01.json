@@ -1,0 +1,51 @@
+{
+  "id": "swamp-siege-01",
+  "name": "The Siege of Shrek's Swamp",
+  "description": "The Onion must cross the ridgeline and destroy the Castle while defenders hold the line.",
+  "map": {
+    "width": 15,
+    "height": 22,
+    "hexes": [
+      { "q": 1, "r": 0, "t": 1 },
+      { "q": 2, "r": 0, "t": 1 },
+      { "q": 3, "r": 1, "t": 1 },
+      { "q": 4, "r": 1, "t": 1 },
+      { "q": 5, "r": 2, "t": 1 },
+      { "q": 3, "r": 8, "t": 2 },
+      { "q": 4, "r": 8, "t": 2 },
+      { "q": 7, "r": 5, "t": 3 }
+    ]
+  },
+  "initialState": {
+    "onion": {
+      "type": "MkIII",
+      "position": { "q": 0, "r": 10 },
+      "treads": 45,
+      "missiles": 2,
+      "batteries": {
+        "main": 1,
+        "secondary": 4,
+        "ap": 8
+      }
+    },
+    "defenders": [
+      { "id": "wolf-1",  "type": "BigBadWolf", "position": { "q": 5,  "r": 6 }, "status": "operational" },
+      { "id": "wolf-2",  "type": "BigBadWolf", "position": { "q": 6,  "r": 6 }, "status": "operational" },
+      { "id": "puss-1",  "type": "Puss",       "position": { "q": 6,  "r": 4 }, "status": "operational" },
+      { "id": "witch-1", "type": "Witch",       "position": { "q": 7,  "r": 3 }, "status": "operational" },
+      { "id": "pigs-1",  "type": "LittlePigs", "position": { "q": 4,  "r": 7 }, "squads": 3, "status": "operational" },
+      { "id": "pigs-2",  "type": "LittlePigs", "position": { "q": 5,  "r": 7 }, "squads": 2, "status": "operational" }
+    ]
+  },
+  "victoryConditions": {
+    "onion": {
+      "targetHex": { "q": 7, "r": 5 },
+      "description": "Onion wins by moving onto or attacking the Castle hex."
+    },
+    "defender": {
+      "condition": "onionImmobilized",
+      "description": "Defender wins when the Onion's tread points reach 0 (MA 0). A stationary Onion cannot reach the Castle."
+    },
+    "maxTurns": 20
+  }
+}

@@ -1,0 +1,32 @@
+services:
+  engine:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://onion:onionpass@db:5432/onion
+      JWT_SECRET: changeme-dev-only
+      PORT: 3000
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: onion
+      POSTGRES_PASSWORD: onionpass
+      POSTGRES_DB: onion
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./src/db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onion"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
