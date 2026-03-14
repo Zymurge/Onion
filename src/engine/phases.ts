@@ -42,4 +42,18 @@ export function checkVictoryConditions(
   state: EngineGameState,
   turnNumber: number,
   maxTurns: number
-): 'onion' | 'defender' | null
+): 'onion' | 'defender' | null {
+  // Onion wins by destroying the Castle
+  const castle = Object.values(state.defenders).find(unit => unit.type === 'Castle')
+  if (castle && castle.status === 'destroyed') {
+    return 'onion'
+  }
+
+  // Defender wins by immobilizing the Onion (treads = 0) or destroying it
+  if (state.onion.treads <= 0 || state.onion.status === 'destroyed') {
+    return 'defender'
+  }
+
+  // Game continues
+  return null
+}

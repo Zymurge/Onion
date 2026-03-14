@@ -1,5 +1,31 @@
 import { describe, it, expect } from 'vitest'
-import { TURN_PHASES, nextPhase, phaseActor } from './phases.js'
+import { TURN_PHASES, nextPhase, phaseActor, checkVictoryConditions } from './phases.js'
+import type { EngineGameState, DefenderUnit, OnionUnit } from './units.js'
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function makeUnit(overrides: Partial<DefenderUnit> = {}): DefenderUnit {
+  return {
+    id: 'u1',
+    type: 'Puss',
+    position: { q: 0, r: 0 },
+    status: 'operational',
+    weapons: [],
+    ...overrides,
+  } as DefenderUnit
+}
+
+function makeOnion(overrides: Partial<OnionUnit> = {}): OnionUnit {
+  return {
+    id: 'onion',
+    type: 'TheOnion',
+    position: { q: 0, r: 0 },
+    status: 'operational',
+    treads: 45,
+    weapons: [],
+    ...overrides,
+  }
+}
 
 describe('TURN_PHASES', () => {
   it('contains all 6 phases in order', () => {
@@ -37,5 +63,65 @@ describe('phaseActor', () => {
     expect(phaseActor('DEFENDER_MOVE')).toBe('defender')
     expect(phaseActor('DEFENDER_COMBAT')).toBe('defender')
     expect(phaseActor('GEV_SECOND_MOVE')).toBe('defender')
+  })
+})
+
+describe('checkVictoryConditions', () => {
+  function makeState(overrides: Partial<EngineGameState> = {}): EngineGameState {
+    return {
+      onion: makeOnion(),
+      defenders: {
+        castle: makeUnit({ type: 'Castle', id: 'castle' }),
+        puss: makeUnit({ type: 'Puss', id: 'puss' }),
+      },
+      ...overrides,
+    }
+  }
+
+  it('returns null when game continues', () => {
+    const state = makeState()
+    expect(checkVictoryConditions(state, 1, 10)).toBe(null)
+  })
+
+  it('returns onion when Castle is destroyed', () => {
+    const state = makeState({
+      defenders: {
+        castle: makeUnit({ type: 'Castle', id: 'castle', status: 'destroyed' }),
+        puss: makeUnit({ type: 'Puss', id: 'puss' }),
+      },
+    })
+    expect(checkVictoryConditions(state, 1, 10)).toBe('onion')
+  })
+
+  it('returns defender when Onion treads are 0', () => {
+    const state = makeState({
+      onion: makeOnion({ treads: 0 }),
+    })
+    expect(checkVictoryConditions(state, 1, 10)).toBe('defender')
+  })
+
+  it('returns defender when Onion is destroyed', () => {
+    const state = makeState({
+      onion: makeOnion({ status: 'destroyed' }),
+    })
+    expect(checkVictoryConditions(state, 1, 10)).toBe('defender')
+  })
+
+  it('returns defender when Onion treads are negative', () => {
+    const state = makeState({
+      onion: makeOnion({ treads: -5 }),
+    })
+    expect(checkVictoryConditions(state, 1, 10)).toBe('defender')
+  })
+
+  it('prioritizes Castle destruction over Onion immobilization', () => {
+    const state = makeState({
+      onion: makeOnion({ treads: 0 }),
+      defenders: {
+        castle: makeUnit({ type: 'Castle', id: 'castle', status: 'destroyed' }),
+        puss: makeUnit({ type: 'Puss', id: 'puss' }),
+      },
+    })
+    expect(checkVictoryConditions(state, 1, 10)).toBe('onion')
   })
 })
