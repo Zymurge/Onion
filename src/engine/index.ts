@@ -77,6 +77,7 @@ export {
   TURN_PHASES,
   nextPhase,
   phaseActor,
+  advancePhase,
   checkVictoryConditions,
 } from './phases.js'
 

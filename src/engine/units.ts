@@ -4,7 +4,7 @@
  * Defines all unit types, their weapons, special abilities, and game mechanics.
  */
 
-import type { HexPos, UnitStatus } from '../types/index.js'
+import type { HexPos, UnitStatus, TurnPhase } from '../types/index.js'
 
 /**
  * All possible unit types in the game.
@@ -127,6 +127,10 @@ export interface EngineGameState {
   defenders: Record<string, DefenderUnit>
   /** Number of rams the Onion has performed this turn (max 2) */
   ramsThisTurn: number
+  /** Current phase of play */
+  currentPhase: TurnPhase
+  /** Current turn number (1-based) */
+  turn: number
 }
 
 /**

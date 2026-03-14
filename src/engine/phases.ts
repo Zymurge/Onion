@@ -32,6 +32,40 @@ export function phaseActor(phase: TurnPhase): PhaseActor {
 }
 
 /**
+ * Advance to the next phase, running any maintenance side-effects.
+ *
+ * Maintenance applied:
+ * - Entering ONION_MOVE: increment turn, reset ramsThisTurn, disabled→recovering
+ * - Entering DEFENDER_RECOVERY: recovering→operational (engine auto-processes
+ *   this phase, so it immediately continues to DEFENDER_MOVE)
+ * @param state - Game state to mutate in place
+ */
+export function advancePhase(state: EngineGameState): void {
+  const next = nextPhase(state.currentPhase)
+
+  if (next === 'ONION_MOVE') {
+    state.turn++
+    state.ramsThisTurn = 0
+    for (const unit of Object.values(state.defenders)) {
+      if (unit.status === 'disabled') unit.status = 'recovering'
+    }
+  }
+
+  if (next === 'DEFENDER_RECOVERY') {
+    for (const unit of Object.values(state.defenders)) {
+      if (unit.status === 'recovering') unit.status = 'operational'
+    }
+  }
+
+  state.currentPhase = next
+
+  // Engine-controlled phases are auto-processed immediately
+  if (phaseActor(next) === 'engine') {
+    advancePhase(state)
+  }
+}
+
+/**
  * Check if the game has ended and determine the winner.
  * @param state - Current game state
  * @param turnNumber - Current turn number

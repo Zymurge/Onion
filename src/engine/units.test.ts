@@ -355,6 +355,8 @@ describe('EngineGameState', () => {
       onion: makeOnion(),
       defenders: {},
       ramsThisTurn: 0,
+      currentPhase: 'ONION_MOVE',
+      turn: 1,
     }
     expect(state.ramsThisTurn).toBe(0)
   })
@@ -364,6 +366,8 @@ describe('EngineGameState', () => {
       onion: makeOnion(),
       defenders: {},
       ramsThisTurn: 0,
+      currentPhase: 'ONION_MOVE',
+      turn: 1,
     }
     state.ramsThisTurn++
     expect(state.ramsThisTurn).toBe(1)
