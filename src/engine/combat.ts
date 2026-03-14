@@ -62,7 +62,9 @@ export function validateOnionWeaponFire(
   map: GameMap,
   state: EngineGameState,
   command: Extract<Command, { type: 'FIRE_WEAPON' }>
-): { valid: boolean; error?: string }
+): { valid: boolean; error?: string } {
+  throw new Error('not implemented')
+}
 
 /**
  * Validate a defender unit firing command.
@@ -77,7 +79,9 @@ export function validateUnitFire(
   state: EngineGameState,
   unitId: string,
   command: Extract<Command, { type: 'FIRE_UNIT' }>
-): { valid: boolean; error?: string }
+): { valid: boolean; error?: string } {
+  throw new Error('not implemented')
+}
 
 /**
  * Validate a combined fire command.
@@ -90,20 +94,26 @@ export function validateCombinedFire(
   map: GameMap,
   state: EngineGameState,
   command: Extract<Command, { type: 'COMBINED_FIRE' }>
-): { valid: boolean; error?: string }
+): { valid: boolean; error?: string } {
+  throw new Error('not implemented')
+}
 
 /**
  * Execute an Onion weapon firing.
  * @param map - The game map
  * @param state - Current game state
  * @param command - Fire weapon command to execute
+ * @param roll - Optional fixed die roll (1-6) for testing
  * @returns Combat result details
  */
 export function executeOnionWeaponFire(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'FIRE_WEAPON' }>
-): CombatResultDetails
+  command: Extract<Command, { type: 'FIRE_WEAPON' }>,
+  roll?: number
+): CombatResultDetails {
+  throw new Error('not implemented')
+}
 
 /**
  * Execute a defender unit firing.
@@ -111,27 +121,35 @@ export function executeOnionWeaponFire(
  * @param state - Current game state
  * @param unitId - ID of firing unit
  * @param command - Fire unit command to execute
+ * @param roll - Optional fixed die roll (1-6) for testing
  * @returns Combat result details
  */
 export function executeUnitFire(
   map: GameMap,
   state: EngineGameState,
   unitId: string,
-  command: Extract<Command, { type: 'FIRE_UNIT' }>
-): CombatResultDetails
+  command: Extract<Command, { type: 'FIRE_UNIT' }>,
+  roll?: number
+): CombatResultDetails {
+  throw new Error('not implemented')
+}
 
 /**
  * Execute a combined fire attack.
  * @param map - The game map
  * @param state - Current game state
  * @param command - Combined fire command to execute
+ * @param roll - Optional fixed die roll (1-6) for testing
  * @returns Combat result details
  */
 export function executeCombinedFire(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'COMBINED_FIRE' }>
-): CombatResultDetails
+  command: Extract<Command, { type: 'COMBINED_FIRE' }>,
+  roll?: number
+): CombatResultDetails {
+  throw new Error('not implemented')
+}
 
 /**
  * Roll on the Combat Results Table.
@@ -144,7 +162,9 @@ export function rollCombat(
   attackStrength: number,
   defenseValue: number,
   roll?: number
-): CombatRoll
+): CombatRoll {
+  throw new Error('not implemented')
+}
 
 /**
  * Calculate combat odds ratio.
@@ -152,7 +172,9 @@ export function rollCombat(
  * @param defenseValue - Target defense value
  * @returns Odds ratio as string (e.g., "1:1", "2:1", "1:3")
  */
-export function calculateOdds(attackStrength: number, defenseValue: number): string
+export function calculateOdds(attackStrength: number, defenseValue: number): string {
+  throw new Error('not implemented')
+}
 
 /**
  * Apply damage from a combat result to a target unit.
@@ -172,6 +194,8 @@ export function applyDamage(
   weaponDestroyed?: string
   unitDestroyed?: boolean
   squadsLost?: number
+} {
+  throw new Error('not implemented')
 }
 
 /**
@@ -185,5 +209,6 @@ export function getValidTargets(
   map: GameMap,
   state: EngineGameState,
   firingUnit: GameUnit
-): string[]</content>
-<parameter name="filePath">/home/zymurge/Dev/onion/src/engine/combat.ts
+): string[] {
+  throw new Error('not implemented')
+}
