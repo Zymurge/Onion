@@ -2,11 +2,14 @@ import { randomUUID } from 'node:crypto'
 import type { TurnPhase, GameState, EventEnvelope } from '../types/index.js'
 import type { DbAdapter, MatchRecord } from './adapter.js'
 
-interface UserRecord {
-  userId: string
-  passwordHash: string
-}
-
+/**
+ * In-memory implementation of DbAdapter for testing and development.
+ *
+ * Stores all data in Map objects within the instance. Each instance maintains
+ * its own isolated data store. Not suitable for production use.
+ *
+ * Thread-safe for single-threaded Node.js usage (no external concurrency).
+ */
 export class InMemoryDb implements DbAdapter {
   private users = new Map<string, UserRecord>() // keyed by username
   private matches = new Map<string, MatchRecord>() // keyed by gameId
@@ -57,4 +60,10 @@ export class InMemoryDb implements DbAdapter {
     if (!m) return []
     return m.events.filter((e) => e.seq > after)
   }
+}
+
+/** Internal user record structure for InMemoryDb */
+interface UserRecord {
+  userId: string
+  passwordHash: string
 }

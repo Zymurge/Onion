@@ -2,6 +2,14 @@ import type { Pool } from 'pg'
 import type { TurnPhase, GameState, EventEnvelope } from '../types/index.js'
 import type { DbAdapter, MatchRecord } from './adapter.js'
 
+/**
+ * PostgreSQL implementation of DbAdapter for production use.
+ *
+ * Uses the pg library to execute SQL queries against a PostgreSQL database.
+ * Assumes the database schema has been initialized via migrations.
+ *
+ * Thread-safe for concurrent requests (pg Pool handles connection pooling).
+ */
 export class PostgresDb implements DbAdapter {
   constructor(private readonly pool: Pool) {}
 

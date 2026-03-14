@@ -67,6 +67,35 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
   - **Integration tests**: Fastify route handlers against a test database (or in-memory mock). Covers REST endpoints and WebSocket event flows.
   - **E2E tests**: Deferred to Phase 2 — full CLI-to-server round trips.
 
+#### Test Organization and Execution
+
+Tests are organized into two separate Vitest projects to maintain clear separation between fast unit tests and slower integration tests:
+
+- **Unit Tests** (`pnpm test`): Run against in-memory mocks. Cover API route logic without database dependencies. Use `InMemoryDb` adapter which stores data in Map objects. Tests complete in milliseconds.
+- **Integration Tests** (`pnpm test:integration`): Run against real PostgreSQL containers via testcontainers. Verify end-to-end SQL execution and data persistence. Tests take ~6 seconds due to container startup.
+
+#### Database Abstraction Layer (DAL)
+
+The `DbAdapter` interface provides a clean separation between business logic and storage implementation:
+
+- **Interface**: `src/db/adapter.ts` defines the contract with methods for user auth, match CRUD, state updates, and event queries.
+- **In-Memory Implementation**: `InMemoryDb` for unit tests — stores data in Maps, no external dependencies.
+- **PostgreSQL Implementation**: `PostgresDb` for production — executes SQL queries against a real database.
+- **Benefits**: Easy to test (swap implementations), future-proof (can add Redis caching without changing routes), clear boundaries (routes call named operations, not raw SQL).
+
+#### Test Coverage Goals
+
+- **API Routes**: 100% coverage of success and error paths. Tests use Fastify's `app.inject()` for HTTP simulation without network.
+- **DAL Layer**: Full integration test coverage for SQL execution. Unit tests cover the in-memory implementation.
+- **Engine Logic**: Pure functions tested in isolation. No I/O in engine tests.
+- **Error Handling**: All error codes and edge cases covered, including malformed input, auth failures, and business rule violations.
+
+#### Test Execution in CI/CD
+
+- Unit tests run on every commit (fast feedback).
+- Integration tests run on PRs and main branch (slower but comprehensive).
+- Coverage reports generated for both test suites.
+
 ### Infrastructure
 
 - **Local and VM deployment**: Docker Compose. A single `docker-compose.yml` covers both local dev and production on the Debian server — one command to bring up the engine and PostgreSQL together.

@@ -9,6 +9,11 @@ import { TURN_PHASES, phaseActor } from '../engine/phases.js'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenarios')
 
+/**
+ * Load a scenario file by ID from the scenarios directory.
+ * @param id - Scenario identifier
+ * @returns Parsed scenario JSON or null if not found
+ */
 async function loadScenario(id: string): Promise<unknown | null> {
   try {
     const files = await readdir(SCENARIOS_DIR)
@@ -23,6 +28,12 @@ async function loadScenario(id: string): Promise<unknown | null> {
   return null
 }
 
+/**
+ * Extract userId from Authorization header.
+ * Currently supports stub tokens in format "Bearer stub.{userId}".
+ * @param authHeader - Authorization header value
+ * @returns userId if valid, null otherwise
+ */
 function extractUserId(authHeader: string | undefined): string | null {
   if (!authHeader?.startsWith('Bearer stub.')) return null
   const userId = authHeader.slice('Bearer stub.'.length)
@@ -39,6 +50,15 @@ const INITIAL_STATE: GameState = {
   defenders: {},
 }
 
+/**
+ * Advance the game phase and auto-process engine-only phases.
+ *
+ * Pure function that takes a snapshot of match state and returns the new state
+ * after phase advancement. Handles automatic DEFENDER_RECOVERY processing.
+ *
+ * @param match - Current match state snapshot
+ * @returns New phase, turn number, game state, and events generated
+ */
 // Advance phase and auto-process engine-only phases (DEFENDER_RECOVERY).
 // Pure function — takes a snapshot of the match, returns new state + events.
 function advancePhase(match: Pick<MatchRecord, 'phase' | 'turnNumber' | 'state' | 'events'>): {
@@ -79,9 +99,30 @@ function advancePhase(match: Pick<MatchRecord, 'phase' | 'turnNumber' | 'state' 
   return { phase, turnNumber, state, newEvents }
 }
 
+/**
+ * Game management routes for creating, joining, and playing matches.
+ *
+ * Provides REST endpoints for the full game lifecycle including match creation,
+ * player joining, state queries, action submission, and event polling.
+ * All operations require authentication via Bearer token.
+ *
+ * @param app - Fastify application instance
+ * @param opts - Plugin options containing the database adapter
+ */
 export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: FastifyInstance, opts) => {
   const { db } = opts
 
+  /**
+   * Create a new game match.
+   *
+   * Creates a match for the specified scenario and assigns the creator to the chosen role.
+   * The scenario must exist and be valid. The match starts in ONION_MOVE phase.
+   *
+   * @route POST /games
+   * @body { scenarioId: string, role: 'onion' | 'defender' }
+   * @returns { gameId: string, role: string } - 201 on success
+   * @returns { ok: false, error: string, code: string } - 400/401/404 on failure
+   */
   app.post<{ Body: { scenarioId: string; role: PlayerRole } }>('/', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
@@ -116,6 +157,16 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     return reply.status(201).send({ gameId, role })
   })
 
+  /**
+   * Join an existing game match.
+   *
+   * Adds the authenticated user to an open player slot in the specified match.
+   * Cannot join your own game or a game that's already full.
+   *
+   * @route POST /games/:id/join
+   * @returns { gameId: string, role: string } - 200 on success
+   * @returns { ok: false, error: string, code: string } - 400/401/404/409 on failure
+   */
   app.post<{ Params: { id: string } }>('/:id/join', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
@@ -143,6 +194,16 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     return reply.send({ gameId: match.gameId, role })
   })
 
+  /**
+   * Get current game state.
+   *
+   * Returns the current state of the match including players, phase, turn number,
+   * winner (if any), game state, and the sequence number of the last event.
+   *
+   * @route GET /games/:id
+   * @returns Game state object - 200 on success
+   * @returns { ok: false, error: string, code: string } - 401/404 on failure
+   */
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
@@ -162,6 +223,18 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     })
   })
 
+  /**
+   * Submit a game action.
+   *
+   * Executes the specified command if it's the player's turn and the command is valid.
+   * Returns the updated game state and any events generated by the action.
+   * Currently only END_PHASE is fully implemented; other commands return ACTION_ACKNOWLEDGED.
+   *
+   * @route POST /games/:id/actions
+   * @body Command object (see types.ts)
+   * @returns { ok: true, seq: number, events: EventEnvelope[], state: GameState } - 200 on success
+   * @returns { ok: false, error: string, code: string, currentPhase: string } - 400/401/403/409 on failure
+   */
   app.post<{ Params: { id: string }; Body: Command }>('/:id/actions', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
@@ -206,6 +279,17 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     return reply.send({ ok: true, seq, events: newEvents, state: currentState })
   })
 
+  /**
+   * Poll for game events.
+   *
+   * Returns all events with sequence numbers greater than the specified 'after' parameter.
+   * Used by clients to poll for updates. Defaults to after=0 if not specified.
+   *
+   * @route GET /games/:id/events?after={seq}
+   * @query after - Return events after this sequence number (default: 0)
+   * @returns { events: EventEnvelope[] } - 200 on success
+   * @returns { ok: false, error: string, code: string } - 401/404 on failure
+   */
   app.get<{ Params: { id: string }; Querystring: { after?: string } }>('/:id/events', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
