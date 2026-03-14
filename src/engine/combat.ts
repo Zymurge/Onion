@@ -45,10 +45,10 @@ export interface CombatResultDetails {
     targetId: string
     /** Tread damage (for Onion) */
     treads?: number
-    /** Battery destroyed (for Onion) */
-    batteryDestroyed?: OnionWeaponType
-    /** Missile destroyed (for Onion) */
-    missileDestroyed?: boolean
+    /** Weapon damaged (for individually targetable weapons) */
+    weaponDamaged?: string
+    /** Weapon destroyed (for individually targetable weapons) */
+    weaponDestroyed?: string
     /** Unit destroyed (for defenders) */
     unitDestroyed?: boolean
     /** Squads lost (for infantry) */
@@ -166,18 +166,18 @@ export function calculateOdds(attackStrength: number, defenseValue: number): str
  * @param target - Unit to damage
  * @param result - Combat result
  * @param attackStrength - Attack strength used
- * @param weaponType - Weapon type (for Onion subsystem targeting)
+ * @param weaponId - Weapon ID that was used to attack (for subsystem targeting)
  * @returns Damage details
  */
 export function applyDamage(
   target: GameUnit,
   result: CombatResult,
   attackStrength: number,
-  weaponType?: OnionWeaponType
+  weaponId?: string
 ): {
   treads?: number
-  batteryDestroyed?: OnionWeaponType
-  missileDestroyed?: boolean
+  weaponDamaged?: string
+  weaponDestroyed?: string
   unitDestroyed?: boolean
   squadsLost?: number
 }
