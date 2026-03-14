@@ -45,7 +45,6 @@ export interface EventEnvelope {
 
 export type Command =
   | { type: 'MOVE_ONION'; to: HexPos }
-  | { type: 'RAM_UNIT'; targetId: string }
   | { type: 'FIRE_WEAPON'; weaponId: string; targetId: string }
   | { type: 'MOVE_UNIT'; unitId: string; to: HexPos }
   | { type: 'FIRE_UNIT'; unitId: string; targetId: string }

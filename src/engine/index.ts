@@ -70,6 +70,16 @@ export {
   getRammedUnits,
 } from './movement.js'
 
+// Turn phases and victory conditions
+export type { PhaseActor } from './phases.js'
+
+export {
+  TURN_PHASES,
+  nextPhase,
+  phaseActor,
+  checkVictoryConditions,
+} from './phases.js'
+
 // Combat resolution system
 export type {
   CombatResult,
@@ -87,7 +97,6 @@ export {
   rollCombat,
   calculateOdds,
   applyDamage,
-  checkVictoryConditions,
   getValidTargets,
 } from './combat.js'</content>
 <parameter name="filePath">/home/zymurge/Dev/onion/src/engine/index.ts

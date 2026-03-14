@@ -175,19 +175,6 @@ export function applyDamage(
 }
 
 /**
- * Check if the game has ended and determine the winner.
- * @param state - Current game state
- * @param turnNumber - Current turn number
- * @param maxTurns - Maximum allowed turns
- * @returns Winner ('onion', 'defender', or null if game continues)
- */
-export function checkVictoryConditions(
-  state: EngineGameState,
-  turnNumber: number,
-  maxTurns: number
-): 'onion' | 'defender' | null
-
-/**
  * Get all valid targets for a firing unit.
  * @param map - The game map
  * @param state - Current game state

@@ -1,4 +1,5 @@
 import type { TurnPhase } from '../types/index.js'
+import type { EngineGameState } from './units.js'
 
 export const TURN_PHASES: readonly TurnPhase[] = [
   'ONION_MOVE',
@@ -29,3 +30,16 @@ export function phaseActor(phase: TurnPhase): PhaseActor {
       return 'defender'
   }
 }
+
+/**
+ * Check if the game has ended and determine the winner.
+ * @param state - Current game state
+ * @param turnNumber - Current turn number
+ * @param maxTurns - Maximum allowed turns
+ * @returns Winner ('onion', 'defender', or null if game continues)
+ */
+export function checkVictoryConditions(
+  state: EngineGameState,
+  turnNumber: number,
+  maxTurns: number
+): 'onion' | 'defender' | null
