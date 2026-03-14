@@ -26,11 +26,6 @@ export type UnitType =
 export type WeaponStatus = 'ready' | 'destroyed'
 
 /**
- * Status that a unit can have.
- */
-export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
-
-/**
  * A weapon system that a unit can use to attack.
  */
 export interface Weapon {
@@ -109,8 +104,6 @@ export interface OnionUnit extends GameUnit {
   type: 'TheOnion'
   /** Current tread points (0-45) */
   treads: number
-  /** Remaining missiles (handled by weapon status) */
-  // missiles removed - use weapon status instead
 }
 
 /**
@@ -118,6 +111,16 @@ export interface OnionUnit extends GameUnit {
  */
 export interface DefenderUnit extends GameUnit {
   type: Exclude<UnitType, 'TheOnion'>
+}
+
+/**
+ * Full game state as used by the engine.
+ */
+export interface EngineGameState {
+  /** The Onion super-unit */
+  onion: OnionUnit
+  /** All defender units, keyed by unit ID */
+  defenders: Record<string, DefenderUnit>
 }
 
 /**
@@ -171,11 +174,11 @@ export function getUnitDefense(unit: GameUnit, inCover: boolean): number
 export function getWeaponDefense(unit: GameUnit, weaponId: string): number
 
 /**
- * Get all operational weapons for a unit.
+ * Get all ready (non-destroyed) weapons for a unit.
  * @param unit - Unit to check
- * @returns Array of operational weapons
+ * @returns Array of ready weapons
  */
-export function getOperationalWeapons(unit: GameUnit): Weapon[]
+export function getReadyWeapons(unit: GameUnit): Weapon[]
 
 /**
  * Check if a unit is destroyed (has no remaining combat capability).

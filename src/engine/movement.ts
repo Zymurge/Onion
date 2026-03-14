@@ -5,9 +5,9 @@
  * movement mechanics like Onion ramming and GEV second moves.
  */
 
-import type { HexPos, GameState, Command } from '../types/index.js'
+import type { HexPos, PlayerRole, Command } from '../types/index.js'
 import type { GameMap } from './map.js'
-import type { GameUnit, OnionUnit, DefenderUnit } from './units.js'
+import type { GameUnit, DefenderUnit, EngineGameState } from './units.js'
 
 /**
  * Result of validating a movement command.
@@ -50,7 +50,7 @@ export interface MovementResult {
  */
 export function validateOnionMovement(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   command: Extract<Command, { type: 'MOVE_ONION' }>
 ): MovementValidation
 
@@ -64,7 +64,7 @@ export function validateOnionMovement(
  */
 export function validateUnitMovement(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   unitId: string,
   command: Extract<Command, { type: 'MOVE_UNIT' }>
 ): MovementValidation
@@ -78,7 +78,7 @@ export function validateUnitMovement(
  */
 export function executeOnionMovement(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   command: Extract<Command, { type: 'MOVE_ONION' }>
 ): MovementResult
 
@@ -92,7 +92,7 @@ export function executeOnionMovement(
  */
 export function executeUnitMovement(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   unitId: string,
   command: Extract<Command, { type: 'MOVE_UNIT' }>
 ): MovementResult
@@ -105,24 +105,22 @@ export function executeUnitMovement(
  * @returns The occupying unit, or null if empty
  */
 export function getOccupyingUnit(
-  state: GameState,
+  state: EngineGameState,
   pos: HexPos,
   excludeUnitId?: string
 ): GameUnit | null
 
 /**
- * Check if movement between positions is blocked.
+ * Check if a unit can enter a hex.
  * @param map - The game map
  * @param state - Current game state
- * @param from - Starting position
  * @param to - Target position
  * @param excludeUnitId - Unit ID to exclude from blocking checks
- * @returns True if movement is blocked
+ * @returns True if the hex cannot be entered
  */
 export function isMovementBlocked(
   map: GameMap,
-  state: GameState,
-  from: HexPos,
+  state: EngineGameState,
   to: HexPos,
   excludeUnitId?: string
 ): boolean
@@ -130,9 +128,10 @@ export function isMovementBlocked(
 /**
  * Calculate ramming damage and results.
  * @param rammedUnit - Unit being rammed
+ * @param roll - Optional fixed die roll for testing (1-6); rolls 1d6 if omitted
  * @returns Object with tread cost and destruction result
  */
-export function calculateRamming(rammedUnit: DefenderUnit): {
+export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
   treadCost: number
   destroyed: boolean
 }
@@ -141,11 +140,13 @@ export function calculateRamming(rammedUnit: DefenderUnit): {
  * Check if a unit can move through another unit's hex.
  * @param movingUnit - Unit attempting to move
  * @param occupyingUnit - Unit occupying the target hex
+ * @param movingRole - The player role of the moving unit
  * @returns True if movement is allowed
  */
 export function canMoveThrough(
   movingUnit: GameUnit,
-  occupyingUnit: GameUnit
+  occupyingUnit: GameUnit,
+  movingRole: PlayerRole
 ): boolean
 
 /**
@@ -157,7 +158,7 @@ export function canMoveThrough(
  */
 export function getRammedUnits(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   path: HexPos[]
 ): string[]</content>
 <parameter name="filePath">/home/zymurge/Dev/onion/src/engine/movement.ts

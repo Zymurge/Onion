@@ -28,12 +28,14 @@ export {
 // Unit definitions and capabilities
 export type {
   UnitType,
-  UnitStats,
+  WeaponStatus,
+  Weapon,
   UnitAbilities,
   UnitDefinition,
   GameUnit,
   OnionUnit,
   DefenderUnit,
+  EngineGameState,
 } from './units.js'
 
 export {
@@ -42,8 +44,12 @@ export {
   onionMovementAllowance,
   canSecondMove,
   isImmobile,
-  getEffectiveDefense,
+  getUnitDefense,
+  getWeaponDefense,
+  getReadyWeapons,
   isDestroyed,
+  canTargetWeapon,
+  destroyWeapon,
 } from './units.js'
 
 // Movement validation and execution
@@ -67,7 +73,6 @@ export {
 // Combat resolution system
 export type {
   CombatResult,
-  OnionWeaponType,
   CombatRoll,
   CombatResultDetails,
 } from './combat.js'

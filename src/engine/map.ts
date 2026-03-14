@@ -15,11 +15,7 @@ export type TerrainType = 'clear' | 'ridgeline' | 'crater'
 /**
  * A hex on the game map with position and terrain.
  */
-export interface Hex {
-  /** Axial coordinate q (column) */
-  q: number
-  /** Axial coordinate r (row) */
-  r: number
+export interface Hex extends HexPos {
   /** Terrain type of this hex */
   terrain: TerrainType
 }
@@ -44,8 +40,6 @@ export interface LineOfSightResult {
   hasLOS: boolean
   /** Distance in hexes between the positions */
   distance: number
-  /** Whether the target is blocked by terrain */
-  blocked: boolean
 }
 
 /**
@@ -130,7 +124,7 @@ export function findPath(
  * Calculate movement cost to enter a hex.
  * @param hex - The hex being entered
  * @param canCrossRidgelines - Whether the unit can cross ridgelines
- * @returns Movement cost (0 for impassable)
+ * @returns Movement cost in points, or null if impassable
  */
-export function movementCost(hex: Hex, canCrossRidgelines: boolean): number</content>
+export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | null</content>
 <parameter name="filePath">/home/zymurge/Dev/onion/src/engine/map.ts

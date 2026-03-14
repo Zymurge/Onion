@@ -5,19 +5,14 @@
  * special combat rules, and victory condition checking.
  */
 
-import type { HexPos, GameState, Command } from '../types/index.js'
+import type { Command } from '../types/index.js'
 import type { GameMap } from './map.js'
-import type { GameUnit, OnionUnit, DefenderUnit } from './units.js'
+import type { GameUnit, EngineGameState } from './units.js'
 
 /**
  * Combat Results Table outcomes.
  */
 export type CombatResult = 'NE' | 'D' | 'X'
-
-/**
- * Weapon system types on the Onion.
- */
-export type OnionWeaponType = 'main' | 'secondary' | 'ap' | 'missile'
 
 /**
  * Result of rolling on the Combat Results Table.
@@ -65,7 +60,7 @@ export interface CombatResultDetails {
  */
 export function validateOnionWeaponFire(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   command: Extract<Command, { type: 'FIRE_WEAPON' }>
 ): { valid: boolean; error?: string }
 
@@ -79,7 +74,7 @@ export function validateOnionWeaponFire(
  */
 export function validateUnitFire(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   unitId: string,
   command: Extract<Command, { type: 'FIRE_UNIT' }>
 ): { valid: boolean; error?: string }
@@ -93,7 +88,7 @@ export function validateUnitFire(
  */
 export function validateCombinedFire(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   command: Extract<Command, { type: 'COMBINED_FIRE' }>
 ): { valid: boolean; error?: string }
 
@@ -106,7 +101,7 @@ export function validateCombinedFire(
  */
 export function executeOnionWeaponFire(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   command: Extract<Command, { type: 'FIRE_WEAPON' }>
 ): CombatResultDetails
 
@@ -120,7 +115,7 @@ export function executeOnionWeaponFire(
  */
 export function executeUnitFire(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   unitId: string,
   command: Extract<Command, { type: 'FIRE_UNIT' }>
 ): CombatResultDetails
@@ -134,7 +129,7 @@ export function executeUnitFire(
  */
 export function executeCombinedFire(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   command: Extract<Command, { type: 'COMBINED_FIRE' }>
 ): CombatResultDetails
 
@@ -187,7 +182,7 @@ export function applyDamage(
  * @returns Winner ('onion', 'defender', or null if game continues)
  */
 export function checkVictoryConditions(
-  state: GameState,
+  state: EngineGameState,
   turnNumber: number,
   maxTurns: number
 ): 'onion' | 'defender' | null
@@ -201,7 +196,7 @@ export function checkVictoryConditions(
  */
 export function getValidTargets(
   map: GameMap,
-  state: GameState,
+  state: EngineGameState,
   firingUnit: GameUnit
 ): string[]</content>
 <parameter name="filePath">/home/zymurge/Dev/onion/src/engine/combat.ts
