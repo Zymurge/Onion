@@ -1,0 +1,49 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "Onion Game Engine",
+  "entryPoints": [
+    "src/index.ts",
+    "src/app.ts",
+    "src/db/adapter.ts",
+    "src/db/memory.ts",
+    "src/db/postgres.ts",
+    "src/api/auth.ts",
+    "src/api/games.ts",
+    "src/api/scenarios.ts",
+    "src/engine/phases.ts",
+    "src/types/index.ts"
+  ],
+  "out": "docs/api",
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.integration.test.ts",
+    "src/db/client.ts",
+    "src/db/migrations/**"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "includeVersion": true,
+  "readme": "docs/project-overview.md",
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "API",
+    "Database",
+    "Engine",
+    "Types",
+    "*"
+  ],
+  "groupOrder": [
+    "Classes",
+    "Interfaces",
+    "Functions",
+    "Variables",
+    "Type Aliases",
+    "*"
+  ],
+  "sort": ["source-order"],
+  "navigationLinks": {
+    "GitHub": "https://github.com/Zymurge/Onion",
+    "Project Overview": "docs/project-overview.md"
+  }
+}
