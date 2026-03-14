@@ -4,4 +4,3 @@ dist/
 coverage/
 *.tsbuildinfo
 .pnpm-store/
-docs/api/
