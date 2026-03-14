@@ -99,5 +99,4 @@ export {
   calculateOdds,
   applyDamage,
   getValidTargets,
-} from './combat.js'</content>
-<parameter name="filePath">/home/zymurge/Dev/onion/src/engine/index.ts
+} from './combat.js'
