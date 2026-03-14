@@ -2,9 +2,15 @@
 
 ## Project Description
 
-This project aims to create a web-based digital implementation of the classic board game Ogre (now renamed Onion) designed by Steve Jackson. The game will be developed as an open-source project, utilizing publicly available information about the game's rules, mechanics, and components. Any elements that are copyrighted or proprietary will be adapted or replaced to ensure the project remains compliant with open-source licensing and intellectual property laws.
+This project aims to create a web-based digital implementation of the classic board game Ogre (now renamed Onion),
+as designed by Steve Jackson. The game will be developed as an open-source project using publicly available
+information about the game's rules, mechanics, and components. Any elements that are copyrighted or
+proprietary will be adapted or replaced to ensure the project remains compliant with open-source licensing and
+intellectual property laws.
 
-Onion is an asymmetrical tactical wargame set in a near-future sci-fi setting where one player controls a massive cybernetic tank called the "Onion" against another player's defensive forces consisting of conventional military units like tanks, infantry, and artillery.
+Onion is an asymmetrical tactical wargame set in a near-future sci-fi setting where one player controls a massive
+cybernetic tank called the "Onion" against another player's defensive force of conventional military units such as
+tanks, infantry, and artillery.
 
 ## Implementation Phases
 
@@ -45,7 +51,7 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 
 - **Unit Disabled/Recovery flow**: Defender units hit by a "D" (Disabled) combat result are set to `status: 'disabled'`. The `UnitStatus` lifecycle is:
 
-  ```
+  ```text
   operational  ←─────────────────────────────────────────┐
       │                                                   │
       │ (D result from combat)                            │
@@ -134,7 +140,7 @@ Core rules are derived from the public domain portions of the [OGRE Designer's E
   - An API interface to the game engine service to allow multiple client types to play.
   - An AI engine that can play either side, via the API.
 
-_Note: The initial implementation will focus on the Mark III scenario. Some scenario-configurable concepts may initially be hard-coded._
+*Note: The initial implementation will focus on the Mark III scenario. Some scenario-configurable concepts may initially be hard-coded.*
 
 Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md). For a sample turn walkthrough, check out [example-turn.md](example-turn.md).
 
