@@ -1,5 +1,8 @@
 {
     "chat.tools.terminal.autoApprove": {
-        "pnpm": true
-    }
+        "pnpm": true,
+        "git commit": true
+    },
+    "vitest.packageManager": "pnpm",
+    "vitest.configSearchPatternExclude": "**/node_modules/**"
 }
