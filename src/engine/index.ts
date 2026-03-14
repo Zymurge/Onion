@@ -1,0 +1,88 @@
+/**
+ * Onion Game Engine
+ *
+ * Core game logic for the Shrek-themed OGRE reimplementation.
+ * Provides movement, combat, and victory condition systems.
+ */
+
+// Map and terrain management
+export type {
+  TerrainType,
+  Hex,
+  GameMap,
+  LineOfSightResult,
+  PathResult,
+} from './map.js'
+
+export {
+  createMap,
+  getHex,
+  isInBounds,
+  hexDistance,
+  getNeighbors,
+  hasLineOfSight,
+  findPath,
+  movementCost,
+} from './map.js'
+
+// Unit definitions and capabilities
+export type {
+  UnitType,
+  UnitStats,
+  UnitAbilities,
+  UnitDefinition,
+  GameUnit,
+  OnionUnit,
+  DefenderUnit,
+} from './units.js'
+
+export {
+  getUnitDefinition,
+  getAllUnitDefinitions,
+  onionMovementAllowance,
+  canSecondMove,
+  isImmobile,
+  getEffectiveDefense,
+  isDestroyed,
+} from './units.js'
+
+// Movement validation and execution
+export type {
+  MovementValidation,
+  MovementResult,
+} from './movement.js'
+
+export {
+  validateOnionMovement,
+  validateUnitMovement,
+  executeOnionMovement,
+  executeUnitMovement,
+  getOccupyingUnit,
+  isMovementBlocked,
+  calculateRamming,
+  canMoveThrough,
+  getRammedUnits,
+} from './movement.js'
+
+// Combat resolution system
+export type {
+  CombatResult,
+  OnionWeaponType,
+  CombatRoll,
+  CombatResultDetails,
+} from './combat.js'
+
+export {
+  validateOnionWeaponFire,
+  validateUnitFire,
+  validateCombinedFire,
+  executeOnionWeaponFire,
+  executeUnitFire,
+  executeCombinedFire,
+  rollCombat,
+  calculateOdds,
+  applyDamage,
+  checkVictoryConditions,
+  getValidTargets,
+} from './combat.js'</content>
+<parameter name="filePath">/home/zymurge/Dev/onion/src/engine/index.ts
