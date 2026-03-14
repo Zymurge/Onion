@@ -52,6 +52,26 @@ describe('POST /auth/register', () => {
     })
     expect(res.statusCode).toBe(400)
   })
+
+  it('returns 400 when username is missing', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/register',
+      payload: { password: 'swamp1234' },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('returns 400 when password is missing', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/register',
+      payload: { username: 'shrek' },
+    })
+    expect(res.statusCode).toBe(400)
+  })
 })
 
 describe('POST /auth/login', () => {
@@ -111,5 +131,25 @@ describe('POST /auth/login', () => {
       payload: { username: 'farquaad', password: 'lordly1234' },
     })
     expect(res.statusCode).toBe(401)
+  })
+
+  it('returns 400 when username is missing', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { password: 'swamp1234' },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('returns 400 when password is missing', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { username: 'shrek' },
+    })
+    expect(res.statusCode).toBe(400)
   })
 })

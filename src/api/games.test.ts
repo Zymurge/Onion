@@ -85,7 +85,7 @@ describe('POST /games', () => {
     expect(res.statusCode).toBe(401)
   })
 
-  it('returns 400 for invalid role', async () => {
+  it('returns 400 with specific message for invalid role', async () => {
     const app = buildApp()
     const { token } = await register(app, 'shrek')
     const res = await app.inject({
@@ -95,7 +95,38 @@ describe('POST /games', () => {
       payload: { scenarioId: 'swamp-siege-01', role: 'wizard' },
     })
     expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('INVALID_INPUT')
+    expect(res.json().error).toBe('role must be "onion" or "defender"')
   })
+
+  it('returns 400 with specific message for missing scenarioId', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { role: 'onion' },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('INVALID_INPUT')
+    expect(res.json().error).toBe('scenarioId is required')
+  })
+
+    it('returns 404 for unknown scenarioId', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { scenarioId: 'invalid-scenario', role: 'onion' },
+    })
+    expect(res.statusCode).toBe(404)
+    expect(res.json().code).toBe('NOT_FOUND')
+    expect(res.json().error).toBe('Scenario not found')
+  })
+
 })
 
 // ── POST /games/:id/join ───────────────────────────────────────────────────────
@@ -161,6 +192,18 @@ describe('POST /games/:id/join', () => {
     })
     expect(res.statusCode).toBe(404)
   })
+
+  it('returns 401 without auth token', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const { gameId } = await createGame(app, token, 'onion')
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/join`,
+      payload: {},
+    })
+    expect(res.statusCode).toBe(401)
+  })
 })
 
 // ── GET /games/:id ─────────────────────────────────────────────────────────────
@@ -192,6 +235,17 @@ describe('GET /games/:id', () => {
     const { gameId } = await createGame(app, token, 'onion')
     const res = await app.inject({ method: 'GET', url: `/games/${gameId}` })
     expect(res.statusCode).toBe(401)
+  })
+
+  it('returns 404 for unknown gameId', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games/00000000-0000-4000-8000-000000000000',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(404)
   })
 })
 
@@ -289,6 +343,48 @@ describe('POST /games/:id/actions', () => {
     expect(res.statusCode).toBe(400)
     expect(res.json().code).toBe('WAITING_FOR_PLAYER')
   })
+
+  it('returns 401 without auth token', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const { gameId } = await createGame(app, token, 'onion')
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      payload: { type: 'END_PHASE' },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('returns 404 for unknown gameId', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games/00000000-0000-4000-8000-000000000000/actions',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { type: 'END_PHASE' },
+    })
+    expect(res.statusCode).toBe(404)
+  })
+
+  it('returns 400 with INVALID_INPUT code for missing command type', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: {},
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('INVALID_INPUT')
+    expect(res.json()).toHaveProperty('currentPhase')
+  })
 })
 
 // ── GET /games/:id/events ──────────────────────────────────────────────────────
@@ -325,6 +421,41 @@ describe('GET /games/:id/events', () => {
     const { events } = res.json<{ events: { seq: number; type: string }[] }>()
     expect(events.length).toBeGreaterThan(0)
     expect(events.every((e) => e.seq > 0)).toBe(true)
+  })
+
+  it('returns 401 without auth token', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const { gameId } = await createGame(app, token, 'onion')
+    const res = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}/events?after=0`,
+    })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('returns 404 for unknown gameId', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games/00000000-0000-4000-8000-000000000000/events?after=0',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(404)
+  })
+
+  it('defaults after=0 when param is omitted', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const { gameId } = await createGame(app, token, 'onion')
+    const res = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}/events`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().events).toEqual([])
   })
 
   it('returns only events after the given seq cursor', async () => {
