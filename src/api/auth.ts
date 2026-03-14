@@ -1,6 +1,7 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { randomUUID, scryptSync, randomBytes, timingSafeEqual } from 'node:crypto'
+import { scryptSync, randomBytes, timingSafeEqual } from 'node:crypto'
+import type { DbAdapter } from '../db/adapter.js'
 
 const CredentialsSchema = z.object({
   username: z.string().min(3).max(50),
@@ -20,19 +21,8 @@ function verifyPassword(password: string, stored: string): boolean {
   return timingSafeEqual(hash, storedBuf)
 }
 
-interface UserRecord {
-  userId: string
-  passwordHash: string
-}
-
-// In-memory stub store — replaced with DB queries in a later phase.
-// Each app instance gets its own store via plugin registration closure.
-function makeStore() {
-  return new Map<string, UserRecord>()
-}
-
-export async function authRoutes(app: FastifyInstance): Promise<void> {
-  const users = makeStore()
+export const authRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: FastifyInstance, opts) => {
+  const { db } = opts
 
   app.post('/register', async (req, reply) => {
     const parsed = CredentialsSchema.safeParse(req.body)
@@ -41,13 +31,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
     const { username, password } = parsed.data
 
-    if (users.has(username)) {
+    if ((await db.findUserByUsername(username)) !== null) {
       return reply.status(409).send({ ok: false, error: 'Username already taken', code: 'USERNAME_TAKEN' })
     }
 
-    const userId = randomUUID()
-    users.set(username, { userId, passwordHash: hashPassword(password) })
-
+    const { userId } = await db.createUser(username, hashPassword(password))
     // TODO: replace with @fastify/jwt in next phase
     const token = `stub.${userId}`
     return reply.status(201).send({ userId, token })
@@ -60,7 +48,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
     const { username, password } = parsed.data
 
-    const record = users.get(username)
+    const record = await db.findUserByUsername(username)
     if (!record || !verifyPassword(password, record.passwordHash)) {
       return reply.status(401).send({ ok: false, error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' })
     }

@@ -1,42 +1,32 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { randomUUID } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { TurnPhase, GameState, EventEnvelope, PlayerRole, Command } from '../types/index.js'
+import type { DbAdapter, MatchRecord } from '../db/adapter.js'
 import { TURN_PHASES, phaseActor } from '../engine/phases.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenarios')
 
-async function scenarioExists(id: string): Promise<boolean> {
+async function loadScenario(id: string): Promise<unknown | null> {
   try {
     const files = await readdir(SCENARIOS_DIR)
     for (const file of files.filter((f) => f.endsWith('.json'))) {
       const raw = await readFile(join(SCENARIOS_DIR, file), 'utf8')
       const s = JSON.parse(raw) as { id: string }
-      if (s.id === id) return true
+      if (s.id === id) return s
     }
   } catch {
     // directory unreadable — treat as not found
   }
-  return false
+  return null
 }
 
 function extractUserId(authHeader: string | undefined): string | null {
   if (!authHeader?.startsWith('Bearer stub.')) return null
   const userId = authHeader.slice('Bearer stub.'.length)
   return UUID_RE.test(userId) ? userId : null
-}
-
-interface Match {
-  gameId: string
-  scenarioId: string
-  players: { onion: string | null; defender: string | null }
-  phase: TurnPhase
-  turnNumber: number
-  winner: string | null
-  state: GameState
-  events: EventEnvelope[]
 }
 
 const INITIAL_STATE: GameState = {
@@ -50,40 +40,47 @@ const INITIAL_STATE: GameState = {
 }
 
 // Advance phase and auto-process engine-only phases (DEFENDER_RECOVERY).
-// Returns all events generated. Does NOT push to match.events — caller does that.
-function advancePhase(match: Match): EventEnvelope[] {
-  const events: EventEnvelope[] = []
+// Pure function — takes a snapshot of the match, returns new state + events.
+function advancePhase(match: Pick<MatchRecord, 'phase' | 'turnNumber' | 'state' | 'events'>): {
+  phase: TurnPhase
+  turnNumber: number
+  state: GameState
+  newEvents: EventEnvelope[]
+} {
+  const newEvents: EventEnvelope[] = []
   let seq = (match.events.at(-1)?.seq ?? 0) + 1
   const timestamp = new Date().toISOString()
+  const state: GameState = structuredClone(match.state)
+  let turnNumber = match.turnNumber
 
   const fromPhase = match.phase
   const nextIdx = (TURN_PHASES.indexOf(fromPhase) + 1) % TURN_PHASES.length
-  if (nextIdx === 0) match.turnNumber++
-  match.phase = TURN_PHASES[nextIdx]
-  events.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: fromPhase, to: match.phase, turnNumber: match.turnNumber })
+  if (nextIdx === 0) turnNumber++
+  let phase = TURN_PHASES[nextIdx]
+  newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: fromPhase, to: phase, turnNumber })
 
   // Auto-advance through DEFENDER_RECOVERY: process unit status transitions then continue
-  if (phaseActor(match.phase) === 'engine') {
-    for (const [unitId, unit] of Object.entries(match.state.defenders)) {
+  if (phaseActor(phase) === 'engine') {
+    for (const [unitId, unit] of Object.entries(state.defenders)) {
       const prevStatus = unit.status
       if (unit.status === 'recovering') unit.status = 'operational'
       else if (unit.status === 'disabled') unit.status = 'recovering'
       if (unit.status !== prevStatus) {
-        events.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, unitId, from: prevStatus, to: unit.status })
+        newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, unitId, from: prevStatus, to: unit.status })
       }
     }
-    const engineFrom = match.phase
+    const engineFrom = phase
     const engineNextIdx = (TURN_PHASES.indexOf(engineFrom) + 1) % TURN_PHASES.length
-    if (engineNextIdx === 0) match.turnNumber++
-    match.phase = TURN_PHASES[engineNextIdx]
-    events.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: engineFrom, to: match.phase, turnNumber: match.turnNumber })
+    if (engineNextIdx === 0) turnNumber++
+    phase = TURN_PHASES[engineNextIdx]
+    newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: engineFrom, to: phase, turnNumber })
   }
 
-  return events
+  return { phase, turnNumber, state, newEvents }
 }
 
-export async function gameRoutes(app: FastifyInstance): Promise<void> {
-  const matches = new Map<string, Match>()
+export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: FastifyInstance, opts) => {
+  const { db } = opts
 
   app.post<{ Body: { scenarioId: string; role: PlayerRole } }>('/', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
@@ -96,14 +93,16 @@ export async function gameRoutes(app: FastifyInstance): Promise<void> {
     if (role !== 'onion' && role !== 'defender') {
       return reply.status(400).send({ ok: false, error: 'role must be "onion" or "defender"', code: 'INVALID_INPUT' })
     }
-    if (!await scenarioExists(scenarioId)) {
+    const scenarioSnapshot = await loadScenario(scenarioId)
+    if (!scenarioSnapshot) {
       return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
     }
 
     const gameId = randomUUID()
-    const match: Match = {
+    await db.createMatch({
       gameId,
       scenarioId,
+      scenarioSnapshot,
       players: {
         onion: role === 'onion' ? userId : null,
         defender: role === 'defender' ? userId : null,
@@ -113,8 +112,7 @@ export async function gameRoutes(app: FastifyInstance): Promise<void> {
       winner: null,
       state: structuredClone(INITIAL_STATE),
       events: [],
-    }
-    matches.set(gameId, match)
+    })
     return reply.status(201).send({ gameId, role })
   })
 
@@ -122,7 +120,7 @@ export async function gameRoutes(app: FastifyInstance): Promise<void> {
     const userId = extractUserId(req.headers.authorization)
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-    const match = matches.get(req.params.id)
+    const match = await db.findMatch(req.params.id)
     if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
     if (match.players.onion === userId || match.players.defender === userId) {
@@ -130,16 +128,18 @@ export async function gameRoutes(app: FastifyInstance): Promise<void> {
     }
 
     let role: PlayerRole
+    const newPlayers = { ...match.players }
     if (!match.players.onion) {
-      match.players.onion = userId
+      newPlayers.onion = userId
       role = 'onion'
     } else if (!match.players.defender) {
-      match.players.defender = userId
+      newPlayers.defender = userId
       role = 'defender'
     } else {
       return reply.status(409).send({ ok: false, error: 'Game is already full', code: 'GAME_FULL' })
     }
 
+    await db.updateMatchPlayers(match.gameId, newPlayers)
     return reply.send({ gameId: match.gameId, role })
   })
 
@@ -147,7 +147,7 @@ export async function gameRoutes(app: FastifyInstance): Promise<void> {
     const userId = extractUserId(req.headers.authorization)
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-    const match = matches.get(req.params.id)
+    const match = await db.findMatch(req.params.id)
     if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
     return reply.send({
@@ -166,7 +166,7 @@ export async function gameRoutes(app: FastifyInstance): Promise<void> {
     const userId = extractUserId(req.headers.authorization)
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-    const match = matches.get(req.params.id)
+    const match = await db.findMatch(req.params.id)
     if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
     if (match.winner) {
@@ -188,28 +188,33 @@ export async function gameRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
     }
 
-    let events: EventEnvelope[]
+    let newEvents: EventEnvelope[]
+    let currentState = match.state
     if (command.type === 'END_PHASE') {
-      events = advancePhase(match)
+      const result = advancePhase(match)
+      newEvents = result.newEvents
+      currentState = result.state
+      await db.updateMatchState(match.gameId, result.phase, result.turnNumber, match.winner, result.state)
     } else {
       // Stub: acknowledge all other commands without modifying state
       const seq = (match.events.at(-1)?.seq ?? 0) + 1
-      events = [{ seq, type: 'ACTION_ACKNOWLEDGED', timestamp: new Date().toISOString(), command: command.type }]
+      newEvents = [{ seq, type: 'ACTION_ACKNOWLEDGED', timestamp: new Date().toISOString(), command: command.type }]
     }
 
-    match.events.push(...events)
-    const seq = match.events.at(-1)!.seq
-    return reply.send({ ok: true, seq, events, state: match.state })
+    await db.appendEvents(match.gameId, newEvents)
+    const seq = newEvents.at(-1)!.seq
+    return reply.send({ ok: true, seq, events: newEvents, state: currentState })
   })
 
   app.get<{ Params: { id: string }; Querystring: { after?: string } }>('/:id/events', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-    const match = matches.get(req.params.id)
+    const match = await db.findMatch(req.params.id)
     if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
     const after = Number(req.query.after ?? 0)
-    return reply.send({ events: match.events.filter((e) => e.seq > after) })
+    const events = await db.getEvents(match.gameId, after)
+    return reply.send({ events })
   })
 }
