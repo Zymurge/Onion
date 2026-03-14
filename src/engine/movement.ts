@@ -6,7 +6,9 @@
  */
 
 import type { HexPos, PlayerRole, Command } from '../types/index.js'
+import { isInBounds, findPath, movementCost } from './map.js'
 import type { GameMap } from './map.js'
+import { getUnitDefinition, onionMovementAllowance, isImmobile } from './units.js'
 import type { GameUnit, DefenderUnit, EngineGameState } from './units.js'
 
 /**
@@ -53,7 +55,23 @@ export function validateOnionMovement(
   state: EngineGameState,
   command: Extract<Command, { type: 'MOVE_ONION' }>
 ): MovementValidation {
-  throw new Error('not implemented')
+  if (state.currentPhase !== 'ONION_MOVE') {
+    return { valid: false, error: 'Not the Onion movement phase' }
+  }
+  const ma = onionMovementAllowance(state.onion.treads)
+  if (ma === 0) {
+    return { valid: false, error: 'Onion has no movement allowance (0 treads)' }
+  }
+  const canCross = true // Onion can cross ridgelines
+  const pathResult = findPath(map, state.onion.position, command.to, ma, canCross)
+  if (!pathResult.found) {
+    return { valid: false, error: 'No valid path to destination within movement allowance' }
+  }
+  const rammed = getRammedUnits(map, state, pathResult.path)
+  if (state.ramsThisTurn + rammed.length > 2) {
+    return { valid: false, error: `Would exceed ram limit (${state.ramsThisTurn} used, ${rammed.length} on path)` }
+  }
+  return { valid: true, path: pathResult.path, cost: pathResult.cost, rammedUnits: rammed }
 }
 
 /**
@@ -70,7 +88,35 @@ export function validateUnitMovement(
   unitId: string,
   command: Extract<Command, { type: 'MOVE_UNIT' }>
 ): MovementValidation {
-  throw new Error('not implemented')
+  const validPhases = ['DEFENDER_MOVE', 'GEV_SECOND_MOVE']
+  if (!validPhases.includes(state.currentPhase)) {
+    return { valid: false, error: 'Not a defender movement phase' }
+  }
+  const unit = state.defenders[unitId]
+  if (!unit) {
+    return { valid: false, error: `Unit '${unitId}' not found` }
+  }
+  if (unit.status !== 'operational') {
+    return { valid: false, error: 'Unit is not operational' }
+  }
+  if (isImmobile(unit)) {
+    return { valid: false, error: 'Unit is immobile' }
+  }
+  const def = getUnitDefinition(unit.type)
+  if (state.currentPhase === 'GEV_SECOND_MOVE') {
+    if (!def.abilities.secondMove) {
+      return { valid: false, error: 'Unit cannot perform a second move' }
+    }
+  }
+  const ma = state.currentPhase === 'GEV_SECOND_MOVE'
+    ? (def.abilities.secondMoveAllowance ?? 0)
+    : def.movement
+  const canCross = def.abilities.canCrossRidgelines ?? false
+  const pathResult = findPath(map, unit.position, command.to, ma, canCross)
+  if (!pathResult.found) {
+    return { valid: false, error: 'No valid path to destination within movement allowance' }
+  }
+  return { valid: true, path: pathResult.path, cost: pathResult.cost }
 }
 
 /**
@@ -85,7 +131,27 @@ export function executeOnionMovement(
   state: EngineGameState,
   command: Extract<Command, { type: 'MOVE_ONION' }>
 ): MovementResult {
-  throw new Error('not implemented')
+  const ma = onionMovementAllowance(state.onion.treads)
+  const pathResult = findPath(map, state.onion.position, command.to, ma, true)
+  if (!pathResult.found) {
+    return { success: false, error: 'No valid path to destination' }
+  }
+  const rammed = getRammedUnits(map, state, pathResult.path)
+  let treadDamage = 0
+  const destroyedUnits: string[] = []
+  for (const id of rammed) {
+    const unit = state.defenders[id]
+    const { treadCost, destroyed } = calculateRamming(unit)
+    treadDamage += treadCost
+    if (destroyed) {
+      unit.status = 'destroyed'
+      destroyedUnits.push(id)
+    }
+  }
+  state.onion.treads = Math.max(0, state.onion.treads - treadDamage)
+  state.ramsThisTurn += rammed.length
+  state.onion.position = command.to
+  return { success: true, newPosition: command.to, treadDamage, destroyedUnits }
 }
 
 /**
@@ -102,7 +168,12 @@ export function executeUnitMovement(
   unitId: string,
   command: Extract<Command, { type: 'MOVE_UNIT' }>
 ): MovementResult {
-  throw new Error('not implemented')
+  const unit = state.defenders[unitId]
+  if (!unit) {
+    return { success: false, error: `Unit '${unitId}' not found` }
+  }
+  unit.position = command.to
+  return { success: true, newPosition: command.to }
 }
 
 /**
@@ -117,7 +188,17 @@ export function getOccupyingUnit(
   pos: HexPos,
   excludeUnitId?: string
 ): GameUnit | null {
-  throw new Error('not implemented')
+  if (state.onion.id !== excludeUnitId &&
+      state.onion.position.q === pos.q && state.onion.position.r === pos.r) {
+    return state.onion
+  }
+  for (const unit of Object.values(state.defenders)) {
+    if (unit.id !== excludeUnitId &&
+        unit.position.q === pos.q && unit.position.r === pos.r) {
+      return unit
+    }
+  }
+  return null
 }
 
 /**
@@ -134,7 +215,10 @@ export function isMovementBlocked(
   to: HexPos,
   excludeUnitId?: string
 ): boolean {
-  throw new Error('not implemented')
+  if (!isInBounds(map, to)) return true
+  const hex = map.hexes[`${to.q},${to.r}`]
+  if (!hex || hex.terrain === 'crater') return true
+  return getOccupyingUnit(state, to, excludeUnitId) !== null
 }
 
 /**
@@ -147,7 +231,17 @@ export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
   treadCost: number
   destroyed: boolean
 } {
-  throw new Error('not implemented')
+  const def = getUnitDefinition(rammedUnit.type)
+  let treadCost: number
+  if (rammedUnit.type === 'LittlePigs') {
+    treadCost = 0
+  } else if (def.abilities.isArmor && rammedUnit.type === 'Dragon') {
+    treadCost = 2
+  } else {
+    treadCost = 1
+  }
+  const d6 = roll ?? (Math.floor(Math.random() * 6) + 1)
+  return { treadCost, destroyed: d6 <= 4 }
 }
 
 /**
@@ -162,7 +256,12 @@ export function canMoveThrough(
   occupyingUnit: GameUnit,
   movingRole: PlayerRole
 ): boolean {
-  throw new Error('not implemented')
+  if (movingRole === 'onion') {
+    // Onion can move through any defender hex (ramming)
+    return occupyingUnit.type !== 'TheOnion'
+  }
+  // Defender can move through friendly defenders but not through the Onion
+  return occupyingUnit.type !== 'TheOnion'
 }
 
 /**
@@ -177,5 +276,13 @@ export function getRammedUnits(
   state: EngineGameState,
   path: HexPos[]
 ): string[] {
-  throw new Error('not implemented')
+  const result: string[] = []
+  for (const pos of path) {
+    for (const [id, unit] of Object.entries(state.defenders)) {
+      if (unit.position.q === pos.q && unit.position.r === pos.r) {
+        result.push(id)
+      }
+    }
+  }
+  return result
 }
