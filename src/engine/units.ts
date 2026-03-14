@@ -23,7 +23,12 @@ export type UnitType =
 /**
  * Status that a weapon can have.
  */
-export type WeaponStatus = 'operational' | 'disabled' | 'destroyed'
+export type WeaponStatus = 'ready' | 'destroyed'
+
+/**
+ * Status that a unit can have.
+ */
+export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
 
 /**
  * A weapon system that a unit can use to attack.
@@ -51,18 +56,14 @@ export interface Weapon {
 export interface UnitAbilities {
   /** Can move and fire in the same turn (GEV) */
   secondMove?: boolean
-  /** Can stack multiple squads in one hex (infantry) */
-  stackable?: boolean
-  /** Maximum squads per hex (for stackable units) */
-  maxSquads?: number
-  /** Immobile once placed (artillery) */
-  immobile?: boolean
+  /** Maximum stacks per hex (1 for most units, 3 for infantry) */
+  maxStacks: number
   /** Can cross ridgelines (Onion) */
   canCrossRidgelines?: boolean
   /** Is an armored unit (affects ramming costs) */
   isArmor?: boolean
-  /** Multiple attack systems (Dragon has 2 attacks) - now handled by weapon count */
-  // multiAttack removed - use weapon array length instead
+  /** Immobile once placed (artillery) - for code readability */
+  immobile?: boolean
 }
 
 /**
@@ -154,13 +155,20 @@ export function canSecondMove(unit: GameUnit): boolean
 export function isImmobile(unit: GameUnit): boolean
 
 /**
- * Get the effective defense value for a unit when targeted by a specific weapon.
+ * Get the effective defense value for a unit when targeted.
  * @param unit - Unit to check
- * @param weaponId - ID of the weapon being used to attack
  * @param inCover - Whether unit is in terrain providing cover
  * @returns Effective defense value
  */
-export function getEffectiveDefense(unit: GameUnit, weaponId: string, inCover: boolean): number
+export function getUnitDefense(unit: GameUnit, inCover: boolean): number
+
+/**
+ * Get the defense value of a specific weapon when individually targeted.
+ * @param unit - Unit containing the weapon
+ * @param weaponId - Weapon to check
+ * @returns Weapon defense value, or unit defense if not individually targetable
+ */
+export function getWeaponDefense(unit: GameUnit, weaponId: string): number
 
 /**
  * Get all operational weapons for a unit.
@@ -185,18 +193,10 @@ export function isDestroyed(unit: GameUnit): boolean
 export function canTargetWeapon(unit: GameUnit, weaponId: string): boolean
 
 /**
- * Get the total attack strength of a unit (sum of operational weapons).
- * @param unit - Unit to check
- * @returns Total attack strength
- */
-export function getTotalAttackStrength(unit: GameUnit): number
-
-/**
- * Disable or destroy a specific weapon on a unit.
+ * Destroy a specific weapon on a unit.
  * @param unit - Unit to modify
- * @param weaponId - Weapon to affect
- * @param destroy - If true, destroy the weapon; if false, disable it
- * @returns True if weapon was found and modified
+ * @param weaponId - Weapon to destroy
+ * @returns True if weapon was found and destroyed
  */
-export function damageWeapon(unit: GameUnit, weaponId: string, destroy: boolean): boolean</content>
+export function destroyWeapon(unit: GameUnit, weaponId: string): boolean</content>
 <parameter name="filePath">/home/zymurge/Dev/onion/src/engine/units.ts

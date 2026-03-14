@@ -45,8 +45,6 @@ export interface CombatResultDetails {
     targetId: string
     /** Tread damage (for Onion) */
     treads?: number
-    /** Weapon damaged (for individually targetable weapons) */
-    weaponDamaged?: string
     /** Weapon destroyed (for individually targetable weapons) */
     weaponDestroyed?: string
     /** Unit destroyed (for defenders) */
@@ -176,7 +174,6 @@ export function applyDamage(
   weaponId?: string
 ): {
   treads?: number
-  weaponDamaged?: string
   weaponDestroyed?: string
   unitDestroyed?: boolean
   squadsLost?: number
