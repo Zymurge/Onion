@@ -54,77 +54,112 @@ export interface PathResult {
   cost: number
 }
 
-/**
- * Create a game map from a scenario definition.
- * @param width - Map width in hexes
- * @param height - Map height in hexes
- * @param hexes - Array of hex definitions with terrain
- * @returns Complete game map with all hexes
- */
-export function createMap(width: number, height: number, hexes: Array<{ q: number; r: number; t: number }>): GameMap
+function hexKey(pos: HexPos): string {
+  return `${pos.q},${pos.r}`
+}
 
-/**
- * Get a hex at the specified coordinates.
- * @param map - The game map
- * @param pos - Position to look up
- * @returns The hex at the position, or null if out of bounds or doesn't exist
- */
-export function getHex(map: GameMap, pos: HexPos): Hex | null
+function terrainFromT(t: number): TerrainType {
+  if (t === 1) return 'ridgeline'
+  if (t === 2) return 'crater'
+  return 'clear'
+}
 
-/**
- * Check if a position is within the map bounds.
- * @param map - The game map
- * @param pos - Position to check
- * @returns True if the position is on the map
- */
-export function isInBounds(map: GameMap, pos: HexPos): boolean
+export function createMap(width: number, height: number, hexes: Array<{ q: number; r: number; t: number }>): GameMap {
+  const overrides = new Map(hexes.map(h => [hexKey(h), terrainFromT(h.t)]))
+  const record: Record<string, Hex> = {}
+  for (let q = 0; q < width; q++) {
+    for (let r = 0; r < height; r++) {
+      const pos = { q, r }
+      const key = hexKey(pos)
+      record[key] = { q, r, terrain: overrides.get(key) ?? 'clear' }
+    }
+  }
+  return { width, height, hexes: record }
+}
 
-/**
- * Calculate the distance between two hex positions.
- * @param a - First position
- * @param b - Second position
- * @returns Distance in hexes
- */
-export function hexDistance(a: HexPos, b: HexPos): number
+export function getHex(map: GameMap, pos: HexPos): Hex | null {
+  if (!isInBounds(map, pos)) return null
+  return map.hexes[hexKey(pos)] ?? null
+}
 
-/**
- * Get all neighboring hexes within range 1.
- * @param pos - Center position
- * @returns Array of neighboring positions
- */
-export function getNeighbors(pos: HexPos): HexPos[]
+export function isInBounds(map: GameMap, pos: HexPos): boolean {
+  return pos.q >= 0 && pos.q < map.width && pos.r >= 0 && pos.r < map.height
+}
 
-/**
- * Check line of sight between two positions on the map.
- * @param map - The game map
- * @param from - Starting position
- * @param to - Target position
- * @returns Line of sight result
- */
-export function hasLineOfSight(map: GameMap, from: HexPos, to: HexPos): LineOfSightResult
+export function hexDistance(a: HexPos, b: HexPos): number {
+  const dq = a.q - b.q
+  const dr = a.r - b.r
+  return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr))
+}
 
-/**
- * Find a movement path between two positions.
- * @param map - The game map
- * @param from - Starting position
- * @param to - Target position
- * @param movementAllowance - Maximum movement points available
- * @param canCrossRidgelines - Whether the unit can cross ridgelines
- * @returns Pathfinding result
- */
+const AXIAL_DIRECTIONS: readonly HexPos[] = [
+  { q: 1, r: 0 }, { q: -1, r: 0 },
+  { q: 0, r: 1 }, { q: 0, r: -1 },
+  { q: 1, r: -1 }, { q: -1, r: 1 },
+]
+
+export function getNeighbors(pos: HexPos): HexPos[] {
+  return AXIAL_DIRECTIONS.map(d => ({ q: pos.q + d.q, r: pos.r + d.r }))
+}
+
+export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | null {
+  if (hex.terrain === 'crater') return null
+  if (hex.terrain === 'ridgeline') return canCrossRidgelines ? 2 : null
+  return 1
+}
+
+export function hasLineOfSight(map: GameMap, from: HexPos, to: HexPos): LineOfSightResult {
+  // Standard OGRE rules: no terrain-based LOS blocking, purely range-based
+  return { hasLOS: true, distance: hexDistance(from, to) }
+}
+
 export function findPath(
   map: GameMap,
   from: HexPos,
   to: HexPos,
   movementAllowance: number,
   canCrossRidgelines: boolean
-): PathResult
+): PathResult {
+  if (!isInBounds(map, to)) return { found: false, path: [], cost: 0 }
+  if (from.q === to.q && from.r === to.r) return { found: true, path: [], cost: 0 }
 
-/**
- * Calculate movement cost to enter a hex.
- * @param hex - The hex being entered
- * @param canCrossRidgelines - Whether the unit can cross ridgelines
- * @returns Movement cost in points, or null if impassable
- */
-export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | null</content>
-<parameter name="filePath">/home/zymurge/Dev/onion/src/engine/map.ts
+  // Dijkstra over the hex grid
+  type Node = { pos: HexPos; cost: number; prev: HexPos | null }
+  const dist = new Map<string, number>()
+  const prev = new Map<string, HexPos | null>()
+  // Min-heap via sorted insertion — map is small enough
+  const queue: Array<{ pos: HexPos; cost: number }> = [{ pos: from, cost: 0 }]
+  dist.set(hexKey(from), 0)
+
+  while (queue.length > 0) {
+    queue.sort((a, b) => a.cost - b.cost)
+    const { pos, cost } = queue.shift()!
+
+    if (pos.q === to.q && pos.r === to.r) {
+      // Reconstruct path
+      const path: HexPos[] = []
+      let cur: HexPos | null = to
+      while (cur && !(cur.q === from.q && cur.r === from.r)) {
+        path.unshift(cur)
+        cur = prev.get(hexKey(cur)) ?? null
+      }
+      return { found: true, path, cost }
+    }
+
+    for (const neighbor of getNeighbors(pos)) {
+      if (!isInBounds(map, neighbor)) continue
+      const hex = getHex(map, neighbor)!
+      const stepCost = movementCost(hex, canCrossRidgelines)
+      if (stepCost === null) continue
+      const newCost = cost + stepCost
+      if (newCost > movementAllowance) continue
+      const key = hexKey(neighbor)
+      if (dist.has(key) && dist.get(key)! <= newCost) continue
+      dist.set(key, newCost)
+      prev.set(key, pos)
+      queue.push({ pos: neighbor, cost: newCost })
+    }
+  }
+
+  return { found: false, path: [], cost: 0 }
+}
