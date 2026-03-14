@@ -1,9 +1,26 @@
 import type { FastifyInstance } from 'fastify'
 import { randomUUID } from 'node:crypto'
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import type { TurnPhase, GameState, EventEnvelope, PlayerRole, Command } from '../types/index.js'
 import { TURN_PHASES, phaseActor } from '../engine/phases.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenarios')
+
+async function scenarioExists(id: string): Promise<boolean> {
+  try {
+    const files = await readdir(SCENARIOS_DIR)
+    for (const file of files.filter((f) => f.endsWith('.json'))) {
+      const raw = await readFile(join(SCENARIOS_DIR, file), 'utf8')
+      const s = JSON.parse(raw) as { id: string }
+      if (s.id === id) return true
+    }
+  } catch {
+    // directory unreadable — treat as not found
+  }
+  return false
+}
 
 function extractUserId(authHeader: string | undefined): string | null {
   if (!authHeader?.startsWith('Bearer stub.')) return null
@@ -73,8 +90,14 @@ export async function gameRoutes(app: FastifyInstance): Promise<void> {
     if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
     const { scenarioId, role } = (req.body ?? {}) as { scenarioId?: string; role?: string }
-    if (!scenarioId || (role !== 'onion' && role !== 'defender')) {
-      return reply.status(400).send({ ok: false, error: 'scenarioId and role (onion|defender) required', code: 'INVALID_INPUT' })
+    if (!scenarioId) {
+      return reply.status(400).send({ ok: false, error: 'scenarioId is required', code: 'INVALID_INPUT' })
+    }
+    if (role !== 'onion' && role !== 'defender') {
+      return reply.status(400).send({ ok: false, error: 'role must be "onion" or "defender"', code: 'INVALID_INPUT' })
+    }
+    if (!await scenarioExists(scenarioId)) {
+      return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
     }
 
     const gameId = randomUUID()

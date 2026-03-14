@@ -77,7 +77,8 @@ Create a new game. The caller is assigned a role.
 ```text
 Request:  { "scenarioId": string, "role": "onion" | "defender" }
 Response: { "gameId": string, "role": "onion" | "defender" }
-Errors:   404 if scenarioId not found
+Errors:   400 INVALID_INPUT if role is not "onion" or "defender"
+          404 NOT_FOUND if scenarioId does not match a known scenario
 ```
 
 The `gameId` is shared out-of-band with the second player.
