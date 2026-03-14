@@ -74,6 +74,7 @@ describe('checkVictoryConditions', () => {
         castle: makeUnit({ type: 'Castle', id: 'castle' }),
         puss: makeUnit({ type: 'Puss', id: 'puss' }),
       },
+      ramsThisTurn: 0,
       ...overrides,
     }
   }

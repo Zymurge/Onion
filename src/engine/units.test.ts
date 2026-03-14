@@ -16,7 +16,7 @@ import {
   canTargetWeapon,
   destroyWeapon,
 } from './units.js'
-import type { GameUnit, OnionUnit, DefenderUnit, Weapon } from './units.js'
+import type { GameUnit, OnionUnit, DefenderUnit, Weapon, EngineGameState } from './units.js'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -126,8 +126,12 @@ describe('getUnitDefinition', () => {
       expect(getUnitDefinition('BigBadWolf').abilities.secondMove).toBe(true)
     })
 
-    it('has correct movement', () => {
-      expect(getUnitDefinition('BigBadWolf').movement).toBe(2)
+    it('has primary movement allowance of 4', () => {
+      expect(getUnitDefinition('BigBadWolf').movement).toBe(4)
+    })
+
+    it('has secondMoveAllowance of 3', () => {
+      expect(getUnitDefinition('BigBadWolf').abilities.secondMoveAllowance).toBe(3)
     })
 
     it('is marked as armor (cannot cross ridgelines)', () => {
@@ -340,6 +344,31 @@ describe('getAllUnitDefinitions', () => {
     for (const [key, def] of Object.entries(all)) {
       expect(def.type).toBe(key)
     }
+  })
+})
+
+// ─── EngineGameState ─────────────────────────────────────────────────────────
+
+describe('EngineGameState', () => {
+  it('ramsThisTurn starts at 0 in a fresh state', () => {
+    const state: EngineGameState = {
+      onion: makeOnion(),
+      defenders: {},
+      ramsThisTurn: 0,
+    }
+    expect(state.ramsThisTurn).toBe(0)
+  })
+
+  it('ramsThisTurn can be incremented up to 2', () => {
+    const state: EngineGameState = {
+      onion: makeOnion(),
+      defenders: {},
+      ramsThisTurn: 0,
+    }
+    state.ramsThisTurn++
+    expect(state.ramsThisTurn).toBe(1)
+    state.ramsThisTurn++
+    expect(state.ramsThisTurn).toBe(2)
   })
 })
 

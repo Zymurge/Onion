@@ -51,6 +51,8 @@ export interface Weapon {
 export interface UnitAbilities {
   /** Can move and fire in the same turn (GEV) */
   secondMove?: boolean
+  /** Movement allowance for the GEV second-move phase (hexes) */
+  secondMoveAllowance?: number
   /** Maximum stacks per hex (1 for most units, 3 for infantry) */
   maxStacks: number
   /** Can cross ridgelines (Onion) */
@@ -123,6 +125,8 @@ export interface EngineGameState {
   onion: OnionUnit
   /** All defender units, keyed by unit ID */
   defenders: Record<string, DefenderUnit>
+  /** Number of rams the Onion has performed this turn (max 2) */
+  ramsThisTurn: number
 }
 
 /**
@@ -270,10 +274,10 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   BigBadWolf: {
     name: 'Big Bad Wolf',
     type: 'BigBadWolf',
-    movement: 2,
+    movement: 4,
     defense: 4,
     cost: 1,
-    abilities: { maxStacks: 1, isArmor: true, secondMove: true },
+    abilities: { maxStacks: 1, isArmor: true, secondMove: true, secondMoveAllowance: 3 },
     weapons: [makeWeapon('main', 'Cannon', 2, 2, 4)],
   },
 
