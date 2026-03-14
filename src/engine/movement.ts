@@ -52,7 +52,9 @@ export function validateOnionMovement(
   map: GameMap,
   state: EngineGameState,
   command: Extract<Command, { type: 'MOVE_ONION' }>
-): MovementValidation
+): MovementValidation {
+  throw new Error('not implemented')
+}
 
 /**
  * Validate a defender unit movement command.
@@ -67,7 +69,9 @@ export function validateUnitMovement(
   state: EngineGameState,
   unitId: string,
   command: Extract<Command, { type: 'MOVE_UNIT' }>
-): MovementValidation
+): MovementValidation {
+  throw new Error('not implemented')
+}
 
 /**
  * Execute an Onion movement.
@@ -80,7 +84,9 @@ export function executeOnionMovement(
   map: GameMap,
   state: EngineGameState,
   command: Extract<Command, { type: 'MOVE_ONION' }>
-): MovementResult
+): MovementResult {
+  throw new Error('not implemented')
+}
 
 /**
  * Execute a defender unit movement.
@@ -95,7 +101,9 @@ export function executeUnitMovement(
   state: EngineGameState,
   unitId: string,
   command: Extract<Command, { type: 'MOVE_UNIT' }>
-): MovementResult
+): MovementResult {
+  throw new Error('not implemented')
+}
 
 /**
  * Check if a hex is occupied by a unit.
@@ -108,7 +116,9 @@ export function getOccupyingUnit(
   state: EngineGameState,
   pos: HexPos,
   excludeUnitId?: string
-): GameUnit | null
+): GameUnit | null {
+  throw new Error('not implemented')
+}
 
 /**
  * Check if a unit can enter a hex.
@@ -123,7 +133,9 @@ export function isMovementBlocked(
   state: EngineGameState,
   to: HexPos,
   excludeUnitId?: string
-): boolean
+): boolean {
+  throw new Error('not implemented')
+}
 
 /**
  * Calculate ramming damage and results.
@@ -134,6 +146,8 @@ export function isMovementBlocked(
 export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
   treadCost: number
   destroyed: boolean
+} {
+  throw new Error('not implemented')
 }
 
 /**
@@ -147,7 +161,9 @@ export function canMoveThrough(
   movingUnit: GameUnit,
   occupyingUnit: GameUnit,
   movingRole: PlayerRole
-): boolean
+): boolean {
+  throw new Error('not implemented')
+}
 
 /**
  * Get all units that would be rammed when moving along a path.
@@ -160,5 +176,6 @@ export function getRammedUnits(
   map: GameMap,
   state: EngineGameState,
   path: HexPos[]
-): string[]</content>
-<parameter name="filePath">/home/zymurge/Dev/onion/src/engine/movement.ts
+): string[] {
+  throw new Error('not implemented')
+}
