@@ -292,10 +292,14 @@ ONION_MISSILE_LAUNCHED  { weaponIndex: number }
 
 ### Phase / Game Events
 
+
 ```text
+PLAYER_JOINED     { userId: string, role: "onion" | "defender" }
 PHASE_CHANGED     { from: TurnPhase, to: TurnPhase, turnNumber: number }
 GAME_OVER         { winner: "onion" | "defender", reason: string }
 ```
+
+PLAYER_JOINED is emitted when a player successfully joins a game (either as onion or defender). The event includes the joining user's ID and their assigned role.
 
 ### Sync Event
 
