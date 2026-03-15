@@ -18,7 +18,7 @@
   },
   "initialState": {
     "onion": {
-      "type": "MkIII",
+      "type": "TheOnion",
       "position": { "q": 0, "r": 10 },
       "treads": 45,
       "missiles": 2,
@@ -26,16 +26,17 @@
         "main": 1,
         "secondary": 4,
         "ap": 8
-      }
+      },
+      "status": "operational"
     },
-    "defenders": [
-      { "id": "wolf-1",  "type": "BigBadWolf", "position": { "q": 5,  "r": 6 }, "status": "operational" },
-      { "id": "wolf-2",  "type": "BigBadWolf", "position": { "q": 6,  "r": 6 }, "status": "operational" },
-      { "id": "puss-1",  "type": "Puss",       "position": { "q": 6,  "r": 4 }, "status": "operational" },
-      { "id": "witch-1", "type": "Witch",       "position": { "q": 7,  "r": 3 }, "status": "operational" },
-      { "id": "pigs-1",  "type": "LittlePigs", "position": { "q": 4,  "r": 7 }, "squads": 3, "status": "operational" },
-      { "id": "pigs-2",  "type": "LittlePigs", "position": { "q": 5,  "r": 7 }, "squads": 2, "status": "operational" }
-    ]
+    "defenders": {
+      "wolf-1":  { "type": "BigBadWolf", "position": { "q": 5,  "r": 6 }, "status": "operational" },
+      "wolf-2":  { "type": "BigBadWolf", "position": { "q": 6,  "r": 6 }, "status": "operational" },
+      "puss-1":  { "type": "Puss",       "position": { "q": 6,  "r": 4 }, "status": "operational" },
+      "witch-1": { "type": "Witch",      "position": { "q": 7,  "r": 3 }, "status": "operational" },
+      "pigs-1":  { "type": "LittlePigs", "position": { "q": 4,  "r": 7 }, "squads": 3, "status": "operational" },
+      "pigs-2":  { "type": "LittlePigs", "position": { "q": 5,  "r": 7 }, "squads": 2, "status": "operational" }
+    }
   },
   "victoryConditions": {
     "onion": {

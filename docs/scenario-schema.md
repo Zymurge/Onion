@@ -45,14 +45,25 @@ We use an **Axial Coordinate System** (q, r) where:
         "main": 1,
         "secondary": 4,
         "ap": 8
-      }
+      },
+      "status": "operational"
     },
-    "defenders": [
-      { "id": "wolf-1", "type": "BigBadWolf", "position": { "q": 5, "r": 5 }, "status": "operational" },
-      { "id": "puss-1", "type": "Puss", "position": { "q": 6, "r": 5 }, "status": "operational" },
-      { "id": "pigs-1", "type": "LittlePigs", "position": { "q": 10, "r": 5 }, "squads": 3, "status": "operational" }
-    ]
+    "defenders": {
+      "wolf-1": { "type": "BigBadWolf", "position": { "q": 5, "r": 5 }, "status": "operational" },
+      "puss-1": { "type": "Puss", "position": { "q": 6, "r": 5 }, "status": "operational" },
+      "pigs-1": { "type": "LittlePigs", "position": { "q": 10, "r": 5 }, "squads": 3, "status": "operational" }
+    }
   },
+  # 6. Normalization Rules
+
+  At game start, the engine will normalize the scenario's initialState as follows:
+
+  1. **Onion Type:** If `onion.type` is missing, default to `"TheOnion"` (or the engine's default Onion type).
+  2. **Unit Status:** If `status` is missing for onion or defenders, default to `"operational"`.
+  3. **Unit IDs:** Ignore any `id` fields in the scenario; assign unique IDs at game start for onion and each defender.
+  4. **Weapons:** Always auto-populate `weapons` for onion and defenders from engine definitions at game start.
+  5. **Defenders Format:** Scenario must provide `defenders` as a Record keyed by id; keys may be arbitrary and will be replaced by generated IDs at game start.
+  6. **Game State Fields:** `ramsThisTurn`, `currentPhase`, and `turn` are not part of the scenario and are set by the engine.
   "victoryConditions": {
     "onion": {
       "targetHex": { "q": 12, "r": 5 },

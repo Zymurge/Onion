@@ -7,5 +7,6 @@
         "vitest": true
     },
     "vitest.packageManager": "pnpm",
-    "vitest.configSearchPatternExclude": "**/node_modules/**"
+    "vitest.configSearchPatternExclude": "**/node_modules/**",
+    "typescript.validate.enable": false
 }

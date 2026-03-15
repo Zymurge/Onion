@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../app.js'
-import * as engineGame from '../engine/game.js';
+import * as engineGame from '../engine/index.js';
+import * as engineGameInternal from '../engine/game.js';
 import { vi } from 'vitest';
 import { register, makeToken } from './helpers.js';
 
@@ -253,7 +254,6 @@ describe('POST /games/:id/join', () => {
     })
     expect(res.statusCode).toBe(401)
   })
-})
 
 // ── GET /games/:id ─────────────────────────────────────────────────────────────
 
@@ -444,7 +444,7 @@ describe('POST /games/:id/actions', () => {
 
     // Ensure it's shrek's turn (onion, ONION_MOVE)
     // Properly mock advancePhaseWithEvents to throw
-    const spy = vi.spyOn(engineGame, 'advancePhaseWithEvents').mockImplementation(() => { throw new Error('engine fail') })
+    const spy = vi.spyOn(engineGameInternal, 'advancePhaseWithEvents').mockImplementation(() => { throw new Error('engine fail') })
 
     const res = await endPhase(app, gameId, shrek.token)
     expect(res.statusCode).toBe(500)
@@ -544,5 +544,87 @@ describe('GET /games/:id/events', () => {
     })
     const { events } = res.json<{ events: { seq: number }[] }>()
     expect(events.every((e) => e.seq > firstSeq)).toBe(true)
+  })
+})
+
+it('MOVE_ONION calls engine and updates state on success', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    // Place Onion at (0,0) and move to (1,0)
+    // Spy on engine
+    const spy = vi.spyOn(engineGame, 'executeOnionMovement').mockImplementation((map, state, command) => {
+      state.onion.position = command.to
+      return { success: true, newPosition: command.to }
+    })
+
+    const moveCmd = { type: 'MOVE_ONION', to: { q: 1, r: 0 } }
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: moveCmd,
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.ok).toBe(true)
+    expect(body.state.onion.position).toEqual({ q: 1, r: 0 })
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('MOVE_ONION returns error if engine fails', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    // Spy on engine to simulate failure
+    const spy = vi.spyOn(engineGame, 'executeOnionMovement').mockImplementation(() => {
+      return { success: false, error: 'No valid path' }
+    })
+
+    const moveCmd = { type: 'MOVE_ONION', to: { q: 99, r: 99 } }
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: moveCmd,
+    })
+    expect(res.statusCode).toBe(400)
+    const body = res.json()
+    expect(body.ok).toBe(false)
+    expect(body.error).toMatch(/No valid path/)
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('uses scenario initialState and exposes scenarioName and units', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const { gameId } = await createGame(app, token, 'onion')
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    // Scenario name should match scenario file
+    expect(body.scenarioName).toBe('The Siege of Shrek\'s Swamp')
+    // Onion and defenders should be present in state
+    const onion = body.state.onion
+    const defenders = body.state.defenders
+    // Onion must exist and have a position
+    expect(onion).toBeDefined()
+    expect(onion.position).toBeDefined()
+    // Defenders must be an object with at least one key
+    expect(defenders).toBeDefined()
+    expect(Object.keys(defenders).length).toBeGreaterThanOrEqual(1)
   })
 })

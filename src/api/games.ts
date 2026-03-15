@@ -2,10 +2,15 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { randomUUID } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+
 import type { TurnPhase, GameState, EventEnvelope, PlayerRole, Command } from '../types/index.js'
 import type { DbAdapter, MatchRecord } from '../db/adapter.js'
 import { TURN_PHASES, phaseActor } from '../engine/phases.js'
 import { advancePhaseWithEvents } from '../engine/game.js'
+import { createMap } from '../engine/map.js'
+import { executeOnionMovement } from '../engine/index.js'
+import { InitialStateSchema } from '../engine/scenarioSchema'
+import { normalizeInitialStateToGameState } from '../engine/scenarioNormalizer'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenarios')
@@ -17,13 +22,29 @@ const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenario
  */
 async function loadScenario(id: string): Promise<unknown | null> {
   try {
+    console.log('[loadScenario] Looking for scenario:', id, 'in', SCENARIOS_DIR)
     const files = await readdir(SCENARIOS_DIR)
+    console.log('[loadScenario] Found files:', files)
     for (const file of files.filter((f) => f.endsWith('.json'))) {
-      const raw = await readFile(join(SCENARIOS_DIR, file), 'utf8')
-      const s = JSON.parse(raw) as { id: string }
-      if (s.id === id) return s
+      const fullPath = join(SCENARIOS_DIR, file)
+      console.log(`[loadScenario] Reading file: ${fullPath}`)
+      const raw = await readFile(fullPath, 'utf8')
+      let s: any
+      try {
+        s = JSON.parse(raw)
+      } catch (err) {
+        console.log(`[loadScenario] Failed to parse JSON in file: ${file}`, err)
+        continue
+      }
+      console.log('[loadScenario] Checking scenario file:', file, 'with id:', s.id)
+      if (s.id === id) {
+        console.log('[loadScenario] Scenario matched:', file)
+        return s
+      }
     }
-  } catch {
+    console.log('[loadScenario] No matching scenario found for id:', id, 'in files:', files)
+  } catch (err) {
+    console.log('[loadScenario] Error reading scenarios:', err)
     // directory unreadable — treat as not found
   }
   return null
@@ -67,51 +88,51 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
   /**
    * Create a new game match.
    *
-   * Creates a match for the specified scenario and assigns the creator to the chosen role.
-   * The scenario must exist and be valid. The match starts in ONION_MOVE phase.
-   *
    * @route POST /games
-   * @body { scenarioId: string, role: 'onion' | 'defender' }
-   * @returns { gameId: string, role: string } - 201 on success
-   * @returns { ok: false, error: string, code: string } - 400 INVALID_INPUT for schema validation errors
-   *                                            401 UNAUTHORIZED if no or invalid token
-   *                                            404 NOT_FOUND if scenario does not exist
-   *                                            413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
-   *                                            400 MALFORMED_JSON if request body is not valid JSON
-   *                                            500 INTERNAL_ERROR for unexpected backend errors
+   * @body { scenarioId: string, role: PlayerRole }
+   * @returns { gameId: string, role: PlayerRole } - 201 on success
+   * @returns { ok: false, error: string, code: string } - 400 INVALID_INPUT, 404 NOT_FOUND, 500 INTERNAL_ERROR
    */
-  app.post<{ Body: { scenarioId: string; role: PlayerRole } }>('/', async (req, reply) => {
-    const userId = extractUserId(req.headers.authorization)
-    if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
-
-    const { scenarioId, role } = (req.body ?? {}) as { scenarioId?: string; role?: string }
-    if (!scenarioId) {
-      return reply.status(400).send({ ok: false, error: 'scenarioId is required', code: 'INVALID_INPUT' })
+  app.post<{ Body: { scenarioId: string, role: PlayerRole } }>('/', async (req, reply) => {
+    try {
+      const { scenarioId, role } = req.body
+      const userId = extractUserId(req.headers.authorization)
+      if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      if (!scenarioId || !role) return reply.status(400).send({ ok: false, error: 'Missing scenarioId or role', code: 'INVALID_INPUT' })
+      const scenarioSnapshot = await loadScenario(scenarioId)
+      if (!scenarioSnapshot) {
+        return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
+      }
+      let state: GameState
+      if (scenarioSnapshot.initialState) {
+        try {
+          const parsed = InitialStateSchema.parse(scenarioSnapshot.initialState)
+          state = normalizeInitialStateToGameState(parsed)
+        } catch (err) {
+          return reply.status(400).send({ ok: false, error: 'Invalid scenario initialState', code: 'INVALID_SCENARIO' })
+        }
+      } else {
+        state = structuredClone(INITIAL_STATE)
+      }
+      const gameId = randomUUID()
+      await db.createMatch({
+        gameId,
+        scenarioId,
+        scenarioSnapshot,
+        players: {
+          onion: role === 'onion' ? userId : null,
+          defender: role === 'defender' ? userId : null,
+        },
+        phase: 'ONION_MOVE',
+        turnNumber: 1,
+        winner: null,
+        state,
+        events: [],
+      })
+      return reply.status(201).send({ gameId, role })
+    } catch (err) {
+      return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
-    if (role !== 'onion' && role !== 'defender') {
-      return reply.status(400).send({ ok: false, error: 'role must be "onion" or "defender"', code: 'INVALID_INPUT' })
-    }
-    const scenarioSnapshot = await loadScenario(scenarioId)
-    if (!scenarioSnapshot) {
-      return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
-    }
-
-    const gameId = randomUUID()
-    await db.createMatch({
-      gameId,
-      scenarioId,
-      scenarioSnapshot,
-      players: {
-        onion: role === 'onion' ? userId : null,
-        defender: role === 'defender' ? userId : null,
-      },
-      phase: 'ONION_MOVE',
-      turnNumber: 1,
-      winner: null,
-      state: structuredClone(INITIAL_STATE),
-      events: [],
-    })
-    return reply.status(201).send({ gameId, role })
   })
 
   /**
@@ -131,30 +152,34 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.post<{ Params: { id: string } }>('/:id/join', async (req, reply) => {
-    const userId = extractUserId(req.headers.authorization)
-    if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+    try {
+      const userId = extractUserId(req.headers.authorization)
+      if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-    const match = await db.findMatch(req.params.id)
-    if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      const match = await db.findMatch(req.params.id)
+      if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
-    if (match.players.onion === userId || match.players.defender === userId) {
-      return reply.status(400).send({ ok: false, error: 'Cannot join your own game', code: 'CANNOT_JOIN_OWN_GAME' })
+      if (match.players.onion === userId || match.players.defender === userId) {
+        return reply.status(400).send({ ok: false, error: 'Cannot join your own game', code: 'CANNOT_JOIN_OWN_GAME' })
+      }
+
+      let role: PlayerRole
+      const newPlayers = { ...match.players }
+      if (!match.players.onion) {
+        newPlayers.onion = userId
+        role = 'onion'
+      } else if (!match.players.defender) {
+        newPlayers.defender = userId
+        role = 'defender'
+      } else {
+        return reply.status(409).send({ ok: false, error: 'Game is already full', code: 'GAME_FULL' })
+      }
+
+      await db.updateMatchPlayers(match.gameId, newPlayers)
+      return reply.send({ gameId: match.gameId, role })
+    } catch (err) {
+      return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
-
-    let role: PlayerRole
-    const newPlayers = { ...match.players }
-    if (!match.players.onion) {
-      newPlayers.onion = userId
-      role = 'onion'
-    } else if (!match.players.defender) {
-      newPlayers.defender = userId
-      role = 'defender'
-    } else {
-      return reply.status(409).send({ ok: false, error: 'Game is already full', code: 'GAME_FULL' })
-    }
-
-    await db.updateMatchPlayers(match.gameId, newPlayers)
-    return reply.send({ gameId: match.gameId, role })
   })
 
   /**
@@ -172,22 +197,29 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
-    const userId = extractUserId(req.headers.authorization)
-    if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+    try {
+      const userId = extractUserId(req.headers.authorization)
+      if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-    const match = await db.findMatch(req.params.id)
-    if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      const match = await db.findMatch(req.params.id)
+      if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
-    return reply.send({
-      gameId: match.gameId,
-      scenarioId: match.scenarioId,
-      phase: match.phase,
-      turnNumber: match.turnNumber,
-      winner: match.winner,
-      players: match.players,
-      state: match.state,
-      eventSeq: match.events.at(-1)?.seq ?? 0,
-    })
+      // Type assertion for scenarioSnapshot
+      const scenarioSnapshot = match.scenarioSnapshot as any
+      return reply.send({
+        gameId: match.gameId,
+        scenarioId: match.scenarioId,
+        scenarioName: scenarioSnapshot?.name,
+        phase: match.phase,
+        turnNumber: match.turnNumber,
+        winner: match.winner,
+        players: match.players,
+        state: match.state,
+        eventSeq: match.events.at(-1)?.seq ?? 0,
+      })
+    } catch (err) {
+      return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
+    }
   })
 
   /**
@@ -210,47 +242,80 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.post<{ Params: { id: string }; Body: Command }>('/:id/actions', async (req, reply) => {
-    const userId = extractUserId(req.headers.authorization)
-    if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+    try {
+      const userId = extractUserId(req.headers.authorization)
+      if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-    const match = await db.findMatch(req.params.id)
-    if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      const match = await db.findMatch(req.params.id)
+      if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
-    if (match.winner) {
-      return reply.status(409).send({ ok: false, error: 'Game is already over', code: 'GAME_OVER', currentPhase: match.phase })
+      if (match.winner) {
+        return reply.status(409).send({ ok: false, error: 'Game is already over', code: 'GAME_OVER', currentPhase: match.phase })
+      }
+
+      if (!match.players.onion || !match.players.defender) {
+        return reply.status(400).send({ ok: false, error: 'Waiting for second player to join', code: 'WAITING_FOR_PLAYER', currentPhase: match.phase })
+      }
+
+      const actor = phaseActor(match.phase)
+      const activeUserId = actor === 'onion' ? match.players.onion : match.players.defender
+      if (userId !== activeUserId) {
+        return reply.status(403).send({ ok: false, error: 'Not your turn', code: 'NOT_YOUR_TURN', currentPhase: match.phase })
+      }
+
+      const command = req.body
+      if (!command?.type) {
+        return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
+      }
+
+      let newEvents: EventEnvelope[]
+      let currentState = match.state
+      if (command.type === 'END_PHASE') {
+        const result = advancePhaseWithEvents(match)
+        newEvents = result.newEvents
+        currentState = result.state
+        await db.updateMatchState(match.gameId, result.phase, result.turnNumber, match.winner, result.state)
+        // Return updated state and events
+        return reply.send({ ok: true, events: newEvents, state: currentState })
+      } else if (command.type === 'MOVE_ONION') {
+        // Only handle MOVE_ONION here
+        // Load scenario map (from match.scenarioSnapshot)
+        const scenarioSnapshot = match.scenarioSnapshot as any
+        const map = createMap(
+          scenarioSnapshot.width,
+          scenarioSnapshot.height,
+          scenarioSnapshot.hexes || []
+        )
+        // Deep clone state to avoid mutating DB state directly
+        // Patch: ensure EngineGameState fields exist
+        const state = {
+          ...structuredClone(match.state),
+          ramsThisTurn: match.state.ramsThisTurn ?? 0,
+          currentPhase: match.phase,
+          turn: match.turnNumber,
+        }
+        const result = executeOnionMovement(map, state, command)
+        if (!result.success) {
+          return reply.status(400).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+        }
+        // Persist new state
+        await db.updateMatchState(match.gameId, match.phase, match.turnNumber, match.winner, state)
+        // Emit event
+        const seq = (match.events.at(-1)?.seq ?? 0) + 1
+        newEvents = [{ seq, type: 'ONION_MOVED', timestamp: new Date().toISOString(), to: command.to }]
+        currentState = state
+        await db.appendEvents(match.gameId, newEvents)
+        return reply.send({ ok: true, seq, events: newEvents, state: currentState })
+      } else {
+        // Stub: acknowledge all other commands without modifying state
+        const seq = (match.events.at(-1)?.seq ?? 0) + 1
+        newEvents = [{ seq, type: 'ACTION_ACKNOWLEDGED', timestamp: new Date().toISOString(), command: command.type }]
+        await db.appendEvents(match.gameId, newEvents)
+        return reply.send({ ok: true, seq, events: newEvents, state: currentState })
+      }
+    } catch (err) {
+      return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
-
-    if (!match.players.onion || !match.players.defender) {
-      return reply.status(400).send({ ok: false, error: 'Waiting for second player to join', code: 'WAITING_FOR_PLAYER', currentPhase: match.phase })
-    }
-
-    const actor = phaseActor(match.phase)
-    const activeUserId = actor === 'onion' ? match.players.onion : match.players.defender
-    if (userId !== activeUserId) {
-      return reply.status(403).send({ ok: false, error: 'Not your turn', code: 'NOT_YOUR_TURN', currentPhase: match.phase })
-    }
-
-    const command = req.body
-    if (!command?.type) {
-      return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
-    }
-
-    let newEvents: EventEnvelope[]
-    let currentState = match.state
-    if (command.type === 'END_PHASE') {
-      const result = advancePhaseWithEvents(match)
-      newEvents = result.newEvents
-      currentState = result.state
-      await db.updateMatchState(match.gameId, result.phase, result.turnNumber, match.winner, result.state)
-    } else {
-      // Stub: acknowledge all other commands without modifying state
-      const seq = (match.events.at(-1)?.seq ?? 0) + 1
-      newEvents = [{ seq, type: 'ACTION_ACKNOWLEDGED', timestamp: new Date().toISOString(), command: command.type }]
-    }
-
-    await db.appendEvents(match.gameId, newEvents)
-    const seq = newEvents.at(-1)!.seq
-    return reply.send({ ok: true, seq, events: newEvents, state: currentState })
   })
 
   /**
@@ -269,14 +334,18 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.get<{ Params: { id: string }; Querystring: { after?: string } }>('/:id/events', async (req, reply) => {
-    const userId = extractUserId(req.headers.authorization)
-    if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+    try {
+      const userId = extractUserId(req.headers.authorization)
+      if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-    const match = await db.findMatch(req.params.id)
-    if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      const match = await db.findMatch(req.params.id)
+      if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
-    const after = Number(req.query.after ?? 0)
-    const events = await db.getEvents(match.gameId, after)
-    return reply.send({ events })
+      const after = Number(req.query.after ?? 0)
+      const events = await db.getEvents(match.gameId, after)
+      return reply.send({ events })
+    } catch (err) {
+      return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
+    }
   })
 }
