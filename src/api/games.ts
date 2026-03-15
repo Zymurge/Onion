@@ -121,7 +121,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    * @route POST /games
    * @body { scenarioId: string, role: 'onion' | 'defender' }
    * @returns { gameId: string, role: string } - 201 on success
-   * @returns { ok: false, error: string, code: string } - 400/401/404 on failure
+   * @returns { ok: false, error: string, code: string } - 400 INVALID_INPUT for schema validation errors
+   *                                            401 UNAUTHORIZED if no or invalid token
+   *                                            404 NOT_FOUND if scenario does not exist
+   *                                            413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+   *                                            400 MALFORMED_JSON if request body is not valid JSON
+   *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.post<{ Body: { scenarioId: string; role: PlayerRole } }>('/', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
@@ -165,7 +170,13 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *
    * @route POST /games/:id/join
    * @returns { gameId: string, role: string } - 200 on success
-   * @returns { ok: false, error: string, code: string } - 400/401/404/409 on failure
+   * @returns { ok: false, error: string, code: string } - 400 CANNOT_JOIN_OWN_GAME if joining own game
+   *                                            401 UNAUTHORIZED if no or invalid token
+   *                                            404 NOT_FOUND if game does not exist
+   *                                            409 GAME_FULL if game is already full
+   *                                            413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+   *                                            400 MALFORMED_JSON if request body is not valid JSON
+   *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.post<{ Params: { id: string } }>('/:id/join', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
@@ -202,7 +213,11 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *
    * @route GET /games/:id
    * @returns Game state object - 200 on success
-   * @returns { ok: false, error: string, code: string } - 401/404 on failure
+   * @returns { ok: false, error: string, code: string } - 401 UNAUTHORIZED if no or invalid token
+   *                                            404 NOT_FOUND if game does not exist
+   *                                            413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+   *                                            400 MALFORMED_JSON if request body is not valid JSON
+   *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
@@ -233,7 +248,14 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    * @route POST /games/:id/actions
    * @body Command object (see types.ts)
    * @returns { ok: true, seq: number, events: EventEnvelope[], state: GameState } - 200 on success
-   * @returns { ok: false, error: string, code: string, currentPhase: string } - 400/401/403/409 on failure
+   * @returns { ok: false, error: string, code: string, currentPhase: string } - 400 INVALID_INPUT for schema validation errors
+   *                                            401 UNAUTHORIZED if no or invalid token
+   *                                            403 NOT_YOUR_TURN if not active player
+   *                                            404 NOT_FOUND if game does not exist
+   *                                            409 GAME_OVER if game is already over
+   *                                            413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+   *                                            400 MALFORMED_JSON if request body is not valid JSON
+   *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.post<{ Params: { id: string }; Body: Command }>('/:id/actions', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)
@@ -288,7 +310,11 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    * @route GET /games/:id/events?after={seq}
    * @query after - Return events after this sequence number (default: 0)
    * @returns { events: EventEnvelope[] } - 200 on success
-   * @returns { ok: false, error: string, code: string } - 401/404 on failure
+   * @returns { ok: false, error: string, code: string } - 401 UNAUTHORIZED if no or invalid token
+   *                                            404 NOT_FOUND if game does not exist
+   *                                            413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+   *                                            400 MALFORMED_JSON if request body is not valid JSON
+   *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.get<{ Params: { id: string }; Querystring: { after?: string } }>('/:id/events', async (req, reply) => {
     const userId = extractUserId(req.headers.authorization)

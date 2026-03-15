@@ -27,5 +27,18 @@ export function buildApp(db?: DbAdapter): FastifyInstance {
   app.register(scenarioRoutes, { prefix: '/scenarios' })
   app.register(gameRoutes, { prefix: '/games', db: adapter })
 
+  // Global error handler
+  app.setErrorHandler((error, _req, reply) => {
+    // Payload too large
+    if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE') {
+      return reply.status(413).send({ ok: false, error: 'Payload exceeds 16KB limit', code: 'PAYLOAD_TOO_LARGE' })
+    }
+    // Malformed JSON
+    if (error.code === 'FST_ERR_CTP_INVALID_CONTENT_TYPE' || error.code === 'FST_ERR_CTP_INVALID_JSON_BODY') {
+      return reply.status(400).send({ ok: false, error: 'Malformed JSON in request body', code: 'MALFORMED_JSON' })
+    }
+    // All other errors
+    return reply.status(500).send({ ok: false, error: 'Internal server error', code: 'INTERNAL_ERROR' })
+  })
   return app
 }

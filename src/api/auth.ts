@@ -54,7 +54,11 @@ export const authRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    * @route POST /auth/register
    * @body { username: string, password: string }
    * @returns { userId: string, token: string } - 201 on success
-   * @returns { ok: false, error: string, code: string } - 400/409 on failure
+   * @returns { ok: false, error: string, code: string } - 400 INVALID_INPUT for schema validation errors
+   *                                            409 USERNAME_TAKEN if username already exists
+   *                                            413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+   *                                            400 MALFORMED_JSON if request body is not valid JSON
+   *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.post('/register', async (req, reply) => {
     const parsed = CredentialsSchema.safeParse(req.body)
@@ -82,7 +86,11 @@ export const authRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    * @route POST /auth/login
    * @body { username: string, password: string }
    * @returns { userId: string, token: string } - 200 on success
-   * @returns { ok: false, error: string, code: string } - 400/401 on failure
+   * @returns { ok: false, error: string, code: string } - 400 INVALID_INPUT for schema validation errors
+   *                                            401 INVALID_CREDENTIALS for bad username or password
+   *                                            413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+   *                                            400 MALFORMED_JSON if request body is not valid JSON
+   *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.post('/login', async (req, reply) => {
     const parsed = CredentialsSchema.safeParse(req.body)

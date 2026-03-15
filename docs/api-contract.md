@@ -33,6 +33,10 @@ All game endpoints require `Authorization: Bearer <jwt>` header.
 Request:  { "username": string, "password": string }
 Response: { "userId": string, "token": string }
 Errors:   409 if username taken
+          400 INVALID_INPUT for schema validation errors
+          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 MALFORMED_JSON if request body is not valid JSON
+          500 INTERNAL_ERROR for unexpected backend errors
 ```
 
 ### `POST /auth/login`
@@ -41,6 +45,10 @@ Errors:   409 if username taken
 Request:  { "username": string, "password": string }
 Response: { "userId": string, "token": string }
 Errors:   401 if credentials invalid
+          400 INVALID_INPUT for schema validation errors
+          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 MALFORMED_JSON if request body is not valid JSON
+          500 INTERNAL_ERROR for unexpected backend errors
 ```
 
 ---
@@ -64,6 +72,9 @@ Returns the full scenario definition (matches `scenario-schema.md` v1 shape).
 ```text
 Response: { ...full scenario JSON }
 Errors:   404 if not found
+          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 MALFORMED_JSON if request body is not valid JSON
+          500 INTERNAL_ERROR for unexpected backend errors
 ```
 
 ---
@@ -79,6 +90,9 @@ Request:  { "scenarioId": string, "role": "onion" | "defender" }
 Response: { "gameId": string, "role": "onion" | "defender" }
 Errors:   400 INVALID_INPUT if role is not "onion" or "defender"
           404 NOT_FOUND if scenarioId does not match a known scenario
+          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 MALFORMED_JSON if request body is not valid JSON
+          500 INTERNAL_ERROR for unexpected backend errors
 ```
 
 The `gameId` is shared out-of-band with the second player.
@@ -93,6 +107,9 @@ Response: { "gameId": string, "role": "onion" | "defender" }
 Errors:   404 game not found
           409 game already full
           400 cannot join your own game
+          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 MALFORMED_JSON if request body is not valid JSON
+          500 INTERNAL_ERROR for unexpected backend errors
 ```
 
 ### `GET /games/{id}`
@@ -140,6 +157,9 @@ Errors:
   }
   403                             — not your turn
   409                             — game already over
+  413                             — PAYLOAD_TOO_LARGE if payload exceeds 16KB
+  400                             — MALFORMED_JSON if request body is not valid JSON
+  500                             — INTERNAL_ERROR for unexpected backend errors
 ```
 
 `seq` duplicates `events.at(-1).seq` for the non-empty case. It is included for two reasons: it gives a definite polling fence even when `events` is empty, and it saves clients from traversing the array to find the latest sequence number.
@@ -365,3 +385,7 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from `initialSt
 | `COMBINED_FIRE_TREAD_TARGET` | Combined fire on Onion treads is illegal |
 | `GAME_OVER` | Match is already decided |
 | `GAME_FULL` | Both player slots are taken |
+| `INVALID_INPUT` | Input failed schema validation or required fields missing |
+| `PAYLOAD_TOO_LARGE` | Request body exceeded 16KB limit |
+| `MALFORMED_JSON` | Request body was not valid JSON |
+| `INTERNAL_ERROR` | Unexpected backend/server error |
