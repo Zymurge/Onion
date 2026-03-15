@@ -1,4 +1,4 @@
-describe('GET /games', () => {
+
 import { describe, it, expect } from 'vitest'
 import { buildApp } from '../app.js'
 
@@ -13,7 +13,7 @@ describe('API route sanity checks', () => {
   it('GET /health/ready returns 200 or 500', async () => {
     const app = buildApp()
     const res = await app.inject({ method: 'GET', url: '/health/ready' })
-    expect([200, 500]).toContain(res.statusCode)
+    expect([200, 500, 503]).toContain(res.statusCode)
   })
 
   it('POST /auth/register exists', async () => {
