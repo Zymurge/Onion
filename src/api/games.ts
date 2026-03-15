@@ -98,7 +98,11 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       const { scenarioId, role } = req.body
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
-      if (!scenarioId || !role) return reply.status(400).send({ ok: false, error: 'Missing scenarioId or role', code: 'INVALID_INPUT' })
+      if (!scenarioId) return reply.status(400).send({ ok: false, error: 'scenarioId is required', code: 'INVALID_INPUT' })
+      if (!role) return reply.status(400).send({ ok: false, error: 'role is required', code: 'INVALID_INPUT' })
+      if (role !== 'onion' && role !== 'defender') {
+        return reply.status(400).send({ ok: false, error: 'role must be "onion" or "defender"', code: 'INVALID_INPUT' })
+      }
       const scenarioSnapshot = await loadScenario(scenarioId)
       if (!scenarioSnapshot) {
         return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
@@ -176,6 +180,18 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       }
 
       await db.updateMatchPlayers(match.gameId, newPlayers)
+
+      // Emit PLAYER_JOINED event
+      const seq = (match.events.at(-1)?.seq ?? 0) + 1
+      const event = {
+        seq,
+        type: 'PLAYER_JOINED',
+        timestamp: new Date().toISOString(),
+        userId,
+        role,
+      }
+      await db.appendEvents(match.gameId, [event])
+
       return reply.send({ gameId: match.gameId, role })
     } catch (err) {
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
@@ -276,7 +292,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         currentState = result.state
         await db.updateMatchState(match.gameId, result.phase, result.turnNumber, match.winner, result.state)
         // Return updated state and events
-        return reply.send({ ok: true, events: newEvents, state: currentState })
+        const turnNumber = result.turnNumber
+        const eventSeq = newEvents.at(-1)?.seq ?? 0
+        const seq = eventSeq
+        return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else if (command.type === 'MOVE_ONION') {
         // Only handle MOVE_ONION here
         // Load scenario map (from match.scenarioSnapshot)
@@ -305,7 +324,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         newEvents = [{ seq, type: 'ONION_MOVED', timestamp: new Date().toISOString(), to: command.to }]
         currentState = state
         await db.appendEvents(match.gameId, newEvents)
-        return reply.send({ ok: true, seq, events: newEvents, state: currentState })
+        const turnNumber = match.turnNumber
+        const eventSeq = seq
+        return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else if (command.type === 'MOVE_UNIT') {
         // Defender movement
         const scenarioSnapshot = match.scenarioSnapshot as any
@@ -333,13 +354,17 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         newEvents = [{ seq, type: 'UNIT_MOVED', timestamp: new Date().toISOString(), unitId: command.unitId, to: command.to }]
         currentState = state
         await db.appendEvents(match.gameId, newEvents)
-        return reply.send({ ok: true, seq, events: newEvents, state: currentState })
+        const turnNumber = match.turnNumber
+        const eventSeq = seq
+        return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else {
         // Stub: acknowledge all other commands without modifying state
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
         newEvents = [{ seq, type: 'ACTION_ACKNOWLEDGED', timestamp: new Date().toISOString(), command: command.type }]
         await db.appendEvents(match.gameId, newEvents)
-        return reply.send({ ok: true, seq, events: newEvents, state: currentState })
+        const turnNumber = match.turnNumber
+        const eventSeq = seq
+        return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       }
     } catch (err) {
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })

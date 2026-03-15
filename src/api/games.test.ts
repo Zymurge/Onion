@@ -627,4 +627,33 @@ it('MOVE_ONION calls engine and updates state on success', async () => {
     expect(defenders).toBeDefined()
     expect(Object.keys(defenders).length).toBeGreaterThanOrEqual(1)
   })
+
+  it('emits a PLAYER_JOINED event when a second player joins', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+
+    // Second player joins
+    await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/join`,
+      headers: { authorization: `Bearer ${fiona.token}` },
+      payload: {},
+    })
+
+    // Fetch events
+    const res = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}/events?after=0`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+    expect(res.statusCode).toBe(200)
+    const { events } = res.json<{ events: { seq: number; type: string; userId: string; role: string }[] }>()
+    expect(events.length).toBeGreaterThan(0)
+    const joinEvent = events.find(e => e.type === 'PLAYER_JOINED')
+    expect(joinEvent).toBeDefined()
+    expect(joinEvent?.userId).toBeDefined()
+    expect(['onion', 'defender']).toContain(joinEvent?.role)
+  })
 })
