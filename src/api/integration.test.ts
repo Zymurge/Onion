@@ -435,7 +435,7 @@ async function runTurn({ app, gameId, onionToken, defenderToken, onionId, defend
         r: defender.position.r + Math.sign(dr),
       }
       const moveCmd = {
-        type: 'MOVE',
+        type: 'MOVE_UNIT',
         unitId: defender.id,
         to: moveTo,
       }

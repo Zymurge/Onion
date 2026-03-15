@@ -306,6 +306,34 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         currentState = state
         await db.appendEvents(match.gameId, newEvents)
         return reply.send({ ok: true, seq, events: newEvents, state: currentState })
+      } else if (command.type === 'MOVE_UNIT') {
+        // Defender movement
+        const scenarioSnapshot = match.scenarioSnapshot as any
+        const map = createMap(
+          scenarioSnapshot.width,
+          scenarioSnapshot.height,
+          scenarioSnapshot.hexes || []
+        )
+        const state = {
+          ...structuredClone(match.state),
+          currentPhase: match.phase,
+          turn: match.turnNumber,
+        }
+        const { validateUnitMovement, executeUnitMovement } = await import('../engine/movement.js')
+        const validation = validateUnitMovement(map, state, command.unitId, command)
+        if (!validation.valid) {
+          return reply.status(400).send({ ok: false, error: validation.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+        }
+        const result = executeUnitMovement(map, state, command.unitId, command)
+        if (!result.success) {
+          return reply.status(400).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+        }
+        await db.updateMatchState(match.gameId, match.phase, match.turnNumber, match.winner, state)
+        const seq = (match.events.at(-1)?.seq ?? 0) + 1
+        newEvents = [{ seq, type: 'UNIT_MOVED', timestamp: new Date().toISOString(), unitId: command.unitId, to: command.to }]
+        currentState = state
+        await db.appendEvents(match.gameId, newEvents)
+        return reply.send({ ok: true, seq, events: newEvents, state: currentState })
       } else {
         // Stub: acknowledge all other commands without modifying state
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
