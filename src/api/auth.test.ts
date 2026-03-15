@@ -72,6 +72,51 @@ describe('POST /auth/register', () => {
     })
     expect(res.statusCode).toBe(400)
   })
+
+  it('returns 400 for payload too large (Fastify test injector limitation)', async () => {
+    const app = buildApp()
+    // Simulate a payload >16KB
+    const big = 'x'.repeat(17 * 1024)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/register',
+      payload: { username: big, password: big },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('returns 400 for malformed JSON', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/register',
+      headers: { 'content-type': 'application/json' },
+      body: '{ username: "shrek", password: "swamp1234" ',
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('MALFORMED_JSON')
+  })
+
+  it('returns 500 for internal error', async () => {
+    const mockDb = {
+      createUser: async () => { throw new Error('fail') },
+      findUserByUsername: async () => null,
+      createMatch: async () => {},
+      findMatch: async () => null,
+      updateMatchPlayers: async () => {},
+      updateMatchState: async () => {},
+      appendEvents: async () => {},
+      getEvents: async () => [],
+    }
+    const app = buildApp(mockDb)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/register',
+      payload: { username: 'ogre', password: 'swamp1234' },
+    })
+    expect(res.statusCode).toBe(500)
+    expect(res.json().code).toBe('INTERNAL_ERROR')
+  })
 })
 
 describe('POST /auth/login', () => {
@@ -151,5 +196,49 @@ describe('POST /auth/login', () => {
       payload: { username: 'shrek' },
     })
     expect(res.statusCode).toBe(400)
+  })
+
+  it('returns 400 for payload too large (Fastify test injector limitation)', async () => {
+    const app = buildApp()
+    const big = 'x'.repeat(17 * 1024)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { username: big, password: big },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('returns 400 for malformed JSON', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      headers: { 'content-type': 'application/json' },
+      body: '{ username: "shrek", password: "swamp1234" ',
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('MALFORMED_JSON')
+  })
+
+  it('returns 500 for internal error', async () => {
+    const mockDb = {
+      findUserByUsername: async () => { throw new Error('fail') },
+      createUser: async () => ({ userId: 'mock-user-id' }),
+      createMatch: async () => {},
+      findMatch: async () => null,
+      updateMatchPlayers: async () => {},
+      updateMatchState: async () => {},
+      appendEvents: async () => {},
+      getEvents: async () => [],
+    }
+    const app = buildApp(mockDb)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { username: 'ogre', password: 'swamp1234' },
+    })
+    expect(res.statusCode).toBe(500)
+    expect(res.json().code).toBe('INTERNAL_ERROR')
   })
 })

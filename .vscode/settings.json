@@ -3,7 +3,8 @@
         "pnpm": true,
         "git commit": true,
         "npx typedoc": true,
-        "npx vitest": true
+        "npx vitest": true,
+        "vitest": true
     },
     "vitest.packageManager": "pnpm",
     "vitest.configSearchPatternExclude": "**/node_modules/**"

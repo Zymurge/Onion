@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { TurnPhase, GameState, EventEnvelope, PlayerRole, Command } from '../types/index.js'
 import type { DbAdapter, MatchRecord } from '../db/adapter.js'
 import { TURN_PHASES, phaseActor } from '../engine/phases.js'
+import { advancePhaseWithEvents } from '../engine/game.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenarios')
@@ -48,55 +49,6 @@ const INITIAL_STATE: GameState = {
     batteries: { main: 1, secondary: 4, ap: 8 },
   },
   defenders: {},
-}
-
-/**
- * Advance the game phase and auto-process engine-only phases.
- *
- * Pure function that takes a snapshot of match state and returns the new state
- * after phase advancement. Handles automatic DEFENDER_RECOVERY processing.
- *
- * @param match - Current match state snapshot
- * @returns New phase, turn number, game state, and events generated
- */
-// Advance phase and auto-process engine-only phases (DEFENDER_RECOVERY).
-// Pure function — takes a snapshot of the match, returns new state + events.
-function advancePhase(match: Pick<MatchRecord, 'phase' | 'turnNumber' | 'state' | 'events'>): {
-  phase: TurnPhase
-  turnNumber: number
-  state: GameState
-  newEvents: EventEnvelope[]
-} {
-  const newEvents: EventEnvelope[] = []
-  let seq = (match.events.at(-1)?.seq ?? 0) + 1
-  const timestamp = new Date().toISOString()
-  const state: GameState = structuredClone(match.state)
-  let turnNumber = match.turnNumber
-
-  const fromPhase = match.phase
-  const nextIdx = (TURN_PHASES.indexOf(fromPhase) + 1) % TURN_PHASES.length
-  if (nextIdx === 0) turnNumber++
-  let phase = TURN_PHASES[nextIdx]
-  newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: fromPhase, to: phase, turnNumber })
-
-  // Auto-advance through DEFENDER_RECOVERY: process unit status transitions then continue
-  if (phaseActor(phase) === 'engine') {
-    for (const [unitId, unit] of Object.entries(state.defenders)) {
-      const prevStatus = unit.status
-      if (unit.status === 'recovering') unit.status = 'operational'
-      else if (unit.status === 'disabled') unit.status = 'recovering'
-      if (unit.status !== prevStatus) {
-        newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, unitId, from: prevStatus, to: unit.status })
-      }
-    }
-    const engineFrom = phase
-    const engineNextIdx = (TURN_PHASES.indexOf(engineFrom) + 1) % TURN_PHASES.length
-    if (engineNextIdx === 0) turnNumber++
-    phase = TURN_PHASES[engineNextIdx]
-    newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: engineFrom, to: phase, turnNumber })
-  }
-
-  return { phase, turnNumber, state, newEvents }
 }
 
 /**
@@ -286,7 +238,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     let newEvents: EventEnvelope[]
     let currentState = match.state
     if (command.type === 'END_PHASE') {
-      const result = advancePhase(match)
+      const result = advancePhaseWithEvents(match)
       newEvents = result.newEvents
       currentState = result.state
       await db.updateMatchState(match.gameId, result.phase, result.turnNumber, match.winner, result.state)

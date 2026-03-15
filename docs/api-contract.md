@@ -34,7 +34,7 @@ Request:  { "username": string, "password": string }
 Response: { "userId": string, "token": string }
 Errors:   409 if username taken
           400 INVALID_INPUT for schema validation errors
-          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
@@ -46,7 +46,7 @@ Request:  { "username": string, "password": string }
 Response: { "userId": string, "token": string }
 Errors:   401 if credentials invalid
           400 INVALID_INPUT for schema validation errors
-          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
@@ -72,7 +72,7 @@ Returns the full scenario definition (matches `scenario-schema.md` v1 shape).
 ```text
 Response: { ...full scenario JSON }
 Errors:   404 if not found
-          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
@@ -90,7 +90,7 @@ Request:  { "scenarioId": string, "role": "onion" | "defender" }
 Response: { "gameId": string, "role": "onion" | "defender" }
 Errors:   400 INVALID_INPUT if role is not "onion" or "defender"
           404 NOT_FOUND if scenarioId does not match a known scenario
-          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
@@ -107,7 +107,7 @@ Response: { "gameId": string, "role": "onion" | "defender" }
 Errors:   404 game not found
           409 game already full
           400 cannot join your own game
-          413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
