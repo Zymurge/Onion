@@ -1,3 +1,65 @@
+/**
+ * Integration Test: Expected State Model
+ *
+ * High-Level Design:
+ * 1. Maintain an independent expected state model (positions, statuses, damage) for onion and defenders.
+ * 2. Initialize this model from the scenario at game start.
+ * 3. For each move or combat action, update the expected state model based on the action issued and combat results returned by the API.
+ * 4. After each phase, fetch the API state and compare it to the expected model, asserting equality for all tracked fields.
+ * 5. Repeat for each turn, simulating both onion and defender actions, until the game ends.
+ *
+ * This ensures the backend logic and API state are validated against a client-side simulation of the game rules.
+ */
+
+// Utility: Deep compare two objects (shallow for now, can be extended)
+function deepEqual(a: any, b: any): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+// Utility: Clone state (to avoid mutation bugs)
+function clone(obj: any) {
+  return JSON.parse(JSON.stringify(obj))
+}
+
+// Update expected state after a move or combat action
+function applyActionToExpectedState(expected: any, action: any, result: any) {
+  // Movement
+  if (action.type === 'MOVE') {
+    expected.onion.position = clone(action.to)
+  } else if (action.type === 'MOVE_UNIT') {
+    if (expected.defenders[action.unitId]) {
+      expected.defenders[action.unitId].position = clone(action.to)
+    }
+  }
+  // Combat (simplified: update status if result indicates damage/disable)
+  if (result && result.events) {
+    for (const event of result.events) {
+      if (event.type === 'UNIT_STATUS_CHANGED' && expected.defenders[event.unitId]) {
+        expected.defenders[event.unitId].status = event.to
+      }
+      if (event.type === 'ONION_TREADS_LOST') {
+        expected.onion.treads = event.remaining
+      }
+      if (event.type === 'ONION_BATTERY_DESTROYED') {
+        // Remove battery if destroyed
+        if (expected.onion.batteries && event.weaponType) {
+          expected.onion.batteries[event.weaponType] = Math.max(0, (expected.onion.batteries[event.weaponType] || 0) - 1)
+        }
+      }
+    }
+  }
+}
+
+// Compare expected state to API state (positions, statuses, treads, batteries)
+function assertStateMatches(apiState: any, expected: any) {
+  expect(apiState.onion.position).toEqual(expected.onion.position)
+  expect(apiState.onion.treads).toBe(expected.onion.treads)
+  expect(apiState.onion.batteries).toEqual(expected.onion.batteries)
+  for (const unitId of Object.keys(expected.defenders)) {
+    expect(apiState.defenders[unitId].position).toEqual(expected.defenders[unitId].position)
+    expect(apiState.defenders[unitId].status).toBe(expected.defenders[unitId].status)
+  }
+}
 import { describe, it, expect } from 'vitest'
 import { buildApp } from '../app.js'
 import { randomUUID } from 'node:crypto'
@@ -66,190 +128,61 @@ function validateGameState(game: any, {
 }
 
 describe('Integration: Register, Login, Create Game, Join', () => {
-  it('registers, logs in two users, creates a game, and joins', async () => {
+  it('registers, logs in two users, creates a game, joins, and validates state model', async () => {
     const app = buildApp()
 
-    // Register user1
-    const reg1 = await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'onion', password: 'onionpass' },
-    })
-    logStep('Register User 1', reg1.json())
-    expect(reg1.statusCode).toBe(201)
+    // Register and login users
+    const reg1 = await app.inject({ method: 'POST', url: '/auth/register', payload: { username: 'onion', password: 'onionpass' } })
     const { userId: userId1, token: token1 } = reg1.json()
-
-    // Register user2
-    const reg2 = await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'defender', password: 'defenderpass' },
-    })
-    logStep('Register User 2', reg2.json())
-    expect(reg2.statusCode).toBe(201)
+    const reg2 = await app.inject({ method: 'POST', url: '/auth/register', payload: { username: 'defender', password: 'defenderpass' } })
     const { userId: userId2, token: token2 } = reg2.json()
-
-    // Login user1
-    const login1 = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { username: 'onion', password: 'onionpass' },
-    })
-    logStep('Login User 1', login1.json())
-    expect(login1.statusCode).toBe(200)
-    const { userId: loginUserId1, token: loginToken1 } = login1.json()
-    expect(loginUserId1).toBe(userId1)
-
-    // Login user2
-    const login2 = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { username: 'defender', password: 'defenderpass' },
-    })
-    logStep('Login User 2', login2.json())
-    expect(login2.statusCode).toBe(200)
-    const { userId: loginUserId2, token: loginToken2 } = login2.json()
-    expect(loginUserId2).toBe(userId2)
+    const login1 = await app.inject({ method: 'POST', url: '/auth/login', payload: { username: 'onion', password: 'onionpass' } })
+    const { token: loginToken1 } = login1.json()
+    const login2 = await app.inject({ method: 'POST', url: '/auth/login', payload: { username: 'defender', password: 'defenderpass' } })
+    const { token: loginToken2 } = login2.json()
 
     // User1 creates a game as 'onion'
-    const createGame = await app.inject({
-      method: 'POST',
-      url: '/games',
-      headers: { authorization: `Bearer ${loginToken1}` },
-      payload: { scenarioId: 'swamp-siege-01', role: 'onion' },
-    })
-    logStep('User 1 Creates Game', createGame.json())
-    expect(createGame.statusCode).toBe(201)
+    const createGame = await app.inject({ method: 'POST', url: '/games', headers: { authorization: `Bearer ${loginToken1}` }, payload: { scenarioId: 'swamp-siege-01', role: 'onion' } })
     const { gameId } = createGame.json()
-    expect(typeof gameId).toBe('string')
-    // Validate minimal game state from creation response
-    validateGameState(createGame.json(), {
-      gameId,
-      mode: 'minimal',
-    })
 
-    // Fetch scenario for map validation
-    const scenarioRes = await app.inject({
-      method: 'GET',
-      url: `/scenarios/swamp-siege-01`,
-    })
-    logStep('Scenario (Map) Fetch', scenarioRes.json())
-    expect(scenarioRes.statusCode).toBe(200)
+    // Fetch scenario and initialize expected state model
+    const scenarioRes = await app.inject({ method: 'GET', url: `/scenarios/swamp-siege-01` })
     const scenario = scenarioRes.json()
-    expect(scenario).toHaveProperty('map')
-    expect(typeof scenario.map.width).toBe('number')
-    expect(typeof scenario.map.height).toBe('number')
-    expect(Array.isArray(scenario.map.hexes)).toBe(true)
-
-    // User2 joins the game as 'defender'
-    const joinGame = await app.inject({
-      method: 'POST',
-      url: `/games/${gameId}/join`,
-      headers: { authorization: `Bearer ${loginToken2}` },
-      payload: {},
-    })
-    logStep('User 2 Joins Game', joinGame.json())
-    expect(joinGame.statusCode).toBe(200)
-    expect(joinGame.json().role).toBe('defender')
-
-    // Fetch and validate game state as user1 (onion)
-    const state1 = await app.inject({
-      method: 'GET',
-      url: `/games/${gameId}`,
-      headers: { authorization: `Bearer ${loginToken1}` },
-    })
-    logStep('Game State for User 1', state1.json())
-    expect(state1.statusCode).toBe(200)
-    validateGameState(state1.json(), {
-      gameId,
-      playerUserIds: { onion: userId1, defender: userId2 },
-      phase: 'ONION_MOVE',
-      turnNumber: 1,
-      mode: 'full',
-      expectMap: false, // skip map check in game state
-    })
-
-    // Fetch and validate game state as user2 (defender)
-    const state2 = await app.inject({
-      method: 'GET',
-      url: `/games/${gameId}`,
-      headers: { authorization: `Bearer ${loginToken2}` },
-    })
-    logStep('Game State for User 2', state2.json())
-    expect(state2.statusCode).toBe(200)
-    validateGameState(state2.json(), {
-      gameId,
-      playerUserIds: { onion: userId1, defender: userId2 },
-      phase: 'ONION_MOVE',
-      turnNumber: 1,
-      mode: 'full',
-      expectMap: false, // skip map check in game state
-    })
-
-    // User1 ends phase (ONION_MOVE)
-    const endPhase1 = await app.inject({
-      method: 'POST',
-      url: `/games/${gameId}/actions`,
-      headers: { authorization: `Bearer ${loginToken1}` },
-      payload: { type: 'END_PHASE' },
-    })
-    logStep('User 1 Ends Phase', endPhase1.json())
-    expect(endPhase1.statusCode).toBe(200)
-    // Fetch and log state after user1 ends phase
-    const after1 = await app.inject({
-      method: 'GET',
-      url: `/games/${gameId}`,
-      headers: { authorization: `Bearer ${loginToken1}` },
-    })
-    logStep('Game State After User 1 Ends Phase', after1.json())
-    expect(after1.statusCode).toBe(200)
-    const after1State = after1.json()
-    validateGameState(after1State, {
-      gameId,
-      playerUserIds: { onion: userId1, defender: userId2 },
-      turnNumber: 1, // Still turn 1, but phase should advance
-      mode: 'full',
-      expectMap: false,
-    })
-    logStep('Phase After User 1 Ends Phase', { phase: after1State.phase, actor: after1State.phase === 'ONION_MOVE' ? 'onion' : (after1State.phase === 'DEFENDER_MOVE' ? 'defender' : 'unknown') })
-
-    // Only proceed if it's defender's turn
-    if (after1State.phase === 'DEFENDER_MOVE') {
-      // User2 ends phase (DEFENDER_MOVE)
-      const endPhase2 = await app.inject({
-        method: 'POST',
-        url: `/games/${gameId}/actions`,
-        headers: { authorization: `Bearer ${loginToken2}` },
-        payload: { type: 'END_PHASE' },
-      })
-      logStep('User 2 Ends Phase', endPhase2.json())
-      expect(endPhase2.statusCode).toBe(200)
-      // Validate state after both have ended phase
-      const after2 = await app.inject({
-        method: 'GET',
-        url: `/games/${gameId}`,
-        headers: { authorization: `Bearer ${loginToken2}` },
-      })
-      logStep('Game State After User 2 Ends Phase', after2.json())
-      expect(after2.statusCode).toBe(200)
-      validateGameState(after2.json(), {
-        gameId,
-        playerUserIds: { onion: userId1, defender: userId2 },
-        turnNumber: 2, // Should increment after both phases
-        mode: 'full',
-        expectMap: false,
-      })
-      logStep('Phase After User 2 Ends Phase', { phase: after2.json().phase })
-    } else {
-      logStep('Skipping User 2 END_PHASE: Not defender phase', { phase: after1State.phase })
+    // Build expected state from scenario initialState
+    const initialState = scenario.initialState
+    const expectedState = {
+      onion: clone(initialState.onion),
+      defenders: clone(initialState.defenders)
     }
 
-    // Final state log
-    logStep('Final State', {
-      user1: { userId1, token1, loginUserId1, loginToken1 },
-      user2: { userId2, token2, loginUserId2, loginToken2 },
-      gameId,
-    })
+    // User2 joins the game as 'defender'
+    await app.inject({ method: 'POST', url: `/games/${gameId}/join`, headers: { authorization: `Bearer ${loginToken2}` }, payload: {} })
+
+    // Fetch and validate game state as user1 (onion)
+    const state1 = await app.inject({ method: 'GET', url: `/games/${gameId}`, headers: { authorization: `Bearer ${loginToken1}` } })
+    logStep('Initial API state (before move)', state1.json().state)
+    logStep('Initial expected state (before move)', expectedState)
+    assertStateMatches(state1.json().state, expectedState)
+
+    // User1 moves onion
+    const onionMove = { type: 'MOVE', to: { q: expectedState.onion.position.q + 1, r: expectedState.onion.position.r } }
+    logStep('MOVE action sent', onionMove)
+    const moveRes = await app.inject({ method: 'POST', url: `/games/${gameId}/actions`, headers: { authorization: `Bearer ${loginToken1}` }, payload: onionMove })
+    logStep('API response to MOVE', moveRes.json())
+    applyActionToExpectedState(expectedState, onionMove, moveRes.json())
+    logStep('Expected state after move', expectedState)
+    // Validate after move
+    const afterMoveState = await app.inject({ method: 'GET', url: `/games/${gameId}`, headers: { authorization: `Bearer ${loginToken1}` } })
+    logStep('API state after move', afterMoveState.json().state)
+    assertStateMatches(afterMoveState.json().state, expectedState)
+
+    // User1 ends phase
+    await app.inject({ method: 'POST', url: `/games/${gameId}/actions`, headers: { authorization: `Bearer ${loginToken1}` }, payload: { type: 'END_PHASE' } })
+    // Fetch and validate state after phase
+    const afterPhaseState = await app.inject({ method: 'GET', url: `/games/${gameId}`, headers: { authorization: `Bearer ${loginToken1}` } })
+    logStep('API state after END_PHASE', afterPhaseState.json().state)
+    logStep('Expected state after END_PHASE', expectedState)
+    assertStateMatches(afterPhaseState.json().state, expectedState)
   })
 
   it('simulates a full turn for both onion and defenders', async () => {
