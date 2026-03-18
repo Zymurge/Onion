@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from '../app.js'
+import { StaleMatchStateError } from '../db/adapter.js'
 import * as engineGame from '../engine/index.js'
 import { advanceToPhase, createGame, joinGame, register, submitAction } from './helpers.js'
 
@@ -191,5 +192,110 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.events[1].weaponType).toBe('main')
     validateSpy.mockRestore()
     executeSpy.mockRestore()
+  })
+
+  it('returns 409 when persistence detects stale state for combat action', async () => {
+    const onionId = '11111111-1111-4111-8111-111111111111'
+    const defenderId = '22222222-2222-4222-8222-222222222222'
+    const gameId = '33333333-3333-4333-8333-333333333333'
+    const mockDb = {
+      createUser: async () => ({ userId: onionId }),
+      findUserByUsername: async () => null,
+      createMatch: async () => {},
+      findMatch: async () => ({
+        gameId,
+        scenarioId: 'swamp-siege-01',
+        scenarioSnapshot: {
+          map: { width: 22, height: 14, hexes: [] },
+          victoryConditions: { maxTurns: 20 },
+        },
+        players: { onion: onionId, defender: defenderId },
+        phase: 'ONION_COMBAT' as const,
+        turnNumber: 1,
+        winner: null,
+        state: {
+          onion: { position: { q: 0, r: 10 }, treads: 45, missiles: 2, batteries: { main: 1, secondary: 4, ap: 8 } },
+          defenders: { 'wolf-1': { type: 'GEV', position: { q: 3, r: 10 }, status: 'operational' as const } },
+          ramsThisTurn: 0,
+        },
+        events: [],
+      }),
+      updateMatchPlayers: async () => {},
+      updateMatchState: async () => {},
+      persistMatchProgress: async () => { throw new StaleMatchStateError('stale') },
+      appendEvents: async () => {},
+      getEvents: async () => [],
+    }
+
+    const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
+      ok: true,
+      plan: { actionType: 'FIRE_WEAPON', attackerIds: ['onion'], target: { kind: 'unit', id: 'wolf-1' }, attackStrength: 4, defense: 2 },
+    } as any)
+    const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockReturnValue({
+      success: true, actionType: 'FIRE_WEAPON', targetId: 'wolf-1', roll: { roll: 5, result: 'X', odds: '2:1' },
+    } as any)
+
+    const app = buildApp(mockDb)
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer stub.${onionId}` },
+      payload: { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: 'wolf-1' },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json().code).toBe('STALE_STATE')
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
+  })
+
+  it('persists winner when Onion destroys the Castle via combat', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+    await advanceToPhase(app, gameId, shrek.token, fiona.token, 'ONION_COMBAT')
+
+    const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
+      ok: true,
+      plan: { actionType: 'FIRE_WEAPON', attackerIds: ['onion'], target: { kind: 'unit', id: 'castle' }, attackStrength: 8, defense: 2 },
+    } as any)
+    const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation((state) => {
+      // Simulate castle being destroyed — Onion wins
+      if (state.defenders['castle']) {
+        state.defenders['castle'].status = 'destroyed'
+      } else {
+        // inject a castle into state so checkVictoryConditions can find it
+        state.defenders['castle'] = { type: 'Castle', position: { q: 5, r: 5 }, status: 'destroyed' } as any
+      }
+      return {
+        success: true,
+        actionType: 'FIRE_WEAPON',
+        attackerIds: ['onion'],
+        targetId: 'castle',
+        roll: { roll: 6, result: 'X', odds: '3:1' },
+        statusChanges: [{ unitId: 'castle', from: 'operational', to: 'destroyed' }],
+      }
+    })
+
+    await submitAction(app, gameId, shrek.token, {
+      type: 'FIRE_WEAPON',
+      weaponType: 'main',
+      weaponIndex: 0,
+      targetId: 'castle',
+    })
+
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
+
+    const stateRes = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+    const body = stateRes.json()
+    expect(body.winner).not.toBeNull()
+    expect(body.winner).toBe(shrek.userId)
   })
 })

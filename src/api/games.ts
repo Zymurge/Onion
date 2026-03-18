@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import type { TurnPhase, GameState, EventEnvelope, PlayerRole, Command } from '../types/index.js'
 import type { DbAdapter, MatchRecord } from '../db/adapter.js'
 import { StaleMatchStateError } from '../db/adapter.js'
-import { TURN_PHASES, phaseActor, checkVictoryConditions } from '../engine/phases.js'
+import { phaseActor, checkVictoryConditions } from '../engine/phases.js'
 import { advancePhaseWithEvents } from '../engine/game.js'
 import { createMap } from '../engine/map.js'
 import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '../engine/index.js'
@@ -469,8 +469,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         // Return updated state and events
         const turnNumber = result.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? 0
-        const seq = eventSeq
-        return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
+        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else if (command.type === 'MOVE') {
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
