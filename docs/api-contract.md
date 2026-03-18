@@ -191,11 +191,7 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 { "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
 ```
 
-**Ram a unit** (up to 2 rammings per turn, during movement)
-
-```json
-{ "type": "RAM_UNIT", "targetId": string }
-```
+Ramming is resolved as part of `MOVE` path execution (up to 2 rams per turn), not as a separate command.
 
 ### Onion Combat Phase (`ONION_COMBAT`)
 
@@ -211,6 +207,16 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 ```
 
 `weaponIndex` identifies which instance of a multi-count battery (e.g., secondary battery 0–3). Use `0` for single-instance weapons.
+
+### Defender Movement Phase (`DEFENDER_MOVE`, `GEV_SECOND_MOVE`)
+
+#### Move a unit
+
+```json
+{ "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
+```
+
+### Defender Combat Phase (`DEFENDER_COMBAT`)
 
 #### Defender combat actions
 
@@ -252,18 +258,6 @@ Combat actions return structured errors:
 
 All errors include `detailCode` for granular client feedback.
 
-### Defender Movement Phase (`DEFENDER_MOVE`, `GEV_SECOND_MOVE`)
-
-#### Move a unit
-
-```json
-{ "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
-```
-
-### Defender Combat Phase (`DEFENDER_COMBAT`)
-
-See above for command shapes and error handling.
-
 ---
 
 ## Scenario Map Loading (MOVE Route)
@@ -298,7 +292,6 @@ All events share a base envelope:
 ```text
 ONION_MOVED       { from: HexPos, to: HexPos }
 UNIT_MOVED        { unitId: string, from: HexPos, to: HexPos }
-UNIT_RAMMED       { unitId: string, roll: number, treadLoss: number, unitDestroyed: boolean }
 ```
 
 ### Combat Events
@@ -321,9 +314,9 @@ COMBINED_FIRE_RESOLVED { unitIds: string[], targetId: string,
 
 ```text
 UNIT_STATUS_CHANGED   { unitId: string, from: UnitStatus, to: UnitStatus }
-ONION_TREADS_LOST     { treadLoss: number, remaining: number }
-ONION_BATTERY_DESTROYED { weaponType: string, weaponIndex: number }
-ONION_MISSILE_LAUNCHED  { weaponIndex: number }
+UNIT_SQUADS_LOST      { unitId: string, amount: number }
+ONION_TREADS_LOST     { amount: number, remaining: number }
+ONION_BATTERY_DESTROYED { weaponId: string, weaponType: string }
 ```
 
 ### Phase / Game Events
