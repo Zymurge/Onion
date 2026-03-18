@@ -9,22 +9,56 @@ import type { HexPos, PlayerRole, Command } from '../types/index.js'
 import { isInBounds, findPath, movementCost } from './map.js'
 import type { GameMap } from './map.js'
 import { getUnitDefinition, onionMovementAllowance, isImmobile } from './units.js'
-import type { GameUnit, DefenderUnit, EngineGameState } from './units.js'
+import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from './units.js'
 
 /**
  * Result of validating a movement command.
  */
-export interface MovementValidation {
-  /** Whether the movement is valid */
+export type MovementValidationCode =
+  | 'WRONG_PHASE'
+  | 'UNIT_NOT_FOUND'
+  | 'UNIT_NOT_OPERATIONAL'
+  | 'UNIT_IMMOBILE'
+  | 'NO_MOVEMENT_ALLOWANCE'
+  | 'NO_PATH'
+  | 'RAM_LIMIT_EXCEEDED'
+  | 'SECOND_MOVE_NOT_ALLOWED'
+
+export interface MovementCapabilities {
+  canRam: boolean
+  hasTreads: boolean
+  canSecondMove: boolean
+  canCrossRidgelines: boolean
+}
+
+export interface MovementPlan {
+  unitId: string
+  from: HexPos
+  to: HexPos
+  path: HexPos[]
+  cost: number
+  movementAllowance: number
+  rammedUnitIds: string[]
+  ramCapacityUsed: number
+  treadCost: number
+  capabilities: MovementCapabilities
+}
+
+export type MovementValidation =
+  | { ok: true; plan: MovementPlan }
+  | { ok: false; code: MovementValidationCode; error: string }
+
+interface LegacyMovementValidation {
   valid: boolean
-  /** Error message if invalid */
   error?: string
-  /** Expected path if valid */
   path?: HexPos[]
-  /** Total movement cost */
   cost?: number
-  /** Units that would be rammed */
   rammedUnits?: string[]
+}
+
+interface ResolvedUnit {
+  unit: GameUnit
+  role: PlayerRole
 }
 
 /**
@@ -35,12 +69,231 @@ export interface MovementResult {
   success: boolean
   /** New unit position */
   newPosition?: HexPos
+  /** Unit IDs rammed during the move */
+  rammedUnitIds?: string[]
+  /** Ram capacity used by the move */
+  ramCapacityUsed?: number
   /** Tread damage from ramming */
   treadDamage?: number
   /** Units destroyed by ramming */
   destroyedUnits?: string[]
   /** Error message if failed */
   error?: string
+}
+
+function hasTreads(unit: GameUnit): unit is OnionUnit {
+  return 'treads' in unit && typeof unit.treads === 'number'
+}
+
+function resolveUnit(state: EngineGameState, unitId: string): ResolvedUnit | null {
+  if (state.onion.id === unitId) {
+    return { unit: state.onion, role: 'onion' }
+  }
+
+  const defender = state.defenders[unitId]
+  if (defender) {
+    return { unit: defender, role: 'defender' }
+  }
+
+  return null
+}
+
+function getCapabilities(unit: GameUnit): MovementCapabilities {
+  const definition = getUnitDefinition(unit.type)
+
+  return {
+    canRam: definition.abilities.canRam === true,
+    hasTreads: hasTreads(unit),
+    canSecondMove: definition.abilities.secondMove === true,
+    canCrossRidgelines: definition.abilities.canCrossRidgelines === true,
+  }
+}
+
+function getMovementAllowance(
+  state: EngineGameState,
+  unit: GameUnit,
+  role: PlayerRole,
+  capabilities: MovementCapabilities
+): MovementValidation | { ok: true; movementAllowance: number } {
+  const definition = getUnitDefinition(unit.type)
+
+  if (role === 'onion') {
+    if (state.currentPhase !== 'ONION_MOVE') {
+      return { ok: false, code: 'WRONG_PHASE', error: 'Not the Onion movement phase' }
+    }
+
+    const movementAllowance = capabilities.hasTreads
+      ? onionMovementAllowance((unit as OnionUnit).treads)
+      : definition.movement
+
+    if (movementAllowance === 0) {
+      return { ok: false, code: 'NO_MOVEMENT_ALLOWANCE', error: 'Unit has no movement allowance' }
+    }
+
+    return { ok: true, movementAllowance }
+  }
+
+  if (state.currentPhase === 'GEV_SECOND_MOVE') {
+    if (!capabilities.canSecondMove) {
+      return { ok: false, code: 'SECOND_MOVE_NOT_ALLOWED', error: 'Unit cannot perform a second move' }
+    }
+
+    const movementAllowance = definition.abilities.secondMoveAllowance ?? 0
+    if (movementAllowance === 0) {
+      return { ok: false, code: 'NO_MOVEMENT_ALLOWANCE', error: 'Unit has no movement allowance' }
+    }
+
+    return { ok: true, movementAllowance }
+  }
+
+  if (state.currentPhase !== 'DEFENDER_MOVE') {
+    return { ok: false, code: 'WRONG_PHASE', error: 'Not a defender movement phase' }
+  }
+
+  const movementAllowance = capabilities.hasTreads
+    ? onionMovementAllowance((unit as OnionUnit).treads)
+    : definition.movement
+
+  if (movementAllowance === 0) {
+    return { ok: false, code: 'NO_MOVEMENT_ALLOWANCE', error: 'Unit has no movement allowance' }
+  }
+
+  return { ok: true, movementAllowance }
+}
+
+function collectPathOccupants(
+  state: EngineGameState,
+  path: HexPos[],
+  movingUnitId: string
+): DefenderUnit[] {
+  const occupants: DefenderUnit[] = []
+
+  for (const pos of path) {
+    for (const unit of Object.values(state.defenders)) {
+      if (unit.id === movingUnitId) continue
+      if (unit.position.q === pos.q && unit.position.r === pos.r) {
+        occupants.push(unit)
+      }
+    }
+  }
+
+  return occupants
+}
+
+function validateMovePlan(
+  map: GameMap,
+  state: EngineGameState,
+  command: Extract<Command, { type: 'MOVE' }>
+): MovementValidation {
+  const resolved = resolveUnit(state, command.unitId)
+  if (!resolved) {
+    return { ok: false, code: 'UNIT_NOT_FOUND', error: `Unit '${command.unitId}' not found` }
+  }
+
+  const { unit, role } = resolved
+  if (unit.status !== 'operational') {
+    return { ok: false, code: 'UNIT_NOT_OPERATIONAL', error: 'Unit is not operational' }
+  }
+  if (isImmobile(unit)) {
+    return { ok: false, code: 'UNIT_IMMOBILE', error: 'Unit is immobile' }
+  }
+
+  const capabilities = getCapabilities(unit)
+  const allowance = getMovementAllowance(state, unit, role, capabilities)
+  if (!allowance.ok) {
+    return allowance
+  }
+
+  const pathResult = findPath(map, unit.position, command.to, allowance.movementAllowance, capabilities.canCrossRidgelines)
+  if (!pathResult.found) {
+    return {
+      ok: false,
+      code: 'NO_PATH',
+      error: `No valid path to destination within movement allowance of ${allowance.movementAllowance}`,
+    }
+  }
+
+  const rammedUnits = capabilities.canRam ? collectPathOccupants(state, pathResult.path, unit.id) : []
+  const ramCapacityUsed = rammedUnits.length
+
+  if (capabilities.canRam && state.ramsThisTurn + ramCapacityUsed > 2) {
+    return {
+      ok: false,
+      code: 'RAM_LIMIT_EXCEEDED',
+      error: `Would exceed ram limit (${state.ramsThisTurn} used, ${ramCapacityUsed} on path)`,
+    }
+  }
+
+  const treadCost = capabilities.hasTreads
+    ? rammedUnits.reduce((total, rammedUnit) => total + calculateRamming(rammedUnit, 6).treadCost, 0)
+    : 0
+
+  return {
+    ok: true,
+    plan: {
+      unitId: unit.id,
+      from: unit.position,
+      to: command.to,
+      path: pathResult.path,
+      cost: pathResult.cost,
+      movementAllowance: allowance.movementAllowance,
+      rammedUnitIds: rammedUnits.map((rammedUnit) => rammedUnit.id),
+      ramCapacityUsed,
+      treadCost,
+      capabilities,
+    },
+  }
+}
+
+function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementResult {
+  const resolved = resolveUnit(state, plan.unitId)
+  if (!resolved) {
+    return { success: false, error: `Unit '${plan.unitId}' not found` }
+  }
+
+  const { unit } = resolved
+  unit.position = plan.to
+
+  const destroyedUnits: string[] = []
+  if (plan.capabilities.canRam && plan.ramCapacityUsed > 0) {
+    state.ramsThisTurn += plan.ramCapacityUsed
+    for (const rammedUnitId of plan.rammedUnitIds) {
+      const rammedUnit = state.defenders[rammedUnitId]
+      if (!rammedUnit) continue
+      const outcome = calculateRamming(rammedUnit)
+      if (outcome.destroyed) {
+        rammedUnit.status = 'destroyed'
+        destroyedUnits.push(rammedUnitId)
+      }
+    }
+  }
+
+  const treadDamage = plan.capabilities.hasTreads ? plan.treadCost : 0
+  if (treadDamage > 0 && hasTreads(unit)) {
+    unit.treads = Math.max(0, unit.treads - treadDamage)
+  }
+
+  return {
+    success: true,
+    newPosition: plan.to,
+    rammedUnitIds: plan.rammedUnitIds,
+    ramCapacityUsed: plan.ramCapacityUsed,
+    treadDamage,
+    destroyedUnits,
+  }
+}
+
+function toLegacyValidation(result: MovementValidation): LegacyMovementValidation {
+  if (!result.ok) {
+    return { valid: false, error: result.error }
+  }
+
+  return {
+    valid: true,
+    path: result.plan.path,
+    cost: result.plan.cost,
+    rammedUnits: result.plan.rammedUnitIds,
+  }
 }
 
 /**
@@ -50,28 +303,18 @@ export interface MovementResult {
  * @param command - Movement command to validate
  * @returns Validation result
  */
+
 export function validateOnionMovement(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE_ONION' }>
-): MovementValidation {
-  if (state.currentPhase !== 'ONION_MOVE') {
-    return { valid: false, error: 'Not the Onion movement phase' }
+  command: Extract<Command, { type: 'MOVE' }>
+): LegacyMovementValidation {
+  console.log('[validateOnionMovement] called with:', { position: state.onion.position, command })
+  if (command.unitId !== state.onion.id) {
+    return { valid: false, error: 'Not an Onion move command' }
   }
-  const ma = onionMovementAllowance(state.onion.treads)
-  if (ma === 0) {
-    return { valid: false, error: 'Onion has no movement allowance (0 treads)' }
-  }
-  const canCross = true // Onion can cross ridgelines
-  const pathResult = findPath(map, state.onion.position, command.to, ma, canCross)
-  if (!pathResult.found) {
-    return { valid: false, error: 'No valid path to destination within movement allowance' }
-  }
-  const rammed = getRammedUnits(map, state, pathResult.path)
-  if (state.ramsThisTurn + rammed.length > 2) {
-    return { valid: false, error: `Would exceed ram limit (${state.ramsThisTurn} used, ${rammed.length} on path)` }
-  }
-  return { valid: true, path: pathResult.path, cost: pathResult.cost, rammedUnits: rammed }
+
+  return toLegacyValidation(validateMovePlan(map, state, command))
 }
 
 /**
@@ -82,41 +325,37 @@ export function validateOnionMovement(
  * @param command - Movement command to validate
  * @returns Validation result
  */
+
+export function validateUnitMovement(
+  map: GameMap,
+  state: EngineGameState,
+  command: Extract<Command, { type: 'MOVE' }>
+): MovementValidation
+
 export function validateUnitMovement(
   map: GameMap,
   state: EngineGameState,
   unitId: string,
-  command: Extract<Command, { type: 'MOVE_UNIT' }>
-): MovementValidation {
-  const validPhases = ['DEFENDER_MOVE', 'GEV_SECOND_MOVE']
-  if (!validPhases.includes(state.currentPhase)) {
-    return { valid: false, error: 'Not a defender movement phase' }
+  command: Extract<Command, { type: 'MOVE' }>
+): LegacyMovementValidation
+
+export function validateUnitMovement(
+  map: GameMap,
+  state: EngineGameState,
+  unitIdOrCommand: string | Extract<Command, { type: 'MOVE' }>,
+  commandMaybe?: Extract<Command, { type: 'MOVE' }>
+): MovementValidation | LegacyMovementValidation {
+  const command = typeof unitIdOrCommand === 'string' ? commandMaybe : unitIdOrCommand
+  if (!command) {
+    return { valid: false, error: 'Missing move command' }
   }
-  const unit = state.defenders[unitId]
-  if (!unit) {
-    return { valid: false, error: `Unit '${unitId}' not found` }
+
+  const result = validateMovePlan(map, state, command)
+  if (typeof unitIdOrCommand === 'string') {
+    return toLegacyValidation(result)
   }
-  if (unit.status !== 'operational') {
-    return { valid: false, error: 'Unit is not operational' }
-  }
-  if (isImmobile(unit)) {
-    return { valid: false, error: 'Unit is immobile' }
-  }
-  const def = getUnitDefinition(unit.type)
-  if (state.currentPhase === 'GEV_SECOND_MOVE') {
-    if (!def.abilities.secondMove) {
-      return { valid: false, error: 'Unit cannot perform a second move' }
-    }
-  }
-  const ma = state.currentPhase === 'GEV_SECOND_MOVE'
-    ? (def.abilities.secondMoveAllowance ?? 0)
-    : def.movement
-  const canCross = def.abilities.canCrossRidgelines ?? false
-  const pathResult = findPath(map, unit.position, command.to, ma, canCross)
-  if (!pathResult.found) {
-    return { valid: false, error: 'No valid path to destination within movement allowance' }
-  }
-  return { valid: true, path: pathResult.path, cost: pathResult.cost }
+
+  return result
 }
 
 /**
@@ -126,33 +365,7 @@ export function validateUnitMovement(
  * @param command - Movement command to execute
  * @returns Movement result with state changes
  */
-export function executeOnionMovement(
-  map: GameMap,
-  state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE_ONION' }>
-): MovementResult {
-  const ma = onionMovementAllowance(state.onion.treads)
-  const pathResult = findPath(map, state.onion.position, command.to, ma, true)
-  if (!pathResult.found) {
-    return { success: false, error: 'No valid path to destination' }
-  }
-  const rammed = getRammedUnits(map, state, pathResult.path)
-  let treadDamage = 0
-  const destroyedUnits: string[] = []
-  for (const id of rammed) {
-    const unit = state.defenders[id]
-    const { treadCost, destroyed } = calculateRamming(unit)
-    treadDamage += treadCost
-    if (destroyed) {
-      unit.status = 'destroyed'
-      destroyedUnits.push(id)
-    }
-  }
-  state.onion.treads = Math.max(0, state.onion.treads - treadDamage)
-  state.ramsThisTurn += rammed.length
-  state.onion.position = command.to
-  return { success: true, newPosition: command.to, treadDamage, destroyedUnits }
-}
+
 
 /**
  * Execute a defender unit movement.
@@ -162,18 +375,57 @@ export function executeOnionMovement(
  * @param command - Movement command to execute
  * @returns Movement result with state changes
  */
+
+export function executeOnionMovement(
+  map: GameMap,
+  state: EngineGameState,
+  command: Extract<Command, { type: 'MOVE' }>
+): MovementResult {
+  console.log('[executeOnionMovement] called with:', { position: state.onion.position, command })
+  if (command.unitId !== state.onion.id) {
+    console.log('executeOnionMovement: Not an Onion move command', command)
+    return { success: false, error: 'Not an Onion move command' }
+  }
+  const validation = validateMovePlan(map, state, command)
+  if (!validation.ok) {
+    return { success: false, error: validation.error }
+  }
+
+  return executeMovePlan(state, validation.plan)
+}
+
+export function executeUnitMovement(
+  state: EngineGameState,
+  plan: MovementPlan
+): MovementResult
+
 export function executeUnitMovement(
   map: GameMap,
   state: EngineGameState,
   unitId: string,
-  command: Extract<Command, { type: 'MOVE_UNIT' }>
+  command: Extract<Command, { type: 'MOVE' }>
+): MovementResult
+
+export function executeUnitMovement(
+  mapOrState: GameMap | EngineGameState,
+  stateOrPlan: EngineGameState | MovementPlan,
+  unitId?: string,
+  command?: Extract<Command, { type: 'MOVE' }>
 ): MovementResult {
-  const unit = state.defenders[unitId]
-  if (!unit) {
-    return { success: false, error: `Unit '${unitId}' not found` }
+  if ('width' in mapOrState) {
+    if (!unitId || !command) {
+      return { success: false, error: 'Missing move execution inputs' }
+    }
+
+    const validation = validateMovePlan(mapOrState, stateOrPlan as EngineGameState, command)
+    if (!validation.ok) {
+      return { success: false, error: validation.error }
+    }
+
+    return executeMovePlan(stateOrPlan as EngineGameState, validation.plan)
   }
-  unit.position = command.to
-  return { success: true, newPosition: command.to }
+
+  return executeMovePlan(mapOrState, stateOrPlan as MovementPlan)
 }
 
 /**

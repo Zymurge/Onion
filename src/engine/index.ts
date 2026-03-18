@@ -55,6 +55,9 @@ export {
 // Movement validation and execution
 export type {
   MovementValidation,
+  MovementValidationCode,
+  MovementCapabilities,
+  MovementPlan,
   MovementResult,
 } from './movement.js'
 

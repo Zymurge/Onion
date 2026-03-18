@@ -53,6 +53,8 @@ export interface UnitAbilities {
   secondMove?: boolean
   /** Movement allowance for the GEV second-move phase (hexes) */
   secondMoveAllowance?: number
+  /** Can move through enemy units and ram them */
+  canRam?: boolean
   /** Maximum stacks per hex (1 for most units, 3 for infantry) */
   maxStacks: number
   /** Can cross ridgelines (Onion) */
@@ -352,7 +354,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     type: 'TheOnion',
     movement: 3,    // max MA (at 31–45 treads); onionMovementAllowance() gives actual MA
     defense: 0,     // Onion has no unit-level defense; each subsystem has its own
-    abilities: { maxStacks: 1, canCrossRidgelines: true },
+    abilities: { maxStacks: 1, canCrossRidgelines: true, canRam: true },
     weapons: [
       makeWeapon('main', 'Main Battery', 4, 3, 4, true),
       makeWeapon('secondary_1', 'Secondary Battery', 3, 2, 3, true),

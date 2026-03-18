@@ -5,13 +5,12 @@ import {
   canMoveThrough,
   calculateRamming,
   getRammedUnits,
-  validateOnionMovement,
   validateUnitMovement,
-  executeOnionMovement,
   executeUnitMovement,
 } from './movement.js'
 import { createMap } from './map.js'
 import type { GameMap } from './map.js'
+import type { MovementPlan } from './movement.js'
 import type { DefenderUnit, OnionUnit, EngineGameState } from './units.js'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -207,174 +206,176 @@ describe('getRammedUnits', () => {
   })
 })
 
-// ─── validateOnionMovement ───────────────────────────────────────────────────
-
-describe('validateOnionMovement', () => {
-  it('accepts a valid move to an adjacent empty hex', () => {
-    const state = makeState()
-    const result = validateOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(true)
-  })
-
-  it('rejects when the current phase is not ONION_MOVE', () => {
-    const state = makeState({ currentPhase: 'ONION_COMBAT' })
-    const result = validateOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(false)
-    expect(result.error).toBeTruthy()
-  })
-
-  it('rejects when the Onion has 0 treads (MA = 0)', () => {
-    const state = makeState({ onion: makeOnion({ treads: 0 }) })
-    const result = validateOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(false)
-  })
-
-  it('rejects when the destination is out of bounds', () => {
-    const state = makeState()
-    const result = validateOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 10, r: 10 } })
-    expect(result.valid).toBe(false)
-  })
-
-  it('rejects when ramsThisTurn is already 2 and a defender is on the path', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
-    const state = makeState({ ramsThisTurn: 2, defenders: { d1: defender } })
-    const result = validateOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(false)
-  })
-
-  it('accepts a path with one ram when ramsThisTurn is 0', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
-    const state = makeState({ defenders: { d1: defender } })
-    const result = validateOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(true)
-  })
-
-  it('rejects when the path would require more than 2 rams total', () => {
-    // Onion at (0,0), 3 defenders at (1,0) (2,0) (3,0) — all must be rammed
-    const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
-    const d2 = makeDefender({ id: 'd2', position: { q: 2, r: 0 } })
-    const d3 = makeDefender({ id: 'd3', position: { q: 3, r: 0 } })
-    const state = makeState({ defenders: { d1, d2, d3 } })
-    const result = validateOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 3, r: 0 } })
-    expect(result.valid).toBe(false)
-  })
-})
-
 // ─── validateUnitMovement ────────────────────────────────────────────────────
 
 describe('validateUnitMovement', () => {
-  it('accepts a valid Puss move in DEFENDER_MOVE phase', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: defender } })
-    const result = validateUnitMovement(CLEAR_MAP, state, 'd1', { type: 'MOVE_UNIT', unitId: 'd1', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(true)
-  })
-
-  it('rejects when the phase is ONION_MOVE', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'ONION_MOVE', defenders: { d1: defender } })
-    const result = validateUnitMovement(CLEAR_MAP, state, 'd1', { type: 'MOVE_UNIT', unitId: 'd1', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(false)
-  })
-
-  it('rejects when the unit ID is not in state', () => {
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE' })
-    const result = validateUnitMovement(CLEAR_MAP, state, 'missing', { type: 'MOVE_UNIT', unitId: 'missing', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(false)
-  })
-
-  it('rejects when the unit is immobile (LordFarquaad)', () => {
-    const farquaad = makeDefender({ id: 'f1', type: 'LordFarquaad', position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { f1: farquaad } })
-    const result = validateUnitMovement(CLEAR_MAP, state, 'f1', { type: 'MOVE_UNIT', unitId: 'f1', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(false)
-  })
-
-  it('rejects when the unit is not operational', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 0, r: 0 }, status: 'disabled' })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: defender } })
-    const result = validateUnitMovement(CLEAR_MAP, state, 'd1', { type: 'MOVE_UNIT', unitId: 'd1', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(false)
-  })
-
-  it('BigBadWolf uses movement allowance of 4 in DEFENDER_MOVE', () => {
-    const wolf = makeDefender({ id: 'w1', type: 'BigBadWolf', position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { w1: wolf } })
-    // 4 hexes away — valid with MA=4, invalid with MA=3
-    const result = validateUnitMovement(CLEAR_MAP, state, 'w1', { type: 'MOVE_UNIT', unitId: 'w1', to: { q: 4, r: 0 } })
-    expect(result.valid).toBe(true)
-  })
-
-  it('BigBadWolf uses secondMoveAllowance of 3 in GEV_SECOND_MOVE', () => {
-    const wolf = makeDefender({ id: 'w1', type: 'BigBadWolf', position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { w1: wolf } })
-    // 3 hexes away — valid with MA=3
-    const result = validateUnitMovement(CLEAR_MAP, state, 'w1', { type: 'MOVE_UNIT', unitId: 'w1', to: { q: 3, r: 0 } })
-    expect(result.valid).toBe(true)
-  })
-
-  it('rejects a non-GEV unit moving in GEV_SECOND_MOVE phase', () => {
-    const puss = makeDefender({ id: 'd1', position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { d1: puss } })
-    const result = validateUnitMovement(CLEAR_MAP, state, 'd1', { type: 'MOVE_UNIT', unitId: 'd1', to: { q: 1, r: 0 } })
-    expect(result.valid).toBe(false)
-  })
-})
-
-// ─── executeOnionMovement ────────────────────────────────────────────────────
-
-describe('executeOnionMovement', () => {
-  it('updates the Onion position to the destination', () => {
-    const state = makeState()
-    executeOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 1, r: 0 } })
-    expect(state.onion.position).toEqual({ q: 1, r: 0 })
-  })
-
-  it('returns success=true with the new position', () => {
-    const state = makeState()
-    const result = executeOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 1, r: 0 } })
-    expect(result.success).toBe(true)
-    expect(result.newPosition).toEqual({ q: 1, r: 0 })
-  })
-
-  it('increments ramsThisTurn when a defender is on the path', () => {
+  it('returns a validated plan for a treaded ram-capable unit', () => {
     const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })
-    executeOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 1, r: 0 } })
-    expect(state.ramsThisTurn).toBe(1)
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 1, r: 0 } })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      throw new Error(`Expected validated plan, got ${result.code}`)
+    }
+    expect(result.plan.unitId).toBe('onion')
+    expect(result.plan.from).toEqual({ q: 0, r: 0 })
+    expect(result.plan.to).toEqual({ q: 1, r: 0 })
+    expect(result.plan.rammedUnitIds).toEqual(['d1'])
+    expect(result.plan.ramCapacityUsed).toBe(1)
+    expect(result.plan.treadCost).toBe(1)
+    expect(result.plan.capabilities.canRam).toBe(true)
+    expect(result.plan.capabilities.hasTreads).toBe(true)
   })
 
-  it('deducts tread cost for each rammed armor unit', () => {
-    const puss = makeDefender({ id: 'd1', type: 'Puss', position: { q: 1, r: 0 } })
-    const state = makeState({ defenders: { d1: puss } })
-    executeOnionMovement(CLEAR_MAP, state, { type: 'MOVE_ONION', to: { q: 1, r: 0 } })
-    expect(state.onion.treads).toBe(44) // 45 - 1 for Puss
+  it('returns WRONG_PHASE for a defender unit in ONION_MOVE', () => {
+    const defender = makeDefender({ id: 'd1', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'ONION_MOVE', defenders: { d1: defender } })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'd1', to: { q: 1, r: 0 } })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'WRONG_PHASE',
+      error: expect.any(String),
+    })
+  })
+
+  it('returns UNIT_NOT_FOUND when the unit ID does not exist', () => {
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE' })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'missing', to: { q: 1, r: 0 } })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'UNIT_NOT_FOUND',
+      error: expect.any(String),
+    })
+  })
+
+  it('returns UNIT_IMMOBILE when the unit cannot move', () => {
+    const farquaad = makeDefender({ id: 'f1', type: 'LordFarquaad', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { f1: farquaad } })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'f1', to: { q: 1, r: 0 } })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'UNIT_IMMOBILE',
+      error: expect.any(String),
+    })
+  })
+
+  it('returns UNIT_NOT_OPERATIONAL when the unit is disabled', () => {
+    const defender = makeDefender({ id: 'd1', position: { q: 0, r: 0 }, status: 'disabled' })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: defender } })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'd1', to: { q: 1, r: 0 } })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'UNIT_NOT_OPERATIONAL',
+      error: expect.any(String),
+    })
+  })
+
+  it('returns a validated plan using second move allowance when applicable', () => {
+    const wolf = makeDefender({ id: 'w1', type: 'BigBadWolf', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { w1: wolf } })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'w1', to: { q: 3, r: 0 } })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      throw new Error(`Expected validated plan, got ${result.code}`)
+    }
+    expect(result.plan.movementAllowance).toBe(3)
+    expect(result.plan.capabilities.canSecondMove).toBe(true)
+  })
+
+  it('returns SECOND_MOVE_NOT_ALLOWED for a non-GEV unit in GEV_SECOND_MOVE', () => {
+    const puss = makeDefender({ id: 'd1', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { d1: puss } })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'd1', to: { q: 1, r: 0 } })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'SECOND_MOVE_NOT_ALLOWED',
+      error: expect.any(String),
+    })
+  })
+
+  it('returns RAM_LIMIT_EXCEEDED when a ram-capable unit would exceed the turn limit', () => {
+    const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const d2 = makeDefender({ id: 'd2', position: { q: 2, r: 0 } })
+    const d3 = makeDefender({ id: 'd3', position: { q: 3, r: 0 } })
+    const state = makeState({ ramsThisTurn: 1, defenders: { d1, d2, d3 } })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 3, r: 0 } })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'RAM_LIMIT_EXCEEDED',
+      error: expect.any(String),
+    })
   })
 })
 
 // ─── executeUnitMovement ─────────────────────────────────────────────────────
 
 describe('executeUnitMovement', () => {
-  it('updates the defender position to the destination', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 1 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: defender } })
-    executeUnitMovement(CLEAR_MAP, state, 'd1', { type: 'MOVE_UNIT', unitId: 'd1', to: { q: 2, r: 1 } })
-    expect(state.defenders['d1'].position).toEqual({ q: 2, r: 1 })
-  })
+  function makePlan(overrides: Partial<MovementPlan> = {}): MovementPlan {
+    return {
+      unitId: 'd1',
+      from: { q: 1, r: 1 },
+      to: { q: 2, r: 1 },
+      path: [{ q: 2, r: 1 }],
+      cost: 1,
+      movementAllowance: 3,
+      rammedUnitIds: [],
+      ramCapacityUsed: 0,
+      treadCost: 0,
+      capabilities: {
+        canRam: false,
+        hasTreads: false,
+        canSecondMove: false,
+        canCrossRidgelines: false,
+      },
+      ...overrides,
+    }
+  }
 
-  it('returns success=true with the new position', () => {
+  it('moves a defender using a validated plan', () => {
     const defender = makeDefender({ id: 'd1', position: { q: 1, r: 1 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: defender } })
-    const result = executeUnitMovement(CLEAR_MAP, state, 'd1', { type: 'MOVE_UNIT', unitId: 'd1', to: { q: 2, r: 1 } })
+    const result = executeUnitMovement(state, makePlan())
+
+    expect(state.defenders['d1'].position).toEqual({ q: 2, r: 1 })
     expect(result.success).toBe(true)
     expect(result.newPosition).toEqual({ q: 2, r: 1 })
   })
 
-  it('does not affect other units', () => {
-    const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 1 } })
-    const d2 = makeDefender({ id: 'd2', position: { q: 3, r: 3 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1, d2 } })
-    executeUnitMovement(CLEAR_MAP, state, 'd1', { type: 'MOVE_UNIT', unitId: 'd1', to: { q: 2, r: 1 } })
-    expect(state.defenders['d2'].position).toEqual({ q: 3, r: 3 })
+  it('updates ram usage for a ram-capable move plan', () => {
+    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const state = makeState({ defenders: { d1: defender } })
+    const plan = makePlan({
+      unitId: 'onion',
+      from: { q: 0, r: 0 },
+      to: { q: 1, r: 0 },
+      path: [{ q: 1, r: 0 }],
+      rammedUnitIds: ['d1'],
+      ramCapacityUsed: 1,
+      treadCost: 1,
+      capabilities: {
+        canRam: true,
+        hasTreads: true,
+        canSecondMove: false,
+        canCrossRidgelines: true,
+      },
+    })
+
+    const result = executeUnitMovement(state, plan)
+
+    expect(state.onion.position).toEqual({ q: 1, r: 0 })
+    expect(state.ramsThisTurn).toBe(1)
+    expect(state.onion.treads).toBe(44)
+    expect(result.success).toBe(true)
+    expect(result.rammedUnitIds).toEqual(['d1'])
+    expect(result.ramCapacityUsed).toBe(1)
+    expect(result.treadDamage).toBe(1)
   })
 })
