@@ -225,6 +225,37 @@ describe('hasLineOfSight', () => {
 // ─── findPath ─────────────────────────────────────────────────────────────────
 
 describe('findPath', () => {
+  it('returns found:false if start is completely surrounded by impassable terrain', () => {
+    const map = createMap(3, 3, [
+      { q: 0, r: 1, t: 2 }, { q: 2, r: 1, t: 2 },
+      { q: 1, r: 0, t: 2 }, { q: 1, r: 2, t: 2 },
+      { q: 0, r: 0, t: 2 }, { q: 2, r: 0, t: 2 },
+      { q: 0, r: 2, t: 2 }, { q: 2, r: 2, t: 2 },
+    ])
+
+    const result = findPath(map, { q: 1, r: 1 }, { q: 2, r: 2 }, 10, false)
+
+    expect(result.found).toBe(false)
+  })
+
+  it('returns a deterministic path when multiple shortest paths exist', () => {
+    const map = createMap(3, 3, [])
+    const result = findPath(map, { q: 0, r: 0 }, { q: 2, r: 2 }, 4, false)
+    const secondResult = findPath(map, { q: 0, r: 0 }, { q: 2, r: 2 }, 4, false)
+
+    expect(result.found).toBe(true)
+    expect(result.path.length).toBeGreaterThan(0)
+    expect(result.path[result.path.length - 1]).toEqual({ q: 2, r: 2 })
+    expect(result.path).toEqual(secondResult.path)
+  })
+
+  it('returns found:false for negative or zero movement allowance', () => {
+    const map = createMap(3, 3, [])
+
+    expect(findPath(map, { q: 0, r: 0 }, { q: 1, r: 0 }, 0, false).found).toBe(false)
+    expect(findPath(map, { q: 0, r: 0 }, { q: 1, r: 0 }, -1, false).found).toBe(false)
+  })
+
   it('returns found:true and empty path for same start and end', () => {
     const result = findPath(clearMap(), { q: 0, r: 0 }, { q: 0, r: 0 }, 3, false)
     expect(result.found).toBe(true)
@@ -241,7 +272,9 @@ describe('findPath', () => {
   })
 
   it('returns found:false when MA is insufficient', () => {
-    const result = findPath(clearMap(), { q: 0, r: 0 }, { q: 3, r: 0 }, 2, false)
+    const map = clearMap()
+    const result = findPath(map, { q: 0, r: 0 }, { q: 3, r: 0 }, 2, false)
+
     expect(result.found).toBe(false)
   })
 
@@ -252,10 +285,9 @@ describe('findPath', () => {
   })
 
   it('blocks at crater — no path if crater is the only route', () => {
-    // 3×1 map: (0,0) [clear] (1,0) [crater] (2,0) [clear]
-    // The only in-bounds path from (0,0) to (2,0) goes through the crater
     const map = createMap(3, 1, [{ q: 1, r: 0, t: 2 }])
     const result = findPath(map, { q: 0, r: 0 }, { q: 2, r: 0 }, 5, false)
+
     expect(result.found).toBe(false)
   })
 
