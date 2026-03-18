@@ -1,3 +1,4 @@
+import logger from '../logger.js'
 /**
  * Movement validation and execution for the Onion game engine.
  *
@@ -313,7 +314,7 @@ export function validateOnionMovement(
   state: EngineGameState,
   command: Extract<Command, { type: 'MOVE' }>
 ): LegacyMovementValidation {
-  console.log('[validateOnionMovement] called with:', { position: state.onion.position, command })
+  logger.debug({ position: state.onion.position, command }, '[validateOnionMovement] called')
   if (command.unitId !== state.onion.id) {
     return { valid: false, error: 'Not an Onion move command' }
   }
@@ -385,9 +386,9 @@ export function executeOnionMovement(
   state: EngineGameState,
   command: Extract<Command, { type: 'MOVE' }>
 ): MovementResult {
-  console.log('[executeOnionMovement] called with:', { position: state.onion.position, command })
+  logger.debug({ position: state.onion.position, command }, '[executeOnionMovement] called')
   if (command.unitId !== state.onion.id) {
-    console.log('executeOnionMovement: Not an Onion move command', command)
+    logger.info({ command }, 'executeOnionMovement: Not an Onion move command')
     return { success: false, error: 'Not an Onion move command' }
   }
   const validation = validateMovePlan(map, state, command)

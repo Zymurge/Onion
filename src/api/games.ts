@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import logger from '../logger.js'
 import { randomUUID } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -260,15 +261,19 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
   app.post<{ Body: { scenarioId: string, role: PlayerRole } }>('/', async (req, reply) => {
     try {
       const { scenarioId, role } = req.body
+      logger.info({ scenarioId, role }, 'Creating new game match')
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      logger.debug({ userId }, 'User ID extracted for game creation')
       if (!scenarioId) return reply.status(400).send({ ok: false, error: 'scenarioId is required', code: 'INVALID_INPUT' })
       if (!role) return reply.status(400).send({ ok: false, error: 'role is required', code: 'INVALID_INPUT' })
       if (role !== 'onion' && role !== 'defender') {
+        logger.warn({ role }, 'Invalid role specified')
         return reply.status(400).send({ ok: false, error: 'role must be "onion" or "defender"', code: 'INVALID_INPUT' })
       }
       const scenarioSnapshot = await loadScenario(scenarioId) as ScenarioSnapshot | null
       if (!scenarioSnapshot) {
+        logger.warn({ scenarioId }, 'Scenario not found')
         return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
       }
       let state: GameState
@@ -277,6 +282,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           const parsed = InitialStateSchema.parse(scenarioSnapshot.initialState)
           state = normalizeInitialStateToGameState(parsed)
         } catch (err) {
+          logger.error({ err }, 'Invalid scenario initialState')
           return reply.status(400).send({ ok: false, error: 'Invalid scenario initialState', code: 'INVALID_SCENARIO' })
         }
       } else {
@@ -297,8 +303,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         state,
         events: [],
       })
+      logger.info({ gameId, role }, 'Game match created')
       return reply.status(201).send({ gameId, role })
     } catch (err) {
+      logger.error({ err }, 'Error creating game match')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })
@@ -321,13 +329,19 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    */
   app.post<{ Params: { id: string } }>('/:id/join', async (req, reply) => {
     try {
+      logger.info({ id: req.params.id }, 'User joining game')
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      logger.debug({ userId }, 'User ID extracted for join')
 
       const match = await db.findMatch(req.params.id)
-      if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      if (!match) {
+        logger.warn({ id: req.params.id }, 'Game not found for join')
+        return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
 
       if (match.players.onion === userId || match.players.defender === userId) {
+        logger.warn({ userId, gameId: match.gameId }, 'User tried to join own game')
         return reply.status(400).send({ ok: false, error: 'Cannot join your own game', code: 'CANNOT_JOIN_OWN_GAME' })
       }
 
@@ -340,10 +354,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         newPlayers.defender = userId
         role = 'defender'
       } else {
+        logger.warn({ gameId: match.gameId }, 'Game is already full')
         return reply.status(409).send({ ok: false, error: 'Game is already full', code: 'GAME_FULL' })
       }
 
       await db.updateMatchPlayers(match.gameId, newPlayers)
+      logger.info({ gameId: match.gameId, role }, 'User joined game')
 
       // Emit PLAYER_JOINED event
       const seq = (match.events.at(-1)?.seq ?? 0) + 1
@@ -355,9 +371,11 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         role,
       }
       await db.appendEvents(match.gameId, [event])
+      logger.debug({ gameId: match.gameId, event }, 'PLAYER_JOINED event appended')
 
       return reply.send({ gameId: match.gameId, role })
     } catch (err) {
+      logger.error({ err }, 'Error joining game')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })
@@ -378,14 +396,20 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    */
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
     try {
+      logger.info({ id: req.params.id }, 'Fetching game state')
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      logger.debug({ userId }, 'User ID extracted for state fetch')
 
       const match = await db.findMatch(req.params.id)
-      if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      if (!match) {
+        logger.warn({ id: req.params.id }, 'Game not found for state fetch')
+        return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
 
       // Type assertion for scenarioSnapshot
       const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+      logger.debug({ gameId: match.gameId }, 'Game state fetched')
       return reply.send({
         gameId: match.gameId,
         scenarioId: match.scenarioId,
@@ -398,6 +422,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         eventSeq: match.events.at(-1)?.seq ?? 0,
       })
     } catch (err) {
+      logger.error({ err }, 'Error fetching game state')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })
@@ -423,33 +448,44 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    */
   app.post<{ Params: { id: string }; Body: Command }>('/:id/actions', async (req, reply) => {
     try {
+      logger.info({ id: req.params.id, command: req.body?.type }, 'Submitting game action')
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      logger.debug({ userId }, 'User ID extracted for action')
 
       const match = await db.findMatch(req.params.id)
-      if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      if (!match) {
+        logger.warn({ id: req.params.id }, 'Game not found for action')
+        return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
 
       if (match.winner) {
+        logger.info({ gameId: match.gameId }, 'Action attempted on finished game')
         return reply.status(409).send({ ok: false, error: 'Game is already over', code: 'GAME_OVER', currentPhase: match.phase })
       }
 
       if (!match.players.onion || !match.players.defender) {
+        logger.info({ gameId: match.gameId }, 'Action attempted before both players joined')
         return reply.status(400).send({ ok: false, error: 'Waiting for second player to join', code: 'WAITING_FOR_PLAYER', currentPhase: match.phase })
       }
 
       const actor = phaseActor(match.phase)
       const activeUserId = actor === 'onion' ? match.players.onion : match.players.defender
       if (userId !== activeUserId) {
+        logger.warn({ userId, gameId: match.gameId }, 'Not user turn')
         return reply.status(403).send({ ok: false, error: 'Not your turn', code: 'NOT_YOUR_TURN', currentPhase: match.phase })
       }
 
       const command = req.body
+      logger.debug({ command }, 'Received command')
       if (!command?.type) {
+        logger.warn({ command }, 'Missing command type')
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
       const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE_WEAPON', 'FIRE_UNIT', 'COMBINED_FIRE'])
       if (!supportedCommands.has(command.type)) {
+        logger.warn({ commandType: command.type }, 'Unknown command type')
         return reply.status(400).send({
           ok: false,
           error: `Unknown command type: ${command.type}`,
@@ -464,6 +500,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       const expectedLastEventSeq = match.events.at(-1)?.seq ?? 0
 
       if (command.type === 'END_PHASE') {
+        logger.info({ gameId: match.gameId, phase: match.phase }, 'Advancing phase')
         const result = advancePhaseWithEvents(match)
         newEvents = result.newEvents
         currentState = result.state
@@ -480,8 +517,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         // Return updated state and events
         const turnNumber = result.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? 0
+        logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else if (command.type === 'MOVE') {
+        logger.info({ gameId: match.gameId, unitId: command.unitId }, 'Processing MOVE command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(
@@ -492,6 +531,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const state = buildEngineState(match)
         const validation = validateUnitMovement(map, state, command)
         if (!validation.ok) {
+          logger.info({ gameId: match.gameId, error: validation.error }, 'Invalid move command')
           return reply.status(422).send({
             ok: false,
             error: validation.error,
@@ -502,6 +542,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
         const result = executeUnitMovement(state, validation.plan)
         if (!result.success) {
+          logger.info({ gameId: match.gameId, error: result.error }, 'Invalid move command')
           return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
         }
 
@@ -521,8 +562,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         })
         const turnNumber = match.turnNumber
         const eventSeq = seq
+        logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
         return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else if (command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
+        logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(
@@ -533,6 +576,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const state = buildEngineState(match)
         const validation = validateCombatAction(map, state, command)
         if (!validation.ok) {
+          logger.info({ gameId: match.gameId, error: validation.error }, 'Invalid combat command')
           return reply.status(422).send({
             ok: false,
             error: validation.error,
@@ -544,6 +588,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
 
         const result = executeCombatAction(state, validation.plan)
         if (!result.success) {
+          logger.info({ gameId: match.gameId, error: result.error }, 'Invalid combat command')
           return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
         }
 
@@ -562,16 +607,19 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         })
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
+        logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, turnNumber, eventSeq })
       }
     } catch (err) {
       if (err instanceof StaleMatchStateError) {
+        logger.warn({ err }, 'Stale match state error')
         return reply.status(409).send({
           ok: false,
           error: 'Match state changed; retry action',
           code: 'STALE_STATE',
         })
       }
+      logger.error({ err }, 'Error submitting game action')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })

@@ -1,3 +1,4 @@
+import logger from '../logger.js';
 import type { TurnPhase, GameState, EventEnvelope } from '../types/index.js';
 import type { MatchRecord } from '../db/adapter.js';
 import { TURN_PHASES, phaseActor } from './phases.js';
@@ -17,6 +18,8 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
   state: GameState;
   newEvents: EventEnvelope[];
 } {
+  logger.info({ phase: match.phase, turnNumber: match.turnNumber }, 'Advancing phase in engine');
+  logger.debug({ match }, 'advancePhaseWithEvents input match');
   const newEvents: EventEnvelope[] = [];
   let seq = (match.events.at(-1)?.seq ?? 0) + 1;
   const timestamp = new Date().toISOString();
@@ -56,5 +59,7 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
     newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: engineFrom, to: phase, turnNumber });
   }
 
-  return { phase, turnNumber, state, newEvents };
+  const result = { phase, turnNumber, state, newEvents };
+  logger.debug({ result }, 'advancePhaseWithEvents result');
+  return result;
 }

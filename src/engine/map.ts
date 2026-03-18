@@ -1,3 +1,4 @@
+import logger from '../logger.js'
 /**
  * Hex grid and terrain management for the Onion game engine.
  *

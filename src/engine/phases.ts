@@ -1,5 +1,6 @@
 import type { TurnPhase } from '../types/index.js'
 import type { EngineGameState } from './units.js'
+import logger from '../logger.js'
 
 export const TURN_PHASES: readonly TurnPhase[] = [
   'ONION_MOVE',
@@ -20,6 +21,7 @@ export type PhaseActor = 'onion' | 'defender' | 'engine'
 export function phaseActor(phase: TurnPhase): PhaseActor {
   switch (phase) {
     case 'ONION_MOVE':
+      logger.debug({ phase }, 'phaseActor called')
     case 'ONION_COMBAT':
       return 'onion'
     case 'DEFENDER_RECOVERY':
@@ -90,4 +92,5 @@ export function checkVictoryConditions(
 
   // Game continues
   return null
+  logger.debug({ state, turnNumber, maxTurns }, 'checkVictoryConditions called')
 }

@@ -1,3 +1,4 @@
+import logger from '../logger.js'
 /**
  * Unit definitions and capabilities for the Onion game engine.
  *
@@ -141,6 +142,7 @@ export interface EngineGameState {
  * @returns Unit definition with weapons and abilities
  */
 export function getUnitDefinition(type: UnitType): UnitDefinition {
+  logger.debug({ type }, 'getUnitDefinition called')
   return UNIT_DEFINITIONS[type]
 }
 

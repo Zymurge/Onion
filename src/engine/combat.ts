@@ -1,3 +1,4 @@
+import logger from '../logger.js'
 /**
  * Combat resolution system for the Onion game engine.
  *
@@ -179,6 +180,8 @@ export function validateCombatAction(
   state: EngineGameState,
   command: Extract<Command, { type: 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>
 ): CombatValidation {
+    logger.info({ commandType: command.type }, 'Validating combat action')
+    logger.debug({ map, state, command }, 'validateCombatAction input')
   if (command.type === 'FIRE_WEAPON') {
     if (state.currentPhase !== 'ONION_COMBAT') {
       return { ok: false, code: 'WRONG_PHASE', error: 'Not the Onion combat phase' }
@@ -323,6 +326,8 @@ export function executeCombatAction(
   plan: CombatPlan,
   roll?: number
 ): CombatExecutionResult {
+    logger.info({ plan }, 'Executing combat action')
+    logger.debug({ plan }, 'executeCombatAction input')
   const defense = plan.target.kind === 'treads' ? plan.attackStrength : plan.defense
   const combatRoll = rollCombat(plan.attackStrength, defense, roll)
 
