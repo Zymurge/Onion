@@ -15,6 +15,10 @@ import { normalizeInitialStateToGameState } from '../engine/scenarioNormalizer'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenarios')
 
+function getScenarioMapSnapshot(scenarioSnapshot: any) {
+  return scenarioSnapshot?.map ?? scenarioSnapshot
+}
+
 /**
  * Load a scenario file by ID from the scenarios directory.
  * @param id - Scenario identifier
@@ -290,10 +294,11 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else if (command.type === 'MOVE') {
         const scenarioSnapshot = match.scenarioSnapshot as any
+        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(
-          scenarioSnapshot.width,
-          scenarioSnapshot.height,
-          scenarioSnapshot.hexes || []
+          scenarioMap.width,
+          scenarioMap.height,
+          scenarioMap.hexes || []
         )
         const state = {
           ...structuredClone(match.state),
