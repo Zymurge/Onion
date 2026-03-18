@@ -1,0 +1,45 @@
+{
+  "id": "smoke-endgame-01",
+  "name": "Smoke Endgame Detection",
+  "description": "Low-tread smoke scenario where defenders focus Onion treads.",
+  "map": {
+    "width": 12,
+    "height": 12,
+    "hexes": []
+  },
+  "initialState": {
+    "onion": {
+      "type": "TheOnion",
+      "position": { "q": 5, "r": 5 },
+      "treads": 1,
+      "missiles": 0,
+      "batteries": {
+        "main": 1,
+        "secondary": 0,
+        "ap": 0
+      },
+      "status": "operational"
+    },
+    "defenders": {
+      "wolf-1":  { "type": "BigBadWolf", "position": { "q": 5, "r": 3 }, "status": "operational" },
+      "wolf-2":  { "type": "BigBadWolf", "position": { "q": 6, "r": 3 }, "status": "operational" },
+      "wolf-3":  { "type": "BigBadWolf", "position": { "q": 7, "r": 4 }, "status": "operational" },
+      "wolf-4":  { "type": "BigBadWolf", "position": { "q": 7, "r": 5 }, "status": "operational" },
+      "wolf-5":  { "type": "BigBadWolf", "position": { "q": 7, "r": 6 }, "status": "operational" },
+      "wolf-6":  { "type": "BigBadWolf", "position": { "q": 6, "r": 7 }, "status": "operational" },
+      "wolf-7":  { "type": "BigBadWolf", "position": { "q": 5, "r": 7 }, "status": "operational" },
+      "wolf-8":  { "type": "BigBadWolf", "position": { "q": 4, "r": 7 }, "status": "operational" },
+      "wolf-9":  { "type": "BigBadWolf", "position": { "q": 3, "r": 6 }, "status": "operational" },
+      "wolf-10": { "type": "BigBadWolf", "position": { "q": 3, "r": 5 }, "status": "operational" },
+      "wolf-11": { "type": "BigBadWolf", "position": { "q": 3, "r": 4 }, "status": "operational" },
+      "wolf-12": { "type": "BigBadWolf", "position": { "q": 4, "r": 3 }, "status": "operational" }
+    }
+  },
+  "victoryConditions": {
+    "defender": {
+      "condition": "onionImmobilized",
+      "description": "Defender wins when the Onion has no tread movement remaining."
+    },
+    "maxTurns": 20
+  }
+}

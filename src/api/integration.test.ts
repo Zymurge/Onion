@@ -30,7 +30,7 @@ type IntegrationContext = {
   tracking: PhaseTracking
 }
 
-async function setupIntegrationGame(seed: string): Promise<IntegrationContext> {
+async function setupIntegrationGame(seed: string, scenarioId = 'swamp-siege-01'): Promise<IntegrationContext> {
   const app = buildApp()
 
   const onionUser = await registerAndLoginUser(app, `onion-${seed}`, 'onionpass')
@@ -40,7 +40,7 @@ async function setupIntegrationGame(seed: string): Promise<IntegrationContext> {
     method: 'POST',
     url: '/games',
     headers: { authorization: `Bearer ${onionUser.token}` },
-    payload: { scenarioId: 'swamp-siege-01', role: 'onion' },
+    payload: { scenarioId, role: 'onion' },
   })
   expect(createGameRes.statusCode).toBe(201)
   const { gameId } = createGameRes.json<{ gameId: string }>()
@@ -53,7 +53,7 @@ async function setupIntegrationGame(seed: string): Promise<IntegrationContext> {
   })
   expect(joinRes.statusCode).toBe(200)
 
-  const scenarioRes = await app.inject({ method: 'GET', url: '/scenarios/swamp-siege-01' })
+  const scenarioRes = await app.inject({ method: 'GET', url: `/scenarios/${scenarioId}` })
   expect(scenarioRes.statusCode).toBe(200)
   const scenario = scenarioRes.json<{ map: ScenarioMap; initialState: any }>()
 
@@ -117,6 +117,8 @@ async function runEndPhase(
   const body = endRes.json()
   expect(body.ok).toBe(true)
   expect(body.events[0].type).toBe('PHASE_CHANGED')
+
+  applyActionToExpectedState(ctx.expectedState, { type: 'END_PHASE' }, body)
 
   const after = await fetchGame(ctx, role)
   expect(after.phase).toBe(expectedTo)
@@ -345,13 +347,73 @@ async function runTurnOrchestrator(ctx: IntegrationContext): Promise<boolean> {
   return !end.winner
 }
 
-async function runGameOrchestrator(turns: number, seed: string) {
-  const ctx = await setupIntegrationGame(seed)
+async function runGameOrchestrator(turns: number, seed: string, scenarioId = 'swamp-siege-01') {
+  const ctx = await setupIntegrationGame(seed, scenarioId)
+  let turnsRan = 0
   for (let turn = 0; turn < turns; turn++) {
     const keepGoing = await runTurnOrchestrator(ctx)
+    turnsRan++
     if (!keepGoing) break
   }
-  return ctx
+  return { ctx, turnsRan }
+}
+
+async function runTreadFocusAssaultTurn(ctx: IntegrationContext): Promise<any> {
+  // Keep movement simple and deterministic for this smoke path.
+  await runEndPhase(ctx, 'onion', 'ONION_MOVE', 'ONION_COMBAT')
+  await runOnionAttackPhase(ctx)
+  let latest = await fetchGame(ctx, 'onion')
+  if (latest.winner) return latest
+
+  await runEndPhase(ctx, 'onion', 'ONION_COMBAT', 'DEFENDER_MOVE')
+  latest = await fetchGame(ctx, 'defender')
+  if (latest.winner) return latest
+
+  await runEndPhase(ctx, 'defender', 'DEFENDER_MOVE', 'DEFENDER_COMBAT')
+
+  let combatState = await fetchGame(ctx, 'defender')
+  expect(combatState.phase).toBe('DEFENDER_COMBAT')
+
+  const attackerIds = Object.values(combatState.state.defenders as Record<string, any>)
+    .filter((unit: any) => unit.status === 'operational')
+    .map((unit: any) => unit.id)
+    .sort((left: string, right: string) => left.localeCompare(right))
+
+  for (const unitId of attackerIds) {
+    if (combatState.state.onion.treads <= 0) break
+
+    const fireRes = await ctx.app.inject({
+      method: 'POST',
+      url: `/games/${ctx.gameId}/actions`,
+      headers: { authorization: `Bearer ${ctx.defenderUser.token}` },
+      payload: { type: 'FIRE_UNIT', unitId, targetId: ctx.onionId },
+    })
+
+    if (fireRes.statusCode === 200) {
+      const fireBody = fireRes.json()
+      applyActionToExpectedState(ctx.expectedState, { type: 'FIRE_UNIT', unitId, targetId: ctx.onionId }, fireBody)
+      assertStateMatches(fireBody.state, ctx.expectedState)
+      combatState = await fetchGame(ctx, 'defender')
+      if (combatState.winner) return combatState
+      continue
+    }
+
+    // Units can become disabled/destroyed or slip out of legal attack context as the state evolves.
+    expect(fireRes.statusCode).toBe(422)
+    const fireError = fireRes.json()
+    expect(fireError.code).toBe('MOVE_INVALID')
+    expect(typeof fireError.detailCode).toBe('string')
+    combatState = await fetchGame(ctx, 'defender')
+  }
+
+  if (combatState.winner) return combatState
+
+  await runEndPhase(ctx, 'defender', 'DEFENDER_COMBAT', 'GEV_SECOND_MOVE')
+  latest = await fetchGame(ctx, 'defender')
+  if (latest.winner) return latest
+
+  await runEndPhase(ctx, 'defender', 'GEV_SECOND_MOVE', 'ONION_MOVE', { expectedTurnDelta: 1 })
+  return fetchGame(ctx, 'onion')
 }
 
 describe('Integration Phases (Modular)', () => {
@@ -406,6 +468,38 @@ describe('Integration Phases (Modular)', () => {
     await runGevSecondMovePhase(ctx)
     await runEndPhase(ctx, 'defender', 'GEV_SECOND_MOVE', 'ONION_MOVE', { expectedTurnDelta: 1 })
   })
+
+  it('wrong-phase smoke checks reject commands with WRONG_PHASE detail codes', async () => {
+    const ctx = await setupIntegrationGame('phase-wrong-phase-smoke')
+
+    // Wrong command in ONION_MOVE: combat action should be phase-rejected.
+    const onionMoveState = await fetchGame(ctx, 'onion')
+    const anyDefenderId = Object.keys(onionMoveState.state.defenders)[0]
+    expect(anyDefenderId).toBeTruthy()
+    const wrongCombatInMoveRes = await ctx.app.inject({
+      method: 'POST',
+      url: `/games/${ctx.gameId}/actions`,
+      headers: { authorization: `Bearer ${ctx.onionUser.token}` },
+      payload: { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: anyDefenderId },
+    })
+    expect(wrongCombatInMoveRes.statusCode).toBe(422)
+    const wrongCombatInMoveBody = wrongCombatInMoveRes.json()
+    expect(wrongCombatInMoveBody.code).toBe('MOVE_INVALID')
+    expect(wrongCombatInMoveBody.detailCode).toBe('WRONG_PHASE')
+
+    // Advance to ONION_COMBAT, then submit wrong command type for that phase.
+    await runEndPhase(ctx, 'onion', 'ONION_MOVE', 'ONION_COMBAT')
+    const wrongMoveInCombatRes = await ctx.app.inject({
+      method: 'POST',
+      url: `/games/${ctx.gameId}/actions`,
+      headers: { authorization: `Bearer ${ctx.onionUser.token}` },
+      payload: { type: 'MOVE', unitId: ctx.onionId, to: { q: 0, r: 10 } },
+    })
+    expect(wrongMoveInCombatRes.statusCode).toBe(422)
+    const wrongMoveInCombatBody = wrongMoveInCombatRes.json()
+    expect(wrongMoveInCombatBody.code).toBe('MOVE_INVALID')
+    expect(wrongMoveInCombatBody.detailCode).toBe('WRONG_PHASE')
+  })
 })
 
 describe('Integration Orchestrators', () => {
@@ -420,13 +514,52 @@ describe('Integration Orchestrators', () => {
     assertStateMatches(state.state, ctx.expectedState)
   })
 
-  it('game orchestrator setup runs once and supports multiple turns', async () => {
-    const ctx = await runGameOrchestrator(3, 'orchestrator-game')
+  it('game orchestrator setup runs once and supports at least five turns', async () => {
+    const { ctx, turnsRan } = await runGameOrchestrator(5, 'orchestrator-game', 'swamp-siege-01')
     const state = await fetchGame(ctx, 'onion')
 
-    expect(state.turnNumber).toBeGreaterThanOrEqual(2)
+    expect(turnsRan).toBeGreaterThanOrEqual(5)
+    expect(state.turnNumber).toBeGreaterThanOrEqual(6)
     expect(state.phase).toBe('ONION_MOVE')
     assertStateMatches(state.state, ctx.expectedState)
+  })
+
+  it('tread-focus assault reaches bounded terminal outcome and enforces game-over when immobilized', async () => {
+    const ctx = await setupIntegrationGame('orchestrator-endgame', 'smoke-endgame-01')
+
+    let finalState = await fetchGame(ctx, 'onion')
+    const maxAssaultTurns = 5
+    for (let turn = 0; turn < maxAssaultTurns; turn++) {
+      const defendersRemaining = Object.values(finalState.state.defenders as Record<string, any>)
+        .filter((unit: any) => unit.status !== 'destroyed')
+        .length
+
+      if (finalState.state.onion.treads <= 0 || defendersRemaining === 0) {
+        break
+      }
+
+      finalState = await runTreadFocusAssaultTurn(ctx)
+    }
+
+    const defendersRemaining = Object.values(finalState.state.defenders as Record<string, any>)
+      .filter((unit: any) => unit.status !== 'destroyed')
+      .length
+    const onionImmobilized = finalState.state.onion.treads <= 0
+
+    expect(onionImmobilized || defendersRemaining === 0).toBe(true)
+
+    if (onionImmobilized) {
+      expect(finalState.winner).toBe(ctx.defenderUser.userId)
+      const postGameAction = await ctx.app.inject({
+        method: 'POST',
+        url: `/games/${ctx.gameId}/actions`,
+        headers: { authorization: `Bearer ${ctx.onionUser.token}` },
+        payload: { type: 'END_PHASE' },
+      })
+      expect(postGameAction.statusCode).toBe(409)
+      const postGameBody = postGameAction.json()
+      expect(postGameBody.code).toBe('GAME_OVER')
+    }
   })
 })
 

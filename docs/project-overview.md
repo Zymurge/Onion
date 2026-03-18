@@ -2,6 +2,7 @@
 
 - Well-formed but invalid move commands (e.g., illegal movement, blocked path) return HTTP 422 with code MOVE_INVALID.
 - Malformed or schema-invalid input returns HTTP 400 with code INVALID_INPUT.
+- Unsupported action command types return HTTP 400 with code COMMAND_INVALID and detailCode `UNKNOWN_COMMAND <command>`.
 
 ## Project Description
 
@@ -102,6 +103,15 @@ Tests are organized into two separate Vitest projects to maintain clear separati
 - **Unit Tests** (`pnpm test`): Run against in-memory mocks. Cover API route logic without database dependencies. Use `InMemoryDb` adapter which stores data in Map objects. Tests complete in milliseconds.
 - **Integration Tests** (`pnpm test:integration`): Run against real PostgreSQL containers via testcontainers. Verify end-to-end SQL execution and data persistence. Tests take ~6 seconds due to container startup.
 
+#### Integration Smoke Suite (Standard Regression)
+
+The standard regression run includes two integration smoke tracks:
+
+- **Regular smoke flow** (`swamp-siege-01`): runs the modular phase/turn orchestrator for at least 5 full turns and validates phase sequencing plus state synchronization.
+- **Endgame smoke flow** (`smoke-endgame-01`): runs a bounded tread-focus assault loop and validates that a terminal condition is reached, including `GAME_OVER` rejection after winner lock-in.
+
+These smoke tests run as part of the default Vitest regression suite, so both paths are continuously covered on local runs and CI.
+
 #### Database Abstraction Layer (DAL)
 
 The `DbAdapter` interface provides a clean separation between business logic and storage implementation:
@@ -167,3 +177,7 @@ To avoid proprietary issues and add a fun, thematic twist, we'll rename elements
 - **Turn engine**: Implement the state machine for movement, combat, and recovery phases against the scenario schema.
 - **API surface**: Define REST and WebSocket endpoints for game creation, player actions, and state sync.
 - **CLI client**: Build the Ink-based terminal interface against the API.
+
+### Future Work TODOs
+
+- **Authentication hardening**: Replace current stub bearer token auth (`stub.{userId}`) with real JWT validation via `@fastify/jwt` once client integration stabilizes.

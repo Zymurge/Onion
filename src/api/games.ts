@@ -448,6 +448,17 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
+      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE_WEAPON', 'FIRE_UNIT', 'COMBINED_FIRE'])
+      if (!supportedCommands.has(command.type)) {
+        return reply.status(400).send({
+          ok: false,
+          error: `Unknown command type: ${command.type}`,
+          code: 'COMMAND_INVALID',
+          detailCode: `UNKNOWN_COMMAND ${command.type}`,
+          currentPhase: match.phase,
+        })
+      }
+
       let newEvents: EventEnvelope[]
       let currentState = match.state
       const expectedLastEventSeq = match.events.at(-1)?.seq ?? 0
@@ -552,15 +563,6 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, turnNumber, eventSeq })
-      } else {
-        // Stub: acknowledge all other commands without modifying state
-        const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        const unsupportedCommand = command as { type: string }
-        newEvents = [{ seq, type: 'ACTION_ACKNOWLEDGED', timestamp: new Date().toISOString(), command: unsupportedCommand.type }]
-        await db.appendEvents(match.gameId, newEvents)
-        const turnNumber = match.turnNumber
-        const eventSeq = seq
-        return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       }
     } catch (err) {
       if (err instanceof StaleMatchStateError) {

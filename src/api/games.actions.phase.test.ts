@@ -163,6 +163,26 @@ describe('POST /games/:id/actions END_PHASE', () => {
     expect(res.json()).toHaveProperty('currentPhase')
   })
 
+  it('returns 400 COMMAND_INVALID for unknown command types', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: { type: 'SELF_DESTRUCT' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('COMMAND_INVALID')
+    expect(res.json().detailCode).toBe('UNKNOWN_COMMAND SELF_DESTRUCT')
+    expect(res.json()).toHaveProperty('currentPhase')
+  })
+
   it('returns 500 for internal advancePhaseWithEvents failure', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')

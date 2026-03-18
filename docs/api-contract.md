@@ -155,8 +155,8 @@ Errors:
     "code":         string,       // machine-readable (see Error Codes)
     "detailCode"?:  string,       // optional machine-readable subcode for granular error details (e.g., "NO_PATH", "BLOCKED_BY_UNIT")
     "currentPhase": TurnPhase     // always present; helps CLI give useful feedback
-  }                               // for malformed or invalid input (INVALID_INPUT, etc)
-  422                             // well-formed but invalid move (MOVE_INVALID); response body includes detailCode for granular error
+  }                               // malformed or invalid input (INVALID_INPUT, COMMAND_INVALID, etc)
+  422                             // well-formed but invalid action (currently surfaced as MOVE_INVALID + detailCode)
   403                             — not your turn
   409                             — game already over
   413                             — PAYLOAD_TOO_LARGE if payload exceeds 16KB
@@ -240,9 +240,21 @@ Note: combined fire is not legal when targeting Onion treads (each unit must fir
 
 Combat actions return structured errors:
 
-- HTTP 400 for malformed input, schema errors, or wrong phase.
+- HTTP 400 for malformed input, schema errors, or unsupported commands.
 - HTTP 422 for well-formed but invalid combat actions (e.g., illegal target, exhausted weapon, combined fire on treads).
 - Response body includes `detailCode` for granular error (e.g., `NO_TARGET`, `WEAPON_EXHAUSTED`, `COMBINED_FIRE_TREAD_TARGET`).
+
+Unsupported action command types are rejected with:
+
+```json
+{
+  "ok": false,
+  "error": "Unknown command type: <type>",
+  "code": "COMMAND_INVALID",
+  "detailCode": "UNKNOWN_COMMAND <type>",
+  "currentPhase": "<phase>"
+}
+```
 
 **Example error response:**
 
@@ -419,6 +431,7 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from `initialSt
 | `GAME_OVER` | Match is already decided |
 | `GAME_FULL` | Both player slots are taken |
 | `INVALID_INPUT` | Input failed schema validation or required fields missing |
+| `COMMAND_INVALID` | Action command type is unsupported or invalid |
 | `PAYLOAD_TOO_LARGE` | Request body exceeded 16KB limit |
 | `MALFORMED_JSON` | Request body was not valid JSON |
 | `INTERNAL_ERROR` | Unexpected backend/server error |
