@@ -57,11 +57,25 @@ export interface ActionOkResponse {
   state: GameState
 }
 
+/**
+ * Error response for a failed action (e.g., invalid move, wrong phase).
+ *
+ * @property ok Always false for error responses.
+ * @property error Human-readable error message.
+ * @property code Machine-readable error code (e.g., "MOVE_INVALID", "WRONG_PHASE").
+ * @property detailCode Optional machine-readable subcode for granular error details (e.g., "NO_PATH", "BLOCKED_BY_UNIT").
+ * @property currentPhase The phase in which the error occurred.
+ */
 export interface ActionErrorResponse {
+  /** Always false for error responses. */
   ok: false
+  /** Human-readable error message. */
   error: string
+  /** Machine-readable error code (e.g., "MOVE_INVALID", "WRONG_PHASE"). */
   code: string
+  /** Optional machine-readable subcode for granular error details (e.g., "NO_PATH", "BLOCKED_BY_UNIT"). */
   detailCode?: string
+  /** The phase in which the error occurred. */
   currentPhase: TurnPhase
 }
 

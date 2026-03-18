@@ -153,9 +153,10 @@ Errors:
     "ok":           false,
     "error":        string,       // human-readable
     "code":         string,       // machine-readable (see Error Codes)
+    "detailCode"?:  string,       // optional machine-readable subcode for granular error details (e.g., "NO_PATH", "BLOCKED_BY_UNIT")
     "currentPhase": TurnPhase     // always present; helps CLI give useful feedback
   }                               // for malformed or invalid input (INVALID_INPUT, etc)
-  422                             // well-formed but invalid move (MOVE_INVALID)
+  422                             // well-formed but invalid move (MOVE_INVALID); response body includes detailCode for granular error
   403                             — not your turn
   409                             — game already over
   413                             — PAYLOAD_TOO_LARGE if payload exceeds 16KB
@@ -187,7 +188,7 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 #### Move Onion
 
 ```json
-{ "type": "MOVE_ONION", "to": { "q": number, "r": number } }
+{ "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
 ```
 
 **Ram a unit** (up to 2 rammings per turn, during movement)
@@ -216,7 +217,7 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 #### Move a unit
 
 ```json
-{ "type": "MOVE_UNIT", "unitId": string, "to": { "q": number, "r": number } }
+{ "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
 ```
 
 ### Defender Combat Phase (`DEFENDER_COMBAT`)
@@ -234,6 +235,12 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 ```
 
 Note: combined fire is not legal when targeting Onion treads (each unit must fire individually per Special Rule 7.13.2). The engine enforces this.
+
+---
+
+## Scenario Map Loading (MOVE Route)
+
+The MOVE route always uses the scenario's `map` property (if present) for pathfinding and validation. This ensures that stored scenarios with nested map fields are handled correctly. If `map` is not present, the route falls back to the root-level `width`, `height`, and `hexes` fields for backward compatibility.
 
 ### Any Phase
 
