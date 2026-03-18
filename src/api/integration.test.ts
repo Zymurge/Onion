@@ -25,9 +25,9 @@ function clone(obj: any) {
 function applyActionToExpectedState(expected: any, action: any, result: any) {
   // Movement
   if (action.type === 'MOVE') {
-    expected.onion.position = clone(action.to)
-  } else if (action.type === 'MOVE_UNIT') {
-    if (expected.defenders[action.unitId]) {
+    if (action.unitId === 'onion') {
+      expected.onion.position = clone(action.to)
+    } else if (expected.defenders[action.unitId]) {
       expected.defenders[action.unitId].position = clone(action.to)
     }
   }
@@ -165,7 +165,7 @@ describe('Integration: Register, Login, Create Game, Join', () => {
     assertStateMatches(state1.json().state, expectedState)
 
     // User1 moves onion
-    const onionMove = { type: 'MOVE', to: { q: expectedState.onion.position.q + 1, r: expectedState.onion.position.r } }
+    const onionMove = { type: 'MOVE', unitId: 'onion', to: { q: expectedState.onion.position.q + 1, r: expectedState.onion.position.r } }
     logStep('MOVE action sent', onionMove)
     const moveRes = await app.inject({ method: 'POST', url: `/games/${gameId}/actions`, headers: { authorization: `Bearer ${loginToken1}` }, payload: onionMove })
     logStep('API response to MOVE', moveRes.json())
@@ -242,6 +242,16 @@ describe('Integration: Register, Login, Create Game, Join', () => {
     const { gameId } = createGame.json()
     expect(typeof gameId).toBe('string')
 
+    // Ensure defender joins before any moves
+    const joinRes = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/join`,
+      headers: { authorization: `Bearer ${loginToken2}` },
+      payload: {},
+    })
+    logStep('Defender Joins Game', joinRes.json())
+    expect(joinRes.statusCode).toBe(200)
+
     // Run 3 turns
     for (let turn = 1; turn <= 3; turn++) {
       logStep(`=== TURN ${turn} START ===`, {})
@@ -301,6 +311,7 @@ async function runTurn({ app, gameId, onionToken, defenderToken, onionId, defend
     const onionPos = state.state.onion.position
     const moveCmd = {
       type: 'MOVE',
+      unitId: 'onion',
       to: { q: onionPos.q + 1, r: onionPos.r },
     }
     const moveRes = await app.inject({
@@ -308,7 +319,10 @@ async function runTurn({ app, gameId, onionToken, defenderToken, onionId, defend
       headers: { authorization: `Bearer ${onionToken}` },
       payload: moveCmd,
     })
-    logStep('ONION_MOVE: Onion Moves', moveRes.json())
+    logStep('ONION_MOVE: Onion Moves', {
+      statusCode: moveRes.statusCode,
+      body: moveRes.json(),
+    })
     // Fire all weapons at random defender in range (if any)
     const defenders = state.state.defenders
     const defenderList = Array.isArray(defenders)
@@ -368,7 +382,7 @@ async function runTurn({ app, gameId, onionToken, defenderToken, onionId, defend
         r: defender.position.r + Math.sign(dr),
       }
       const moveCmd = {
-        type: 'MOVE_UNIT',
+        type: 'MOVE',
         unitId: defender.id,
         to: moveTo,
       }
