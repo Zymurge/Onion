@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { TurnPhase, GameState, EventEnvelope } from '../types/index.js'
-import type { DbAdapter, MatchRecord } from './adapter.js'
+import { StaleMatchStateError } from './adapter.js'
+import type { DbAdapter, MatchRecord, PersistMatchProgressInput } from './adapter.js'
 
 /**
  * In-memory implementation of DbAdapter for testing and development.
@@ -47,6 +48,24 @@ export class InMemoryDb implements DbAdapter {
     m.turnNumber = turnNumber
     m.winner = winner
     m.state = structuredClone(state)
+  }
+
+  async persistMatchProgress(input: PersistMatchProgressInput): Promise<void> {
+    const m = this.matches.get(input.gameId)
+    if (!m) throw new Error(`Match not found: ${input.gameId}`)
+
+    const currentLastSeq = m.events.at(-1)?.seq ?? 0
+    if (currentLastSeq !== input.expectedLastEventSeq) {
+      throw new StaleMatchStateError(
+        `Expected last seq ${input.expectedLastEventSeq} but found ${currentLastSeq}`,
+      )
+    }
+
+    m.phase = input.phase
+    m.turnNumber = input.turnNumber
+    m.winner = input.winner
+    m.state = structuredClone(input.state)
+    m.events.push(...structuredClone(input.events))
   }
 
   async appendEvents(gameId: string, events: EventEnvelope[]): Promise<void> {

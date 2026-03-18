@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 import type { TurnPhase, GameState, EventEnvelope } from '../types/index.js'
-import type { DbAdapter, MatchRecord } from './adapter.js'
+import { StaleMatchStateError } from './adapter.js'
+import type { DbAdapter, MatchRecord, PersistMatchProgressInput } from './adapter.js'
 
 /**
  * PostgreSQL implementation of DbAdapter for production use.
@@ -110,6 +111,55 @@ export class PostgresDb implements DbAdapter {
       JSON.stringify(state),
       gameId,
     ])
+  }
+
+  async persistMatchProgress(input: PersistMatchProgressInput): Promise<void> {
+    const client = await this.pool.connect()
+
+    try {
+      await client.query('BEGIN')
+
+      await client.query('SELECT id FROM matches WHERE id = $1 FOR UPDATE', [input.gameId])
+
+      const { rows } = await client.query<{ last_seq: number | null }>(
+        'SELECT MAX(seq) AS last_seq FROM game_events WHERE match_id = $1',
+        [input.gameId],
+      )
+
+      const currentLastSeq = rows[0]?.last_seq ?? 0
+      if (currentLastSeq !== input.expectedLastEventSeq) {
+        throw new StaleMatchStateError(
+          `Expected last seq ${input.expectedLastEventSeq} but found ${currentLastSeq}`,
+        )
+      }
+
+      await client.query('UPDATE matches SET current_phase = $1, turn_number = $2, winner = $3 WHERE id = $4', [
+        input.phase,
+        input.turnNumber,
+        input.winner,
+        input.gameId,
+      ])
+
+      await client.query('UPDATE game_state SET state = $1, updated_at = NOW() WHERE match_id = $2', [
+        JSON.stringify(input.state),
+        input.gameId,
+      ])
+
+      for (const event of input.events) {
+        const { seq, type, timestamp, ...payload } = event
+        await client.query(
+          'INSERT INTO game_events (match_id, seq, type, payload, timestamp) VALUES ($1, $2, $3, $4, $5)',
+          [input.gameId, seq, type, JSON.stringify(payload), timestamp],
+        )
+      }
+
+      await client.query('COMMIT')
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   }
 
   async appendEvents(gameId: string, events: EventEnvelope[]): Promise<void> {

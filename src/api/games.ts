@@ -5,7 +5,8 @@ import { join } from 'node:path'
 
 import type { TurnPhase, GameState, EventEnvelope, PlayerRole, Command } from '../types/index.js'
 import type { DbAdapter, MatchRecord } from '../db/adapter.js'
-import { TURN_PHASES, phaseActor } from '../engine/phases.js'
+import { StaleMatchStateError } from '../db/adapter.js'
+import { TURN_PHASES, phaseActor, checkVictoryConditions } from '../engine/phases.js'
 import { advancePhaseWithEvents } from '../engine/game.js'
 import { createMap } from '../engine/map.js'
 import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '../engine/index.js'
@@ -18,6 +19,12 @@ const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenario
 
 type ScenarioSnapshot = {
   name?: string
+  victoryConditions?: {
+    maxTurns?: number
+  }
+  width?: number
+  height?: number
+  hexes?: Array<{ q: number; r: number; t: number }>
   map?: {
     width: number
     height: number
@@ -26,8 +33,23 @@ type ScenarioSnapshot = {
   initialState?: unknown
 }
 
-function getScenarioMapSnapshot(scenarioSnapshot: any) {
-  return scenarioSnapshot?.map ?? scenarioSnapshot
+type ScenarioMapSnapshot = {
+  width: number
+  height: number
+  hexes: Array<{ q: number; r: number; t: number }>
+}
+
+function getScenarioMapSnapshot(scenarioSnapshot: ScenarioSnapshot | undefined): ScenarioMapSnapshot {
+  const candidate = scenarioSnapshot?.map ?? scenarioSnapshot
+  if (!candidate || typeof candidate.width !== 'number' || typeof candidate.height !== 'number') {
+    throw new Error('Invalid scenario map snapshot')
+  }
+
+  return {
+    width: candidate.width,
+    height: candidate.height,
+    hexes: candidate.hexes ?? [],
+  }
 }
 
 function buildEngineState(match: MatchRecord) {
@@ -37,6 +59,30 @@ function buildEngineState(match: MatchRecord) {
     currentPhase: match.phase,
     turn: match.turnNumber,
   } as EngineGameState
+}
+
+function getScenarioMaxTurns(scenarioSnapshot: ScenarioSnapshot | undefined): number {
+  const maxTurns = scenarioSnapshot?.victoryConditions?.maxTurns
+  return typeof maxTurns === 'number' && Number.isFinite(maxTurns) && maxTurns > 0 ? maxTurns : 20
+}
+
+function computeWinnerUserId(
+  match: MatchRecord,
+  state: GameState,
+  phase: TurnPhase,
+  turnNumber: number,
+): string | null {
+  const engineState = {
+    ...structuredClone(state),
+    ramsThisTurn: state.ramsThisTurn ?? 0,
+    currentPhase: phase,
+    turn: turnNumber,
+  } as EngineGameState
+
+  const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+  const winningRole = checkVictoryConditions(engineState, turnNumber, getScenarioMaxTurns(scenarioSnapshot))
+  if (!winningRole) return null
+  return match.players[winningRole]
 }
 
 function getWeaponTypeFromId(weaponId: string) {
@@ -404,23 +450,34 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
 
       let newEvents: EventEnvelope[]
       let currentState = match.state
+      const expectedLastEventSeq = match.events.at(-1)?.seq ?? 0
+
       if (command.type === 'END_PHASE') {
         const result = advancePhaseWithEvents(match)
         newEvents = result.newEvents
         currentState = result.state
-        await db.updateMatchState(match.gameId, result.phase, result.turnNumber, match.winner, result.state)
+        const winner = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
+        await db.persistMatchProgress({
+          gameId: match.gameId,
+          expectedLastEventSeq,
+          phase: result.phase,
+          turnNumber: result.turnNumber,
+          winner,
+          state: result.state,
+          events: newEvents,
+        })
         // Return updated state and events
         const turnNumber = result.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? 0
         const seq = eventSeq
         return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else if (command.type === 'MOVE') {
-        const scenarioSnapshot = match.scenarioSnapshot as any
+        const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(
           scenarioMap.width,
           scenarioMap.height,
-          scenarioMap.hexes || []
+          scenarioMap.hexes
         )
         const state = buildEngineState(match)
         const validation = validateUnitMovement(map, state, command)
@@ -437,22 +494,31 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         if (!result.success) {
           return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
         }
-        await db.updateMatchState(match.gameId, match.phase, match.turnNumber, match.winner, state)
+
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
         let eventType = command.unitId === 'onion' ? 'ONION_MOVED' : 'UNIT_MOVED'
         newEvents = [{ seq, type: eventType, timestamp: new Date().toISOString(), ...(command.unitId === 'onion' ? { to: command.to } : { unitId: command.unitId, to: command.to }) }]
         currentState = state
-        await db.appendEvents(match.gameId, newEvents)
+        const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
+        await db.persistMatchProgress({
+          gameId: match.gameId,
+          expectedLastEventSeq,
+          phase: match.phase,
+          turnNumber: match.turnNumber,
+          winner,
+          state,
+          events: newEvents,
+        })
         const turnNumber = match.turnNumber
         const eventSeq = seq
         return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else if (command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
-        const scenarioSnapshot = match.scenarioSnapshot as any
+        const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(
           scenarioMap.width,
           scenarioMap.height,
-          scenarioMap.hexes || []
+          scenarioMap.hexes
         )
         const state = buildEngineState(match)
         const validation = validateCombatAction(map, state, command)
@@ -474,8 +540,16 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
         newEvents = buildCombatEvents(seq, command, result, state)
         currentState = state
-        await db.updateMatchState(match.gameId, match.phase, match.turnNumber, match.winner, state)
-        await db.appendEvents(match.gameId, newEvents)
+        const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
+        await db.persistMatchProgress({
+          gameId: match.gameId,
+          expectedLastEventSeq,
+          phase: match.phase,
+          turnNumber: match.turnNumber,
+          winner,
+          state,
+          events: newEvents,
+        })
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, turnNumber, eventSeq })
@@ -490,6 +564,13 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
       }
     } catch (err) {
+      if (err instanceof StaleMatchStateError) {
+        return reply.status(409).send({
+          ok: false,
+          error: 'Match state changed; retry action',
+          code: 'STALE_STATE',
+        })
+      }
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })

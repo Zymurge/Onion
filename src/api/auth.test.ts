@@ -105,6 +105,7 @@ describe('POST /auth/register', () => {
       findMatch: async () => null,
       updateMatchPlayers: async () => {},
       updateMatchState: async () => {},
+      persistMatchProgress: async () => {},
       appendEvents: async () => {},
       getEvents: async () => [],
     }
@@ -229,6 +230,7 @@ describe('POST /auth/login', () => {
       findMatch: async () => null,
       updateMatchPlayers: async () => {},
       updateMatchState: async () => {},
+      persistMatchProgress: async () => {},
       appendEvents: async () => {},
       getEvents: async () => [],
     }

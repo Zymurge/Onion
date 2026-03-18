@@ -29,12 +29,22 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
   let phase = TURN_PHASES[nextIdx];
   newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: fromPhase, to: phase, turnNumber });
 
+  if (phase === 'ONION_MOVE') {
+    state.ramsThisTurn = 0;
+    for (const [unitId, unit] of Object.entries(state.defenders)) {
+      const prevStatus = unit.status;
+      if (unit.status === 'disabled') unit.status = 'recovering';
+      if (unit.status !== prevStatus) {
+        newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, unitId, from: prevStatus, to: unit.status });
+      }
+    }
+  }
+
   // Auto-advance through DEFENDER_RECOVERY: process unit status transitions then continue
   if (phaseActor(phase) === 'engine') {
     for (const [unitId, unit] of Object.entries(state.defenders)) {
       const prevStatus = unit.status;
       if (unit.status === 'recovering') unit.status = 'operational';
-      else if (unit.status === 'disabled') unit.status = 'recovering';
       if (unit.status !== prevStatus) {
         newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, unitId, from: prevStatus, to: unit.status });
       }

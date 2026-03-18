@@ -119,6 +119,7 @@ describe('POST /games', () => {
       findMatch: async () => null,
       updateMatchPlayers: async () => {},
       updateMatchState: async () => {},
+      persistMatchProgress: async () => {},
       appendEvents: async () => {},
       getEvents: async () => [],
       createUser: async () => ({ userId }),

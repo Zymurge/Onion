@@ -25,6 +25,26 @@ export interface MatchRecord {
 }
 
 /**
+ * Thrown when persisting an action against stale match/event state.
+ */
+export class StaleMatchStateError extends Error {
+  constructor(message = 'Match state is stale') {
+    super(message)
+    this.name = 'StaleMatchStateError'
+  }
+}
+
+export interface PersistMatchProgressInput {
+  gameId: string
+  phase: import('../types/index.js').TurnPhase
+  turnNumber: number
+  winner: string | null
+  state: import('../types/index.js').GameState
+  events: import('../types/index.js').EventEnvelope[]
+  expectedLastEventSeq: number
+}
+
+/**
  * Data Access Layer interface for Onion game persistence.
  *
  * Provides a clean abstraction over storage backends (in-memory, PostgreSQL, etc.).
@@ -83,6 +103,14 @@ export interface DbAdapter {
    * @param state - New game state
    */
   updateMatchState(gameId: string, phase: import('../types/index.js').TurnPhase, turnNumber: number, winner: string | null, state: import('../types/index.js').GameState): Promise<void>
+
+  /**
+   * Persist state and events atomically if the event cursor has not advanced.
+   *
+   * Implementations must validate `expectedLastEventSeq` against the current
+   * persisted cursor and throw `StaleMatchStateError` when mismatched.
+   */
+  persistMatchProgress(input: PersistMatchProgressInput): Promise<void>
 
   /**
    * Append new events to a match's event history.
