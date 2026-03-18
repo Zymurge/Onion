@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { InitialStateSchema } from './scenarioSchema'
-import { normalizeInitialStateToGameState } from './scenarioNormalizer'
+import { InitialStateSchema } from './scenarioSchema.js'
+import { normalizeInitialStateToGameState } from './scenarioNormalizer.js'
 
 const validInitialState = {
   onion: {

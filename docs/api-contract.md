@@ -199,7 +199,7 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 
 ### Onion Combat Phase (`ONION_COMBAT`)
 
-#### Fire a weapon system
+#### Fire a weapon system (Onion)
 
 ```json
 {
@@ -212,15 +212,7 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 
 `weaponIndex` identifies which instance of a multi-count battery (e.g., secondary battery 0–3). Use `0` for single-instance weapons.
 
-### Defender Movement Phase (`DEFENDER_MOVE`, `GEV_SECOND_MOVE`)
-
-#### Move a unit
-
-```json
-{ "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
-```
-
-### Defender Combat Phase (`DEFENDER_COMBAT`)
+#### Defender combat actions
 
 **Fire a unit** (single attacker)
 
@@ -235,6 +227,42 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 ```
 
 Note: combined fire is not legal when targeting Onion treads (each unit must fire individually per Special Rule 7.13.2). The engine enforces this.
+
+---
+
+## Combat Error Handling
+
+Combat actions return structured errors:
+
+- HTTP 400 for malformed input, schema errors, or wrong phase.
+- HTTP 422 for well-formed but invalid combat actions (e.g., illegal target, exhausted weapon, combined fire on treads).
+- Response body includes `detailCode` for granular error (e.g., `NO_TARGET`, `WEAPON_EXHAUSTED`, `COMBINED_FIRE_TREAD_TARGET`).
+
+**Example error response:**
+
+```json
+{
+  "ok": false,
+  "error": "Combined fire is not allowed on Onion treads.",
+  "code": "MOVE_INVALID",
+  "detailCode": "COMBINED_FIRE_TREAD_TARGET",
+  "currentPhase": "DEFENDER_COMBAT"
+}
+```
+
+All errors include `detailCode` for granular client feedback.
+
+### Defender Movement Phase (`DEFENDER_MOVE`, `GEV_SECOND_MOVE`)
+
+#### Move a unit
+
+```json
+{ "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
+```
+
+### Defender Combat Phase (`DEFENDER_COMBAT`)
+
+See above for command shapes and error handling.
 
 ---
 

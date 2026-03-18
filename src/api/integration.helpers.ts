@@ -1,4 +1,6 @@
 import { expect } from 'vitest'
+import { createMap, findPath, hexDistance } from '../engine/map.js'
+import { getUnitDefinition, onionMovementAllowance } from '../engine/units.js'
 
 export type HexPos = { q: number; r: number }
 export type ScenarioMap = { width: number; height: number; hexes: Array<{ q: number; r: number; t: number }> }
@@ -85,6 +87,76 @@ export function chooseLegalAdjacentMove(map: ScenarioMap, state: any, unitId: st
   return null
 }
 
+function movementAllowanceFor(state: any, unitId: string): number {
+  if (unitId === state.onion.id) {
+    return onionMovementAllowance(state.onion.treads)
+  }
+
+  const unit = state.defenders[unitId]
+  if (!unit) return 0
+  return getUnitDefinition(unit.type).movement
+}
+
+function canCrossRidgelines(state: any, unitId: string): boolean {
+  if (unitId === state.onion.id) {
+    return true
+  }
+
+  const unit = state.defenders[unitId]
+  if (!unit) return false
+  return getUnitDefinition(unit.type).abilities.canCrossRidgelines === true
+}
+
+export function chooseReachableMoveToward(
+  map: ScenarioMap,
+  state: any,
+  unitId: string,
+  target: HexPos,
+): HexPos | null {
+  const unit = unitId === state.onion.id ? state.onion : state.defenders[unitId]
+  if (!unit) return null
+
+  const movementAllowance = movementAllowanceFor(state, unitId)
+  if (movementAllowance <= 0) return null
+
+  const engineMap = createMap(map.width, map.height, map.hexes)
+  const candidates: Array<{ position: HexPos; distance: number; cost: number }> = []
+
+  for (let q = 0; q < map.width; q++) {
+    for (let r = 0; r < map.height; r++) {
+      const position = { q, r }
+      if (position.q === unit.position.q && position.r === unit.position.r) continue
+      if (isOccupied(state, position, unitId)) continue
+
+      const path = findPath(
+        engineMap,
+        unit.position,
+        position,
+        movementAllowance,
+        canCrossRidgelines(state, unitId),
+      )
+
+      if (!path.found) continue
+      if (path.path.some((step) => isOccupied(state, step, unitId))) continue
+
+      candidates.push({
+        position,
+        distance: hexDistance(position, target),
+        cost: path.cost,
+      })
+    }
+  }
+
+  candidates.sort((left, right) => {
+    if (left.distance !== right.distance) return left.distance - right.distance
+    if (left.cost !== right.cost) return left.cost - right.cost
+    if (left.position.q !== right.position.q) return left.position.q - right.position.q
+    return left.position.r - right.position.r
+  })
+
+  return candidates[0]?.position ?? null
+}
+
 export function applyActionToExpectedState(expected: ExpectedState, action: any, result: any) {
   if (!result?.ok) return
 
@@ -101,6 +173,12 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
   for (const event of result.events) {
     if (event.type === 'UNIT_STATUS_CHANGED' && expected.defenders[event.unitId]) {
       expected.defenders[event.unitId].status = event.to
+    }
+    if (event.type === 'UNIT_SQUADS_LOST' && expected.defenders[event.unitId]) {
+      expected.defenders[event.unitId].squads = Math.max(0, (expected.defenders[event.unitId].squads ?? 1) - Number(event.amount ?? 0))
+      if (expected.defenders[event.unitId].squads === 0) {
+        expected.defenders[event.unitId].status = 'destroyed'
+      }
     }
     if (event.type === 'ONION_TREADS_LOST') {
       expected.onion.treads = event.remaining

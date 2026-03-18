@@ -15,10 +15,10 @@ describe('POST /games/:id/actions MOVE', () => {
     const moveTo = { q: 1, r: 10 }
     const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo] })
     const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
-    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation((state, plan) => {
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
       state.onion.position = plan.to
       return { success: true, newPosition: plan.to }
-    })
+    }) as any)
 
     const res = await app.inject({
       method: 'POST',
@@ -46,9 +46,9 @@ describe('POST /games/:id/actions MOVE', () => {
 
     const validatedPlan = createMovePlan({ to: { q: 1, r: 1 }, path: [{ q: 1, r: 1 }] })
     const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
-    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(() => {
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation((() => {
       return { success: false, error: 'Injected executeUnitMovement error' }
-    })
+    }) as any)
 
     const res = await app.inject({
       method: 'POST',

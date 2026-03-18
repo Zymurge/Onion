@@ -104,6 +104,38 @@ export async function endPhase(
   return submitAction(app, gameId, token, { type: 'END_PHASE' })
 }
 
+function phaseTokenFor(
+  phase: string,
+  onionToken: string,
+  defenderToken: string,
+) {
+  return phase.startsWith('ONION_') ? onionToken : defenderToken
+}
+
+export async function advanceToPhase(
+  app: FastifyInstance,
+  gameId: string,
+  onionToken: string,
+  defenderToken: string,
+  targetPhase: string,
+) {
+  for (let index = 0; index < 8; index++) {
+    const stateResponse = await getGame(app, gameId, onionToken)
+    const stateBody = stateResponse.json()
+    if (stateBody.phase === targetPhase) {
+      return stateBody
+    }
+
+    const token = phaseTokenFor(stateBody.phase, onionToken, defenderToken)
+    const endResponse = await endPhase(app, gameId, token)
+    if (endResponse.statusCode !== 200) {
+      throw new Error(`Failed to advance phase from ${stateBody.phase} to ${targetPhase}`)
+    }
+  }
+
+  throw new Error(`Unable to reach phase ${targetPhase}`)
+}
+
 export async function setupJoinedGame(
   app: FastifyInstance,
   creatorRole: PlayerRole = 'onion',

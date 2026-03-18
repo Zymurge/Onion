@@ -48,6 +48,10 @@ export type MovementValidation =
   | { ok: true; plan: MovementPlan }
   | { ok: false; code: MovementValidationCode; error: string }
 
+type MovementAllowanceResult =
+  | { ok: true; movementAllowance: number }
+  | { ok: false; code: MovementValidationCode; error: string }
+
 interface LegacyMovementValidation {
   valid: boolean
   error?: string
@@ -114,7 +118,7 @@ function getMovementAllowance(
   unit: GameUnit,
   role: PlayerRole,
   capabilities: MovementCapabilities
-): MovementValidation | { ok: true; movementAllowance: number } {
+): MovementAllowanceResult {
   const definition = getUnitDefinition(unit.type)
 
   if (role === 'onion') {

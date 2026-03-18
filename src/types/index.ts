@@ -7,33 +7,53 @@ export type TurnPhase =
   | 'GEV_SECOND_MOVE'
 
 export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
+export type WeaponStatus = 'ready' | 'destroyed'
 
 export type PlayerRole = 'onion' | 'defender'
+
+export type OnionWeaponType = 'main' | 'secondary' | 'ap' | 'missile'
 
 export interface HexPos {
   q: number
   r: number
 }
 
+export interface Weapon {
+  id: string
+  name: string
+  attack: number
+  range: number
+  defense: number
+  status: WeaponStatus
+  individuallyTargetable: boolean
+}
+
 export interface DefenderUnit {
+  id?: string
   type: string
   position: HexPos
   status: UnitStatus
+  weapons?: Weapon[]
   squads?: number
 }
 
 export interface GameState {
   onion: {
+    id?: string
+    type?: string
     position: HexPos
     treads: number
-    missiles: number
-    batteries: {
+    missiles?: number
+    status?: UnitStatus
+    weapons?: Weapon[]
+    batteries?: {
       main: number
       secondary: number
       ap: number
     }
   }
   defenders: Record<string, DefenderUnit>
+  ramsThisTurn?: number
 }
 
 export interface EventEnvelope {
@@ -45,7 +65,7 @@ export interface EventEnvelope {
 
 export type Command =
   | { type: 'MOVE'; unitId: string; to: HexPos }
-  | { type: 'FIRE_WEAPON'; weaponId: string; targetId: string }
+  | { type: 'FIRE_WEAPON'; weaponType: OnionWeaponType; weaponIndex: number; targetId: string }
   | { type: 'FIRE_UNIT'; unitId: string; targetId: string }
   | { type: 'COMBINED_FIRE'; unitIds: string[]; targetId: string }
   | { type: 'END_PHASE' }

@@ -89,12 +89,19 @@ export type {
   CombatResult,
   CombatRoll,
   CombatResultDetails,
+  CombatValidationCode,
+  CombatTarget,
+  CombatPlan,
+  CombatValidation,
+  CombatExecutionResult,
 } from './combat.js'
 
 export {
+  validateCombatAction,
   validateOnionWeaponFire,
   validateUnitFire,
   validateCombinedFire,
+  executeCombatAction,
   executeOnionWeaponFire,
   executeUnitFire,
   executeCombinedFire,

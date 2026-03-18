@@ -29,12 +29,16 @@ export function buildApp(db?: DbAdapter): FastifyInstance {
 
   // Global error handler
   app.setErrorHandler((error, _req, reply) => {
+    const errorCode = typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : undefined
+
     // Payload too large
-    if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE') {
+    if (errorCode === 'FST_ERR_CTP_BODY_TOO_LARGE') {
       return reply.status(413).send({ ok: false, error: 'Payload exceeds 16KB limit', code: 'PAYLOAD_TOO_LARGE' })
     }
     // Malformed JSON
-    if (error.code === 'FST_ERR_CTP_INVALID_CONTENT_TYPE' || error.code === 'FST_ERR_CTP_INVALID_JSON_BODY') {
+    if (errorCode === 'FST_ERR_CTP_INVALID_CONTENT_TYPE' || errorCode === 'FST_ERR_CTP_INVALID_JSON_BODY') {
       return reply.status(400).send({ ok: false, error: 'Malformed JSON in request body', code: 'MALFORMED_JSON' })
     }
     // All other errors

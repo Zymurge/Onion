@@ -8,15 +8,137 @@ import type { DbAdapter, MatchRecord } from '../db/adapter.js'
 import { TURN_PHASES, phaseActor } from '../engine/phases.js'
 import { advancePhaseWithEvents } from '../engine/game.js'
 import { createMap } from '../engine/map.js'
-import { validateUnitMovement, executeUnitMovement } from '../engine/index.js'
-import { InitialStateSchema } from '../engine/scenarioSchema'
-import { normalizeInitialStateToGameState } from '../engine/scenarioNormalizer'
+import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '../engine/index.js'
+import type { EngineGameState } from '../engine/units.js'
+import { InitialStateSchema } from '../engine/scenarioSchema.js'
+import { normalizeInitialStateToGameState } from '../engine/scenarioNormalizer.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenarios')
 
+type ScenarioSnapshot = {
+  name?: string
+  map?: {
+    width: number
+    height: number
+    hexes?: Array<{ q: number; r: number; t: number }>
+  }
+  initialState?: unknown
+}
+
 function getScenarioMapSnapshot(scenarioSnapshot: any) {
   return scenarioSnapshot?.map ?? scenarioSnapshot
+}
+
+function buildEngineState(match: MatchRecord) {
+  return {
+    ...structuredClone(match.state),
+    ramsThisTurn: match.state.ramsThisTurn ?? 0,
+    currentPhase: match.phase,
+    turn: match.turnNumber,
+  } as EngineGameState
+}
+
+function getWeaponTypeFromId(weaponId: string) {
+  if (weaponId === 'main') return 'main'
+  if (weaponId.startsWith('secondary_')) return 'secondary'
+  if (weaponId.startsWith('ap_')) return 'ap'
+  if (weaponId.startsWith('missile_')) return 'missile'
+  return weaponId
+}
+
+function buildCombatEvents(
+  startSeq: number,
+  command: Extract<Command, { type: 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>,
+  result: ReturnType<typeof executeCombatAction>,
+  state: any,
+): EventEnvelope[] {
+  const timestamp = new Date().toISOString()
+  let seq = startSeq
+  const events: EventEnvelope[] = []
+
+  if (command.type === 'FIRE_WEAPON') {
+    events.push({
+      seq: seq++,
+      type: 'WEAPON_FIRED',
+      timestamp,
+      weaponType: command.weaponType,
+      weaponIndex: command.weaponIndex,
+      targetId: result.targetId,
+      roll: result.roll?.roll,
+      outcome: result.roll?.result,
+      odds: result.roll?.odds,
+    })
+  }
+
+  if (command.type === 'FIRE_UNIT') {
+    events.push({
+      seq: seq++,
+      type: 'UNIT_FIRED',
+      timestamp,
+      unitId: command.unitId,
+      targetId: result.targetId,
+      roll: result.roll?.roll,
+      outcome: result.roll?.result,
+      odds: result.roll?.odds,
+    })
+  }
+
+  if (command.type === 'COMBINED_FIRE') {
+    events.push({
+      seq: seq++,
+      type: 'COMBINED_FIRE_RESOLVED',
+      timestamp,
+      unitIds: command.unitIds,
+      targetId: result.targetId,
+      roll: result.roll?.roll,
+      outcome: result.roll?.result,
+      odds: result.roll?.odds,
+    })
+  }
+
+  if (result.treadsLost !== undefined) {
+    events.push({
+      seq: seq++,
+      type: 'ONION_TREADS_LOST',
+      timestamp,
+      amount: result.treadsLost,
+      remaining: state.onion.treads,
+    })
+  }
+
+  if (result.destroyedWeaponId) {
+    events.push({
+      seq: seq++,
+      type: 'ONION_BATTERY_DESTROYED',
+      timestamp,
+      weaponId: result.destroyedWeaponId,
+      weaponType: getWeaponTypeFromId(result.destroyedWeaponId),
+    })
+  }
+
+  for (const statusChange of result.statusChanges ?? []) {
+    events.push({
+      seq: seq++,
+      type: 'UNIT_STATUS_CHANGED',
+      timestamp,
+      unitId: statusChange.unitId,
+      from: statusChange.from,
+      to: statusChange.to,
+    })
+  }
+
+  if (result.squadsLost !== undefined) {
+    events.push({
+      seq: seq++,
+      type: 'UNIT_SQUADS_LOST',
+      timestamp,
+      unitId: result.targetId,
+      amount: result.squadsLost,
+    })
+  }
+
+  return events
 }
 
 /**
@@ -99,7 +221,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       if (role !== 'onion' && role !== 'defender') {
         return reply.status(400).send({ ok: false, error: 'role must be "onion" or "defender"', code: 'INVALID_INPUT' })
       }
-      const scenarioSnapshot = await loadScenario(scenarioId)
+      const scenarioSnapshot = await loadScenario(scenarioId) as ScenarioSnapshot | null
       if (!scenarioSnapshot) {
         return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
       }
@@ -217,7 +339,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
       // Type assertion for scenarioSnapshot
-      const scenarioSnapshot = match.scenarioSnapshot as any
+      const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
       return reply.send({
         gameId: match.gameId,
         scenarioId: match.scenarioId,
@@ -239,7 +361,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *
    * Executes the specified command if it's the player's turn and the command is valid.
    * Returns the updated game state and any events generated by the action.
-   * Currently only END_PHASE is fully implemented; other commands return ACTION_ACKNOWLEDGED.
+  * Movement and combat commands are delegated to the engine and persisted as concrete events.
    *
    * @route POST /games/:id/actions
    * @body Command object (see types.ts)
@@ -300,12 +422,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           scenarioMap.height,
           scenarioMap.hexes || []
         )
-        const state = {
-          ...structuredClone(match.state),
-          ramsThisTurn: match.state.ramsThisTurn ?? 0,
-          currentPhase: match.phase,
-          turn: match.turnNumber,
-        }
+        const state = buildEngineState(match)
         const validation = validateUnitMovement(map, state, command)
         if (!validation.ok) {
           return reply.status(422).send({
@@ -329,10 +446,44 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = match.turnNumber
         const eventSeq = seq
         return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
+      } else if (command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
+        const scenarioSnapshot = match.scenarioSnapshot as any
+        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+        const map = createMap(
+          scenarioMap.width,
+          scenarioMap.height,
+          scenarioMap.hexes || []
+        )
+        const state = buildEngineState(match)
+        const validation = validateCombatAction(map, state, command)
+        if (!validation.ok) {
+          return reply.status(422).send({
+            ok: false,
+            error: validation.error,
+            code: 'MOVE_INVALID',
+            detailCode: validation.code,
+            currentPhase: match.phase,
+          })
+        }
+
+        const result = executeCombatAction(state, validation.plan)
+        if (!result.success) {
+          return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+        }
+
+        const seq = (match.events.at(-1)?.seq ?? 0) + 1
+        newEvents = buildCombatEvents(seq, command, result, state)
+        currentState = state
+        await db.updateMatchState(match.gameId, match.phase, match.turnNumber, match.winner, state)
+        await db.appendEvents(match.gameId, newEvents)
+        const turnNumber = match.turnNumber
+        const eventSeq = newEvents.at(-1)?.seq ?? seq
+        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, turnNumber, eventSeq })
       } else {
         // Stub: acknowledge all other commands without modifying state
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = [{ seq, type: 'ACTION_ACKNOWLEDGED', timestamp: new Date().toISOString(), command: command.type }]
+        const unsupportedCommand = command as { type: string }
+        newEvents = [{ seq, type: 'ACTION_ACKNOWLEDGED', timestamp: new Date().toISOString(), command: unsupportedCommand.type }]
         await db.appendEvents(match.gameId, newEvents)
         const turnNumber = match.turnNumber
         const eventSeq = seq
