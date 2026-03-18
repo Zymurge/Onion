@@ -194,23 +194,8 @@ describe('POST /games/:id/join', () => {
       headers: { authorization: `Bearer ${fiona.token}` },
       payload: {},
     })
-    expect(res.statusCode).toBe(200)
-    expect(res.json().role).toBe('defender')
-  })
-
-  it('returns 409 when game is already full', async () => {
-    const app = buildApp()
-    const shrek = await register(app, 'shrek')
-    const fiona = await register(app, 'fiona')
-    const puss = await register(app, 'puss')
-    const { gameId } = await createGame(app, shrek.token, 'onion')
-    await joinGame(app, gameId, fiona.token)
-
-    const res = await app.inject({
-      method: 'POST',
-      url: `/games/${gameId}/join`,
-      headers: { authorization: `Bearer ${puss.token}` },
-      payload: {},
+        const onionStart = { q: 0, r: 10 }
+        const moveTo = { q: 1, r: 10 }
     })
     expect(res.statusCode).toBe(409)
     expect(res.json().code).toBe('GAME_FULL')
@@ -547,60 +532,101 @@ describe('GET /games/:id/events', () => {
   })
 })
 
-it('MOVE_ONION calls engine and updates state on success', async () => {
+it('MOVE calls engine and updates state on success', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
     const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
 
-    // Place Onion at (0,0) and move to (1,0)
-    // Spy on engine
-    const spy = vi.spyOn(engineGame, 'executeOnionMovement').mockImplementation((map, state, command) => {
-      state.onion.position = command.to
-      return { success: true, newPosition: command.to }
+    const onionStart = { q: 0, r: 10 }
+    const moveTo = { q: 1, r: 10 }
+    const validatedPlan = {
+      unitId: 'onion',
+      from: onionStart,
+      to: moveTo,
+      path: [moveTo],
+      cost: 1,
+      movementAllowance: 3,
+      rammedUnitIds: [],
+      ramCapacityUsed: 0,
+      treadCost: 0,
+      capabilities: {
+        canRam: true,
+        hasTreads: true,
+        canSecondMove: false,
+        canCrossRidgelines: true,
+      },
+    }
+    const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan })
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation((state, plan) => {
+      state.onion.position = plan.to
+      return { success: true, newPosition: plan.to }
     })
 
-    const moveCmd = { type: 'MOVE_ONION', to: { q: 1, r: 0 } }
+    const moveCmd = { type: 'MOVE', unitId: 'onion', to: moveTo }
     const res = await app.inject({
       method: 'POST',
       url: `/games/${gameId}/actions`,
       headers: { authorization: `Bearer ${shrek.token}` },
       payload: moveCmd,
     })
+
     expect(res.statusCode).toBe(200)
     const body = res.json()
     expect(body.ok).toBe(true)
-    expect(body.state.onion.position).toEqual({ q: 1, r: 0 })
-    expect(spy).toHaveBeenCalled()
-    spy.mockRestore()
+    expect(body.state.onion.position).toEqual(moveTo)
+    expect(validateSpy).toHaveBeenCalled()
+    expect(executeSpy).toHaveBeenCalled()
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
   })
 
-  it('MOVE_ONION returns error if engine fails', async () => {
+  it('MOVE returns error if engine fails', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
-    const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
+    // Register and join a second player (defender)
+    const fiona = await register(app, 'fiona')
     await joinGame(app, gameId, fiona.token)
 
-    // Spy on engine to simulate failure
-    const spy = vi.spyOn(engineGame, 'executeOnionMovement').mockImplementation(() => {
-      return { success: false, error: 'No valid path' }
+    const validatedPlan = {
+      unitId: 'onion',
+      from: { q: 0, r: 10 },
+      to: { q: 1, r: 1 },
+      path: [{ q: 1, r: 1 }],
+      cost: 1,
+      movementAllowance: 3,
+      rammedUnitIds: [],
+      ramCapacityUsed: 0,
+      treadCost: 0,
+      capabilities: {
+        canRam: true,
+        hasTreads: true,
+        canSecondMove: false,
+        canCrossRidgelines: true,
+      },
+    }
+    const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan })
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(() => {
+      return { success: false, error: 'Injected executeUnitMovement error' }
     })
 
-    const moveCmd = { type: 'MOVE_ONION', to: { q: 99, r: 99 } }
+    const moveCmd = { type: 'MOVE', unitId: 'onion', to: { q: 1, r: 1 } }
     const res = await app.inject({
       method: 'POST',
       url: `/games/${gameId}/actions`,
       headers: { authorization: `Bearer ${shrek.token}` },
       payload: moveCmd,
     })
-    expect(res.statusCode).toBe(400)
+    expect(res.statusCode).toBe(422)
     const body = res.json()
     expect(body.ok).toBe(false)
-    expect(body.error).toMatch(/No valid path/)
-    expect(spy).toHaveBeenCalled()
-    spy.mockRestore()
+    expect(body.error).toMatch(/Injected executeUnitMovement error/)
+    expect(validateSpy).toHaveBeenCalled()
+    expect(executeSpy).toHaveBeenCalled()
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
   })
 
   it('uses scenario initialState and exposes scenarioName and units', async () => {

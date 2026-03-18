@@ -1,5 +1,8 @@
 # Onion Web Game Project Overview
 
+- Well-formed but invalid move commands (e.g., illegal movement, blocked path) return HTTP 422 with code MOVE_INVALID.
+- Malformed or schema-invalid input returns HTTP 400 with code INVALID_INPUT.
+
 ## Project Description
 
 This project aims to create a web-based digital implementation of the classic board game Ogre (now renamed Onion),

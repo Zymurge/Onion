@@ -154,7 +154,8 @@ Errors:
     "error":        string,       // human-readable
     "code":         string,       // machine-readable (see Error Codes)
     "currentPhase": TurnPhase     // always present; helps CLI give useful feedback
-  }
+  }                               // for malformed or invalid input (INVALID_INPUT, etc)
+  422                             // well-formed but invalid move (MOVE_INVALID)
   403                             — not your turn
   409                             — game already over
   413                             — PAYLOAD_TOO_LARGE if payload exceeds 16KB
@@ -292,7 +293,6 @@ ONION_MISSILE_LAUNCHED  { weaponIndex: number }
 
 ### Phase / Game Events
 
-
 ```text
 PLAYER_JOINED     { userId: string, role: "onion" | "defender" }
 PHASE_CHANGED     { from: TurnPhase, to: TurnPhase, turnNumber: number }
@@ -383,6 +383,7 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from `initialSt
 | `WRONG_PHASE` | Action type not valid in the current phase |
 | `NOT_YOUR_TURN` | Authenticated user is not the active player |
 | `ILLEGAL_MOVE` | Destination is unreachable, blocked, or out of range |
+| `MOVE_INVALID` | Well-formed but invalid move command (HTTP 422) |
 | `UNIT_NOT_FOUND` | `unitId` does not exist in this game |
 | `WEAPON_EXHAUSTED` | Targeted battery or missile already destroyed/used |
 | `RAM_LIMIT_REACHED` | Onion has already rammed twice this turn |

@@ -44,9 +44,8 @@ export interface EventEnvelope {
 }
 
 export type Command =
-  | { type: 'MOVE_ONION'; to: HexPos }
+  | { type: 'MOVE'; unitId: string; to: HexPos }
   | { type: 'FIRE_WEAPON'; weaponId: string; targetId: string }
-  | { type: 'MOVE_UNIT'; unitId: string; to: HexPos }
   | { type: 'FIRE_UNIT'; unitId: string; targetId: string }
   | { type: 'COMBINED_FIRE'; unitIds: string[]; targetId: string }
   | { type: 'END_PHASE' }
@@ -62,6 +61,7 @@ export interface ActionErrorResponse {
   ok: false
   error: string
   code: string
+  detailCode?: string
   currentPhase: TurnPhase
 }
 

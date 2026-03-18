@@ -8,7 +8,7 @@ import type { DbAdapter, MatchRecord } from '../db/adapter.js'
 import { TURN_PHASES, phaseActor } from '../engine/phases.js'
 import { advancePhaseWithEvents } from '../engine/game.js'
 import { createMap } from '../engine/map.js'
-import { executeOnionMovement } from '../engine/index.js'
+import { validateUnitMovement, executeUnitMovement } from '../engine/index.js'
 import { InitialStateSchema } from '../engine/scenarioSchema'
 import { normalizeInitialStateToGameState } from '../engine/scenarioNormalizer'
 
@@ -296,62 +296,37 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const eventSeq = newEvents.at(-1)?.seq ?? 0
         const seq = eventSeq
         return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
-      } else if (command.type === 'MOVE_ONION') {
-        // Only handle MOVE_ONION here
-        // Load scenario map (from match.scenarioSnapshot)
+      } else if (command.type === 'MOVE') {
         const scenarioSnapshot = match.scenarioSnapshot as any
         const map = createMap(
           scenarioSnapshot.width,
           scenarioSnapshot.height,
           scenarioSnapshot.hexes || []
         )
-        // Deep clone state to avoid mutating DB state directly
-        // Patch: ensure EngineGameState fields exist
         const state = {
           ...structuredClone(match.state),
           ramsThisTurn: match.state.ramsThisTurn ?? 0,
           currentPhase: match.phase,
           turn: match.turnNumber,
         }
-        const result = executeOnionMovement(map, state, command)
+        const validation = validateUnitMovement(map, state, command)
+        if (!validation.ok) {
+          return reply.status(422).send({
+            ok: false,
+            error: validation.error,
+            code: 'MOVE_INVALID',
+            detailCode: validation.code,
+            currentPhase: match.phase,
+          })
+        }
+        const result = executeUnitMovement(state, validation.plan)
         if (!result.success) {
-          return reply.status(400).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
-        }
-        // Persist new state
-        await db.updateMatchState(match.gameId, match.phase, match.turnNumber, match.winner, state)
-        // Emit event
-        const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = [{ seq, type: 'ONION_MOVED', timestamp: new Date().toISOString(), to: command.to }]
-        currentState = state
-        await db.appendEvents(match.gameId, newEvents)
-        const turnNumber = match.turnNumber
-        const eventSeq = seq
-        return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
-      } else if (command.type === 'MOVE_UNIT') {
-        // Defender movement
-        const scenarioSnapshot = match.scenarioSnapshot as any
-        const map = createMap(
-          scenarioSnapshot.width,
-          scenarioSnapshot.height,
-          scenarioSnapshot.hexes || []
-        )
-        const state = {
-          ...structuredClone(match.state),
-          currentPhase: match.phase,
-          turn: match.turnNumber,
-        }
-        const { validateUnitMovement, executeUnitMovement } = await import('../engine/movement.js')
-        const validation = validateUnitMovement(map, state, command.unitId, command)
-        if (!validation.valid) {
-          return reply.status(400).send({ ok: false, error: validation.error, code: 'MOVE_INVALID', currentPhase: match.phase })
-        }
-        const result = executeUnitMovement(map, state, command.unitId, command)
-        if (!result.success) {
-          return reply.status(400).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+          return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
         }
         await db.updateMatchState(match.gameId, match.phase, match.turnNumber, match.winner, state)
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = [{ seq, type: 'UNIT_MOVED', timestamp: new Date().toISOString(), unitId: command.unitId, to: command.to }]
+        let eventType = command.unitId === 'onion' ? 'ONION_MOVED' : 'UNIT_MOVED'
+        newEvents = [{ seq, type: eventType, timestamp: new Date().toISOString(), ...(command.unitId === 'onion' ? { to: command.to } : { unitId: command.unitId, to: command.to }) }]
         currentState = state
         await db.appendEvents(match.gameId, newEvents)
         const turnNumber = match.turnNumber
