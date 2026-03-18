@@ -56,6 +56,69 @@ describe('Integration: Register, Login, Create Game, Join', () => {
     assertStateMatches(afterPhaseState.json().state, expectedState)
   })
 
+  it('handles valid and invalid combat actions, asserts events and errors', async () => {
+    const app = buildApp()
+    const onionUser = await registerAndLoginUser(app, 'onion', 'onionpass')
+    const defenderUser = await registerAndLoginUser(app, 'defender', 'defenderpass')
+    const createGame = await app.inject({ method: 'POST', url: '/games', headers: { authorization: `Bearer ${onionUser.token}` }, payload: { scenarioId: 'swamp-siege-01', role: 'onion' } })
+    const { gameId } = createGame.json()
+    await app.inject({ method: 'POST', url: `/games/${gameId}/join`, headers: { authorization: `Bearer ${defenderUser.token}` }, payload: {} })
+
+    // Fetch scenario and initialize expected state model
+    const scenarioRes = await app.inject({ method: 'GET', url: `/scenarios/swamp-siege-01` })
+    const scenario = scenarioRes.json()
+    const scenarioMap = scenario.map as ScenarioMap
+    const initialState = scenario.initialState
+    const expectedState = buildExpectedState(initialState)
+    const onionId = initialState.onion.id
+    const defenderIds = Object.keys(initialState.defenders)
+
+    // Valid FIRE_UNIT (defender attacks onion)
+    const fireUnitRes = await app.inject({ method: 'POST', url: `/games/${gameId}/actions`, headers: { authorization: `Bearer ${defenderUser.token}` }, payload: { type: 'FIRE_UNIT', unitId: defenderIds[0], targetId: onionId } })
+    expect(fireUnitRes.statusCode).toBe(200)
+    const fireUnitBody = fireUnitRes.json()
+    expect(fireUnitBody.ok).toBe(true)
+    expect(fireUnitBody.events[0].type).toBe('UNIT_FIRED')
+    expect(fireUnitBody.events[0].unitId).toBe(defenderIds[0])
+    expect(fireUnitBody.events[0].targetId).toBe(onionId)
+
+    // Valid COMBINED_FIRE (defenders attack witch)
+    const combinedFireRes = await app.inject({ method: 'POST', url: `/games/${gameId}/actions`, headers: { authorization: `Bearer ${defenderUser.token}` }, payload: { type: 'COMBINED_FIRE', unitIds: defenderIds, targetId: 'witch-1' } })
+    expect(combinedFireRes.statusCode).toBe(200)
+    const combinedFireBody = combinedFireRes.json()
+    expect(combinedFireBody.ok).toBe(true)
+    expect(combinedFireBody.events[0].type).toBe('COMBINED_FIRE_RESOLVED')
+    expect(combinedFireBody.events[0].unitIds).toEqual(defenderIds)
+    expect(combinedFireBody.events[0].targetId).toBe('witch-1')
+
+    // Invalid COMBINED_FIRE on Onion treads
+    const invalidCombinedFireRes = await app.inject({ method: 'POST', url: `/games/${gameId}/actions`, headers: { authorization: `Bearer ${defenderUser.token}` }, payload: { type: 'COMBINED_FIRE', unitIds: defenderIds, targetId: onionId } })
+    expect(invalidCombinedFireRes.statusCode).toBe(422)
+    const invalidCombinedFireBody = invalidCombinedFireRes.json()
+    expect(invalidCombinedFireBody.ok).toBe(false)
+    expect(invalidCombinedFireBody.code).toBe('MOVE_INVALID')
+    expect(invalidCombinedFireBody.detailCode).toBe('COMBINED_FIRE_TREAD_TARGET')
+    expect(invalidCombinedFireBody.error).toMatch(/Combined fire is not allowed on Onion treads/)
+
+    // Invalid FIRE_WEAPON (exhausted weapon)
+    const exhaustedWeaponRes = await app.inject({ method: 'POST', url: `/games/${gameId}/actions`, headers: { authorization: `Bearer ${onionUser.token}` }, payload: { type: 'FIRE_WEAPON', weaponType: 'missile', weaponIndex: 0, targetId: defenderIds[0] } })
+    expect(exhaustedWeaponRes.statusCode).toBe(422)
+    const exhaustedWeaponBody = exhaustedWeaponRes.json()
+    expect(exhaustedWeaponBody.ok).toBe(false)
+    expect(exhaustedWeaponBody.code).toBe('MOVE_INVALID')
+    expect(exhaustedWeaponBody.detailCode).toBe('WEAPON_EXHAUSTED')
+    expect(exhaustedWeaponBody.error).toMatch(/Missile 0 is already destroyed or exhausted/)
+
+    // Invalid FIRE_WEAPON (illegal target)
+    const illegalTargetRes = await app.inject({ method: 'POST', url: `/games/${gameId}/actions`, headers: { authorization: `Bearer ${onionUser.token}` }, payload: { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: 'not-a-unit' } })
+    expect(illegalTargetRes.statusCode).toBe(422)
+    const illegalTargetBody = illegalTargetRes.json()
+    expect(illegalTargetBody.ok).toBe(false)
+    expect(illegalTargetBody.code).toBe('MOVE_INVALID')
+    expect(illegalTargetBody.detailCode).toBe('NO_TARGET')
+    expect(illegalTargetBody.error).toMatch(/Target not found/)
+  })
+
   it('simulates a full turn for both onion and defenders', async () => {
     const app = buildApp()
 
