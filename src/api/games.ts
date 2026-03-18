@@ -22,29 +22,21 @@ const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenario
  */
 async function loadScenario(id: string): Promise<unknown | null> {
   try {
-    console.log('[loadScenario] Looking for scenario:', id, 'in', SCENARIOS_DIR)
     const files = await readdir(SCENARIOS_DIR)
-    console.log('[loadScenario] Found files:', files)
     for (const file of files.filter((f) => f.endsWith('.json'))) {
       const fullPath = join(SCENARIOS_DIR, file)
-      console.log(`[loadScenario] Reading file: ${fullPath}`)
       const raw = await readFile(fullPath, 'utf8')
       let s: any
       try {
         s = JSON.parse(raw)
       } catch (err) {
-        console.log(`[loadScenario] Failed to parse JSON in file: ${file}`, err)
         continue
       }
-      console.log('[loadScenario] Checking scenario file:', file, 'with id:', s.id)
       if (s.id === id) {
-        console.log('[loadScenario] Scenario matched:', file)
         return s
       }
     }
-    console.log('[loadScenario] No matching scenario found for id:', id, 'in files:', files)
   } catch (err) {
-    console.log('[loadScenario] Error reading scenarios:', err)
     // directory unreadable — treat as not found
   }
   return null
