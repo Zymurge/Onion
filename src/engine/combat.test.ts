@@ -11,11 +11,18 @@ vi.mock('../logger.js', () => ({
   },
 }))
 
+const mockedLogger = logger as unknown as {
+  debug: { mockClear: () => void }
+  info: { mockClear: () => void }
+  warn: { mockClear: () => void }
+  error: { mockClear: () => void }
+}
+
 beforeEach(() => {
-  logger.debug.mockClear()
-  logger.info.mockClear()
-  logger.warn.mockClear()
-  logger.error.mockClear()
+  mockedLogger.debug.mockClear()
+  mockedLogger.info.mockClear()
+  mockedLogger.warn.mockClear()
+  mockedLogger.error.mockClear()
 })
 import {
   calculateOdds,

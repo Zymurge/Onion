@@ -1,4 +1,3 @@
-import logger from '../logger.js'
 /**
  * Unit definitions and capabilities for the Onion game engine.
  *
@@ -142,8 +141,11 @@ export interface EngineGameState {
  * @param type - Unit type to look up
  * @returns Unit definition with weapons and abilities
  */
+export function getUnitDefinition(type: UnitType): UnitDefinition
+export function getUnitDefinition(type: string): UnitDefinition | undefined
+export function getUnitDefinition(type: UnitType | string): UnitDefinition | undefined {
   logger.debug({ type }, 'getUnitDefinition called')
-  const def = UNIT_DEFINITIONS[type]
+  const def = UNIT_DEFINITIONS[type as UnitType]
   if (!def) {
     logger.error({ type }, 'getUnitDefinition: unknown unit type')
   }
@@ -252,6 +254,7 @@ export function canTargetWeapon(unit: GameUnit, weaponId: string): boolean {
  * @param weaponId - Weapon to destroy
  * @returns True if weapon was found and destroyed
  */
+export function destroyWeapon(unit: GameUnit, weaponId: string): boolean {
   const weapon = unit.weapons.find(w => w.id === weaponId)
   if (!weapon) {
     logger.warn({ unitId: unit.id, weaponId }, 'destroyWeapon: weapon not found')

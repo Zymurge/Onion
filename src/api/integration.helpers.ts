@@ -94,7 +94,8 @@ function movementAllowanceFor(state: any, unitId: string): number {
 
   const unit = state.defenders[unitId]
   if (!unit) return 0
-  return getUnitDefinition(unit.type).movement
+  const definition = getUnitDefinition(unit.type)
+  return definition?.movement ?? 0
 }
 
 function canCrossRidgelines(state: any, unitId: string): boolean {
@@ -104,7 +105,8 @@ function canCrossRidgelines(state: any, unitId: string): boolean {
 
   const unit = state.defenders[unitId]
   if (!unit) return false
-  return getUnitDefinition(unit.type).abilities.canCrossRidgelines === true
+  const definition = getUnitDefinition(unit.type)
+  return definition?.abilities.canCrossRidgelines === true
 }
 
 export function chooseReachableMoveToward(

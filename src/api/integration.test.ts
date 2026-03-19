@@ -583,11 +583,13 @@ function findOnionTargetInRange(state: any, range: number): string | null {
 }
 
 function defenderMovement(defender: any): number {
-  return getUnitDefinition(defender.type).movement
+  const definition = getUnitDefinition(defender.type)
+  return definition?.movement ?? 0
 }
 
 function defenderMaxRange(defender: any): number {
-  return Math.max(...getUnitDefinition(defender.type).weapons.map((weapon) => weapon.range), 0)
+  const definition = getUnitDefinition(defender.type)
+  return Math.max(...(definition?.weapons.map((weapon) => weapon.range) ?? []), 0)
 }
 
 function findDefendersInRangeOfOnion(state: any): string[] {
