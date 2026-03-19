@@ -9,13 +9,13 @@ The protocol uses a unified **command/event model** independent of transport:
 
 ### Phase 1 — Pure REST
 
-All communication is over HTTP. The CLI client polls for opponent events.
+All communication is over HTTP. The Phase 1 CLI is designed for manual testing and can operate without background polling.
 
 | Direction | Mechanism |
 | :--- | :--- |
 | Submit action | `POST /games/{id}/actions` |
 | Get your action's results | Response body of the POST |
-| Get opponent's actions | `GET /games/{id}/events?after={seq}` (poll) |
+| Get event history or missed actions | `GET /games/{id}/events?after={seq}` (manual refresh or optional polling) |
 
 ### Phase 2+ — WebSocket (additive, not replacing)
 
@@ -164,11 +164,11 @@ Errors:
   500                             — INTERNAL_ERROR for unexpected backend errors
 ```
 
-`seq` duplicates `events.at(-1).seq` for the non-empty case. It is included for two reasons: it gives a definite polling fence even when `events` is empty, and it saves clients from traversing the array to find the latest sequence number.
+`seq` duplicates `events.at(-1).seq` for the non-empty case. It is included so clients have a definite event fence even when `events` is empty, and so they do not need to traverse the array to find the latest sequence number.
 
 ### `GET /games/{id}/events?after={seq}`
 
-Poll for events that occurred after a given sequence number. Used by the CLI to receive opponent actions.
+Fetch events that occurred after a given sequence number. Phase 1 clients can use this for manual refresh, event inspection, or optional polling.
 
 ```text
 Query:    after (number, required) — last seq the client has seen
