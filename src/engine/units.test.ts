@@ -2,7 +2,7 @@
  * Tests for the units module — unit definitions, weapon system, and capabilities.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getUnitDefinition,
   getAllUnitDefinitions,
@@ -28,11 +28,18 @@ vi.mock('../logger.js', () => ({
   },
 }))
 
+const mockedLogger = logger as unknown as {
+  debug: { mockClear: () => void }
+  info: { mockClear: () => void }
+  warn: { mockClear: () => void }
+  error: { mockClear: () => void }
+}
+
 beforeEach(() => {
-  logger.debug.mockClear()
-  logger.info.mockClear()
-  logger.warn.mockClear()
-  logger.error.mockClear()
+  mockedLogger.debug.mockClear()
+  mockedLogger.info.mockClear()
+  mockedLogger.warn.mockClear()
+  mockedLogger.error.mockClear()
 })
 import type { GameUnit, OnionUnit, DefenderUnit, Weapon, EngineGameState } from './units.js'
 

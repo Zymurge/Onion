@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createMap,
   getHex,
@@ -11,9 +11,10 @@ import {
 } from './map.js'
 import type { GameMap, Hex } from './map.js'
 import logger from '../logger.js'
-import { vi, beforeEach, afterEach } from 'vitest'
 
-let infoSpy, warnSpy, errorSpy
+let infoSpy: ReturnType<typeof vi.spyOn>
+let warnSpy: ReturnType<typeof vi.spyOn>
+let errorSpy: ReturnType<typeof vi.spyOn>
 beforeEach(() => {
   infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
   warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
