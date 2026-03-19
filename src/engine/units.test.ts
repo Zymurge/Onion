@@ -16,6 +16,24 @@ import {
   canTargetWeapon,
   destroyWeapon,
 } from './units.js'
+
+import logger from '../logger.js'
+// ─── Logger Mocking ─────────────────────────────────────────────────────────
+vi.mock('../logger.js', () => ({
+  default: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}))
+
+beforeEach(() => {
+  logger.debug.mockClear()
+  logger.info.mockClear()
+  logger.warn.mockClear()
+  logger.error.mockClear()
+})
 import type { GameUnit, OnionUnit, DefenderUnit, Weapon, EngineGameState } from './units.js'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -96,6 +114,12 @@ describe('onionMovementAllowance', () => {
 // ─── getUnitDefinition ───────────────────────────────────────────────────────
 
 describe('getUnitDefinition', () => {
+  it('logs error for unknown unit type', () => {
+    const def = getUnitDefinition('UnknownType')
+    expect(def).toBeUndefined()
+    expect(logger.error).toHaveBeenCalledWith({ type: 'UnknownType' }, expect.stringContaining('unknown unit type'))
+  })
+
   describe('Puss (Heavy Tank)', () => {
     it('has correct movement', () => {
       expect(getUnitDefinition('Puss').movement).toBe(3)
@@ -569,6 +593,7 @@ describe('destroyWeapon', () => {
     const result = destroyWeapon(unit, 'main')
     expect(result).toBe(true)
     expect(unit.weapons[0].status).toBe('destroyed')
+    expect(logger.warn).not.toHaveBeenCalled()
   })
 
   it('is idempotent — returns true on already-destroyed weapon', () => {
@@ -576,13 +601,18 @@ describe('destroyWeapon', () => {
     const result = destroyWeapon(unit, 'main')
     expect(result).toBe(true)
     expect(unit.weapons[0].status).toBe('destroyed')
+    expect(logger.warn).not.toHaveBeenCalled()
   })
 
-  it('returns false when weaponId not found', () => {
+  it('returns false and logs warn when weaponId not found', () => {
     const unit = makeUnit({ weapons: [makeWeapon({ id: 'main' })] })
     const result = destroyWeapon(unit, 'nosuchweapon')
     expect(result).toBe(false)
     expect(unit.weapons[0].status).toBe('ready')
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ unitId: unit.id, weaponId: 'nosuchweapon' }),
+      expect.stringContaining('weapon not found')
+    )
   })
 
   it('only destroys the targeted weapon, not others', () => {
@@ -592,5 +622,6 @@ describe('destroyWeapon', () => {
     destroyWeapon(unit, 'w1')
     expect(unit.weapons[0].status).toBe('destroyed')
     expect(unit.weapons[1].status).toBe('ready')
+    expect(logger.warn).not.toHaveBeenCalled()
   })
 })

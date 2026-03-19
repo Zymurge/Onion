@@ -1,4 +1,50 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import logger from '../logger.js'
+
+// ─── Logger Mocking ─────────────────────────────────────────────────────────
+vi.mock('../logger.js', () => ({
+  default: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}))
+
+beforeEach(() => {
+  logger.debug.mockClear()
+  logger.info.mockClear()
+  logger.warn.mockClear()
+  logger.error.mockClear()
+})
+  it('logs error and throws for unknown onion type', () => {
+    const badState = {
+      ...validInitialState,
+      onion: { ...validInitialState.onion, type: 'UnknownOnion' },
+    }
+    const parsed = InitialStateSchema.parse(badState)
+    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unknown onion type')
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'UnknownOnion' }),
+      expect.stringContaining('unknown onion type')
+    )
+  })
+
+  it('logs error and throws for unknown defender type', () => {
+    const badState = {
+      ...validInitialState,
+      defenders: {
+        ...validInitialState.defenders,
+        bad: { type: 'UnknownDefender', position: { q: 1, r: 1 } },
+      },
+    }
+    const parsed = InitialStateSchema.parse(badState)
+    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unknown defender type')
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'UnknownDefender', key: 'bad' }),
+      expect.stringContaining('unknown defender type')
+    )
+  })
 import { InitialStateSchema } from './scenarioSchema.js'
 import { normalizeInitialStateToGameState } from './scenarioNormalizer.js'
 

@@ -10,6 +10,20 @@ import {
   movementCost,
 } from './map.js'
 import type { GameMap, Hex } from './map.js'
+import logger from '../logger.js'
+import { vi, beforeEach, afterEach } from 'vitest'
+
+let infoSpy, warnSpy, errorSpy
+beforeEach(() => {
+  infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
+  warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+  errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+})
+afterEach(() => {
+  infoSpy.mockRestore()
+  warnSpy.mockRestore()
+  errorSpy.mockRestore()
+})
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -83,16 +97,20 @@ describe('getHex', () => {
   })
 
   it('returns null for negative coordinates', () => {
-    expect(getHex(clearMap(), { q: -1, r: 0 })).toBeNull()
-    expect(getHex(clearMap(), { q: 0, r: -1 })).toBeNull()
+    getHex(clearMap(), { q: -1, r: 0 })
+    expect(warnSpy).toHaveBeenCalledWith({ pos: { q: -1, r: 0 } }, expect.stringContaining('out of bounds'))
+    getHex(clearMap(), { q: 0, r: -1 })
+    expect(warnSpy).toHaveBeenCalledWith({ pos: { q: 0, r: -1 } }, expect.stringContaining('out of bounds'))
   })
 
   it('returns null when q >= width', () => {
-    expect(getHex(clearMap(), { q: 5, r: 0 })).toBeNull()
+    getHex(clearMap(), { q: 5, r: 0 })
+    expect(warnSpy).toHaveBeenCalledWith({ pos: { q: 5, r: 0 } }, expect.stringContaining('out of bounds'))
   })
 
   it('returns null when r >= height', () => {
-    expect(getHex(clearMap(), { q: 0, r: 5 })).toBeNull()
+    getHex(clearMap(), { q: 0, r: 5 })
+    expect(warnSpy).toHaveBeenCalledWith({ pos: { q: 0, r: 5 } }, expect.stringContaining('out of bounds'))
   })
 })
 
@@ -232,10 +250,9 @@ describe('findPath', () => {
       { q: 0, r: 0, t: 2 }, { q: 2, r: 0, t: 2 },
       { q: 0, r: 2, t: 2 }, { q: 2, r: 2, t: 2 },
     ])
-
     const result = findPath(map, { q: 1, r: 1 }, { q: 2, r: 2 }, 10, false)
-
     expect(result.found).toBe(false)
+    expect(infoSpy).toHaveBeenCalledWith({ from: { q: 1, r: 1 }, to: { q: 2, r: 2 } }, expect.stringContaining('no valid path'))
   })
 
   it('returns a deterministic path when multiple shortest paths exist', () => {
@@ -251,9 +268,10 @@ describe('findPath', () => {
 
   it('returns found:false for negative or zero movement allowance', () => {
     const map = createMap(3, 3, [])
-
-    expect(findPath(map, { q: 0, r: 0 }, { q: 1, r: 0 }, 0, false).found).toBe(false)
-    expect(findPath(map, { q: 0, r: 0 }, { q: 1, r: 0 }, -1, false).found).toBe(false)
+    findPath(map, { q: 0, r: 0 }, { q: 1, r: 0 }, 0, false)
+    expect(infoSpy).toHaveBeenCalledWith({ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }, expect.stringContaining('no valid path'))
+    findPath(map, { q: 0, r: 0 }, { q: 1, r: 0 }, -1, false)
+    expect(infoSpy).toHaveBeenCalledWith({ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }, expect.stringContaining('no valid path'))
   })
 
   it('returns found:true and empty path for same start and end', () => {

@@ -6,6 +6,7 @@ import logger from '../logger.js'
  */
 
 import type { HexPos, UnitStatus, TurnPhase } from '../types/index.js'
+import logger from '../logger.js'
 
 /**
  * All possible unit types in the game.
@@ -141,9 +142,12 @@ export interface EngineGameState {
  * @param type - Unit type to look up
  * @returns Unit definition with weapons and abilities
  */
-export function getUnitDefinition(type: UnitType): UnitDefinition {
   logger.debug({ type }, 'getUnitDefinition called')
-  return UNIT_DEFINITIONS[type]
+  const def = UNIT_DEFINITIONS[type]
+  if (!def) {
+    logger.error({ type }, 'getUnitDefinition: unknown unit type')
+  }
+  return def
 }
 
 /**
@@ -248,9 +252,11 @@ export function canTargetWeapon(unit: GameUnit, weaponId: string): boolean {
  * @param weaponId - Weapon to destroy
  * @returns True if weapon was found and destroyed
  */
-export function destroyWeapon(unit: GameUnit, weaponId: string): boolean {
   const weapon = unit.weapons.find(w => w.id === weaponId)
-  if (!weapon) return false
+  if (!weapon) {
+    logger.warn({ unitId: unit.id, weaponId }, 'destroyWeapon: weapon not found')
+    return false
+  }
   weapon.status = 'destroyed'
   return true
 }

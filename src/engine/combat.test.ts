@@ -1,4 +1,22 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import logger from '../logger.js'
+
+// ─── Logger Mocking ─────────────────────────────────────────────────────────
+vi.mock('../logger.js', () => ({
+  default: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}))
+
+beforeEach(() => {
+  logger.debug.mockClear()
+  logger.info.mockClear()
+  logger.warn.mockClear()
+  logger.error.mockClear()
+})
 import {
   calculateOdds,
   rollCombat,
@@ -383,7 +401,7 @@ describe('validateOnionWeaponFire', () => {
 })
 
 describe('validateCombatAction', () => {
-  it('resolves an Onion weapon fire command into a combat plan', () => {
+  it('resolves an Onion weapon fire command into a combat plan and logs info', () => {
     const defender = makeDefender({ id: 'd1', position: { q: 2, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })
 
@@ -400,6 +418,10 @@ describe('validateCombatAction', () => {
     expect(result.plan.weaponId).toBe('main')
     expect(result.plan.target.kind).toBe('defender')
     expect(result.plan.target.id).toBe('d1')
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ commandType: 'FIRE_WEAPON' }),
+      expect.stringContaining('Validating combat action')
+    )
   })
 
   it('rejects combined fire against Onion treads with a specific code', () => {
@@ -552,7 +574,7 @@ describe('executeOnionWeaponFire', () => {
 })
 
 describe('executeCombatAction', () => {
-  it('reports tread damage for defender fire against Onion treads', () => {
+  it('reports tread damage for defender fire against Onion treads and logs info', () => {
     const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1 } })
     const validation = validateCombatAction(CLEAR_MAP, state, {
@@ -568,6 +590,10 @@ describe('executeCombatAction', () => {
     expect(result.success).toBe(true)
     expect(result.treadsLost).toBeGreaterThan(0)
     expect(result.targetId).toBe('onion')
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ plan: expect.any(Object) }),
+      expect.stringContaining('Executing combat action')
+    )
   })
 
   it('reports destroyed subsystem for combined fire against an Onion weapon', () => {

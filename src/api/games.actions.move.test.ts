@@ -1,9 +1,24 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { buildApp } from '../app.js'
 import { StaleMatchStateError } from '../db/adapter.js'
 import * as engineGame from '../engine/index.js'
 import { createGame, createMovePlan, joinGame, register } from './helpers.js'
+import logger from '../logger.js'
+
+let infoSpy: any, warnSpy: any, errorSpy: any;
+
+beforeEach(() => {
+  infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+  warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+  errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  infoSpy.mockRestore();
+  warnSpy.mockRestore();
+  errorSpy.mockRestore();
+});
 
 describe('POST /games/:id/actions MOVE', () => {
   it('calls engine and updates state on success', async () => {
@@ -36,6 +51,11 @@ describe('POST /games/:id/actions MOVE', () => {
     expect(executeSpy).toHaveBeenCalled()
     validateSpy.mockRestore()
     executeSpy.mockRestore()
+
+    // Assert logger calls
+    expect(infoSpy).toHaveBeenCalled()
+    // Optionally: expect(warnSpy).not.toHaveBeenCalled()
+    // Optionally: expect(errorSpy).not.toHaveBeenCalled()
   })
 
   it('returns 422 when execution fails', async () => {

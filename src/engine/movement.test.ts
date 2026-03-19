@@ -12,6 +12,21 @@ import { createMap } from './map.js'
 import type { GameMap } from './map.js'
 import type { MovementPlan } from './movement.js'
 import type { DefenderUnit, OnionUnit, EngineGameState } from './units.js'
+import logger from '../logger.js'
+
+let infoSpy: any, warnSpy: any, errorSpy: any;
+
+beforeEach(() => {
+  infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+  warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+  errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  infoSpy.mockRestore();
+  warnSpy.mockRestore();
+  errorSpy.mockRestore();
+});
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -347,6 +362,10 @@ describe('executeUnitMovement', () => {
     expect(state.defenders['d1'].position).toEqual({ q: 2, r: 1 })
     expect(result.success).toBe(true)
     expect(result.newPosition).toEqual({ q: 2, r: 1 })
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ command: expect.any(Object) }),
+      expect.stringContaining('Not an Onion move command')
+    )
   })
 
   it('updates ram usage for a ram-capable move plan', () => {

@@ -1,4 +1,5 @@
 import logger from '../logger.js'
+import logger from '../logger.js'
 /**
  * Hex grid and terrain management for the Onion game engine.
  *
@@ -79,8 +80,16 @@ export function createMap(width: number, height: number, hexes: Array<{ q: numbe
 }
 
 export function getHex(map: GameMap, pos: HexPos): Hex | null {
-  if (!isInBounds(map, pos)) return null
-  return map.hexes[hexKey(pos)] ?? null
+  if (!isInBounds(map, pos)) {
+    logger.warn({ pos }, 'getHex: position out of bounds')
+    return null
+  }
+  const hex = map.hexes[hexKey(pos)]
+  if (!hex) {
+    logger.warn({ pos }, 'getHex: hex not found in map')
+    return null
+  }
+  return hex
 }
 
 export function isInBounds(map: GameMap, pos: HexPos): boolean {
@@ -121,7 +130,10 @@ export function findPath(
   movementAllowance: number,
   canCrossRidgelines: boolean
 ): PathResult {
-  if (!isInBounds(map, to)) return { found: false, path: [], cost: 0 }
+  if (!isInBounds(map, to)) {
+    logger.warn({ from, to }, 'findPath: destination out of bounds')
+    return { found: false, path: [], cost: 0 }
+  }
   if (from.q === to.q && from.r === to.r) return { found: true, path: [], cost: 0 }
 
   // Dijkstra over the hex grid
@@ -162,5 +174,6 @@ export function findPath(
     }
   }
 
+  logger.info({ from, to }, 'findPath: no valid path found')
   return { found: false, path: [], cost: 0 }
 }

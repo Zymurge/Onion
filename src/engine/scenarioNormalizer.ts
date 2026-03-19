@@ -1,6 +1,7 @@
 import type { InitialState } from './scenarioSchema.js'
 import type { DefenderUnit, EngineGameState, OnionUnit } from './units.js'
 import { getUnitDefinition } from './units.js'
+import logger from '../logger.js'
 
 /**
  * Normalize a scenario initialState into a valid EngineGameState.
@@ -9,6 +10,10 @@ import { getUnitDefinition } from './units.js'
  */
 export function normalizeInitialStateToGameState(initial: InitialState): EngineGameState {
   const onionDefinition = getUnitDefinition(initial.onion.type as any)
+  if (!onionDefinition) {
+    logger.error({ type: initial.onion.type }, 'normalizeInitialStateToGameState: unknown onion type')
+    throw new Error(`Unknown onion type: ${initial.onion.type}`)
+  }
 
   // Assign onion ID and status
   const onion: OnionUnit & {
@@ -29,6 +34,10 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
   const defenders: Record<string, DefenderUnit> = {}
   for (const [key, def] of Object.entries(initial.defenders) as Array<[string, InitialState['defenders'][string]]>) {
     const defenderDefinition = getUnitDefinition(def.type as any)
+    if (!defenderDefinition) {
+      logger.error({ type: def.type, key }, 'normalizeInitialStateToGameState: unknown defender type')
+      throw new Error(`Unknown defender type: ${def.type}`)
+    }
     defenders[key] = {
       id: key,
       type: def.type as any,
