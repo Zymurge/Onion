@@ -16,9 +16,12 @@ function getPrompt(session: { username: string | null; role: string | null }): s
   return 'onion-cli> '
 }
 
+function writeCliOutput(message: string): void {
+  output.write(`${message.replace(/\n+$/u, '')}\n`)
+}
+
 function printWelcome(): void {
-  console.log('Onion CLI v1 scaffold')
-  console.log("Type 'help' for available commands.\n")
+  output.write("Onion CLI v1 scaffold\nType 'help' for available commands.\n\n")
 }
 
 export async function startCli(): Promise<void> {
@@ -34,36 +37,28 @@ export async function startCli(): Promise<void> {
 
       if (!parsed.ok) {
         if (parsed.error !== 'empty command') {
-          console.log(`Parse error\n${parsed.error}`)
+          writeCliOutput(`Parse error\n${parsed.error}`)
         }
-        rl.setPrompt(getPrompt(session))
-        rl.prompt()
         continue
       }
 
       const command = parsed.command
 
       if (command.kind === 'help') {
-        console.log(renderHelpText(command.topic))
-        rl.setPrompt(getPrompt(session))
-        rl.prompt()
+        writeCliOutput(renderHelpText(command.topic))
         continue
       }
 
       if (command.kind === 'status') {
-        console.log(renderStatusText(session))
-        rl.setPrompt(getPrompt(session))
-        rl.prompt()
+        writeCliOutput(renderStatusText(session))
         continue
       }
 
       const result = await executeCommand(session, command)
-      console.log(result.message)
+      writeCliOutput(result.message)
       if (result.exitRequested) {
         break
       }
-      rl.setPrompt(getPrompt(session))
-      rl.prompt()
     }
   } finally {
     rl.close()

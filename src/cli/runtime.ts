@@ -1,4 +1,9 @@
 import {
+  getLoggerLevel,
+  isDebugLoggingEnabled,
+  setLoggerLevel,
+} from '../logger.js'
+import {
   createGame,
   formatApiError,
   getEvents,
@@ -36,7 +41,7 @@ export function logCapturedEvents(source: string, events: EventEnvelope[]): void
     return
   }
 
-  logger.info(
+  logger.debug(
     {
       source,
       count: events.length,
@@ -56,7 +61,7 @@ function applyAuth(session: SessionStore, username: string, userId: string, toke
   session.username = username
   session.userId = userId
   session.token = token
-  logger.info({ username, userId }, 'CLI session authenticated')
+  logger.debug({ username, userId }, 'CLI session authenticated')
 }
 
 function applyGameSnapshot(
@@ -79,7 +84,7 @@ function applyGameSnapshot(
     session.gameState = state
   }
 
-  logger.info(
+  logger.debug(
     { gameId, scenarioId, phase, turnNumber, winner, eventSeq },
     'CLI updated session from game snapshot',
   )
@@ -97,7 +102,7 @@ async function ensureScenarioLoaded(session: SessionStore): Promise<string | nul
     return formatApiError(scenarioResult)
   }
   session.scenario = scenarioResult.data
-  logger.info(
+  logger.debug(
     {
       scenarioId: scenarioResult.data.id,
       name: scenarioResult.data.name,
@@ -119,7 +124,7 @@ function renderActionAccepted(result: { seq?: number; eventSeq?: number; events?
     lines.push(`seq: ${seq}`)
   }
   if (result.events) {
-    lines.push(renderLatestEvents(result.events))
+    lines.push(renderEvents(result.events))
   }
   return lines.join('\n')
 }
@@ -165,6 +170,12 @@ export function renderHelpText(topic?: string): string {
           '  usage: config show',
           '  usage: config set url <url>',
         ].join('\n')
+      case 'debug':
+        return [
+          'debug',
+          '  usage: debug [on|off|status]',
+          '  toggles verbose JSON logging for backend requests and internal CLI traces',
+        ].join('\n')
       case 'status':
         return [
           'status',
@@ -180,6 +191,7 @@ export function renderHelpText(topic?: string): string {
     'Available commands:',
     '  help [topic]',
     '  status',
+    '  debug [on|off|status]',
     '  config show',
     '  config set url <url>',
     '  register <username> <password>',
@@ -204,6 +216,7 @@ export function renderHelpText(topic?: string): string {
 export function renderStatusText(session: SessionStore): string {
   return [
     'CLI session',
+    `  debugLogging: ${isDebugLoggingEnabled() ? 'on' : 'off'} (${getLoggerLevel()})`,
     `  baseUrl: ${session.baseUrl ?? '(unset)'}`,
     `  userId: ${session.userId ?? '(unset)'}`,
     `  username: ${session.username ?? '(unset)'}`,
@@ -222,6 +235,15 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
   switch (command.kind) {
     case 'exit':
       return { message: 'Exiting CLI.', exitRequested: true }
+    case 'debug': {
+      if (command.enabled !== undefined) {
+        setLoggerLevel(command.enabled ? 'debug' : 'info')
+      }
+
+      return {
+        message: `Debug logging: ${isDebugLoggingEnabled() ? 'on' : 'off'} (${getLoggerLevel()})`,
+      }
+    }
     case 'config-show':
       return { message: renderStatusText(session) }
     case 'config-set-url':
@@ -246,7 +268,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
     case 'scenarios': {
       const result = await listScenarios(session)
       if (!result.ok) return { message: formatApiError(result) }
-      logger.info(
+      logger.debug(
         {
           count: result.data.length,
           scenarioIds: result.data.map((scenario) => scenario.id),
@@ -263,7 +285,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
     case 'scenario-show': {
       const result = await getScenario(session, command.scenarioId)
       if (!result.ok) return { message: formatApiError(result) }
-      logger.info(
+      logger.debug(
         {
           scenarioId: result.data.id,
           name: result.data.name,

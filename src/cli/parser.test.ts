@@ -18,6 +18,20 @@ describe('parseCommand', () => {
     })
   })
 
+  it('parses debug on', () => {
+    expect(parseCommand('debug on')).toEqual({
+      ok: true,
+      command: { kind: 'debug', enabled: true },
+    })
+  })
+
+  it('parses debug status', () => {
+    expect(parseCommand('debug status')).toEqual({
+      ok: true,
+      command: { kind: 'debug' },
+    })
+  })
+
   it('parses register', () => {
     expect(parseCommand('register shrek swamp1234')).toEqual({
       ok: true,
@@ -138,6 +152,13 @@ describe('parseCommand', () => {
     expect(parseCommand('combined-fire wolf-1 main')).toEqual({
       ok: false,
       error: 'usage: combined-fire <unitId...> -> <targetId>',
+    })
+  })
+
+  it('rejects invalid debug argument', () => {
+    expect(parseCommand('debug maybe')).toEqual({
+      ok: false,
+      error: 'usage: debug [on|off|status]',
     })
   })
 })

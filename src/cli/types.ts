@@ -4,6 +4,7 @@ export type CliCommand =
   | { kind: 'help'; topic?: string }
   | { kind: 'exit' }
   | { kind: 'status' }
+  | { kind: 'debug'; enabled?: boolean }
   | { kind: 'config-show' }
   | { kind: 'config-set-url'; url: string }
   | { kind: 'register'; username: string; password: string }

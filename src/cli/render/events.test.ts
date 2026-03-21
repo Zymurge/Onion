@@ -15,4 +15,33 @@ describe('renderEvents', () => {
     expect(renderEvents(events)).toContain('#1')
     expect(renderEvents(events)).toContain('actor="onion"')
   })
+
+  it('renders detailed weapon fire results', () => {
+    const events: EventEnvelope[] = [
+      {
+        seq: 28,
+        type: 'WEAPON_FIRED',
+        timestamp: '123',
+        weaponType: 'main',
+        weaponIndex: 0,
+        targetId: 'pigs-1',
+        roll: 5,
+        outcome: 'D',
+        odds: '2:1',
+      },
+      {
+        seq: 29,
+        type: 'UNIT_STATUS_CHANGED',
+        timestamp: '124',
+        unitId: 'pigs-1',
+        from: 'operational',
+        to: 'disabled',
+      },
+    ]
+
+    const rendered = renderEvents(events)
+    expect(rendered).toContain('WEAPON_FIRED: weapon=main idx=0 target=pigs-1 roll=5 outcome=D odds=2:1')
+    expect(rendered).toContain('UNIT_STATUS_CHANGED: unit=pigs-1 operational')
+    expect(rendered).toContain('disabled')
+  })
 })

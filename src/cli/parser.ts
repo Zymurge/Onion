@@ -20,6 +20,22 @@ function parseHelp(tokens: string[]): CliCommand {
   return { kind: 'help', topic: tokens[1] }
 }
 
+function parseDebug(tokens: string[]): ParseResult {
+  if (!tokens[1] || normalizeVerb(tokens[1]) === 'status') {
+    return { ok: true, command: { kind: 'debug' } }
+  }
+
+  if (normalizeVerb(tokens[1]) === 'on') {
+    return { ok: true, command: { kind: 'debug', enabled: true } }
+  }
+
+  if (normalizeVerb(tokens[1]) === 'off') {
+    return { ok: true, command: { kind: 'debug', enabled: false } }
+  }
+
+  return { ok: false, error: 'usage: debug [on|off|status]' }
+}
+
 function parseConfig(tokens: string[]): ParseResult {
   if (tokens.length === 2 && normalizeVerb(tokens[1]) === 'show') {
     return { ok: true, command: { kind: 'config-show' } }
@@ -192,6 +208,8 @@ export function parseCommand(input: string): ParseResult {
       return { ok: true, command: { kind: 'exit' } }
     case 'status':
       return { ok: true, command: { kind: 'status' } }
+    case 'debug':
+      return parseDebug(tokens)
     case 'config':
       return parseConfig(tokens)
     case 'register': {

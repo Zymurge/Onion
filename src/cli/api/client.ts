@@ -171,7 +171,7 @@ async function requestJson<T>(
   let response: Response
   const requestBody = sanitizeRequestBody(body)
 
-  logger.info(
+  logger.debug(
     {
       method,
       path,
@@ -206,7 +206,7 @@ async function requestJson<T>(
   const parsed = await parseBody(response)
   if (!response.ok) {
     const errorBody = typeof parsed === 'object' && parsed !== null ? parsed as ApiErrorBody : parsed
-    logger.info(
+    logger.debug(
       {
         method,
         path,
@@ -226,7 +226,7 @@ async function requestJson<T>(
     }
   }
 
-  logger.info(
+  logger.debug(
     {
       method,
       path,
