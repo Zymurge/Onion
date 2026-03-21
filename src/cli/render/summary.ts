@@ -37,9 +37,16 @@ export function renderGameSummary(session: SessionStore, state: GameState | null
     return lines.join('\n')
   }
 
-  lines.push(`  onion: ${state.onion.type ?? 'TheOnion'} ${state.onion.status ?? 'operational'} at ${posText(state.onion.position)} treads=${state.onion.treads}`)
+  lines.push(`  onion: id=${state.onion.id ?? '(unknown)'} type=${state.onion.type ?? 'TheOnion'} status=${state.onion.status ?? 'operational'} at ${posText(state.onion.position)} treads=${state.onion.treads}`)
   lines.push(`  onion weapons: ${weaponSummary(state.onion.weapons)}`)
-  lines.push(`  defenders: ${Object.keys(state.defenders).length}`)
+  if (Object.keys(state.defenders).length === 0) {
+    lines.push('  defenders: (none)')
+  } else {
+    lines.push('  defenders:')
+    for (const defender of Object.values(state.defenders)) {
+      lines.push(`    id=${defender.id ?? '(unknown)'} type=${defender.type} status=${defender.status} at ${posText(defender.position)}`)
+    }
+  }
   return lines.join('\n')
 }
 
@@ -66,6 +73,7 @@ export function renderOnion(state: GameState | null): string {
 
   return [
     'Onion',
+    `  id: ${state.onion.id ?? '(unknown)'}`,
     `  type: ${state.onion.type ?? 'TheOnion'}`,
     `  status: ${state.onion.status ?? 'operational'}`,
     `  position: ${posText(state.onion.position)}`,

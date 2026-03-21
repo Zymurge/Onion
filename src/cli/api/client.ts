@@ -1,4 +1,5 @@
 import type { ActionOkResponse, Command, EventEnvelope, GameState, TurnPhase } from '../../types/index.js'
+import logger from '../../logger.js'
 import type { SessionRole, SessionStore } from '../session/store.js'
 
 type ApiErrorBody = {
@@ -77,6 +78,57 @@ export type ActionResponse = ActionOkResponse & {
   eventSeq?: number
 }
 
+function sanitizeRequestBody(body: unknown): unknown {
+  if (!body || typeof body !== 'object') {
+    return body
+  }
+
+  if ('password' in body) {
+    const { password: _password, ...rest } = body as Record<string, unknown>
+    return { ...rest, password: '(redacted)' }
+  }
+
+  return body
+}
+
+function summarizeResponse(data: unknown): Record<string, unknown> {
+  if (Array.isArray(data)) {
+    return {
+      kind: 'array',
+      count: data.length,
+    }
+  }
+
+  if (!data || typeof data !== 'object') {
+    return { value: data }
+  }
+
+  const record = data as Record<string, unknown>
+  const summary: Record<string, unknown> = {}
+
+  if ('userId' in record) summary.userId = record.userId
+  if ('gameId' in record) summary.gameId = record.gameId
+  if ('role' in record) summary.role = record.role
+  if ('scenarioId' in record) summary.scenarioId = record.scenarioId
+  if ('phase' in record) summary.phase = record.phase
+  if ('turnNumber' in record) summary.turnNumber = record.turnNumber
+  if ('winner' in record) summary.winner = record.winner
+  if ('eventSeq' in record) summary.eventSeq = record.eventSeq
+  if ('seq' in record) summary.seq = record.seq
+  if ('events' in record && Array.isArray(record.events)) {
+    summary.eventCount = record.events.length
+    summary.eventTypes = record.events.map((event) =>
+      typeof event === 'object' && event !== null && 'type' in event ? (event as Record<string, unknown>).type : 'UNKNOWN',
+    )
+  }
+
+  if (Object.keys(summary).length === 0) {
+    summary.keys = Object.keys(record)
+  }
+
+  return summary
+}
+
 function buildUrl(session: SessionStore, path: string): string {
   const baseUrl = session.baseUrl?.trim()
   if (!baseUrl) {
@@ -117,6 +169,16 @@ async function requestJson<T>(
   body?: unknown,
 ): Promise<ApiResult<T>> {
   let response: Response
+  const requestBody = sanitizeRequestBody(body)
+
+  logger.info(
+    {
+      method,
+      path,
+      request: requestBody,
+    },
+    'CLI -> backend request',
+  )
 
   try {
     response = await fetch(buildUrl(session, path), {
@@ -125,6 +187,14 @@ async function requestJson<T>(
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch (error) {
+    logger.error(
+      {
+        method,
+        path,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      'CLI network error while calling backend',
+    )
     return {
       ok: false,
       status: 0,
@@ -136,6 +206,15 @@ async function requestJson<T>(
   const parsed = await parseBody(response)
   if (!response.ok) {
     const errorBody = typeof parsed === 'object' && parsed !== null ? parsed as ApiErrorBody : parsed
+    logger.info(
+      {
+        method,
+        path,
+        status: response.status,
+        response: summarizeResponse(parsed),
+      },
+      'CLI <- backend error response',
+    )
     return {
       ok: false,
       status: response.status,
@@ -146,6 +225,16 @@ async function requestJson<T>(
           : response.statusText || 'Request failed',
     }
   }
+
+  logger.info(
+    {
+      method,
+      path,
+      status: response.status,
+      response: summarizeResponse(parsed),
+    },
+    'CLI <- backend response',
+  )
 
   return {
     ok: true,

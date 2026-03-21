@@ -10,21 +10,53 @@ import {
   registerUser,
   submitAction,
 } from './api/client.js'
+import logger from '../logger.js'
 import { renderEvents } from './render/events.js'
 import { renderMap } from './render/map.js'
 import { renderDefenders, renderGameSummary, renderLatestEvents, renderOnion } from './render/summary.js'
 import type { SessionStore } from './session/store.js'
 import type { CliCommand } from './types.js'
+import type { EventEnvelope } from '../types/index.js'
 
 export type CommandExecutionResult = {
   message: string
   exitRequested?: boolean
 }
 
+export function isErrorLevelEvent(event: EventEnvelope): boolean {
+  const record = event as Record<string, unknown>
+  const level = typeof record.level === 'string' ? record.level.toLowerCase() : undefined
+  const severity = typeof record.severity === 'string' ? record.severity.toLowerCase() : undefined
+
+  return event.type === 'ERROR' || event.type.endsWith('_ERROR') || level === 'error' || severity === 'error'
+}
+
+export function logCapturedEvents(source: string, events: EventEnvelope[]): void {
+  if (events.length === 0) {
+    return
+  }
+
+  logger.info(
+    {
+      source,
+      count: events.length,
+      events: events.map((event) => ({ seq: event.seq, type: event.type })),
+    },
+    'CLI captured backend events',
+  )
+
+  for (const event of events) {
+    if (isErrorLevelEvent(event)) {
+      logger.error({ source, event }, 'CLI captured error-level backend event')
+    }
+  }
+}
+
 function applyAuth(session: SessionStore, username: string, userId: string, token: string): void {
   session.username = username
   session.userId = userId
   session.token = token
+  logger.info({ username, userId }, 'CLI session authenticated')
 }
 
 function applyGameSnapshot(
@@ -46,6 +78,11 @@ function applyGameSnapshot(
   if (state) {
     session.gameState = state
   }
+
+  logger.info(
+    { gameId, scenarioId, phase, turnNumber, winner, eventSeq },
+    'CLI updated session from game snapshot',
+  )
 }
 
 async function ensureScenarioLoaded(session: SessionStore): Promise<string | null> {
@@ -60,6 +97,18 @@ async function ensureScenarioLoaded(session: SessionStore): Promise<string | nul
     return formatApiError(scenarioResult)
   }
   session.scenario = scenarioResult.data
+  logger.info(
+    {
+      scenarioId: scenarioResult.data.id,
+      name: scenarioResult.data.name,
+      map: {
+        width: scenarioResult.data.map.width,
+        height: scenarioResult.data.map.height,
+        hexCount: scenarioResult.data.map.hexes.length,
+      },
+    },
+    'CLI loaded scenario details',
+  )
   return null
 }
 
@@ -197,6 +246,13 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
     case 'scenarios': {
       const result = await listScenarios(session)
       if (!result.ok) return { message: formatApiError(result) }
+      logger.info(
+        {
+          count: result.data.length,
+          scenarioIds: result.data.map((scenario) => scenario.id),
+        },
+        'CLI received scenario list',
+      )
       const lines = ['Scenarios']
       for (const scenario of result.data) {
         lines.push(`  ${scenario.id}: ${scenario.name}`)
@@ -207,6 +263,18 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
     case 'scenario-show': {
       const result = await getScenario(session, command.scenarioId)
       if (!result.ok) return { message: formatApiError(result) }
+      logger.info(
+        {
+          scenarioId: result.data.id,
+          name: result.data.name,
+          map: {
+            width: result.data.map.width,
+            height: result.data.map.height,
+            hexCount: result.data.map.hexes.length,
+          },
+        },
+        'CLI received scenario details',
+      )
       return {
         message: ['Scenario details', JSON.stringify(result.data, null, 2)].join('\n'),
       }
@@ -226,8 +294,27 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       if (!result.ok) return { message: formatApiError(result) }
       session.gameId = result.data.gameId
       session.role = result.data.role
+      // Auto-refresh: fetch and apply game state after join
+      const gameResult = await getGame(session, command.gameId)
+      if (gameResult.ok) {
+        applyGameSnapshot(
+          session,
+          gameResult.data.gameId,
+          gameResult.data.scenarioId,
+          gameResult.data.phase,
+          gameResult.data.turnNumber,
+          gameResult.data.winner,
+          gameResult.data.eventSeq,
+          gameResult.data.state,
+        )
+      }
       return {
-        message: ['Joined game', `gameId: ${result.data.gameId}`, `role: ${result.data.role}`].join('\n'),
+        message: [
+          'Joined game',
+          `gameId: ${result.data.gameId}`,
+          `role: ${result.data.role}`,
+          gameResult.ok ? renderGameSummary(session, session.gameState) : '',
+        ].filter(Boolean).join('\n'),
       }
     }
     case 'game-load': {
@@ -305,6 +392,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       if (result.data.events.length > 0) {
         session.lastEventSeq = result.data.events[result.data.events.length - 1].seq
       }
+      logCapturedEvents('events', result.data.events)
       return { message: renderEvents(result.data.events) }
     }
     case 'move': {
@@ -316,6 +404,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       session.gameState = result.data.state
       session.events = result.data.events
       if (result.data.eventSeq !== undefined) session.lastEventSeq = result.data.eventSeq
+      logCapturedEvents('move', result.data.events)
       return { message: renderActionAccepted(result.data) }
     }
     case 'fire-weapon': {
@@ -332,6 +421,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       session.gameState = result.data.state
       session.events = result.data.events
       if (result.data.eventSeq !== undefined) session.lastEventSeq = result.data.eventSeq
+      logCapturedEvents('fire-weapon', result.data.events)
       return { message: renderActionAccepted(result.data) }
     }
     case 'fire-unit': {
@@ -343,6 +433,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       session.gameState = result.data.state
       session.events = result.data.events
       if (result.data.eventSeq !== undefined) session.lastEventSeq = result.data.eventSeq
+      logCapturedEvents('fire-unit', result.data.events)
       return { message: renderActionAccepted(result.data) }
     }
     case 'combined-fire': {
@@ -354,6 +445,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       session.gameState = result.data.state
       session.events = result.data.events
       if (result.data.eventSeq !== undefined) session.lastEventSeq = result.data.eventSeq
+      logCapturedEvents('combined-fire', result.data.events)
       return { message: renderActionAccepted(result.data) }
     }
     case 'end-phase': {
@@ -366,7 +458,22 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       session.events = result.data.events
       if (result.data.turnNumber !== undefined) session.turnNumber = result.data.turnNumber
       if (result.data.eventSeq !== undefined) session.lastEventSeq = result.data.eventSeq
-      return { message: renderActionAccepted(result.data) }
+      logCapturedEvents('end-phase', result.data.events)
+      // Auto-refresh: fetch and apply latest game state after phase change
+      const refreshResult = await getGame(session, session.gameId)
+      if (refreshResult.ok) {
+        applyGameSnapshot(
+          session,
+          refreshResult.data.gameId,
+          refreshResult.data.scenarioId,
+          refreshResult.data.phase,
+          refreshResult.data.turnNumber,
+          refreshResult.data.winner,
+          refreshResult.data.eventSeq,
+          refreshResult.data.state,
+        )
+      }
+      return { message: [renderActionAccepted(result.data), refreshResult.ok ? renderGameSummary(session, session.gameState) : ''].filter(Boolean).join('\n') }
     }
     default:
       return { message: `Command scaffolded but not implemented yet: ${command.kind}` }

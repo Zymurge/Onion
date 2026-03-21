@@ -5,11 +5,20 @@ import { executeCommand, renderHelpText, renderStatusText } from './runtime.js'
 import { parseCommand } from './parser.js'
 import { createSessionStore } from './session/store.js'
 
-const PROMPT = 'onion-cli> '
+
+function getPrompt(session: { username: string | null; role: string | null }): string {
+  if (session.username && session.role) {
+    return `onion-cli(${session.username}/${session.role})> `
+  }
+  if (session.username) {
+    return `onion-cli(${session.username})> `
+  }
+  return 'onion-cli> '
+}
 
 function printWelcome(): void {
-  output.write('Onion CLI v1 scaffold\n')
-  output.write("Type 'help' for available commands.\n\n")
+  console.log('Onion CLI v1 scaffold')
+  console.log("Type 'help' for available commands.\n")
 }
 
 export async function startCli(): Promise<void> {
@@ -20,34 +29,41 @@ export async function startCli(): Promise<void> {
 
   try {
     while (true) {
-      const line = await rl.question(PROMPT)
+      const line = await rl.question(getPrompt(session))
       const parsed = parseCommand(line)
 
       if (!parsed.ok) {
         if (parsed.error !== 'empty command') {
-          output.write(`Parse error\n${parsed.error}\n\n`)
+          console.log(`Parse error\n${parsed.error}`)
         }
+        rl.setPrompt(getPrompt(session))
+        rl.prompt()
         continue
       }
 
       const command = parsed.command
 
       if (command.kind === 'help') {
-        output.write(`${renderHelpText(command.topic)}\n\n`)
+        console.log(renderHelpText(command.topic))
+        rl.setPrompt(getPrompt(session))
+        rl.prompt()
         continue
       }
 
       if (command.kind === 'status') {
-        output.write(`${renderStatusText(session)}\n\n`)
+        console.log(renderStatusText(session))
+        rl.setPrompt(getPrompt(session))
+        rl.prompt()
         continue
       }
 
       const result = await executeCommand(session, command)
-      output.write(`${result.message}\n\n`)
-
+      console.log(result.message)
       if (result.exitRequested) {
         break
       }
+      rl.setPrompt(getPrompt(session))
+      rl.prompt()
     }
   } finally {
     rl.close()
