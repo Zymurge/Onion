@@ -155,37 +155,12 @@ function parseMove(tokens: string[]): ParseResult {
   return { ok: true, command: { kind: 'move', unitId: tokens[1], to } }
 }
 
-function parseFireWeapon(tokens: string[]): ParseResult {
-  const missing = requireArgs(tokens, 'fire-weapon <main|secondary|ap|missile> <index> <targetId>', 4)
+function parseFire(tokens: string[]): ParseResult {
+  const missing = requireArgs(tokens, 'fire <targetId> <attacker1> [attacker2...]', 3)
   if (missing) return missing
-  const weaponType = normalizeVerb(tokens[1])
-  if (!['main', 'secondary', 'ap', 'missile'].includes(weaponType)) {
-    return { ok: false, error: 'usage: fire-weapon <main|secondary|ap|missile> <index> <targetId>' }
-  }
-  const weaponIndex = parseInteger(tokens[2])
-  if (weaponIndex === null) {
-    return { ok: false, error: 'usage: fire-weapon <main|secondary|ap|missile> <index> <targetId>' }
-  }
   return {
     ok: true,
-    command: { kind: 'fire-weapon', weaponType: weaponType as 'main' | 'secondary' | 'ap' | 'missile', weaponIndex, targetId: tokens[3] },
-  }
-}
-
-function parseFireUnit(tokens: string[]): ParseResult {
-  const missing = requireArgs(tokens, 'fire-unit <unitId> <targetId>', 3)
-  if (missing) return missing
-  return { ok: true, command: { kind: 'fire-unit', unitId: tokens[1], targetId: tokens[2] } }
-}
-
-function parseCombinedFire(tokens: string[]): ParseResult {
-  const arrowIndex = tokens.indexOf('->')
-  if (arrowIndex < 2 || arrowIndex !== tokens.length - 2) {
-    return { ok: false, error: 'usage: combined-fire <unitId...> -> <targetId>' }
-  }
-  return {
-    ok: true,
-    command: { kind: 'combined-fire', unitIds: tokens.slice(1, arrowIndex), targetId: tokens[arrowIndex + 1] },
+    command: { kind: 'fire', targetId: tokens[1], attackers: tokens.slice(2) },
   }
 }
 
@@ -239,15 +214,8 @@ export function parseCommand(input: string): ParseResult {
       return parseEvents(tokens)
     case 'move':
       return parseMove(tokens)
-    case 'fire-weapon':
-    case 'fp':
-      return parseFireWeapon(tokens)
-    case 'fire-unit':
-    case 'fu':
-      return parseFireUnit(tokens)
-    case 'combined-fire':
-    case 'cf':
-      return parseCombinedFire(tokens)
+    case 'fire':
+      return parseFire(tokens)
     case 'end-phase':
     case 'ep':
       return { ok: true, command: { kind: 'end-phase' } }

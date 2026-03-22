@@ -6,7 +6,7 @@ import * as engineGame from '../engine/index.js'
 import { advanceToPhase, createGame, joinGame, register, submitAction } from './helpers.js'
 
 describe('POST /games/:id/actions combat API contract', () => {
-  it('returns 422 and detailCode for illegal combined fire on Onion treads', async () => {
+  it('returns 422 and detailCode for duplicate attacker in FIRE command', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
     const fiona = await register(app, 'fiona')
@@ -16,13 +16,13 @@ describe('POST /games/:id/actions combat API contract', () => {
 
     const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
       ok: false,
-      code: 'COMBINED_FIRE_TREAD_TARGET',
-      error: 'Combined fire is not allowed on Onion treads.',
+      code: 'DUPLICATE_ATTACKER',
+      error: "Duplicate attacker 'wolf-1'",
     })
 
     const res = await submitAction(app, gameId, fiona.token, {
-      type: 'COMBINED_FIRE',
-      unitIds: ['wolf-1', 'puss-1'],
+      type: 'FIRE',
+      attackers: ['wolf-1', 'wolf-1'],
       targetId: 'onion',
     })
 
@@ -30,8 +30,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     const body = res.json()
     expect(body.ok).toBe(false)
     expect(body.code).toBe('MOVE_INVALID')
-    expect(body.detailCode).toBe('COMBINED_FIRE_TREAD_TARGET')
-    expect(body.error).toMatch(/Combined fire is not allowed on Onion treads/)
+    expect(body.detailCode).toBe('DUPLICATE_ATTACKER')
+    expect(body.error).toMatch(/Duplicate attacker 'wolf-1'/)
     validateSpy.mockRestore()
   })
 
@@ -50,9 +50,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     })
 
     const res = await submitAction(app, gameId, shrek.token, {
-      type: 'FIRE_WEAPON',
-      weaponType: 'missile',
-      weaponIndex: 0,
+      type: 'FIRE',
+      attackers: ['missile_1'],
       targetId: 'wolf-1',
     })
 
@@ -80,9 +79,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     })
 
     const res = await submitAction(app, gameId, shrek.token, {
-      type: 'FIRE_WEAPON',
-      weaponType: 'main',
-      weaponIndex: 0,
+      type: 'FIRE',
+      attackers: ['main'],
       targetId: 'not-a-unit',
     })
 
@@ -95,7 +93,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     validateSpy.mockRestore()
   })
 
-  it('returns 200 and emits combat and damage events for valid FIRE_UNIT', async () => {
+  it('returns 200 and emits combat and damage events for valid FIRE', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
     const fiona = await register(app, 'fiona')
@@ -106,7 +104,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
       ok: true,
       plan: {
-        actionType: 'FIRE_UNIT',
+        actionType: 'FIRE',
         attackerIds: ['wolf-1'],
         target: { kind: 'treads', id: 'onion' },
         attackStrength: 2,
@@ -117,7 +115,7 @@ describe('POST /games/:id/actions combat API contract', () => {
       state.onion.treads = 43
       return {
         success: true,
-        actionType: 'FIRE_UNIT',
+        actionType: 'FIRE',
         attackerIds: ['wolf-1'],
         targetId: 'onion',
         roll: { roll: 6, result: 'X', odds: '1:1' },
@@ -126,16 +124,16 @@ describe('POST /games/:id/actions combat API contract', () => {
     })
 
     const res = await submitAction(app, gameId, fiona.token, {
-      type: 'FIRE_UNIT',
-      unitId: 'wolf-1',
+      type: 'FIRE',
+      attackers: ['wolf-1'],
       targetId: 'onion',
     })
 
     expect(res.statusCode).toBe(200)
     const body = res.json()
     expect(body.ok).toBe(true)
-    expect(body.events[0].type).toBe('UNIT_FIRED')
-    expect(body.events[0].unitId).toBe('wolf-1')
+    expect(body.events[0].type).toBe('FIRE_RESOLVED')
+    expect(body.events[0].attackers).toEqual(['wolf-1'])
     expect(body.events[0].targetId).toBe('onion')
     expect(body.events[1].type).toBe('ONION_TREADS_LOST')
     expect(body.events[1].amount).toBe(2)
@@ -145,7 +143,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     executeSpy.mockRestore()
   })
 
-  it('returns 200 and emits combat and subsystem damage events for valid COMBINED_FIRE', async () => {
+  it('returns 200 and emits combat and subsystem damage events for multi-attacker FIRE', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
     const fiona = await register(app, 'fiona')
@@ -156,7 +154,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
       ok: true,
       plan: {
-        actionType: 'COMBINED_FIRE',
+        actionType: 'FIRE',
         attackerIds: ['wolf-1', 'puss-1'],
         target: { kind: 'weapon', id: 'main' },
         attackStrength: 6,
@@ -167,7 +165,7 @@ describe('POST /games/:id/actions combat API contract', () => {
       ;(state.onion as any).batteries.main = 0
       return {
         success: true,
-        actionType: 'COMBINED_FIRE',
+        actionType: 'FIRE',
         attackerIds: ['wolf-1', 'puss-1'],
         targetId: 'main',
         roll: { roll: 4, result: 'X', odds: '2:1' },
@@ -176,16 +174,16 @@ describe('POST /games/:id/actions combat API contract', () => {
     })
 
     const res = await submitAction(app, gameId, fiona.token, {
-      type: 'COMBINED_FIRE',
-      unitIds: ['wolf-1', 'puss-1'],
+      type: 'FIRE',
+      attackers: ['wolf-1', 'puss-1'],
       targetId: 'main',
     })
 
     expect(res.statusCode).toBe(200)
     const body = res.json()
     expect(body.ok).toBe(true)
-    expect(body.events[0].type).toBe('COMBINED_FIRE_RESOLVED')
-    expect(body.events[0].unitIds).toEqual(['wolf-1', 'puss-1'])
+    expect(body.events[0].type).toBe('FIRE_RESOLVED')
+    expect(body.events[0].attackers).toEqual(['wolf-1', 'puss-1'])
     expect(body.events[0].targetId).toBe('main')
     expect(body.events[1].type).toBe('ONION_BATTERY_DESTROYED')
     expect(body.events[1].weaponId).toBe('main')
@@ -229,10 +227,10 @@ describe('POST /games/:id/actions combat API contract', () => {
 
     const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
       ok: true,
-      plan: { actionType: 'FIRE_WEAPON', attackerIds: ['onion'], target: { kind: 'unit', id: 'wolf-1' }, attackStrength: 4, defense: 2 },
+      plan: { actionType: 'FIRE', attackerIds: ['main'], target: { kind: 'defender', id: 'wolf-1' }, attackStrength: 4, defense: 2 },
     } as any)
     const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockReturnValue({
-      success: true, actionType: 'FIRE_WEAPON', targetId: 'wolf-1', roll: { roll: 5, result: 'X', odds: '2:1' },
+      success: true, actionType: 'FIRE', targetId: 'wolf-1', roll: { roll: 5, result: 'X', odds: '2:1' },
     } as any)
 
     const app = buildApp(mockDb)
@@ -240,7 +238,7 @@ describe('POST /games/:id/actions combat API contract', () => {
       method: 'POST',
       url: `/games/${gameId}/actions`,
       headers: { authorization: `Bearer stub.${onionId}` },
-      payload: { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: 'wolf-1' },
+      payload: { type: 'FIRE', attackers: ['main'], targetId: 'wolf-1' },
     })
 
     expect(res.statusCode).toBe(409)
@@ -259,7 +257,7 @@ describe('POST /games/:id/actions combat API contract', () => {
 
     const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
       ok: true,
-      plan: { actionType: 'FIRE_WEAPON', attackerIds: ['onion'], target: { kind: 'unit', id: 'castle' }, attackStrength: 8, defense: 2 },
+      plan: { actionType: 'FIRE', attackerIds: ['main'], target: { kind: 'defender', id: 'castle' }, attackStrength: 8, defense: 2 },
     } as any)
     const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation((state) => {
       // Simulate castle being destroyed — Onion wins
@@ -271,8 +269,8 @@ describe('POST /games/:id/actions combat API contract', () => {
       }
       return {
         success: true,
-        actionType: 'FIRE_WEAPON',
-        attackerIds: ['onion'],
+        actionType: 'FIRE',
+        attackerIds: ['main'],
         targetId: 'castle',
         roll: { roll: 6, result: 'X', odds: '3:1' },
         statusChanges: [{ unitId: 'castle', from: 'operational', to: 'destroyed' }],
@@ -280,9 +278,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     })
 
     await submitAction(app, gameId, shrek.token, {
-      type: 'FIRE_WEAPON',
-      weaponType: 'main',
-      weaponIndex: 0,
+      type: 'FIRE',
+      attackers: ['main'],
       targetId: 'castle',
     })
 

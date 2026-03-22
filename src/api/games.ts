@@ -96,13 +96,26 @@ function getWeaponTypeFromId(weaponId: string) {
 
 function buildCombatEvents(
   startSeq: number,
-  command: Extract<Command, { type: 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>,
+  command: Extract<Command, { type: 'FIRE' | 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>,
   result: ReturnType<typeof executeCombatAction>,
   state: any,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
   const events: EventEnvelope[] = []
+
+  if (command.type === 'FIRE') {
+    events.push({
+      seq: seq++,
+      type: 'FIRE_RESOLVED',
+      timestamp,
+      attackers: command.attackers,
+      targetId: result.targetId,
+      roll: result.roll?.roll,
+      outcome: result.roll?.result,
+      odds: result.roll?.odds,
+    })
+  }
 
   if (command.type === 'FIRE_WEAPON') {
     events.push({
@@ -508,7 +521,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
-      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE_WEAPON', 'FIRE_UNIT', 'COMBINED_FIRE'])
+      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE', 'FIRE_WEAPON', 'FIRE_UNIT', 'COMBINED_FIRE'])
       if (!supportedCommands.has(command.type)) {
         logger.warn({ commandType: command.type }, 'Unknown command type')
         return reply.status(400).send({
@@ -612,7 +625,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
         logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
         return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, turnNumber, eventSeq })
-      } else if (command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
+      } else if (command.type === 'FIRE' || command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)

@@ -187,6 +187,35 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
   if (!result.events) return
 
   for (const event of result.events) {
+    if (event.type === 'FIRE_RESOLVED' && Array.isArray(event.attackers)) {
+      for (const attacker of event.attackers as string[]) {
+        if (attacker === 'main' && expected.onion.batteries) {
+          const spentTracker = getOrCreateSpentTracker(expected)
+          expected.onion.batteries.main = Math.max(0, (expected.onion.batteries.main ?? 0) - 1)
+          spentTracker.main += 1
+          continue
+        }
+
+        if (attacker.startsWith('secondary_') && expected.onion.batteries) {
+          const spentTracker = getOrCreateSpentTracker(expected)
+          expected.onion.batteries.secondary = Math.max(0, (expected.onion.batteries.secondary ?? 0) - 1)
+          spentTracker.secondary += 1
+          continue
+        }
+
+        if (attacker.startsWith('ap_') && expected.onion.batteries) {
+          const spentTracker = getOrCreateSpentTracker(expected)
+          expected.onion.batteries.ap = Math.max(0, (expected.onion.batteries.ap ?? 0) - 1)
+          spentTracker.ap += 1
+          continue
+        }
+
+        if (attacker.startsWith('missile_') && expected.onion.missiles !== undefined) {
+          expected.onion.missiles = Math.max(0, expected.onion.missiles - 1)
+        }
+      }
+    }
+
     if (event.type === 'WEAPON_FIRED' && event.weaponType) {
       const spentTracker = getOrCreateSpentTracker(expected)
       if ((event.weaponType === 'main' || event.weaponType === 'secondary' || event.weaponType === 'ap') && expected.onion.batteries) {

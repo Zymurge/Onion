@@ -158,17 +158,14 @@ export function renderHelpText(topic?: string): string {
         return ['events', '  usage: events [after <seq>]', '  fetches event history from the current game'].join('\n')
       case 'move':
         return ['move', '  usage: move <unitId> <q,r>', '  submits a MOVE action'].join('\n')
-      case 'fire-weapon':
-        return ['fire-weapon', '  usage: fire-weapon <main|secondary|ap|missile> <index> <targetId>', '  submits a FIRE_WEAPON action'].join('\n')
-      case 'fire-unit':
+      case 'fire':
         return [
-          'fire-unit',
-          '  usage: fire-unit <unitId> <targetId>',
-          '  targetId: onion|onion-1|tread|treads or exact subsystem id (main, secondary_1, ap_3, ...)',
-          '  submits a FIRE_UNIT action',
+          'fire',
+          '  usage: fire <targetId> <attacker1> [attacker2 ...]',
+          '  targetId: defender unit id or onion/subsystem id depending on current combat phase',
+          '  attacker: onion weapon id (main, secondary_1, ap_3, missile_1, ...) or defender unit id',
+          '  submits a FIRE action',
         ].join('\n')
-      case 'combined-fire':
-        return ['combined-fire', '  usage: combined-fire <unitId...> -> <targetId>', '  submits a COMBINED_FIRE action'].join('\n')
       case 'end-phase':
         return ['end-phase', '  usage: end-phase', '  submits an END_PHASE action'].join('\n')
       case 'config':
@@ -213,9 +210,7 @@ export function renderHelpText(topic?: string): string {
     '  show [map|state|units|onion|defenders|events]',
     '  events [after <seq>]',
     '  move <unitId> <q,r>',
-    '  fire-weapon <main|secondary|ap|missile> <index> <targetId>',
-    '  fire-unit <unitId> <targetId>',
-    '  combined-fire <unitId...> -> <targetId>',
+    '  fire <targetId> <attacker1> [attacker2 ...]',
     '  end-phase',
     '  exit',
   ].join('\n')
@@ -449,45 +444,16 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       logCapturedEvents('move', result.data.events)
       return { message: renderActionAccepted(result.data) }
     }
-    case 'fire-weapon': {
+    case 'fire': {
       if (!session.gameId) {
         return { message: 'No game is loaded. Use: game load <gameId>' }
       }
-      const result = await submitAction(session, session.gameId, {
-        type: 'FIRE_WEAPON',
-        weaponType: command.weaponType,
-        weaponIndex: command.weaponIndex,
-        targetId: command.targetId,
-      })
+      const result = await submitAction(session, session.gameId, { type: 'FIRE', attackers: command.attackers, targetId: command.targetId })
       if (!result.ok) return { message: formatApiError(result) }
       session.gameState = result.data.state
       session.events = result.data.events
       if (result.data.eventSeq !== undefined) session.lastEventSeq = result.data.eventSeq
-      logCapturedEvents('fire-weapon', result.data.events)
-      return { message: renderActionAccepted(result.data) }
-    }
-    case 'fire-unit': {
-      if (!session.gameId) {
-        return { message: 'No game is loaded. Use: game load <gameId>' }
-      }
-      const result = await submitAction(session, session.gameId, { type: 'FIRE_UNIT', unitId: command.unitId, targetId: command.targetId })
-      if (!result.ok) return { message: formatApiError(result) }
-      session.gameState = result.data.state
-      session.events = result.data.events
-      if (result.data.eventSeq !== undefined) session.lastEventSeq = result.data.eventSeq
-      logCapturedEvents('fire-unit', result.data.events)
-      return { message: renderActionAccepted(result.data) }
-    }
-    case 'combined-fire': {
-      if (!session.gameId) {
-        return { message: 'No game is loaded. Use: game load <gameId>' }
-      }
-      const result = await submitAction(session, session.gameId, { type: 'COMBINED_FIRE', unitIds: command.unitIds, targetId: command.targetId })
-      if (!result.ok) return { message: formatApiError(result) }
-      session.gameState = result.data.state
-      session.events = result.data.events
-      if (result.data.eventSeq !== undefined) session.lastEventSeq = result.data.eventSeq
-      logCapturedEvents('combined-fire', result.data.events)
+      logCapturedEvents('fire', result.data.events)
       return { message: renderActionAccepted(result.data) }
     }
     case 'end-phase': {

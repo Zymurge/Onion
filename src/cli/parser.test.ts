@@ -109,24 +109,17 @@ describe('parseCommand', () => {
     })
   })
 
-  it('parses fire-weapon', () => {
-    expect(parseCommand('fire-weapon main 0 wolf-1')).toEqual({
+  it('parses unified fire command with one attacker', () => {
+    expect(parseCommand('fire wolf-1 main')).toEqual({
       ok: true,
-      command: { kind: 'fire-weapon', weaponType: 'main', weaponIndex: 0, targetId: 'wolf-1' },
+      command: { kind: 'fire', targetId: 'wolf-1', attackers: ['main'] },
     })
   })
 
-  it('parses fire-unit', () => {
-    expect(parseCommand('fire-unit wolf-1 onion')).toEqual({
+  it('parses unified fire command with multiple attackers', () => {
+    expect(parseCommand('fire main wolf-1 puss-1')).toEqual({
       ok: true,
-      command: { kind: 'fire-unit', unitId: 'wolf-1', targetId: 'onion' },
-    })
-  })
-
-  it('parses combined-fire', () => {
-    expect(parseCommand('combined-fire wolf-1 puss-1 -> main')).toEqual({
-      ok: true,
-      command: { kind: 'combined-fire', unitIds: ['wolf-1', 'puss-1'], targetId: 'main' },
+      command: { kind: 'fire', targetId: 'main', attackers: ['wolf-1', 'puss-1'] },
     })
   })
 
@@ -148,10 +141,10 @@ describe('parseCommand', () => {
     })
   })
 
-  it('rejects malformed combined-fire', () => {
-    expect(parseCommand('combined-fire wolf-1 main')).toEqual({
+  it('rejects malformed fire command', () => {
+    expect(parseCommand('fire wolf-1')).toEqual({
       ok: false,
-      error: 'usage: combined-fire <unitId...> -> <targetId>',
+      error: 'usage: fire <targetId> <attacker1> [attacker2...]',
     })
   })
 
