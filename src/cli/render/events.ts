@@ -8,6 +8,12 @@ export function renderEvents(events: EventEnvelope[]): string {
   const lines = ['Events']
   for (const event of events) {
     switch (event.type) {
+      case 'UNIT_MOVED':
+        lines.push(`  #${event.seq} UNIT_MOVED unitId="${event.unitId}" to=${JSON.stringify(event.to)}`)
+        break
+      case 'ONION_MOVED':
+        lines.push(`  #${event.seq} ONION_MOVED to=${JSON.stringify(event.to)}`)
+        break
       case 'WEAPON_FIRED':
         lines.push(
           `  #${event.seq} WEAPON_FIRED: weapon=${event.weaponType} idx=${event.weaponIndex} target=${event.targetId} roll=${event.roll} outcome=${event.outcome} odds=${event.odds}`,
