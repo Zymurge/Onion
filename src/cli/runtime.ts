@@ -164,6 +164,8 @@ export function renderHelpText(topic?: string): string {
           '  usage: fire <targetId> <attacker1> [attacker2 ...]',
           '  targetId: defender unit id or onion/subsystem id depending on current combat phase',
           '  attacker: onion weapon id (main, secondary_1, ap_3, missile_1, ...) or defender unit id',
+          '  example (Onion): fire wolf-1 main secondary_1',
+          '  example (Defender): fire main wolf-1 puss-1',
           '  submits a FIRE action',
         ].join('\n')
       case 'end-phase':

@@ -251,6 +251,13 @@ export function formatApiError(result: ApiFailure): string {
     if (body.detailCode) lines.push(`detailCode: ${body.detailCode}`)
     if (body.currentPhase) lines.push(`phase: ${body.currentPhase}`)
     if (body.error) lines.push(`error: ${body.error}`)
+
+    if (body.detailCode === 'DUPLICATE_ATTACKER') {
+      lines.push('hint: remove duplicate attackers from the command')
+    }
+    if (body.detailCode === 'TARGET_OUT_OF_RANGE') {
+      lines.push('hint: attackers are validated left-to-right; the first out-of-range attacker stops the action')
+    }
   } else if (result.message) {
     lines.push(`error: ${result.message}`)
   }

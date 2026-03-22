@@ -148,6 +148,13 @@ describe('parseCommand', () => {
     })
   })
 
+  it('rejects fire command with empty attacker token', () => {
+    expect(parseCommand('fire wolf-1 ""')).toEqual({
+      ok: false,
+      error: 'usage: fire <targetId> <attacker1> [attacker2...]',
+    })
+  })
+
   it('rejects invalid debug argument', () => {
     expect(parseCommand('debug maybe')).toEqual({
       ok: false,
