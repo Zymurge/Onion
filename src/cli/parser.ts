@@ -77,15 +77,26 @@ function parseGame(tokens: string[]): ParseResult {
       if (missing) return missing
       return { ok: true, command: { kind: 'game-join', gameId: tokens[2] } }
     }
+    case 'j': {
+      const missing = requireArgs(tokens, 'g j <gameId>', 3)
+      if (missing) return missing
+      return { ok: true, command: { kind: 'game-join', gameId: tokens[2] } }
+    }
     case 'load': {
       const missing = requireArgs(tokens, 'game load <gameId>', 3)
       if (missing) return missing
       return { ok: true, command: { kind: 'game-load', gameId: tokens[2] } }
     }
+    case 'l': {
+      const missing = requireArgs(tokens, 'g l <gameId>', 3)
+      if (missing) return missing
+      return { ok: true, command: { kind: 'game-load', gameId: tokens[2] } }
+    }
     case 'list':
+    case 'ls':
       return { ok: true, command: { kind: 'game-list' } }
     default:
-      return { ok: false, error: 'usage: game create <scenarioId> <onion|defender> | game join <gameId> | game load <gameId> | game list' }
+      return { ok: false, error: 'usage: game create <scenarioId> <onion|defender> | game join <gameId> | game load <gameId> | game list | g [j|l|ls] ...' }
   }
 }
 
@@ -121,7 +132,22 @@ function parsePosition(tokens: string[], startIndex: number): { q: number; r: nu
 }
 
 function parseShow(tokens: string[]): ParseResult {
-  const target = tokens[1]?.toLowerCase() as CliCommand extends { kind: 'show'; target?: infer T } ? T : never
+  const targetToken = tokens[1]?.toLowerCase()
+  const aliasMap: Record<string, 'map' | 'state' | 'units' | 'onion' | 'defenders' | 'events'> = {
+    m: 'map',
+    s: 'state',
+    u: 'units',
+    o: 'onion',
+    d: 'defenders',
+    e: 'events',
+  }
+  const target = (targetToken ? (aliasMap[targetToken] ?? targetToken) : undefined) as CliCommand extends {
+    kind: 'show';
+    target?: infer T
+  }
+    ? T
+    : never
+
   if (!target) {
     return { ok: true, command: { kind: 'show' } }
   }
@@ -211,10 +237,13 @@ export function parseCommand(input: string): ParseResult {
     case 'scenario':
       return parseScenario(tokens)
     case 'game':
+    case 'g':
       return parseGame(tokens)
     case 'refresh':
+    case 'r':
       return { ok: true, command: { kind: 'refresh' } }
     case 'show':
+    case 's':
       return parseShow(tokens)
     case 'events':
       return parseEvents(tokens)

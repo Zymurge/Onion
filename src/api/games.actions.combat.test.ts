@@ -6,6 +6,35 @@ import * as engineGame from '../engine/index.js'
 import { advanceToPhase, createGame, joinGame, register, submitAction } from './helpers.js'
 
 describe('POST /games/:id/actions combat API contract', () => {
+  it('returns 422 and detailCode for illegal multi-attacker fire on Onion treads', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+    await advanceToPhase(app, gameId, shrek.token, fiona.token, 'DEFENDER_COMBAT')
+
+    const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
+      ok: false,
+      code: 'COMBINED_FIRE_TREAD_TARGET',
+      error: 'Combined fire is not allowed on Onion treads.',
+    })
+
+    const res = await submitAction(app, gameId, fiona.token, {
+      type: 'FIRE',
+      attackers: ['wolf-1', 'puss-1'],
+      targetId: 'onion',
+    })
+
+    expect(res.statusCode).toBe(422)
+    const body = res.json()
+    expect(body.ok).toBe(false)
+    expect(body.code).toBe('MOVE_INVALID')
+    expect(body.detailCode).toBe('COMBINED_FIRE_TREAD_TARGET')
+    expect(body.error).toMatch(/Combined fire is not allowed on Onion treads/)
+    validateSpy.mockRestore()
+  })
+
   it('returns 422 and detailCode for duplicate attacker in FIRE command', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')

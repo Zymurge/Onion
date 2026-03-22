@@ -446,7 +446,7 @@ describe('validateCombatAction', () => {
     )
   })
 
-  it('accepts multi-attacker defender fire against Onion treads', () => {
+  it('rejects multi-attacker defender fire against Onion treads', () => {
     const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
     const d2 = makeDefender({ id: 'd2', position: { q: 0, r: 1 } })
     const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1, d2 } })
@@ -457,7 +457,9 @@ describe('validateCombatAction', () => {
       targetId: 'onion',
     })
 
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.code).toBe('COMBINED_FIRE_TREAD_TARGET')
   })
 
   it('accepts defender fire against an Onion subsystem', () => {
@@ -571,6 +573,17 @@ describe('validateCombinedFire', () => {
     const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1: inRange, d2: outRange } })
     const result = validateCombinedFire(CLEAR_MAP, state, { type: 'FIRE', attackers: ['d1', 'd2'], targetId: 'onion' })
     expect(result.valid).toBe(false)
+  })
+
+  it('rejects multi-attacker fire on Onion treads', () => {
+    const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const d2 = makeDefender({ id: 'd2', position: { q: 0, r: 1 } })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1, d2 } })
+    const result = validateCombatAction(CLEAR_MAP, state, { type: 'FIRE', attackers: ['d1', 'd2'], targetId: 'onion' })
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.code).toBe('COMBINED_FIRE_TREAD_TARGET')
   })
 })
 

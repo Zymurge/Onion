@@ -240,6 +240,14 @@ export function validateCombatAction(
   }
 
   if (state.currentPhase === 'ONION_COMBAT') {
+    const target = state.defenders[normalizedCommand.targetId]
+    if (!target) {
+      return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
+    }
+    if (target.status === 'destroyed') {
+      return { ok: false, code: 'NO_TARGET', error: 'Target is already destroyed' }
+    }
+
     const seen = new Set<string>()
     const weaponIds: string[] = []
     const weapons: Array<OnionUnit['weapons'][number]> = []
@@ -262,14 +270,6 @@ export function validateCombatAction(
       weaponIds.push(weapon.id)
       weapons.push(weapon)
       attackStrength += weapon.attack
-    }
-
-    const target = state.defenders[normalizedCommand.targetId]
-    if (!target) {
-      return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
-    }
-    if (target.status === 'destroyed') {
-      return { ok: false, code: 'NO_TARGET', error: 'Target is already destroyed' }
     }
 
     for (let index = 0; index < weapons.length; index += 1) {
@@ -296,6 +296,15 @@ export function validateCombatAction(
 
   if (state.currentPhase !== 'DEFENDER_COMBAT') {
     return { ok: false, code: 'WRONG_PHASE', error: 'Not a combat phase' }
+  }
+
+  const target = resolveOnionTarget(state, normalizedCommand.targetId)
+  if (!target) {
+    return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
+  }
+
+  if (target.kind === 'treads' && normalizedCommand.attackers.length > 1) {
+    return { ok: false, code: 'COMBINED_FIRE_TREAD_TARGET', error: 'Combined fire is not allowed on Onion treads.' }
   }
 
   let attackStrength = 0
@@ -325,11 +334,6 @@ export function validateCombatAction(
     }
 
     attackStrength += readyWeapons.reduce((total, weapon) => total + weapon.attack, 0)
-  }
-
-  const target = resolveOnionTarget(state, normalizedCommand.targetId)
-  if (!target) {
-    return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
   }
 
   return {

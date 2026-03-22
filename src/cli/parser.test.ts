@@ -74,10 +74,31 @@ describe('parseCommand', () => {
     })
   })
 
+  it('parses game join alias', () => {
+    expect(parseCommand('g j 123')).toEqual({
+      ok: true,
+      command: { kind: 'game-join', gameId: '123' },
+    })
+  })
+
   it('parses game load', () => {
     expect(parseCommand('game load 123')).toEqual({
       ok: true,
       command: { kind: 'game-load', gameId: '123' },
+    })
+  })
+
+  it('parses game load alias', () => {
+    expect(parseCommand('g l 123')).toEqual({
+      ok: true,
+      command: { kind: 'game-load', gameId: '123' },
+    })
+  })
+
+  it('parses game list alias', () => {
+    expect(parseCommand('g ls')).toEqual({
+      ok: true,
+      command: { kind: 'game-list' },
     })
   })
 
@@ -88,11 +109,27 @@ describe('parseCommand', () => {
     })
   })
 
+  it('parses refresh alias', () => {
+    expect(parseCommand('r')).toEqual({
+      ok: true,
+      command: { kind: 'refresh' },
+    })
+  })
+
   it('parses show map', () => {
     expect(parseCommand('show map')).toEqual({
       ok: true,
       command: { kind: 'show', target: 'map' },
     })
+  })
+
+  it('parses show aliases', () => {
+    expect(parseCommand('s m')).toEqual({ ok: true, command: { kind: 'show', target: 'map' } })
+    expect(parseCommand('s d')).toEqual({ ok: true, command: { kind: 'show', target: 'defenders' } })
+    expect(parseCommand('s s')).toEqual({ ok: true, command: { kind: 'show', target: 'state' } })
+    expect(parseCommand('s u')).toEqual({ ok: true, command: { kind: 'show', target: 'units' } })
+    expect(parseCommand('s o')).toEqual({ ok: true, command: { kind: 'show', target: 'onion' } })
+    expect(parseCommand('s e')).toEqual({ ok: true, command: { kind: 'show', target: 'events' } })
   })
 
   it('parses events after seq', () => {
