@@ -394,6 +394,31 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *                                            400 MALFORMED_JSON if request body is not valid JSON
    *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
+  /**
+   * List all games the authenticated user participates in.
+   *
+   * @route GET /games
+   * @returns Array of game summaries
+   */
+  app.get('/', async (req, reply) => {
+    try {
+      const userId = extractUserId(req.headers.authorization)
+      if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      const games = await db.listMatchesByUserId(userId)
+      return reply.send({ games: games.map((g) => ({
+        gameId: g.gameId,
+        scenarioId: g.scenarioId,
+        phase: g.phase,
+        turnNumber: g.turnNumber,
+        winner: g.winner,
+        role: g.players.onion === userId ? 'onion' : 'defender',
+      })) })
+    } catch (err) {
+      logger.error({ err }, 'Error listing games')
+      return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
+    }
+  })
+
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
     try {
       logger.info({ id: req.params.id }, 'Fetching game state')

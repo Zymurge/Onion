@@ -4,7 +4,8 @@
         "git commit": true,
         "npx typedoc": true,
         "npx vitest": true,
-        "vitest": true
+        "vitest": true,
+        "git -C /home/zymurge/Dev/onion": true
     },
     "vitest.packageManager": "pnpm",
     "vitest.configSearchPatternExclude": "**/node_modules/**",

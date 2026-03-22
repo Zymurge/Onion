@@ -52,6 +52,30 @@ export class PostgresDb implements DbAdapter {
     ])
   }
 
+  async listMatchesByUserId(userId: string): Promise<Array<Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>>> {
+    const { rows } = await this.pool.query<{
+      id: string
+      scenario_id: string
+      current_phase: string
+      turn_number: number
+      winner: string | null
+      onion_player_id: string | null
+      defender_player_id: string | null
+    }>(
+      `SELECT id, scenario_id, current_phase, turn_number, winner, onion_player_id, defender_player_id
+       FROM matches WHERE onion_player_id = $1 OR defender_player_id = $1 ORDER BY created_at ASC`,
+      [userId],
+    )
+    return rows.map((m) => ({
+      gameId: m.id,
+      scenarioId: m.scenario_id,
+      phase: m.current_phase as import('../types/index.js').TurnPhase,
+      turnNumber: m.turn_number,
+      winner: m.winner,
+      players: { onion: m.onion_player_id, defender: m.defender_player_id },
+    }))
+  }
+
   async findMatch(gameId: string): Promise<MatchRecord | null> {
     const { rows: mRows } = await this.pool.query<{
       id: string

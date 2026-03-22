@@ -10,6 +10,7 @@ import {
   getGame,
   getScenario,
   joinGame,
+  listGames,
   listScenarios,
   loginUser,
   registerUser,
@@ -147,6 +148,7 @@ export function renderHelpText(topic?: string): string {
           '  usage: game create <scenarioId> <onion|defender>',
           '  usage: game join <gameId>',
           '  usage: game load <gameId>',
+          '  usage: game list',
         ].join('\n')
       case 'refresh':
         return ['refresh', '  usage: refresh', '  reloads the current game state for the active session gameId'].join('\n')
@@ -206,6 +208,7 @@ export function renderHelpText(topic?: string): string {
     '  game create <scenarioId> <onion|defender>',
     '  game join <gameId>',
     '  game load <gameId>',
+    '  game list',
     '  refresh',
     '  show [map|state|units|onion|defenders|events]',
     '  events [after <seq>]',
@@ -343,6 +346,18 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
           gameResult.ok ? renderGameSummary(session, session.gameState) : '',
         ].filter(Boolean).join('\n'),
       }
+    }
+    case 'game-list': {
+      const result = await listGames(session)
+      if (!result.ok) return { message: formatApiError(result) }
+      const { games } = result.data
+      if (games.length === 0) return { message: 'No games found.' }
+      const lines = ['Games']
+      for (const g of games) {
+        const winnerTag = g.winner ? ` winner=${g.winner}` : ''
+        lines.push(`  ${g.gameId}  scenario=${g.scenarioId}  role=${g.role}  phase=${g.phase}  turn=${g.turnNumber}${winnerTag}`)
+      }
+      return { message: lines.join('\n') }
     }
     case 'game-load': {
       const result = await getGame(session, command.gameId)

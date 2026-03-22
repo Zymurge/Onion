@@ -88,6 +88,14 @@ export interface DbAdapter {
   findMatch(gameId: string): Promise<MatchRecord | null>
 
   /**
+   * List all matches in which the given user is a participant.
+   * Returns lightweight summaries, not full state/events.
+   * @param userId - The user whose games to list
+   * @returns Array of match summaries ordered by creation (oldest first)
+   */
+  listMatchesByUserId(userId: string): Promise<Array<Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>>>
+
+  /**
    * Update player assignments for an existing match.
    * @param gameId - The match to update
    * @param players - New player assignments

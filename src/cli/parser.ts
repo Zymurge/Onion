@@ -82,8 +82,10 @@ function parseGame(tokens: string[]): ParseResult {
       if (missing) return missing
       return { ok: true, command: { kind: 'game-load', gameId: tokens[2] } }
     }
+    case 'list':
+      return { ok: true, command: { kind: 'game-list' } }
     default:
-      return { ok: false, error: 'usage: game create <scenarioId> <onion|defender> | game join <gameId> | game load <gameId>' }
+      return { ok: false, error: 'usage: game create <scenarioId> <onion|defender> | game join <gameId> | game load <gameId> | game list' }
   }
 }
 

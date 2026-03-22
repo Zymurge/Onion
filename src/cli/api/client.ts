@@ -286,6 +286,23 @@ export function joinGame(session: SessionStore, gameId: string): Promise<ApiResu
   return requestJson<CreateOrJoinGameResponse>(session, 'POST', `games/${gameId}/join`, {})
 }
 
+export type GameListEntry = {
+  gameId: string
+  scenarioId: string
+  phase: string
+  turnNumber: number
+  winner: string | null
+  role: 'onion' | 'defender'
+}
+
+export type GameListResponse = {
+  games: GameListEntry[]
+}
+
+export function listGames(session: SessionStore): Promise<ApiResult<GameListResponse>> {
+  return requestJson<GameListResponse>(session, 'GET', 'games')
+}
+
 export function getGame(session: SessionStore, gameId: string): Promise<ApiResult<GameStateResponse>> {
   return requestJson<GameStateResponse>(session, 'GET', `games/${gameId}`)
 }

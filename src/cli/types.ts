@@ -14,6 +14,7 @@ export type CliCommand =
   | { kind: 'game-create'; scenarioId: string; role: SessionRole }
   | { kind: 'game-join'; gameId: string }
   | { kind: 'game-load'; gameId: string }
+  | { kind: 'game-list' }
   | { kind: 'refresh' }
   | { kind: 'show'; target?: 'map' | 'state' | 'units' | 'onion' | 'defenders' | 'events' }
   | { kind: 'events'; after?: number }
