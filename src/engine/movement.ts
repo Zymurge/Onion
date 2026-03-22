@@ -22,6 +22,7 @@ export type MovementValidationCode =
   | 'UNIT_IMMOBILE'
   | 'NO_MOVEMENT_ALLOWANCE'
   | 'NO_PATH'
+  | 'HEX_OCCUPIED'
   | 'RAM_LIMIT_EXCEEDED'
   | 'SECOND_MOVE_NOT_ALLOWED'
 
@@ -185,6 +186,59 @@ function collectPathOccupants(
   return occupants
 }
 
+function validateDestinationStacking(
+  state: EngineGameState,
+  movingUnit: GameUnit,
+  role: PlayerRole,
+  destination: HexPos,
+  capabilities: MovementCapabilities
+): MovementValidation | null {
+  const defendersAtDestination = Object.values(state.defenders).filter(
+    (unit) =>
+      unit.id !== movingUnit.id &&
+      unit.status !== 'destroyed' &&
+      unit.position.q === destination.q &&
+      unit.position.r === destination.r,
+  )
+
+  if (role === 'onion') {
+    if (defendersAtDestination.length > 0 && !capabilities.canRam) {
+      return { ok: false, code: 'HEX_OCCUPIED', error: 'Destination hex is occupied' }
+    }
+    return null
+  }
+
+  const onionOccupiesDestination =
+    state.onion.id !== movingUnit.id &&
+    state.onion.status !== 'destroyed' &&
+    state.onion.position.q === destination.q &&
+    state.onion.position.r === destination.r
+
+  if (onionOccupiesDestination) {
+    return { ok: false, code: 'HEX_OCCUPIED', error: 'Destination hex is occupied by the Onion' }
+  }
+
+  if (movingUnit.type === 'LittlePigs') {
+    if (defendersAtDestination.some((unit) => unit.type !== 'LittlePigs')) {
+      return { ok: false, code: 'HEX_OCCUPIED', error: 'Little Pigs can only stack with other Little Pigs' }
+    }
+
+    const incomingSquads = movingUnit.squads ?? 1
+    const destinationSquads = defendersAtDestination.reduce((sum, unit) => sum + (unit.squads ?? 1), 0)
+    if (incomingSquads + destinationSquads > 3) {
+      return { ok: false, code: 'HEX_OCCUPIED', error: 'Little Pigs stack limit is 3 squads per hex' }
+    }
+
+    return null
+  }
+
+  if (defendersAtDestination.length > 0) {
+    return { ok: false, code: 'HEX_OCCUPIED', error: 'Destination hex is occupied' }
+  }
+
+  return null
+}
+
 function validateMovePlan(
   map: GameMap,
   state: EngineGameState,
@@ -216,6 +270,11 @@ function validateMovePlan(
       code: 'NO_PATH',
       error: `No valid path to destination within movement allowance of ${allowance.movementAllowance}`,
     }
+  }
+
+  const destinationStackingError = validateDestinationStacking(state, unit, role, command.to, capabilities)
+  if (destinationStackingError) {
+    return destinationStackingError
   }
 
   const rammedUnits = capabilities.canRam ? collectPathOccupants(state, pathResult.path, unit.id) : []

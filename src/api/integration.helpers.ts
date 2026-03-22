@@ -10,6 +10,20 @@ export interface ExpectedState {
   defenders: Record<string, any>
 }
 
+type OnionSpentTracker = {
+  main: number
+  secondary: number
+  ap: number
+}
+
+function getOrCreateSpentTracker(expected: ExpectedState): OnionSpentTracker {
+  const onionState = expected.onion as { __spentWeapons?: OnionSpentTracker }
+  if (!onionState.__spentWeapons) {
+    onionState.__spentWeapons = { main: 0, secondary: 0, ap: 0 }
+  }
+  return onionState.__spentWeapons
+}
+
 export function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value))
 }
@@ -173,6 +187,18 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
   if (!result.events) return
 
   for (const event of result.events) {
+    if (event.type === 'WEAPON_FIRED' && event.weaponType) {
+      const spentTracker = getOrCreateSpentTracker(expected)
+      if ((event.weaponType === 'main' || event.weaponType === 'secondary' || event.weaponType === 'ap') && expected.onion.batteries) {
+        const weaponType = event.weaponType as 'main' | 'secondary' | 'ap'
+        expected.onion.batteries[weaponType] = Math.max(0, (expected.onion.batteries[weaponType] ?? 0) - 1)
+        spentTracker[weaponType] += 1
+      }
+      if (event.weaponType === 'missile' && expected.onion.missiles !== undefined) {
+        expected.onion.missiles = Math.max(0, expected.onion.missiles - 1)
+      }
+    }
+
     if (event.type === 'UNIT_STATUS_CHANGED' && expected.defenders[event.unitId]) {
       expected.defenders[event.unitId].status = event.to
     }
@@ -186,7 +212,24 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
       expected.onion.treads = event.remaining
     }
     if (event.type === 'ONION_BATTERY_DESTROYED' && expected.onion.batteries && event.weaponType) {
-      expected.onion.batteries[event.weaponType] = Math.max(0, (expected.onion.batteries[event.weaponType] || 0) - 1)
+      if (event.weaponType === 'main' || event.weaponType === 'secondary' || event.weaponType === 'ap') {
+        const weaponType = event.weaponType as 'main' | 'secondary' | 'ap'
+        expected.onion.batteries[weaponType] = Math.max(0, (expected.onion.batteries[weaponType] || 0) - 1)
+        const spentTracker = getOrCreateSpentTracker(expected)
+        if (spentTracker[weaponType] > 0) {
+          spentTracker[weaponType] -= 1
+        }
+      }
+    }
+
+    if (event.type === 'PHASE_CHANGED' && event.to === 'ONION_MOVE' && expected.onion.batteries) {
+      const spentTracker = getOrCreateSpentTracker(expected)
+      expected.onion.batteries.main += spentTracker.main
+      expected.onion.batteries.secondary += spentTracker.secondary
+      expected.onion.batteries.ap += spentTracker.ap
+      spentTracker.main = 0
+      spentTracker.secondary = 0
+      spentTracker.ap = 0
     }
   }
 }

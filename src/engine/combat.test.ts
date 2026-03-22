@@ -392,6 +392,16 @@ describe('validateOnionWeaponFire', () => {
     expect(result.valid).toBe(false)
   })
 
+  it('rejects when the weapon is already spent this turn', () => {
+    const onion = makeOnion({
+      weapons: [makeWeapon({ id: 'main', status: 'spent', individuallyTargetable: true })],
+    })
+    const defender = makeDefender({ id: 'd1', position: { q: 2, r: 0 } })
+    const state = makeState({ onion, defenders: { d1: defender } })
+    const result = validateOnionWeaponFire(CLEAR_MAP, state, { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: 'd1' })
+    expect(result.valid).toBe(false)
+  })
+
   it('rejects when the target is out of weapon range', () => {
     // main weapon range 3; defender at (4,0) = distance 4
     const defender = makeDefender({ id: 'd1', position: { q: 4, r: 0 } })
@@ -403,6 +413,13 @@ describe('validateOnionWeaponFire', () => {
   it('rejects when the target unit does not exist', () => {
     const state = makeState()
     const result = validateOnionWeaponFire(CLEAR_MAP, state, { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: 'nope' })
+    expect(result.valid).toBe(false)
+  })
+
+  it('rejects when the target unit is already destroyed', () => {
+    const defender = makeDefender({ id: 'd1', position: { q: 2, r: 0 }, status: 'destroyed' })
+    const state = makeState({ defenders: { d1: defender } })
+    const result = validateOnionWeaponFire(CLEAR_MAP, state, { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: 'd1' })
     expect(result.valid).toBe(false)
   })
 })
@@ -462,6 +479,22 @@ describe('validateCombatAction', () => {
     expect(result.plan.target.kind).toBe('weapon')
     expect(result.plan.target.id).toBe('main')
   })
+
+  it('accepts defender fire targeting Onion treads alias', () => {
+    const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1 } })
+
+    const result = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE_UNIT',
+      unitId: 'd1',
+      targetId: 'treads',
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.plan.target.kind).toBe('treads')
+    expect(result.plan.target.id).toBe('onion')
+  })
 })
 
 // ─── validateUnitFire ────────────────────────────────────────────────────────
@@ -502,6 +535,13 @@ describe('validateUnitFire', () => {
     const state = makeState({ currentPhase: 'DEFENDER_COMBAT', onion, defenders: { d1: puss } })
     const result = validateUnitFire(CLEAR_MAP, state, 'd1', { type: 'FIRE_UNIT', unitId: 'd1', targetId: 'onion' })
     expect(result.valid).toBe(false)
+  })
+
+  it('accepts treads alias as a valid target for defender fire', () => {
+    const puss = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1: puss } })
+    const result = validateUnitFire(CLEAR_MAP, state, 'd1', { type: 'FIRE_UNIT', unitId: 'd1', targetId: 'treads' })
+    expect(result.valid).toBe(true)
   })
 })
 
@@ -558,6 +598,23 @@ describe('executeOnionWeaponFire', () => {
     expect(result.success).toBe(true)
     expect(result.roll).toBeDefined()
     expect(result.roll!.roll).toBe(3)
+  })
+
+  it('marks non-missile weapons as spent after firing', () => {
+    const defender = makeDefender({ id: 'd1', position: { q: 2, r: 0 } })
+    const onion = makeOnion({
+      weapons: [
+        makeWeapon({ id: 'main', attack: 4, range: 3, individuallyTargetable: true }),
+      ],
+    })
+    const state = makeState({ onion, defenders: { d1: defender } })
+
+    const first = executeOnionWeaponFire(CLEAR_MAP, state, { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: 'd1' }, 3)
+    expect(first.success).toBe(true)
+    expect(state.onion.weapons.find((weapon) => weapon.id === 'main')?.status).toBe('spent')
+
+    const second = validateOnionWeaponFire(CLEAR_MAP, state, { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: 'd1' })
+    expect(second.valid).toBe(false)
   })
 
   it('NE result leaves the defender operational (1:3 odds guaranteed)', () => {

@@ -113,7 +113,13 @@ function resolveOnionWeaponId(onion: OnionUnit, command: FireWeaponCommand): str
 }
 
 function resolveOnionTarget(state: EngineGameState, targetId: string): CombatTarget | null {
-  if (targetId === state.onion.id || targetId === 'onion') {
+  const normalizedTargetId = targetId.trim().toLowerCase()
+  if (
+    normalizedTargetId === state.onion.id.toLowerCase() ||
+    normalizedTargetId === 'onion' ||
+    normalizedTargetId === 'tread' ||
+    normalizedTargetId === 'treads'
+  ) {
     return { kind: 'treads', id: state.onion.id }
   }
 
@@ -133,17 +139,43 @@ function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'm
   return null
 }
 
-function syncOnionWeaponTracks(onion: OnionUnit): void {
+function applyOnionWeaponCounterDelta(onion: OnionUnit, weaponId: string, delta: number): void {
   const onionState = onion as OnionUnit & {
     missiles?: number
     batteries?: { main: number; secondary: number; ap: number }
   }
 
-  onionState.missiles = onion.weapons.filter((weapon) => weapon.id.startsWith('missile_') && weapon.status === 'ready').length
-  onionState.batteries = {
-    main: onion.weapons.filter((weapon) => weapon.id === 'main' && weapon.status === 'ready').length,
-    secondary: onion.weapons.filter((weapon) => weapon.id.startsWith('secondary_') && weapon.status === 'ready').length,
-    ap: onion.weapons.filter((weapon) => weapon.id.startsWith('ap_') && weapon.status === 'ready').length,
+  const weaponType = getWeaponTypeFromId(weaponId)
+  if (!weaponType) {
+    return
+  }
+
+  if (weaponType === 'missile') {
+    if (onionState.missiles !== undefined) {
+      onionState.missiles = Math.max(0, onionState.missiles + delta)
+    }
+    return
+  }
+
+  if (!onionState.batteries) {
+    return
+  }
+
+  onionState.batteries[weaponType] = Math.max(0, (onionState.batteries[weaponType] ?? 0) + delta)
+}
+
+function applyWeaponStatusTransition(onion: OnionUnit, weaponId: string, from: 'ready' | 'spent' | 'destroyed', to: 'ready' | 'spent' | 'destroyed'): void {
+  if (from === to) {
+    return
+  }
+
+  if (from === 'ready' && to !== 'ready') {
+    applyOnionWeaponCounterDelta(onion, weaponId, -1)
+    return
+  }
+
+  if (from !== 'ready' && to === 'ready') {
+    applyOnionWeaponCounterDelta(onion, weaponId, 1)
   }
 }
 
@@ -197,17 +229,21 @@ export function validateCombatAction(
       return { ok: false, code: 'WEAPON_NOT_FOUND', error: 'Weapon not found' }
     }
 
-    if (weapon.status === 'destroyed') {
+    if (weapon.status !== 'ready') {
       return {
         ok: false,
         code: 'WEAPON_EXHAUSTED',
-        error: `${weapon.name} ${command.weaponIndex} is already destroyed or exhausted`,
+        error: `${weapon.name} ${command.weaponIndex} is already destroyed or exhausted this turn`,
       }
     }
 
     const target = state.defenders[command.targetId]
     if (!target) {
       return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
+    }
+
+    if (target.status === 'destroyed') {
+      return { ok: false, code: 'NO_TARGET', error: 'Target is already destroyed' }
     }
 
     if (hexDistance(state.onion.position, target.position) > weapon.range) {
@@ -337,11 +373,34 @@ export function executeCombatAction(
       return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, targetId: plan.target.id, error: 'Target not found' }
     }
 
+    if (defender.status === 'destroyed') {
+      return {
+        success: false,
+        actionType: plan.actionType,
+        attackerIds: plan.attackerIds,
+        targetId: plan.target.id,
+        error: 'Target is already destroyed',
+      }
+    }
+
+    const firedWeapon = plan.weaponId ? state.onion.weapons.find((weapon) => weapon.id === plan.weaponId) : undefined
+    if (plan.weaponId && !firedWeapon) {
+      return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, targetId: plan.target.id, error: 'Weapon not found' }
+    }
+    if (firedWeapon && firedWeapon.status !== 'ready') {
+      return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, targetId: plan.target.id, error: 'Weapon is not ready' }
+    }
+
     const previousStatus = defender.status
     const damage = applyDamage(defender, combatRoll.result, plan.attackStrength)
     if (plan.weaponId?.startsWith('missile_')) {
+      const previousWeaponStatus = firedWeapon?.status ?? 'ready'
       destroyWeapon(state.onion, plan.weaponId)
-      syncOnionWeaponTracks(state.onion)
+      applyWeaponStatusTransition(state.onion, plan.weaponId, previousWeaponStatus, 'destroyed')
+    } else if (firedWeapon) {
+      const previousWeaponStatus = firedWeapon.status
+      firedWeapon.status = 'spent'
+      applyWeaponStatusTransition(state.onion, firedWeapon.id, previousWeaponStatus, 'spent')
     }
     const statusChanges = defender.status !== previousStatus
       ? [{ unitId: defender.id, from: previousStatus, to: defender.status }]
@@ -358,6 +417,11 @@ export function executeCombatAction(
     }
   }
 
+  const targetedWeaponPreviousStatus =
+    plan.target.kind === 'weapon'
+      ? state.onion.weapons.find((weapon) => weapon.id === plan.target.id)?.status
+      : undefined
+
   const damage = applyDamage(
     state.onion,
     combatRoll.result,
@@ -365,7 +429,8 @@ export function executeCombatAction(
     plan.target.kind === 'weapon' ? plan.target.id : undefined
   )
   if (damage.weaponDestroyed) {
-    syncOnionWeaponTracks(state.onion)
+    const previousStatus = targetedWeaponPreviousStatus ?? 'ready'
+    applyWeaponStatusTransition(state.onion, damage.weaponDestroyed, previousStatus, 'destroyed')
   }
 
   return {

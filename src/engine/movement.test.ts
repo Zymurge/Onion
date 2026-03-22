@@ -227,7 +227,7 @@ describe('validateUnitMovement', () => {
   it('returns a validated plan for a treaded ram-capable unit', () => {
     const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })
-    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 1, r: 0 } })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 2, r: 0 } })
 
     expect(result.ok).toBe(true)
     if (!result.ok) {
@@ -235,12 +235,26 @@ describe('validateUnitMovement', () => {
     }
     expect(result.plan.unitId).toBe('onion')
     expect(result.plan.from).toEqual({ q: 0, r: 0 })
-    expect(result.plan.to).toEqual({ q: 1, r: 0 })
+    expect(result.plan.to).toEqual({ q: 2, r: 0 })
     expect(result.plan.rammedUnitIds).toEqual(['d1'])
     expect(result.plan.ramCapacityUsed).toBe(1)
     expect(result.plan.treadCost).toBe(1)
     expect(result.plan.capabilities.canRam).toBe(true)
     expect(result.plan.capabilities.hasTreads).toBe(true)
+  })
+
+  it('allows Onion to move into an occupied defender destination as a ram', () => {
+    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const state = makeState({ defenders: { d1: defender } })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 1, r: 0 } })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      throw new Error(`Expected validated plan, got ${result.code}`)
+    }
+    expect(result.plan.rammedUnitIds).toEqual(['d1'])
+    expect(result.plan.ramCapacityUsed).toBe(1)
+    expect(result.plan.treadCost).toBe(1)
   })
 
   it('returns WRONG_PHASE for a defender unit in ONION_MOVE', () => {
@@ -318,13 +332,48 @@ describe('validateUnitMovement', () => {
   it('returns RAM_LIMIT_EXCEEDED when a ram-capable unit would exceed the turn limit', () => {
     const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
     const d2 = makeDefender({ id: 'd2', position: { q: 2, r: 0 } })
-    const d3 = makeDefender({ id: 'd3', position: { q: 3, r: 0 } })
+    const d3 = makeDefender({ id: 'd3', position: { q: 4, r: 0 } })
     const state = makeState({ ramsThisTurn: 1, defenders: { d1, d2, d3 } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 3, r: 0 } })
 
     expect(result).toEqual({
       ok: false,
       code: 'RAM_LIMIT_EXCEEDED',
+      error: expect.any(String),
+    })
+  })
+
+  it('returns HEX_OCCUPIED when a defender tries to end movement in an occupied hex', () => {
+    const mover = makeDefender({ id: 'd1', type: 'Puss', position: { q: 0, r: 0 } })
+    const occupier = makeDefender({ id: 'd2', type: 'BigBadWolf', position: { q: 1, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: mover, d2: occupier } })
+
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'd1', to: { q: 1, r: 0 } })
+    expect(result).toEqual({
+      ok: false,
+      code: 'HEX_OCCUPIED',
+      error: expect.any(String),
+    })
+  })
+
+  it('allows Little Pigs to stack up to 3 squads in one hex', () => {
+    const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 1, position: { q: 0, r: 0 } })
+    const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 2, position: { q: 1, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: pigsA, p2: pigsB } })
+
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'p1', to: { q: 1, r: 0 } })
+    expect(result.ok).toBe(true)
+  })
+
+  it('returns HEX_OCCUPIED when Little Pigs stack would exceed 3 squads', () => {
+    const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
+    const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 2, position: { q: 1, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: pigsA, p2: pigsB } })
+
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'p1', to: { q: 1, r: 0 } })
+    expect(result).toEqual({
+      ok: false,
+      code: 'HEX_OCCUPIED',
       error: expect.any(String),
     })
   })
@@ -362,10 +411,6 @@ describe('executeUnitMovement', () => {
     expect(state.defenders['d1'].position).toEqual({ q: 2, r: 1 })
     expect(result.success).toBe(true)
     expect(result.newPosition).toEqual({ q: 2, r: 1 })
-    expect(infoSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ command: expect.any(Object) }),
-      expect.stringContaining('Not an Onion move command')
-    )
   })
 
   it('updates ram usage for a ram-capable move plan', () => {

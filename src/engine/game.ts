@@ -3,6 +3,35 @@ import type { TurnPhase, GameState, EventEnvelope } from '../types/index.js';
 import type { MatchRecord } from '../db/adapter.js';
 import { TURN_PHASES, phaseActor } from './phases.js';
 
+function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'missile' | null {
+  if (weaponId === 'main') return 'main'
+  if (weaponId.startsWith('secondary_')) return 'secondary'
+  if (weaponId.startsWith('ap_')) return 'ap'
+  if (weaponId.startsWith('missile_')) return 'missile'
+  return null
+}
+
+function refreshOnionWeaponsForNewTurn(state: GameState): void {
+  if (!state.onion.weapons) {
+    return
+  }
+
+  for (const weapon of state.onion.weapons) {
+    if (weapon.status === 'spent') {
+      weapon.status = 'ready'
+
+      const weaponType = getWeaponTypeFromId(weapon.id)
+      if (weaponType === 'missile') {
+        if (state.onion.missiles !== undefined) {
+          state.onion.missiles += 1
+        }
+      } else if (weaponType && state.onion.batteries) {
+        state.onion.batteries[weaponType] = (state.onion.batteries[weaponType] ?? 0) + 1
+      }
+    }
+  }
+}
+
 /**
  * Advance the game phase and auto-process engine-only phases.
  *
@@ -34,6 +63,7 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
 
   if (phase === 'ONION_MOVE') {
     state.ramsThisTurn = 0;
+    refreshOnionWeaponsForNewTurn(state);
     for (const [unitId, unit] of Object.entries(state.defenders)) {
       const prevStatus = unit.status;
       if (unit.status === 'disabled') unit.status = 'recovering';

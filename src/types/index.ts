@@ -7,7 +7,7 @@ export type TurnPhase =
   | 'GEV_SECOND_MOVE'
 
 export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
-export type WeaponStatus = 'ready' | 'destroyed'
+export type WeaponStatus = 'ready' | 'spent' | 'destroyed'
 
 export type PlayerRole = 'onion' | 'defender'
 

@@ -159,7 +159,12 @@ export function renderHelpText(topic?: string): string {
       case 'fire-weapon':
         return ['fire-weapon', '  usage: fire-weapon <main|secondary|ap|missile> <index> <targetId>', '  submits a FIRE_WEAPON action'].join('\n')
       case 'fire-unit':
-        return ['fire-unit', '  usage: fire-unit <unitId> <targetId>', '  submits a FIRE_UNIT action'].join('\n')
+        return [
+          'fire-unit',
+          '  usage: fire-unit <unitId> <targetId>',
+          '  targetId: onion|onion-1|tread|treads or exact subsystem id (main, secondary_1, ap_3, ...)',
+          '  submits a FIRE_UNIT action',
+        ].join('\n')
       case 'combined-fire':
         return ['combined-fire', '  usage: combined-fire <unitId...> -> <targetId>', '  submits a COMBINED_FIRE action'].join('\n')
       case 'end-phase':
