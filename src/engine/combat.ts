@@ -460,7 +460,7 @@ export function executeCombatAction(
 export function validateOnionWeaponFire(
   map: GameMap,
   state: EngineGameState,
-  command: FireWeaponCommand
+  command: FireWeaponCommand | FireCommand
 ): { valid: boolean; error?: string } {
   return toLegacyValidation(validateCombatAction(map, state, command))
 }
@@ -477,8 +477,11 @@ export function validateUnitFire(
   map: GameMap,
   state: EngineGameState,
   unitId: string,
-  command: FireUnitCommand
+  command: FireUnitCommand | FireCommand
 ): { valid: boolean; error?: string } {
+  if (command.type === 'FIRE') {
+    return toLegacyValidation(validateCombatAction(map, state, command))
+  }
   return toLegacyValidation(validateCombatAction(map, state, { ...command, unitId }))
 }
 
@@ -492,7 +495,7 @@ export function validateUnitFire(
 export function validateCombinedFire(
   map: GameMap,
   state: EngineGameState,
-  command: CombinedFireCommand
+  command: CombinedFireCommand | FireCommand
 ): { valid: boolean; error?: string } {
   return toLegacyValidation(validateCombatAction(map, state, command))
 }
@@ -508,7 +511,7 @@ export function validateCombinedFire(
 export function executeOnionWeaponFire(
   map: GameMap,
   state: EngineGameState,
-  command: FireWeaponCommand,
+  command: FireWeaponCommand | FireCommand,
   roll?: number
 ): CombatResultDetails {
   const validation = validateCombatAction(map, state, command)
@@ -532,10 +535,12 @@ export function executeUnitFire(
   map: GameMap,
   state: EngineGameState,
   unitId: string,
-  command: FireUnitCommand,
+  command: FireUnitCommand | FireCommand,
   roll?: number
 ): CombatResultDetails {
-  const validation = validateCombatAction(map, state, { ...command, unitId })
+  const validation = command.type === 'FIRE'
+    ? validateCombatAction(map, state, command)
+    : validateCombatAction(map, state, { ...command, unitId })
   if (!validation.ok) {
     return { success: false, error: validation.error }
   }
@@ -554,7 +559,7 @@ export function executeUnitFire(
 export function executeCombinedFire(
   map: GameMap,
   state: EngineGameState,
-  command: CombinedFireCommand,
+  command: CombinedFireCommand | FireCommand,
   roll?: number
 ): CombatResultDetails {
   const validation = validateCombatAction(map, state, command)
