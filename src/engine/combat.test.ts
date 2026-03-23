@@ -760,3 +760,65 @@ describe('executeCombinedFire', () => {
     expect(state.onion.weapons.find(w => w.id === 'main')?.status).toBe('destroyed')
   })
 })
+
+// ─── Defender weapon spending ─────────────────────────────────────────────────
+
+describe('Defender weapon spending', () => {
+  it('marks defender weapon as spent after firing', () => {
+    const puss = makeDefender({
+      id: 'd1',
+      position: { q: 1, r: 0 },
+      weapons: [makeWeapon({ id: 'main', attack: 4, range: 2, status: 'ready' })],
+    })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1: puss } })
+
+    const result = executeUnitFire(CLEAR_MAP, state, 'd1', { type: 'FIRE', attackers: ['d1'], targetId: 'onion' }, 3)
+    expect(result.success).toBe(true)
+    expect(puss.weapons[0].status).toBe('spent')
+  })
+
+  it('rejects firing with a spent weapon in the same turn', () => {
+    const puss = makeDefender({
+      id: 'd1',
+      position: { q: 1, r: 0 },
+      weapons: [makeWeapon({ id: 'main', attack: 4, range: 2, status: 'spent' })],
+    })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1: puss } })
+
+    const result = validateUnitFire(CLEAR_MAP, state, 'd1', { type: 'FIRE', attackers: ['d1'], targetId: 'onion' })
+    expect(result.valid).toBe(false)
+    // Should fail with NO_READY_WEAPONS
+  })
+
+  it('rejects attempt to fire same defender twice in same turn', () => {
+    const puss = makeDefender({
+      id: 'd1',
+      position: { q: 1, r: 0 },
+      weapons: [makeWeapon({ id: 'main', attack: 4, range: 2, status: 'ready' })],
+    })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1: puss } })
+
+    // First fire succeeds and marks weapon as spent
+    const first = executeUnitFire(CLEAR_MAP, state, 'd1', { type: 'FIRE', attackers: ['d1'], targetId: 'onion' }, 3)
+    expect(first.success).toBe(true)
+    expect(puss.weapons[0].status).toBe('spent')
+
+    // Second fire attempt should fail validation (no ready weapons)
+    const second = validateUnitFire(CLEAR_MAP, state, 'd1', { type: 'FIRE', attackers: ['d1'], targetId: 'onion' })
+    expect(second.valid).toBe(false)
+  })
+
+  it('marks defender weapon as spent after single unit fire', () => {
+    const d1 = makeDefender({
+      id: 'd1',
+      position: { q: 1, r: 0 },
+      weapons: [makeWeapon({ id: 'weapon1', attack: 4, range: 2, status: 'ready' })],
+    })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1 } })
+
+    const result = executeUnitFire(CLEAR_MAP, state, 'd1', { type: 'FIRE', attackers: ['d1'], targetId: 'onion' }, 3)
+    expect(result.success).toBe(true)
+    expect(state.defenders['d1'].weapons[0].status).toBe('spent')
+  })
+
+})

@@ -274,6 +274,14 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
   expect(fireBody.events[0].attackers).toEqual([fireUnitId])
   expect(fireBody.events[0].targetId).toBe(ctx.onionId)
 
+  // Verify weapon status changed to spent after firing
+  const firedDefender = fireBody.state.defenders[fireUnitId]
+  expect(firedDefender).toBeTruthy()
+  if (firedDefender && firedDefender.weapons && firedDefender.weapons.length > 0) {
+    const hasSpentWeapon = firedDefender.weapons.some((w) => w.status === 'spent')
+    expect(hasSpentWeapon).toBe(true)
+  }
+
   applyActionToExpectedState(ctx.expectedState, fireCmd, fireBody)
   assertStateMatches(fireBody.state, ctx.expectedState)
 
@@ -343,6 +351,18 @@ async function runTurnOrchestrator(ctx: IntegrationContext): Promise<boolean> {
   await runEndPhase(ctx, 'defender', 'DEFENDER_COMBAT', 'GEV_SECOND_MOVE')
   await runGevSecondMovePhase(ctx)
   await runEndPhase(ctx, 'defender', 'GEV_SECOND_MOVE', 'ONION_MOVE', { expectedTurnDelta: 1 })
+
+  // Verify that all defender weapons are reset to ready at the start of the new turn
+  const afterTurnAdvance = await fetchGame(ctx, 'onion')
+  for (const defender of Object.values(afterTurnAdvance.state.defenders)) {
+    if (defender.weapons) {
+      for (const weapon of defender.weapons) {
+        if (weapon.status !== 'destroyed') {
+          expect(weapon.status).toBe('ready')
+        }
+      }
+    }
+  }
 
   const end = await fetchGame(ctx, 'onion')
   assertStateMatches(end.state, ctx.expectedState)
