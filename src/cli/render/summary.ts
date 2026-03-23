@@ -15,9 +15,30 @@ function weaponSummary(weapons: Weapon[] | undefined): string {
     .join(', ')
 }
 
+function defenderReadinessRank(defender: DefenderUnit): number {
+  // Returns a rank for sorting: lower = more ready
+  // 0: ready (all weapons ready, unit operational)
+  // 1: spent (at least one weapon spent, unit operational)
+  // 2: disabled (unit disabled)
+  // 3: destroyed (unit destroyed)
+  if (defender.status === 'destroyed') {
+    return 3
+  }
+  if (defender.status === 'disabled') {
+    return 2
+  }
+  // Unit is operational. Check weapons.
+  if (!defender.weapons || defender.weapons.length === 0) {
+    return 0 // No weapons = ready
+  }
+  const hasSpentWeapon = defender.weapons.some((w) => w.status === 'spent')
+  return hasSpentWeapon ? 1 : 0
+}
+
 function defenderLine(defender: DefenderUnit): string {
   const squads = defender.squads ? ` squads=${defender.squads}` : ''
-  return `  ${defender.id ?? '(unknown)'} ${defender.type} ${defender.status} at ${posText(defender.position)}${squads}`
+  const weapons = weaponSummary(defender.weapons)
+  return `  ${defender.id ?? '(unknown)'} ${defender.type} ${defender.status} at ${posText(defender.position)} weapons: ${weapons}${squads ? ` (${squads})` : ''}`
 }
 
 export function renderGameSummary(session: SessionStore, state: GameState | null): string {
@@ -57,7 +78,15 @@ export function renderDefenders(state: GameState | null): string {
 
   const defenders = Object.values(state.defenders)
     .slice()
-    .sort((left, right) => (left.id ?? '').localeCompare(right.id ?? ''))
+    .sort((left, right) => {
+      const leftRank = defenderReadinessRank(left)
+      const rightRank = defenderReadinessRank(right)
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank
+      }
+      // Same readiness rank: sort by type
+      return (left.type ?? '').localeCompare(right.type ?? '')
+    })
 
   if (defenders.length === 0) {
     return 'Defenders\n  (none)'
