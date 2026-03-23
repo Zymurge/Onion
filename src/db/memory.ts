@@ -35,6 +35,16 @@ export class InMemoryDb implements DbAdapter {
     return m ? structuredClone(m) : null
   }
 
+  async listMatchesByUserId(userId: string): Promise<Array<Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>>> {
+    const results: Array<Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>> = []
+    for (const m of this.matches.values()) {
+      if (m.players.onion === userId || m.players.defender === userId) {
+        results.push({ gameId: m.gameId, scenarioId: m.scenarioId, phase: m.phase, turnNumber: m.turnNumber, winner: m.winner, players: m.players })
+      }
+    }
+    return results
+  }
+
   async updateMatchPlayers(gameId: string, players: { onion: string | null; defender: string | null }): Promise<void> {
     const m = this.matches.get(gameId)
     if (!m) throw new Error(`Match not found: ${gameId}`)

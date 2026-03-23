@@ -96,13 +96,26 @@ function getWeaponTypeFromId(weaponId: string) {
 
 function buildCombatEvents(
   startSeq: number,
-  command: Extract<Command, { type: 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>,
+  command: Extract<Command, { type: 'FIRE' | 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>,
   result: ReturnType<typeof executeCombatAction>,
   state: any,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
   const events: EventEnvelope[] = []
+
+  if (command.type === 'FIRE') {
+    events.push({
+      seq: seq++,
+      type: 'FIRE_RESOLVED',
+      timestamp,
+      attackers: command.attackers,
+      targetId: result.targetId,
+      roll: result.roll?.roll,
+      outcome: result.roll?.result,
+      odds: result.roll?.odds,
+    })
+  }
 
   if (command.type === 'FIRE_WEAPON') {
     events.push({
@@ -394,6 +407,31 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *                                            400 MALFORMED_JSON if request body is not valid JSON
    *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
+  /**
+   * List all games the authenticated user participates in.
+   *
+   * @route GET /games
+   * @returns Array of game summaries
+   */
+  app.get('/', async (req, reply) => {
+    try {
+      const userId = extractUserId(req.headers.authorization)
+      if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      const games = await db.listMatchesByUserId(userId)
+      return reply.send({ games: games.map((g) => ({
+        gameId: g.gameId,
+        scenarioId: g.scenarioId,
+        phase: g.phase,
+        turnNumber: g.turnNumber,
+        winner: g.winner,
+        role: g.players.onion === userId ? 'onion' : 'defender',
+      })) })
+    } catch (err) {
+      logger.error({ err }, 'Error listing games')
+      return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
+    }
+  })
+
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
     try {
       logger.info({ id: req.params.id }, 'Fetching game state')
@@ -483,7 +521,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
-      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE_WEAPON', 'FIRE_UNIT', 'COMBINED_FIRE'])
+      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE', 'FIRE_WEAPON', 'FIRE_UNIT', 'COMBINED_FIRE'])
       if (!supportedCommands.has(command.type)) {
         logger.warn({ commandType: command.type }, 'Unknown command type')
         return reply.status(400).send({
@@ -546,9 +584,32 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
         }
 
-        const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        let eventType = command.unitId === 'onion' ? 'ONION_MOVED' : 'UNIT_MOVED'
-        newEvents = [{ seq, type: eventType, timestamp: new Date().toISOString(), ...(command.unitId === 'onion' ? { to: command.to } : { unitId: command.unitId, to: command.to }) }]
+        const timestamp = new Date().toISOString()
+        let nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
+        const eventType = command.unitId === 'onion' ? 'ONION_MOVED' : 'UNIT_MOVED'
+        newEvents = [{ seq: nextSeq++, type: eventType, timestamp, ...(command.unitId === 'onion' ? { to: command.to } : { unitId: command.unitId, to: command.to }) }]
+
+        if (result.treadDamage !== undefined && result.treadDamage > 0) {
+          newEvents.push({
+            seq: nextSeq++,
+            type: 'ONION_TREADS_LOST',
+            timestamp,
+            amount: result.treadDamage,
+            remaining: state.onion.treads,
+          })
+        }
+
+        for (const destroyedId of result.destroyedUnits ?? []) {
+          newEvents.push({
+            seq: nextSeq++,
+            type: 'UNIT_STATUS_CHANGED',
+            timestamp,
+            unitId: destroyedId,
+            from: 'operational',
+            to: 'destroyed',
+          })
+        }
+
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
         await db.persistMatchProgress({
@@ -561,10 +622,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           events: newEvents,
         })
         const turnNumber = match.turnNumber
-        const eventSeq = seq
+        const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
         logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
-        return reply.send({ ok: true, seq, events: newEvents, state: currentState, turnNumber, eventSeq })
-      } else if (command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
+        return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, turnNumber, eventSeq })
+      } else if (command.type === 'FIRE' || command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)

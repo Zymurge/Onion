@@ -2,6 +2,14 @@ import type { TurnPhase } from '../types/index.js'
 import type { EngineGameState } from './units.js'
 import logger from '../logger.js'
 
+function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'missile' | null {
+  if (weaponId === 'main') return 'main'
+  if (weaponId.startsWith('secondary_')) return 'secondary'
+  if (weaponId.startsWith('ap_')) return 'ap'
+  if (weaponId.startsWith('missile_')) return 'missile'
+  return null
+}
+
 export const TURN_PHASES: readonly TurnPhase[] = [
   'ONION_MOVE',
   'ONION_COMBAT',
@@ -48,7 +56,34 @@ export function advancePhase(state: EngineGameState): void {
   if (next === 'ONION_MOVE') {
     state.turn++
     state.ramsThisTurn = 0
+    for (const weapon of state.onion.weapons) {
+      if (weapon.status === 'spent') {
+        const weaponType = getWeaponTypeFromId(weapon.id)
+        weapon.status = 'ready'
+        if (weaponType === 'missile') {
+          const onion = state.onion as EngineGameState['onion'] & { missiles?: number }
+          if (onion.missiles !== undefined) {
+            onion.missiles += 1
+          }
+        } else if (weaponType) {
+          const onion = state.onion as EngineGameState['onion'] & {
+            batteries?: { main: number; secondary: number; ap: number }
+          }
+          if (onion.batteries) {
+            onion.batteries[weaponType] = (onion.batteries[weaponType] ?? 0) + 1
+          }
+        }
+      }
+    }
+    // Reset defender weapons for the new turn
     for (const unit of Object.values(state.defenders)) {
+      if (unit.weapons) {
+        for (const weapon of unit.weapons) {
+          if (weapon.status === 'spent') {
+            weapon.status = 'ready'
+          }
+        }
+      }
       if (unit.status === 'disabled') unit.status = 'recovering'
     }
   }

@@ -219,3 +219,69 @@ describe('POST /games/:id/join', () => {
     expect(res.json().code).toBe('GAME_FULL')
   })
 })
+
+describe('GET /games', () => {
+  it('returns empty array when user has no games', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games',
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ games: [] })
+  })
+
+  it('returns games the user created', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const { gameId } = await createGame(app, token, 'onion')
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games',
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json<{ games: Array<{ gameId: string; role: string; scenarioId: string }> }>()
+    expect(body.games).toHaveLength(1)
+    expect(body.games[0].gameId).toBe(gameId)
+    expect(body.games[0].role).toBe('onion')
+    expect(body.games[0].scenarioId).toBe('swamp-siege-01')
+  })
+
+  it('returns games the user joined', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games',
+      headers: { authorization: `Bearer ${fiona.token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json<{ games: Array<{ gameId: string; role: string }> }>()
+    expect(body.games).toHaveLength(1)
+    expect(body.games[0].gameId).toBe(gameId)
+    expect(body.games[0].role).toBe('defender')
+  })
+
+  it('returns 401 without auth token', async () => {
+    const app = buildApp()
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games',
+    })
+
+    expect(res.statusCode).toBe(401)
+  })
+})

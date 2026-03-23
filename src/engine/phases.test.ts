@@ -206,6 +206,24 @@ describe('advancePhase', () => {
       // recovering stays recovering — it will become operational next recovery phase
       expect(state.defenders['unit'].status).toBe('recovering')
     })
+
+    it('refreshes spent Onion weapons to ready', () => {
+      const state = makeState('GEV_SECOND_MOVE')
+      state.onion.weapons = [
+        {
+          id: 'main',
+          name: 'Main Gun',
+          attack: 4,
+          range: 3,
+          defense: 4,
+          status: 'spent',
+          individuallyTargetable: true,
+        },
+      ]
+
+      advancePhase(state)
+      expect(state.onion.weapons[0].status).toBe('ready')
+    })
   })
 
   describe('entering DEFENDER_RECOVERY (auto-processed)', () => {

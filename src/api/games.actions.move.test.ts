@@ -177,4 +177,101 @@ describe('POST /games/:id/actions MOVE', () => {
     expect(body.winner).not.toBeNull()
     expect(body.winner).toBe(fiona.userId)
   })
+
+  it('emits ONION_TREADS_LOST and UNIT_STATUS_CHANGED events when a ram destroys a unit', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const moveTo = { q: 1, r: 10 }
+    const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo], rammedUnitIds: ['d1'], ramCapacityUsed: 1, treadCost: 1 })
+    const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
+      state.onion.position = plan.to
+      state.onion.treads = state.onion.treads - 1
+      return {
+        success: true,
+        newPosition: plan.to,
+        rammedUnitIds: ['d1'],
+        ramCapacityUsed: 1,
+        treadDamage: 1,
+        destroyedUnits: ['d1'],
+      }
+    }) as any)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: { type: 'MOVE', unitId: 'onion', to: moveTo },
+    })
+
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.ok).toBe(true)
+
+    const eventTypes = body.events.map((e: any) => e.type)
+    expect(eventTypes[0]).toBe('ONION_MOVED')
+    expect(eventTypes).toContain('ONION_TREADS_LOST')
+    expect(eventTypes).toContain('UNIT_STATUS_CHANGED')
+
+    const treadEvent = body.events.find((e: any) => e.type === 'ONION_TREADS_LOST')
+    expect(treadEvent.amount).toBe(1)
+
+    const statusEvent = body.events.find((e: any) => e.type === 'UNIT_STATUS_CHANGED')
+    expect(statusEvent.unitId).toBe('d1')
+    expect(statusEvent.from).toBe('operational')
+    expect(statusEvent.to).toBe('destroyed')
+  })
+
+  it('emits only ONION_TREADS_LOST (no UNIT_STATUS_CHANGED) when ram does not destroy the unit', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const moveTo = { q: 1, r: 10 }
+    const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo], rammedUnitIds: ['d1'], ramCapacityUsed: 1, treadCost: 1 })
+    const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
+      state.onion.position = plan.to
+      state.onion.treads = state.onion.treads - 1
+      return {
+        success: true,
+        newPosition: plan.to,
+        rammedUnitIds: ['d1'],
+        ramCapacityUsed: 1,
+        treadDamage: 1,
+        destroyedUnits: [],   // unit survived the ram
+      }
+    }) as any)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: { type: 'MOVE', unitId: 'onion', to: moveTo },
+    })
+
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.ok).toBe(true)
+
+    const eventTypes = body.events.map((e: any) => e.type)
+    expect(eventTypes[0]).toBe('ONION_MOVED')
+    expect(eventTypes).toContain('ONION_TREADS_LOST')
+    expect(eventTypes).not.toContain('UNIT_STATUS_CHANGED')
+
+    const treadEvent = body.events.find((e: any) => e.type === 'ONION_TREADS_LOST')
+    expect(treadEvent.amount).toBe(1)
+  })
 })

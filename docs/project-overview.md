@@ -78,7 +78,7 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 
 ### Frontend (Client Tier)
 
-- **Phase 1 — CLI**: Built with **Node.js** and **Ink** (React for terminals). Renders the ASCII hex map reactively as game state updates arrive over WebSocket.
+- **Phase 1 — CLI**: Built with **Node.js** and **TypeScript** as a simple REST-driven command-line client. It uses prompt-driven commands plus a minimal offset-grid text map to prove end-to-end gameplay with two human players in two shell instances.
 - **Phase 2+ — Web UI**: React SPA sharing TypeScript types with the engine. Reuses the existing hex-grid JS implementation once reviewed.
 
 ### AI Tier (The Swamp Brain)
@@ -175,8 +175,8 @@ To avoid proprietary issues and add a fun, thematic twist, we'll rename elements
 
 - **Project scaffolding**: Initialize Node.js/TypeScript repo structure, Fastify server, and Docker Compose dev environment.
 - **Turn engine**: Implement the state machine for movement, combat, and recovery phases against the scenario schema.
-- **API surface**: Define REST and WebSocket endpoints for game creation, player actions, and state sync.
-- **CLI client**: Build the Ink-based terminal interface against the API.
+- **API surface**: Define REST endpoints for game creation, player actions, state sync, and event inspection. WebSocket support can be added later without changing the command/event model.
+- **CLI client**: Build the minimal TypeScript terminal client described in [cli-spec.md](cli-spec.md).
 
 ### Future Work TODOs
 

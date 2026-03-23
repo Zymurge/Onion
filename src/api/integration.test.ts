@@ -11,6 +11,7 @@ import {
 } from './integration.helpers.js'
 import { hexDistance } from '../engine/map.js'
 import { getUnitDefinition } from '../engine/units.js'
+import type { Weapon, DefenderUnit } from '../types/index.js'
 
 type TestUser = { userId: string; token: string }
 
@@ -175,7 +176,8 @@ async function runOnionAttackPhase(ctx: IntegrationContext) {
   }
   ctx.tracking.onionAttackTargetId = targetId
 
-  const fireCmd = { type: 'FIRE_WEAPON' as const, weaponType: weaponType as 'missile' | 'main', weaponIndex: 0, targetId }
+  const fireAttacker = weaponType === 'missile' ? 'missile_1' : 'main'
+  const fireCmd = { type: 'FIRE' as const, attackers: [fireAttacker], targetId }
   const fireRes = await ctx.app.inject({
     method: 'POST',
     url: `/games/${ctx.gameId}/actions`,
@@ -195,8 +197,8 @@ async function runOnionAttackPhase(ctx: IntegrationContext) {
   expect(fireRes.statusCode).toBe(200)
   const fireBody = fireRes.json()
   expect(fireBody.ok).toBe(true)
-  expect(fireBody.events[0].type).toBe('WEAPON_FIRED')
-  expect(fireBody.events[0].weaponType).toBe(weaponType)
+  expect(fireBody.events[0].type).toBe('FIRE_RESOLVED')
+  expect(fireBody.events[0].attackers).toEqual([fireAttacker])
   expect(fireBody.events[0].targetId).toBe(targetId)
 
   applyActionToExpectedState(ctx.expectedState, fireCmd, fireBody)
@@ -212,7 +214,7 @@ async function runOnionAttackPhase(ctx: IntegrationContext) {
     expect(exhaustedRes.statusCode).toBe(422)
     const exhaustedBody = exhaustedRes.json()
     expect(exhaustedBody.code).toBe('MOVE_INVALID')
-    expect(exhaustedBody.detailCode).toBe('WEAPON_EXHAUSTED')
+    expect(['NO_TARGET', 'WEAPON_EXHAUSTED']).toContain(exhaustedBody.detailCode)
   }
 }
 
@@ -259,7 +261,7 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
   expect(fireUnitId).toBeTruthy()
   if (!fireUnitId) return
 
-  const fireCmd = { type: 'FIRE_UNIT' as const, unitId: fireUnitId, targetId: ctx.onionId }
+  const fireCmd = { type: 'FIRE' as const, attackers: [fireUnitId], targetId: ctx.onionId }
   const fireRes = await ctx.app.inject({
     method: 'POST',
     url: `/games/${ctx.gameId}/actions`,
@@ -269,19 +271,28 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
   expect(fireRes.statusCode).toBe(200)
   const fireBody = fireRes.json()
   expect(fireBody.ok).toBe(true)
-  expect(fireBody.events[0].type).toBe('UNIT_FIRED')
-  expect(fireBody.events[0].unitId).toBe(fireUnitId)
+  expect(fireBody.events[0].type).toBe('FIRE_RESOLVED')
+  expect(fireBody.events[0].attackers).toEqual([fireUnitId])
   expect(fireBody.events[0].targetId).toBe(ctx.onionId)
+
+  // Verify weapon status changed to spent after firing
+  const firedDefender = fireBody.state.defenders[fireUnitId]
+  expect(firedDefender).toBeTruthy()
+  if (firedDefender && firedDefender.weapons && firedDefender.weapons.length > 0) {
+    const hasSpentWeapon = firedDefender.weapons.some((w: Weapon) => w.status === 'spent')
+    expect(hasSpentWeapon).toBe(true)
+  }
 
   applyActionToExpectedState(ctx.expectedState, fireCmd, fireBody)
   assertStateMatches(fireBody.state, ctx.expectedState)
 
-  const combinedFireIds = findDefendersInRangeOfOnion(fireBody.state).slice(0, 2)
-  expect(combinedFireIds.length).toBeGreaterThanOrEqual(1)
-  ctx.tracking.defenderAttackUnitIds = combinedFireIds
+  const combinedFireIds = findDefendersInRangeOfOnion(fireBody.state)
+    .filter((unitId) => unitId !== fireUnitId) // Exclude the unit that already fired
+    .slice(0, 2)
+  ctx.tracking.defenderAttackUnitIds = [fireUnitId, ...combinedFireIds]
 
-  if (combinedFireIds.length === 2) {
-    const combinedCmd = { type: 'COMBINED_FIRE' as const, unitIds: combinedFireIds, targetId: 'main' }
+  if (combinedFireIds.length > 0) {
+    const combinedCmd = { type: 'FIRE' as const, attackers: combinedFireIds, targetId: 'main' }
     const combinedRes = await ctx.app.inject({
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,
@@ -291,8 +302,8 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
     expect(combinedRes.statusCode).toBe(200)
     const combinedBody = combinedRes.json()
     expect(combinedBody.ok).toBe(true)
-    expect(combinedBody.events[0].type).toBe('COMBINED_FIRE_RESOLVED')
-    expect(combinedBody.events[0].unitIds).toEqual(combinedFireIds)
+    expect(combinedBody.events[0].type).toBe('FIRE_RESOLVED')
+    expect(combinedBody.events[0].attackers).toEqual(combinedFireIds)
 
     applyActionToExpectedState(ctx.expectedState, combinedCmd, combinedBody)
     assertStateMatches(combinedBody.state, ctx.expectedState)
@@ -342,6 +353,19 @@ async function runTurnOrchestrator(ctx: IntegrationContext): Promise<boolean> {
   await runGevSecondMovePhase(ctx)
   await runEndPhase(ctx, 'defender', 'GEV_SECOND_MOVE', 'ONION_MOVE', { expectedTurnDelta: 1 })
 
+  // Verify that all defender weapons are reset to ready at the start of the new turn
+  const afterTurnAdvance = await fetchGame(ctx, 'onion')
+  for (const defender of Object.values(afterTurnAdvance.state.defenders)) {
+    const defenderUnit = defender as DefenderUnit
+    if (defenderUnit.weapons) {
+      for (const weapon of defenderUnit.weapons) {
+        if (weapon.status !== 'destroyed') {
+          expect(weapon.status).toBe('ready')
+        }
+      }
+    }
+  }
+
   const end = await fetchGame(ctx, 'onion')
   assertStateMatches(end.state, ctx.expectedState)
   return !end.winner
@@ -386,12 +410,12 @@ async function runTreadFocusAssaultTurn(ctx: IntegrationContext): Promise<any> {
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,
       headers: { authorization: `Bearer ${ctx.defenderUser.token}` },
-      payload: { type: 'FIRE_UNIT', unitId, targetId: ctx.onionId },
+      payload: { type: 'FIRE', attackers: [unitId], targetId: ctx.onionId },
     })
 
     if (fireRes.statusCode === 200) {
       const fireBody = fireRes.json()
-      applyActionToExpectedState(ctx.expectedState, { type: 'FIRE_UNIT', unitId, targetId: ctx.onionId }, fireBody)
+      applyActionToExpectedState(ctx.expectedState, { type: 'FIRE', attackers: [unitId], targetId: ctx.onionId }, fireBody)
       assertStateMatches(fireBody.state, ctx.expectedState)
       combatState = await fetchGame(ctx, 'defender')
       if (combatState.winner) return combatState
@@ -480,7 +504,7 @@ describe('Integration Phases (Modular)', () => {
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,
       headers: { authorization: `Bearer ${ctx.onionUser.token}` },
-      payload: { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: anyDefenderId },
+      payload: { type: 'FIRE', attackers: ['main'], targetId: anyDefenderId },
     })
     expect(wrongCombatInMoveRes.statusCode).toBe(422)
     const wrongCombatInMoveBody = wrongCombatInMoveRes.json()

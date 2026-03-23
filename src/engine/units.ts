@@ -24,7 +24,7 @@ export type UnitType =
 /**
  * Status that a weapon can have.
  */
-export type WeaponStatus = 'ready' | 'destroyed'
+export type WeaponStatus = 'ready' | 'spent' | 'destroyed'
 
 /**
  * A weapon system that a unit can use to attack.

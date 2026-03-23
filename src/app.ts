@@ -7,8 +7,25 @@ import { getPool } from './db/client.js'
 import type { DbAdapter } from './db/adapter.js'
 import { InMemoryDb } from './db/memory.js'
 
-export function buildApp(db?: DbAdapter): FastifyInstance {
-  const adapter = db ?? new InMemoryDb()
+function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
+  const fallback = new InMemoryDb()
+
+  return {
+    findUserByUsername: db?.findUserByUsername?.bind(db) ?? fallback.findUserByUsername.bind(fallback),
+    createUser: db?.createUser?.bind(db) ?? fallback.createUser.bind(fallback),
+    createMatch: db?.createMatch?.bind(db) ?? fallback.createMatch.bind(fallback),
+    findMatch: db?.findMatch?.bind(db) ?? fallback.findMatch.bind(fallback),
+    listMatchesByUserId: db?.listMatchesByUserId?.bind(db) ?? fallback.listMatchesByUserId.bind(fallback),
+    updateMatchPlayers: db?.updateMatchPlayers?.bind(db) ?? fallback.updateMatchPlayers.bind(fallback),
+    updateMatchState: db?.updateMatchState?.bind(db) ?? fallback.updateMatchState.bind(fallback),
+    persistMatchProgress: db?.persistMatchProgress?.bind(db) ?? fallback.persistMatchProgress.bind(fallback),
+    appendEvents: db?.appendEvents?.bind(db) ?? fallback.appendEvents.bind(fallback),
+    getEvents: db?.getEvents?.bind(db) ?? fallback.getEvents.bind(fallback),
+  }
+}
+
+export function buildApp(db?: Partial<DbAdapter>): FastifyInstance {
+  const adapter = resolveAdapter(db)
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test' })
 
   app.get('/health', async () => ({ ok: true }))

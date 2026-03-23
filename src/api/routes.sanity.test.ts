@@ -41,10 +41,10 @@ describe('API route sanity checks', () => {
     expect([200, 404]).toContain(res.statusCode)
   })
 
-  it('GET /games returns 404 or 405 if route exists', async () => {
+  it('GET /games returns 401 without auth', async () => {
     const app = buildApp()
     const res = await app.inject({ method: 'GET', url: '/games' })
-    expect([404, 405]).toContain(res.statusCode)
+    expect(res.statusCode).toBe(401)
   })
 
   it('POST /games exists', async () => {
