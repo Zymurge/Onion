@@ -65,7 +65,9 @@ export function renderGameSummary(session: SessionStore, state: GameState | null
   } else {
     lines.push('  defenders:')
     for (const defender of Object.values(state.defenders)) {
-      lines.push(`    id=${defender.id ?? '(unknown)'} type=${defender.type} status=${defender.status} at ${posText(defender.position)}`)
+      const weapons = weaponSummary(defender.weapons)
+      const squads = defender.squads ? ` (squads=${defender.squads})` : ''
+      lines.push(`    id=${defender.id ?? '(unknown)'} type=${defender.type} status=${defender.status} at ${posText(defender.position)} weapons: ${weapons}${squads}`)
     }
   }
   return lines.join('\n')
