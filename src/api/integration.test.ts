@@ -11,6 +11,7 @@ import {
 } from './integration.helpers.js'
 import { hexDistance } from '../engine/map.js'
 import { getUnitDefinition } from '../engine/units.js'
+import type { Weapon, DefenderUnit } from '../types/index.js'
 
 type TestUser = { userId: string; token: string }
 
@@ -278,7 +279,7 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
   const firedDefender = fireBody.state.defenders[fireUnitId]
   expect(firedDefender).toBeTruthy()
   if (firedDefender && firedDefender.weapons && firedDefender.weapons.length > 0) {
-    const hasSpentWeapon = firedDefender.weapons.some((w) => w.status === 'spent')
+    const hasSpentWeapon = firedDefender.weapons.some((w: Weapon) => w.status === 'spent')
     expect(hasSpentWeapon).toBe(true)
   }
 
@@ -355,8 +356,9 @@ async function runTurnOrchestrator(ctx: IntegrationContext): Promise<boolean> {
   // Verify that all defender weapons are reset to ready at the start of the new turn
   const afterTurnAdvance = await fetchGame(ctx, 'onion')
   for (const defender of Object.values(afterTurnAdvance.state.defenders)) {
-    if (defender.weapons) {
-      for (const weapon of defender.weapons) {
+    const defenderUnit = defender as DefenderUnit
+    if (defenderUnit.weapons) {
+      for (const weapon of defenderUnit.weapons) {
         if (weapon.status !== 'destroyed') {
           expect(weapon.status).toBe('ready')
         }
