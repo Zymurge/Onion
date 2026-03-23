@@ -212,6 +212,18 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
 
         if (attacker.startsWith('missile_') && expected.onion.missiles !== undefined) {
           expected.onion.missiles = Math.max(0, expected.onion.missiles - 1)
+          continue
+        }
+
+        // If attacker is a defender unit ID, mark their first ready weapon as spent
+        if (expected.defenders[attacker] && expected.defenders[attacker].weapons) {
+          const defender = expected.defenders[attacker]
+          for (const weapon of defender.weapons) {
+            if (weapon.status === 'ready') {
+              weapon.status = 'spent'
+              break // Only mark the first ready weapon
+            }
+          }
         }
       }
     }

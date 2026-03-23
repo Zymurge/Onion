@@ -443,6 +443,19 @@ export function executeCombatAction(
     applyWeaponStatusTransition(state.onion, damage.weaponDestroyed, previousStatus, 'destroyed')
   }
 
+  // Mark defender weapons as spent after firing
+  for (const attackerId of plan.attackerIds) {
+    const attacker = state.defenders[attackerId]
+    if (attacker && attacker.weapons) {
+      for (const weapon of attacker.weapons) {
+        if (weapon.status === 'ready') {
+          weapon.status = 'spent'
+          break // Only mark the first ready weapon as spent
+        }
+      }
+    }
+  }
+
   return {
     success: true,
     actionType: plan.actionType,

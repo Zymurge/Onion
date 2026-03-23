@@ -277,11 +277,12 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
   applyActionToExpectedState(ctx.expectedState, fireCmd, fireBody)
   assertStateMatches(fireBody.state, ctx.expectedState)
 
-  const combinedFireIds = findDefendersInRangeOfOnion(fireBody.state).slice(0, 2)
-  expect(combinedFireIds.length).toBeGreaterThanOrEqual(1)
-  ctx.tracking.defenderAttackUnitIds = combinedFireIds
+  const combinedFireIds = findDefendersInRangeOfOnion(fireBody.state)
+    .filter((unitId) => unitId !== fireUnitId) // Exclude the unit that already fired
+    .slice(0, 2)
+  ctx.tracking.defenderAttackUnitIds = [fireUnitId, ...combinedFireIds]
 
-  if (combinedFireIds.length === 2) {
+  if (combinedFireIds.length > 0) {
     const combinedCmd = { type: 'FIRE' as const, attackers: combinedFireIds, targetId: 'main' }
     const combinedRes = await ctx.app.inject({
       method: 'POST',

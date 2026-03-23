@@ -75,7 +75,15 @@ export function advancePhase(state: EngineGameState): void {
         }
       }
     }
+    // Reset defender weapons for the new turn
     for (const unit of Object.values(state.defenders)) {
+      if (unit.weapons) {
+        for (const weapon of unit.weapons) {
+          if (weapon.status === 'spent') {
+            weapon.status = 'ready'
+          }
+        }
+      }
       if (unit.status === 'disabled') unit.status = 'recovering'
     }
   }
