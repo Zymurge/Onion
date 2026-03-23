@@ -1,13 +1,7 @@
 {
-    "chat.tools.terminal.autoApprove": {
-        "pnpm": true,
-        "git commit": true,
-        "npx typedoc": true,
-        "npx vitest": true,
-        "vitest": true,
-        "git -C /home/zymurge/Dev/onion": true
-    },
     "vitest.packageManager": "pnpm",
     "vitest.configSearchPatternExclude": "**/node_modules/**",
-    "typescript.validate.enable": false
+    "chat.tools.terminal.autoApprove": {
+        "git worktree": true
+    }
 }
