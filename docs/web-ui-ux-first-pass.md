@@ -35,11 +35,49 @@ Three-column shell:
    2. Last action result and errors.
    3. Event timeline (latest first with seq).
 
-Footer utility row:
 
-1. Refresh button and last-sync timestamp.
-2. Events fetch status.
-3. Debug diagnostics toggle (advanced users).
+## Header Utility Controls (Updated)
+
+*Footer utility controls are now officially embedded in the header instead of a footer row.*
+
+Header now includes:
+1. Refresh button and last-sync timestamp (unobtrusive, top right).
+2. Events fetch status indicator.
+3. Connection status indicator (small green/red light with label).
+4. Debug diagnostics toggle (near connection status; when active, streams debug output to a read-only, scrollable popup window).
+5. Active side is indicated by highlighting (or glowing) the game phase when the current player is active. When waiting on the other player, the phase chip shows an animated faded crosshatch pattern.
+
+---
+
+## Implementation Status (March 2026)
+
+### Complete or Present
+- Three-column desktop shell layout
+- MapBoard with seamless SVG terrain, unit rectangles, and coordinate display
+- Onion and Defender overview cards in left rail
+- Role badge, phase, turn, scenario, and game ID in header
+- Actionable highlighting for units and onion
+- Crude but functional event timeline in lower right rail
+
+### Partial or Incomplete
+- No explicit connection status indicator yet
+- No explicit active side marker (phase highlighting/crosshatch planned)
+- Footer utility controls not yet in header (to be added)
+- Debug diagnostics toggle and popup not yet implemented
+- Selection inspector and hover overlays not present
+- Error banners/diagnostics not present
+- No live backend wiring; mock data only
+
+---
+
+## Next Steps Punch List
+1. Add unobtrusive refresh button, last-sync timestamp, and event fetch status to header
+2. Add connection status indicator (green/red light + label) to header
+3. Add debug diagnostics toggle to header; implement popup window for debug output
+4. Implement phase highlighting/crosshatch for active/waiting side
+5. Add selection inspector and hover overlays to map
+6. Add error banners/diagnostics handling
+7. Prepare for backend wiring and live data
 
 ## Tablet and Mobile (Deferred)
 

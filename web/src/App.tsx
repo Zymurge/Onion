@@ -49,6 +49,18 @@ function App() {
   const selectedUnitIsActionable = selectedUnit.actionableModes.includes(mode)
   const onionWeapons = parseWeaponStats(onion.weapons)
 
+  // Simulated last sync and event status for UI demo
+  const [lastSync, setLastSync] = useState<Date>(new Date())
+  const [eventStatus, setEventStatus] = useState<'ok' | 'fetching' | 'error'>('ok')
+
+  function handleRefresh() {
+    setEventStatus('fetching')
+    setTimeout(() => {
+      setLastSync(new Date())
+      setEventStatus('ok')
+    }, 800)
+  }
+
   return (
     <div className="shell">
       <header className="topbar panel">
@@ -67,6 +79,35 @@ function App() {
           <div>
             <span className="stat-label">Game ID</span>
             <strong>0aa2d94b</strong>
+          </div>
+        </div>
+        <div className="header-utility-controls">
+          <div className="utility-block">
+            <span className="stat-label">Refresh</span>
+            <button
+              className="refresh-btn"
+              title="Refresh game state"
+              onClick={handleRefresh}
+              aria-label="Refresh"
+              disabled={eventStatus === 'fetching'}
+            >
+              &#x21bb;
+            </button>
+          </div>
+          <div className="utility-block">
+            <span className="stat-label">Last Sync</span>
+            <span className="last-sync" title="Last sync time">
+              {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          </div>
+          <div className="utility-block">
+            <span className="stat-label">Event Sync</span>
+            <span className={`event-status event-status-${eventStatus}`}
+              title={eventStatus === 'ok' ? 'Events up to date' : eventStatus === 'fetching' ? 'Fetching events...' : 'Event fetch error'}>
+              {eventStatus === 'ok' && '●'}
+              {eventStatus === 'fetching' && <span className="event-dot-spinner" />}
+              {eventStatus === 'error' && '⚠'}
+            </span>
           </div>
         </div>
       </header>
