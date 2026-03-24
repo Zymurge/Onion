@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
 import {
   battlefieldModes,
@@ -37,6 +37,39 @@ function parseAttackStats(attackString: string) {
 }
 
 function App() {
+    // Debug diagnostics popup state
+    const [debugOpen, setDebugOpen] = useState(false)
+    const mockDebugLines = [
+      '[12:00:01] [info] Game state loaded',
+      '[12:00:02] [debug] Map rendered',
+      '[12:00:03] [info] User selected unit wolf-2',
+      '[12:00:04] [debug] Action composer ready',
+      '[12:00:05] [info] Event timeline updated',
+      '[12:00:06] [debug] Sync complete',
+      '[12:00:07] [info] No errors detected',
+      '[12:00:08] [debug] WebSocket connection initialized',
+      '[12:00:09] [info] Game rules validation complete',
+      '[12:00:10] [debug] Terrain generation started for scenario swamp-siege-01',
+      '[12:00:11] [info] Generated 42 hexes with mixed terrain types',
+      '[12:00:12] [debug] Unit positioning validated',
+      '[12:00:13] [info] Onion unit placed at coordinates (5,3)',
+      '[12:00:14] [debug] Defender units positioned: wolf-1, wolf-2, tiger-4, bear-1',
+      '[12:00:15] [info] Action composer initialized with 4 legal move paths',
+      '[12:00:16] [debug] UI rendering pipeline started',
+      '[12:00:17] [info] Header components mounted successfully',
+      '[12:00:18] [debug] MapBoard component initialized with 42 hexes',
+      '[12:00:19] [info] Event timeline seeded with 6 mock events',
+      '[12:00:20] [debug] Performance: Initial render completed in 142ms',
+      '[12:00:21] [info] Listening for user input on map interactions',
+      '[12:00:22] [debug] Drag handlers attached to debug popup window',
+      '[12:00:23] [info] Refresh cycle: Last sync was 23 seconds ago',
+      '[12:00:24] [debug] Event fetch status: OK (events up to date)',
+      '[12:00:25] [info] Connection status: CONNECTED (polling mode)',
+      '[12:00:26] [debug] Checking for stale game state...',
+      '[12:00:27] [info] Game state fresh, no reconciliation needed',
+      '[12:00:28] [debug] Memory usage: 18.4 MB (within acceptable range)',
+      '[12:00:29] [info] All systems operational. Ready for player input.',
+    ]
   const [mode, setMode] = useState<Mode>('fire')
   const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
 
@@ -61,6 +94,76 @@ function App() {
     }, 800)
   }
 
+  // Floating, draggable, resizable debug popup component
+  function DraggableDebugPopup({ onClose, lines }) {
+    const [pos, setPos] = useState({ x: window.innerWidth - 380, y: 90 })
+    const [size, setSize] = useState({ width: 340, height: 400 })
+    const [dragging, setDragging] = useState(false)
+    const [resizing, setResizing] = useState(false)
+    const [offset, setOffset] = useState({ x: 0, y: 0 })
+    const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
+
+    function onMouseDown(e) {
+      setDragging(true)
+      setOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y })
+      document.body.style.userSelect = 'none'
+    }
+    
+    function onResizeMouseDown(e) {
+      e.preventDefault()
+      setResizing(true)
+      setResizeStart({ x: e.clientX, y: e.clientY, width: size.width, height: size.height })
+      document.body.style.userSelect = 'none'
+    }
+    
+    function onMouseMove(e) {
+      if (dragging) {
+        setPos({ x: e.clientX - offset.x, y: e.clientY - offset.y })
+      }
+      if (resizing) {
+        const deltaX = e.clientX - resizeStart.x
+        const deltaY = e.clientY - resizeStart.y
+        const newWidth = Math.max(250, resizeStart.width + deltaX)
+        const newHeight = Math.max(200, resizeStart.height + deltaY)
+        setSize({ width: newWidth, height: newHeight })
+      }
+    }
+    
+    function onMouseUp() {
+      setDragging(false)
+      setResizing(false)
+      document.body.style.userSelect = ''
+    }
+    
+    useEffect(() => {
+      if (dragging || resizing) {
+        window.addEventListener('mousemove', onMouseMove)
+        window.addEventListener('mouseup', onMouseUp)
+        return () => {
+          window.removeEventListener('mousemove', onMouseMove)
+          window.removeEventListener('mouseup', onMouseUp)
+        }
+      }
+    })
+    return (
+      <div
+        className="debug-popup"
+        style={{ left: pos.x, top: pos.y, width: size.width, height: size.height }}
+      >
+        <div className="debug-popup-header" onMouseDown={onMouseDown} style={{ cursor: 'move' }}>
+          <span>Debug Diagnostics</span>
+          <button className="debug-popup-close" onClick={onClose} title="Close debug window">×</button>
+        </div>
+        <div className="debug-popup-body">
+          {lines.map((line, i) => (
+            <div key={i} className="debug-line">{line}</div>
+          ))}
+        </div>
+        <div className="debug-popup-resize" onMouseDown={onResizeMouseDown} title="Drag to resize">⤡</div>
+      </div>
+    )
+  }
+
   return (
     <div className="shell">
       <header className="topbar panel">
@@ -82,8 +185,7 @@ function App() {
           </div>
         </div>
         <div className="header-utility-controls">
-          <div className="utility-block">
-            <span className="stat-label">Refresh</span>
+          <div className="utility-group-vert">
             <button
               className="refresh-btn"
               title="Refresh game state"
@@ -91,26 +193,39 @@ function App() {
               aria-label="Refresh"
               disabled={eventStatus === 'fetching'}
             >
-              &#x21bb;
+              Refresh
+            </button>
+            <button
+              className={`debug-toggle-btn${debugOpen ? ' active' : ''}`}
+              title="Toggle debug diagnostics"
+              aria-label="Toggle debug diagnostics"
+              onClick={() => setDebugOpen((v) => !v)}
+            >
+              Debug
             </button>
           </div>
-          <div className="utility-block">
-            <span className="stat-label">Last Sync</span>
-            <span className="last-sync" title="Last sync time">
-              {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-          </div>
-          <div className="utility-block">
-            <span className="stat-label">Event Sync</span>
-            <span className={`event-status event-status-${eventStatus}`}
-              title={eventStatus === 'ok' ? 'Events up to date' : eventStatus === 'fetching' ? 'Fetching events...' : 'Event fetch error'}>
-              {eventStatus === 'ok' && '●'}
-              {eventStatus === 'fetching' && <span className="event-dot-spinner" />}
-              {eventStatus === 'error' && '⚠'}
-            </span>
+          <div className="utility-group-vert">
+            <div className="sync-status-block" title={eventStatus === 'ok' ? 'Events up to date' : eventStatus === 'fetching' ? 'Fetching events...' : 'Event fetch error'}>
+              <span className="stat-label-small">Sync</span>
+              <span className={`event-status event-status-${eventStatus}`}>
+                {eventStatus === 'ok' && '●'}
+                {eventStatus === 'fetching' && <span className="event-dot-spinner" />}
+                {eventStatus === 'error' && '⚠'}
+              </span>
+            </div>
+            <div className="last-sync-block" title="Last sync time">
+              <span className="stat-label-small">Last</span>
+              <span className="last-sync">
+                {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            </div>
           </div>
         </div>
       </header>
+
+      {debugOpen && (
+        <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} />
+      )}
 
       <main className="battlefield-grid">
         <aside className="panel rail rail-left">
