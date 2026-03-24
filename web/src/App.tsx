@@ -106,7 +106,7 @@ function App() {
   }
 
   // Floating, draggable, resizable debug popup component
-  function DraggableDebugPopup({ onClose, lines }) {
+  function DraggableDebugPopup({ onClose, lines, phase, setPhase }) {
     const [pos, setPos] = useState({ x: window.innerWidth - 380, y: 90 })
     const [size, setSize] = useState({ width: 340, height: 400 })
     const [dragging, setDragging] = useState(false)
@@ -169,6 +169,19 @@ function App() {
           {lines.map((line, i) => (
             <div key={i} className="debug-line">{line}</div>
           ))}
+        </div>
+        <div className="debug-popup-footer">
+          <button
+            className="debug-cycle-phase-btn"
+            onClick={() => {
+              const currentIndex = phases.indexOf(phase)
+              const nextIndex = (currentIndex + 1) % phases.length
+              setPhase(phases[nextIndex])
+            }}
+            title="Cycle to next phase (for testing)"
+          >
+            Cycle Phase → {phaseLabels[phase]}
+          </button>
         </div>
         <div className="debug-popup-resize" onMouseDown={onResizeMouseDown} title="Drag to resize">⤡</div>
       </div>
@@ -235,7 +248,7 @@ function App() {
       </header>
 
       {debugOpen && (
-        <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} />
+        <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} phase={phase} setPhase={setPhase} />
       )}
 
       <main className="battlefield-grid" data-phase={phase}>
@@ -364,17 +377,7 @@ function App() {
                 </div>
               </div>
 
-              <button 
-                type="button" 
-                className="primary-action"
-                // TEMPORARY: Wire End Phase button to cycle phases for UI testing
-                // This will be replaced with actual API call when backend is ready
-                onClick={() => {
-                  const currentIndex = phases.indexOf(phase)
-                  const nextIndex = (currentIndex + 1) % phases.length
-                  setPhase(phases[nextIndex])
-                }}
-              >
+              <button type="button" className="primary-action">
                 {mode === 'end-phase' ? `End ${phaseLabels[phase].split('_')[0]}` : 'Submit Action'}
               </button>
             </section>

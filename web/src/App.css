@@ -140,6 +140,31 @@
 .debug-popup-resize:hover {
   opacity: 1;
 }
+.debug-popup-footer {
+  padding: 10px 16px;
+  border-top: 1px solid #bfae7a;
+  background: #2d2717;
+}
+.debug-cycle-phase-btn {
+  width: 100%;
+  background: #3a321a;
+  border: 1px solid #7a6a3a;
+  color: #f8f3e3;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border 0.15s;
+  font-family: monospace;
+}
+.debug-cycle-phase-btn:hover {
+  background: #4a3f27;
+  border-color: #bfae7a;
+}
+.debug-cycle-phase-btn:active {
+  background: #2d2717;
+}
 .shell {
   max-width: 1680px;
   margin: 0 auto;
@@ -844,10 +869,35 @@
 
 /* Glowing active state for phase chip */
 .phase-chip {
+  position: relative;
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .topbar-state .phase-chip {
   box-shadow: 0 0 12px rgba(212, 165, 116, 0.4);
   border-color: #d4a574;
+}
+
+/* Animated crosshatch on phase chip when not player's turn */
+.battlefield-grid[data-phase='onion'] .topbar-state .phase-chip:last-child {
+  opacity: 0.6;
+}
+
+.battlefield-grid[data-phase='onion'] .topbar-state .phase-chip:last-child::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 8px,
+    rgba(255, 252, 245, 0.15) 8px,
+    rgba(255, 252, 245, 0.15) 16px
+  );
+  animation: crosshatchWave 3s linear infinite;
+  pointer-events: none;
+  border-radius: 8px;
 }
