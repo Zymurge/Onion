@@ -35,12 +35,12 @@ Three-column shell:
    2. Last action result and errors.
    3. Event timeline (latest first with seq).
 
-
 ## Header Utility Controls (Updated)
 
 *Footer utility controls are now officially embedded in the header instead of a footer row.*
 
 Header now includes:
+
 1. Refresh button and last-sync timestamp (unobtrusive, top right).
 2. Events fetch status indicator.
 3. Connection status indicator (small green/red light with label).
@@ -51,8 +51,8 @@ Header now includes:
 
 ## Implementation Status (March 2026)
 
-
 ### Complete or Present
+
 - Three-column desktop shell layout
 - MapBoard with seamless SVG terrain, unit rectangles, and coordinate display
 - Onion and Defender overview cards in left rail
@@ -64,8 +64,8 @@ Header now includes:
 - Mock debug output stream in popup (ready for backend wiring)
 - **Phase signaling: active/inactive phase pill with glowing green highlight and animated crosshatch for waiting state**
 
-
 ### Partial or Incomplete
+
 - No explicit connection status indicator yet (placeholder for WebSocket integration)
 - Selection inspector and hover overlays not present
 - Error banners/diagnostics not present
@@ -73,13 +73,14 @@ Header now includes:
 
 ---
 
-## Next Steps Punch List
+## Next Steps Todo List
+
 1. Add connection status indicator with WebSocket integration (for Phase 3)
 2. Add selection inspector and hover overlays to map
 3. Add error banners/diagnostics handling
 4. Prepare for backend wiring and live data
-5. Introduce scenario display name, plumb through all layers
-7. Change game ID to integer, plumb through all layers
+5. ~~Introduce scenario display name (user-facing), plumb through all layers~~ ✓ Done
+6. ~~Change game ID to integer, plumb through all layers~~ ✓ Done
 
 ## Tablet and Mobile (Deferred)
 

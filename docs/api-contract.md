@@ -61,13 +61,13 @@ Returns the list of loadable scenarios (scenario files bundled with the engine).
 
 ```text
 Response: [
-  { "id": string, "name": string, "description": string }
+  { "id": string, "name": string, "displayName": string, "description": string }
 ]
 ```
 
 ### `GET /scenarios/{id}`
 
-Returns the full scenario definition (matches `scenario-schema.md` v1 shape).
+Returns the full scenario definition (matches `scenario-schema.md` v1 shape, including `displayName`).
 
 ```text
 Response: { ...full scenario JSON }
@@ -120,6 +120,7 @@ Full current game state. Suitable for initial render and reconnect.
 Response: {
   "gameId":      string,
   "scenarioId":  string,
+  "scenarioDisplayName": string,
   "phase":       TurnPhase,
   "turnNumber":  number,
   "winner":      "onion" | "defender" | null,

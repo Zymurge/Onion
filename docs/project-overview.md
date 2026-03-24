@@ -71,7 +71,7 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 - **Manual Matching (Phase 1)**: Player A calls `POST /games` with a scenario ID, receives a `gameId`. Player B calls `POST /games/{id}/join`. No lobby UI required — `gameId` is shared out-of-band.
 - **Persistence**: PostgreSQL. Core tables:
   - `users` — id, username, hashed password, created_at.
-  - `matches` — id, scenario_id, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.
+  - `matches` — id, scenario_id, scenario_display_name, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.
   - `game_state` — match_id (FK), state JSONB, updated_at.
 - **`game_state` JSONB Shape**: A mutable copy of the scenario's `initialState`, evolved in place by gameplay. Contains: Onion position/treads/batteries/missiles, all defender unit positions/statuses. Victory conditions and map terrain remain static in the `matches` row (copied from scenario at game creation) and are never stored in `game_state`.
 - **Authentication**: JWT (stateless). Issued on login, required for all game API calls. Simple and infrastructure-free for Phase 1. Future phases can layer in refresh tokens or third-party OAuth if needed.

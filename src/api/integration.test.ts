@@ -56,8 +56,9 @@ async function setupIntegrationGame(seed: string, scenarioId = 'swamp-siege-01')
 
   const scenarioRes = await app.inject({ method: 'GET', url: `/scenarios/${scenarioId}` })
   expect(scenarioRes.statusCode).toBe(200)
-  const scenario = scenarioRes.json<{ map: ScenarioMap; initialState: any }>()
-
+  const scenario = scenarioRes.json<{ id: string; name: string; displayName: string; map: ScenarioMap; initialState: any }>()
+  expect(scenario.displayName).toBeDefined()
+  expect(typeof scenario.displayName).toBe('string')
   const expectedState = buildExpectedState(scenario.initialState)
 
   const stateRes = await app.inject({

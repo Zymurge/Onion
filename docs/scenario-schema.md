@@ -24,7 +24,8 @@ We use an **Axial Coordinate System** (q, r) where:
 ```json
 {
   "id": "swamp-siege-01",
-  "name": "The Siege of Shrek's Swamp",
+  "name": "swamp-siege-01",
+  "displayName": "The Siege of Shrek's Swamp",
   "description": "The Onion must reach the Castle while defenders hold the ridgeline.",
   "map": {
     "width": 15,
@@ -95,6 +96,16 @@ Defender units cycle through three states. The engine is responsible for advanci
 We will define the following TS interfaces:
 
 ```typescript
+const ScenarioSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  displayName: z.string(),
+  description: z.string(),
+  map: MapSchema,
+  initialState: InitialStateSchema,
+  victoryConditions: VictoryConditionsSchema
+});
+
 const HexSchema = z.object({
   q: z.number(),
   r: z.number(),

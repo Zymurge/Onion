@@ -26,8 +26,8 @@ This document captures the team-aligned direction before coding begins.
 
 Primary backend integration contract:
 
-1. `GET /scenarios`
-2. `GET /scenarios/{id}`
+1. `GET /scenarios` (returns id, name, displayName, description)
+2. `GET /scenarios/{id}` (returns full scenario including displayName)
 3. `POST /auth/register`
 4. `POST /auth/login`
 5. `POST /games`

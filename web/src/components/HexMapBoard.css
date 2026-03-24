@@ -45,21 +45,6 @@
   stroke-width: 2;
 }
 
-/* Cell is occupied by a unit */
-.hex-cell-occupied {
-  /* Visual feedback handled by unit rendering */
-}
-
-/* Cell contains the onion */
-.hex-cell-onion > .hex-shape {
-  /* Onion visibility shown via golden rectangle, not hex color */
-}
-
-/* Cell is actionable (enemy unit, defender) */
-.hex-cell-actionable > .hex-shape {
-  /* Actionable status shown via unit rect, not hex color */
-}
-
 .hex-shape {
   pointer-events: auto;
 }

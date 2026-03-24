@@ -1,6 +1,7 @@
 {
   "id": "swamp-siege-01",
-  "name": "The Siege of Shrek's Swamp",
+  "name": "swamp-siege-01",
+  "displayName": "The Siege of Shrek's Swamp",
   "description": "The Onion must cross the ridgeline and destroy the Castle while defenders hold the line.",
   "map": {
     "width": 15,

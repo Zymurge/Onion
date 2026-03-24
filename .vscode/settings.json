@@ -5,6 +5,7 @@
         "git worktree": true,
         "pnpm": true,
         "set": true,
-        "git commit": true
+        "git commit": true,
+        "tee": true
     }
 }

@@ -1,6 +1,7 @@
 {
   "id": "smoke-endgame-01",
-  "name": "Smoke Endgame Detection",
+  "name": "smoke-endgame-01",
+  "displayName": "Smoke Endgame Detection",
   "description": "Low-tread smoke scenario where defenders focus Onion treads.",
   "map": {
     "width": 12,

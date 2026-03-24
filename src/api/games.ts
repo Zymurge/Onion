@@ -20,6 +20,7 @@ const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenario
 
 type ScenarioSnapshot = {
   name?: string
+  displayName?: string
   victoryConditions?: {
     maxTurns?: number
   }
@@ -206,7 +207,7 @@ function buildCombatEvents(
  * @param id - Scenario identifier
  * @returns Parsed scenario JSON or null if not found
  */
-async function loadScenario(id: string): Promise<unknown | null> {
+async function loadScenario(id: string): Promise<(ScenarioSnapshot & { id?: string; displayName?: string }) | null> {
   try {
     const files = await readdir(SCENARIOS_DIR)
     for (const file of files.filter((f) => f.endsWith('.json'))) {
@@ -418,9 +419,17 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       const games = await db.listMatchesByUserId(userId)
+      // Fetch scenario display names for all games
+      const scenarioIds = Array.from(new Set(games.map((g) => g.scenarioId)))
+      const scenarioMap: Record<string, string> = {}
+      for (const scenarioId of scenarioIds) {
+        const scenario = await loadScenario(scenarioId)
+        scenarioMap[scenarioId] = (scenario as any)?.displayName ?? (scenario as any)?.name ?? scenarioId
+      }
       return reply.send({ games: games.map((g) => ({
         gameId: g.gameId,
         scenarioId: g.scenarioId,
+        scenarioDisplayName: scenarioMap[g.scenarioId],
         phase: g.phase,
         turnNumber: g.turnNumber,
         winner: g.winner,
@@ -451,7 +460,8 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       return reply.send({
         gameId: match.gameId,
         scenarioId: match.scenarioId,
-        scenarioName: scenarioSnapshot?.name,
+        scenarioName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
+        scenarioDisplayName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
         phase: match.phase,
         turnNumber: match.turnNumber,
         winner: match.winner,

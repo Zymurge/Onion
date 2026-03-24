@@ -85,7 +85,6 @@ function App() {
   const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
 
   const yourTurn = true
-  const availableUnits = defenders.filter((unit) => unit.actionableModes.includes(mode))
   const isOnionSelected = selectedUnitId === onion.id
   const selectedDefender = defenders.find((unit) => unit.id === selectedUnitId)
   const selectedUnit = selectedDefender ?? defenders[0]
@@ -106,7 +105,7 @@ function App() {
   }
 
   // Floating, draggable, resizable debug popup component
-  function DraggableDebugPopup({ onClose, lines, phase, setPhase }) {
+  function DraggableDebugPopup({ onClose, lines, phase, setPhase }: { onClose: () => void; lines: string[]; phase: Phase; setPhase: (phase: Phase) => void }) {
     const [pos, setPos] = useState({ x: window.innerWidth - 380, y: 90 })
     const [size, setSize] = useState({ width: 340, height: 400 })
     const [dragging, setDragging] = useState(false)
@@ -114,20 +113,20 @@ function App() {
     const [offset, setOffset] = useState({ x: 0, y: 0 })
     const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
 
-    function onMouseDown(e) {
+    function onMouseDown(e: React.MouseEvent) {
       setDragging(true)
       setOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y })
       document.body.style.userSelect = 'none'
     }
     
-    function onResizeMouseDown(e) {
+    function onResizeMouseDown(e: React.MouseEvent) {
       e.preventDefault()
       setResizing(true)
       setResizeStart({ x: e.clientX, y: e.clientY, width: size.width, height: size.height })
       document.body.style.userSelect = 'none'
     }
     
-    function onMouseMove(e) {
+    function onMouseMove(e: MouseEvent) {
       if (dragging) {
         setPos({ x: e.clientX - offset.x, y: e.clientY - offset.y })
       }
@@ -166,7 +165,7 @@ function App() {
           <button className="debug-popup-close" onClick={onClose} title="Close debug window">×</button>
         </div>
         <div className="debug-popup-body">
-          {lines.map((line, i) => (
+          {lines.map((line: string, i: number) => (
             <div key={i} className="debug-line">{line}</div>
           ))}
         </div>
@@ -202,17 +201,17 @@ function App() {
             <span>{phaseLabels[phase]}</span>
           </div>
         </div>
-        <div className="topbar-meta-small">
-          <div>
-            <span className="stat-label">Scenario</span>
-            <strong>swamp-siege-01</strong>
-          </div>
-          <div>
-            <span className="stat-label">Game ID</span>
-            <strong>0aa2d94b</strong>
-          </div>
-        </div>
         <div className="header-utility-controls">
+          <div className="utility-group-vert">
+            <div>
+              <span className="stat-label-small">Scenario</span>
+              <strong>The Siege of Shrek's Swamp</strong>
+            </div>
+            <div>
+              <span className="stat-label-small">Game ID</span>
+              <strong>0aa2d94b</strong>
+            </div>
+          </div>
           <div className="utility-group-vert">
             <button
               className="refresh-btn"
