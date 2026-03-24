@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">
+  <defs>
+    <radialGradient id="plainsGradient" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#f7e7b2"/>
+      <stop offset="100%" stop-color="#d4a574"/>
+    </radialGradient>
+    <pattern id="ripples" patternUnits="userSpaceOnUse" width="18" height="18">
+      <ellipse cx="9" cy="9" rx="7" ry="2" fill="none" stroke="#e2c98a" stroke-width="0.7"/>
+      <ellipse cx="9" cy="9" rx="4" ry="1.2" fill="none" stroke="#e2c98a" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <polygon points="36,2 70,19 70,53 36,70 2,53 2,19" fill="url(#plainsGradient)"/>
+  <polygon points="36,2 70,19 70,53 36,70 2,53 2,19" fill="url(#ripples)" opacity="0.25"/>
+</svg>

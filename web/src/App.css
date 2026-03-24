@@ -419,17 +419,6 @@
   stroke-width: 1.8;
 }
 
-.hex-terrain-1 .hex-shape {
-  fill: rgba(223, 205, 158, 0.98);
-}
-
-.hex-terrain-2 .hex-shape {
-  fill: rgba(215, 202, 188, 0.98);
-}
-
-.hex-terrain-3 .hex-shape {
-  fill: rgba(194, 220, 182, 0.98);
-}
 
 .hex-coord,
 .hex-caption {

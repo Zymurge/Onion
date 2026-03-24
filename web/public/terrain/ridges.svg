@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">
+  <defs>
+    <linearGradient id="ridgeGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bfa06a"/>
+      <stop offset="100%" stop-color="#8b6f47"/>
+    </linearGradient>
+    <pattern id="cliffs" patternUnits="userSpaceOnUse" width="18" height="18">
+      <path d="M0,12 Q9,0 18,12" fill="none" stroke="#6d5432" stroke-width="2"/>
+      <path d="M0,16 Q9,6 18,16" fill="none" stroke="#a88a5a" stroke-width="1.2"/>
+    </pattern>
+  </defs>
+  <polygon points="36,2 70,19 70,53 36,70 2,53 2,19" fill="url(#ridgeGradient)"/>
+  <polygon points="36,2 70,19 70,53 36,70 2,53 2,19" fill="url(#cliffs)" opacity="0.35"/>
+</svg>

@@ -13,27 +13,26 @@
 }
 
 /* Default terrain (empty) - light brown */
+
+/* Use SVG images for terrain backgrounds */
 .hex-terrain-default > .hex-shape {
-  fill: #d4a574;
+  fill: url('/terrain/default.svg');
   stroke: #8b7355;
   stroke-width: 1;
 }
 
-/* Terrain type 1 (ridges) - darker brown */
 .hex-terrain-1 > .hex-shape {
-  fill: #8b6f47;
+  fill: url('/terrain/ridges.svg');
   stroke: #5c4a2f;
   stroke-width: 1;
 }
 
-/* Terrain type 2 (craters) - dark grey */
 .hex-terrain-2 > .hex-shape {
-  fill: #4a4a4a;
+  fill: url('/terrain/craters.svg');
   stroke: #2d2d2d;
   stroke-width: 1;
 }
 
-/* Terrain type 3 (castle/forest) - forest green */
 .hex-terrain-3 > .hex-shape {
   fill: #2d5a2d;
   stroke: #1a3a1a;

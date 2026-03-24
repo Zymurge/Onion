@@ -66,6 +66,15 @@ export function HexMapBoard({ scenarioMap, defenders, onion, mode, selectedUnitI
               )
               const unitMarker = occupant ? unitCode(occupant.type) : null
 
+
+              // Pick SVG image for terrain
+              let terrainImg = '/terrain/default.svg';
+              if (terrainType === 1) terrainImg = '/terrain/ridges.svg';
+              else if (terrainType === 2) terrainImg = '/terrain/craters.svg';
+              // else if (terrainType === 3) ...
+
+              // The SVG image is sized to fit the hex
+              const imgSize = HEX_SIZE * 2;
               return (
                 <g
                   key={`${q}-${r}`}
@@ -83,7 +92,17 @@ export function HexMapBoard({ scenarioMap, defenders, onion, mode, selectedUnitI
                     }
                   }}
                 >
-                  <polygon className="hex-shape" points={polygonPoints} />
+                  <clipPath id={`hex-clip-${q}-${r}`}><polygon points={polygonPoints} /></clipPath>
+                  <image
+                    href={terrainImg}
+                    x={center.x - HEX_SIZE}
+                    y={center.y - HEX_SIZE}
+                    width={imgSize}
+                    height={imgSize}
+                    clipPath={`url(#hex-clip-${q}-${r})`}
+                    preserveAspectRatio="xMidYMid slice"
+                  />
+                  <polygon className="hex-shape" points={polygonPoints} fill="none" />
                   {occupant ? (
                     <>
                       <rect
