@@ -755,48 +755,30 @@
    PHASE HIGHLIGHTING - Active vs Waiting side
    ============================================================================ */
 
-/* Base: Defender phase active */
+/* Defender phase active (player's turn) */
 .battlefield-grid[data-phase='defender'] .rail-right {
   position: relative;
   opacity: 1;
-  transition: opacity 0.4s ease, background 0.4s ease;
+  transition: opacity 0.4s ease;
 }
 
 .battlefield-grid[data-phase='defender'] .rail-left {
   position: relative;
-  opacity: 0.54;
-  transition: opacity 0.4s ease, background 0.4s ease;
+  opacity: 1;
+  transition: opacity 0.4s ease;
 }
 
-.battlefield-grid[data-phase='defender'] .rail-left::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 12px,
-    rgba(186, 170, 130, 0.16) 12px,
-    rgba(186, 170, 130, 0.16) 24px
-  );
-  pointer-events: none;
-  border-radius: 24px;
-}
-
-/* Onion phase active */
+/* Onion phase active (not player's turn) */
 .battlefield-grid[data-phase='onion'] .rail-left {
   position: relative;
   opacity: 1;
-  transition: opacity 0.4s ease, background 0.4s ease;
+  transition: opacity 0.4s ease;
 }
 
 .battlefield-grid[data-phase='onion'] .rail-right {
   position: relative;
   opacity: 0.54;
-  transition: opacity 0.4s ease, background 0.4s ease;
+  transition: opacity 0.4s ease;
 }
 
 .battlefield-grid[data-phase='onion'] .rail-right::before {
@@ -815,4 +797,57 @@
   );
   pointer-events: none;
   border-radius: 24px;
+}
+
+/* Phase button highlighting with animated crosshatch when not player's turn */
+.battlefield-grid[data-phase='onion'] .primary-action {
+  position: relative;
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.battlefield-grid[data-phase='onion'] .primary-action::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(255, 252, 245, 0.12) 10px,
+    rgba(255, 252, 245, 0.12) 20px
+  );
+  animation: crosshatchWave 3s linear infinite;
+  pointer-events: none;
+  border-radius: 16px;
+}
+
+@keyframes crosshatchWave {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 28px 28px;
+  }
+}
+
+/* Glowing active state for role badge */
+.role-badge-active {
+  border-color: #d4a574 !important;
+  box-shadow: 0 0 12px rgba(212, 165, 116, 0.4), inset 0 0 8px rgba(212, 165, 116, 0.15) !important;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+/* Glowing active state for phase chip */
+.phase-chip {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.topbar-state .phase-chip {
+  box-shadow: 0 0 12px rgba(212, 165, 116, 0.4);
+  border-color: #d4a574;
 }
