@@ -1,5 +1,6 @@
 import { axialToPixel, boardPixelSize, hexCorners, hexKey, pointsToString } from '../lib/hex'
 import { terrainCode, unitCode, type BattlefieldUnit, type Mode, type TerrainHex } from '../mockBattlefield'
+import './HexMapBoard.css'
 
 type OnionView = {
   id: string
@@ -63,18 +64,18 @@ export function HexMapBoard({ scenarioMap, defenders, onion, mode, selectedUnitI
                   'actionableModes' in occupant &&
                   occupant.actionableModes.includes(mode),
               )
-              const marker = occupant ? unitCode(occupant.type) : terrainCode(terrainType)
-              const caption = occupant ? occupant.id : marker || `${q},${r}`
+              const unitMarker = occupant ? unitCode(occupant.type) : null
 
               return (
                 <g
                   key={`${q}-${r}`}
                   className={[
                     'hex-cell',
-                    terrainType ? `hex-terrain-${terrainType}` : '',
+                    terrainType ? `hex-terrain-${terrainType}` : 'hex-terrain-default',
                     isSelected ? 'hex-cell-selected' : '',
                     isActionable ? 'hex-cell-actionable' : '',
                     isOnion ? 'hex-cell-onion' : '',
+                    occupant ? 'hex-cell-occupied' : '',
                   ].join(' ')}
                   onClick={() => {
                     if (occupant && occupant.id !== onion.id && 'actionableModes' in occupant) {
@@ -83,14 +84,27 @@ export function HexMapBoard({ scenarioMap, defenders, onion, mode, selectedUnitI
                   }}
                 >
                   <polygon className="hex-shape" points={polygonPoints} />
-                  <text className="hex-coord" x={center.x} y={center.y - 11} textAnchor="middle">
+                  {occupant ? (
+                    <>
+                      <rect
+                        className={[
+                          'hex-unit-rect',
+                          isOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
+                          isActionable ? 'hex-unit-rect-actionable' : '',
+                        ].join(' ')}
+                        x={center.x - 16}
+                        y={center.y - 11}
+                        width={32}
+                        height={22}
+                        rx={2}
+                      />
+                      <text className="hex-unit-marker" x={center.x} y={center.y + 4} textAnchor="middle">
+                        {unitMarker}
+                      </text>
+                    </>
+                  ) : null}
+                  <text className="hex-coord" x={center.x} y={center.y + 18} textAnchor="middle">
                     {q},{r}
-                  </text>
-                  <text className="hex-marker" x={center.x} y={center.y + 2} textAnchor="middle">
-                    {marker || '·'}
-                  </text>
-                  <text className="hex-caption" x={center.x} y={center.y + 14} textAnchor="middle">
-                    {caption}
                   </text>
                 </g>
               )

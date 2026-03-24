@@ -2,6 +2,18 @@
   max-width: 1680px;
   margin: 0 auto;
   padding: 28px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.shell > header {
+  flex-shrink: 0;
+}
+
+.shell > main {
+  flex: 1;
+  min-height: 0;
 }
 
 .panel {
@@ -17,22 +29,69 @@
 
 .topbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 22px 24px;
+  gap: 32px;
+  padding: 18px 24px;
   margin-bottom: 22px;
   border-radius: 24px;
 }
 
-.topbar h1 {
-  margin: 4px 0 0;
+.role-badge {
+  flex: 0 0 auto;
+  padding: 0.7rem 1.2rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1.5px solid;
+  transition: all 200ms ease;
 }
 
-.topbar-meta {
+.role-badge-active {
+  background: rgba(121, 92, 32, 0.15);
+  border-color: rgba(121, 92, 32, 0.35);
+  color: var(--signal-live);
+  box-shadow: 0 0 12px rgba(121, 92, 32, 0.12);
+}
+
+.role-badge-inactive {
+  background: rgba(82, 78, 69, 0.08);
+  border-color: rgba(82, 78, 69, 0.18);
+  color: var(--ink-muted);
+}
+
+.topbar-state {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  justify-content: center;
+}
+
+.topbar-meta-small {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+}
+
+.topbar-meta-small > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.topbar-meta-small .stat-label {
+  margin: 0;
+  font-size: 0.68rem;
+}
+
+.topbar-meta-small strong {
+  font-size: 0.9rem;
+  color: var(--ink-strong);
 }
 
 .phase-chip,
@@ -84,13 +143,20 @@
   display: grid;
   grid-template-columns: 310px minmax(680px, 1fr) 390px;
   gap: 22px;
-  align-items: start;
+  align-items: stretch;
+  height: 100%;
 }
 
 .rail,
 .map-stage {
   border-radius: 24px;
   padding: 18px;
+}
+
+.map-stage {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .section-block + .section-block {
@@ -153,8 +219,87 @@
 }
 
 .onion-card {
-  padding: 16px;
+  padding: 12px 14px;
   border-radius: 18px;
+}
+
+.onion-card-button {
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+  border: none;
+  padding: 10px 12px;
+  background: rgba(255, 252, 245, 0.92);
+  text-align: left;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  display: block;
+}
+
+.onion-card-button:hover {
+  transform: translateY(-1px);
+}
+
+.onion-card-button.is-selected {
+  background: linear-gradient(90deg, rgba(121, 92, 32, 0.13), rgba(255, 252, 245, 0.95));
+  border-color: rgba(121, 92, 32, 0.45);
+}
+
+.defender-card-button {
+  padding: 10px 12px;
+  margin: -10px -12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: rgba(255, 252, 245, 0.92);
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.defender-card-button:hover {
+  transform: translateY(-1px);
+}
+
+.defender-card-button.is-actionable {
+  border-color: rgba(121, 92, 32, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(121, 92, 32, 0.12);
+}
+
+.defender-card-button.is-selected {
+  background: linear-gradient(90deg, rgba(121, 92, 32, 0.13), rgba(255, 252, 245, 0.95));
+  border-color: rgba(121, 92, 32, 0.45);
+  padding: 10px 12px;
+  margin: -10px -12px;
+}
+
+.onion-card-button h3,
+.defender-card-button h3 {
+  margin: 2px 0 8px;
+  font-size: 0.95rem;
+}
+
+.unit-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.summary-line {
+  display: flex;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.summary-line strong {
+  color: var(--ink-strong);
+  margin-left: 3px;
+}
+
+.onion-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .defender-list,
@@ -166,6 +311,7 @@
 }
 
 .defender-row,
+.defender-card-button,
 .availability-row,
 .mode-button,
 .primary-action {
@@ -188,6 +334,7 @@
 }
 
 .defender-row:hover,
+.defender-card-button:hover,
 .availability-row:hover,
 .mode-button:hover {
   transform: translateY(-1px);
@@ -207,12 +354,14 @@
 }
 
 .defender-row.is-actionable,
+.defender-card-button.is-actionable,
 .availability-row {
   border-color: rgba(121, 92, 32, 0.28);
   box-shadow: inset 0 0 0 1px rgba(121, 92, 32, 0.12);
 }
 
 .defender-row.is-selected,
+.defender-card-button.is-selected,
 .availability-row-selected {
   background: linear-gradient(90deg, rgba(121, 92, 32, 0.13), rgba(255, 252, 245, 0.95));
   border-color: rgba(121, 92, 32, 0.45);
@@ -228,13 +377,15 @@
 }
 
 .map-frame {
-  margin-bottom: 16px;
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
 }
 
 .hex-map-shell {
   padding: 14px;
   border-radius: 22px;
-  overflow: auto;
+  overflow: visible;
   background:
     radial-gradient(circle at top, rgba(185, 153, 95, 0.22), transparent 42%),
     linear-gradient(180deg, rgba(246, 238, 222, 0.96), rgba(231, 221, 198, 0.96));
@@ -266,17 +417,6 @@
   fill: rgba(249, 231, 183, 0.98);
   stroke: rgba(121, 92, 32, 0.84);
   stroke-width: 1.8;
-}
-
-.hex-cell-actionable .hex-shape {
-  fill: rgba(240, 227, 177, 0.98);
-  stroke: rgba(121, 92, 32, 0.7);
-  filter: drop-shadow(0 0 10px rgba(121, 92, 32, 0.24));
-}
-
-.hex-cell-onion .hex-shape {
-  fill: rgba(73, 37, 24, 0.96);
-  stroke: rgba(42, 20, 12, 0.92);
 }
 
 .hex-terrain-1 .hex-shape {
@@ -319,17 +459,22 @@
   padding: 16px;
 }
 
-.selection-panel-footer {
+.selection-panel-header {
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.selection-panel-header {
+.selection-panel-content {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+}
+
+.selection-panel-content h3 {
+  margin: 2px 0 0;
 }
 
 .inspector-grid {
@@ -338,20 +483,16 @@
   margin: 14px 0 0;
 }
 
-.inspector-grid-footer {
+.inspector-grid-header {
   margin: 0;
-  grid-template-columns: 2.2fr 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.inspector-grid-right {
+  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-}
-
-.inspector-grid-footer > div {
-  min-width: 0;
-}
-
-.inspector-grid-footer dd {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .inspector-grid dd {

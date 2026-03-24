@@ -1,0 +1,102 @@
+.hex-map {
+  user-select: none;
+  background-color: #f5f5f5;
+}
+
+.hex-cell {
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.hex-cell:hover > .hex-shape {
+  filter: brightness(0.95);
+}
+
+/* Default terrain (empty) - light brown */
+.hex-terrain-default > .hex-shape {
+  fill: #d4a574;
+  stroke: #8b7355;
+  stroke-width: 1;
+}
+
+/* Terrain type 1 (ridges) - darker brown */
+.hex-terrain-1 > .hex-shape {
+  fill: #8b6f47;
+  stroke: #5c4a2f;
+  stroke-width: 1;
+}
+
+/* Terrain type 2 (craters) - dark grey */
+.hex-terrain-2 > .hex-shape {
+  fill: #4a4a4a;
+  stroke: #2d2d2d;
+  stroke-width: 1;
+}
+
+/* Terrain type 3 (castle/forest) - forest green */
+.hex-terrain-3 > .hex-shape {
+  fill: #2d5a2d;
+  stroke: #1a3a1a;
+  stroke-width: 1;
+}
+
+/* Cell is selected */
+.hex-cell-selected > .hex-shape {
+  stroke: #ff6b6b;
+  stroke-width: 2;
+}
+
+/* Cell is occupied by a unit */
+.hex-cell-occupied {
+  /* Visual feedback handled by unit rendering */
+}
+
+/* Cell contains the onion */
+.hex-cell-onion > .hex-shape {
+  /* Onion visibility shown via golden rectangle, not hex color */
+}
+
+/* Cell is actionable (enemy unit, defender) */
+.hex-cell-actionable > .hex-shape {
+  /* Actionable status shown via unit rect, not hex color */
+}
+
+.hex-shape {
+  pointer-events: auto;
+}
+
+/* Unit rectangle - defender (red) */
+.hex-unit-rect-defender {
+  fill: #d32f2f;
+  stroke: #b71c1c;
+  stroke-width: 1;
+}
+
+/* Unit rectangle - onion (golden) */
+.hex-unit-rect-onion {
+  fill: #ffb300;
+  stroke: #ff8c00;
+  stroke-width: 2;
+}
+
+/* Unit rectangle - actionable state (green tint) */
+.hex-unit-rect-actionable {
+  fill: #66bb6a;
+  stroke: #2e7d32;
+  stroke-width: 2.5;
+}
+
+.hex-unit-marker {
+  font-size: 10px;
+  font-weight: bold;
+  fill: #ffffff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.hex-coord {
+  font-size: 9px;
+  fill: #333333;
+  pointer-events: none;
+  font-weight: 500;
+}

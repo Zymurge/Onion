@@ -55,6 +55,9 @@ export const onion = {
   r: 10,
   status: 'operational',
   treads: 33,
+  movesAllowed: 5,
+  movesUsed: 2,
+  rams: 2,
   weapons: 'main: destroyed, secondary_2: ready, ap_1: ready, missile_2: ready',
 } as const
 

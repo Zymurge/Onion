@@ -11,27 +11,62 @@ import {
 } from './mockBattlefield'
 import './App.css'
 
+function parseWeaponStats(weaponString: string) {
+  const weapons = weaponString.split(',').map((w) => w.trim())
+  let operationalWeapons = 0
+  let operationalMissiles = 0
+
+  for (const weapon of weapons) {
+    if (weapon.includes('ready')) {
+      if (weapon.toLowerCase().includes('missile')) {
+        operationalMissiles++
+      } else {
+        operationalWeapons++
+      }
+    }
+  }
+
+  return { operationalWeapons, operationalMissiles }
+}
+
+function parseAttackStats(attackString: string) {
+  const parts = attackString.split('/')
+  const damage = parts[0].trim()
+  const range = parts[1]?.includes('rng') ? parts[1].trim().replace('rng', '').trim() : '0'
+  return { damage, range }
+}
+
 function App() {
   const [mode, setMode] = useState<Mode>('fire')
   const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
 
   const yourTurn = true
   const availableUnits = defenders.filter((unit) => unit.actionableModes.includes(mode))
-  const selectedUnit = defenders.find((unit) => unit.id === selectedUnitId) ?? defenders[0]
+  const isOnionSelected = selectedUnitId === onion.id
+  const selectedDefender = defenders.find((unit) => unit.id === selectedUnitId)
+  const selectedUnit = selectedDefender ?? defenders[0]
   const targetLabel = mode === 'end-phase' ? 'No target required' : 'onion / treads'
   const selectedUnitIsActionable = selectedUnit.actionableModes.includes(mode)
+  const onionWeapons = parseWeaponStats(onion.weapons)
 
   return (
     <div className="shell">
       <header className="topbar panel">
-        <div>
-          <p className="eyebrow">Onion Web Command</p>
-          <h1>Swamp Siege Command Table</h1>
+        <div className={`role-badge ${yourTurn ? 'role-badge-active' : 'role-badge-inactive'}`}>
+          Defender
         </div>
-        <div className="topbar-meta">
-          <div className="phase-chip">Turn 3 · DEFENDER_COMBAT</div>
-          <div className={`turn-chip ${yourTurn ? 'turn-chip-live' : 'turn-chip-waiting'}`}>
-            {yourTurn ? 'Your turn: controls armed' : 'Opponent turn: controls locked'}
+        <div className="topbar-state">
+          <div className="phase-chip">Turn 3</div>
+          <div className="phase-chip">DEFENDER_COMBAT</div>
+        </div>
+        <div className="topbar-meta-small">
+          <div>
+            <span className="stat-label">Scenario</span>
+            <strong>swamp-siege-01</strong>
+          </div>
+          <div>
+            <span className="stat-label">Game ID</span>
+            <strong>0aa2d94b</strong>
           </div>
         </div>
       </header>
@@ -39,37 +74,27 @@ function App() {
       <main className="battlefield-grid">
         <aside className="panel rail rail-left">
           <section className="section-block">
-            <p className="eyebrow">Game Context</p>
-            <div className="stat-grid">
-              <div>
-                <span className="stat-label">Scenario</span>
-                <strong>swamp-siege-01</strong>
-              </div>
-              <div>
-                <span className="stat-label">Game ID</span>
-                <strong>0aa2d94b</strong>
-              </div>
-              <div>
-                <span className="stat-label">Role</span>
-                <strong>Defender</strong>
-              </div>
-              <div>
-                <span className="stat-label">Event Seq</span>
-                <strong>47</strong>
-              </div>
-            </div>
-          </section>
-
-          <section className="section-block panel-subtle onion-card">
             <div className="card-head">
               <p className="eyebrow">Onion</p>
-              <span className="status-pill status-pill-ready">{onion.status}</span>
             </div>
-            <h2>{onion.id}</h2>
-            <p className="summary-line">
-              {onion.type} at ({onion.q},{onion.r}) · treads {onion.treads}
-            </p>
-            <p className="detail-copy">{onion.weapons}</p>
+            <button
+              type="button"
+              className={`onion-card-button ${selectedUnit.id === onion.id ? 'is-selected' : ''}`}
+              onClick={() => setSelectedUnitId(onion.id)}
+            >
+              <h3>{onion.id}</h3>
+              <div className="unit-summary">
+                <div className="summary-line">
+                  <span>Treads <strong>{onion.treads}</strong></span>
+                  <span>Moves <strong>{onion.movesAllowed - onion.movesUsed}</strong></span>
+                  <span>Rams <strong>{onion.rams}</strong></span>
+                </div>
+                <div className="summary-line">
+                  <span>Weapons <strong>{onionWeapons.operationalWeapons}</strong></span>
+                  <span>Missiles <strong>{onionWeapons.operationalMissiles}</strong></span>
+                </div>
+              </div>
+            </button>
           </section>
 
           <section className="section-block">
@@ -81,25 +106,27 @@ function App() {
               {defenders.map((unit) => {
                 const isSelected = unit.id === selectedUnit.id
                 const isActionable = unit.actionableModes.includes(mode)
+                const attackStats = parseAttackStats(unit.attack)
                 return (
                   <button
                     key={unit.id}
                     type="button"
                     className={[
-                      'defender-row',
+                      'defender-card-button',
                       isSelected ? 'is-selected' : '',
                       isActionable ? 'is-actionable' : '',
                       `tone-${statusTone(unit.status)}`,
                     ].join(' ')}
                     onClick={() => setSelectedUnitId(unit.id)}
                   >
-                    <div>
-                      <strong>{unit.id}</strong>
-                      <span>{unit.type}</span>
-                    </div>
-                    <div>
-                      <span>{unit.weapons}</span>
-                      <span>mv {unit.move}</span>
+                    <p className="eyebrow">{unit.type}</p>
+                    <h3>{unit.id}</h3>
+                    <div className="unit-summary">
+                      <div className="summary-line">
+                        <span>Damage <strong>{attackStats.damage}</strong></span>
+                        <span>Range <strong>{attackStats.range}</strong></span>
+                        <span>Move <strong>{unit.move}</strong></span>
+                      </div>
                     </div>
                   </button>
                 )
@@ -109,14 +136,6 @@ function App() {
         </aside>
 
         <section className="panel map-stage">
-          <div className="card-head">
-            <div>
-              <p className="eyebrow">Map Board</p>
-              <h2>Axial coordinates rendered as a real hex field</h2>
-            </div>
-            <div className="selection-pill">Selected: {selectedUnit.id}</div>
-          </div>
-
           <div className="map-frame">
             <HexMapBoard
               scenarioMap={scenarioMap}
@@ -127,119 +146,121 @@ function App() {
               onSelectUnit={setSelectedUnitId}
             />
           </div>
-
-          <aside className="selection-panel selection-panel-footer panel-subtle">
-            <div className="selection-panel-header">
-              <div>
-                <p className="eyebrow">Selection Inspector</p>
-                <h3>{selectedUnit.id}</h3>
-              </div>
-              <p className="summary-line">
-                {selectedUnit.type} · {selectedUnit.status} · ({selectedUnit.q},{selectedUnit.r})
-              </p>
-            </div>
-            <dl className="inspector-grid inspector-grid-footer">
-              <div>
-                <dt>Weapons</dt>
-                <dd>{selectedUnit.weapons}</dd>
-              </div>
-              <div>
-                <dt>Attack</dt>
-                <dd>{selectedUnit.attack}</dd>
-              </div>
-              <div>
-                <dt>Move</dt>
-                <dd>{selectedUnit.move}</dd>
-              </div>
-              <div>
-                <dt>Mode Ready</dt>
-                <dd>{selectedUnitIsActionable ? 'yes' : 'no'}</dd>
-              </div>
-            </dl>
-          </aside>
         </section>
 
         <aside className={`panel rail rail-right ${yourTurn ? 'controls-live' : 'controls-muted'}`}>
-          <section className="section-block">
-            <div className="card-head">
-              <div>
-                <p className="eyebrow">Action Composer</p>
-                <h2>Defender command stack</h2>
+          {!isOnionSelected && (
+            <section className="section-block">
+              <div className="card-head">
+                <div>
+                  <p className="eyebrow">Action Composer</p>
+                  <h2>Defender command stack</h2>
+                </div>
+                <span className="mini-tag mini-tag-live">controls active</span>
               </div>
-              <span className="mini-tag mini-tag-live">controls active</span>
-            </div>
 
-            <div className="mode-row">
-              {battlefieldModes.map((entry) => (
-                <button
-                  key={entry.id}
-                  type="button"
-                  className={`mode-button ${entry.id === mode ? 'mode-button-active' : ''}`}
-                  onClick={() => setMode(entry.id)}
-                >
-                  {entry.label}
-                </button>
-              ))}
-            </div>
+              <div className="mode-row">
+                {battlefieldModes.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className={`mode-button ${entry.id === mode ? 'mode-button-active' : ''}`}
+                    onClick={() => setMode(entry.id)}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
+              </div>
 
-            <p className="helper-copy">{battlefieldModes.find((entry) => entry.id === mode)?.helper}</p>
+              <p className="helper-copy">{battlefieldModes.find((entry) => entry.id === mode)?.helper}</p>
 
-            <div className="composer-grid">
-              <div className="composer-field">
-                <span className="stat-label">Selected unit</span>
-                <strong>{mode === 'end-phase' ? 'Not required' : selectedUnit.id}</strong>
+              <div className="composer-grid">
+                <div className="composer-field">
+                  <span className="stat-label">Selected unit</span>
+                  <strong>{mode === 'end-phase' ? 'Not required' : selectedUnit.id}</strong>
+                </div>
+                <div className="composer-field">
+                  <span className="stat-label">Target</span>
+                  <strong>{targetLabel}</strong>
+                </div>
+                <div className="composer-field">
+                  <span className="stat-label">Weapon state</span>
+                  <strong>{mode === 'end-phase' ? 'n/a' : selectedUnit.weapons}</strong>
+                </div>
+                <div className="composer-field">
+                  <span className="stat-label">Validation</span>
+                  <strong>
+                    {mode === 'end-phase' || selectedUnitIsActionable
+                      ? 'ready to submit'
+                      : 'select an actionable unit'}
+                  </strong>
+                </div>
               </div>
-              <div className="composer-field">
-                <span className="stat-label">Target</span>
-                <strong>{targetLabel}</strong>
-              </div>
-              <div className="composer-field">
-                <span className="stat-label">Weapon state</span>
-                <strong>{mode === 'end-phase' ? 'n/a' : selectedUnit.weapons}</strong>
-              </div>
-              <div className="composer-field">
-                <span className="stat-label">Validation</span>
-                <strong>
-                  {mode === 'end-phase' || selectedUnitIsActionable
-                    ? 'ready to submit'
-                    : 'select an actionable unit'}
-                </strong>
-              </div>
-            </div>
 
-            <button type="button" className="primary-action">
-              {mode === 'end-phase' ? 'End Defender Combat' : 'Submit Action'}
-            </button>
-          </section>
+              <button type="button" className="primary-action">
+                {mode === 'end-phase' ? 'End Defender Combat' : 'Submit Action'}
+              </button>
+            </section>
+          )}
 
           <section className="section-block panel-subtle">
             <div className="card-head">
-              <p className="eyebrow">Available Units</p>
-              <span className="mini-tag">{availableUnits.length} actionable</span>
+              <div>
+                <p className="eyebrow">
+                  {isOnionSelected ? 'Onion Details' : 'Selected Unit'}
+                </p>
+                <h3>{isOnionSelected ? onion.id : selectedUnit.id}</h3>
+              </div>
             </div>
-            <div className="availability-list">
-              {availableUnits.length === 0 ? (
-                <div className="empty-state">No unit selection required in this mode.</div>
-              ) : (
-                availableUnits.map((unit) => (
-                  <button
-                    key={unit.id}
-                    type="button"
-                    className={`availability-row ${unit.id === selectedUnit.id ? 'availability-row-selected' : ''}`}
-                    onClick={() => setSelectedUnitId(unit.id)}
-                  >
-                    <div>
-                      <strong>{unit.id}</strong>
-                      <span>{unit.type}</span>
-                    </div>
-                    <div>
-                      <span>{unit.attack}</span>
-                      <span>{unit.weapons}</span>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
+            {isOnionSelected ? (
+              <>
+                <p className="summary-line">
+                  {onion.type} · {onion.status} · ({onion.q},{onion.r})
+                </p>
+                <dl className="inspector-grid inspector-grid-right">
+                  <div>
+                    <dt>Treads</dt>
+                    <dd>{onion.treads}</dd>
+                  </div>
+                  <div>
+                    <dt>Move Available</dt>
+                    <dd>{onion.movesAllowed - onion.movesUsed} / {onion.movesAllowed}</dd>
+                  </div>
+                  <div>
+                    <dt>Rams</dt>
+                    <dd>{onion.rams}</dd>
+                  </div>
+                  <div>
+                    <dt>Weapons</dt>
+                    <dd style={{ gridColumn: '1 / -1' }}>{onion.weapons}</dd>
+                  </div>
+                </dl>
+              </>
+            ) : (
+              <>
+                <p className="summary-line">
+                  {selectedUnit.type} · {selectedUnit.status} · ({selectedUnit.q},{selectedUnit.r})
+                </p>
+                <dl className="inspector-grid inspector-grid-right">
+                  <div>
+                    <dt>Weapons</dt>
+                    <dd>{selectedUnit.weapons}</dd>
+                  </div>
+                  <div>
+                    <dt>Attack</dt>
+                    <dd>{selectedUnit.attack}</dd>
+                  </div>
+                  <div>
+                    <dt>Move</dt>
+                    <dd>{selectedUnit.move}</dd>
+                  </div>
+                  <div>
+                    <dt>Mode Ready</dt>
+                    <dd>{selectedUnitIsActionable ? 'yes' : 'no'}</dd>
+                  </div>
+                </dl>
+              </>
+            )}
           </section>
 
           <section className="section-block">
