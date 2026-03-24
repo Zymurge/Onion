@@ -750,3 +750,69 @@
   text-transform: uppercase;
   color: var(--ink-soft);
 }
+
+/* ============================================================================
+   PHASE HIGHLIGHTING - Active vs Waiting side
+   ============================================================================ */
+
+/* Base: Defender phase active */
+.battlefield-grid[data-phase='defender'] .rail-right {
+  position: relative;
+  opacity: 1;
+  transition: opacity 0.4s ease, background 0.4s ease;
+}
+
+.battlefield-grid[data-phase='defender'] .rail-left {
+  position: relative;
+  opacity: 0.54;
+  transition: opacity 0.4s ease, background 0.4s ease;
+}
+
+.battlefield-grid[data-phase='defender'] .rail-left::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 12px,
+    rgba(186, 170, 130, 0.16) 12px,
+    rgba(186, 170, 130, 0.16) 24px
+  );
+  pointer-events: none;
+  border-radius: 24px;
+}
+
+/* Onion phase active */
+.battlefield-grid[data-phase='onion'] .rail-left {
+  position: relative;
+  opacity: 1;
+  transition: opacity 0.4s ease, background 0.4s ease;
+}
+
+.battlefield-grid[data-phase='onion'] .rail-right {
+  position: relative;
+  opacity: 0.54;
+  transition: opacity 0.4s ease, background 0.4s ease;
+}
+
+.battlefield-grid[data-phase='onion'] .rail-right::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 12px,
+    rgba(186, 170, 130, 0.16) 12px,
+    rgba(186, 170, 130, 0.16) 24px
+  );
+  pointer-events: none;
+  border-radius: 24px;
+}

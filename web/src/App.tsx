@@ -11,6 +11,14 @@ import {
 } from './mockBattlefield'
 import './App.css'
 
+// Phase definitions
+type Phase = 'onion' | 'defender'
+const phases: Phase[] = ['onion', 'defender']
+const phaseLabels: Record<Phase, string> = {
+  onion: 'ONION_TURN',
+  defender: 'DEFENDER_COMBAT',
+}
+
 function parseWeaponStats(weaponString: string) {
   const weapons = weaponString.split(',').map((w) => w.trim())
   let operationalWeapons = 0
@@ -37,6 +45,9 @@ function parseAttackStats(attackString: string) {
 }
 
 function App() {
+    // Phase state
+    const [phase, setPhase] = useState<Phase>('defender')
+    
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
     const mockDebugLines = [
@@ -167,12 +178,12 @@ function App() {
   return (
     <div className="shell">
       <header className="topbar panel">
-        <div className={`role-badge ${yourTurn ? 'role-badge-active' : 'role-badge-inactive'}`}>
+        <div className={`role-badge ${phase === 'defender' ? 'role-badge-active' : 'role-badge-inactive'}`}>
           Defender
         </div>
         <div className="topbar-state">
           <div className="phase-chip">Turn 3</div>
-          <div className="phase-chip">DEFENDER_COMBAT</div>
+          <div className="phase-chip">{phaseLabels[phase]}</div>
         </div>
         <div className="topbar-meta-small">
           <div>
@@ -227,7 +238,7 @@ function App() {
         <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} />
       )}
 
-      <main className="battlefield-grid">
+      <main className="battlefield-grid" data-phase={phase}>
         <aside className="panel rail rail-left">
           <section className="section-block">
             <div className="card-head">
@@ -353,8 +364,18 @@ function App() {
                 </div>
               </div>
 
-              <button type="button" className="primary-action">
-                {mode === 'end-phase' ? 'End Defender Combat' : 'Submit Action'}
+              <button 
+                type="button" 
+                className="primary-action"
+                // TEMPORARY: Wire End Phase button to cycle phases for UI testing
+                // This will be replaced with actual API call when backend is ready
+                onClick={() => {
+                  const currentIndex = phases.indexOf(phase)
+                  const nextIndex = (currentIndex + 1) % phases.length
+                  setPhase(phases[nextIndex])
+                }}
+              >
+                {mode === 'end-phase' ? `End ${phaseLabels[phase].split('_')[0]}` : 'Submit Action'}
               </button>
             </section>
           )}
