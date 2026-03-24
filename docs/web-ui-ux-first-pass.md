@@ -51,6 +51,7 @@ Header now includes:
 
 ## Implementation Status (March 2026)
 
+
 ### Complete or Present
 - Three-column desktop shell layout
 - MapBoard with seamless SVG terrain, unit rectangles, and coordinate display
@@ -61,10 +62,11 @@ Header now includes:
 - Header utility controls: refresh button, last-sync timestamp, event sync status indicator
 - Debug diagnostics toggle with floating, draggable, resizable popup window
 - Mock debug output stream in popup (ready for backend wiring)
+- **Phase signaling: active/inactive phase pill with glowing green highlight and animated crosshatch for waiting state**
+
 
 ### Partial or Incomplete
 - No explicit connection status indicator yet (placeholder for WebSocket integration)
-- No explicit active side marker (phase highlighting/crosshatch not yet implemented)
 - Selection inspector and hover overlays not present
 - Error banners/diagnostics not present
 - No live backend wiring; mock data only
@@ -72,12 +74,11 @@ Header now includes:
 ---
 
 ## Next Steps Punch List
-1. Implement phase highlighting/crosshatch for active/waiting side
-2. Add connection status indicator with WebSocket integration (for Phase 3)
-3. Add selection inspector and hover overlays to map
-4. Add error banners/diagnostics handling
-5. Prepare for backend wiring and live data
-6. Introduce scenario display name, plumb through all layers
+1. Add connection status indicator with WebSocket integration (for Phase 3)
+2. Add selection inspector and hover overlays to map
+3. Add error banners/diagnostics handling
+4. Prepare for backend wiring and live data
+5. Introduce scenario display name, plumb through all layers
 7. Change game ID to integer, plumb through all layers
 
 ## Tablet and Mobile (Deferred)

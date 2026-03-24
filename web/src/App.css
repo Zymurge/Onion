@@ -248,10 +248,10 @@
 }
 
 .role-badge-active {
-  background: rgba(121, 92, 32, 0.15);
-  border-color: rgba(121, 92, 32, 0.35);
-  color: var(--signal-live);
-  box-shadow: 0 0 12px rgba(121, 92, 32, 0.12);
+  background: linear-gradient(180deg, rgba(126, 155, 66, 0.2), rgba(88, 118, 38, 0.14));
+  border-color: rgba(106, 146, 44, 0.68);
+  color: #355116;
+  box-shadow: 0 0 18px rgba(106, 146, 44, 0.28), inset 0 0 0 1px rgba(196, 225, 120, 0.18);
 }
 
 .role-badge-inactive {
@@ -312,6 +312,18 @@
   padding: 0.58rem 0.8rem;
   background: rgba(68, 64, 49, 0.06);
   color: var(--ink-strong);
+}
+
+.phase-chip-turn,
+.phase-chip-state {
+  position: relative;
+  overflow: hidden;
+}
+
+.phase-chip-turn > span,
+.phase-chip-state > span {
+  position: relative;
+  z-index: 1;
 }
 
 .turn-chip {
@@ -781,32 +793,32 @@
    ============================================================================ */
 
 /* Defender phase active (player's turn) */
-.battlefield-grid[data-phase='defender'] .rail-right {
+.shell[data-phase='defender'] .battlefield-grid .rail-right {
   position: relative;
   opacity: 1;
   transition: opacity 0.4s ease;
 }
 
-.battlefield-grid[data-phase='defender'] .rail-left {
+.shell[data-phase='defender'] .battlefield-grid .rail-left {
   position: relative;
   opacity: 1;
   transition: opacity 0.4s ease;
 }
 
 /* Onion phase active (not player's turn) */
-.battlefield-grid[data-phase='onion'] .rail-left {
+.shell[data-phase='onion'] .battlefield-grid .rail-left {
   position: relative;
   opacity: 1;
   transition: opacity 0.4s ease;
 }
 
-.battlefield-grid[data-phase='onion'] .rail-right {
+.shell[data-phase='onion'] .battlefield-grid .rail-right {
   position: relative;
   opacity: 0.54;
   transition: opacity 0.4s ease;
 }
 
-.battlefield-grid[data-phase='onion'] .rail-right::before {
+.shell[data-phase='onion'] .battlefield-grid .rail-right::before {
   content: '';
   position: absolute;
   top: 0;
@@ -825,14 +837,14 @@
 }
 
 /* Phase button highlighting with animated crosshatch when not player's turn */
-.battlefield-grid[data-phase='onion'] .primary-action {
+.shell[data-phase='onion'] .battlefield-grid .primary-action {
   position: relative;
   opacity: 0.6;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-.battlefield-grid[data-phase='onion'] .primary-action::before {
+.shell[data-phase='onion'] .battlefield-grid .primary-action::before {
   content: '';
   position: absolute;
   top: 0;
@@ -862,41 +874,50 @@
 
 /* Glowing active state for role badge */
 .role-badge-active {
-  border-color: #d4a574 !important;
-  box-shadow: 0 0 12px rgba(212, 165, 116, 0.4), inset 0 0 8px rgba(212, 165, 116, 0.15) !important;
+  border-color: rgba(106, 146, 44, 0.68) !important;
+  box-shadow: 0 0 18px rgba(106, 146, 44, 0.28), inset 0 0 0 1px rgba(196, 225, 120, 0.18) !important;
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 /* Glowing active state for phase chip */
-.phase-chip {
-  position: relative;
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+.topbar-state .phase-chip-state {
+  color: #355116;
+  border-color: rgba(106, 146, 44, 0.68);
+  background: linear-gradient(180deg, rgba(126, 155, 66, 0.2), rgba(88, 118, 38, 0.14));
+  box-shadow: 0 0 18px rgba(106, 146, 44, 0.28), inset 0 0 0 1px rgba(196, 225, 120, 0.18);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
 }
 
-.topbar-state .phase-chip {
-  box-shadow: 0 0 12px rgba(212, 165, 116, 0.4);
-  border-color: #d4a574;
+@keyframes waitingHatchDrift {
+  0% {
+    transform: translate3d(-16px, 0, 0);
+  }
+  100% {
+    transform: translate3d(16px, 0, 0);
+  }
 }
 
-/* Animated crosshatch on phase chip when not player's turn */
-.battlefield-grid[data-phase='onion'] .topbar-state .phase-chip:last-child {
-  opacity: 0.6;
-  position: relative;
-  overflow: visible;
+.shell[data-phase='onion'] .topbar-state .phase-chip-state {
+  color: #6b2412;
+  border-color: rgba(151, 66, 31, 0.58);
+  box-shadow: 0 0 18px rgba(151, 66, 31, 0.3), inset 0 0 0 1px rgba(230, 154, 92, 0.22);
+  background: linear-gradient(180deg, rgba(177, 86, 46, 0.16), rgba(124, 48, 24, 0.12));
 }
 
-.battlefield-grid[data-phase='onion'] .topbar-state .phase-chip:last-child::before {
+.shell[data-phase='onion'] .topbar-state .phase-chip-state::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -18%;
   background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 10px,
-    rgba(255, 252, 245, 0.25) 10px,
-    rgba(255, 252, 245, 0.25) 20px
+    135deg,
+    rgba(209, 85, 38, 0) 0 10px,
+    rgba(209, 85, 38, 0.42) 10px 16px,
+    rgba(243, 169, 87, 0.3) 16px 22px
   );
+  background-size: 30px 30px;
+  animation: waitingHatchDrift 1.2s linear infinite;
   pointer-events: none;
   border-radius: inherit;
-  z-index: 1;
+  opacity: 1;
+  z-index: 0;
 }

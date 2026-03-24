@@ -189,14 +189,18 @@ function App() {
   }
 
   return (
-    <div className="shell">
+    <div className="shell" data-phase={phase}>
       <header className="topbar panel">
         <div className={`role-badge ${phase === 'defender' ? 'role-badge-active' : 'role-badge-inactive'}`}>
           Defender
         </div>
         <div className="topbar-state">
-          <div className="phase-chip">Turn 3</div>
-          <div className="phase-chip">{phaseLabels[phase]}</div>
+          <div className="phase-chip phase-chip-turn">
+            <span>Turn 3</span>
+          </div>
+          <div className="phase-chip phase-chip-state">
+            <span>{phaseLabels[phase]}</span>
+          </div>
         </div>
         <div className="topbar-meta-small">
           <div>
@@ -251,7 +255,7 @@ function App() {
         <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} phase={phase} setPhase={setPhase} />
       )}
 
-      <main className="battlefield-grid" data-phase={phase}>
+      <main className="battlefield-grid">
         <aside className="panel rail rail-left">
           <section className="section-block">
             <div className="card-head">
