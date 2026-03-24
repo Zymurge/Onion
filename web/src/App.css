@@ -897,6 +897,8 @@
     rgba(255, 252, 245, 0.15) 8px,
     rgba(255, 252, 245, 0.15) 16px
   );
+  background-size: 28px 28px;
+  background-position: 0 0;
   animation: crosshatchWave 3s linear infinite;
   pointer-events: none;
   border-radius: 8px;
