@@ -15,7 +15,9 @@
         "pnpm": true,
         "set": true,
         "git commit": true,
-        "tee": true
+        "tee": true,
+        "git fetch": true,
+        "git checkout": true
     },
     "github.copilot.chat.cli.forkSessions.enabled": true
 }
