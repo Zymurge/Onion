@@ -1,0 +1,54 @@
+// @vitest-environment jsdom
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+
+import App from './App'
+import { createGameClient, type GameSnapshot } from './lib/gameClient'
+
+describe('App with injected game client', () => {
+	it('renders from the current game snapshot', async () => {
+		const snapshot: GameSnapshot = {
+			gameId: 'game-123',
+			phase: 'defender',
+			selectedUnitId: 'puss-1',
+			mode: 'combined',
+			lastEventSeq: 47,
+		}
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue(snapshot),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId="game-123" />)
+
+		expect(await screen.findByText(/game-123/i)).not.toBeNull()
+		expect(screen.queryByText(/selected unit: puss-1/i)).not.toBeNull()
+	})
+
+	it('submits actions through the injected client', async () => {
+		const user = userEvent.setup()
+		const snapshot: GameSnapshot = {
+			gameId: 'game-123',
+			phase: 'defender',
+			selectedUnitId: 'wolf-2',
+			mode: 'fire',
+			lastEventSeq: 47,
+		}
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue(snapshot),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId="game-123" />)
+
+		await user.click(screen.getByRole('button', { name: /end phase/i }))
+
+		expect(submitAction).toHaveBeenCalledWith('game-123', { type: 'set-mode', mode: 'end-phase' })
+	})
+})
