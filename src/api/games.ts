@@ -282,7 +282,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *
    * @route POST /games
    * @body { scenarioId: string, role: PlayerRole }
-  * @returns { gameId: number, role: PlayerRole } - 201 on success
+   * @returns { gameId: number, role: PlayerRole } - 201 on success
    * @returns { ok: false, error: string, code: string } - 400 INVALID_INPUT, 404 NOT_FOUND, 500 INTERNAL_ERROR
    */
   app.post<{ Body: { scenarioId: string, role: PlayerRole } }>('/', async (req, reply) => {
