@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
 import {
   battlefieldModes,
@@ -14,6 +14,8 @@ import {
   type GameClient,
   type GameSnapshot,
 } from './lib/gameClient'
+import { createHttpGameClient } from './lib/httpGameClient'
+import type { WebRuntimeConfig } from './lib/appBootstrap'
 import './App.css'
 
 // Phase definitions
@@ -52,9 +54,17 @@ function parseAttackStats(attackString: string) {
 type AppProps = {
   gameClient?: GameClient
   gameId?: string
+  runtimeConfig?: WebRuntimeConfig
+  showConnectionGate?: boolean
 }
 
-function App({ gameClient, gameId }: AppProps) {
+type ConnectionState = {
+	apiBaseUrl: string
+	gameId: string
+	token: string
+}
+
+function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
     // Phase state
     const [phase, setPhase] = useState<Phase>('defender')
 
@@ -94,16 +104,27 @@ function App({ gameClient, gameId }: AppProps) {
   const [mode, setMode] = useState<Mode>('fire')
   const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
   const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
+  const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: string } | null>(null)
+  const [connectError, setConnectError] = useState<string | null>(null)
+  const [connectDraft, setConnectDraft] = useState<ConnectionState>({
+    apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
+    gameId: runtimeConfig?.gameId ?? '',
+    token: '',
+  })
+
+  const runtimeConnectionSeeded = showConnectionGate
+  const activeGameClient = gameClient ?? connectedSession?.gameClient
+  const activeGameIdProp = gameId ?? connectedSession?.gameId
 
   useEffect(() => {
-    if (gameClient === undefined || gameId === undefined) {
+    if (activeGameClient === undefined || activeGameIdProp === undefined) {
       setClientSnapshot(null)
       return
     }
 
     let cancelled = false
 
-    void gameClient.getState(gameId).then((snapshot) => {
+    void activeGameClient.getState(activeGameIdProp).then((snapshot) => {
       if (!cancelled) {
         setClientSnapshot(snapshot)
       }
@@ -112,22 +133,42 @@ function App({ gameClient, gameId }: AppProps) {
     return () => {
       cancelled = true
     }
-  }, [gameClient, gameId])
+  }, [activeGameClient, activeGameIdProp])
 
-  const isControlledSession = gameClient !== undefined && gameId !== undefined
+  const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? phase
   const activeMode = clientSnapshot?.mode ?? mode
   const activeSelectedUnitId = clientSnapshot?.selectedUnitId ?? selectedUnitId
-  const activeGameId = clientSnapshot?.gameId ?? gameId ?? '0aa2d94b'
+  const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? '0aa2d94b'
 
   async function commitClientAction(action: GameAction) {
-    if (!isControlledSession || gameClient === undefined || gameId === undefined) {
+    if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
       return
     }
 
-    const nextSnapshot = await gameClient.submitAction(gameId, action)
+    const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, action)
     setClientSnapshot(nextSnapshot)
   }
+
+  function handleConnect(event: FormEvent<HTMLFormElement>) {
+	  event.preventDefault()
+	  setConnectError(null)
+
+	  if (!connectDraft.apiBaseUrl.trim() || !connectDraft.gameId.trim()) {
+	    setConnectError('API base URL and game ID are required.')
+	    return
+	  }
+
+	  const nextClient = createHttpGameClient({
+	    baseUrl: connectDraft.apiBaseUrl.trim(),
+	    token: connectDraft.token.trim() || undefined,
+	  })
+
+	  setConnectedSession({
+	    gameClient: nextClient,
+	    gameId: connectDraft.gameId.trim(),
+	  })
+	}
 
   function handleSelectUnit(unitId: string) {
     if (isControlledSession) {
@@ -176,6 +217,49 @@ function App({ gameClient, gameId }: AppProps) {
       setLastSync(new Date())
       setEventStatus('ok')
     }, 800)
+  }
+
+  if (!isControlledSession && runtimeConnectionSeeded) {
+    return (
+      <div className="shell connect-shell">
+        <section className="panel connect-panel">
+          <div className="card-head">
+            <div>
+              <p className="eyebrow">Connect</p>
+              <h1>Open a live game session</h1>
+            </div>
+          </div>
+          <form className="connect-form" onSubmit={handleConnect}>
+            <label className="connect-field">
+              <span className="stat-label">API base URL</span>
+              <input
+                value={connectDraft.apiBaseUrl}
+                onChange={(event) => setConnectDraft((draft) => ({ ...draft, apiBaseUrl: event.target.value }))}
+                placeholder="http://localhost:3000"
+              />
+            </label>
+            <label className="connect-field">
+              <span className="stat-label">Game ID</span>
+              <input
+                value={connectDraft.gameId}
+                onChange={(event) => setConnectDraft((draft) => ({ ...draft, gameId: event.target.value }))}
+                placeholder="game-123"
+              />
+            </label>
+            <label className="connect-field">
+              <span className="stat-label">Bearer token</span>
+              <input
+                value={connectDraft.token}
+                onChange={(event) => setConnectDraft((draft) => ({ ...draft, token: event.target.value }))}
+                placeholder="stub.123e4567-e89b-12d3-a456-426614174000"
+              />
+            </label>
+            {connectError && <p className="connect-error" role="alert">{connectError}</p>}
+            <button type="submit" className="primary-action">Connect</button>
+          </form>
+        </section>
+      </div>
+    )
   }
 
   // Floating, draggable, resizable debug popup component
