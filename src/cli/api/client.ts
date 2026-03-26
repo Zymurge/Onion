@@ -130,7 +130,7 @@ async function requestBackendJson<T>(
     path,
     method,
     body,
-    token: session.token,
+    token: session.token ?? undefined,
   })
 
   if (!result.ok) {

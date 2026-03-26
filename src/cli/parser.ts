@@ -72,6 +72,15 @@ function parseGame(tokens: string[]): ParseResult {
       }
       return { ok: true, command: { kind: 'game-create', scenarioId: tokens[2], role } }
     }
+    case 'c': {
+      const missing = requireArgs(tokens, 'g c <scenarioId> <onion|defender>', 4)
+      if (missing) return missing
+      const role = normalizeVerb(tokens[3])
+      if (role !== 'onion' && role !== 'defender') {
+        return { ok: false, error: 'usage: g c <scenarioId> <onion|defender>' }
+      }
+      return { ok: true, command: { kind: 'game-create', scenarioId: tokens[2], role } }
+    }
     case 'join': {
       const missing = requireArgs(tokens, 'game join <gameId>', 3)
       if (missing) return missing
@@ -96,7 +105,7 @@ function parseGame(tokens: string[]): ParseResult {
     case 'ls':
       return { ok: true, command: { kind: 'game-list' } }
     default:
-      return { ok: false, error: 'usage: game create <scenarioId> <onion|defender> | game join <gameId> | game load <gameId> | game list | g [j|l|ls] ...' }
+      return { ok: false, error: 'usage: game create <scenarioId> <onion|defender> | game join <gameId> | game load <gameId> | game list | g [c|j|l|ls] ...' }
   }
 }
 

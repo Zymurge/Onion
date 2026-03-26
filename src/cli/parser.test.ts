@@ -67,6 +67,13 @@ describe('parseCommand', () => {
     })
   })
 
+  it('parses game create alias', () => {
+    expect(parseCommand('g c swamp-siege-01 defender')).toEqual({
+      ok: true,
+      command: { kind: 'game-create', scenarioId: 'swamp-siege-01', role: 'defender' },
+    })
+  })
+
   it('parses game join', () => {
     expect(parseCommand('game join 123')).toEqual({
       ok: true,
