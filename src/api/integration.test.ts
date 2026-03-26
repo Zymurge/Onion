@@ -22,7 +22,7 @@ type PhaseTracking = {
 
 type IntegrationContext = {
   app: ReturnType<typeof buildApp>
-  gameId: string
+  gameId: number
   onionUser: TestUser
   defenderUser: TestUser
   scenarioMap: ScenarioMap
@@ -44,7 +44,7 @@ async function setupIntegrationGame(seed: string, scenarioId = 'swamp-siege-01')
     payload: { scenarioId, role: 'onion' },
   })
   expect(createGameRes.statusCode).toBe(201)
-  const { gameId } = createGameRes.json<{ gameId: string }>()
+  const { gameId } = createGameRes.json<{ gameId: number }>()
 
   const joinRes = await app.inject({
     method: 'POST',

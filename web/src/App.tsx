@@ -15,8 +15,8 @@ import './App.css'
 type Phase = 'onion' | 'defender'
 const phases: Phase[] = ['onion', 'defender']
 const phaseLabels: Record<Phase, string> = {
-  onion: 'ONION_TURN',
-  defender: 'DEFENDER_COMBAT',
+  onion: 'ONION MOVEMENT',
+  defender: 'DEFENDER COMBAT',
 }
 
 function parseWeaponStats(weaponString: string) {
@@ -83,6 +83,7 @@ function App() {
     ]
   const [mode, setMode] = useState<Mode>('fire')
   const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
+  const gameId = 42
 
   const yourTurn = true
   const isOnionSelected = selectedUnitId === onion.id
@@ -209,7 +210,7 @@ function App() {
             </div>
             <div>
               <span className="stat-label-small">Game ID</span>
-              <strong>0aa2d94b</strong>
+              <strong>{gameId}</strong>
             </div>
           </div>
           <div className="utility-group-vert">

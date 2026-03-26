@@ -7,7 +7,7 @@ export interface RegisteredUser {
 }
 
 export interface CreatedGame {
-  gameId: string
+  gameId: number
   role: string
 }
 
@@ -45,7 +45,7 @@ export async function createGame(
 
 export async function joinGame(
   app: FastifyInstance,
-  gameId: string,
+  gameId: number,
   token: string,
 ): Promise<CreatedGame> {
   const res = await app.inject({
@@ -59,7 +59,7 @@ export async function joinGame(
 
 export async function getGame(
   app: FastifyInstance,
-  gameId: string,
+  gameId: number,
   token: string,
 ) {
   return app.inject({
@@ -71,7 +71,7 @@ export async function getGame(
 
 export async function getEvents(
   app: FastifyInstance,
-  gameId: string,
+  gameId: number,
   token: string,
   after = 0,
 ) {
@@ -84,7 +84,7 @@ export async function getEvents(
 
 export async function submitAction(
   app: FastifyInstance,
-  gameId: string,
+  gameId: number,
   token: string,
   payload: Record<string, unknown>,
 ) {
@@ -98,7 +98,7 @@ export async function submitAction(
 
 export async function endPhase(
   app: FastifyInstance,
-  gameId: string,
+  gameId: number,
   token: string,
 ) {
   return submitAction(app, gameId, token, { type: 'END_PHASE' })
@@ -114,7 +114,7 @@ function phaseTokenFor(
 
 export async function advanceToPhase(
   app: FastifyInstance,
-  gameId: string,
+  gameId: number,
   onionToken: string,
   defenderToken: string,
   targetPhase: string,

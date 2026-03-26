@@ -3,7 +3,6 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import pg from 'pg'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { randomUUID } from 'node:crypto'
 import { PostgresDb } from './postgres.js'
 import type { MatchRecord } from './adapter.js'
 
@@ -20,9 +19,8 @@ const SAMPLE_STATE = {
   defenders: {},
 }
 
-function makeMatch(overrides: Partial<MatchRecord> = {}): MatchRecord {
+function makeMatch(overrides: Partial<Omit<MatchRecord, 'gameId'>> = {}): Omit<MatchRecord, 'gameId'> {
   return {
-    gameId: randomUUID(),
     scenarioId: 'swamp-siege-01',
     scenarioSnapshot: { id: 'swamp-siege-01', displayName: 'The Siege of Shrek\'s Swamp' },
     players: { onion: null, defender: null },
@@ -81,9 +79,9 @@ describe('PostgresDb - auth', () => {
 describe('PostgresDb - games', () => {
   it('createMatch then findMatch roundtrip', async () => {
     const match = makeMatch()
-    await db.createMatch(match)
-    const found = await db.findMatch(match.gameId)
-    expect(found?.gameId).toBe(match.gameId)
+    const created = await db.createMatch(match)
+    const found = await db.findMatch(created.gameId)
+    expect(found?.gameId).toBe(created.gameId)
     expect(found?.scenarioId).toBe('swamp-siege-01')
     expect((found?.scenarioSnapshot as any)?.displayName).toBe('The Siege of Shrek\'s Swamp')
     expect(found?.phase).toBe('ONION_MOVE')
@@ -95,26 +93,26 @@ describe('PostgresDb - games', () => {
   })
 
   it('findMatch returns null for unknown gameId', async () => {
-    expect(await db.findMatch(randomUUID())).toBeNull()
+    expect(await db.findMatch(999999)).toBeNull()
   })
 
   it('updateMatchPlayers persists player assignment', async () => {
     const { userId } = await db.createUser('shrek', 'x')
     const match = makeMatch()
-    await db.createMatch(match)
-    await db.updateMatchPlayers(match.gameId, { onion: userId, defender: null })
-    const found = await db.findMatch(match.gameId)
+    const created = await db.createMatch(match)
+    await db.updateMatchPlayers(created.gameId, { onion: userId, defender: null })
+    const found = await db.findMatch(created.gameId)
     expect(found?.players.onion).toBe(userId)
     expect(found?.players.defender).toBeNull()
   })
 
   it('updateMatchState persists phase, turnNumber, and state', async () => {
     const match = makeMatch()
-    await db.createMatch(match)
+    const created = await db.createMatch(match)
     const newState = structuredClone(SAMPLE_STATE)
     newState.onion.treads = 30
-    await db.updateMatchState(match.gameId, 'ONION_COMBAT', 2, null, newState)
-    const found = await db.findMatch(match.gameId)
+    await db.updateMatchState(created.gameId, 'ONION_COMBAT', 2, null, newState)
+    const found = await db.findMatch(created.gameId)
     expect(found?.phase).toBe('ONION_COMBAT')
     expect(found?.turnNumber).toBe(2)
     expect(found?.state.onion.treads).toBe(30)
@@ -122,23 +120,23 @@ describe('PostgresDb - games', () => {
 
   it('appendEvents + getEvents roundtrip with after filter', async () => {
     const match = makeMatch()
-    await db.createMatch(match)
+    const created = await db.createMatch(match)
     const ts = new Date().toISOString()
-    await db.appendEvents(match.gameId, [
+    await db.appendEvents(created.gameId, [
       { seq: 1, type: 'PHASE_CHANGED', timestamp: ts, from: 'ONION_MOVE', to: 'ONION_COMBAT', turnNumber: 1 },
       { seq: 2, type: 'PHASE_CHANGED', timestamp: ts, from: 'ONION_COMBAT', to: 'DEFENDER_RECOVERY', turnNumber: 1 },
     ])
-    const all = await db.getEvents(match.gameId, 0)
+    const all = await db.getEvents(created.gameId, 0)
     expect(all).toHaveLength(2)
     expect(all[0].seq).toBe(1)
     expect(all[0].type).toBe('PHASE_CHANGED')
 
-    const after1 = await db.getEvents(match.gameId, 1)
+    const after1 = await db.getEvents(created.gameId, 1)
     expect(after1).toHaveLength(1)
     expect(after1[0].seq).toBe(2)
   })
 
   it('getEvents returns [] for unknown gameId', async () => {
-    expect(await db.getEvents(randomUUID(), 0)).toEqual([])
+    expect(await db.getEvents(999999, 0)).toEqual([])
   })
 })

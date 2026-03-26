@@ -13,7 +13,8 @@ import type { DbAdapter, MatchRecord, PersistMatchProgressInput } from './adapte
  */
 export class InMemoryDb implements DbAdapter {
   private users = new Map<string, UserRecord>() // keyed by username
-  private matches = new Map<string, MatchRecord>() // keyed by gameId
+  private nextMatchId = 1
+  private matches = new Map<number, MatchRecord>() // keyed by gameId
 
   async findUserByUsername(username: string): Promise<{ userId: string; passwordHash: string } | null> {
     const record = this.users.get(username)
@@ -26,15 +27,17 @@ export class InMemoryDb implements DbAdapter {
     return { userId }
   }
 
-  async createMatch(match: MatchRecord): Promise<void> {
+  async createMatch(match: Omit<MatchRecord, 'gameId'>): Promise<{ gameId: number }> {
     // Defensive: ensure displayName is present if possible
     if (typeof match.scenarioSnapshot === 'object' && match.scenarioSnapshot && 'name' in match.scenarioSnapshot && !('displayName' in match.scenarioSnapshot)) {
       (match.scenarioSnapshot as any).displayName = (match.scenarioSnapshot as any).name
     }
-    this.matches.set(match.gameId, structuredClone(match))
+    const gameId = this.nextMatchId++
+    this.matches.set(gameId, structuredClone({ ...match, gameId }))
+    return { gameId }
   }
 
-  async findMatch(gameId: string): Promise<MatchRecord | null> {
+  async findMatch(gameId: number): Promise<MatchRecord | null> {
     const m = this.matches.get(gameId)
     return m ? structuredClone(m) : null
   }
@@ -49,13 +52,13 @@ export class InMemoryDb implements DbAdapter {
     return results
   }
 
-  async updateMatchPlayers(gameId: string, players: { onion: string | null; defender: string | null }): Promise<void> {
+  async updateMatchPlayers(gameId: number, players: { onion: string | null; defender: string | null }): Promise<void> {
     const m = this.matches.get(gameId)
     if (!m) throw new Error(`Match not found: ${gameId}`)
     m.players = players
   }
 
-  async updateMatchState(gameId: string, phase: TurnPhase, turnNumber: number, winner: string | null, state: GameState): Promise<void> {
+  async updateMatchState(gameId: number, phase: TurnPhase, turnNumber: number, winner: string | null, state: GameState): Promise<void> {
     const m = this.matches.get(gameId)
     if (!m) throw new Error(`Match not found: ${gameId}`)
     m.phase = phase
@@ -82,13 +85,13 @@ export class InMemoryDb implements DbAdapter {
     m.events.push(...structuredClone(input.events))
   }
 
-  async appendEvents(gameId: string, events: EventEnvelope[]): Promise<void> {
+  async appendEvents(gameId: number, events: EventEnvelope[]): Promise<void> {
     const m = this.matches.get(gameId)
     if (!m) throw new Error(`Match not found: ${gameId}`)
     m.events.push(...events)
   }
 
-  async getEvents(gameId: string, after: number): Promise<EventEnvelope[]> {
+  async getEvents(gameId: number, after: number): Promise<EventEnvelope[]> {
     const m = this.matches.get(gameId)
     if (!m) return []
     return m.events.filter((e) => e.seq > after)
