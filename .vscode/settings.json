@@ -7,5 +7,6 @@
         "set": true,
         "git commit": true,
         "tee": true
-    }
+    },
+    "github.copilot.chat.cli.forkSessions.enabled": true
 }
