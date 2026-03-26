@@ -3,6 +3,7 @@ import logger from '../logger.js'
 import { randomUUID } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { z } from 'zod'
 
 import type { TurnPhase, GameState, EventEnvelope, PlayerRole, Command } from '../types/index.js'
 import type { DbAdapter, MatchRecord } from '../db/adapter.js'
@@ -14,9 +15,15 @@ import { validateUnitMovement, executeUnitMovement, validateCombatAction, execut
 import type { EngineGameState } from '../engine/units.js'
 import { InitialStateSchema } from '../engine/scenarioSchema.js'
 import { normalizeInitialStateToGameState } from '../engine/scenarioNormalizer.js'
+import { resolveScenariosDir } from './scenarioPaths.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenarios')
+const SCENARIOS_DIR = resolveScenariosDir()
+
+const CreateGameSchema = z.object({
+  scenarioId: z.string().min(1),
+  role: z.enum(['onion', 'defender']),
+})
 
 type ScenarioSnapshot = {
   name?: string
@@ -274,17 +281,15 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    */
   app.post<{ Body: { scenarioId: string, role: PlayerRole } }>('/', async (req, reply) => {
     try {
-      const { scenarioId, role } = req.body
+      const parsed = CreateGameSchema.safeParse(req.body)
+      if (!parsed.success) {
+        return reply.status(400).send({ ok: false, error: 'Invalid input', code: 'INVALID_INPUT' })
+      }
+      const { scenarioId, role } = parsed.data
       logger.info({ scenarioId, role }, 'Creating new game match')
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for game creation')
-      if (!scenarioId) return reply.status(400).send({ ok: false, error: 'scenarioId is required', code: 'INVALID_INPUT' })
-      if (!role) return reply.status(400).send({ ok: false, error: 'role is required', code: 'INVALID_INPUT' })
-      if (role !== 'onion' && role !== 'defender') {
-        logger.warn({ role }, 'Invalid role specified')
-        return reply.status(400).send({ ok: false, error: 'role must be "onion" or "defender"', code: 'INVALID_INPUT' })
-      }
       const scenarioSnapshot = await loadScenario(scenarioId) as ScenarioSnapshot | null
       if (!scenarioSnapshot) {
         logger.warn({ scenarioId }, 'Scenario not found')
@@ -293,34 +298,30 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       let state: GameState
       if (scenarioSnapshot.initialState) {
         try {
-          const parsed = InitialStateSchema.parse(scenarioSnapshot.initialState)
-          state = normalizeInitialStateToGameState(parsed)
+          const parsedState = InitialStateSchema.parse(scenarioSnapshot.initialState)
+          state = normalizeInitialStateToGameState(parsedState)
         } catch (err) {
           logger.error({ err }, 'Invalid scenario initialState')
           return reply.status(400).send({ ok: false, error: 'Invalid scenario initialState', code: 'INVALID_SCENARIO' })
         }
       } else {
-        state = structuredClone(INITIAL_STATE)
+        state = { ...INITIAL_STATE }
       }
       const gameId = randomUUID()
       await db.createMatch({
         gameId,
         scenarioId,
         scenarioSnapshot,
-        players: {
-          onion: role === 'onion' ? userId : null,
-          defender: role === 'defender' ? userId : null,
-        },
+        state,
+        players: { [role]: userId },
         phase: 'ONION_MOVE',
         turnNumber: 1,
         winner: null,
-        state,
         events: [],
       })
-      logger.info({ gameId, role }, 'Game match created')
       return reply.status(201).send({ gameId, role })
     } catch (err) {
-      logger.error({ err }, 'Error creating game match')
+      logger.error({ err }, 'Failed to create game match')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })

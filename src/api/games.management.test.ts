@@ -33,7 +33,7 @@ describe('POST /games', () => {
     expect(res.statusCode).toBe(401)
   })
 
-  it('returns 400 with specific message for invalid role', async () => {
+  it('returns 400 INVALID_INPUT for invalid role', async () => {
     const app = buildApp()
     const { token } = await register(app, 'shrek')
 
@@ -46,10 +46,9 @@ describe('POST /games', () => {
 
     expect(res.statusCode).toBe(400)
     expect(res.json().code).toBe('INVALID_INPUT')
-    expect(res.json().error).toBe('role must be "onion" or "defender"')
   })
 
-  it('returns 400 with specific message for missing scenarioId', async () => {
+  it('returns 400 INVALID_INPUT for missing scenarioId', async () => {
     const app = buildApp()
     const { token } = await register(app, 'shrek')
 
@@ -62,7 +61,51 @@ describe('POST /games', () => {
 
     expect(res.statusCode).toBe(400)
     expect(res.json().code).toBe('INVALID_INPUT')
-    expect(res.json().error).toBe('scenarioId is required')
+  })
+
+  it('returns 400 INVALID_INPUT for missing role', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { scenarioId: 'swamp-siege-01' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('INVALID_INPUT')
+  })
+
+  it('returns 400 INVALID_INPUT for non-string scenarioId', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { scenarioId: 123, role: 'onion' },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('INVALID_INPUT')
+  })
+
+  it('returns 400 INVALID_INPUT for non-string role', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { scenarioId: 'swamp-siege-01', role: 123 },
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('INVALID_INPUT')
   })
 
   it('returns 404 for unknown scenarioId', async () => {

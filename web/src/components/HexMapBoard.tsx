@@ -1,5 +1,5 @@
 import { axialToPixel, boardPixelSize, hexCorners, hexKey, pointsToString } from '../lib/hex'
-import { terrainCode, unitCode, type BattlefieldUnit, type Mode, type TerrainHex } from '../mockBattlefield'
+import { unitCode, type BattlefieldUnit, type Mode, type TerrainHex } from '../mockBattlefield'
 import './HexMapBoard.css'
 
 type OnionView = {

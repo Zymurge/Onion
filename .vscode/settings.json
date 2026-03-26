@@ -1,12 +1,23 @@
 {
     "vitest.packageManager": "pnpm",
     "vitest.configSearchPatternExclude": "**/node_modules/**",
+    "files.exclude": {
+        "dist": true
+    },
+    "search.exclude": {
+        "dist": true
+    },
+    "files.watcherExclude": {
+        "dist/**": true
+    },
     "chat.tools.terminal.autoApprove": {
         "git worktree": true,
         "pnpm": true,
         "set": true,
         "git commit": true,
-        "tee": true
+        "tee": true,
+        "git fetch": true,
+        "git checkout": true
     },
     "github.copilot.chat.cli.forkSessions.enabled": true
 }
