@@ -1,29 +1,8 @@
-import type { ActionOkResponse, Command, EventEnvelope, GameState, TurnPhase } from '../../types/index.js'
 import logger from '../../logger.js'
+import type { ActionOkResponse, Command, EventEnvelope, GameState, TurnPhase } from '../../types/index.js'
+export { formatApiError } from '../../shared/apiProtocol.js'
+import { requestJson, type ApiResult } from '../../shared/apiProtocol.js'
 import type { SessionRole, SessionStore } from '../session/store.js'
-
-type ApiErrorBody = {
-  ok?: false
-  error?: string
-  code?: string
-  detailCode?: string
-  currentPhase?: string
-}
-
-type ApiSuccess<T> = {
-  ok: true
-  status: number
-  data: T
-}
-
-type ApiFailure = {
-  ok: false
-  status: number
-  body: ApiErrorBody | unknown
-  message: string
-}
-
-export type ApiResult<T> = ApiSuccess<T> | ApiFailure
 
 export type AuthResponse = {
   userId: string
@@ -129,46 +108,12 @@ function summarizeResponse(data: unknown): Record<string, unknown> {
   return summary
 }
 
-function buildUrl(session: SessionStore, path: string): string {
-  const baseUrl = session.baseUrl?.trim()
-  if (!baseUrl) {
-    throw new Error('Backend URL is not configured. Use: config set url <url>')
-  }
-
-  return new URL(path, `${baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`}`).toString()
-}
-
-async function parseBody(response: Response): Promise<unknown> {
-  const text = await response.text()
-  if (!text) {
-    return null
-  }
-
-  try {
-    return JSON.parse(text) as unknown
-  } catch {
-    return text
-  }
-}
-
-function buildHeaders(session: SessionStore, includeJson = true): HeadersInit {
-  const headers: Record<string, string> = {}
-  if (includeJson) {
-    headers['content-type'] = 'application/json'
-  }
-  if (session.token) {
-    headers.authorization = `Bearer ${session.token}`
-  }
-  return headers
-}
-
-async function requestJson<T>(
+async function requestBackendJson<T>(
   session: SessionStore,
   method: string,
   path: string,
   body?: unknown,
 ): Promise<ApiResult<T>> {
-  let response: Response
   const requestBody = sanitizeRequestBody(body)
 
   logger.debug(
@@ -180,105 +125,54 @@ async function requestJson<T>(
     'CLI -> backend request',
   )
 
-  try {
-    response = await fetch(buildUrl(session, path), {
-      method,
-      headers: buildHeaders(session),
-      body: body === undefined ? undefined : JSON.stringify(body),
-    })
-  } catch (error) {
-    logger.error(
-      {
-        method,
-        path,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      'CLI network error while calling backend',
-    )
-    return {
-      ok: false,
-      status: 0,
-      body: null,
-      message: error instanceof Error ? error.message : 'Unknown network error',
-    }
-  }
+  const result = await requestJson<T>({
+    baseUrl: session.baseUrl ?? '',
+    path,
+    method,
+    body,
+    token: session.token,
+  })
 
-  const parsed = await parseBody(response)
-  if (!response.ok) {
-    const errorBody = typeof parsed === 'object' && parsed !== null ? parsed as ApiErrorBody : parsed
+  if (!result.ok) {
     logger.debug(
       {
         method,
         path,
-        status: response.status,
-        response: summarizeResponse(parsed),
+        status: result.status,
+        response: summarizeResponse(result.body),
       },
       'CLI <- backend error response',
     )
-    return {
-      ok: false,
-      status: response.status,
-      body: errorBody,
-      message:
-        typeof errorBody === 'object' && errorBody !== null && 'error' in errorBody && typeof errorBody.error === 'string'
-          ? errorBody.error
-          : response.statusText || 'Request failed',
-    }
+    return result
   }
 
   logger.debug(
     {
       method,
       path,
-      status: response.status,
-      response: summarizeResponse(parsed),
+      status: result.status,
+      response: summarizeResponse(result.data),
     },
     'CLI <- backend response',
   )
 
-  return {
-    ok: true,
-    status: response.status,
-    data: parsed as T,
-  }
-}
-
-export function formatApiError(result: ApiFailure): string {
-  const lines = ['Request failed', `status: ${result.status || '(network error)'}`]
-  if (typeof result.body === 'object' && result.body !== null) {
-    const body = result.body as ApiErrorBody
-    if (body.code) lines.push(`code: ${body.code}`)
-    if (body.detailCode) lines.push(`detailCode: ${body.detailCode}`)
-    if (body.currentPhase) lines.push(`phase: ${body.currentPhase}`)
-    if (body.error) lines.push(`error: ${body.error}`)
-
-    if (body.detailCode === 'DUPLICATE_ATTACKER') {
-      lines.push('hint: remove duplicate attackers from the command')
-    }
-    if (body.detailCode === 'TARGET_OUT_OF_RANGE') {
-      lines.push('hint: attackers are validated left-to-right; the first out-of-range attacker stops the action')
-    }
-  } else if (result.message) {
-    lines.push(`error: ${result.message}`)
-  }
-
-  return lines.join('\n')
+  return result
 }
 
 export function registerUser(session: SessionStore, username: string, password: string): Promise<ApiResult<AuthResponse>> {
-  return requestJson<AuthResponse>(session, 'POST', 'auth/register', { username, password })
+  return requestBackendJson<AuthResponse>(session, 'POST', 'auth/register', { username, password })
 }
 
 export function loginUser(session: SessionStore, username: string, password: string): Promise<ApiResult<AuthResponse>> {
-  return requestJson<AuthResponse>(session, 'POST', 'auth/login', { username, password })
+  return requestBackendJson<AuthResponse>(session, 'POST', 'auth/login', { username, password })
 }
 
 export function listScenarios(session: SessionStore): Promise<ApiResult<ScenarioSummary[]>> {
-  return requestJson<ScenarioSummary[]>(session, 'GET', 'scenarios')
+  return requestBackendJson<ScenarioSummary[]>(session, 'GET', 'scenarios')
 }
 
 export function getScenario(session: SessionStore, scenarioId: string): Promise<ApiResult<ScenarioDetail>> {
-  return requestJson<ScenarioDetail>(session, 'GET', `scenarios/${scenarioId}`)
+  return requestBackendJson<ScenarioDetail>(session, 'GET', `scenarios/${scenarioId}`)
 }
 
 export function createGame(
@@ -286,11 +180,11 @@ export function createGame(
   scenarioId: string,
   role: SessionRole,
 ): Promise<ApiResult<CreateOrJoinGameResponse>> {
-  return requestJson<CreateOrJoinGameResponse>(session, 'POST', 'games', { scenarioId, role })
+  return requestBackendJson<CreateOrJoinGameResponse>(session, 'POST', 'games', { scenarioId, role })
 }
 
 export function joinGame(session: SessionStore, gameId: string): Promise<ApiResult<CreateOrJoinGameResponse>> {
-  return requestJson<CreateOrJoinGameResponse>(session, 'POST', `games/${gameId}/join`, {})
+  return requestBackendJson<CreateOrJoinGameResponse>(session, 'POST', `games/${gameId}/join`, {})
 }
 
 export type GameListEntry = {
@@ -307,17 +201,17 @@ export type GameListResponse = {
 }
 
 export function listGames(session: SessionStore): Promise<ApiResult<GameListResponse>> {
-  return requestJson<GameListResponse>(session, 'GET', 'games')
+  return requestBackendJson<GameListResponse>(session, 'GET', 'games')
 }
 
 export function getGame(session: SessionStore, gameId: string): Promise<ApiResult<GameStateResponse>> {
-  return requestJson<GameStateResponse>(session, 'GET', `games/${gameId}`)
+  return requestBackendJson<GameStateResponse>(session, 'GET', `games/${gameId}`)
 }
 
 export function getEvents(session: SessionStore, gameId: string, after = 0): Promise<ApiResult<EventsResponse>> {
-  return requestJson<EventsResponse>(session, 'GET', `games/${gameId}/events?after=${after}`)
+  return requestBackendJson<EventsResponse>(session, 'GET', `games/${gameId}/events?after=${after}`)
 }
 
 export function submitAction(session: SessionStore, gameId: string, command: Command): Promise<ApiResult<ActionResponse>> {
-  return requestJson<ActionResponse>(session, 'POST', `games/${gameId}/actions`, command)
+  return requestBackendJson<ActionResponse>(session, 'POST', `games/${gameId}/actions`, command)
 }
