@@ -23,8 +23,8 @@ import './App.css'
 type Phase = 'onion' | 'defender'
 const phases: Phase[] = ['onion', 'defender']
 const phaseLabels: Record<Phase, string> = {
-  onion: 'ONION_TURN',
-  defender: 'DEFENDER_COMBAT',
+  onion: 'ONION MOVEMENT',
+  defender: 'DEFENDER COMBAT',
 }
 
 function parseWeaponStats(weaponString: string) {
@@ -147,7 +147,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const activePhase = clientSnapshot?.phase ?? phase
   const activeMode = clientSnapshot?.mode ?? mode
   const activeSelectedUnitId = clientSnapshot?.selectedUnitId ?? selectedUnitId
-  const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? 0
+  const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? 42
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {

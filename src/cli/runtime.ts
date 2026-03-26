@@ -67,7 +67,7 @@ function applyAuth(session: SessionStore, username: string, userId: string, toke
 
 function applyGameSnapshot(
   session: SessionStore,
-  gameId: string,
+  gameId: string | number,
   scenarioId: string,
   phase: string,
   turnNumber: number,
@@ -75,7 +75,7 @@ function applyGameSnapshot(
   eventSeq: number,
   state?: import('../types/index.js').GameState,
 ): void {
-  session.gameId = gameId
+  session.gameId = String(gameId)
   session.scenarioId = scenarioId
   session.phase = phase
   session.turnNumber = turnNumber
@@ -309,7 +309,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
     case 'game-create': {
       const result = await createGame(session, command.scenarioId, command.role)
       if (!result.ok) return { message: formatApiError(result) }
-      session.gameId = result.data.gameId
+      session.gameId = String(result.data.gameId)
       session.role = result.data.role
       session.scenarioId = command.scenarioId
       return {
@@ -319,7 +319,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
     case 'game-join': {
       const result = await joinGame(session, command.gameId)
       if (!result.ok) return { message: formatApiError(result) }
-      session.gameId = result.data.gameId
+      session.gameId = String(result.data.gameId)
       session.role = result.data.role
       // Auto-refresh: fetch and apply game state after join
       const gameResult = await getGame(session, command.gameId)

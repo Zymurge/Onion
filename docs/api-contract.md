@@ -87,7 +87,7 @@ Create a new game. The caller is assigned a role.
 
 ```text
 Request:  { "scenarioId": string, "role": "onion" | "defender" }
-Response: { "gameId": string, "role": "onion" | "defender" }
+Response: { "gameId": number, "role": "onion" | "defender" }
 Errors:   400 INVALID_INPUT if role is not "onion" or "defender"
           404 NOT_FOUND if scenarioId does not match a known scenario
           400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
@@ -103,7 +103,7 @@ Join an existing game as the remaining role.
 
 ```text
 Request:  {} (empty — role is inferred as whichever is unfilled)
-Response: { "gameId": string, "role": "onion" | "defender" }
+Response: { "gameId": number, "role": "onion" | "defender" }
 Errors:   404 game not found
           409 game already full
           400 cannot join your own game
@@ -118,7 +118,7 @@ Full current game state. Suitable for initial render and reconnect.
 
 ```text
 Response: {
-  "gameId":      string,
+  "gameId":      number,
   "scenarioId":  string,
   "scenarioDisplayName": string,
   "phase":       TurnPhase,

@@ -16,12 +16,12 @@ export type ScenarioSummary = {
 }
 
 export type CreateOrJoinGameResponse = {
-  gameId: string
+  gameId: number
   role: SessionRole
 }
 
 export type GameStateResponse = {
-  gameId: string
+  gameId: number
   scenarioId: string
   scenarioName?: string
   phase: TurnPhase
@@ -188,7 +188,7 @@ export function joinGame(session: SessionStore, gameId: string): Promise<ApiResu
 }
 
 export type GameListEntry = {
-  gameId: string
+  gameId: number
   scenarioId: string
   phase: string
   turnNumber: number

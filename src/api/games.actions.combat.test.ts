@@ -224,11 +224,11 @@ describe('POST /games/:id/actions combat API contract', () => {
   it('returns 409 when persistence detects stale state for combat action', async () => {
     const onionId = '11111111-1111-4111-8111-111111111111'
     const defenderId = '22222222-2222-4222-8222-222222222222'
-    const gameId = '33333333-3333-4333-8333-333333333333'
+    const gameId = 333333333
     const mockDb = {
       createUser: async () => ({ userId: onionId }),
       findUserByUsername: async () => null,
-      createMatch: async () => {},
+      createMatch: async () => ({ gameId: 333333333 }),
       findMatch: async () => ({
         gameId,
         scenarioId: 'swamp-siege-01',

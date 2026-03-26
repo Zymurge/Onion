@@ -16,8 +16,8 @@ describe('POST /games', () => {
     })
 
     expect(res.statusCode).toBe(201)
-    const body = res.json<{ gameId: string; role: string }>()
-    expect(typeof body.gameId).toBe('string')
+    const body = res.json<{ gameId: number; role: string }>()
+    expect(typeof body.gameId).toBe('number')
     expect(body.role).toBe('onion')
   })
 
@@ -290,7 +290,7 @@ describe('GET /games', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    const body = res.json<{ games: Array<{ gameId: string; role: string; scenarioId: string; scenarioDisplayName: string }> }>()
+    const body = res.json<{ games: Array<{ gameId: number; role: string; scenarioId: string; scenarioDisplayName: string }> }>()
     expect(body.games).toHaveLength(1)
     expect(body.games[0].gameId).toBe(gameId)
     expect(body.games[0].role).toBe('onion')
@@ -312,7 +312,7 @@ describe('GET /games', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    const body = res.json<{ games: Array<{ gameId: string; role: string }> }>()
+    const body = res.json<{ games: Array<{ gameId: number; role: string }> }>()
     expect(body.games).toHaveLength(1)
     expect(body.games[0].gameId).toBe(gameId)
     expect(body.games[0].role).toBe('defender')
