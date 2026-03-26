@@ -25,7 +25,7 @@ describe('App with injected game client', () => {
 		render(<App gameClient={client} gameId="game-123" />)
 
 		expect(await screen.findByText(/game-123/i)).not.toBeNull()
-		expect(screen.queryByText(/selected unit: puss-1/i)).not.toBeNull()
+		expect(screen.getByText(/Selected unit: puss-1/i)).not.toBeNull()
 	})
 
 	it('submits actions through the injected client', async () => {
@@ -46,6 +46,8 @@ describe('App with injected game client', () => {
 		})
 
 		render(<App gameClient={client} gameId="game-123" />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
 
 		await user.click(screen.getByRole('button', { name: /end phase/i }))
 

@@ -9,6 +9,11 @@ import {
   statusTone,
   type Mode,
 } from './mockBattlefield'
+import {
+  type GameAction,
+  type GameClient,
+  type GameSnapshot,
+} from './lib/gameClient'
 import './App.css'
 
 // Phase definitions
@@ -44,10 +49,15 @@ function parseAttackStats(attackString: string) {
   return { damage, range }
 }
 
-function App() {
+type AppProps = {
+  gameClient?: GameClient
+  gameId?: string
+}
+
+function App({ gameClient, gameId }: AppProps) {
     // Phase state
     const [phase, setPhase] = useState<Phase>('defender')
-    
+
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
     const mockDebugLines = [
@@ -83,13 +93,66 @@ function App() {
     ]
   const [mode, setMode] = useState<Mode>('fire')
   const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
+  const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
+
+  useEffect(() => {
+    if (gameClient === undefined || gameId === undefined) {
+      setClientSnapshot(null)
+      return
+    }
+
+    let cancelled = false
+
+    void gameClient.getState(gameId).then((snapshot) => {
+      if (!cancelled) {
+        setClientSnapshot(snapshot)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [gameClient, gameId])
+
+  const isControlledSession = gameClient !== undefined && gameId !== undefined
+  const activePhase = clientSnapshot?.phase ?? phase
+  const activeMode = clientSnapshot?.mode ?? mode
+  const activeSelectedUnitId = clientSnapshot?.selectedUnitId ?? selectedUnitId
+  const activeGameId = clientSnapshot?.gameId ?? gameId ?? '0aa2d94b'
+
+  async function commitClientAction(action: GameAction) {
+    if (!isControlledSession || gameClient === undefined || gameId === undefined) {
+      return
+    }
+
+    const nextSnapshot = await gameClient.submitAction(gameId, action)
+    setClientSnapshot(nextSnapshot)
+  }
+
+  function handleSelectUnit(unitId: string) {
+    if (isControlledSession) {
+      void commitClientAction({ type: 'select-unit', unitId })
+      return
+    }
+
+    setSelectedUnitId(unitId)
+  }
+
+  function handleModeChange(nextMode: Mode) {
+    if (isControlledSession) {
+      void commitClientAction({ type: 'set-mode', mode: nextMode })
+      return
+    }
+
+    setMode(nextMode)
+  }
 
   const yourTurn = true
-  const isOnionSelected = selectedUnitId === onion.id
-  const selectedDefender = defenders.find((unit) => unit.id === selectedUnitId)
+  const isOnionSelected = activeSelectedUnitId === onion.id
+  const selectedDefender = defenders.find((unit) => unit.id === activeSelectedUnitId)
   const selectedUnit = selectedDefender ?? defenders[0]
-  const targetLabel = mode === 'end-phase' ? 'No target required' : 'onion / treads'
-  const selectedUnitIsActionable = selectedUnit.actionableModes.includes(mode)
+  const targetLabel = activeMode === 'end-phase' ? 'No target required' : 'onion / treads'
+  const selectedUnitIsActionable = selectedUnit.actionableModes.includes(activeMode)
   const onionWeapons = parseWeaponStats(onion.weapons)
 
   // Simulated last sync and event status for UI demo
@@ -97,6 +160,17 @@ function App() {
   const [eventStatus, setEventStatus] = useState<'ok' | 'fetching' | 'error'>('ok')
 
   function handleRefresh() {
+    if (isControlledSession) {
+      setEventStatus('fetching')
+      void commitClientAction({ type: 'refresh' }).then(() => {
+        setLastSync(new Date())
+        setEventStatus('ok')
+      }).catch(() => {
+        setEventStatus('error')
+      })
+      return
+    }
+
     setEventStatus('fetching')
     setTimeout(() => {
       setLastSync(new Date())
@@ -188,9 +262,9 @@ function App() {
   }
 
   return (
-    <div className="shell" data-phase={phase}>
+    <div className="shell" data-phase={activePhase}>
       <header className="topbar panel">
-        <div className={`role-badge ${phase === 'defender' ? 'role-badge-active' : 'role-badge-inactive'}`}>
+        <div className={`role-badge ${activePhase === 'defender' ? 'role-badge-active' : 'role-badge-inactive'}`}>
           Defender
         </div>
         <div className="topbar-state">
@@ -198,7 +272,7 @@ function App() {
             <span>Turn 3</span>
           </div>
           <div className="phase-chip phase-chip-state">
-            <span>{phaseLabels[phase]}</span>
+            <span>{phaseLabels[activePhase]}</span>
           </div>
         </div>
         <div className="header-utility-controls">
@@ -209,7 +283,7 @@ function App() {
             </div>
             <div>
               <span className="stat-label-small">Game ID</span>
-              <strong>0aa2d94b</strong>
+              <strong>{activeGameId}</strong>
             </div>
           </div>
           <div className="utility-group-vert">
@@ -251,7 +325,7 @@ function App() {
       </header>
 
       {debugOpen && (
-        <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} phase={phase} setPhase={setPhase} />
+        <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} phase={activePhase} setPhase={setPhase} />
       )}
 
       <main className="battlefield-grid">
@@ -262,8 +336,8 @@ function App() {
             </div>
             <button
               type="button"
-              className={`onion-card-button ${selectedUnit.id === onion.id ? 'is-selected' : ''}`}
-              onClick={() => setSelectedUnitId(onion.id)}
+              className={`onion-card-button ${activeSelectedUnitId === onion.id ? 'is-selected' : ''}`}
+              onClick={() => handleSelectUnit(onion.id)}
             >
               <h3>{onion.id}</h3>
               <div className="unit-summary">
@@ -287,8 +361,8 @@ function App() {
             </div>
             <div className="defender-list">
               {defenders.map((unit) => {
-                const isSelected = unit.id === selectedUnit.id
-                const isActionable = unit.actionableModes.includes(mode)
+                const isSelected = unit.id === activeSelectedUnitId
+                const isActionable = unit.actionableModes.includes(activeMode)
                 const attackStats = parseAttackStats(unit.attack)
                 return (
                   <button
@@ -300,7 +374,7 @@ function App() {
                       isActionable ? 'is-actionable' : '',
                       `tone-${statusTone(unit.status)}`,
                     ].join(' ')}
-                    onClick={() => setSelectedUnitId(unit.id)}
+                    onClick={() => handleSelectUnit(unit.id)}
                   >
                     <p className="eyebrow">{unit.type}</p>
                     <h3>{unit.id}</h3>
@@ -324,9 +398,9 @@ function App() {
               scenarioMap={scenarioMap}
               defenders={defenders}
               onion={onion}
-              mode={mode}
-              selectedUnitId={selectedUnit.id}
-              onSelectUnit={setSelectedUnitId}
+              mode={activeMode}
+              selectedUnitId={activeSelectedUnitId}
+              onSelectUnit={handleSelectUnit}
             />
           </div>
         </section>
@@ -347,20 +421,20 @@ function App() {
                   <button
                     key={entry.id}
                     type="button"
-                    className={`mode-button ${entry.id === mode ? 'mode-button-active' : ''}`}
-                    onClick={() => setMode(entry.id)}
+                    className={`mode-button ${entry.id === activeMode ? 'mode-button-active' : ''}`}
+                    onClick={() => handleModeChange(entry.id)}
                   >
                     {entry.label}
                   </button>
                 ))}
               </div>
 
-              <p className="helper-copy">{battlefieldModes.find((entry) => entry.id === mode)?.helper}</p>
+              <p className="helper-copy">{battlefieldModes.find((entry) => entry.id === activeMode)?.helper}</p>
 
               <div className="composer-grid">
                 <div className="composer-field">
                   <span className="stat-label">Selected unit</span>
-                  <strong>{mode === 'end-phase' ? 'Not required' : selectedUnit.id}</strong>
+                  <strong>{activeMode === 'end-phase' ? 'Not required' : selectedUnit.id}</strong>
                 </div>
                 <div className="composer-field">
                   <span className="stat-label">Target</span>
@@ -368,12 +442,12 @@ function App() {
                 </div>
                 <div className="composer-field">
                   <span className="stat-label">Weapon state</span>
-                  <strong>{mode === 'end-phase' ? 'n/a' : selectedUnit.weapons}</strong>
+                  <strong>{activeMode === 'end-phase' ? 'n/a' : selectedUnit.weapons}</strong>
                 </div>
                 <div className="composer-field">
                   <span className="stat-label">Validation</span>
                   <strong>
-                    {mode === 'end-phase' || selectedUnitIsActionable
+                    {activeMode === 'end-phase' || selectedUnitIsActionable
                       ? 'ready to submit'
                       : 'select an actionable unit'}
                   </strong>
@@ -381,7 +455,7 @@ function App() {
               </div>
 
               <button type="button" className="primary-action">
-                {mode === 'end-phase' ? `End ${phaseLabels[phase].split('_')[0]}` : 'Submit Action'}
+                {activeMode === 'end-phase' ? `End ${phaseLabels[activePhase].split('_')[0]}` : 'Submit Action'}
               </button>
             </section>
           )}
@@ -421,6 +495,7 @@ function App() {
               </>
             ) : (
               <>
+                <p className="summary-line">Selected unit: {selectedUnit.id}</p>
                 <p className="summary-line">
                   {selectedUnit.type} · {selectedUnit.status} · ({selectedUnit.q},{selectedUnit.r})
                 </p>
