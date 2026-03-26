@@ -2,6 +2,11 @@
     "vitest.packageManager": "pnpm",
     "vitest.configSearchPatternExclude": "**/node_modules/**",
     "chat.tools.terminal.autoApprove": {
-        "git worktree": true
-    }
+        "git worktree": true,
+        "pnpm": true,
+        "set": true,
+        "git commit": true,
+        "tee": true
+    },
+    "github.copilot.chat.cli.forkSessions.enabled": true
 }

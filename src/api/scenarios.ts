@@ -7,6 +7,7 @@ const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenario
 interface ScenarioSummary {
   id: string
   name: string
+  displayName: string
   description: string
 }
 
@@ -15,18 +16,28 @@ async function loadAll(): Promise<ScenarioSummary[]> {
   const results: ScenarioSummary[] = []
   for (const file of files.filter((f) => f.endsWith('.json'))) {
     const raw = await readFile(join(SCENARIOS_DIR, file), 'utf8')
-    const s = JSON.parse(raw) as ScenarioSummary
-    results.push({ id: s.id, name: s.name, description: s.description })
+    const s = JSON.parse(raw) as ScenarioSummary & { displayName?: string }
+    results.push({
+      id: s.id,
+      name: s.name,
+      displayName: s.displayName ?? s.name,
+      description: s.description,
+    })
   }
   return results
 }
 
-async function loadById(id: string): Promise<unknown | null> {
+async function loadById(id: string): Promise<any | null> {
   const files = await readdir(SCENARIOS_DIR)
   for (const file of files.filter((f) => f.endsWith('.json'))) {
     const raw = await readFile(join(SCENARIOS_DIR, file), 'utf8')
-    const s = JSON.parse(raw) as { id: string }
-    if (s.id === id) return s
+    const s = JSON.parse(raw) as { id: string; name: string; displayName?: string }
+    if (s.id === id) {
+      return {
+        ...s,
+        displayName: s.displayName ?? s.name,
+      }
+    }
   }
   return null
 }

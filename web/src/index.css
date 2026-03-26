@@ -1,0 +1,100 @@
+:root {
+  --paper: #ede4cf;
+  --paper-deep: #dfd4b6;
+  --panel: #f9f4e6;
+  --ink: #544b3d;
+  --ink-soft: #7b705e;
+  --ink-muted: #8b816f;
+  --ink-strong: #251d15;
+  --border-soft: rgba(107, 95, 71, 0.16);
+  --border-strong: rgba(90, 72, 43, 0.28);
+  --signal-live: #795c20;
+  --signal-support: #6d7d34;
+  --signal-alert: #814027;
+  --display-font: 'Rajdhani', 'Aptos Narrow', 'Arial Narrow', sans-serif;
+  --body-font: 'Aptos', 'Segoe UI Variable', 'Trebuchet MS', sans-serif;
+  font-family: var(--body-font);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(129, 64, 39, 0.14), transparent 26%),
+    radial-gradient(circle at top right, rgba(109, 125, 52, 0.14), transparent 30%),
+    linear-gradient(180deg, var(--paper), var(--paper-deep));
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  min-width: 1420px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(90, 72, 43, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 72, 43, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at top left, rgba(129, 64, 39, 0.14), transparent 26%),
+    radial-gradient(circle at top right, rgba(109, 125, 52, 0.14), transparent 30%),
+    linear-gradient(180deg, var(--paper), var(--paper-deep));
+  background-size: 32px 32px, 32px 32px, auto, auto, auto;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+}
+
+h1,
+h2,
+h3,
+strong {
+  color: var(--ink-strong);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display-font);
+  letter-spacing: 0.03em;
+}
+
+h1 {
+  font-size: 2.6rem;
+  line-height: 0.98;
+}
+
+h2 {
+  font-size: 1.35rem;
+  line-height: 1.05;
+}
+
+h3 {
+  font-size: 1.1rem;
+  line-height: 1.05;
+}
+
+p,
+button {
+  color: var(--ink);
+}
+
+a {
+  color: inherit;
+}

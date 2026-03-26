@@ -27,6 +27,10 @@ export class InMemoryDb implements DbAdapter {
   }
 
   async createMatch(match: MatchRecord): Promise<void> {
+    // Defensive: ensure displayName is present if possible
+    if (typeof match.scenarioSnapshot === 'object' && match.scenarioSnapshot && 'name' in match.scenarioSnapshot && !('displayName' in match.scenarioSnapshot)) {
+      (match.scenarioSnapshot as any).displayName = (match.scenarioSnapshot as any).name
+    }
     this.matches.set(match.gameId, structuredClone(match))
   }
 

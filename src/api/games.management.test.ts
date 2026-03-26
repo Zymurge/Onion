@@ -247,11 +247,12 @@ describe('GET /games', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    const body = res.json<{ games: Array<{ gameId: string; role: string; scenarioId: string }> }>()
+    const body = res.json<{ games: Array<{ gameId: string; role: string; scenarioId: string; scenarioDisplayName: string }> }>()
     expect(body.games).toHaveLength(1)
     expect(body.games[0].gameId).toBe(gameId)
     expect(body.games[0].role).toBe('onion')
     expect(body.games[0].scenarioId).toBe('swamp-siege-01')
+    expect(body.games[0].scenarioDisplayName).toBe('The Siege of Shrek\'s Swamp')
   })
 
   it('returns games the user joined', async () => {

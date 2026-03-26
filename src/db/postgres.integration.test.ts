@@ -24,7 +24,7 @@ function makeMatch(overrides: Partial<MatchRecord> = {}): MatchRecord {
   return {
     gameId: randomUUID(),
     scenarioId: 'swamp-siege-01',
-    scenarioSnapshot: { id: 'swamp-siege-01' },
+    scenarioSnapshot: { id: 'swamp-siege-01', displayName: 'The Siege of Shrek\'s Swamp' },
     players: { onion: null, defender: null },
     phase: 'ONION_MOVE',
     turnNumber: 1,
@@ -85,6 +85,7 @@ describe('PostgresDb - games', () => {
     const found = await db.findMatch(match.gameId)
     expect(found?.gameId).toBe(match.gameId)
     expect(found?.scenarioId).toBe('swamp-siege-01')
+    expect((found?.scenarioSnapshot as any)?.displayName).toBe('The Siege of Shrek\'s Swamp')
     expect(found?.phase).toBe('ONION_MOVE')
     expect(found?.turnNumber).toBe(1)
     expect(found?.winner).toBeNull()
