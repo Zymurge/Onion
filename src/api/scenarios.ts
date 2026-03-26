@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { resolveScenariosDir } from './scenarioPaths.js'
 
-const SCENARIOS_DIR = process.env.SCENARIOS_DIR ?? join(process.cwd(), 'scenarios')
+const SCENARIOS_DIR = resolveScenariosDir()
 
 interface ScenarioSummary {
   id: string

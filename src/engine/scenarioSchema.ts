@@ -25,7 +25,7 @@ export const DefenderSchema = z.object({
   squads: z.number().optional(),
 })
 
-export const DefendersRecordSchema = z.record(DefenderSchema)
+export const DefendersRecordSchema = z.record(z.string(), DefenderSchema)
 
 export const InitialStateSchema = z.object({
   onion: OnionSchema,
