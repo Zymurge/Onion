@@ -1,6 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import logger from '../logger.js'
-import { randomUUID } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -19,6 +18,7 @@ import { resolveScenariosDir } from './scenarioPaths.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SCENARIOS_DIR = resolveScenariosDir()
+const GAME_ID_RE = /^\d+$/
 
 const CreateGameSchema = z.object({
   scenarioId: z.string().min(1),
@@ -248,6 +248,12 @@ function extractUserId(authHeader: string | undefined): string | null {
   return UUID_RE.test(userId) ? userId : null
 }
 
+function parseGameId(rawId: string): number | null {
+  if (!GAME_ID_RE.test(rawId)) return null
+  const parsed = Number(rawId)
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
+}
+
 const INITIAL_STATE: GameState = {
   onion: {
     position: { q: 0, r: 10 },
@@ -276,7 +282,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *
    * @route POST /games
    * @body { scenarioId: string, role: PlayerRole }
-   * @returns { gameId: string, role: PlayerRole } - 201 on success
+  * @returns { gameId: number, role: PlayerRole } - 201 on success
    * @returns { ok: false, error: string, code: string } - 400 INVALID_INPUT, 404 NOT_FOUND, 500 INTERNAL_ERROR
    */
   app.post<{ Body: { scenarioId: string, role: PlayerRole } }>('/', async (req, reply) => {
@@ -307,9 +313,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       } else {
         state = { ...INITIAL_STATE }
       }
-      const gameId = randomUUID()
-      await db.createMatch({
-        gameId,
+      const created = await db.createMatch({
         scenarioId,
         scenarioSnapshot,
         state,
@@ -319,7 +323,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         winner: null,
         events: [],
       })
-      return reply.status(201).send({ gameId, role })
+      return reply.status(201).send({ gameId: created.gameId, role })
     } catch (err) {
       logger.error({ err }, 'Failed to create game match')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
@@ -333,7 +337,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    * Cannot join your own game or a game that's already full.
    *
    * @route POST /games/:id/join
-   * @returns { gameId: string, role: string } - 200 on success
+  * @returns { gameId: number, role: string } - 200 on success
    * @returns { ok: false, error: string, code: string } - 400 CANNOT_JOIN_OWN_GAME if joining own game
    *                                            401 UNAUTHORIZED if no or invalid token
    *                                            404 NOT_FOUND if game does not exist
@@ -349,7 +353,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for join')
 
-      const match = await db.findMatch(req.params.id)
+      const gameId = parseGameId(req.params.id)
+      if (gameId === null) {
+        return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
+
+      const match = await db.findMatch(gameId)
       if (!match) {
         logger.warn({ id: req.params.id }, 'Game not found for join')
         return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
@@ -449,7 +458,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for state fetch')
 
-      const match = await db.findMatch(req.params.id)
+      const gameId = parseGameId(req.params.id)
+      if (gameId === null) {
+        return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
+
+      const match = await db.findMatch(gameId)
       if (!match) {
         logger.warn({ id: req.params.id }, 'Game not found for state fetch')
         return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
@@ -502,7 +516,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for action')
 
-      const match = await db.findMatch(req.params.id)
+      const gameId = parseGameId(req.params.id)
+      if (gameId === null) {
+        return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
+
+      const match = await db.findMatch(gameId)
       if (!match) {
         logger.warn({ id: req.params.id }, 'Game not found for action')
         return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
@@ -716,7 +735,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
-      const match = await db.findMatch(req.params.id)
+      const gameId = parseGameId(req.params.id)
+      if (gameId === null) {
+        return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
+
+      const match = await db.findMatch(gameId)
       if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
 
       const after = Number(req.query.after ?? 0)

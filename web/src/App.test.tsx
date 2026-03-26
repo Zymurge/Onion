@@ -11,6 +11,7 @@ describe('App smoke test', () => {
     expect(screen.queryByRole('img', { name: /swamp siege hex map/i })).not.toBeNull()
     expect(screen.queryByText(/defender command stack/i)).not.toBeNull()
     expect(screen.queryByRole('button', { name: /refresh/i })).not.toBeNull()
+    expect(screen.queryByText(/^42$/)).not.toBeNull()
   })
 
   it('updates the selected unit when a defender card is clicked', async () => {

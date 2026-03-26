@@ -31,16 +31,16 @@ export class PostgresDb implements DbAdapter {
     return { userId: rows[0].id }
   }
 
-  async createMatch(match: MatchRecord): Promise<void> {
+  async createMatch(match: Omit<MatchRecord, 'gameId'>): Promise<{ gameId: number }> {
     // Defensive: ensure displayName is present if possible
     if (typeof match.scenarioSnapshot === 'object' && match.scenarioSnapshot && 'name' in match.scenarioSnapshot && !('displayName' in match.scenarioSnapshot)) {
       (match.scenarioSnapshot as any).displayName = (match.scenarioSnapshot as any).name
     }
-    await this.pool.query(
-      `INSERT INTO matches (id, scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    const { rows } = await this.pool.query<{ id: number }>(
+      `INSERT INTO matches (scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id`,
       [
-        match.gameId,
         match.scenarioId,
         JSON.stringify(match.scenarioSnapshot),
         match.players.onion,
@@ -50,15 +50,14 @@ export class PostgresDb implements DbAdapter {
         match.winner,
       ],
     )
-    await this.pool.query('INSERT INTO game_state (match_id, state) VALUES ($1, $2)', [
-      match.gameId,
-      JSON.stringify(match.state),
-    ])
+    const gameId = rows[0].id
+    await this.pool.query('INSERT INTO game_state (match_id, state) VALUES ($1, $2)', [gameId, JSON.stringify(match.state)])
+    return { gameId }
   }
 
   async listMatchesByUserId(userId: string): Promise<Array<Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>>> {
     const { rows } = await this.pool.query<{
-      id: string
+      id: number
       scenario_id: string
       current_phase: string
       turn_number: number
@@ -80,9 +79,9 @@ export class PostgresDb implements DbAdapter {
     }))
   }
 
-  async findMatch(gameId: string): Promise<MatchRecord | null> {
+  async findMatch(gameId: number): Promise<MatchRecord | null> {
     const { rows: mRows } = await this.pool.query<{
-      id: string
+      id: number
       scenario_id: string
       scenario_snapshot: unknown
       onion_player_id: string | null
@@ -121,14 +120,14 @@ export class PostgresDb implements DbAdapter {
     }
   }
 
-  async updateMatchPlayers(gameId: string, players: { onion: string | null; defender: string | null }): Promise<void> {
+  async updateMatchPlayers(gameId: number, players: { onion: string | null; defender: string | null }): Promise<void> {
     await this.pool.query(
       'UPDATE matches SET onion_player_id = $1, defender_player_id = $2 WHERE id = $3',
       [players.onion, players.defender, gameId],
     )
   }
 
-  async updateMatchState(gameId: string, phase: TurnPhase, turnNumber: number, winner: string | null, state: GameState): Promise<void> {
+  async updateMatchState(gameId: number, phase: TurnPhase, turnNumber: number, winner: string | null, state: GameState): Promise<void> {
     await this.pool.query('UPDATE matches SET current_phase = $1, turn_number = $2, winner = $3 WHERE id = $4', [
       phase,
       turnNumber,
@@ -190,7 +189,7 @@ export class PostgresDb implements DbAdapter {
     }
   }
 
-  async appendEvents(gameId: string, events: EventEnvelope[]): Promise<void> {
+  async appendEvents(gameId: number, events: EventEnvelope[]): Promise<void> {
     for (const event of events) {
       const { seq, type, timestamp, ...payload } = event
       await this.pool.query(
@@ -200,7 +199,7 @@ export class PostgresDb implements DbAdapter {
     }
   }
 
-  async getEvents(gameId: string, after: number): Promise<EventEnvelope[]> {
+  async getEvents(gameId: number, after: number): Promise<EventEnvelope[]> {
     const { rows } = await this.pool.query<{
       seq: number
       type: string

@@ -5,7 +5,7 @@
  */
 export interface MatchRecord {
   /** Unique identifier for the match */
-  gameId: string
+  gameId: number
   /** ID of the scenario being played */
   scenarioId: string
   /** Full scenario JSON snapshot taken at match creation */
@@ -35,7 +35,7 @@ export class StaleMatchStateError extends Error {
 }
 
 export interface PersistMatchProgressInput {
-  gameId: string
+  gameId: number
   phase: import('../types/index.js').TurnPhase
   turnNumber: number
   winner: string | null
@@ -76,16 +76,17 @@ export interface DbAdapter {
 
   /**
    * Persist a new match to storage.
-   * @param match - Complete match record to store
+    * @param match - Match record without an assigned gameId
+    * @returns The assigned gameId
    */
-  createMatch(match: MatchRecord): Promise<void>
+    createMatch(match: Omit<MatchRecord, 'gameId'>): Promise<{ gameId: number }>
 
   /**
    * Retrieve a match by its gameId.
    * @param gameId - The match identifier
    * @returns Complete match record if found, null otherwise
    */
-  findMatch(gameId: string): Promise<MatchRecord | null>
+  findMatch(gameId: number): Promise<MatchRecord | null>
 
   /**
    * List all matches in which the given user is a participant.
@@ -100,7 +101,7 @@ export interface DbAdapter {
    * @param gameId - The match to update
    * @param players - New player assignments
    */
-  updateMatchPlayers(gameId: string, players: { onion: string | null; defender: string | null }): Promise<void>
+  updateMatchPlayers(gameId: number, players: { onion: string | null; defender: string | null }): Promise<void>
 
   /**
    * Update the game state, phase, and turn for an existing match.
@@ -110,7 +111,7 @@ export interface DbAdapter {
    * @param winner - Winner if game ended, null otherwise
    * @param state - New game state
    */
-  updateMatchState(gameId: string, phase: import('../types/index.js').TurnPhase, turnNumber: number, winner: string | null, state: import('../types/index.js').GameState): Promise<void>
+  updateMatchState(gameId: number, phase: import('../types/index.js').TurnPhase, turnNumber: number, winner: string | null, state: import('../types/index.js').GameState): Promise<void>
 
   /**
    * Persist state and events atomically if the event cursor has not advanced.
@@ -126,7 +127,7 @@ export interface DbAdapter {
    * @param gameId - The match to update
    * @param events - Events to append (in sequence order)
    */
-  appendEvents(gameId: string, events: import('../types/index.js').EventEnvelope[]): Promise<void>
+  appendEvents(gameId: number, events: import('../types/index.js').EventEnvelope[]): Promise<void>
 
   /**
    * Retrieve events for a match after a given sequence number.
@@ -135,5 +136,5 @@ export interface DbAdapter {
    * @param after - Return events with seq > after (0 for all events)
    * @returns Events in ascending sequence order
    */
-  getEvents(gameId: string, after: number): Promise<import('../types/index.js').EventEnvelope[]>
+  getEvents(gameId: number, after: number): Promise<import('../types/index.js').EventEnvelope[]>
 }
