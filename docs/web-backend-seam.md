@@ -39,14 +39,15 @@ Why:
 
 ## TDD order
 
-1. Write failing contract tests for the client seam in the web package.
-2. Define the client interface and domain models.
-3. Add a stubbed in-memory adapter to make the contract tests pass.
-4. Add app-level tests that exercise the UI against the stubbed client.
-5. Replace direct mock data in `App` with injected client state.
-6. Add the first HTTP adapter and its tests against the backend endpoints.
-7. Expand the contract only when the UI needs a new behavior.
-8. Add websocket transport later only if the contract requires live push.
+1. Write failing contract tests for the client seam in the web package. Done.
+2. Define the client interface and domain models. Done.
+3. Add a stubbed in-memory adapter to make the contract tests pass. Done.
+4. Add app-level tests that exercise the UI against the stubbed client. Done.
+5. Replace direct mock data in `App` with injected client state. Done.
+6. Add the first HTTP adapter and its tests against the backend endpoints. Done.
+7. Wire the web entrypoint to create the HTTP client from runtime config. Next.
+8. Expand the contract only when the UI needs a new behavior.
+9. Add websocket transport later only if the contract requires live push.
 
 ## testing rules
 
@@ -72,3 +73,4 @@ If the contract grows too quickly, split it into smaller client types instead of
 - The current UI is still mock-data driven, so the seam should be introduced before replacing those imports.
 - Websocket transport is not the first step.
 - The main point of the seam is testability and long-term transport flexibility, not protocol abstraction for its own sake.
+- The web bootstrap should only inject the HTTP client when a game id is available out of band or via query string.

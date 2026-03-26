@@ -93,7 +93,7 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 		async getState(gameId: string) {
 			const result = await requestJson<GameStateResponse>({
 				baseUrl,
-				path: `/games/${gameId}`,
+				path: `games/${gameId}`,
 				method: 'GET',
 				token: options.token,
 				fetchImpl,
@@ -110,7 +110,7 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 			if (action.type === 'refresh') {
 				const result = await requestJson<GameStateResponse>({
 					baseUrl,
-					path: `/games/${gameId}`,
+					path: `games/${gameId}`,
 					method: 'GET',
 					token: options.token,
 					fetchImpl,
@@ -130,7 +130,7 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 		async pollEvents(gameId: string, afterSeq: number) {
 			const result = await requestJson<EventsResponse>({
 				baseUrl,
-				path: `/games/${gameId}/events?after=${afterSeq}`,
+				path: `games/${gameId}/events?after=${afterSeq}`,
 				method: 'GET',
 				token: options.token,
 				fetchImpl,

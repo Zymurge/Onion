@@ -4,26 +4,24 @@ import { createHttpGameClient } from './httpGameClient'
 
 describe('http game client', () => {
 	it('loads state and polls events over HTTP', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
 		const fetchImpl = vi
 			.fn()
-			.mockResolvedValueOnce({
-				ok: true,
-				status: 200,
-				json: vi.fn().mockResolvedValue({
-					gameId: 'game-123',
-					phase: 'DEFENDER_COMBAT',
-					eventSeq: 47,
-				}),
-			})
-			.mockResolvedValueOnce({
-				ok: true,
-				status: 200,
-				json: vi.fn().mockResolvedValue({
-					events: [
-						{ seq: 48, type: 'TURN_CONTEXT', summary: 'ready', timestamp: '2026-03-26T12:00:00.000Z' },
-					],
-				}),
-			})
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 'game-123',
+				phase: 'DEFENDER_COMBAT',
+				eventSeq: 47,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
+				events: [
+					{ seq: 48, type: 'TURN_CONTEXT', summary: 'ready', timestamp: '2026-03-26T12:00:00.000Z' },
+				],
+			}))
 
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
@@ -43,47 +41,45 @@ describe('http game client', () => {
 			{ seq: 48, type: 'TURN_CONTEXT', summary: 'ready', timestamp: '2026-03-26T12:00:00.000Z' },
 		])
 
-		expect(fetchImpl).toHaveBeenNthCalledWith(
-			1,
-			'https://onion.test/api/games/game-123',
+		expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://onion.test/api/games/game-123')
+		expect(fetchImpl.mock.calls[0]?.[1]).toEqual(
 			expect.objectContaining({
 				headers: expect.objectContaining({
-					Authorization: 'Bearer stub.token',
+					authorization: 'Bearer stub.token',
+					'content-type': 'application/json',
 				}),
 			}),
 		)
-		expect(fetchImpl).toHaveBeenNthCalledWith(
-			2,
-			'https://onion.test/api/games/game-123/events?after=47',
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/game-123/events?after=47')
+		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
 			expect.objectContaining({
 				headers: expect.objectContaining({
-					Authorization: 'Bearer stub.token',
+					authorization: 'Bearer stub.token',
+					'content-type': 'application/json',
 				}),
 			}),
 		)
 	})
 
 	it('keeps selection and mode local while refreshing server state', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
 		const fetchImpl = vi
 			.fn()
-			.mockResolvedValueOnce({
-				ok: true,
-				status: 200,
-				json: vi.fn().mockResolvedValue({
-					gameId: 'game-123',
-					phase: 'DEFENDER_COMBAT',
-					eventSeq: 47,
-				}),
-			})
-			.mockResolvedValueOnce({
-				ok: true,
-				status: 200,
-				json: vi.fn().mockResolvedValue({
-					gameId: 'game-123',
-					phase: 'DEFENDER_COMBAT',
-					eventSeq: 49,
-				}),
-			})
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 'game-123',
+				phase: 'DEFENDER_COMBAT',
+				eventSeq: 47,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 'game-123',
+				phase: 'DEFENDER_COMBAT',
+				eventSeq: 49,
+			}))
 
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
@@ -109,7 +105,7 @@ describe('http game client', () => {
 		const fetchImpl = vi.fn().mockResolvedValue({
 			ok: false,
 			status: 404,
-			json: vi.fn().mockResolvedValue({ error: 'missing' }),
+			text: vi.fn().mockResolvedValue(JSON.stringify({ error: 'missing' })),
 		})
 
 		const client = createHttpGameClient({
