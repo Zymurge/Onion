@@ -39,6 +39,52 @@ export type GameClient = {
 	pollEvents(gameId: string, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }
 
-export function createGameClient(_transport: GameClientTransport): GameClient {
-	throw new Error('Game client seam is not implemented yet')
+export class GameClientSeamError extends Error {
+	kind: GameClientError['kind']
+
+	constructor(kind: GameClientError['kind'], message: string, cause?: unknown) {
+		super(message)
+		this.name = 'GameClientSeamError'
+		this.kind = kind
+		this.cause = cause
+	}
+}
+
+function normalizeTransportError(error: unknown): GameClientSeamError {
+	if (error instanceof GameClientSeamError) {
+		return error
+	}
+
+	const message = error instanceof Error ? error.message : 'Unexpected transport failure'
+	return new GameClientSeamError('transport', message, error)
+}
+
+export function createGameClient(transport: GameClientTransport): GameClient {
+	return {
+		async getState(gameId: string) {
+			try {
+				return await transport.getState(gameId)
+			} catch (error) {
+				throw normalizeTransportError(error)
+			}
+		},
+		async submitAction(gameId: string, action: GameAction) {
+			try {
+				return await transport.submitAction(gameId, action)
+			} catch (error) {
+				throw normalizeTransportError(error)
+			}
+		},
+		async pollEvents(gameId: string, afterSeq: number) {
+			if (transport.pollEvents === undefined) {
+				return []
+			}
+
+			try {
+				return await transport.pollEvents(gameId, afterSeq)
+			} catch (error) {
+				throw normalizeTransportError(error)
+			}
+		},
+	}
 }
