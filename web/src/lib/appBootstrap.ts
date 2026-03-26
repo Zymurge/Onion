@@ -1,14 +1,24 @@
-import { createHttpGameClient } from './httpGameClient'
-import type { GameClient } from './gameClient'
-
 export type WebRuntimeEnv = {
 	VITE_ONION_API_URL?: string
-	VITE_ONION_GAME_ID?: string
 }
 
 export type WebRuntimeConfig = {
 	apiBaseUrl: string | null
-	gameId: string | null
+	gameId: number | null
+}
+
+function parseGameId(value: string | null | undefined): number | null {
+	if (value === null || value === undefined) {
+		return null
+	}
+
+	const trimmed = value.trim()
+	if (!/^\d+$/.test(trimmed)) {
+		return null
+	}
+
+	const parsed = Number(trimmed)
+	return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
 }
 
 export function resolveWebRuntimeConfig(
@@ -17,19 +27,10 @@ export function resolveWebRuntimeConfig(
 ): WebRuntimeConfig {
 	const query = new URLSearchParams(search)
 	const apiBaseUrl = env.VITE_ONION_API_URL?.trim() ?? null
-	const gameId = query.get('gameId')?.trim() ?? env.VITE_ONION_GAME_ID?.trim() ?? null
+	const gameId = parseGameId(query.get('gameId'))
 
 	return {
 		apiBaseUrl: apiBaseUrl && apiBaseUrl.length > 0 ? apiBaseUrl : null,
-		gameId: gameId && gameId.length > 0 ? gameId : null,
+		gameId,
 	}
-}
-
-export function createDefaultGameClient(env: WebRuntimeEnv, search: string): GameClient | undefined {
-	const { apiBaseUrl, gameId } = resolveWebRuntimeConfig(env, search)
-	if (!apiBaseUrl || !gameId) {
-		return undefined
-	}
-
-	return createHttpGameClient({ baseUrl: apiBaseUrl })
 }

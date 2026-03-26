@@ -22,7 +22,7 @@ export type ApiFailure = {
 export type ApiResult<T> = ApiSuccess<T> | ApiFailure
 
 export type GameStateResponse = {
-	gameId: string
+	gameId: number
 	scenarioId: string
 	scenarioName?: string
 	phase: string

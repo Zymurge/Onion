@@ -18,18 +18,18 @@ vi.mock('../../src/shared/apiProtocol', () => ({
 
 describe('App connection gate', () => {
 	it('renders a connect form when runtime config is seeded but no client is ready', async () => {
-		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 'game-123' }} showConnectionGate />)
+		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123 }} showConnectionGate />)
 
 		expect(screen.getByRole('heading', { name: /open a live game session/i })).not.toBeNull()
 		expect((screen.getByLabelText(/api base url/i) as HTMLInputElement).value).toBe('http://localhost:3000')
 		expect((screen.getByLabelText(/username/i) as HTMLInputElement).value).toBe('')
-		expect((screen.getByLabelText(/game id/i) as HTMLInputElement).value).toBe('game-123')
+		expect((screen.getByLabelText(/game id/i) as HTMLInputElement).value).toBe('123')
 	})
 
 	it('logs in and loads an existing game when the form is submitted', async () => {
 		const user = userEvent.setup()
 		const submitAction = vi.fn().mockResolvedValue({
-			gameId: 'game-123',
+			gameId: 123,
 			phase: 'defender',
 			selectedUnitId: 'wolf-2',
 			mode: 'fire',
@@ -43,7 +43,7 @@ describe('App connection gate', () => {
 
 		createHttpGameClient.mockReturnValue({
 			getState: vi.fn().mockResolvedValue({
-				gameId: 'game-123',
+				gameId: 123,
 				phase: 'defender',
 				selectedUnitId: 'wolf-2',
 				mode: 'fire',
@@ -53,7 +53,7 @@ describe('App connection gate', () => {
 			pollEvents: vi.fn().mockResolvedValue([]),
 		})
 
-		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 'game-123' }} showConnectionGate />)
+		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123 }} showConnectionGate />)
 
 		await user.type(screen.getByLabelText(/username/i), 'player-1')
 		await user.type(screen.getByLabelText(/password/i), 'secret')

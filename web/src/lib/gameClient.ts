@@ -3,7 +3,7 @@ export type GamePhase = 'onion' | 'defender'
 export type ActionMode = 'fire' | 'combined' | 'end-phase'
 
 export type GameSnapshot = {
-	gameId: string
+	gameId: number
 	phase: GamePhase
 	selectedUnitId: string | null
 	mode: ActionMode
@@ -28,15 +28,15 @@ export type GameClientError = {
 }
 
 export type GameClientTransport = {
-	getState(gameId: string): Promise<GameSnapshot>
-	submitAction(gameId: string, action: GameAction): Promise<GameSnapshot>
-	pollEvents?(gameId: string, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
+	getState(gameId: number): Promise<GameSnapshot>
+	submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
+	pollEvents?(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }
 
 export type GameClient = {
-	getState(gameId: string): Promise<GameSnapshot>
-	submitAction(gameId: string, action: GameAction): Promise<GameSnapshot>
-	pollEvents(gameId: string, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
+	getState(gameId: number): Promise<GameSnapshot>
+	submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
+	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }
 
 export class GameClientSeamError extends Error {
@@ -61,21 +61,21 @@ function normalizeTransportError(error: unknown): GameClientSeamError {
 
 export function createGameClient(transport: GameClientTransport): GameClient {
 	return {
-		async getState(gameId: string) {
+		async getState(gameId: number) {
 			try {
 				return await transport.getState(gameId)
 			} catch (error) {
 				throw normalizeTransportError(error)
 			}
 		},
-		async submitAction(gameId: string, action: GameAction) {
+		async submitAction(gameId: number, action: GameAction) {
 			try {
 				return await transport.submitAction(gameId, action)
 			} catch (error) {
 				throw normalizeTransportError(error)
 			}
 		},
-		async pollEvents(gameId: string, afterSeq: number) {
+		async pollEvents(gameId: number, afterSeq: number) {
 			if (transport.pollEvents === undefined) {
 				return []
 			}

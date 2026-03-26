@@ -13,7 +13,7 @@ describe('http game client', () => {
 		const fetchImpl = vi
 			.fn()
 			.mockResolvedValueOnce(jsonResponse({
-				gameId: 'game-123',
+				gameId: 123,
 				phase: 'DEFENDER_COMBAT',
 				eventSeq: 47,
 			}))
@@ -29,19 +29,19 @@ describe('http game client', () => {
 			token: 'stub.token',
 		})
 
-		await expect(client.getState('game-123')).resolves.toEqual({
-			gameId: 'game-123',
+		await expect(client.getState(123)).resolves.toEqual({
+			gameId: 123,
 			phase: 'defender',
 			selectedUnitId: null,
 			mode: 'fire',
 			lastEventSeq: 47,
 		})
 
-		await expect(client.pollEvents('game-123', 47)).resolves.toEqual([
+		await expect(client.pollEvents(123, 47)).resolves.toEqual([
 			{ seq: 48, type: 'TURN_CONTEXT', summary: 'ready', timestamp: '2026-03-26T12:00:00.000Z' },
 		])
 
-		expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://onion.test/api/games/game-123')
+		expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://onion.test/api/games/123')
 		expect(fetchImpl.mock.calls[0]?.[1]).toEqual(
 			expect.objectContaining({
 				headers: expect.objectContaining({
@@ -50,7 +50,7 @@ describe('http game client', () => {
 				}),
 			}),
 		)
-		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/game-123/events?after=47')
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123/events?after=47')
 		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
 			expect.objectContaining({
 				headers: expect.objectContaining({
@@ -71,12 +71,12 @@ describe('http game client', () => {
 		const fetchImpl = vi
 			.fn()
 			.mockResolvedValueOnce(jsonResponse({
-				gameId: 'game-123',
+				gameId: 123,
 				phase: 'DEFENDER_COMBAT',
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
-				gameId: 'game-123',
+				gameId: 123,
 				phase: 'DEFENDER_COMBAT',
 				eventSeq: 49,
 			}))
@@ -86,12 +86,12 @@ describe('http game client', () => {
 			fetchImpl,
 		})
 
-		await client.getState('game-123')
-		await client.submitAction('game-123', { type: 'select-unit', unitId: 'wolf-2' })
-		await client.submitAction('game-123', { type: 'set-mode', mode: 'combined' })
+		await client.getState(123)
+		await client.submitAction(123, { type: 'select-unit', unitId: 'wolf-2' })
+		await client.submitAction(123, { type: 'set-mode', mode: 'combined' })
 
-		await expect(client.submitAction('game-123', { type: 'refresh' })).resolves.toEqual({
-			gameId: 'game-123',
+		await expect(client.submitAction(123, { type: 'refresh' })).resolves.toEqual({
+			gameId: 123,
 			phase: 'defender',
 			selectedUnitId: 'wolf-2',
 			mode: 'combined',
@@ -113,7 +113,7 @@ describe('http game client', () => {
 			fetchImpl,
 		})
 
-		await expect(client.getState('game-404')).rejects.toMatchObject({
+		await expect(client.getState(404)).rejects.toMatchObject({
 			kind: 'not-found',
 		})
 	})

@@ -8,28 +8,26 @@ describe('resolveWebRuntimeConfig', () => {
 			resolveWebRuntimeConfig(
 				{
 					VITE_ONION_API_URL: ' http://localhost:3000 ',
-					VITE_ONION_GAME_ID: 'env-game',
 				},
-				'?gameId=query-game',
+				'?gameId=123',
 				),
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
-			gameId: 'query-game',
+			gameId: 123,
 		})
 	})
 
-	it('falls back to env game id and disables empty values', () => {
+	it('returns null game id when none is provided', () => {
 		expect(
 			resolveWebRuntimeConfig(
 				{
 					VITE_ONION_API_URL: '   ',
-					VITE_ONION_GAME_ID: 'env-game',
 				},
 				'',
 				),
 		).toEqual({
 			apiBaseUrl: null,
-			gameId: 'env-game',
+			gameId: null,
 		})
 	})
 })

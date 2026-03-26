@@ -28,7 +28,7 @@ function normalizePhase(phase: unknown): GameSnapshot['phase'] {
 	return phase.toUpperCase().startsWith('ONION_') || phase === 'onion' ? 'onion' : 'defender'
 }
 
-function createInitialSnapshot(gameId: string): GameSnapshot {
+function createInitialSnapshot(gameId: number): GameSnapshot {
 	return {
 		gameId,
 		phase: 'defender',
@@ -60,7 +60,7 @@ function buildError(result: ApiFailure): GameClientSeamError {
 function mapServerSnapshot(
 	response: GameStateResponse,
 	currentSnapshot: GameSnapshot | null,
-	gameId: string,
+	gameId: number,
 ): GameSnapshot {
 	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
 	return mergeSnapshot(fallback, {
@@ -70,7 +70,7 @@ function mapServerSnapshot(
 	})
 }
 
-function updateLocalSnapshot(currentSnapshot: GameSnapshot | null, action: GameAction, gameId: string): GameSnapshot {
+function updateLocalSnapshot(currentSnapshot: GameSnapshot | null, action: GameAction, gameId: number): GameSnapshot {
 	const baseSnapshot = currentSnapshot ?? createInitialSnapshot(gameId)
 
 	if (action.type === 'select-unit') {
@@ -90,7 +90,7 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 	let currentSnapshot: GameSnapshot | null = null
 
 	const transport: GameClientTransport = {
-		async getState(gameId: string) {
+		async getState(gameId: number) {
 			const result = await requestJson<GameStateResponse>({
 				baseUrl,
 				path: `games/${gameId}`,
@@ -106,7 +106,7 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 			currentSnapshot = mapServerSnapshot(result.data, currentSnapshot, gameId)
 			return currentSnapshot
 		},
-		async submitAction(gameId: string, action: GameAction) {
+		async submitAction(gameId: number, action: GameAction) {
 			if (action.type === 'refresh') {
 				const result = await requestJson<GameStateResponse>({
 					baseUrl,
@@ -127,7 +127,7 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 			currentSnapshot = updateLocalSnapshot(currentSnapshot, action, gameId)
 			return currentSnapshot
 		},
-		async pollEvents(gameId: string, afterSeq: number) {
+		async pollEvents(gameId: number, afterSeq: number) {
 			const result = await requestJson<EventsResponse>({
 				baseUrl,
 				path: `games/${gameId}/events?after=${afterSeq}`,

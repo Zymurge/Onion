@@ -9,7 +9,7 @@ import { createGameClient, type GameSnapshot } from './lib/gameClient'
 describe('App with injected game client', () => {
 	it('renders from the current game snapshot', async () => {
 		const snapshot: GameSnapshot = {
-			gameId: 'game-123',
+			gameId: 123,
 			phase: 'defender',
 			selectedUnitId: 'puss-1',
 			mode: 'combined',
@@ -22,16 +22,16 @@ describe('App with injected game client', () => {
 			pollEvents: vi.fn().mockResolvedValue([]),
 		})
 
-		render(<App gameClient={client} gameId="game-123" />)
+		render(<App gameClient={client} gameId={123} />)
 
-		expect(await screen.findByText(/game-123/i)).not.toBeNull()
+		expect(await screen.findByText(/123/i)).not.toBeNull()
 		expect(screen.getByText(/Selected unit: puss-1/i)).not.toBeNull()
 	})
 
 	it('submits actions through the injected client', async () => {
 		const user = userEvent.setup()
 		const snapshot: GameSnapshot = {
-			gameId: 'game-123',
+			gameId: 123,
 			phase: 'defender',
 			selectedUnitId: 'wolf-2',
 			mode: 'fire',
@@ -45,12 +45,12 @@ describe('App with injected game client', () => {
 			pollEvents: vi.fn().mockResolvedValue([]),
 		})
 
-		render(<App gameClient={client} gameId="game-123" />)
+		render(<App gameClient={client} gameId={123} />)
 
 		await screen.findByText(/Selected unit: wolf-2/i)
 
 		await user.click(screen.getByRole('button', { name: /end phase/i }))
 
-		expect(submitAction).toHaveBeenCalledWith('game-123', { type: 'set-mode', mode: 'end-phase' })
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'set-mode', mode: 'end-phase' })
 	})
 })

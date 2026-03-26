@@ -54,7 +54,7 @@ function parseAttackStats(attackString: string) {
 
 type AppProps = {
   gameClient?: GameClient
-  gameId?: string
+  gameId?: number
   runtimeConfig?: WebRuntimeConfig
   showConnectionGate?: boolean
 }
@@ -63,7 +63,7 @@ type ConnectionState = {
 	apiBaseUrl: string
   username: string
   password: string
-	gameId: string
+  gameId: string
 }
 
 type AuthResponse = {
@@ -111,13 +111,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const [mode, setMode] = useState<Mode>('fire')
   const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
   const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
-  const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: string } | null>(null)
+  const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
   const [connectDraft, setConnectDraft] = useState<ConnectionState>({
     apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
     username: '',
     password: '',
-    gameId: runtimeConfig?.gameId ?? '',
+    gameId: runtimeConfig?.gameId?.toString() ?? '',
   })
 
   const runtimeConnectionSeeded = showConnectionGate
@@ -147,7 +147,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const activePhase = clientSnapshot?.phase ?? phase
   const activeMode = clientSnapshot?.mode ?? mode
   const activeSelectedUnitId = clientSnapshot?.selectedUnitId ?? selectedUnitId
-  const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? '0aa2d94b'
+  const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? 0
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -159,13 +159,19 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }
 
   function handleConnect(event: FormEvent<HTMLFormElement>) {
-	  event.preventDefault()
-	  setConnectError(null)
+    event.preventDefault()
+    setConnectError(null)
 
     if (!connectDraft.apiBaseUrl.trim() || !connectDraft.username.trim() || !connectDraft.password.trim() || !connectDraft.gameId.trim()) {
       setConnectError('API base URL, username, password, and game ID are required.')
-	    return
-	  }
+      return
+    }
+
+    const parsedGameId = Number(connectDraft.gameId.trim())
+    if (!Number.isSafeInteger(parsedGameId) || parsedGameId <= 0) {
+      setConnectError('Game ID must be a positive integer.')
+      return
+    }
 
     void (async () => {
       const loginResult = await requestJson<AuthResponse>({
@@ -190,12 +196,12 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
       setConnectedSession({
         gameClient: nextClient,
-        gameId: connectDraft.gameId.trim(),
+        gameId: parsedGameId,
       })
     })().catch(() => {
       setConnectError('Unable to connect to the backend.')
     })
-	}
+  }
 
   function handleSelectUnit(unitId: string) {
     if (isControlledSession) {
@@ -287,7 +293,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
               <input
                 value={connectDraft.gameId}
                 onChange={(event) => setConnectDraft((draft) => ({ ...draft, gameId: event.target.value }))}
-                placeholder="game-123"
+                placeholder="123"
               />
             </label>
             {connectError && <p className="connect-error" role="alert">{connectError}</p>}

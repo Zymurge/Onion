@@ -9,7 +9,7 @@ import {
 
 describe('game client contract', () => {
 	const snapshot: GameSnapshot = {
-		gameId: 'game-123',
+		gameId: 123,
 		phase: 'defender',
 		selectedUnitId: 'wolf-2',
 		mode: 'fire',
@@ -26,8 +26,8 @@ describe('game client contract', () => {
 
 		const client = createGameClient(transport)
 
-		await expect(client.getState('game-123')).resolves.toEqual(snapshot)
-		expect(transport.getState).toHaveBeenCalledWith('game-123')
+		await expect(client.getState(123)).resolves.toEqual(snapshot)
+		expect(transport.getState).toHaveBeenCalledWith(123)
 	})
 
 	it('submits actions through the seam', async () => {
@@ -38,8 +38,8 @@ describe('game client contract', () => {
 
 		const client = createGameClient(transport)
 
-		await expect(client.submitAction('game-123', action)).resolves.toEqual(snapshot)
-		expect(transport.submitAction).toHaveBeenCalledWith('game-123', action)
+		await expect(client.submitAction(123, action)).resolves.toEqual(snapshot)
+		expect(transport.submitAction).toHaveBeenCalledWith(123, action)
 	})
 
 	it('normalizes transport failures into a client error', async () => {
@@ -50,7 +50,7 @@ describe('game client contract', () => {
 
 		const client = createGameClient(transport)
 
-		await expect(client.getState('game-123')).rejects.toMatchObject({
+		await expect(client.getState(123)).rejects.toMatchObject({
 			kind: 'transport',
 		})
 	})
