@@ -16,6 +16,7 @@ import {
 } from './lib/gameClient'
 import { createHttpGameClient } from './lib/httpGameClient'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
+import { requestJson } from '../../src/shared/apiProtocol'
 import './App.css'
 
 // Phase definitions
@@ -60,8 +61,14 @@ type AppProps = {
 
 type ConnectionState = {
 	apiBaseUrl: string
+  username: string
+  password: string
 	gameId: string
-	token: string
+}
+
+type AuthResponse = {
+  userId: string
+  token: string
 }
 
 function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
@@ -108,8 +115,9 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const [connectError, setConnectError] = useState<string | null>(null)
   const [connectDraft, setConnectDraft] = useState<ConnectionState>({
     apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
+    username: '',
+    password: '',
     gameId: runtimeConfig?.gameId ?? '',
-    token: '',
   })
 
   const runtimeConnectionSeeded = showConnectionGate
@@ -154,20 +162,39 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 	  event.preventDefault()
 	  setConnectError(null)
 
-	  if (!connectDraft.apiBaseUrl.trim() || !connectDraft.gameId.trim()) {
-	    setConnectError('API base URL and game ID are required.')
+    if (!connectDraft.apiBaseUrl.trim() || !connectDraft.username.trim() || !connectDraft.password.trim() || !connectDraft.gameId.trim()) {
+      setConnectError('API base URL, username, password, and game ID are required.')
 	    return
 	  }
 
-	  const nextClient = createHttpGameClient({
-	    baseUrl: connectDraft.apiBaseUrl.trim(),
-	    token: connectDraft.token.trim() || undefined,
-	  })
+    void (async () => {
+      const loginResult = await requestJson<AuthResponse>({
+        baseUrl: connectDraft.apiBaseUrl.trim(),
+        path: 'auth/login',
+        method: 'POST',
+        body: {
+          username: connectDraft.username.trim(),
+          password: connectDraft.password,
+        },
+      })
 
-	  setConnectedSession({
-	    gameClient: nextClient,
-	    gameId: connectDraft.gameId.trim(),
-	  })
+      if (!loginResult.ok) {
+        setConnectError(loginResult.message)
+        return
+      }
+
+      const nextClient = createHttpGameClient({
+        baseUrl: connectDraft.apiBaseUrl.trim(),
+        token: loginResult.data.token,
+      })
+
+      setConnectedSession({
+        gameClient: nextClient,
+        gameId: connectDraft.gameId.trim(),
+      })
+    })().catch(() => {
+      setConnectError('Unable to connect to the backend.')
+    })
 	}
 
   function handleSelectUnit(unitId: string) {
@@ -239,6 +266,23 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
               />
             </label>
             <label className="connect-field">
+              <span className="stat-label">Username</span>
+              <input
+                value={connectDraft.username}
+                onChange={(event) => setConnectDraft((draft) => ({ ...draft, username: event.target.value }))}
+                placeholder="player-1"
+              />
+            </label>
+            <label className="connect-field">
+              <span className="stat-label">Password</span>
+              <input
+                type="password"
+                value={connectDraft.password}
+                onChange={(event) => setConnectDraft((draft) => ({ ...draft, password: event.target.value }))}
+                placeholder="••••••••"
+              />
+            </label>
+            <label className="connect-field">
               <span className="stat-label">Game ID</span>
               <input
                 value={connectDraft.gameId}
@@ -246,16 +290,8 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 placeholder="game-123"
               />
             </label>
-            <label className="connect-field">
-              <span className="stat-label">Bearer token</span>
-              <input
-                value={connectDraft.token}
-                onChange={(event) => setConnectDraft((draft) => ({ ...draft, token: event.target.value }))}
-                placeholder="stub.123e4567-e89b-12d3-a456-426614174000"
-              />
-            </label>
             {connectError && <p className="connect-error" role="alert">{connectError}</p>}
-            <button type="submit" className="primary-action">Connect</button>
+            <button type="submit" className="primary-action">Load Game</button>
           </form>
         </section>
       </div>

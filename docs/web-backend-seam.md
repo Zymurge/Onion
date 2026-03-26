@@ -46,7 +46,7 @@ Why:
 5. Replace direct mock data in `App` with injected client state. Done.
 6. Add the first HTTP adapter and its tests against the backend endpoints. Done.
 7. Wire the web entrypoint to create the HTTP client from runtime config. Done.
-8. Add a small connection gate for manual backend entry when no client is prewired. Done.
+8. Add a small load form for manual backend entry when no client is prewired. Done.
 9. Expand the contract only when the UI needs a new behavior.
 10. Add websocket transport later only if the contract requires live push.
 
@@ -76,3 +76,4 @@ If the contract grows too quickly, split it into smaller client types instead of
 - The main point of the seam is testability and long-term transport flexibility, not protocol abstraction for its own sake.
 - The web bootstrap should only inject the HTTP client when a game id is available out of band or via query string.
 - The web app now supports an explicit connection gate for manual API URL, game ID, and bearer token entry.
+- The web app now supports a minimal login-and-load form for API URL, username, password, and game ID entry.
