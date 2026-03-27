@@ -5,11 +5,11 @@ import { describe, it, expect } from 'vitest'
 import App from './App'
 
 describe('App UI', () => {
-  it('renders the battlefield map shell', () => {
+  it('renders a waiting state instead of mock battlefield data before game state loads', () => {
     render(<App />)
 
-    expect(screen.queryByRole('img', { name: /swamp siege hex map/i })).not.toBeNull()
-    expect(screen.queryByText(/defender command stack/i)).not.toBeNull()
+    expect(screen.queryByRole('img', { name: /swamp siege hex map/i })).toBeNull()
+    expect(screen.queryByText(/defender command stack/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /refresh/i })).not.toBeNull()
     expect(screen.queryByText(/^Waiting$/i, { selector: '.role-badge' })).not.toBeNull()
     expect(
@@ -17,30 +17,16 @@ describe('App UI', () => {
     ).not.toBeNull()
     expect(screen.queryByText(/Turn waiting/i)).not.toBeNull()
     expect(screen.queryByText(/waiting for game state/i)).not.toBeNull()
+    expect(screen.queryByRole('button', { name: /puss-1/i })).toBeNull()
+    expect(screen.queryByText(/battlefield will appear once the game state loads/i)).not.toBeNull()
   })
 
-  it('updates the selected unit when a defender card is clicked', async () => {
-    const user = userEvent.setup()
+  it('keeps unit details in a waiting state before authoritative battlefield data loads', () => {
     render(<App />)
 
-    expect(screen.queryByText(/Puss · operational · \(6,4\)/)).toBeNull()
-
-    await user.click(screen.getByRole('button', { name: /puss-1/i }))
-
-    expect(screen.queryByText(/Puss · operational · \(6,4\)/)).not.toBeNull()
-    expect(screen.queryByText(/Mode Ready/)).not.toBeNull()
-  })
-
-  it('updates the action composer when the mode changes', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-
-    await user.click(screen.getByRole('button', { name: /end phase/i }))
-
-    expect(screen.queryByText(/Pass control to the next phase when ready\./i)).not.toBeNull()
-    expect(screen.queryByRole('button', { name: /end defender/i })).not.toBeNull()
-    expect(screen.queryByText(/Not required/i)).not.toBeNull()
-    expect(screen.queryByText(/n\/a/i)).not.toBeNull()
+    expect(screen.queryByText(/selected unit/i)).not.toBeNull()
+    expect(screen.queryAllByText(/waiting for battlefield data/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/no defender data available/i)).toBeNull()
   })
 
   it('toggles the debug diagnostics popup', async () => {

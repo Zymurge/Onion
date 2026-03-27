@@ -10,13 +10,13 @@ import {
 } from './gameClient'
 
 import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../../src/shared/apiProtocol'
-import type { TurnPhase } from '../../../src/types/index'
+import type { GameState, TurnPhase } from '../../../src/types/index'
 
 type ActionSuccessResponse = {
 	ok: true
 	seq: number
 	events: Array<{ seq: number; type: string; timestamp: string; [key: string]: unknown }>
-	state: unknown
+	state: GameState
 	turnNumber: number
 	eventSeq: number
 }
@@ -93,6 +93,8 @@ function mapServerSnapshot(
 			scenarioName: response.scenarioName ?? fallback.scenarioName,
 			turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
 			lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : fallback.lastEventSeq,
+			authoritativeState: response.state ?? fallback.authoritativeState,
+			scenarioMap: response.scenarioMap ?? fallback.scenarioMap,
 		}),
 		session: {
 			role: response.role,
@@ -114,6 +116,7 @@ function mapActionSnapshot(
 		phase: nextPhase,
 		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
 		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : fallback.lastEventSeq,
+		authoritativeState: response.state ?? fallback.authoritativeState,
 	})
 }
 

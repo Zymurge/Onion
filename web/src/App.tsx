@@ -1,14 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
-import {
-  battlefieldModes,
-  defenders,
-  onion,
-  recentEvents,
-  scenarioMap,
-  statusTone,
-  type Mode,
-} from './mockBattlefield'
+import { battlefieldModes, recentEvents } from './mockBattlefield'
 import {
   GameClientSeamError,
   type GameAction,
@@ -16,10 +8,17 @@ import {
   type GameSessionContext,
   type GameSnapshot,
 } from './lib/gameClient'
+import {
+  statusTone,
+  type BattlefieldOnionView,
+  type BattlefieldUnit,
+  type Mode,
+  type TerrainHex,
+} from './lib/battlefieldView'
 import { createHttpGameClient } from './lib/httpGameClient'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
 import { requestJson } from '../../src/shared/apiProtocol'
-import type { TurnPhase } from '../../src/types/index'
+import type { GameState, TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
 import './App.css'
 
 const turnPhaseLabels: Record<TurnPhase, string> = {
@@ -70,6 +69,105 @@ function parseAttackStats(attackString: string) {
   const damage = parts[0].trim()
   const range = parts[1]?.includes('rng') ? parts[1].trim().replace('rng', '').trim() : '0'
   return { damage, range }
+}
+
+function formatWeaponSummary(weapons: ReadonlyArray<Weapon> | undefined) {
+  if (weapons === undefined || weapons.length === 0) {
+    return 'n/a'
+  }
+
+  return weapons.map((weapon) => `${weapon.id}: ${weapon.status}`).join(', ')
+}
+
+function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
+  if (weapons === undefined || weapons.length === 0) {
+    return '0 / rng 0'
+  }
+
+  const primaryWeapon = weapons.reduce((strongest, weapon) => {
+    if (weapon.attack > strongest.attack) {
+      return weapon
+    }
+
+    if (weapon.attack === strongest.attack && weapon.range > strongest.range) {
+      return weapon
+    }
+
+    return strongest
+  })
+
+  return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
+}
+
+function getOnionMovementAllowance(treads: number) {
+  if (treads === 0) {
+    return 0
+  }
+
+  if (treads <= 15) {
+    return 1
+  }
+
+  if (treads <= 30) {
+    return 2
+  }
+
+  return 3
+}
+
+function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean): Mode[] {
+  if (!activeTurnActive || status === 'destroyed' || status === 'disabled') {
+    return []
+  }
+
+  const hasReadyWeapon = (weapons ?? []).some((weapon) => weapon.status === 'ready')
+  return hasReadyWeapon ? ['fire', 'combined'] : []
+}
+
+function buildLiveDefenders(authoritativeState: GameState, activeTurnActive: boolean): BattlefieldUnit[] {
+  return Object.entries(authoritativeState.defenders).map(([defenderId, defender]) => ({
+    id: defender.id ?? defenderId,
+    type: defender.type,
+    status: defender.status,
+    q: defender.position.q,
+    r: defender.position.r,
+    move: 0,
+    weapons: formatWeaponSummary(defender.weapons),
+    attack: formatAttackSummary(defender.weapons),
+    actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
+  }))
+}
+
+function buildLiveOnion(authoritativeState: GameState): BattlefieldOnionView {
+  const onion = authoritativeState.onion
+  const movesAllowed = getOnionMovementAllowance(onion.treads)
+
+  return {
+    id: onion.id ?? 'onion-1',
+    type: onion.type ?? 'TheOnion',
+    q: onion.position.q,
+    r: onion.position.r,
+    status: onion.status ?? 'operational',
+    treads: onion.treads,
+    movesAllowed,
+    movesUsed: 0,
+    rams: authoritativeState.ramsThisTurn ?? 0,
+    weapons: formatWeaponSummary(onion.weapons),
+  }
+}
+
+function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; height: number; hexes: TerrainHex[] } | null {
+  const scenarioMap = snapshot?.scenarioMap
+
+  if (scenarioMap === undefined) {
+    return null
+  }
+
+  return {
+    width: scenarioMap.width,
+    height: scenarioMap.height,
+    hexes: scenarioMap.hexes,
+  }
 }
 
 type AppProps = {
@@ -126,7 +224,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       '[12:00:29] [info] All systems operational. Ready for player input.',
     ]
   const [mode, setMode] = useState<Mode>('fire')
-  const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
+  const [selectedUnitId, setSelectedUnitId] = useState<string>('')
   const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
   const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
   const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
@@ -277,13 +375,18 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     setMode(nextMode)
   }
 
+  const authoritativeState = clientSnapshot?.authoritativeState
+  const displayedDefenders = authoritativeState === undefined ? [] : buildLiveDefenders(authoritativeState, activeTurnActive)
+  const displayedOnion = authoritativeState === undefined ? null : buildLiveOnion(authoritativeState)
+  const displayedScenarioMap = buildScenarioMap(clientSnapshot)
+  const hasBattlefieldData = displayedOnion !== null && displayedScenarioMap !== null
   const yourTurn = true
-  const isOnionSelected = activeSelectedUnitId === onion.id
-  const selectedDefender = defenders.find((unit) => unit.id === activeSelectedUnitId)
-  const selectedUnit = selectedDefender ?? defenders[0]
+  const isOnionSelected = displayedOnion !== null && activeSelectedUnitId === displayedOnion.id
+  const selectedDefender = displayedDefenders.find((unit) => unit.id === activeSelectedUnitId)
+  const selectedUnit = selectedDefender ?? displayedDefenders[0]
   const targetLabel = activeMode === 'end-phase' ? 'No target required' : 'onion / treads'
-  const selectedUnitIsActionable = selectedUnit.actionableModes.includes(activeMode)
-  const onionWeapons = parseWeaponStats(onion.weapons)
+  const selectedUnitIsActionable = selectedUnit?.actionableModes.includes(activeMode) ?? false
+  const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
 
   // Simulated last sync and event status for UI demo
   const [lastSync, setLastSync] = useState<Date>(new Date())
@@ -536,79 +639,93 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
             <div className="card-head">
               <p className="eyebrow">Onion</p>
             </div>
-            <button
-              type="button"
-              className={`onion-card-button ${activeSelectedUnitId === onion.id ? 'is-selected' : ''}`}
-              onClick={() => handleSelectUnit(onion.id)}
-            >
-              <h3>{onion.id}</h3>
-              <div className="unit-summary">
-                <div className="summary-line">
-                  <span>Treads <strong>{onion.treads}</strong></span>
-                  <span>Moves <strong>{onion.movesAllowed - onion.movesUsed}</strong></span>
-                  <span>Rams <strong>{onion.rams}</strong></span>
+            {displayedOnion ? (
+              <button
+                type="button"
+                className={`onion-card-button ${activeSelectedUnitId === displayedOnion.id ? 'is-selected' : ''}`}
+                onClick={() => handleSelectUnit(displayedOnion.id)}
+              >
+                <h3>{displayedOnion.id}</h3>
+                <div className="unit-summary">
+                  <div className="summary-line">
+                    <span>Treads <strong>{displayedOnion.treads}</strong></span>
+                    <span>Moves <strong>{displayedOnion.movesAllowed - displayedOnion.movesUsed}</strong></span>
+                    <span>Rams <strong>{displayedOnion.rams}</strong></span>
+                  </div>
+                  <div className="summary-line">
+                    <span>Weapons <strong>{onionWeapons.operationalWeapons}</strong></span>
+                    <span>Missiles <strong>{onionWeapons.operationalMissiles}</strong></span>
+                  </div>
                 </div>
-                <div className="summary-line">
-                  <span>Weapons <strong>{onionWeapons.operationalWeapons}</strong></span>
-                  <span>Missiles <strong>{onionWeapons.operationalMissiles}</strong></span>
-                </div>
-              </div>
-            </button>
+              </button>
+            ) : (
+              <p className="summary-line">Waiting for battlefield data.</p>
+            )}
           </section>
 
           <section className="section-block">
             <div className="card-head">
               <p className="eyebrow">Defenders</p>
-              <span className="mini-tag">{defenders.length} tracked</span>
+              <span className="mini-tag">{displayedDefenders.length} tracked</span>
             </div>
-            <div className="defender-list">
-              {defenders.map((unit) => {
-                const isSelected = unit.id === activeSelectedUnitId
-                const isActionable = unit.actionableModes.includes(activeMode)
-                const attackStats = parseAttackStats(unit.attack)
-                return (
-                  <button
-                    key={unit.id}
-                    type="button"
-                    className={[
-                      'defender-card-button',
-                      isSelected ? 'is-selected' : '',
-                      isActionable ? 'is-actionable' : '',
-                      `tone-${statusTone(unit.status)}`,
-                    ].join(' ')}
-                    onClick={() => handleSelectUnit(unit.id)}
-                  >
-                    <p className="eyebrow">{unit.type}</p>
-                    <h3>{unit.id}</h3>
-                    <div className="unit-summary">
-                      <div className="summary-line">
-                        <span>Damage <strong>{attackStats.damage}</strong></span>
-                        <span>Range <strong>{attackStats.range}</strong></span>
-                        <span>Move <strong>{unit.move}</strong></span>
+            {displayedDefenders.length > 0 ? (
+              <div className="defender-list">
+                {displayedDefenders.map((unit) => {
+                  const isSelected = unit.id === activeSelectedUnitId
+                  const isActionable = unit.actionableModes.includes(activeMode)
+                  const attackStats = parseAttackStats(unit.attack)
+                  return (
+                    <button
+                      key={unit.id}
+                      type="button"
+                      className={[
+                        'defender-card-button',
+                        isSelected ? 'is-selected' : '',
+                        isActionable ? 'is-actionable' : '',
+                        `tone-${statusTone(unit.status)}`,
+                      ].join(' ')}
+                      onClick={() => handleSelectUnit(unit.id)}
+                    >
+                      <p className="eyebrow">{unit.type}</p>
+                      <h3>{unit.id}</h3>
+                      <div className="unit-summary">
+                        <div className="summary-line">
+                          <span>Damage <strong>{attackStats.damage}</strong></span>
+                          <span>Range <strong>{attackStats.range}</strong></span>
+                          <span>Move <strong>{unit.move}</strong></span>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="summary-line">Waiting for battlefield data.</p>
+            )}
           </section>
         </aside>
 
         <section className="panel map-stage">
           <div className="map-frame">
-            <HexMapBoard
-              scenarioMap={scenarioMap}
-              defenders={defenders}
-              onion={onion}
-              mode={activeMode}
-              selectedUnitId={activeSelectedUnitId}
-              onSelectUnit={handleSelectUnit}
-            />
+            {displayedScenarioMap && displayedOnion ? (
+              <HexMapBoard
+                scenarioMap={displayedScenarioMap}
+                defenders={displayedDefenders}
+                onion={displayedOnion}
+                mode={activeMode}
+                selectedUnitId={activeSelectedUnitId}
+                onSelectUnit={handleSelectUnit}
+              />
+            ) : (
+              <div className="hex-map-shell panel-subtle">
+                <p className="summary-line">Battlefield will appear once the game state loads.</p>
+              </div>
+            )}
           </div>
         </section>
 
         <aside className={`panel rail rail-right ${yourTurn ? 'controls-live' : 'controls-muted'}`}>
-          {!isOnionSelected && (
+          {hasBattlefieldData && !isOnionSelected && (
             <section className="section-block">
               <div className="card-head">
                 <div>
@@ -636,7 +753,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
               <div className="composer-grid">
                 <div className="composer-field">
                   <span className="stat-label">Selected unit</span>
-                  <strong>{activeMode === 'end-phase' ? 'Not required' : selectedUnit.id}</strong>
+                  <strong>{activeMode === 'end-phase' ? 'Not required' : selectedUnit?.id ?? 'No defender selected'}</strong>
                 </div>
                 <div className="composer-field">
                   <span className="stat-label">Target</span>
@@ -644,7 +761,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 </div>
                 <div className="composer-field">
                   <span className="stat-label">Weapon state</span>
-                  <strong>{activeMode === 'end-phase' ? 'n/a' : selectedUnit.weapons}</strong>
+                  <strong>{activeMode === 'end-phase' ? 'n/a' : selectedUnit?.weapons ?? 'n/a'}</strong>
                 </div>
                 <div className="composer-field">
                   <span className="stat-label">Validation</span>
@@ -668,39 +785,43 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 <p className="eyebrow">
                   {isOnionSelected ? 'Onion Details' : 'Selected Unit'}
                 </p>
-                <h3>{isOnionSelected ? onion.id : selectedUnit.id}</h3>
+                <h3>{isOnionSelected ? displayedOnion?.id ?? 'Waiting' : selectedUnit?.id ?? 'Waiting'}</h3>
               </div>
             </div>
-            {isOnionSelected ? (
+            {!hasBattlefieldData ? (
+              <p className="summary-line">Waiting for battlefield data.</p>
+            ) : isOnionSelected && displayedOnion ? (
               <>
                 <p className="summary-line">
-                  {onion.type} · {onion.status} · ({onion.q},{onion.r})
+                  {displayedOnion.type} · {displayedOnion.status} · ({displayedOnion.q},{displayedOnion.r})
                 </p>
                 <dl className="inspector-grid inspector-grid-right">
                   <div>
                     <dt>Treads</dt>
-                    <dd>{onion.treads}</dd>
+                    <dd>{displayedOnion.treads}</dd>
                   </div>
                   <div>
                     <dt>Move Available</dt>
-                    <dd>{onion.movesAllowed - onion.movesUsed} / {onion.movesAllowed}</dd>
+                    <dd>{displayedOnion.movesAllowed - displayedOnion.movesUsed} / {displayedOnion.movesAllowed}</dd>
                   </div>
                   <div>
                     <dt>Rams</dt>
-                    <dd>{onion.rams}</dd>
+                    <dd>{displayedOnion.rams}</dd>
                   </div>
                   <div>
                     <dt>Weapons</dt>
-                    <dd style={{ gridColumn: '1 / -1' }}>{onion.weapons}</dd>
+                    <dd style={{ gridColumn: '1 / -1' }}>{displayedOnion.weapons}</dd>
                   </div>
                 </dl>
               </>
             ) : (
               <>
-                <p className="summary-line">Selected unit: {selectedUnit.id}</p>
-                <p className="summary-line">
-                  {selectedUnit.type} · {selectedUnit.status} · ({selectedUnit.q},{selectedUnit.r})
-                </p>
+                <p className="summary-line">Selected unit: {selectedUnit?.id ?? 'No defender selected'}</p>
+                {selectedUnit ? (
+                  <>
+                    <p className="summary-line">
+                      {selectedUnit.type} · {selectedUnit.status} · ({selectedUnit.q},{selectedUnit.r})
+                    </p>
                 <dl className="inspector-grid inspector-grid-right">
                   <div>
                     <dt>Weapons</dt>
@@ -719,6 +840,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                     <dd>{selectedUnitIsActionable ? 'yes' : 'no'}</dd>
                   </div>
                 </dl>
+                  </>
+                ) : (
+                  <p className="summary-line">No defender data available.</p>
+                )}
               </>
             )}
           </section>

@@ -1,14 +1,6 @@
 import { axialToPixel, boardPixelSize, hexCorners, hexKey, pointsToString } from '../lib/hex'
-import { unitCode, type BattlefieldUnit, type Mode, type TerrainHex } from '../mockBattlefield'
+import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type Mode, type TerrainHex } from '../lib/battlefieldView'
 import './HexMapBoard.css'
-
-type OnionView = {
-  id: string
-  type: string
-  q: number
-  r: number
-  status: string
-}
 
 type HexMapBoardProps = {
   scenarioMap: {
@@ -17,7 +9,7 @@ type HexMapBoardProps = {
     hexes: TerrainHex[]
   }
   defenders: BattlefieldUnit[]
-  onion: OnionView
+  onion: BattlefieldOnionView
   mode: Mode
   selectedUnitId: string
   onSelectUnit: (unitId: string) => void
@@ -28,7 +20,7 @@ const MAP_PADDING = 28
 
 export function HexMapBoard({ scenarioMap, defenders, onion, mode, selectedUnitId, onSelectUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
-  const occupantMap = new Map<string, BattlefieldUnit | OnionView>()
+  const occupantMap = new Map<string, BattlefieldUnit | BattlefieldOnionView>()
 
   occupantMap.set(hexKey(onion), onion)
   for (const defender of defenders) {

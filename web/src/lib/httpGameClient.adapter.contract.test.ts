@@ -18,6 +18,23 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
+				state: {
+					onion: { position: { q: 0, r: 0 }, treads: 45 },
+					defenders: {
+						'wolf-2': {
+							id: 'wolf-2',
+							type: 'BigBadWolf',
+							position: { q: 6, r: 6 },
+							status: 'operational',
+							weapons: [],
+						},
+					},
+				},
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -34,10 +51,27 @@ describe('http game client adapter contract', () => {
 
 		await expect(client.getState(123)).resolves.toEqual({
 			snapshot: {
+				authoritativeState: {
+					onion: { position: { q: 0, r: 0 }, treads: 45 },
+					defenders: {
+						'wolf-2': {
+							id: 'wolf-2',
+							type: 'BigBadWolf',
+							position: { q: 6, r: 6 },
+							status: 'operational',
+							weapons: [],
+						},
+					},
+				},
 				gameId: 123,
 				phase: 'DEFENDER_COMBAT',
 				selectedUnitId: null,
 				mode: 'fire',
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
 				lastEventSeq: 47,
@@ -84,6 +118,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -92,6 +127,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {} },
 				eventSeq: 49,
 			}))
 
@@ -105,6 +141,7 @@ describe('http game client adapter contract', () => {
 		await client.submitAction(123, { type: 'set-mode', mode: 'combined' })
 
 		await expect(client.submitAction(123, { type: 'refresh' })).resolves.toEqual({
+			authoritativeState: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {} },
 			gameId: 123,
 			phase: 'DEFENDER_COMBAT',
 			selectedUnitId: 'wolf-2',
@@ -132,6 +169,7 @@ describe('http game client adapter contract', () => {
 				phase: 'ONION_MOVE',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 2,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 				eventSeq: 12,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -153,6 +191,7 @@ describe('http game client adapter contract', () => {
 
 		await client.getState(123)
 		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toEqual({
+			authoritativeState: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 			gameId: 123,
 			phase: 'ONION_COMBAT',
 			selectedUnitId: null,

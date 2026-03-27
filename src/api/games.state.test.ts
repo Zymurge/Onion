@@ -23,6 +23,9 @@ describe('GET /games/:id', () => {
     expect(body.turnNumber).toBe(1)
     expect(body.winner).toBeNull()
     expect(body).toHaveProperty('state')
+    expect(body).toHaveProperty('scenarioMap')
+    expect(body.scenarioMap.width).toBeGreaterThan(0)
+    expect(body.scenarioMap.height).toBeGreaterThan(0)
     expect(typeof body.eventSeq).toBe('number')
   })
 
@@ -67,6 +70,8 @@ describe('GET /games/:id', () => {
     expect(body.state.onion).toBeDefined()
     expect(body.state.onion.position).toBeDefined()
     expect(body.state.defenders).toBeDefined()
+    expect(body.scenarioMap).toBeDefined()
+    expect(body.scenarioMap.hexes).toBeDefined()
     expect(Object.keys(body.state.defenders).length).toBeGreaterThanOrEqual(1)
   })
 })

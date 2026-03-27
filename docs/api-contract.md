@@ -5,21 +5,28 @@
 The protocol uses a unified **command/event model** independent of transport:
 
 - **Commands** (client → server): typed action objects submitted by the active player.
-- **Events** (server → client): typed, sequenced records of everything that happened as a result.
+- **Events** (server → client): typed, sequenced records of everything
+  that happened as a result.
 
 ### Phase 1 — Pure REST
 
-All communication is over HTTP. The Phase 1 CLI is designed for manual testing and can operate without background polling.
+All communication is over HTTP. The Phase 1 CLI is designed for manual
+testing and can operate without background polling.
 
 | Direction | Mechanism |
 | :--- | :--- |
 | Submit action | `POST /games/{id}/actions` |
 | Get your action's results | Response body of the POST |
-| Get event history or missed actions | `GET /games/{id}/events?after={seq}` (manual refresh or optional polling) |
+| Get event history or missed actions | `GET /games/{id}/events?after={seq}` |
+
+Manual refresh or optional polling can use the same events route.
 
 ### Phase 2+ — WebSocket (additive, not replacing)
 
-A WS connection to `ws://host/games/{id}/ws` carries the same JSON shapes. Commands are sent as WS messages; events are pushed by the server. No game logic changes. REST endpoints remain for non-real-time use.
+A WS connection to `ws://host/games/{id}/ws` carries the same JSON
+shapes. Commands are sent as WS messages; events are pushed by the
+server. No game logic changes. REST endpoints remain for non-real-time
+use.
 
 ---
 
@@ -34,7 +41,9 @@ Request:  { "username": string, "password": string }
 Response: { "userId": string, "token": string }
 Errors:   409 if username taken
           400 INVALID_INPUT for schema validation errors
-          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
+            400 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+              (note: Fastify test injector returns 400,
+              production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
@@ -46,7 +55,9 @@ Request:  { "username": string, "password": string }
 Response: { "userId": string, "token": string }
 Errors:   401 if credentials invalid
           400 INVALID_INPUT for schema validation errors
-          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
+            400 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+              (note: Fastify test injector returns 400,
+              production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
@@ -67,12 +78,15 @@ Response: [
 
 ### `GET /scenarios/{id}`
 
-Returns the full scenario definition (matches `scenario-schema.md` v1 shape, including `displayName`).
+Returns the full scenario definition (matches
+`scenario-schema.md` v1 shape, including `displayName`).
 
 ```text
 Response: { ...full scenario JSON }
 Errors:   404 if not found
-          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
+            400 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+              (note: Fastify test injector returns 400,
+              production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
@@ -90,7 +104,9 @@ Request:  { "scenarioId": string, "role": "onion" | "defender" }
 Response: { "gameId": number, "role": "onion" | "defender" }
 Errors:   400 INVALID_INPUT if role is not "onion" or "defender"
           404 NOT_FOUND if scenarioId does not match a known scenario
-          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
+            400 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+              (note: Fastify test injector returns 400,
+              production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
@@ -107,7 +123,9 @@ Response: { "gameId": number, "role": "onion" | "defender" }
 Errors:   404 game not found
           409 game already full
           400 cannot join your own game
-          400 PAYLOAD_TOO_LARGE if payload exceeds 16KB (note: Fastify test injector returns 400, production returns 413)
+            400 PAYLOAD_TOO_LARGE if payload exceeds 16KB
+              (note: Fastify test injector returns 400,
+              production returns 413)
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
@@ -120,6 +138,7 @@ Full current game state. Suitable for initial render and reconnect.
 Response: {
   "gameId":      number,
   "scenarioId":  string,
+  "scenarioName": string,
   "scenarioDisplayName": string,
   "phase":       TurnPhase,
   "turnNumber":  number,
@@ -127,6 +146,11 @@ Response: {
   "players": {
     "onion":    string,   // userId
     "defender": string    // userId
+  },
+  "scenarioMap": {
+    "width": number,
+    "height": number,
+    "hexes": Array<{ "q": number, "r": number, "t": number }>
   },
   "state": GameState,
   "eventSeq":    number   // highest event sequence number so far
@@ -139,7 +163,8 @@ Response: {
 
 ### `POST /games/{id}/actions`
 
-Submit a command for the active player. The server validates phase, player identity, and move legality before applying.
+Submit a command for the active player. The server validates phase,
+player identity, and move legality before applying.
 
 ```text
 Request:  Command  (see Command Types below)
@@ -154,22 +179,36 @@ Errors:
     "ok":           false,
     "error":        string,       // human-readable
     "code":         string,       // machine-readable (see Error Codes)
-    "detailCode"?:  string,       // optional machine-readable subcode for granular error details (e.g., "NO_PATH", "BLOCKED_BY_UNIT")
-    "currentPhase": TurnPhase     // always present; helps CLI give useful feedback
-  }                               // malformed or invalid input (INVALID_INPUT, COMMAND_INVALID, etc)
-  422                             // well-formed but invalid action (currently surfaced as MOVE_INVALID + detailCode)
+    "detailCode"?:  string,       // optional machine-readable subcode
+                                   // for granular error details
+                                   // (e.g., "NO_PATH",
+                                   // "BLOCKED_BY_UNIT")
+    "currentPhase": TurnPhase     // always present; helps CLI give
+                                   // useful feedback
+  }                               // malformed or invalid input
+                                  // (INVALID_INPUT,
+                                  // COMMAND_INVALID, etc)
+  422                             // well-formed but invalid action
+                                  // (currently surfaced as
+                                  // MOVE_INVALID + detailCode)
   403                             — not your turn
   409                             — game already over
   413                             — PAYLOAD_TOO_LARGE if payload exceeds 16KB
-  400                             — MALFORMED_JSON if request body is not valid JSON
+  400                             — MALFORMED_JSON if request body is
+                                  not valid JSON
   500                             — INTERNAL_ERROR for unexpected backend errors
 ```
 
-`seq` duplicates `events.at(-1).seq` for the non-empty case. It is included so clients have a definite event fence even when `events` is empty, and so they do not need to traverse the array to find the latest sequence number.
+`seq` duplicates `events.at(-1).seq` for the non-empty case. It is
+included so clients have a definite event fence even when `events` is
+empty, and so they do not need to traverse the array to find the latest
+sequence number.
 
 ### `GET /games/{id}/events?after={seq}`
 
-Fetch events that occurred after a given sequence number. Phase 1 clients can use this for manual refresh, event inspection, or optional polling.
+Fetch events that occurred after a given sequence number. Phase 1
+clients can use this for manual refresh, event inspection, or optional
+polling.
 
 ```text
 Query:    after (number, required) — last seq the client has seen
@@ -192,7 +231,8 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 { "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
 ```
 
-Ramming is resolved as part of `MOVE` path execution (up to 2 rams per turn), not as a separate command.
+Ramming is resolved as part of `MOVE` path execution (up to 2 rams per
+turn), not as a separate command.
 
 ### Onion Combat Phase (`ONION_COMBAT`)
 
@@ -207,7 +247,8 @@ Ramming is resolved as part of `MOVE` path execution (up to 2 rams per turn), no
 }
 ```
 
-`weaponIndex` identifies which instance of a multi-count battery (e.g., secondary battery 0–3). Use `0` for single-instance weapons.
+`weaponIndex` identifies which instance of a multi-count battery
+(e.g., secondary battery 0–3). Use `0` for single-instance weapons.
 
 ### Defender Movement Phase (`DEFENDER_MOVE`, `GEV_SECOND_MOVE`)
 
@@ -233,7 +274,9 @@ Ramming is resolved as part of `MOVE` path execution (up to 2 rams per turn), no
 { "type": "COMBINED_FIRE", "unitIds": string[], "targetId": string }
 ```
 
-Note: combined fire is not legal when targeting Onion treads (each unit must fire individually per Special Rule 7.13.2). The engine enforces this.
+Note: combined fire is not legal when targeting Onion treads (each unit
+must fire individually per Special Rule 7.13.2). The engine enforces
+this.
 
 ---
 
@@ -242,8 +285,11 @@ Note: combined fire is not legal when targeting Onion treads (each unit must fir
 Combat actions return structured errors:
 
 - HTTP 400 for malformed input, schema errors, or unsupported commands.
-- HTTP 422 for well-formed but invalid combat actions (e.g., illegal target, exhausted weapon, combined fire on treads).
-- Response body includes `detailCode` for granular error (e.g., `NO_TARGET`, `WEAPON_EXHAUSTED`, `COMBINED_FIRE_TREAD_TARGET`).
+- HTTP 422 for well-formed but invalid combat actions
+  (e.g., illegal target, exhausted weapon, combined fire on treads).
+- Response body includes `detailCode` for granular error
+  (e.g., `NO_TARGET`, `WEAPON_EXHAUSTED`,
+  `COMBINED_FIRE_TREAD_TARGET`).
 
 Unsupported action command types are rejected with:
 
@@ -275,7 +321,11 @@ All errors include `detailCode` for granular client feedback.
 
 ## Scenario Map Loading (MOVE Route)
 
-The MOVE route always uses the scenario's `map` property (if present) for pathfinding and validation. This ensures that stored scenarios with nested map fields are handled correctly. If `map` is not present, the route falls back to the root-level `width`, `height`, and `hexes` fields for backward compatibility.
+The MOVE route always uses the scenario's `map` property (if present)
+for pathfinding and validation. This ensures that stored scenarios with
+nested map fields are handled correctly. If `map` is not present, the
+route falls back to the root-level `width`, `height`, and `hexes`
+fields for backward compatibility.
 
 ### Any Phase
 
@@ -340,7 +390,9 @@ PHASE_CHANGED     { from: TurnPhase, to: TurnPhase, turnNumber: number }
 GAME_OVER         { winner: "onion" | "defender", reason: string }
 ```
 
-PLAYER_JOINED is emitted when a player successfully joins a game (either as onion or defender). The event includes the joining user's ID and their assigned role.
+PLAYER_JOINED is emitted when a player successfully joins a game
+(either as onion or defender). The event includes the joining user's ID
+and their assigned role.
 
 ### Sync Event
 
@@ -348,7 +400,8 @@ PLAYER_JOINED is emitted when a player successfully joins a game (either as onio
 STATE_SNAPSHOT    { state: GameState }
 ```
 
-Sent by server on WS reconnect. Not generated in REST polling — clients use `GET /games/{id}` for full state on reconnect.
+Sent by server on WS reconnect. Not generated in REST polling.
+Clients use `GET /games/{id}` for full state on reconnect.
 
 ---
 
@@ -379,7 +432,8 @@ Sent by server on WS reconnect. Not generated in REST polling — clients use `G
 
 ### `GameState`
 
-The mutable board snapshot stored in `game_state` JSONB. Derived from `initialState` in the scenario at game creation.
+The mutable board snapshot stored in `game_state` JSONB. Derived from
+`initialState` in the scenario at game creation.
 
 ```typescript
 {
@@ -413,7 +467,8 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from `initialSt
   "ok":           false,
   "error":        string,      // human-readable description
   "code":         string,      // machine-readable (e.g. "WRONG_PHASE", "ILLEGAL_MOVE")
-  "currentPhase": TurnPhase    // always present on action errors; omitted on auth/404 errors
+  "currentPhase": TurnPhase    // always present on action errors;
+                                // omitted on auth/404 errors
 }
 ```
 

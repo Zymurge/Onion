@@ -1,3 +1,0 @@
-# Local markdownlint configuration for VS Code and CLI usage.
-# This keeps the extension from depending on the remote GitHub schema URL.
-{}

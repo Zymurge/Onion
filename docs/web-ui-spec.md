@@ -2,23 +2,28 @@
 
 ## Purpose
 
-Define the architecture, scope, implementation phases, reuse strategy, and quality gates for the first production web UI for Onion.
+Define the architecture, scope, implementation phases, reuse strategy, and quality
+gates for the first production web UI for Onion.
 
 This document captures the team-aligned direction before coding begins.
 
 ## Architecture Direction (Locked)
 
 1. Build a React + TypeScript SPA in a dedicated `web/` folder.
-2. Keep Fastify backend as the source of truth for game rules, turn phases, and action validation.
-3. Share domain contracts from `src/types/index.ts` directly with the web client where possible.
-4. Extract transport/API logic currently in the CLI into a shared SDK module, then consume it from both CLI and web.
+2. Keep Fastify backend as the source of truth for game rules, turn phases, and
+   action validation.
+3. Share domain contracts from `src/types/index.ts` directly with the web client
+   where possible.
+4. Extract transport/API logic currently in the CLI into a shared SDK module, then
+   consume it from both CLI and web.
 5. Favor deterministic server-state rendering over optimistic local simulation.
 
 ## Non-Goals (Initial)
 
 1. No gameplay rule logic in the web client.
 2. No custom transport protocol.
-3. No full websocket requirement in first vertical slice (polling/manual refresh is acceptable first).
+3. No full websocket requirement in first vertical slice (polling/manual refresh
+   is acceptable first).
 4. No redesign of core backend APIs before initial UI is functional.
 5. No tablet/mobile UX commitment in initial implementation (desktop-only first).
 
@@ -54,7 +59,8 @@ References:
 ## Extraction Plan
 
 1. Introduce shared package/module (proposal): `src/shared/api/`.
-2. Move generic fetch helpers + endpoint wrappers from CLI API client into shared module.
+2. Move generic fetch helpers + endpoint wrappers from CLI API client into shared
+   module.
 3. Keep CLI session concerns (`SessionStore`) in CLI layer.
 4. Add web session/auth adapter in web layer.
 
@@ -147,6 +153,12 @@ Exit Criteria:
 
 1. `GameState`, `phase`, `turnNumber`, `eventSeq`.
 2. Event stream envelopes.
+3. The connected battlefield view must derive unit roster,
+   unit positions, and unit status from the loaded game
+   state's `state` payload.
+4. The connected hex board must derive terrain,
+   dimensions, and coordinate bounds from the loaded
+   scenario map snapshot for the active game.
 
 ## Local UI State (Ephemeral)
 
@@ -157,17 +169,23 @@ Exit Criteria:
 
 ## Rule
 
-Never mutate server-derived game state as if it were authoritative. Always reconcile from response snapshots and event deltas.
+Never mutate server-derived game state as if it were authoritative. Always reconcile
+from response snapshots and event deltas.
+
+Connected rendering must not fall back to `web/src/mockBattlefield.ts` for map terrain,
+unit roster, unit positions, or unit status once authoritative game data has loaded.
 
 ## Action Affordance Matrix (Initial)
 
 **Status: Complete**
 
-1. During non-active role turn: action controls lowlighted/disabled, read-only explanation shown.
+1. During non-active role turn: action controls lowlighted/disabled, read-only
+   explanation shown.
 2. During active phase: show only legal command entry points for that role/phase.
 3. For `END_PHASE`: always visible when caller has active role and game not over.
 4. For fire actions: enforce complete required inputs before enabling submit.
-5. In each action mode, units that can act are visually highlighted and listed with pertinent stats.
+5. In each action mode, units that can act are visually highlighted and listed with
+   pertinent stats.
 
 ## Turn and Endgame Presentation
 
@@ -190,11 +208,21 @@ Never mutate server-derived game state as if it were authoritative. Always recon
 
 ## Testing Strategy
 
-The canonical layer map lives in [testing-strategy.md](testing-strategy.md). For the web UI, keep unit tests focused on selectors and payload builders, component tests focused on App orchestration and interaction states, integration tests focused on UI + API wiring, and E2E limited to full user journeys.
+The canonical layer map lives in [testing-strategy.md](testing-strategy.md).
+For the web UI, keep unit tests focused on selectors and payload builders,
+component tests focused on App orchestration and interaction states,
+integration tests focused on UI + API wiring, and E2E limited to full user
+journeys.
+
+For the connected game screen specifically, add red-first component tests that
+prove App renders the defender roster, selected-unit inspector, and hex-board
+bounds from authoritative game state and scenario map data rather than from
+`mockBattlefield`.
 
 ## Open Questions
 
-1. Should first map release support click-to-move only, or text coordinate fallback in the same view?
+1. Should first map release support click-to-move only, or text coordinate fallback
+   in the same view?
 2. Is websocket support required for Phase 2, or explicitly deferred to Phase 3?
 3. Do we need spectator mode in this track, or post-1.0 web milestone?
 4. Preferred design token baseline and brand style direction for final visual pass?

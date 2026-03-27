@@ -1,4 +1,10 @@
-import type { TurnPhase } from '../../../src/types/index'
+import type { GameState, TurnPhase } from '../../../src/types/index'
+
+export type ScenarioMapSnapshot = {
+	width: number
+	height: number
+	hexes: Array<{ q: number; r: number; t: number }>
+}
 
 export type GamePhase = 'onion' | 'defender'
 
@@ -12,6 +18,8 @@ export type GameSnapshot = {
 	scenarioName?: string
 	turnNumber?: number
 	lastEventSeq: number
+	authoritativeState?: GameState
+	scenarioMap?: ScenarioMapSnapshot
 }
 
 export type GameSessionContext = {

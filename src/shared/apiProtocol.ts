@@ -1,3 +1,5 @@
+import type { GameState } from '../types/index.js'
+
 export type ApiErrorBody = {
 	ok?: false
 	error?: string
@@ -21,6 +23,12 @@ export type ApiFailure = {
 
 export type ApiResult<T> = ApiSuccess<T> | ApiFailure
 
+export type ScenarioMapSnapshot = {
+	width: number
+	height: number
+	hexes: Array<{ q: number; r: number; t: number }>
+}
+
 export type GameStateResponse = {
 	gameId: number
 	scenarioId: string
@@ -33,7 +41,8 @@ export type GameStateResponse = {
 		onion: string
 		defender: string
 	}
-	state: unknown
+	state: GameState
+	scenarioMap?: ScenarioMapSnapshot
 	eventSeq: number
 }
 

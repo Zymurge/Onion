@@ -5,6 +5,16 @@ import { describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 import { createGameClient, type GameSnapshot } from './lib/gameClient'
+import type { GameState } from '../../src/types/index'
+
+type AuthoritativeBattlefieldSnapshot = GameSnapshot & {
+	authoritativeState: GameState
+	scenarioMap: {
+		width: number
+		height: number
+		hexes: Array<{ q: number; r: number; t: number }>
+	}
+}
 
 function createDeferred<T>() {
 	let resolve!: (value: T) => void
@@ -14,18 +24,190 @@ function createDeferred<T>() {
 	return { promise, resolve }
 }
 
+function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefieldSnapshot {
+	return {
+		gameId: 123,
+		phase: 'DEFENDER_COMBAT',
+		selectedUnitId: 'dragon-7',
+		mode: 'fire',
+		scenarioName: 'Authoritative swamp state',
+		turnNumber: 8,
+		lastEventSeq: 47,
+		authoritativeState: {
+			onion: {
+				id: 'onion-live',
+				type: 'TheOnion',
+				position: { q: 1, r: 1 },
+				treads: 27,
+				status: 'operational',
+				weapons: [
+					{
+						id: 'main-1',
+						name: 'Main Battery',
+						attack: 4,
+						range: 4,
+						defense: 4,
+						status: 'ready',
+						individuallyTargetable: true,
+					},
+				],
+				batteries: {
+					main: 1,
+					secondary: 0,
+					ap: 0,
+				},
+			},
+			defenders: {
+				'dragon-7': {
+					id: 'dragon-7',
+					type: 'Dragon',
+					position: { q: 0, r: 1 },
+					status: 'operational',
+					weapons: [
+						{
+							id: 'cannon-1',
+							name: 'Dragon Cannon',
+							attack: 6,
+							range: 3,
+							defense: 3,
+							status: 'ready',
+							individuallyTargetable: false,
+						},
+					],
+				},
+			},
+			ramsThisTurn: 0,
+		},
+		scenarioMap: {
+			width: 2,
+			height: 2,
+			hexes: [{ q: 1, r: 1, t: 1 }],
+		},
+	}
+}
+
+function createConnectedBattlefieldSnapshot(
+	overrides: Partial<AuthoritativeBattlefieldSnapshot> = {},
+): AuthoritativeBattlefieldSnapshot {
+	return {
+		gameId: 123,
+		phase: 'DEFENDER_COMBAT',
+		selectedUnitId: 'wolf-2',
+		mode: 'fire',
+		scenarioName: "The Siege of Shrek's Swamp",
+		turnNumber: 8,
+		lastEventSeq: 47,
+		authoritativeState: {
+			onion: {
+				id: 'onion-1',
+				type: 'TheOnion',
+				position: { q: 0, r: 1 },
+				treads: 33,
+				status: 'operational',
+				weapons: [
+					{
+						id: 'main-1',
+						name: 'Main Battery',
+						attack: 4,
+						range: 4,
+						defense: 4,
+						status: 'ready',
+						individuallyTargetable: true,
+					},
+				],
+				batteries: {
+					main: 1,
+					secondary: 0,
+					ap: 0,
+				},
+			},
+			defenders: {
+				'wolf-2': {
+					id: 'wolf-2',
+					type: 'BigBadWolf',
+					position: { q: 6, r: 6 },
+					status: 'operational',
+					weapons: [
+						{
+							id: 'main',
+							name: 'Main Gun',
+							attack: 4,
+							range: 2,
+							defense: 2,
+							status: 'ready',
+							individuallyTargetable: false,
+						},
+					],
+				},
+				'puss-1': {
+					id: 'puss-1',
+					type: 'Puss',
+					position: { q: 6, r: 4 },
+					status: 'operational',
+					weapons: [
+						{
+							id: 'main',
+							name: 'Main Gun',
+							attack: 4,
+							range: 2,
+							defense: 3,
+							status: 'ready',
+							individuallyTargetable: false,
+						},
+					],
+				},
+			},
+			ramsThisTurn: 0,
+		},
+		scenarioMap: {
+			width: 8,
+			height: 8,
+			hexes: [{ q: 1, r: 1, t: 1 }],
+		},
+		...overrides,
+	}
+}
+
 describe('App orchestration (injected game client)', () => {
+	it('renders defender roster and inspector details from authoritative game state instead of mock battlefield data', async () => {
+		const snapshot = createAuthoritativeBattlefieldSnapshot()
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByRole('button', { name: /dragon-7/i })).not.toBeNull()
+		expect(screen.queryByRole('button', { name: /wolf-2/i })).toBeNull()
+		expect(screen.getByText(/Selected unit: dragon-7/i)).not.toBeNull()
+		expect(screen.getByText(/Dragon · operational · \(0,1\)/i)).not.toBeNull()
+	})
+
+	it('renders hex board bounds from the authoritative scenario map instead of the mock map', async () => {
+		const snapshot = createAuthoritativeBattlefieldSnapshot()
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByRole('img', { name: /swamp siege hex map/i })
+		expect(screen.getByText('1,1')).not.toBeNull()
+		expect(screen.queryByText('2,1')).toBeNull()
+		expect(screen.queryByText('14,21')).toBeNull()
+	})
+
 	it('calls commitClientAction on unit select and updates UI', async () => {
 		const user = userEvent.setup()
-		const snapshot: GameSnapshot = {
-			gameId: 123,
-			phase: 'DEFENDER_COMBAT',
-			selectedUnitId: 'wolf-2',
-			mode: 'fire',
-			scenarioName: "The Siege of Shrek's Swamp",
-			turnNumber: 8,
-			lastEventSeq: 47,
-		}
+		const snapshot = createConnectedBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
 		const submitAction = vi.fn().mockResolvedValue({ ...snapshot, selectedUnitId: 'puss-1' })
 
@@ -47,15 +229,7 @@ describe('App orchestration (injected game client)', () => {
 
 	it('surfaces errors from commitClientAction as a banner', async () => {
 		const user = userEvent.setup()
-		const snapshot: GameSnapshot = {
-			gameId: 123,
-			phase: 'DEFENDER_COMBAT',
-			selectedUnitId: 'wolf-2',
-			mode: 'fire',
-			scenarioName: "The Siege of Shrek's Swamp",
-			turnNumber: 8,
-			lastEventSeq: 47,
-		}
+		const snapshot = createConnectedBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
 		const error = new Error('mock transport failure')
 		const submitAction = vi.fn().mockRejectedValue(error)
@@ -77,15 +251,10 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByRole('alert').textContent).toMatch(/mock transport failure/i)
 	})
 	it('renders from the current game snapshot', async () => {
-		const snapshot: GameSnapshot = {
-			gameId: 123,
-			phase: 'DEFENDER_COMBAT',
+		const snapshot = createConnectedBattlefieldSnapshot({
 			selectedUnitId: 'puss-1',
 			mode: 'combined',
-			scenarioName: "The Siege of Shrek's Swamp",
-			turnNumber: 8,
-			lastEventSeq: 47,
-		}
+		})
 		const session = { role: 'defender' as const }
 
 		const client = createGameClient({
@@ -108,15 +277,7 @@ describe('App orchestration (injected game client)', () => {
 
 	it('submits actions through the injected client', async () => {
 		const user = userEvent.setup()
-		const snapshot: GameSnapshot = {
-			gameId: 123,
-			phase: 'DEFENDER_COMBAT',
-			selectedUnitId: 'wolf-2',
-			mode: 'fire',
-			scenarioName: "The Siege of Shrek's Swamp",
-			turnNumber: 8,
-			lastEventSeq: 47,
-		}
+		const snapshot = createConnectedBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
 		const submitAction = vi.fn().mockResolvedValue(snapshot)
 
@@ -138,15 +299,7 @@ describe('App orchestration (injected game client)', () => {
 
 	it('sends end phase through the debug control', async () => {
 		const user = userEvent.setup()
-		const snapshot: GameSnapshot = {
-			gameId: 123,
-			phase: 'DEFENDER_COMBAT',
-			selectedUnitId: 'wolf-2',
-			mode: 'fire',
-			scenarioName: "The Siege of Shrek's Swamp",
-			turnNumber: 8,
-			lastEventSeq: 47,
-		}
+		const snapshot = createConnectedBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
 		const submitAction = vi.fn().mockResolvedValue({
 			...snapshot,
@@ -170,16 +323,14 @@ describe('App orchestration (injected game client)', () => {
 
 	it('keeps a newer phase after a stale initial load resolves', async () => {
 		const user = userEvent.setup()
-		const initialSnapshotDeferred = createDeferred<{ snapshot: GameSnapshot; session: { role: 'onion' } }>()
-		const submitAction = vi.fn().mockResolvedValue({
-			gameId: 123,
-			phase: 'ONION_COMBAT',
-			selectedUnitId: 'wolf-2',
-			mode: 'fire',
-			scenarioName: "The Siege of Shrek's Swamp",
-			turnNumber: 2,
-			lastEventSeq: 13,
-		})
+		const initialSnapshotDeferred = createDeferred<{ snapshot: AuthoritativeBattlefieldSnapshot; session: { role: 'onion' } }>()
+		const submitAction = vi.fn().mockResolvedValue(
+			createConnectedBattlefieldSnapshot({
+				phase: 'ONION_COMBAT',
+				turnNumber: 2,
+				lastEventSeq: 13,
+			}),
+		)
 
 		const client = createGameClient({
 			getState: vi.fn().mockReturnValue(initialSnapshotDeferred.promise),
@@ -193,15 +344,11 @@ describe('App orchestration (injected game client)', () => {
 		await user.click(screen.getByRole('button', { name: /advance phase/i }))
 
 		initialSnapshotDeferred.resolve({
-			snapshot: {
-				gameId: 123,
+			snapshot: createConnectedBattlefieldSnapshot({
 				phase: 'ONION_MOVE',
-				selectedUnitId: 'wolf-2',
-				mode: 'fire',
-				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 2,
 				lastEventSeq: 12,
-			},
+			}),
 			session: { role: 'onion' },
 		})
 

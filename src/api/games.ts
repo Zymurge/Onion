@@ -477,6 +477,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
 
       // Type assertion for scenarioSnapshot
       const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+      const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
       logger.debug({ gameId: match.gameId }, 'Game state fetched')
       return reply.send({
         gameId: match.gameId,
@@ -489,6 +490,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         winner: match.winner,
         players: match.players,
         state: match.state,
+        scenarioMap,
         eventSeq: match.events.at(-1)?.seq ?? 0,
       })
     } catch (err) {
