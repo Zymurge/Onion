@@ -152,12 +152,22 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     let cancelled = false
     const loadVersion = ++snapshotLoadVersion.current
 
-    void activeGameClient.getState(activeGameIdProp).then((state) => {
-      if (!cancelled && snapshotLoadVersion.current === loadVersion) {
-        setClientSnapshot(state.snapshot)
-        setClientSession(state.session)
-      }
-    })
+    void activeGameClient
+      .getState(activeGameIdProp)
+      .then((state) => {
+        if (!cancelled && snapshotLoadVersion.current === loadVersion) {
+          setClientSnapshot(state.snapshot)
+          setClientSession(state.session)
+        }
+      })
+      .catch((error) => {
+        // Handle errors from getState to avoid unhandled promise rejections
+        if (!cancelled && snapshotLoadVersion.current === loadVersion) {
+          console.error('Failed to load game state', error)
+          setClientSnapshot(null)
+          setClientSession(null)
+        }
+      })
 
     return () => {
       cancelled = true
