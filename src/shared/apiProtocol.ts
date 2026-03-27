@@ -44,7 +44,7 @@ export type EventsResponse = {
 export function buildUrl(baseUrl: string, path: string): string {
 	const trimmedBaseUrl = baseUrl.trim()
 	if (!trimmedBaseUrl) {
-		throw new Error('Backend URL is not configured. Use: config set url <url>')
+		throw new Error('Backend URL is not configured. Please configure the backend URL in your settings.')
 	}
 
 	return new URL(path, `${trimmedBaseUrl.endsWith('/') ? trimmedBaseUrl : `${trimmedBaseUrl}/`}`).toString()
