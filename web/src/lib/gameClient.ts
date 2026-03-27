@@ -1,16 +1,26 @@
+import type { TurnPhase } from '../../../src/types/index'
+
 export type GamePhase = 'onion' | 'defender'
 
 export type ActionMode = 'fire' | 'combined' | 'end-phase'
 
 export type GameSnapshot = {
 	gameId: number
-	role?: 'onion' | 'defender'
-	phase: GamePhase
+	phase: TurnPhase
 	selectedUnitId: string | null
 	mode: ActionMode
 	scenarioName?: string
 	turnNumber?: number
 	lastEventSeq: number
+}
+
+export type GameSessionContext = {
+	role: 'onion' | 'defender'
+}
+
+export type GameStateEnvelope = {
+	snapshot: GameSnapshot
+	session: GameSessionContext
 }
 
 export type GameAction =
@@ -31,13 +41,13 @@ export type GameClientError = {
 }
 
 export type GameClientTransport = {
-	getState(gameId: number): Promise<GameSnapshot>
+	getState(gameId: number): Promise<GameStateEnvelope>
 	submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
 	pollEvents?(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }
 
 export type GameClient = {
-	getState(gameId: number): Promise<GameSnapshot>
+	getState(gameId: number): Promise<GameStateEnvelope>
 	submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
 	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }

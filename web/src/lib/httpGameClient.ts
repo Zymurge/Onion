@@ -5,10 +5,12 @@ import {
 	type GameAction,
 	type GameClient,
 	type GameClientTransport,
+	type GameStateEnvelope,
 	type GameSnapshot,
 } from './gameClient'
 
 import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../../src/shared/apiProtocol'
+import type { TurnPhase } from '../../../src/types/index'
 
 type HttpGameClientOptions = {
 	baseUrl: string
@@ -20,19 +22,28 @@ function trimTrailingSlash(baseUrl: string) {
 	return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 }
 
-function normalizePhase(phase: unknown): GameSnapshot['phase'] {
+const TURN_PHASES: readonly TurnPhase[] = [
+	'ONION_MOVE',
+	'ONION_COMBAT',
+	'DEFENDER_RECOVERY',
+	'DEFENDER_MOVE',
+	'DEFENDER_COMBAT',
+	'GEV_SECOND_MOVE',
+] as const
+
+function normalizePhase(phase: unknown): TurnPhase {
 	if (typeof phase !== 'string') {
-		return 'defender'
+		return 'DEFENDER_MOVE'
 	}
 
-	return phase.toUpperCase().startsWith('ONION_') || phase === 'onion' ? 'onion' : 'defender'
+	const upperPhase = phase.toUpperCase()
+	return TURN_PHASES.includes(upperPhase as TurnPhase) ? (upperPhase as TurnPhase) : 'DEFENDER_MOVE'
 }
 
 function createInitialSnapshot(gameId: number): GameSnapshot {
 	return {
 		gameId,
-		phase: 'defender',
-		role: undefined,
+		phase: 'DEFENDER_MOVE',
 		selectedUnitId: null,
 		mode: 'fire',
 		scenarioName: undefined,
@@ -64,16 +75,20 @@ function mapServerSnapshot(
 	response: GameStateResponse,
 	currentSnapshot: GameSnapshot | null,
 	gameId: number,
-): GameSnapshot {
+): GameStateEnvelope {
 	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
-	return mergeSnapshot(fallback, {
-		gameId: response.gameId ?? gameId,
-		role: response.role ?? fallback.role,
-		phase: normalizePhase(response.phase),
-		scenarioName: response.scenarioName ?? fallback.scenarioName,
-		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
-		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : fallback.lastEventSeq,
-	})
+	return {
+		snapshot: mergeSnapshot(fallback, {
+			gameId: response.gameId ?? gameId,
+			phase: normalizePhase(response.phase),
+			scenarioName: response.scenarioName ?? fallback.scenarioName,
+			turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
+			lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : fallback.lastEventSeq,
+		}),
+		session: {
+			role: response.role,
+		},
+	}
 }
 
 function updateLocalSnapshot(currentSnapshot: GameSnapshot | null, action: GameAction, gameId: number): GameSnapshot {
@@ -109,8 +124,9 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 				throw buildError(result)
 			}
 
-			currentSnapshot = mapServerSnapshot(result.data, currentSnapshot, gameId)
-			return currentSnapshot
+			const envelope = mapServerSnapshot(result.data, currentSnapshot, gameId)
+			currentSnapshot = envelope.snapshot
+			return envelope
 		},
 		async submitAction(gameId: number, action: GameAction) {
 			if (action.type === 'refresh') {
@@ -126,8 +142,9 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 					throw buildError(result)
 				}
 
-				currentSnapshot = mapServerSnapshot(result.data, currentSnapshot, gameId)
-				return currentSnapshot
+				const envelope = mapServerSnapshot(result.data, currentSnapshot, gameId)
+				currentSnapshot = envelope.snapshot
+				return envelope.snapshot
 			}
 
 			currentSnapshot = updateLocalSnapshot(currentSnapshot, action, gameId)

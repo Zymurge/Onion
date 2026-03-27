@@ -33,14 +33,16 @@ describe('http game client', () => {
 		})
 
 		await expect(client.getState(123)).resolves.toEqual({
-			gameId: 123,
-			role: 'defender',
-			phase: 'defender',
-			selectedUnitId: null,
-			mode: 'fire',
-			scenarioName: "The Siege of Shrek's Swamp",
-			turnNumber: 8,
-			lastEventSeq: 47,
+			snapshot: {
+				gameId: 123,
+				phase: 'DEFENDER_COMBAT',
+				selectedUnitId: null,
+				mode: 'fire',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				lastEventSeq: 47,
+			},
+			session: { role: 'defender' },
 		})
 
 		await expect(client.pollEvents(123, 47)).resolves.toEqual([
@@ -104,8 +106,7 @@ describe('http game client', () => {
 
 		await expect(client.submitAction(123, { type: 'refresh' })).resolves.toEqual({
 			gameId: 123,
-			role: 'defender',
-			phase: 'defender',
+			phase: 'DEFENDER_COMBAT',
 			selectedUnitId: 'wolf-2',
 			mode: 'combined',
 			scenarioName: "The Siege of Shrek's Swamp",

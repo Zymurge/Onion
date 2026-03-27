@@ -25,6 +25,21 @@ describe('resolveWebRuntimeConfig', () => {
 					VITE_ONION_API_URL: 'http://localhost:3000',
 				},
 				'',
+				'/game/42',
+				),
+		).toEqual({
+			apiBaseUrl: 'http://localhost:3000',
+			gameId: 42,
+		})
+	})
+
+	it('still accepts the older gameid path form', () => {
+		expect(
+			resolveWebRuntimeConfig(
+				{
+					VITE_ONION_API_URL: 'http://localhost:3000',
+				},
+				'',
 				'/gameid/42',
 				),
 		).toEqual({

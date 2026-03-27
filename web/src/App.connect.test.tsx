@@ -30,8 +30,7 @@ describe('App connection gate', () => {
 		const user = userEvent.setup()
 		const submitAction = vi.fn().mockResolvedValue({
 			gameId: 123,
-			role: 'onion',
-			phase: 'defender',
+			phase: 'ONION_MOVE',
 			selectedUnitId: 'wolf-2',
 			mode: 'fire',
 			scenarioName: 'Test Scenario',
@@ -46,14 +45,16 @@ describe('App connection gate', () => {
 
 		createHttpGameClient.mockReturnValue({
 			getState: vi.fn().mockResolvedValue({
-				gameId: 123,
-				role: 'onion',
-				phase: 'defender',
-				selectedUnitId: 'wolf-2',
-				mode: 'fire',
-				scenarioName: 'Test Scenario',
-				turnNumber: 11,
-				lastEventSeq: 47,
+				snapshot: {
+					gameId: 123,
+					phase: 'ONION_MOVE',
+					selectedUnitId: 'wolf-2',
+					mode: 'fire',
+					scenarioName: 'Test Scenario',
+					turnNumber: 11,
+					lastEventSeq: 47,
+				},
+				session: { role: 'onion' },
 			}),
 			submitAction,
 			pollEvents: vi.fn().mockResolvedValue([]),
@@ -83,6 +84,11 @@ describe('App connection gate', () => {
 		await screen.findByText(/Turn 11/i)
 		await screen.findByText(/Test Scenario/i)
 		await screen.findByText(/^Onion$/i, { selector: '.role-badge' })
+		expect(screen.getByText((_, element) => element?.classList.contains('role-badge-onion') === true)).not.toBeNull()
+		expect(screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Onion Movement')).not.toBeNull()
+		expect(
+			screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.classList.contains('phase-chip-active') === true),
+		).not.toBeNull()
 		await screen.findByText(/Selected unit: wolf-2/i)
 	})
 })

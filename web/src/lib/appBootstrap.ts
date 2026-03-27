@@ -22,7 +22,7 @@ function parseGameId(value: string | null | undefined): number | null {
 }
 
 function parseGameIdFromPathname(pathname: string): number | null {
-	const match = pathname.match(/^\/gameid\/(\d+)\/?$/i)
+	const match = pathname.match(/^\/(?:gameid|game)\/(\d+)\/?$/i)
 	return match ? parseGameId(match[1]) : null
 }
 

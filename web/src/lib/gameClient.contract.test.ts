@@ -4,32 +4,33 @@ import {
 	createGameClient,
 	type GameClientTransport,
 	type GameSnapshot,
+	type GameStateEnvelope,
 	type GameAction,
 } from './gameClient'
 
 describe('game client contract', () => {
 	const snapshot: GameSnapshot = {
 		gameId: 123,
-		role: 'defender',
-		phase: 'defender',
+		phase: 'DEFENDER_COMBAT',
 		selectedUnitId: 'wolf-2',
 		mode: 'fire',
 		scenarioName: "The Siege of Shrek's Swamp",
 		turnNumber: 8,
 		lastEventSeq: 47,
 	}
+	const session: GameStateEnvelope['session'] = { role: 'defender' }
 
 	const action: GameAction = { type: 'set-mode', mode: 'end-phase' }
 
 	it('loads the current state through the seam', async () => {
 		const transport: GameClientTransport = {
-			getState: vi.fn().mockResolvedValue(snapshot),
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
 			submitAction: vi.fn(),
 		}
 
 		const client = createGameClient(transport)
 
-		await expect(client.getState(123)).resolves.toEqual(snapshot)
+		await expect(client.getState(123)).resolves.toEqual({ snapshot, session })
 		expect(transport.getState).toHaveBeenCalledWith(123)
 	})
 

@@ -12,19 +12,45 @@ import {
 import {
   type GameAction,
   type GameClient,
+  type GameSessionContext,
   type GameSnapshot,
 } from './lib/gameClient'
 import { createHttpGameClient } from './lib/httpGameClient'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
 import { requestJson } from '../../src/shared/apiProtocol'
+import type { TurnPhase } from '../../src/types/index'
 import './App.css'
 
-// Phase definitions
-type Phase = 'onion' | 'defender'
-const phases: Phase[] = ['onion', 'defender']
-const phaseLabels: Record<Phase, string> = {
+type DebugPhase = 'onion' | 'defender'
+const debugPhases: DebugPhase[] = ['onion', 'defender']
+const debugPhaseLabels: Record<DebugPhase, string> = {
   onion: 'ONION MOVEMENT',
   defender: 'DEFENDER COMBAT',
+}
+
+const turnPhaseLabels: Record<TurnPhase, string> = {
+  ONION_MOVE: 'Onion Movement',
+  ONION_COMBAT: 'Onion Combat',
+  DEFENDER_RECOVERY: 'Defender Recovery',
+  DEFENDER_MOVE: 'Defender Movement',
+  DEFENDER_COMBAT: 'Defender Combat',
+  GEV_SECOND_MOVE: 'GEV Second Move',
+}
+
+function getPhaseOwner(phase: TurnPhase | null): 'onion' | 'defender' | null {
+  if (phase === null) {
+    return null
+  }
+
+  if (phase.startsWith('ONION_')) {
+    return 'onion'
+  }
+
+  if (phase.startsWith('DEFENDER_') || phase === 'GEV_SECOND_MOVE') {
+    return 'defender'
+  }
+
+  return null
 }
 
 function parseWeaponStats(weaponString: string) {
@@ -73,7 +99,7 @@ type AuthResponse = {
 
 function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
     // Phase state
-    const [phase, setPhase] = useState<Phase>('defender')
+  const [phase, setPhase] = useState<DebugPhase>('defender')
 
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
@@ -111,6 +137,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const [mode, setMode] = useState<Mode>('fire')
   const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
   const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
+  const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
   const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
   const [connectDraft, setConnectDraft] = useState<ConnectionState>({
@@ -127,14 +154,16 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   useEffect(() => {
     if (activeGameClient === undefined || activeGameIdProp === undefined) {
       setClientSnapshot(null)
+      setClientSession(null)
       return
     }
 
     let cancelled = false
 
-    void activeGameClient.getState(activeGameIdProp).then((snapshot) => {
+    void activeGameClient.getState(activeGameIdProp).then((state) => {
       if (!cancelled) {
-        setClientSnapshot(snapshot)
+        setClientSnapshot(state.snapshot)
+        setClientSession(state.session)
       }
     })
 
@@ -144,13 +173,18 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }, [activeGameClient, activeGameIdProp])
 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
-  const activePhase = clientSnapshot?.phase ?? phase
+  const activePhase = clientSnapshot?.phase ?? null
   const activeMode = clientSnapshot?.mode ?? mode
   const activeSelectedUnitId = clientSnapshot?.selectedUnitId ?? selectedUnitId
-  const activeTurnNumber = clientSnapshot?.turnNumber ?? 3
-  const activeScenarioName = clientSnapshot?.scenarioName ?? "The Siege of Shrek's Swamp"
-  const activeRole = clientSnapshot?.role ?? 'defender'
-  const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? 42
+  const headerHasSnapshot = clientSnapshot !== null
+  const activeTurnNumber = clientSnapshot?.turnNumber ?? null
+  const activeScenarioName = clientSnapshot?.scenarioName ?? null
+  const activeRole = clientSession?.role ?? null
+  const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? null
+  const activePhaseOwner = getPhaseOwner(activePhase)
+  const activeTurnActive = headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
+  const shellPhase = activePhase ?? phase
+  const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -308,7 +342,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }
 
   // Floating, draggable, resizable debug popup component
-  function DraggableDebugPopup({ onClose, lines, phase, setPhase }: { onClose: () => void; lines: string[]; phase: Phase; setPhase: (phase: Phase) => void }) {
+  function DraggableDebugPopup({ onClose, lines, phase, setPhase }: { onClose: () => void; lines: string[]; phase: DebugPhase; setPhase: (phase: DebugPhase) => void }) {
     const [pos, setPos] = useState({ x: window.innerWidth - 380, y: 90 })
     const [size, setSize] = useState({ width: 340, height: 400 })
     const [dragging, setDragging] = useState(false)
@@ -376,13 +410,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           <button
             className="debug-cycle-phase-btn"
             onClick={() => {
-              const currentIndex = phases.indexOf(phase)
-              const nextIndex = (currentIndex + 1) % phases.length
-              setPhase(phases[nextIndex])
+              const currentIndex = debugPhases.indexOf(phase)
+              const nextIndex = (currentIndex + 1) % debugPhases.length
+              setPhase(debugPhases[nextIndex])
             }}
             title="Cycle to next phase (for testing)"
           >
-            Cycle Phase → {phaseLabels[phase]}
+            Cycle Phase → {debugPhaseLabels[phase]}
           </button>
         </div>
         <div className="debug-popup-resize" onMouseDown={onResizeMouseDown} title="Drag to resize">⤡</div>
@@ -391,28 +425,36 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }
 
   return (
-    <div className="shell" data-phase={activePhase}>
+    <div className="shell" data-phase={shellPhase}>
       <header className="topbar panel">
-        <div className={`role-badge ${activeRole === 'defender' ? 'role-badge-active' : 'role-badge-inactive'}`}>
-          {activeRole === 'defender' ? 'Defender' : 'Onion'}
+        <div
+          className={`role-badge ${
+            headerHasSnapshot
+              ? activeRole === 'defender'
+                ? 'role-badge-active role-badge-defender'
+                : 'role-badge-active role-badge-onion'
+              : 'role-badge-waiting'
+          }`}
+        >
+          {activeRole === 'defender' ? 'Defender' : activeRole === 'onion' ? 'Onion' : 'Waiting'}
         </div>
         <div className="topbar-state">
-          <div className="phase-chip phase-chip-turn">
-            <span>Turn {activeTurnNumber}</span>
+          <div className={`phase-chip phase-chip-turn${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}>
+            <span>Turn {activeTurnNumber ?? 'waiting'}</span>
           </div>
-          <div className="phase-chip phase-chip-state">
-            <span>{phaseLabels[activePhase]}</span>
+          <div className={`phase-chip phase-chip-state${activeTurnActive ? ' phase-chip-active' : ''}${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}>
+            <span>{headerHasSnapshot ? activePhaseLabel : 'WAITING'}</span>
           </div>
         </div>
         <div className="header-utility-controls">
           <div className="utility-group-vert">
             <div>
               <span className="stat-label-small">Scenario</span>
-              <strong>{activeScenarioName}</strong>
+              <strong className={headerHasSnapshot ? '' : 'header-waiting'}>{activeScenarioName ?? 'Waiting for game state'}</strong>
             </div>
             <div>
               <span className="stat-label-small">Game ID</span>
-              <strong>{activeGameId}</strong>
+              <strong className={headerHasSnapshot ? '' : 'header-waiting'}>{activeGameId ?? 'Waiting'}</strong>
             </div>
           </div>
           <div className="utility-group-vert">
@@ -454,7 +496,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       </header>
 
       {debugOpen && (
-        <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} phase={activePhase} setPhase={setPhase} />
+        <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} phase={phase} setPhase={setPhase} />
       )}
 
       <main className="battlefield-grid">
@@ -584,7 +626,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
               </div>
 
               <button type="button" className="primary-action">
-                {activeMode === 'end-phase' ? `End ${phaseLabels[activePhase].split('_')[0]}` : 'Submit Action'}
+                {activeMode === 'end-phase' ? `End ${activeRole === 'onion' ? 'Onion' : 'Defender'}` : 'Submit Action'}
               </button>
             </section>
           )}
