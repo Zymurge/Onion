@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
 import {
   battlefieldModes,
@@ -9,14 +9,41 @@ import {
   statusTone,
   type Mode,
 } from './mockBattlefield'
+import {
+  type GameAction,
+  type GameClient,
+  type GameSessionContext,
+  type GameSnapshot,
+} from './lib/gameClient'
+import { createHttpGameClient } from './lib/httpGameClient'
+import type { WebRuntimeConfig } from './lib/appBootstrap'
+import { requestJson } from '../../src/shared/apiProtocol'
+import type { TurnPhase } from '../../src/types/index'
 import './App.css'
 
-// Phase definitions
-type Phase = 'onion' | 'defender'
-const phases: Phase[] = ['onion', 'defender']
-const phaseLabels: Record<Phase, string> = {
-  onion: 'ONION MOVEMENT',
-  defender: 'DEFENDER COMBAT',
+const turnPhaseLabels: Record<TurnPhase, string> = {
+  ONION_MOVE: 'Onion Movement',
+  ONION_COMBAT: 'Onion Combat',
+  DEFENDER_RECOVERY: 'Defender Recovery',
+  DEFENDER_MOVE: 'Defender Movement',
+  DEFENDER_COMBAT: 'Defender Combat',
+  GEV_SECOND_MOVE: 'GEV Second Move',
+}
+
+function getPhaseOwner(phase: TurnPhase | null): 'onion' | 'defender' | null {
+  if (phase === null) {
+    return null
+  }
+
+  if (phase.startsWith('ONION_')) {
+    return 'onion'
+  }
+
+  if (phase.startsWith('DEFENDER_') || phase === 'GEV_SECOND_MOVE') {
+    return 'defender'
+  }
+
+  return null
 }
 
 function parseWeaponStats(weaponString: string) {
@@ -44,10 +71,26 @@ function parseAttackStats(attackString: string) {
   return { damage, range }
 }
 
-function App() {
-    // Phase state
-    const [phase, setPhase] = useState<Phase>('defender')
-    
+type AppProps = {
+  gameClient?: GameClient
+  gameId?: number
+  runtimeConfig?: WebRuntimeConfig
+  showConnectionGate?: boolean
+}
+
+type ConnectionState = {
+	apiBaseUrl: string
+  username: string
+  password: string
+  gameId: string
+}
+
+type AuthResponse = {
+  userId: string
+  token: string
+}
+
+function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
     const mockDebugLines = [
@@ -83,14 +126,147 @@ function App() {
     ]
   const [mode, setMode] = useState<Mode>('fire')
   const [selectedUnitId, setSelectedUnitId] = useState<string>('wolf-2')
-  const gameId = 42
+  const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
+  const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
+  const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
+  const [connectError, setConnectError] = useState<string | null>(null)
+  const [connectDraft, setConnectDraft] = useState<ConnectionState>({
+    apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
+    username: '',
+    password: '',
+    gameId: runtimeConfig?.gameId?.toString() ?? '',
+  })
+
+  const runtimeConnectionSeeded = showConnectionGate
+  const activeGameClient = gameClient ?? connectedSession?.gameClient
+  const activeGameIdProp = gameId ?? connectedSession?.gameId
+  const snapshotLoadVersion = useRef(0)
+
+  useEffect(() => {
+    if (activeGameClient === undefined || activeGameIdProp === undefined) {
+      setClientSnapshot(null)
+      setClientSession(null)
+      return
+    }
+
+    let cancelled = false
+    const loadVersion = ++snapshotLoadVersion.current
+
+    void activeGameClient
+      .getState(activeGameIdProp)
+      .then((state) => {
+        if (!cancelled && snapshotLoadVersion.current === loadVersion) {
+          setClientSnapshot(state.snapshot)
+          setClientSession(state.session)
+        }
+      })
+      .catch((error) => {
+        // Handle errors from getState to avoid unhandled promise rejections
+        if (!cancelled && snapshotLoadVersion.current === loadVersion) {
+          console.error('Failed to load game state', error)
+          setClientSnapshot(null)
+          setClientSession(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeGameClient, activeGameIdProp])
+
+  const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
+  const activePhase = clientSnapshot?.phase ?? null
+  const activeMode = clientSnapshot?.mode ?? mode
+  const activeSelectedUnitId = clientSnapshot?.selectedUnitId ?? selectedUnitId
+  const headerHasSnapshot = clientSnapshot !== null
+  const activeTurnNumber = clientSnapshot?.turnNumber ?? null
+  const activeScenarioName = clientSnapshot?.scenarioName ?? null
+  const activeRole = clientSession?.role ?? null
+  const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? null
+  const activePhaseOwner = getPhaseOwner(activePhase)
+  const activeTurnActive = headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
+  const shellPhase = activePhase ?? 'DEFENDER_MOVE'
+  const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
+
+  async function commitClientAction(action: GameAction) {
+    if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
+      return
+    }
+
+    snapshotLoadVersion.current += 1
+    const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, action)
+    setClientSnapshot(nextSnapshot)
+  }
+
+  function handleConnect(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setConnectError(null)
+
+    if (!connectDraft.apiBaseUrl.trim() || !connectDraft.username.trim() || !connectDraft.password.trim() || !connectDraft.gameId.trim()) {
+      setConnectError('API base URL, username, password, and game ID are required.')
+      return
+    }
+
+    const parsedGameId = Number(connectDraft.gameId.trim())
+    if (!Number.isSafeInteger(parsedGameId) || parsedGameId <= 0) {
+      setConnectError('Game ID must be a positive integer.')
+      return
+    }
+
+    void (async () => {
+      const loginResult = await requestJson<AuthResponse>({
+        baseUrl: connectDraft.apiBaseUrl.trim(),
+        path: 'auth/login',
+        method: 'POST',
+        body: {
+          username: connectDraft.username.trim(),
+          password: connectDraft.password,
+        },
+      })
+
+      if (!loginResult.ok) {
+        setConnectError(loginResult.message)
+        return
+      }
+
+      const nextClient = createHttpGameClient({
+        baseUrl: connectDraft.apiBaseUrl.trim(),
+        token: loginResult.data.token,
+      })
+
+      setConnectedSession({
+        gameClient: nextClient,
+        gameId: parsedGameId,
+      })
+    })().catch(() => {
+      setConnectError('Unable to connect to the backend.')
+    })
+  }
+
+  function handleSelectUnit(unitId: string) {
+    if (isControlledSession) {
+      void commitClientAction({ type: 'select-unit', unitId })
+      return
+    }
+
+    setSelectedUnitId(unitId)
+  }
+
+  function handleModeChange(nextMode: Mode) {
+    if (isControlledSession) {
+      void commitClientAction({ type: 'set-mode', mode: nextMode })
+      return
+    }
+
+    setMode(nextMode)
+  }
 
   const yourTurn = true
-  const isOnionSelected = selectedUnitId === onion.id
-  const selectedDefender = defenders.find((unit) => unit.id === selectedUnitId)
+  const isOnionSelected = activeSelectedUnitId === onion.id
+  const selectedDefender = defenders.find((unit) => unit.id === activeSelectedUnitId)
   const selectedUnit = selectedDefender ?? defenders[0]
-  const targetLabel = mode === 'end-phase' ? 'No target required' : 'onion / treads'
-  const selectedUnitIsActionable = selectedUnit.actionableModes.includes(mode)
+  const targetLabel = activeMode === 'end-phase' ? 'No target required' : 'onion / treads'
+  const selectedUnitIsActionable = selectedUnit.actionableModes.includes(activeMode)
   const onionWeapons = parseWeaponStats(onion.weapons)
 
   // Simulated last sync and event status for UI demo
@@ -98,6 +274,17 @@ function App() {
   const [eventStatus, setEventStatus] = useState<'ok' | 'fetching' | 'error'>('ok')
 
   function handleRefresh() {
+    if (isControlledSession) {
+      setEventStatus('fetching')
+      void commitClientAction({ type: 'refresh' }).then(() => {
+        setLastSync(new Date())
+        setEventStatus('ok')
+      }).catch(() => {
+        setEventStatus('error')
+      })
+      return
+    }
+
     setEventStatus('fetching')
     setTimeout(() => {
       setLastSync(new Date())
@@ -105,8 +292,60 @@ function App() {
     }, 800)
   }
 
+  if (!isControlledSession && runtimeConnectionSeeded) {
+    return (
+      <div className="shell connect-shell">
+        <section className="panel connect-panel">
+          <div className="card-head">
+            <div>
+              <p className="eyebrow">Connect</p>
+              <h1>Open a live game session</h1>
+            </div>
+          </div>
+          <form className="connect-form" onSubmit={handleConnect}>
+            <label className="connect-field">
+              <span className="stat-label">API base URL</span>
+              <input
+                value={connectDraft.apiBaseUrl}
+                onChange={(event) => setConnectDraft((draft) => ({ ...draft, apiBaseUrl: event.target.value }))}
+                placeholder="http://localhost:3000"
+              />
+            </label>
+            <label className="connect-field">
+              <span className="stat-label">Username</span>
+              <input
+                value={connectDraft.username}
+                onChange={(event) => setConnectDraft((draft) => ({ ...draft, username: event.target.value }))}
+                placeholder="player-1"
+              />
+            </label>
+            <label className="connect-field">
+              <span className="stat-label">Password</span>
+              <input
+                type="password"
+                value={connectDraft.password}
+                onChange={(event) => setConnectDraft((draft) => ({ ...draft, password: event.target.value }))}
+                placeholder="••••••••"
+              />
+            </label>
+            <label className="connect-field">
+              <span className="stat-label">Game ID</span>
+              <input
+                value={connectDraft.gameId}
+                onChange={(event) => setConnectDraft((draft) => ({ ...draft, gameId: event.target.value }))}
+                placeholder="123"
+              />
+            </label>
+            {connectError && <p className="connect-error" role="alert">{connectError}</p>}
+            <button type="submit" className="primary-action">Load Game</button>
+          </form>
+        </section>
+      </div>
+    )
+  }
+
   // Floating, draggable, resizable debug popup component
-  function DraggableDebugPopup({ onClose, lines, phase, setPhase }: { onClose: () => void; lines: string[]; phase: Phase; setPhase: (phase: Phase) => void }) {
+  function DraggableDebugPopup({ onClose, lines, onAdvancePhase }: { onClose: () => void; lines: string[]; onAdvancePhase: () => void }) {
     const [pos, setPos] = useState({ x: window.innerWidth - 380, y: 90 })
     const [size, setSize] = useState({ width: 340, height: 400 })
     const [dragging, setDragging] = useState(false)
@@ -173,14 +412,10 @@ function App() {
         <div className="debug-popup-footer">
           <button
             className="debug-cycle-phase-btn"
-            onClick={() => {
-              const currentIndex = phases.indexOf(phase)
-              const nextIndex = (currentIndex + 1) % phases.length
-              setPhase(phases[nextIndex])
-            }}
-            title="Cycle to next phase (for testing)"
+            onClick={onAdvancePhase}
+            title="Send END_PHASE to the backend"
           >
-            Cycle Phase → {phaseLabels[phase]}
+            Advance Phase
           </button>
         </div>
         <div className="debug-popup-resize" onMouseDown={onResizeMouseDown} title="Drag to resize">⤡</div>
@@ -189,28 +424,40 @@ function App() {
   }
 
   return (
-    <div className="shell" data-phase={phase}>
+    <div className="shell" data-phase={shellPhase}>
       <header className="topbar panel">
-        <div className={`role-badge ${phase === 'defender' ? 'role-badge-active' : 'role-badge-inactive'}`}>
-          Defender
+        <div
+          className={`role-badge ${
+            headerHasSnapshot
+              ? activeTurnActive
+                ? activeRole === 'defender'
+                  ? 'role-badge-active role-badge-defender'
+                  : 'role-badge-active role-badge-onion'
+                : activeRole === 'defender'
+                  ? 'role-badge-inactive role-badge-defender'
+                  : 'role-badge-inactive role-badge-onion'
+              : 'role-badge-waiting'
+          }`}
+        >
+          {activeRole === 'defender' ? 'Defender' : activeRole === 'onion' ? 'Onion' : 'Waiting'}
         </div>
         <div className="topbar-state">
-          <div className="phase-chip phase-chip-turn">
-            <span>Turn 3</span>
+          <div className={`phase-chip phase-chip-turn${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}>
+            <span>Turn {activeTurnNumber ?? 'waiting'}</span>
           </div>
-          <div className="phase-chip phase-chip-state">
-            <span>{phaseLabels[phase]}</span>
+          <div className={`phase-chip phase-chip-state${activeTurnActive ? ' phase-chip-active' : ''}${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}>
+            <span>{headerHasSnapshot ? activePhaseLabel : 'WAITING'}</span>
           </div>
         </div>
         <div className="header-utility-controls">
           <div className="utility-group-vert">
             <div>
               <span className="stat-label-small">Scenario</span>
-              <strong>The Siege of Shrek's Swamp</strong>
+              <strong className={headerHasSnapshot ? '' : 'header-waiting'}>{activeScenarioName ?? 'Waiting for game state'}</strong>
             </div>
             <div>
               <span className="stat-label-small">Game ID</span>
-              <strong>{gameId}</strong>
+              <strong className={headerHasSnapshot ? '' : 'header-waiting'}>{activeGameId ?? 'Waiting'}</strong>
             </div>
           </div>
           <div className="utility-group-vert">
@@ -252,7 +499,13 @@ function App() {
       </header>
 
       {debugOpen && (
-        <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} phase={phase} setPhase={setPhase} />
+        <DraggableDebugPopup
+          onClose={() => setDebugOpen(false)}
+          lines={mockDebugLines}
+          onAdvancePhase={() => {
+            void commitClientAction({ type: 'end-phase' })
+          }}
+        />
       )}
 
       <main className="battlefield-grid">
@@ -263,8 +516,8 @@ function App() {
             </div>
             <button
               type="button"
-              className={`onion-card-button ${selectedUnit.id === onion.id ? 'is-selected' : ''}`}
-              onClick={() => setSelectedUnitId(onion.id)}
+              className={`onion-card-button ${activeSelectedUnitId === onion.id ? 'is-selected' : ''}`}
+              onClick={() => handleSelectUnit(onion.id)}
             >
               <h3>{onion.id}</h3>
               <div className="unit-summary">
@@ -288,8 +541,8 @@ function App() {
             </div>
             <div className="defender-list">
               {defenders.map((unit) => {
-                const isSelected = unit.id === selectedUnit.id
-                const isActionable = unit.actionableModes.includes(mode)
+                const isSelected = unit.id === activeSelectedUnitId
+                const isActionable = unit.actionableModes.includes(activeMode)
                 const attackStats = parseAttackStats(unit.attack)
                 return (
                   <button
@@ -301,7 +554,7 @@ function App() {
                       isActionable ? 'is-actionable' : '',
                       `tone-${statusTone(unit.status)}`,
                     ].join(' ')}
-                    onClick={() => setSelectedUnitId(unit.id)}
+                    onClick={() => handleSelectUnit(unit.id)}
                   >
                     <p className="eyebrow">{unit.type}</p>
                     <h3>{unit.id}</h3>
@@ -325,9 +578,9 @@ function App() {
               scenarioMap={scenarioMap}
               defenders={defenders}
               onion={onion}
-              mode={mode}
-              selectedUnitId={selectedUnit.id}
-              onSelectUnit={setSelectedUnitId}
+              mode={activeMode}
+              selectedUnitId={activeSelectedUnitId}
+              onSelectUnit={handleSelectUnit}
             />
           </div>
         </section>
@@ -348,20 +601,20 @@ function App() {
                   <button
                     key={entry.id}
                     type="button"
-                    className={`mode-button ${entry.id === mode ? 'mode-button-active' : ''}`}
-                    onClick={() => setMode(entry.id)}
+                    className={`mode-button ${entry.id === activeMode ? 'mode-button-active' : ''}`}
+                    onClick={() => handleModeChange(entry.id)}
                   >
                     {entry.label}
                   </button>
                 ))}
               </div>
 
-              <p className="helper-copy">{battlefieldModes.find((entry) => entry.id === mode)?.helper}</p>
+              <p className="helper-copy">{battlefieldModes.find((entry) => entry.id === activeMode)?.helper}</p>
 
               <div className="composer-grid">
                 <div className="composer-field">
                   <span className="stat-label">Selected unit</span>
-                  <strong>{mode === 'end-phase' ? 'Not required' : selectedUnit.id}</strong>
+                  <strong>{activeMode === 'end-phase' ? 'Not required' : selectedUnit.id}</strong>
                 </div>
                 <div className="composer-field">
                   <span className="stat-label">Target</span>
@@ -369,12 +622,12 @@ function App() {
                 </div>
                 <div className="composer-field">
                   <span className="stat-label">Weapon state</span>
-                  <strong>{mode === 'end-phase' ? 'n/a' : selectedUnit.weapons}</strong>
+                  <strong>{activeMode === 'end-phase' ? 'n/a' : selectedUnit.weapons}</strong>
                 </div>
                 <div className="composer-field">
                   <span className="stat-label">Validation</span>
                   <strong>
-                    {mode === 'end-phase' || selectedUnitIsActionable
+                    {activeMode === 'end-phase' || selectedUnitIsActionable
                       ? 'ready to submit'
                       : 'select an actionable unit'}
                   </strong>
@@ -382,7 +635,7 @@ function App() {
               </div>
 
               <button type="button" className="primary-action">
-                {mode === 'end-phase' ? `End ${phaseLabels[phase].split('_')[0]}` : 'Submit Action'}
+                {activeMode === 'end-phase' ? `End ${activeRole === 'onion' ? 'Onion' : 'Defender'}` : 'Submit Action'}
               </button>
             </section>
           )}
@@ -422,6 +675,7 @@ function App() {
               </>
             ) : (
               <>
+                <p className="summary-line">Selected unit: {selectedUnit.id}</p>
                 <p className="summary-line">
                   {selectedUnit.type} · {selectedUnit.status} · ({selectedUnit.q},{selectedUnit.r})
                 </p>

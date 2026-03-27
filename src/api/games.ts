@@ -313,11 +313,17 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       } else {
         state = { ...INITIAL_STATE }
       }
+      const players: { onion: string | null; defender: string | null } = {
+        onion: null,
+        defender: null,
+      }
+      players[role] = userId
+
       const created = await db.createMatch({
         scenarioId,
         scenarioSnapshot,
         state,
-        players: { [role]: userId },
+        players,
         phase: 'ONION_MOVE',
         turnNumber: 1,
         winner: null,
@@ -477,6 +483,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         scenarioId: match.scenarioId,
         scenarioName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
         scenarioDisplayName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
+        role: match.players.onion === userId ? 'onion' : 'defender',
         phase: match.phase,
         turnNumber: match.turnNumber,
         winner: match.winner,

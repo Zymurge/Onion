@@ -21,7 +21,14 @@ describe('POST /games/:id/actions END_PHASE', () => {
     expect(typeof body.seq).toBe('number')
     expect(body.seq).toBeGreaterThan(0)
     expect(Array.isArray(body.events)).toBe(true)
-    expect(body.events[0].type).toBe('PHASE_CHANGED')
+    expect(body.events[0]).toMatchObject({
+      type: 'PHASE_CHANGED',
+      from: 'ONION_MOVE',
+      to: 'ONION_COMBAT',
+      turnNumber: 1,
+    })
+    expect(body.turnNumber).toBe(1)
+    expect(body.eventSeq).toBe(body.seq)
     expect(body).toHaveProperty('state')
   })
 

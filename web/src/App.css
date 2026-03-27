@@ -73,11 +73,67 @@
   padding: 0;
   font-family: monospace;
 }
+
+.header-waiting {
+  color: var(--ink-muted);
+  font-style: italic;
+}
 .sync-status-block .event-status {
   font-size: 1.2rem;
   margin-left: 0;
   min-width: 1.2em;
   text-align: center;
+}
+
+.connect-shell {
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+}
+
+.connect-panel {
+  width: min(720px, 100%);
+  border-radius: 28px;
+  padding: 28px;
+}
+
+.connect-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.connect-panel .card-head h1 {
+  margin: 0;
+}
+
+.connect-panel .card-head p {
+  margin: 0 0 6px;
+}
+
+.connect-field {
+  display: grid;
+  gap: 8px;
+}
+
+.connect-field input {
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 251, 242, 0.9);
+  color: #332b1a;
+  font-size: 1rem;
+}
+
+.connect-field input:focus {
+  outline: 2px solid rgba(122, 106, 58, 0.35);
+  outline-offset: 2px;
+}
+
+.connect-error {
+  margin: 0;
+  color: #a33a2d;
+  font-weight: 600;
 }
 
 .debug-popup {
@@ -262,10 +318,33 @@
   box-shadow: 0 0 18px rgba(106, 146, 44, 0.28), inset 0 0 0 1px rgba(196, 225, 120, 0.18);
 }
 
+.role-badge-active.role-badge-defender {
+  background: linear-gradient(180deg, rgba(126, 155, 66, 0.2), rgba(88, 118, 38, 0.14));
+  border-color: rgba(106, 146, 44, 0.68);
+  color: #355116;
+  box-shadow: 0 0 18px rgba(106, 146, 44, 0.28), inset 0 0 0 1px rgba(196, 225, 120, 0.18);
+}
+
+.role-badge-active.role-badge-onion {
+  background: linear-gradient(180deg, rgba(126, 155, 66, 0.2), rgba(88, 118, 38, 0.14));
+  border-color: rgba(106, 146, 44, 0.68);
+  color: #355116;
+  box-shadow: 0 0 18px rgba(106, 146, 44, 0.28), inset 0 0 0 1px rgba(196, 225, 120, 0.18);
+}
+
 .role-badge-inactive {
   background: rgba(82, 78, 69, 0.08);
   border-color: rgba(82, 78, 69, 0.18);
   color: var(--ink-muted);
+  box-shadow: none;
+}
+
+.role-badge-waiting {
+  background: rgba(82, 78, 69, 0.08);
+  border-color: rgba(82, 78, 69, 0.18);
+  color: var(--ink-muted);
+  opacity: 0.72;
+  box-shadow: none;
 }
 
 .topbar-state {
@@ -332,6 +411,13 @@
 .phase-chip-state > span {
   position: relative;
   z-index: 1;
+}
+
+.phase-chip-waiting {
+  background: rgba(82, 78, 69, 0.08);
+  border-color: rgba(82, 78, 69, 0.15);
+  color: var(--ink-muted);
+  opacity: 0.75;
 }
 
 .turn-chip {
@@ -888,7 +974,7 @@
 }
 
 /* Glowing active state for phase chip */
-.topbar-state .phase-chip-state {
+.topbar-state .phase-chip-state.phase-chip-active {
   color: #355116;
   border-color: rgba(106, 146, 44, 0.68);
   background: linear-gradient(180deg, rgba(126, 155, 66, 0.2), rgba(88, 118, 38, 0.14));
@@ -903,29 +989,4 @@
   100% {
     transform: translate3d(16px, 0, 0);
   }
-}
-
-.shell[data-phase='onion'] .topbar-state .phase-chip-state {
-  color: #6b2412;
-  border-color: rgba(151, 66, 31, 0.58);
-  box-shadow: 0 0 18px rgba(151, 66, 31, 0.3), inset 0 0 0 1px rgba(230, 154, 92, 0.22);
-  background: linear-gradient(180deg, rgba(177, 86, 46, 0.16), rgba(124, 48, 24, 0.12));
-}
-
-.shell[data-phase='onion'] .topbar-state .phase-chip-state::before {
-  content: '';
-  position: absolute;
-  inset: -18%;
-  background-image: repeating-linear-gradient(
-    135deg,
-    rgba(209, 85, 38, 0) 0 10px,
-    rgba(209, 85, 38, 0.42) 10px 16px,
-    rgba(243, 169, 87, 0.3) 16px 22px
-  );
-  background-size: 30px 30px;
-  animation: waitingHatchDrift 1.2s linear infinite;
-  pointer-events: none;
-  border-radius: inherit;
-  opacity: 1;
-  z-index: 0;
 }

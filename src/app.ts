@@ -28,6 +28,25 @@ export function buildApp(db?: Partial<DbAdapter>): FastifyInstance {
   const adapter = resolveAdapter(db)
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test' })
 
+  const corsHeaders = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+    'access-control-allow-headers': 'content-type, authorization',
+    'access-control-max-age': '86400',
+  }
+
+  app.addHook('onRequest', async (req, reply) => {
+    if (req.method === 'OPTIONS') {
+      reply.headers(corsHeaders)
+      return reply.status(204).send()
+    }
+  })
+
+  app.addHook('onSend', async (_req, reply, payload) => {
+    reply.headers(corsHeaders)
+    return payload
+  })
+
   app.get('/health', async () => ({ ok: true }))
 
   app.get('/health/ready', async (_req, reply) => {

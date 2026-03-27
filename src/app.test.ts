@@ -21,3 +21,23 @@ describe('GET /health/ready', () => {
     expect(typeof body.error).toBe('string')
   })
 })
+
+describe('CORS preflight', () => {
+  it('handles OPTIONS preflight for web requests', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'OPTIONS',
+      url: '/auth/login',
+      headers: {
+        origin: 'http://localhost:5173',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    })
+
+    expect(res.statusCode).toBe(204)
+    expect(res.headers['access-control-allow-origin']).toBe('*')
+    expect(res.headers['access-control-allow-methods']).toContain('POST')
+    expect(res.headers['access-control-allow-headers']).toContain('content-type')
+  })
+})

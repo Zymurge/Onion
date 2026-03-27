@@ -1,0 +1,147 @@
+// @vitest-environment jsdom
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+
+import App from './App'
+import { createGameClient, type GameSnapshot } from './lib/gameClient'
+
+function createDeferred<T>() {
+	let resolve!: (value: T) => void
+	const promise = new Promise<T>((nextResolve) => {
+		resolve = nextResolve
+	})
+	return { promise, resolve }
+}
+
+describe('App with injected game client', () => {
+	it('renders from the current game snapshot', async () => {
+		const snapshot: GameSnapshot = {
+			gameId: 123,
+			phase: 'DEFENDER_COMBAT',
+			selectedUnitId: 'puss-1',
+			mode: 'combined',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
+			lastEventSeq: 47,
+		}
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByText(/123/i)).not.toBeNull()
+		expect(screen.getByText(/Defender/i, { selector: '.role-badge' })).not.toBeNull()
+		expect(screen.getByText((_, element) => element?.classList.contains('role-badge-defender') === true)).not.toBeNull()
+		expect(screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Defender Combat')).not.toBeNull()
+		expect(
+			screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.classList.contains('phase-chip-active') === true),
+		).not.toBeNull()
+		expect(screen.getByText(/Selected unit: puss-1/i)).not.toBeNull()
+	})
+
+	it('submits actions through the injected client', async () => {
+		const user = userEvent.setup()
+		const snapshot: GameSnapshot = {
+			gameId: 123,
+			phase: 'DEFENDER_COMBAT',
+			selectedUnitId: 'wolf-2',
+			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
+			lastEventSeq: 47,
+		}
+		const session = { role: 'defender' as const }
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
+		expect(screen.getByText(/Defender/i, { selector: '.role-badge' })).not.toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /end phase/i }))
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'set-mode', mode: 'end-phase' })
+	})
+
+	it('sends end phase through the debug control', async () => {
+		const user = userEvent.setup()
+		const snapshot: GameSnapshot = {
+			gameId: 123,
+			phase: 'DEFENDER_COMBAT',
+			selectedUnitId: 'wolf-2',
+			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
+			lastEventSeq: 47,
+		}
+		const session = { role: 'defender' as const }
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
+		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+		await user.click(screen.getByRole('button', { name: /advance phase/i }))
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
+	})
+
+	it('keeps a newer phase after a stale initial load resolves', async () => {
+		const user = userEvent.setup()
+		const initialSnapshotDeferred = createDeferred<{ snapshot: GameSnapshot; session: { role: 'onion' } }>()
+		const submitAction = vi.fn().mockResolvedValue({
+			gameId: 123,
+			phase: 'ONION_COMBAT',
+			selectedUnitId: 'wolf-2',
+			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 2,
+			lastEventSeq: 13,
+		})
+
+		const client = createGameClient({
+			getState: vi.fn().mockReturnValue(initialSnapshotDeferred.promise),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+		await user.click(screen.getByRole('button', { name: /advance phase/i }))
+
+		initialSnapshotDeferred.resolve({
+			snapshot: {
+				gameId: 123,
+				phase: 'ONION_MOVE',
+				selectedUnitId: 'wolf-2',
+				mode: 'fire',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 2,
+				lastEventSeq: 12,
+			},
+			session: { role: 'onion' },
+		})
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
+		expect(await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Onion Combat')).not.toBeNull()
+	})
+})

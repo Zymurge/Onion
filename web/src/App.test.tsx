@@ -11,7 +11,12 @@ describe('App smoke test', () => {
     expect(screen.queryByRole('img', { name: /swamp siege hex map/i })).not.toBeNull()
     expect(screen.queryByText(/defender command stack/i)).not.toBeNull()
     expect(screen.queryByRole('button', { name: /refresh/i })).not.toBeNull()
-    expect(screen.queryByText(/^42$/)).not.toBeNull()
+    expect(screen.queryByText(/^Waiting$/i, { selector: '.role-badge' })).not.toBeNull()
+    expect(
+      screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'WAITING'),
+    ).not.toBeNull()
+    expect(screen.queryByText(/Turn waiting/i)).not.toBeNull()
+    expect(screen.queryByText(/waiting for game state/i)).not.toBeNull()
   })
 
   it('updates the selected unit when a defender card is clicked', async () => {
