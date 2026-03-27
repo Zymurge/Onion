@@ -141,7 +141,7 @@ Exit Criteria:
 
 ## Server State (Authoritative)
 
-1. `GameState`, `phase`, `turnNumber`, `winner`, `eventSeq`.
+1. `GameState`, `phase`, `turnNumber`, `eventSeq`.
 2. Event stream envelopes.
 
 ## Local UI State (Ephemeral)
@@ -168,7 +168,7 @@ Never mutate server-derived game state as if it were authoritative. Always recon
 1. Turn ownership is communicated primarily by control affordance:
    1. Your turn: controls and actionable units highlighted.
    2. Opponent turn: controls lowlighted/disabled.
-2. No persistent winner region in the base layout.
+2. The header should show the current player role from game state.
 3. At game end, show a dedicated result overlay with outcome and next actions.
 
 ## Error Handling UX Baseline

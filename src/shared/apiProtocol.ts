@@ -25,6 +25,7 @@ export type GameStateResponse = {
 	gameId: number
 	scenarioId: string
 	scenarioName?: string
+	role: 'onion' | 'defender'
 	phase: string
 	turnNumber: number
 	winner: 'onion' | 'defender' | null

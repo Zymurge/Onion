@@ -14,7 +14,10 @@ describe('http game client', () => {
 			.fn()
 			.mockResolvedValueOnce(jsonResponse({
 				gameId: 123,
+				role: 'defender',
 				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -31,9 +34,12 @@ describe('http game client', () => {
 
 		await expect(client.getState(123)).resolves.toEqual({
 			gameId: 123,
+			role: 'defender',
 			phase: 'defender',
 			selectedUnitId: null,
 			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
 			lastEventSeq: 47,
 		})
 
@@ -72,12 +78,18 @@ describe('http game client', () => {
 			.fn()
 			.mockResolvedValueOnce(jsonResponse({
 				gameId: 123,
+				role: 'defender',
 				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
 				gameId: 123,
+				role: 'defender',
 				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
 				eventSeq: 49,
 			}))
 
@@ -92,9 +104,12 @@ describe('http game client', () => {
 
 		await expect(client.submitAction(123, { type: 'refresh' })).resolves.toEqual({
 			gameId: 123,
+			role: 'defender',
 			phase: 'defender',
 			selectedUnitId: 'wolf-2',
 			mode: 'combined',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
 			lastEventSeq: 49,
 		})
 

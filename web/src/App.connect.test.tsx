@@ -30,9 +30,12 @@ describe('App connection gate', () => {
 		const user = userEvent.setup()
 		const submitAction = vi.fn().mockResolvedValue({
 			gameId: 123,
+			role: 'onion',
 			phase: 'defender',
 			selectedUnitId: 'wolf-2',
 			mode: 'fire',
+			scenarioName: 'Test Scenario',
+			turnNumber: 11,
 			lastEventSeq: 47,
 		})
 		requestJson.mockResolvedValue({
@@ -44,9 +47,12 @@ describe('App connection gate', () => {
 		createHttpGameClient.mockReturnValue({
 			getState: vi.fn().mockResolvedValue({
 				gameId: 123,
+				role: 'onion',
 				phase: 'defender',
 				selectedUnitId: 'wolf-2',
 				mode: 'fire',
+				scenarioName: 'Test Scenario',
+				turnNumber: 11,
 				lastEventSeq: 47,
 			}),
 			submitAction,
@@ -74,6 +80,9 @@ describe('App connection gate', () => {
 			baseUrl: 'http://localhost:3000',
 			token: 'stub.token',
 		})
+		await screen.findByText(/Turn 11/i)
+		await screen.findByText(/Test Scenario/i)
+		await screen.findByText(/^Onion$/i, { selector: '.role-badge' })
 		await screen.findByText(/Selected unit: wolf-2/i)
 	})
 })

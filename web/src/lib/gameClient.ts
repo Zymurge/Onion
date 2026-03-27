@@ -4,9 +4,12 @@ export type ActionMode = 'fire' | 'combined' | 'end-phase'
 
 export type GameSnapshot = {
 	gameId: number
+	role?: 'onion' | 'defender'
 	phase: GamePhase
 	selectedUnitId: string | null
 	mode: ActionMode
+	scenarioName?: string
+	turnNumber?: number
 	lastEventSeq: number
 }
 

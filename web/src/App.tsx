@@ -147,6 +147,9 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const activePhase = clientSnapshot?.phase ?? phase
   const activeMode = clientSnapshot?.mode ?? mode
   const activeSelectedUnitId = clientSnapshot?.selectedUnitId ?? selectedUnitId
+  const activeTurnNumber = clientSnapshot?.turnNumber ?? 3
+  const activeScenarioName = clientSnapshot?.scenarioName ?? "The Siege of Shrek's Swamp"
+  const activeRole = clientSnapshot?.role ?? 'defender'
   const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? 42
 
   async function commitClientAction(action: GameAction) {
@@ -390,12 +393,12 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   return (
     <div className="shell" data-phase={activePhase}>
       <header className="topbar panel">
-        <div className={`role-badge ${activePhase === 'defender' ? 'role-badge-active' : 'role-badge-inactive'}`}>
-          Defender
+        <div className={`role-badge ${activeRole === 'defender' ? 'role-badge-active' : 'role-badge-inactive'}`}>
+          {activeRole === 'defender' ? 'Defender' : 'Onion'}
         </div>
         <div className="topbar-state">
           <div className="phase-chip phase-chip-turn">
-            <span>Turn 3</span>
+            <span>Turn {activeTurnNumber}</span>
           </div>
           <div className="phase-chip phase-chip-state">
             <span>{phaseLabels[activePhase]}</span>
@@ -405,7 +408,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           <div className="utility-group-vert">
             <div>
               <span className="stat-label-small">Scenario</span>
-              <strong>The Siege of Shrek's Swamp</strong>
+              <strong>{activeScenarioName}</strong>
             </div>
             <div>
               <span className="stat-label-small">Game ID</span>

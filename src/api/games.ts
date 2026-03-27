@@ -483,6 +483,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         scenarioId: match.scenarioId,
         scenarioName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
         scenarioDisplayName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
+        role: match.players.onion === userId ? 'onion' : 'defender',
         phase: match.phase,
         turnNumber: match.turnNumber,
         winner: match.winner,

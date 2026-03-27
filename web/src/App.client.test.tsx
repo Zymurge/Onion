@@ -10,9 +10,12 @@ describe('App with injected game client', () => {
 	it('renders from the current game snapshot', async () => {
 		const snapshot: GameSnapshot = {
 			gameId: 123,
+			role: 'defender',
 			phase: 'defender',
 			selectedUnitId: 'puss-1',
 			mode: 'combined',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
 			lastEventSeq: 47,
 		}
 
@@ -32,9 +35,12 @@ describe('App with injected game client', () => {
 		const user = userEvent.setup()
 		const snapshot: GameSnapshot = {
 			gameId: 123,
+			role: 'defender',
 			phase: 'defender',
 			selectedUnitId: 'wolf-2',
 			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
 			lastEventSeq: 47,
 		}
 		const submitAction = vi.fn().mockResolvedValue(snapshot)

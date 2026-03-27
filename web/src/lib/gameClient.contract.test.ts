@@ -10,9 +10,12 @@ import {
 describe('game client contract', () => {
 	const snapshot: GameSnapshot = {
 		gameId: 123,
+		role: 'defender',
 		phase: 'defender',
 		selectedUnitId: 'wolf-2',
 		mode: 'fire',
+		scenarioName: "The Siege of Shrek's Swamp",
+		turnNumber: 8,
 		lastEventSeq: 47,
 	}
 

@@ -32,8 +32,11 @@ function createInitialSnapshot(gameId: number): GameSnapshot {
 	return {
 		gameId,
 		phase: 'defender',
+		role: undefined,
 		selectedUnitId: null,
 		mode: 'fire',
+		scenarioName: undefined,
+		turnNumber: undefined,
 		lastEventSeq: 0,
 	}
 }
@@ -65,7 +68,10 @@ function mapServerSnapshot(
 	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
 	return mergeSnapshot(fallback, {
 		gameId: response.gameId ?? gameId,
+		role: response.role ?? fallback.role,
 		phase: normalizePhase(response.phase),
+		scenarioName: response.scenarioName ?? fallback.scenarioName,
+		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
 		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : fallback.lastEventSeq,
 	})
 }
