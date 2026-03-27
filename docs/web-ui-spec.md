@@ -69,6 +69,8 @@ Shared SDK migration is considered complete when:
 
 ## Phase 0: Product + UX Definition
 
+**Status: Complete**
+
 Deliverables:
 
 1. This UI spec.
@@ -90,6 +92,8 @@ Deliverables:
 3. Scenario listing and game create/join/load.
 4. Desktop game screen with summary panels and manual refresh.
 5. Action submission controls for `MOVE`, `FIRE_*`, and `END_PHASE`.
+
+**Status: In Progress (Partial)**
 
 Exit Criteria:
 
@@ -157,6 +161,8 @@ Never mutate server-derived game state as if it were authoritative. Always recon
 
 ## Action Affordance Matrix (Initial)
 
+**Status: Complete**
+
 1. During non-active role turn: action controls lowlighted/disabled, read-only explanation shown.
 2. During active phase: show only legal command entry points for that role/phase.
 3. For `END_PHASE`: always visible when caller has active role and game not over.
@@ -164,6 +170,8 @@ Never mutate server-derived game state as if it were authoritative. Always recon
 5. In each action mode, units that can act are visually highlighted and listed with pertinent stats.
 
 ## Turn and Endgame Presentation
+
+**Status: Complete**
 
 1. Turn ownership is communicated primarily by control affordance:
    1. Your turn: controls and actionable units highlighted.

@@ -68,7 +68,7 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 - **API Protocol**:
   - **REST**: Slow/administrative operations — register, login, create game, join game, get game state.
   - **WebSocket**: Real-time turn events — submit action, receive state updates, phase transitions, combat roll results. Both players connect to the same match channel.
-- **Manual Matching (Phase 1)**: Player A calls `POST /games` with a scenario ID, receives a numeric `gameId`. Player B calls `POST /games/{id}/join`. No lobby UI required — `gameId` is shared out-of-band.
+- **Manual Matching (Phase 1)**: Player A calls `POST /games` with a scenario ID, receives a numeric `gameId`. Player B calls `POST /games/{id}/join`. No lobby UI required — `gameId` is shared out-of-band. **[DONE]**
 - **Persistence**: PostgreSQL. Core tables:
   - `users` — id, username, hashed password, created_at.
   - `matches` — id, scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.
@@ -80,6 +80,14 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 
 - **Phase 1 — CLI**: Built with **Node.js** and **TypeScript** as a simple REST-driven command-line client. It uses prompt-driven commands plus a minimal offset-grid text map to prove end-to-end gameplay with two human players in two shell instances.
 - **Phase 2+ — Web UI**: React SPA sharing TypeScript types with the engine. Reuses the existing hex-grid JS implementation once reviewed.
+
+---
+**Status:**
+
+- Manual matching: **done**
+- Web UI Phase 0: **done**
+- Web UI Phase 1: **partial**
+- Action affordance and turn presentation: **done**
 
 ### AI Tier (The Swamp Brain)
 

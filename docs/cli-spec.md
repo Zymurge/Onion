@@ -860,4 +860,4 @@ Once the backend is proven through the CLI, the next client can add richer inter
 - Web client sharing renderer-independent API/state code
 - AI client reusing the same API wrapper and command builders
 
-Phase 1 should resist these additions until the proof client is complete.
+Phase 1 should resist these additions until the proof client is complete
