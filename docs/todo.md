@@ -1,6 +1,7 @@
 # Onion Project TODO (Epic Level)
 
-This document tracks major upcoming work and epics. Add new items as they arise; break down into features/tasks as needed.
+This document tracks major upcoming work and epics. Add new items as they arise;
+break down into features/tasks as needed.
 
 ## Epics / Major Work
 
