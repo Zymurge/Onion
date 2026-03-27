@@ -129,6 +129,25 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 			return envelope
 		},
 		async submitAction(gameId: number, action: GameAction) {
+			if (action.type === 'end-phase') {
+				const result = await requestJson<GameStateResponse>({
+					baseUrl,
+					path: `games/${gameId}/actions`,
+					method: 'POST',
+					token: options.token,
+					body: { type: 'END_PHASE' },
+					fetchImpl,
+				})
+
+				if (!result.ok) {
+					throw buildError(result)
+				}
+
+				const envelope = mapServerSnapshot(result.data, currentSnapshot, gameId)
+				currentSnapshot = envelope.snapshot
+				return envelope.snapshot
+			}
+
 			if (action.type === 'refresh') {
 				const result = await requestJson<GameStateResponse>({
 					baseUrl,

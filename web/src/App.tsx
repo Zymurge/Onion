@@ -21,13 +21,6 @@ import { requestJson } from '../../src/shared/apiProtocol'
 import type { TurnPhase } from '../../src/types/index'
 import './App.css'
 
-type DebugPhase = 'onion' | 'defender'
-const debugPhases: DebugPhase[] = ['onion', 'defender']
-const debugPhaseLabels: Record<DebugPhase, string> = {
-  onion: 'ONION MOVEMENT',
-  defender: 'DEFENDER COMBAT',
-}
-
 const turnPhaseLabels: Record<TurnPhase, string> = {
   ONION_MOVE: 'Onion Movement',
   ONION_COMBAT: 'Onion Combat',
@@ -98,9 +91,6 @@ type AuthResponse = {
 }
 
 function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
-    // Phase state
-  const [phase, setPhase] = useState<DebugPhase>('defender')
-
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
     const mockDebugLines = [
@@ -183,7 +173,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? null
   const activePhaseOwner = getPhaseOwner(activePhase)
   const activeTurnActive = headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
-  const shellPhase = activePhase ?? phase
+  const shellPhase = activePhase ?? 'DEFENDER_MOVE'
   const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
 
   async function commitClientAction(action: GameAction) {
@@ -342,7 +332,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }
 
   // Floating, draggable, resizable debug popup component
-  function DraggableDebugPopup({ onClose, lines, phase, setPhase }: { onClose: () => void; lines: string[]; phase: DebugPhase; setPhase: (phase: DebugPhase) => void }) {
+  function DraggableDebugPopup({ onClose, lines, onAdvancePhase }: { onClose: () => void; lines: string[]; onAdvancePhase: () => void }) {
     const [pos, setPos] = useState({ x: window.innerWidth - 380, y: 90 })
     const [size, setSize] = useState({ width: 340, height: 400 })
     const [dragging, setDragging] = useState(false)
@@ -409,14 +399,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
         <div className="debug-popup-footer">
           <button
             className="debug-cycle-phase-btn"
-            onClick={() => {
-              const currentIndex = debugPhases.indexOf(phase)
-              const nextIndex = (currentIndex + 1) % debugPhases.length
-              setPhase(debugPhases[nextIndex])
-            }}
-            title="Cycle to next phase (for testing)"
+            onClick={onAdvancePhase}
+            title="Send END_PHASE to the backend"
           >
-            Cycle Phase → {debugPhaseLabels[phase]}
+            Advance Phase
           </button>
         </div>
         <div className="debug-popup-resize" onMouseDown={onResizeMouseDown} title="Drag to resize">⤡</div>
@@ -496,7 +482,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       </header>
 
       {debugOpen && (
-        <DraggableDebugPopup onClose={() => setDebugOpen(false)} lines={mockDebugLines} phase={phase} setPhase={setPhase} />
+        <DraggableDebugPopup
+          onClose={() => setDebugOpen(false)}
+          lines={mockDebugLines}
+          onAdvancePhase={() => {
+            void commitClientAction({ type: 'end-phase' })
+          }}
+        />
       )}
 
       <main className="battlefield-grid">

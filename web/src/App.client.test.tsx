@@ -66,4 +66,33 @@ describe('App with injected game client', () => {
 
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'set-mode', mode: 'end-phase' })
 	})
+
+	it('sends end phase through the debug control', async () => {
+		const user = userEvent.setup()
+		const snapshot: GameSnapshot = {
+			gameId: 123,
+			phase: 'DEFENDER_COMBAT',
+			selectedUnitId: 'wolf-2',
+			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
+			lastEventSeq: 47,
+		}
+		const session = { role: 'defender' as const }
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
+		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+		await user.click(screen.getByRole('button', { name: /advance phase/i }))
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
+	})
 })

@@ -46,6 +46,18 @@ describe('game client contract', () => {
 		expect(transport.submitAction).toHaveBeenCalledWith(123, action)
 	})
 
+	it('submits end phase actions through the seam', async () => {
+		const transport: GameClientTransport = {
+			getState: vi.fn(),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+		}
+
+		const client = createGameClient(transport)
+
+		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toEqual(snapshot)
+		expect(transport.submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
+	})
+
 	it('normalizes transport failures into a client error', async () => {
 		const transport: GameClientTransport = {
 			getState: vi.fn().mockRejectedValue(new Error('socket closed')),

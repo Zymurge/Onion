@@ -26,6 +26,7 @@ export type GameStateEnvelope = {
 export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
+	| { type: 'end-phase' }
 	| { type: 'refresh' }
 
 export type GameEvent = {

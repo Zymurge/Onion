@@ -117,6 +117,53 @@ describe('http game client', () => {
 		expect(fetchImpl).toHaveBeenCalledTimes(2)
 	})
 
+	it('sends end phase actions to the backend', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				eventSeq: 48,
+			}))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			token: 'stub.token',
+		})
+
+		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toEqual({
+			gameId: 123,
+			phase: 'DEFENDER_COMBAT',
+			selectedUnitId: null,
+			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
+			lastEventSeq: 48,
+		})
+
+		expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://onion.test/api/games/123/actions')
+		expect(fetchImpl.mock.calls[0]?.[1]).toEqual(
+			expect.objectContaining({
+				method: 'POST',
+				headers: expect.objectContaining({
+					authorization: 'Bearer stub.token',
+					'content-type': 'application/json',
+				}),
+				body: JSON.stringify({ type: 'END_PHASE' }),
+			}),
+		)
+	})
+
 	it('normalizes not found responses', async () => {
 		const fetchImpl = vi.fn().mockResolvedValue({
 			ok: false,
