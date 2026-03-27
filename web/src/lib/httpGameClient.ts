@@ -12,6 +12,15 @@ import {
 import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../../src/shared/apiProtocol'
 import type { TurnPhase } from '../../../src/types/index'
 
+type ActionSuccessResponse = {
+	ok: true
+	seq: number
+	events: Array<{ seq: number; type: string; timestamp: string; [key: string]: unknown }>
+	state: unknown
+	turnNumber: number
+	eventSeq: number
+}
+
 type HttpGameClientOptions = {
 	baseUrl: string
 	fetchImpl?: typeof fetch
@@ -91,6 +100,23 @@ function mapServerSnapshot(
 	}
 }
 
+function mapActionSnapshot(
+	response: ActionSuccessResponse,
+	currentSnapshot: GameSnapshot | null,
+	gameId: number,
+): GameSnapshot {
+	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
+	const phaseChange = [...response.events].reverse().find((event) => event.type === 'PHASE_CHANGED')
+	const nextPhase = typeof phaseChange?.to === 'string' ? normalizePhase(phaseChange.to) : fallback.phase
+
+	return mergeSnapshot(fallback, {
+		gameId,
+		phase: nextPhase,
+		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
+		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : fallback.lastEventSeq,
+	})
+}
+
 function updateLocalSnapshot(currentSnapshot: GameSnapshot | null, action: GameAction, gameId: number): GameSnapshot {
 	const baseSnapshot = currentSnapshot ?? createInitialSnapshot(gameId)
 
@@ -130,7 +156,7 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 		},
 		async submitAction(gameId: number, action: GameAction) {
 			if (action.type === 'end-phase') {
-				const result = await requestJson<GameStateResponse>({
+				const result = await requestJson<ActionSuccessResponse>({
 					baseUrl,
 					path: `games/${gameId}/actions`,
 					method: 'POST',
@@ -143,9 +169,8 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 					throw buildError(result)
 				}
 
-				const envelope = mapServerSnapshot(result.data, currentSnapshot, gameId)
-				currentSnapshot = envelope.snapshot
-				return envelope.snapshot
+				currentSnapshot = mapActionSnapshot(result.data, currentSnapshot, gameId)
+				return currentSnapshot
 			}
 
 			if (action.type === 'refresh') {

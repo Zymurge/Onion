@@ -91,4 +91,42 @@ describe('App connection gate', () => {
 		).not.toBeNull()
 		await screen.findByText(/Selected unit: wolf-2/i)
 	})
+
+	it('renders the role badge as inactive when it is not that role’s turn', async () => {
+		const user = userEvent.setup()
+
+		requestJson.mockResolvedValue({
+			ok: true,
+			status: 200,
+			data: { userId: 'user-123', token: 'stub.token' },
+		})
+
+		createHttpGameClient.mockReturnValue({
+			getState: vi.fn().mockResolvedValue({
+				snapshot: {
+					gameId: 123,
+					phase: 'DEFENDER_MOVE',
+					selectedUnitId: 'wolf-2',
+					mode: 'fire',
+					scenarioName: 'Test Scenario',
+					turnNumber: 11,
+					lastEventSeq: 47,
+				},
+				session: { role: 'onion' },
+			}),
+			submitAction: vi.fn(),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123 }} showConnectionGate />)
+
+		await user.type(screen.getByLabelText(/username/i), 'player-1')
+		await user.type(screen.getByLabelText(/password/i), 'secret')
+		await user.click(screen.getByRole('button', { name: /load game/i }))
+
+		await screen.findByText(/^Onion$/i, { selector: '.role-badge' })
+		const roleBadge = screen.getByText(/^Onion$/i, { selector: '.role-badge' })
+		expect(roleBadge.classList.contains('role-badge-inactive')).toBe(true)
+		expect(roleBadge.classList.contains('role-badge-active')).toBe(false)
+	})
 })

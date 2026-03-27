@@ -318,14 +318,14 @@
   box-shadow: 0 0 18px rgba(106, 146, 44, 0.28), inset 0 0 0 1px rgba(196, 225, 120, 0.18);
 }
 
-.role-badge-defender {
+.role-badge-active.role-badge-defender {
   background: linear-gradient(180deg, rgba(126, 155, 66, 0.2), rgba(88, 118, 38, 0.14));
   border-color: rgba(106, 146, 44, 0.68);
   color: #355116;
   box-shadow: 0 0 18px rgba(106, 146, 44, 0.28), inset 0 0 0 1px rgba(196, 225, 120, 0.18);
 }
 
-.role-badge-onion {
+.role-badge-active.role-badge-onion {
   background: linear-gradient(180deg, rgba(126, 155, 66, 0.2), rgba(88, 118, 38, 0.14));
   border-color: rgba(106, 146, 44, 0.68);
   color: #355116;
@@ -336,6 +336,7 @@
   background: rgba(82, 78, 69, 0.08);
   border-color: rgba(82, 78, 69, 0.18);
   color: var(--ink-muted);
+  box-shadow: none;
 }
 
 .role-badge-waiting {
@@ -343,6 +344,7 @@
   border-color: rgba(82, 78, 69, 0.18);
   color: var(--ink-muted);
   opacity: 0.72;
+  box-shadow: none;
 }
 
 .topbar-state {

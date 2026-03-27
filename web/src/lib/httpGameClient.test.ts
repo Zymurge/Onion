@@ -129,10 +129,20 @@ describe('http game client', () => {
 			.mockResolvedValueOnce(jsonResponse({
 				gameId: 123,
 				role: 'defender',
-				phase: 'DEFENDER_COMBAT',
+				phase: 'ONION_MOVE',
 				scenarioName: "The Siege of Shrek's Swamp",
-				turnNumber: 8,
-				eventSeq: 48,
+				turnNumber: 2,
+				eventSeq: 12,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
+				ok: true,
+				seq: 13,
+				events: [
+					{ seq: 13, type: 'PHASE_CHANGED', timestamp: '2026-03-26T12:00:00.000Z', from: 'ONION_MOVE', to: 'ONION_COMBAT', turnNumber: 2 },
+				],
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+				turnNumber: 2,
+				eventSeq: 13,
 			}))
 
 		const client = createHttpGameClient({
@@ -141,18 +151,20 @@ describe('http game client', () => {
 			token: 'stub.token',
 		})
 
+		await client.getState(123)
 		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toEqual({
 			gameId: 123,
-			phase: 'DEFENDER_COMBAT',
+			phase: 'ONION_COMBAT',
 			selectedUnitId: null,
 			mode: 'fire',
 			scenarioName: "The Siege of Shrek's Swamp",
-			turnNumber: 8,
-			lastEventSeq: 48,
+			turnNumber: 2,
+			lastEventSeq: 13,
 		})
 
-		expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://onion.test/api/games/123/actions')
-		expect(fetchImpl.mock.calls[0]?.[1]).toEqual(
+		expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://onion.test/api/games/123')
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123/actions')
+		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
 			expect.objectContaining({
 				method: 'POST',
 				headers: expect.objectContaining({

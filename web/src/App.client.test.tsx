@@ -6,6 +6,14 @@ import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { createGameClient, type GameSnapshot } from './lib/gameClient'
 
+function createDeferred<T>() {
+	let resolve!: (value: T) => void
+	const promise = new Promise<T>((nextResolve) => {
+		resolve = nextResolve
+	})
+	return { promise, resolve }
+}
+
 describe('App with injected game client', () => {
 	it('renders from the current game snapshot', async () => {
 		const snapshot: GameSnapshot = {
@@ -94,5 +102,46 @@ describe('App with injected game client', () => {
 		await user.click(screen.getByRole('button', { name: /advance phase/i }))
 
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
+	})
+
+	it('keeps a newer phase after a stale initial load resolves', async () => {
+		const user = userEvent.setup()
+		const initialSnapshotDeferred = createDeferred<{ snapshot: GameSnapshot; session: { role: 'onion' } }>()
+		const submitAction = vi.fn().mockResolvedValue({
+			gameId: 123,
+			phase: 'ONION_COMBAT',
+			selectedUnitId: 'wolf-2',
+			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 2,
+			lastEventSeq: 13,
+		})
+
+		const client = createGameClient({
+			getState: vi.fn().mockReturnValue(initialSnapshotDeferred.promise),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+		await user.click(screen.getByRole('button', { name: /advance phase/i }))
+
+		initialSnapshotDeferred.resolve({
+			snapshot: {
+				gameId: 123,
+				phase: 'ONION_MOVE',
+				selectedUnitId: 'wolf-2',
+				mode: 'fire',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 2,
+				lastEventSeq: 12,
+			},
+			session: { role: 'onion' },
+		})
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
+		expect(await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Onion Combat')).not.toBeNull()
 	})
 })

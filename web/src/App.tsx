@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
 import {
   battlefieldModes,
@@ -140,6 +140,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const runtimeConnectionSeeded = showConnectionGate
   const activeGameClient = gameClient ?? connectedSession?.gameClient
   const activeGameIdProp = gameId ?? connectedSession?.gameId
+  const snapshotLoadVersion = useRef(0)
 
   useEffect(() => {
     if (activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -149,9 +150,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     }
 
     let cancelled = false
+    const loadVersion = ++snapshotLoadVersion.current
 
     void activeGameClient.getState(activeGameIdProp).then((state) => {
-      if (!cancelled) {
+      if (!cancelled && snapshotLoadVersion.current === loadVersion) {
         setClientSnapshot(state.snapshot)
         setClientSession(state.session)
       }
@@ -181,6 +183,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       return
     }
 
+    snapshotLoadVersion.current += 1
     const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, action)
     setClientSnapshot(nextSnapshot)
   }
@@ -416,9 +419,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
         <div
           className={`role-badge ${
             headerHasSnapshot
-              ? activeRole === 'defender'
-                ? 'role-badge-active role-badge-defender'
-                : 'role-badge-active role-badge-onion'
+              ? activeTurnActive
+                ? activeRole === 'defender'
+                  ? 'role-badge-active role-badge-defender'
+                  : 'role-badge-active role-badge-onion'
+                : activeRole === 'defender'
+                  ? 'role-badge-inactive role-badge-defender'
+                  : 'role-badge-inactive role-badge-onion'
               : 'role-badge-waiting'
           }`}
         >
