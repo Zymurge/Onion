@@ -219,6 +219,8 @@ The CLI must show:
 
 This is especially important for manual testing of out-of-phase actions. The CLI should not try to hide or normalize these errors into vague local messages.
 
+The canonical layer map for CLI tests and the rest of the system lives in [testing-strategy.md](testing-strategy.md).
+
 Recommended error output shape:
 
 ```text

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { resolveWebRuntimeConfig } from './appBootstrap'
 
-describe('resolveWebRuntimeConfig', () => {
+describe('appBootstrap bootstrap', () => {
 	it('prefers query gameId and trims env base url', () => {
 		expect(
 			resolveWebRuntimeConfig(

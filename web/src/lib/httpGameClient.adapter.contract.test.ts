@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createHttpGameClient } from './httpGameClient'
 
-describe('http game client', () => {
+describe('http game client adapter contract', () => {
 	it('loads state and polls events over HTTP', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,

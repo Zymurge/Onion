@@ -6,9 +6,10 @@ import {
 	type GameSnapshot,
 	type GameStateEnvelope,
 	type GameAction,
+	GameClientSeamError,
 } from './gameClient'
 
-describe('game client contract', () => {
+describe('game client seam contract', () => {
 	const snapshot: GameSnapshot = {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
@@ -69,5 +70,24 @@ describe('game client contract', () => {
 		await expect(client.getState(123)).rejects.toMatchObject({
 			kind: 'transport',
 		})
+	})
+
+	it('handles transport failures when submitting actions', async () => {
+		const transport: GameClientTransport = {
+			getState: vi.fn(),
+			submitAction: vi.fn().mockRejectedValue(new GameClientSeamError('transport', 'mocked fault' )),
+		}
+
+		const client = createGameClient(transport)
+
+		let error : unknown
+		try {
+			await client.submitAction(123, action)
+		} catch (e) {
+			error = e
+		}
+		
+		expect((error as GameClientSeamError).kind).toBe('transport')
+		expect((error as GameClientSeamError).message).toBe('mocked fault')
 	})
 })

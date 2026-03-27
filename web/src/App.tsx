@@ -10,6 +10,7 @@ import {
   type Mode,
 } from './mockBattlefield'
 import {
+  GameClientSeamError,
   type GameAction,
   type GameClient,
   type GameSessionContext,
@@ -130,6 +131,8 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
   const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
+  // New state for surfacing action errors to the UI
+  const [actionError, setActionError] = useState<string | null>(null)
   const [connectDraft, setConnectDraft] = useState<ConnectionState>({
     apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
     username: '',
@@ -194,8 +197,21 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     }
 
     snapshotLoadVersion.current += 1
-    const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, action)
-    setClientSnapshot(nextSnapshot)
+    try {
+      const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, action)
+      setClientSnapshot(nextSnapshot)
+      setActionError(null) // clear any previous error
+    } catch (error: unknown) {
+      // Surface error to UI
+      const errorMessage =
+        error instanceof GameClientSeamError
+          ? `GameClientSeamError: ${error.message}`
+          : error instanceof Error && error.message
+          ? `Error: ${error.message}`
+          : 'Error unknown'
+      setActionError(`Failed to submit action: ${errorMessage}`)
+      // Do not update clientSnapshot on failure
+    }
   }
 
   function handleConnect(event: FormEvent<HTMLFormElement>) {
@@ -425,6 +441,12 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
   return (
     <div className="shell" data-phase={shellPhase}>
+      {/* Show action error as a toast/banner if present */}
+      {actionError && (
+        <div className="action-error-banner" role="alert" style={{ background: '#fbeaea', color: '#a94442', padding: '8px 16px', marginBottom: 8, borderRadius: 4, textAlign: 'center', fontWeight: 500 }}>
+          {actionError}
+        </div>
+      )}
       <header className="topbar panel">
         <div
           className={`role-badge ${

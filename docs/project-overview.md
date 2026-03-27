@@ -89,19 +89,11 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 
 ### Testing Strategy
 
-- **Methodology**: Test-driven development (TDD) from Phase 1. Tests are written before or alongside implementation, not after.
-- **Framework**: **Vitest** — fast, native ESM support, TypeScript-first, compatible with the Node.js/Fastify stack.
-- **Layers**:
-  - **Unit tests**: Stateless rules engine functions (movement legality, CRT resolution, phase transitions, tread damage). No I/O.
-  - **Integration tests**: Fastify route handlers against a test database (or in-memory mock). Covers REST endpoints and WebSocket event flows.
-  - **E2E tests**: Deferred to Phase 2 — full CLI-to-server round trips.
+The canonical layer map lives in [testing-strategy.md](testing-strategy.md). This project still uses TDD and Vitest, but the per-layer responsibilities now live in that dedicated doc.
 
 #### Test Organization and Execution
 
-Tests are organized into two separate Vitest projects to maintain clear separation between fast unit tests and slower integration tests:
-
-- **Unit Tests** (`pnpm test`): Run against in-memory mocks. Cover API route logic without database dependencies. Use `InMemoryDb` adapter which stores data in Map objects. Tests complete in milliseconds.
-- **Integration Tests** (`pnpm test:integration`): Run against real PostgreSQL containers via testcontainers. Verify end-to-end SQL execution and data persistence. Tests take ~6 seconds due to container startup.
+Tests are organized into separate fast and slower suites so the default regression run stays responsive while still covering the contract and persistence layers.
 
 #### Integration Smoke Suite (Standard Regression)
 

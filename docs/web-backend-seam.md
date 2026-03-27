@@ -52,11 +52,7 @@ Why:
 
 ## testing rules
 
-- Prefer red-green cycles for every stable behavior.
-- Keep UI smoke tests in place while the seam is introduced.
-- Add stubbed tests only once the seam is well-defined and callable from both tests and implementation.
-- Keep transport-specific tests separate from UI tests.
-- Favor semantic assertions over snapshots or layout checks.
+The canonical layer map lives in [testing-strategy.md](testing-strategy.md). For this seam, keep contract tests in `web/src/lib`, App orchestration tests in `web/src/App.*.test.tsx`, and UI/E2E tests above that boundary.
 
 ## initial contract
 

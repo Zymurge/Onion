@@ -182,29 +182,7 @@ Never mutate server-derived game state as if it were authoritative. Always recon
 
 ## Testing Strategy
 
-## Unit (Web)
-
-1. Selectors/formatters.
-2. Action payload builders.
-3. Command availability logic by phase/role.
-
-## Component (Web)
-
-1. Auth forms.
-2. Action composer.
-3. Map interaction states.
-4. Event list rendering.
-
-## Integration (UI + API)
-
-1. Auth + create/load/join game paths.
-2. Move/fire/end-phase behavior from UI.
-3. Error response behavior and recovery.
-
-## E2E (Playwright or equivalent)
-
-1. Full happy path from login to completed action cycle.
-2. Two-client consistency checks (manual refresh first, live update later).
+The canonical layer map lives in [testing-strategy.md](testing-strategy.md). For the web UI, keep unit tests focused on selectors and payload builders, component tests focused on App orchestration and interaction states, integration tests focused on UI + API wiring, and E2E limited to full user journeys.
 
 ## Open Questions
 

@@ -16,7 +16,7 @@ vi.mock('../../src/shared/apiProtocol', () => ({
 	requestJson,
 }))
 
-describe('App connection gate', () => {
+describe('App connect gate', () => {
 	it('renders a connect form when runtime config is seeded but no client is ready', async () => {
 		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123 }} showConnectionGate />)
 

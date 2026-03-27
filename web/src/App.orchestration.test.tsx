@@ -14,7 +14,68 @@ function createDeferred<T>() {
 	return { promise, resolve }
 }
 
-describe('App with injected game client', () => {
+describe('App orchestration (injected game client)', () => {
+	it('calls commitClientAction on unit select and updates UI', async () => {
+		const user = userEvent.setup()
+		const snapshot: GameSnapshot = {
+			gameId: 123,
+			phase: 'DEFENDER_COMBAT',
+			selectedUnitId: 'wolf-2',
+			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
+			lastEventSeq: 47,
+		}
+		const session = { role: 'defender' as const }
+		const submitAction = vi.fn().mockResolvedValue({ ...snapshot, selectedUnitId: 'puss-1' })
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
+
+		await user.click(screen.getByRole('button', { name: /puss-1/i }))
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'select-unit', unitId: 'puss-1' })
+		await screen.findByText(/Selected unit: puss-1/i)
+	})
+
+	it('surfaces errors from commitClientAction as a banner', async () => {
+		const user = userEvent.setup()
+		const snapshot: GameSnapshot = {
+			gameId: 123,
+			phase: 'DEFENDER_COMBAT',
+			selectedUnitId: 'wolf-2',
+			mode: 'fire',
+			scenarioName: "The Siege of Shrek's Swamp",
+			turnNumber: 8,
+			lastEventSeq: 47,
+		}
+		const session = { role: 'defender' as const }
+		const error = new Error('mock transport failure')
+		const submitAction = vi.fn().mockRejectedValue(error)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
+
+		await user.click(screen.getByRole('button', { name: /puss-1/i }))
+
+		await screen.findByRole('alert')
+		expect(screen.getByRole('alert').textContent).toMatch(/Failed to submit action/i)
+		expect(screen.getByRole('alert').textContent).toMatch(/mock transport failure/i)
+	})
 	it('renders from the current game snapshot', async () => {
 		const snapshot: GameSnapshot = {
 			gameId: 123,
@@ -87,7 +148,10 @@ describe('App with injected game client', () => {
 			lastEventSeq: 47,
 		}
 		const session = { role: 'defender' as const }
-		const submitAction = vi.fn().mockResolvedValue(snapshot)
+		const submitAction = vi.fn().mockResolvedValue({
+			...snapshot,
+			phase: 'GEV_SECOND_MOVE',
+		})
 
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session }),
@@ -97,11 +161,11 @@ describe('App with injected game client', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByText(/Selected unit: wolf-2/i)
 		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
 		await user.click(screen.getByRole('button', { name: /advance phase/i }))
-
+		
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
+		expect(await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'GEV Second Move')).not.toBeNull()
 	})
 
 	it('keeps a newer phase after a stale initial load resolves', async () => {
