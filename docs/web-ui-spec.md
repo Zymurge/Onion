@@ -221,7 +221,7 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 
 **Error Feedback:**
 
-- Right-clicking on an ineligible (out-of-range or blocked) hex displays a temporary “out of range” bubble near the cursor.
+- Right-clicking on an ineligible (out-of-range or blocked) hex displays a temporary “Illegal move” bubble near the cursor.
 - The error bubble remains visible for 3 seconds or until dismissed by clicking anywhere.
 
 **Other Behaviors:**
