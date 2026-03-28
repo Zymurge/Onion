@@ -82,7 +82,7 @@ describe('POST /games/:id/actions MOVE', () => {
       headers: { authorization: `Bearer ${shrek.token}` },
     })
     const initialStateBody = initialStateRes.json<{ state: { onion: { id?: string; position: { q: number; r: number } } } }>()
-    const onionUnitId = initialStateBody.state.onion.id ?? 'onion'
+    const onionUnitId = initialStateBody.state.onion.id ?? 'onion-1'
 
     const moveTo = { q: 1, r: 10 }
     const validatedPlan = createMovePlan({ unitId: onionUnitId, from: initialStateBody.state.onion.position, to: moveTo, path: [moveTo], cost: 1 })
