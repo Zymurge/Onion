@@ -18,6 +18,7 @@ import {
 import { createHttpGameClient } from './lib/httpGameClient'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
 import { requestJson } from '../../src/shared/apiProtocol'
+import { onionMovementAllowance } from '../../src/shared/movementAllowance'
 import type { GameState, TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
 import './App.css'
 
@@ -99,22 +100,6 @@ function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
   return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
 }
 
-function getOnionMovementAllowance(treads: number) {
-  if (treads === 0) {
-    return 0
-  }
-
-  if (treads <= 15) {
-    return 1
-  }
-
-  if (treads <= 30) {
-    return 2
-  }
-
-  return 3
-}
-
 function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean): Mode[] {
   if (!activeTurnActive || status === 'destroyed' || status === 'disabled') {
     return []
@@ -140,7 +125,7 @@ function buildLiveDefenders(authoritativeState: GameState, activeTurnActive: boo
 
 function buildLiveOnion(authoritativeState: GameState): BattlefieldOnionView {
   const onion = authoritativeState.onion
-  const movesAllowed = getOnionMovementAllowance(onion.treads)
+  const movesAllowed = onionMovementAllowance(onion.treads)
 
   return {
     id: onion.id ?? 'onion-1',

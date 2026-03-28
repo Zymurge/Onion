@@ -197,6 +197,40 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 2. The header should show the current player role from session context.
 3. At game end, show a dedicated result overlay with outcome and next actions.
 
+## Move Mechanics (UI Interaction Spec)
+
+**Eligibility:**
+
+- A unit is eligible to move if it is operational and has at least 1 movement allowance remaining in the current phase.
+
+**Unit Highlighting:**
+
+- During the player’s movement phase, all eligible units are visually highlighted. The highlight may be applied to the unit icon or the entire hex it occupies.
+- The currently selected unit’s hex is distinctly highlighted to indicate selection.
+
+**Selection & Deselection:**
+
+- Left-clicking on any unit selects it, displaying its details in the right rail and deselecting any previously selected unit.
+- Left-clicking on any empty hex or non-unit area of the hexmap deselects the current selection and removes all move overlays.
+
+**Move Radius & Action:**
+
+- When a unit with remaining movement allowance is selected, all hexes within its movement range are highlighted with a subtle green overlay, visually distinct from the selected hex.
+- Right-clicking on a highlighted (in-range) hex instantly moves the selected unit to that hex, submits the move event, and refreshes the UI with the unit deselected.
+- Selecting a unit with no move eligibility displays its stats but does not highlight any move radius.
+
+**Error Feedback:**
+
+- Right-clicking on an ineligible (out-of-range or blocked) hex displays a temporary “out of range” bubble near the cursor.
+- The error bubble remains visible for 3 seconds or until dismissed by clicking anywhere.
+
+**Other Behaviors:**
+
+- Only one unit can be selected at a time.
+- All move overlays and highlights are cleared when no unit is selected.
+- Movement is instant; no confirmation dialog is required.
+- Game state is stable during the player’s movement phase; no external changes are expected.
+
 ## Error Handling UX Baseline
 
 1. Show user-friendly message + machine details.

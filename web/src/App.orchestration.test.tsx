@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { createGameClient, type GameSnapshot } from './lib/gameClient'
 import type { GameState } from '../../src/types/index'
+import { createMoveGameState } from '../../src/shared/moveFixtures'
 
 type AuthoritativeBattlefieldSnapshot = GameSnapshot & {
 	authoritativeState: GameState
@@ -168,6 +169,13 @@ function createConnectedBattlefieldSnapshot(
 	}
 }
 
+function createSnapshotWithTreads(treads: number): AuthoritativeBattlefieldSnapshot {
+	return {
+		...createConnectedBattlefieldSnapshot(),
+		authoritativeState: createMoveGameState(treads),
+	}
+}
+
 describe('App orchestration (injected game client)', () => {
 	it('renders defender roster and inspector details from authoritative game state instead of mock battlefield data', async () => {
 		const snapshot = createAuthoritativeBattlefieldSnapshot()
@@ -203,6 +211,38 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByText('1,1')).not.toBeNull()
 		expect(screen.queryByText('2,1')).toBeNull()
 		expect(screen.queryByText('14,21')).toBeNull()
+	})
+
+	it('derives onion move allowance from the shared helper at the first band', async () => {
+		const snapshot = createSnapshotWithTreads(15)
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		expect(onionCard.textContent).toContain('Moves 1')
+	})
+
+	it('derives onion move allowance from the shared helper at the second band', async () => {
+		const snapshot = createSnapshotWithTreads(16)
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		expect(onionCard.textContent).toContain('Moves 2')
 	})
 
 	it('calls commitClientAction on unit select and updates UI', async () => {

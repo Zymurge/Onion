@@ -7,10 +7,11 @@ import logger from '../logger.js'
  */
 
 import type { HexPos, PlayerRole, Command } from '../types/index.js'
-import { isInBounds, findPath, movementCost } from './map.js'
+import { isInBounds } from './map.js'
 import type { GameMap } from './map.js'
 import { getUnitDefinition, onionMovementAllowance, isImmobile } from './units.js'
 import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from './units.js'
+import { findMovePath, type MoveMapSnapshot } from '../shared/movePlanner.js'
 
 /**
  * Result of validating a movement command.
@@ -263,7 +264,13 @@ function validateMovePlan(
     return allowance
   }
 
-  const pathResult = findPath(map, unit.position, command.to, allowance.movementAllowance, capabilities.canCrossRidgelines)
+  const pathResult = findMovePath({
+    map: toMoveMapSnapshot(map),
+    from: unit.position,
+    to: command.to,
+    movementAllowance: allowance.movementAllowance,
+    canCrossRidgelines: capabilities.canCrossRidgelines,
+  })
   if (!pathResult.found) {
     return {
       ok: false,
@@ -306,6 +313,18 @@ function validateMovePlan(
       treadCost,
       capabilities,
     },
+  }
+}
+
+function toMoveMapSnapshot(map: GameMap): MoveMapSnapshot {
+  return {
+    width: map.width,
+    height: map.height,
+    hexes: Object.values(map.hexes).map((hex) => ({
+      q: hex.q,
+      r: hex.r,
+      t: hex.terrain === 'ridgeline' ? 1 : hex.terrain === 'crater' ? 2 : 0,
+    })),
   }
 }
 
