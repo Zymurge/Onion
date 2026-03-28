@@ -6,18 +6,20 @@ import * as engineGame from '../engine/index.js'
 import { createGame, createMovePlan, joinGame, register } from './helpers.js'
 import logger from '../logger.js'
 
-let infoSpy: any, warnSpy: any, errorSpy: any;
+let infoSpy: any, warnSpy: any, errorSpy: any, debugSpy: any;
 
 beforeEach(() => {
   infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
   warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
   errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+  debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
 });
 
 afterEach(() => {
   infoSpy.mockRestore();
   warnSpy.mockRestore();
   errorSpy.mockRestore();
+  debugSpy.mockRestore();
 });
 
 describe('POST /games/:id/actions MOVE', () => {
@@ -49,6 +51,15 @@ describe('POST /games/:id/actions MOVE', () => {
     expect(body.state.onion.position).toEqual(moveTo)
     expect(validateSpy).toHaveBeenCalled()
     expect(executeSpy).toHaveBeenCalled()
+    expect(debugSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gameId,
+        actionType: 'MOVE',
+        eventCount: 1,
+        eventTypes: ['ONION_MOVED'],
+      }),
+      'Events sent',
+    )
     validateSpy.mockRestore()
     executeSpy.mockRestore()
 
@@ -56,6 +67,42 @@ describe('POST /games/:id/actions MOVE', () => {
     expect(infoSpy).toHaveBeenCalled()
     // Optionally: expect(warnSpy).not.toHaveBeenCalled()
     // Optionally: expect(errorSpy).not.toHaveBeenCalled()
+  })
+
+  it('records spent movement in the returned state after a successful move', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const initialStateRes = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+    const initialStateBody = initialStateRes.json<{ state: { onion: { id?: string; position: { q: number; r: number } } } }>()
+    const onionUnitId = initialStateBody.state.onion.id ?? 'onion'
+
+    const moveTo = { q: 1, r: 10 }
+    const validatedPlan = createMovePlan({ unitId: onionUnitId, from: initialStateBody.state.onion.position, to: moveTo, path: [moveTo], cost: 1 })
+    const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: { type: 'MOVE', unitId: onionUnitId, to: moveTo },
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.ok).toBe(true)
+    expect(body.state.onion.position).toEqual(moveTo)
+    expect(body.state.movementSpent).toMatchObject({ [`ONION_MOVE:${onionUnitId}`]: 1 })
+    expect(body.movementRemainingByUnit).toMatchObject({ [onionUnitId]: 2 })
+    expect(validateSpy).toHaveBeenCalled()
+    validateSpy.mockRestore()
   })
 
   it('returns 422 when execution fails', async () => {

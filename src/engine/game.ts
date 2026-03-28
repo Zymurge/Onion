@@ -1,3 +1,4 @@
+import { resetMovementSpent } from '../shared/unitMovement.js'
 import logger from '../logger.js';
 import type { TurnPhase, GameState, EventEnvelope } from '../types/index.js';
 import type { MatchRecord } from '../db/adapter.js';
@@ -63,6 +64,7 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
 
   if (phase === 'ONION_MOVE') {
     state.ramsThisTurn = 0;
+    resetMovementSpent(state);
     refreshOnionWeaponsForNewTurn(state);
     // Reset defender weapons for the new turn
     for (const unit of Object.values(state.defenders)) {

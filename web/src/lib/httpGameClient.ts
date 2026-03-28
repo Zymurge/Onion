@@ -17,6 +17,7 @@ type ActionSuccessResponse = {
 	seq: number
 	events: Array<{ seq: number; type: string; timestamp: string; [key: string]: unknown }>
 	state: GameState
+	movementRemainingByUnit: Record<string, number>
 	turnNumber: number
 	eventSeq: number
 }
@@ -58,6 +59,7 @@ function createInitialSnapshot(gameId: number): GameSnapshot {
 		scenarioName: undefined,
 		turnNumber: undefined,
 		lastEventSeq: 0,
+		movementRemainingByUnit: {},
 	}
 }
 
@@ -94,6 +96,7 @@ function mapServerSnapshot(
 			turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
 			lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : fallback.lastEventSeq,
 			authoritativeState: response.state ?? fallback.authoritativeState,
+			movementRemainingByUnit: response.movementRemainingByUnit ?? fallback.movementRemainingByUnit,
 			scenarioMap: response.scenarioMap ?? fallback.scenarioMap,
 		}),
 		session: {
@@ -117,6 +120,7 @@ function mapActionSnapshot(
 		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
 		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : fallback.lastEventSeq,
 		authoritativeState: response.state ?? fallback.authoritativeState,
+		movementRemainingByUnit: response.movementRemainingByUnit ?? fallback.movementRemainingByUnit,
 	})
 }
 
@@ -165,6 +169,28 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 					method: 'POST',
 					token: options.token,
 					body: { type: 'END_PHASE' },
+					fetchImpl,
+				})
+
+				if (!result.ok) {
+					throw buildError(result)
+				}
+
+				currentSnapshot = mapActionSnapshot(result.data, currentSnapshot, gameId)
+				return currentSnapshot
+			}
+
+			if (action.type === 'MOVE') {
+				const result = await requestJson<ActionSuccessResponse>({
+					baseUrl,
+					path: `games/${gameId}/actions`,
+					method: 'POST',
+					token: options.token,
+					body: {
+						type: 'MOVE',
+						unitId: action.unitId,
+						to: action.to,
+					},
 					fetchImpl,
 				})
 

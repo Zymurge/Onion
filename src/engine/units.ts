@@ -131,6 +131,8 @@ export interface EngineGameState {
   defenders: Record<string, DefenderUnit>
   /** Number of rams the Onion has performed this turn (max 2) */
   ramsThisTurn: number
+  /** Movement already spent this turn, keyed by phase and unit ID */
+  movementSpent?: Record<string, number>
   /** Current phase of play */
   currentPhase: TurnPhase
   /** Current turn number (1-based) */

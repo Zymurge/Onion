@@ -23,10 +23,12 @@ describe('GET /games/:id', () => {
     expect(body.turnNumber).toBe(1)
     expect(body.winner).toBeNull()
     expect(body).toHaveProperty('state')
+    expect(body).toHaveProperty('movementRemainingByUnit')
     expect(body).toHaveProperty('scenarioMap')
     expect(body.scenarioMap.width).toBeGreaterThan(0)
     expect(body.scenarioMap.height).toBeGreaterThan(0)
     expect(typeof body.eventSeq).toBe('number')
+    expect(body.movementRemainingByUnit[body.state.onion.id ?? 'onion-1']).toBe(3)
   })
 
   it('returns 401 without auth', async () => {

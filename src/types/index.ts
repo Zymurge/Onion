@@ -54,6 +54,7 @@ export interface GameState {
   }
   defenders: Record<string, DefenderUnit>
   ramsThisTurn?: number
+  movementSpent?: Record<string, number>
 }
 
 export interface EventEnvelope {
@@ -76,6 +77,7 @@ export interface ActionOkResponse {
   seq: number
   events: EventEnvelope[]
   state: GameState
+  movementRemainingByUnit: Record<string, number>
 }
 
 /**

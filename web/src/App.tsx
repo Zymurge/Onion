@@ -18,8 +18,8 @@ import {
 import { createHttpGameClient } from './lib/httpGameClient'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
 import { requestJson } from '../../src/shared/apiProtocol'
-import { onionMovementAllowance } from '../../src/shared/movementAllowance'
-import type { GameState, TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
+import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
+import type { TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
 import './App.css'
 
 const turnPhaseLabels: Record<TurnPhase, string> = {
@@ -109,23 +109,39 @@ function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArr
   return hasReadyWeapon ? ['fire', 'combined'] : []
 }
 
-function buildLiveDefenders(authoritativeState: GameState, activeTurnActive: boolean): BattlefieldUnit[] {
+function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldUnit[] {
+  const authoritativeState = snapshot.authoritativeState
+
+  if (authoritativeState === undefined) {
+    return []
+  }
+
+  const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
+
   return Object.entries(authoritativeState.defenders).map(([defenderId, defender]) => ({
     id: defender.id ?? defenderId,
     type: defender.type,
     status: defender.status,
     q: defender.position.q,
     r: defender.position.r,
-    move: 0,
+    move: activePhase === null ? 0 : movementRemainingByUnit[defender.id ?? defenderId] ?? 0,
     weapons: formatWeaponSummary(defender.weapons),
     attack: formatAttackSummary(defender.weapons),
     actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
   }))
 }
 
-function buildLiveOnion(authoritativeState: GameState): BattlefieldOnionView {
+function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
+  const authoritativeState = snapshot.authoritativeState
+
+  if (authoritativeState === undefined) {
+    throw new Error('Missing authoritative state')
+  }
+
   const onion = authoritativeState.onion
-  const movesAllowed = onionMovementAllowance(onion.treads)
+  const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
+  const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
+  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? 0
 
   return {
     id: onion.id ?? 'onion-1',
@@ -135,7 +151,7 @@ function buildLiveOnion(authoritativeState: GameState): BattlefieldOnionView {
     status: onion.status ?? 'operational',
     treads: onion.treads,
     movesAllowed,
-    movesUsed: 0,
+    movesRemaining,
     rams: authoritativeState.ramsThisTurn ?? 0,
     weapons: formatWeaponSummary(onion.weapons),
   }
@@ -263,7 +279,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? null
   const activeMode = clientSnapshot?.mode ?? mode
-  const activeSelectedUnitId = clientSnapshot?.selectedUnitId ?? selectedUnitId
+  const activeSelectedUnitId = selectedUnitId !== '' ? selectedUnitId : (clientSnapshot?.selectedUnitId ?? '')
   const headerHasSnapshot = clientSnapshot !== null
   const activeTurnNumber = clientSnapshot?.turnNumber ?? null
   const activeScenarioName = clientSnapshot?.scenarioName ?? null
@@ -343,12 +359,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }
 
   function handleSelectUnit(unitId: string) {
-    if (isControlledSession) {
-      void commitClientAction({ type: 'select-unit', unitId })
-      return
-    }
-
     setSelectedUnitId(unitId)
+    setActionError(null)
+  }
+
+  function handleDeselectUnit() {
+    setSelectedUnitId('')
+    setActionError(null)
   }
 
   function handleModeChange(nextMode: Mode) {
@@ -360,15 +377,40 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     setMode(nextMode)
   }
 
-  const authoritativeState = clientSnapshot?.authoritativeState
-  const displayedDefenders = authoritativeState === undefined ? [] : buildLiveDefenders(authoritativeState, activeTurnActive)
-  const displayedOnion = authoritativeState === undefined ? null : buildLiveOnion(authoritativeState)
+  async function handleMoveUnit(unitId: string, to: { q: number; r: number }) {
+    if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
+      return
+    }
+
+    if (!activeTurnActive) {
+      return
+    }
+
+    setActionError(null)
+    snapshotLoadVersion.current += 1
+    try {
+      const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, { type: 'MOVE', unitId, to })
+      setClientSnapshot(nextSnapshot)
+      setSelectedUnitId('')
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof GameClientSeamError
+          ? `GameClientSeamError: ${error.message}`
+          : error instanceof Error && error.message
+            ? `Error: ${error.message}`
+            : 'Error unknown'
+      setActionError(`Failed to submit action: ${errorMessage}`)
+    }
+  }
+
+  const displayedDefenders = clientSnapshot === null ? [] : buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive)
+  const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
   const displayedScenarioMap = buildScenarioMap(clientSnapshot)
   const hasBattlefieldData = displayedOnion !== null && displayedScenarioMap !== null
   const yourTurn = true
   const isOnionSelected = displayedOnion !== null && activeSelectedUnitId === displayedOnion.id
   const selectedDefender = displayedDefenders.find((unit) => unit.id === activeSelectedUnitId)
-  const selectedUnit = selectedDefender ?? displayedDefenders[0]
+  const selectedUnit = selectedDefender ?? null
   const targetLabel = activeMode === 'end-phase' ? 'No target required' : 'onion / treads'
   const selectedUnitIsActionable = selectedUnit?.actionableModes.includes(activeMode) ?? false
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
@@ -634,7 +676,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 <div className="unit-summary">
                   <div className="summary-line">
                     <span>Treads <strong>{displayedOnion.treads}</strong></span>
-                    <span>Moves <strong>{displayedOnion.movesAllowed - displayedOnion.movesUsed}</strong></span>
+                    <span>Moves <strong>{displayedOnion.movesRemaining}</strong></span>
                     <span>Rams <strong>{displayedOnion.rams}</strong></span>
                   </div>
                   <div className="summary-line">
@@ -697,9 +739,12 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 scenarioMap={displayedScenarioMap}
                 defenders={displayedDefenders}
                 onion={displayedOnion}
-                mode={activeMode}
+                phase={activePhase}
                 selectedUnitId={activeSelectedUnitId}
+                canSubmitMove={activeTurnActive}
                 onSelectUnit={handleSelectUnit}
+                onDeselect={handleDeselectUnit}
+                onMoveUnit={handleMoveUnit}
               />
             ) : (
               <div className="hex-map-shell panel-subtle">
@@ -787,7 +832,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                   </div>
                   <div>
                     <dt>Move Available</dt>
-                    <dd>{displayedOnion.movesAllowed - displayedOnion.movesUsed} / {displayedOnion.movesAllowed}</dd>
+                    <dd>{displayedOnion.movesRemaining} / {displayedOnion.movesAllowed}</dd>
                   </div>
                   <div>
                     <dt>Rams</dt>

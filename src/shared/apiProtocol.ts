@@ -42,6 +42,7 @@ export type GameStateResponse = {
 		defender: string
 	}
 	state: GameState
+	movementRemainingByUnit: Record<string, number>
 	scenarioMap?: ScenarioMapSnapshot
 	eventSeq: number
 }

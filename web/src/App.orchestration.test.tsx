@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -79,6 +79,10 @@ function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefieldSnaps
 			},
 			ramsThisTurn: 0,
 		},
+			movementRemainingByUnit: {
+				'onion-live': 0,
+				'dragon-7': 0,
+			},
 		scenarioMap: {
 			width: 2,
 			height: 2,
@@ -160,6 +164,11 @@ function createConnectedBattlefieldSnapshot(
 			},
 			ramsThisTurn: 0,
 		},
+			movementRemainingByUnit: {
+				'onion-1': 0,
+				'wolf-2': 4,
+				'puss-1': 3,
+			},
 		scenarioMap: {
 			width: 8,
 			height: 8,
@@ -169,10 +178,16 @@ function createConnectedBattlefieldSnapshot(
 	}
 }
 
-function createSnapshotWithTreads(treads: number): AuthoritativeBattlefieldSnapshot {
+function createSnapshotWithTreads(treads: number, movementRemaining: number): AuthoritativeBattlefieldSnapshot {
 	return {
 		...createConnectedBattlefieldSnapshot(),
+		phase: 'ONION_MOVE',
 		authoritativeState: createMoveGameState(treads),
+		movementRemainingByUnit: {
+			'onion-1': movementRemaining,
+			'wolf-2': 4,
+			'puss-1': 3,
+		},
 	}
 }
 
@@ -213,24 +228,8 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.queryByText('14,21')).toBeNull()
 	})
 
-	it('derives onion move allowance from the shared helper at the first band', async () => {
-		const snapshot = createSnapshotWithTreads(15)
-		const session = { role: 'defender' as const }
-
-		const client = createGameClient({
-			getState: vi.fn().mockResolvedValue({ snapshot, session }),
-			submitAction: vi.fn().mockResolvedValue(snapshot),
-			pollEvents: vi.fn().mockResolvedValue([]),
-		})
-
-		render(<App gameClient={client} gameId={123} />)
-
-		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
-		expect(onionCard.textContent).toContain('Moves 1')
-	})
-
-	it('derives onion move allowance from the shared helper at the second band', async () => {
-		const snapshot = createSnapshotWithTreads(16)
+	it('renders backend-provided onion movement remaining at the first band', async () => {
+		const snapshot = createSnapshotWithTreads(15, 2)
 		const session = { role: 'defender' as const }
 
 		const client = createGameClient({
@@ -245,11 +244,27 @@ describe('App orchestration (injected game client)', () => {
 		expect(onionCard.textContent).toContain('Moves 2')
 	})
 
-	it('calls commitClientAction on unit select and updates UI', async () => {
+	it('renders backend-provided onion movement remaining at the second band', async () => {
+		const snapshot = createSnapshotWithTreads(16, 1)
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		expect(onionCard.textContent).toContain('Moves 1')
+	})
+
+	it('selects a unit locally without submitting an action', async () => {
 		const user = userEvent.setup()
 		const snapshot = createConnectedBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
-		const submitAction = vi.fn().mockResolvedValue({ ...snapshot, selectedUnitId: 'puss-1' })
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
 
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session }),
@@ -263,11 +278,11 @@ describe('App orchestration (injected game client)', () => {
 
 		await user.click(screen.getByRole('button', { name: /puss-1/i }))
 
-		expect(submitAction).toHaveBeenCalledWith(123, { type: 'select-unit', unitId: 'puss-1' })
 		await screen.findByText(/Selected unit: puss-1/i)
+		expect(submitAction).not.toHaveBeenCalled()
 	})
 
-	it('surfaces errors from commitClientAction as a banner', async () => {
+	it('surfaces errors from move submission as a banner', async () => {
 		const user = userEvent.setup()
 		const snapshot = createConnectedBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
@@ -284,12 +299,60 @@ describe('App orchestration (injected game client)', () => {
 
 		await screen.findByText(/Selected unit: wolf-2/i)
 
-		await user.click(screen.getByRole('button', { name: /puss-1/i }))
+		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+		await user.click(screen.getByRole('button', { name: /advance phase/i }))
 
 		await screen.findByRole('alert')
 		expect(screen.getByRole('alert').textContent).toMatch(/Failed to submit action/i)
 		expect(screen.getByRole('alert').textContent).toMatch(/mock transport failure/i)
 	})
+
+	it('submits a move when the active player right-clicks an in-range hex', async () => {
+		const snapshot = createConnectedBattlefieldSnapshot({
+			phase: 'DEFENDER_MOVE',
+			selectedUnitId: 'wolf-2',
+		})
+		const session = { role: 'defender' as const }
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
+
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-7-6'))
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'wolf-2', to: { q: 7, r: 6 } })
+	})
+
+	it('does not submit a move when the player is inactive', async () => {
+		const snapshot = createConnectedBattlefieldSnapshot({
+			phase: 'DEFENDER_MOVE',
+			selectedUnitId: 'wolf-2',
+		})
+		const session = { role: 'onion' as const }
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
+
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-7-6'))
+
+		expect(submitAction).not.toHaveBeenCalled()
+	})
+
 	it('renders from the current game snapshot', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot({
 			selectedUnitId: 'puss-1',

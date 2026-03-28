@@ -1,4 +1,4 @@
-import type { BattlefieldUnit, Mode, TerrainHex, TimelineEvent } from './lib/battlefieldView'
+import type { Mode, TimelineEvent } from './lib/battlefieldView'
 
 export const battlefieldModes: Array<{ id: Mode; label: string; helper: string }> = [
   { id: 'fire', label: 'Fire Unit', helper: 'Pick one attacker and one target.' },
