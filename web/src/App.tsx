@@ -223,7 +223,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       '[12:00:28] [debug] Memory usage: 18.4 MB (within acceptable range)',
       '[12:00:29] [info] All systems operational. Ready for player input.',
     ]
-  const [selectedUnitId, setSelectedUnitId] = useState<string>('')
+  const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
   const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
   const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
   const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
@@ -276,7 +276,8 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? null
-  const activeSelectedUnitId = selectedUnitId !== '' ? selectedUnitId : (clientSnapshot?.selectedUnitId ?? '')
+  const activeSelectedUnitIds = selectedUnitIds ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
+  const activeSelectedUnitId = activeSelectedUnitIds[0] ?? ''
   const headerHasSnapshot = clientSnapshot !== null
   const activeTurnNumber = clientSnapshot?.turnNumber ?? null
   const activeScenarioName = clientSnapshot?.scenarioName ?? null
@@ -356,13 +357,25 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     })
   }
 
-  function handleSelectUnit(unitId: string) {
-    setSelectedUnitId(unitId)
+  function handleSelectUnit(unitId: string, additive = false) {
+    setSelectedUnitIds((currentSelection) => {
+      const baseSelection = currentSelection ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
+
+      if (!additive) {
+        return [unitId]
+      }
+
+      if (baseSelection.includes(unitId)) {
+        return baseSelection.filter((selectedId) => selectedId !== unitId)
+      }
+
+      return [...baseSelection, unitId]
+    })
     setActionError(null)
   }
 
   function handleDeselectUnit() {
-    setSelectedUnitId('')
+    setSelectedUnitIds([])
     setActionError(null)
   }
 
@@ -380,7 +393,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     try {
       const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, { type: 'MOVE', unitId, to })
       setClientSnapshot(nextSnapshot)
-      setSelectedUnitId('')
+      setSelectedUnitIds([])
     } catch (error: unknown) {
       const errorMessage =
         error instanceof GameClientSeamError
@@ -647,7 +660,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
         />
       )}
 
-      <main className="battlefield-grid">
+      <main className="battlefield-grid" onClick={handleDeselectUnit}>
         <aside className="panel rail rail-left">
           <section className="section-block combat-scaffold">
             <div className="card-head">
@@ -691,8 +704,11 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
             {displayedOnion ? (
               <button
                 type="button"
-                className={`onion-card-button ${activeSelectedUnitId === displayedOnion.id ? 'is-selected' : ''}`}
-                onClick={() => handleSelectUnit(displayedOnion.id)}
+                className={`onion-card-button ${activeSelectedUnitIds.includes(displayedOnion.id) ? 'is-selected' : ''}`}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  handleSelectUnit(displayedOnion.id, event.ctrlKey || event.metaKey)
+                }}
               >
                 <h3>{displayedOnion.id}</h3>
                 <div className="unit-summary">
@@ -720,7 +736,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
             {displayedDefenders.length > 0 ? (
               <div className="defender-list">
                 {displayedDefenders.map((unit) => {
-                  const isSelected = unit.id === activeSelectedUnitId
+                  const isSelected = activeSelectedUnitIds.includes(unit.id)
                   const isActionable = unit.actionableModes.includes(activeMode)
                   const attackStats = parseAttackStats(unit.attack)
                   return (
@@ -733,7 +749,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                         isActionable ? 'is-actionable' : '',
                         `tone-${statusTone(unit.status)}`,
                       ].join(' ')}
-                      onClick={() => handleSelectUnit(unit.id)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
+                      }}
                     >
                       <p className="eyebrow">{unit.type}</p>
                       <h3>{unit.id}</h3>
@@ -762,7 +781,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 defenders={displayedDefenders}
                 onion={displayedOnion}
                 phase={activePhase}
-                selectedUnitId={activeSelectedUnitId}
+                selectedUnitIds={activeSelectedUnitIds}
                 canSubmitMove={
                   activeTurnActive && (
                     activePhase === 'ONION_MOVE' ||

@@ -57,7 +57,7 @@ it('disallows move submission during the active player\'s non-move phase', () =>
 	expect(screen.queryByText(/illegal move/i)).toBeNull()
 })
 // @vitest-environment jsdom
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { HexMapBoard } from './HexMapBoard'
@@ -88,7 +88,7 @@ const defenders: BattlefieldUnit[] = [
 		type: 'Puss',
 		status: 'operational',
 		q: 1,
-		r: 1,
+	r: 1,
 		move: 3,
 		weapons: 'main: ready',
 		attack: '4 / rng 2',
@@ -115,7 +115,7 @@ describe('HexMapBoard', () => {
 				defenders={defenders}
 				onion={onion}
 				phase="DEFENDER_MOVE"
-				selectedUnitId="puss-1"
+				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
 				onDeselect={vi.fn()}
 				onMoveUnit={vi.fn()}
@@ -138,7 +138,7 @@ describe('HexMapBoard', () => {
 				defenders={defenders}
 				onion={onion}
 				phase="DEFENDER_MOVE"
-				selectedUnitId="puss-1"
+				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
 				onDeselect={onDeselect}
 				onMoveUnit={vi.fn()}
@@ -158,7 +158,7 @@ describe('HexMapBoard', () => {
 				defenders={defenders}
 				onion={onion}
 				phase="DEFENDER_MOVE"
-				selectedUnitId="puss-1"
+				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
 				onDeselect={vi.fn()}
 				onMoveUnit={onMoveUnit}
@@ -169,7 +169,7 @@ describe('HexMapBoard', () => {
 		expect(onMoveUnit).toHaveBeenCalledWith('puss-1', { q: 2, r: 1 })
 	})
 
-	it('renders and selects both occupants when the onion and a defender share a hex', () => {
+	it('highlights every selected unit across the board when a selection group is active', () => {
 		const onSelectUnit = vi.fn()
 		const sharedOnion: BattlefieldOnionView = {
 			...onion,
@@ -188,7 +188,7 @@ describe('HexMapBoard', () => {
 				defenders={[sharedDefender]}
 				onion={sharedOnion}
 				phase="ONION_MOVE"
-				selectedUnitId="onion-1"
+				selectedUnitIds={["onion-1", "puss-1"]}
 				onSelectUnit={onSelectUnit}
 				onDeselect={vi.fn()}
 				onMoveUnit={vi.fn()}
@@ -197,12 +197,35 @@ describe('HexMapBoard', () => {
 
 		expect(screen.getByTestId('hex-unit-onion-1')).not.toBeNull()
 		expect(screen.getByTestId('hex-unit-puss-1')).not.toBeNull()
+		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('class')).toContain('hex-unit-stack-selected')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).toContain('hex-unit-stack-selected')
+		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-cell-selected')
 
-		fireEvent.click(screen.getByTestId('hex-unit-puss-1'))
-		expect(onSelectUnit).toHaveBeenCalledWith('puss-1')
+		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
+		expect(onSelectUnit).toHaveBeenCalledWith('puss-1', true)
 
 		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
-		expect(onSelectUnit).toHaveBeenCalledWith('onion-1')
+		expect(onSelectUnit).toHaveBeenCalledWith('onion-1', false)
+	})
+
+	it('removes a unit from a ctrl-clicked selection group while preserving the rest', () => {
+		const onSelectUnit = vi.fn()
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="ONION_MOVE"
+				selectedUnitIds={["onion-1", "puss-1"]}
+				onSelectUnit={onSelectUnit}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
+		expect(onSelectUnit).toHaveBeenCalledWith('puss-1', true)
 	})
 
 	it('ignores right-clicks when the selected unit is invalid', () => {
@@ -214,7 +237,7 @@ describe('HexMapBoard', () => {
 				defenders={defenders}
 				onion={onion}
 				phase="DEFENDER_MOVE"
-				selectedUnitId="ghost-unit"
+				selectedUnitIds={["ghost-unit"]}
 				onSelectUnit={vi.fn()}
 				onDeselect={vi.fn()}
 				onMoveUnit={onMoveUnit}
@@ -235,7 +258,7 @@ describe('HexMapBoard', () => {
 				defenders={defenders}
 				onion={onion}
 				phase="DEFENDER_MOVE"
-				selectedUnitId="puss-1"
+				selectedUnitIds={["puss-1"]}
 				canSubmitMove={false}
 				onSelectUnit={vi.fn()}
 				onDeselect={vi.fn()}
@@ -255,7 +278,7 @@ describe('HexMapBoard', () => {
 				defenders={defenders}
 				onion={onion}
 				phase="DEFENDER_MOVE"
-				selectedUnitId="puss-1"
+				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
 				onDeselect={vi.fn()}
 				onMoveUnit={vi.fn()}
@@ -273,7 +296,7 @@ describe('HexMapBoard', () => {
 				defenders={[disabledDefender]}
 				onion={onion}
 				phase="DEFENDER_MOVE"
-				selectedUnitId="puss-1"
+				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
 				onDeselect={vi.fn()}
 				onMoveUnit={vi.fn()}

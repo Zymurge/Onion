@@ -398,6 +398,42 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.queryByRole('button', { name: /end phase/i })).toBeNull()
 	})
 
+	it('supports grouped selection from the rail and map, ctrl-removal, and empty-space deselection', async () => {
+		const snapshot = createConnectedBattlefieldSnapshot()
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
+
+		const pussButton = screen.getByRole('button', { name: /puss-1/i })
+		const wolfButton = screen.getByRole('button', { name: /wolf-2/i })
+
+		await userEvent.click(pussButton)
+		expect(pussButton.getAttribute('class')).toContain('is-selected')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).toContain('hex-unit-stack-selected')
+
+		fireEvent.click(screen.getByTestId('hex-unit-wolf-2'), { ctrlKey: true })
+		expect(wolfButton.getAttribute('class')).toContain('is-selected')
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('class')).toContain('hex-unit-stack-selected')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).toContain('hex-unit-stack-selected')
+
+		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
+		expect(pussButton.getAttribute('class') ?? '').not.toContain('is-selected')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class') ?? '').not.toContain('hex-unit-stack-selected')
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('class')).toContain('hex-unit-stack-selected')
+
+		fireEvent.click(screen.getByTestId('hex-cell-7-7'))
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('class') ?? '').not.toContain('hex-unit-stack-selected')
+		expect(wolfButton.getAttribute('class') ?? '').not.toContain('is-selected')
+	})
+
 	it('sends end phase through the debug control', async () => {
 		const user = userEvent.setup()
 		const snapshot = createConnectedBattlefieldSnapshot()

@@ -16,9 +16,9 @@ type HexMapBoardProps = {
   defenders: BattlefieldUnit[]
   onion: BattlefieldOnionView
   phase: string | null
-  selectedUnitId: string
+  selectedUnitIds: string[]
   canSubmitMove?: boolean
-  onSelectUnit: (unitId: string) => void
+  onSelectUnit: (unitId: string, additive?: boolean) => void
   onDeselect: () => void
   onMoveUnit: (unitId: string, to: { q: number; r: number }) => void
 }
@@ -43,10 +43,13 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitId, canSubmitMove = true, onSelectUnit, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitIds, canSubmitMove = true, onSelectUnit, onDeselect, onMoveUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
+
+  const selectedUnitSet = useMemo(() => new Set(selectedUnitIds), [selectedUnitIds])
+  const selectedPrimaryUnitId = selectedUnitIds[0] ?? ''
 
   occupantMap.set(hexKey(onion), [onion])
   for (const defender of defenders) {
@@ -58,9 +61,9 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
   }
 
   const selectedOccupant =
-    selectedUnitId === onion.id
+    selectedPrimaryUnitId === onion.id
       ? onion
-      : defenders.find((unit) => unit.id === selectedUnitId) ?? null
+      : defenders.find((unit) => unit.id === selectedPrimaryUnitId) ?? null
   const selectedAllowance = selectedOccupant
     ? selectedOccupant.id === onion.id
       ? onion.movesRemaining
@@ -73,7 +76,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
     .flatMap(([key, occupants]) => {
       const [q, r] = key.split(',').map(Number)
       return occupants
-        .filter((occupant) => occupant.id !== selectedUnitId && occupant.status !== 'destroyed')
+        .filter((occupant) => occupant.id !== selectedPrimaryUnitId && occupant.status !== 'destroyed')
         .map((occupant) => ({
           q,
           r,
@@ -136,7 +139,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
               const terrainType = terrain.get(hexKey(coord))
               const cellOccupants = occupantMap.get(hexKey(coord)) ?? []
               const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
-              const isSelected = cellOccupants.some((occupant) => occupant.id === selectedUnitId)
+              const isSelected = cellOccupants.some((occupant) => selectedUnitSet.has(occupant.id))
               const isMoveReady = canSubmitMove && cellOccupants.some(
                 (occupant) => playerRole && isUnitMoveEligible(occupant, phase, playerRole)
               )
@@ -165,14 +168,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                     cellOccupants.length > 0 ? 'hex-cell-occupied' : '',
                   ].join(' ')}
                   onClick={() => {
-                    if (cellOccupants.length === 0) {
-                      onDeselect()
-                      return
-                    }
-
-                    if (cellOccupants.length === 1) {
-                      onSelectUnit(cellOccupants[0].id)
-                    }
+                    onDeselect()
                   }}
                   onContextMenu={(event) => {
                     event.preventDefault()
@@ -202,7 +198,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                   <polygon className="hex-shape" points={polygonPoints} fill="none" />
                   {cellOccupants.map((occupant, index) => {
                     const isOccupantOnion = occupant.id === onion.id
-                    const isOccupantSelected = occupant.id === selectedUnitId
+                    const isOccupantSelected = selectedUnitSet.has(occupant.id)
                     const offset = getStackOffset(index, cellOccupants.length)
                     const moveRemaining = isOccupantOnion ? onion.movesRemaining : 'move' in occupant ? occupant.move : 0
 
@@ -219,7 +215,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                         transform={`translate(${offset.dx}, ${offset.dy})`}
                         onClick={(event) => {
                           event.stopPropagation()
-                          onSelectUnit(occupant.id)
+                          onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
                         }}
                       >
                         <rect
