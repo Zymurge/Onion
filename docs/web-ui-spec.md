@@ -219,14 +219,9 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 - Right-clicking on a highlighted (in-range) hex instantly moves the selected unit to that hex, submits the move event, and refreshes the UI with the unit deselected.
 - Selecting a unit with no move eligibility displays its stats but does not highlight any move radius.
 
-
-
 **Error Feedback:**
 
-- The error bubble for an illegal move is only shown when:
-   - The selected unit is owned by the current player
-   - The selected unit is eligible to move (operational, has movement allowance, and it is the correct movement phase)
-   - The player right-clicks an ineligible (out-of-range, blocked, or overstacked) hex
+- The error bubble for an illegal move is only shown when the selected unit is owned by the current player, the selected unit is eligible to move (operational, has movement allowance, and it is the correct movement phase), and the player right-clicks an ineligible (out-of-range, blocked, or overstacked) hex.
 - If the selected unit is not eligible (wrong player, wrong phase, disabled, or out of movement), no error bubble is shown.
 - The error bubble should eventually report a specific reason: 'out of range', 'blocked by terrain', or 'can't stack units', as appropriate. For now, a generic “Illegal move” message is shown.
 - The error bubble remains visible for 3 seconds or until dismissed by clicking anywhere.
@@ -238,34 +233,39 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 - Movement is instant; no confirmation dialog is required.
 - Game state is stable during the player’s movement phase; no external changes are expected.
 
-
 ## Combat UI Interaction Spec
 
 **Step 1: Attacker Selection and Range Preview**
+
 - Phase one uses a left-rail attacker-selection flow rather than a separate action composer.
+- In defender combat, the attacker list shows all eligible defender units.
+- In Onion combat, the attacker list shows all eligible Onion weapons.
 - Players can select one or more eligible attackers (units or weapons) using the dynamic list and ctrl+left-click on the map or in the sidebar.
 - All attacks are group-based, whether one or many attackers are chosen.
 - The list of available attackers is dynamic:
-   - Onion player: shows available weapons (main, secondary, AP, missiles).
-   - Defender: shows eligible units.
+  - Onion player: shows available weapons (main, secondary, AP, missiles).
+  - Defender: shows eligible units.
 - Selecting any attacker (or group) displays a range overlay on the map, similar to movement, but with an orange tint.
 - For groups, the highlighted area is the intersection of all selected attackers’ ranges—only hexes all can reach are shown.
 
 **Step 2: Target Confirmation**
+
 - Right-clicking an eligible target hex (within the highlighted range) opens a confirmation popup.
 - The popup displays:
-   - Attack:Defense ratio
-   - All relevant combat modifiers and stats (e.g., terrain, stacking, special abilities)
-   - Acknowledge/confirm button to commit the attack
+  - Attack:Defense ratio
+  - All relevant combat modifiers and stats (e.g., terrain, stacking, special abilities)
+  - Acknowledge/confirm button to commit the attack
 
 **Step 3: Combat Results**
+
 - After confirmation, combat results are shown in a toast notification with full details (dice, modifiers, outcome).
 - The toast auto-dismisses after 10 seconds or can be manually dismissed by clicking.
 - Once dismissed, the board updates to reflect the outcome:
-   - Destroyed units are removed
-   - Disabled units are greyed out or otherwise visually marked
+  - Destroyed units are removed
+  - Disabled units are greyed out or otherwise visually marked
 
 **Selection and Eligibility Rules**
+
 - Only the active player can select and assign their own eligible attackers.
 - Selection/deselection rules mirror movement: only one group can be selected at a time.
 - Ctrl-click toggles membership in the current selection group without clearing the rest.
