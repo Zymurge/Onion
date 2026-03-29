@@ -431,6 +431,60 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('class')).toContain('hex-unit-stack-selected')
 	})
 
+	it('renders a shared combat range overlay for selected onion weapons', async () => {
+		const user = userEvent.setup()
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'ONION_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				onion: {
+					...baseSnapshot.authoritativeState.onion,
+					position: { q: 1, r: 1 },
+					weapons: [
+						{
+							id: 'main-1',
+							name: 'Main Battery',
+							attack: 4,
+							range: 4,
+							defense: 4,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+						{
+							id: 'secondary-1',
+							name: 'Secondary Battery',
+							attack: 3,
+							range: 2,
+							defense: 3,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+					],
+				},
+				defenders: baseSnapshot.authoritativeState.defenders,
+			},
+		}
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByText(/Selected unit: wolf-2/i)
+
+		await user.click(screen.getByRole('button', { name: /main battery/i }))
+		await user.click(screen.getByRole('button', { name: /secondary battery/i }), { ctrlKey: true })
+
+		expect(screen.getByTestId('hex-cell-3-1').getAttribute('class')).toContain('hex-cell-combat-range')
+		expect(screen.getByTestId('hex-cell-4-1').getAttribute('class')).not.toContain('hex-cell-combat-range')
+	})
+
 	it('supports grouped selection from the rail and map, ctrl-removal, and empty-space deselection', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot()
 		const session = { role: 'defender' as const }

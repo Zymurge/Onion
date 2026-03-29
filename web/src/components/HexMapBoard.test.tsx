@@ -71,6 +71,26 @@ describe('HexMapBoard', () => {
 		expect(reachableCell?.getAttribute('class')).toContain('hex-cell-reachable')
 	})
 
+	it('renders combat range overlays when provided', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="ONION_COMBAT"
+				selectedUnitIds={["weapon:main-1"]}
+				combatRangeHexKeys={new Set(['1,1', '2,1'])}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-cell-combat-range')
+		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).toContain('hex-cell-combat-range')
+		expect(screen.getByTestId('hex-cell-0-0').getAttribute('class')).not.toContain('hex-cell-combat-range')
+	})
+
 	it('deselects when the user left-clicks an empty hex', () => {
 		const onDeselect = vi.fn()
 

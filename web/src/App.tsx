@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
 import {
   GameClientSeamError,
@@ -15,6 +15,7 @@ import {
   type TerrainHex,
 } from './lib/battlefieldView'
 import { createHttpGameClient } from './lib/httpGameClient'
+import { buildCombatRangeHexKeys } from './lib/combatRange'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
 import { requestJson } from '../../src/shared/apiProtocol'
 import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
@@ -104,6 +105,11 @@ function formatWeaponLabel(weapon: Weapon) {
   return `${weapon.name} · ${weapon.attack}/${weapon.range} · ${statusLabel}`
 }
 
+function parseRangeValue(rangeText: string): number {
+  const parsedRange = Number.parseInt(rangeText, 10)
+  return Number.isNaN(parsedRange) ? 0 : parsedRange
+}
+
 function isWeaponSelectionId(selectionId: string) {
   return selectionId.startsWith('weapon:')
 }
@@ -186,6 +192,42 @@ function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; heigh
     height: scenarioMap.height,
     hexes: scenarioMap.hexes,
   }
+}
+
+function buildCombatRangeSources(
+  phase: TurnPhase | null,
+  activeCombatRole: 'onion' | 'defender' | null,
+  activeSelectedUnitIds: ReadonlyArray<string>,
+  displayedDefenders: ReadonlyArray<BattlefieldUnit>,
+  displayedOnion: BattlefieldOnionView | null,
+) {
+  if (phase === null || activeCombatRole === null) {
+    return []
+  }
+
+  if (activeCombatRole === 'onion') {
+    if (displayedOnion === null) {
+      return []
+    }
+
+    const selectedWeaponIds = new Set(activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId))
+
+    return (displayedOnion.weaponDetails ?? [])
+      .filter((weapon) => weapon.status === 'ready' && selectedWeaponIds.has(weapon.id))
+      .map((weapon) => ({
+        q: displayedOnion.q,
+        r: displayedOnion.r,
+        range: weapon.range,
+      }))
+  }
+
+  return displayedDefenders
+    .filter((unit) => activeSelectedUnitIds.includes(unit.id))
+    .map((unit) => ({
+      q: unit.q,
+      r: unit.r,
+      range: parseRangeValue(parseAttackStats(unit.attack).range),
+    }))
 }
 
 type AppProps = {
@@ -294,7 +336,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? null
-  const activeSelectedUnitIds = selectedUnitIds ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
+  const activeSelectedUnitIds = useMemo(
+    () => selectedUnitIds ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : []),
+    [clientSnapshot?.selectedUnitId, selectedUnitIds],
+  )
   const activeSelectedUnitId = activeSelectedUnitIds.find((selectionId) => !isWeaponSelectionId(selectionId)) ?? ''
   const headerHasSnapshot = clientSnapshot !== null
   const activeTurnNumber = clientSnapshot?.turnNumber ?? null
@@ -425,7 +470,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     }
   }
 
-  const displayedDefenders = clientSnapshot === null ? [] : buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive)
+  const displayedDefenders = useMemo(
+    () => (clientSnapshot === null ? [] : buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive)),
+    [activePhase, activeTurnActive, clientSnapshot],
+  )
   const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
   const displayedScenarioMap = buildScenarioMap(clientSnapshot)
   const hasBattlefieldData = displayedOnion !== null && displayedScenarioMap !== null
@@ -436,6 +484,14 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const selectedUnitIsActionable = selectedDefender?.actionableModes.includes(activeMode) ?? false
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
   const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
+  const combatRangeHexKeys = useMemo(() => {
+    if (!isCombatPhase || displayedScenarioMap === null) {
+      return new Set<string>()
+    }
+
+    const combatSources = buildCombatRangeSources(activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion)
+    return buildCombatRangeHexKeys(combatSources, displayedScenarioMap)
+  }, [activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, displayedScenarioMap, isCombatPhase])
 
   // Simulated last sync and event status for UI demo
   const [lastSync, setLastSync] = useState<Date>(new Date())
@@ -864,6 +920,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 onion={displayedOnion}
                 phase={activePhase}
                 selectedUnitIds={activeSelectedUnitIds}
+                combatRangeHexKeys={combatRangeHexKeys}
                 canSubmitMove={
                   activeTurnActive && (
                     activePhase === 'ONION_MOVE' ||

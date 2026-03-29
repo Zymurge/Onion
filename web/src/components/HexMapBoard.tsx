@@ -17,6 +17,7 @@ type HexMapBoardProps = {
   onion: BattlefieldOnionView
   phase: string | null
   selectedUnitIds: string[]
+  combatRangeHexKeys?: ReadonlySet<string>
   canSubmitMove?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
   onDeselect: () => void
@@ -43,7 +44,7 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitIds, canSubmitMove = true, onSelectUnit, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitIds, combatRangeHexKeys, canSubmitMove = true, onSelectUnit, onDeselect, onMoveUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
@@ -173,6 +174,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
               const cellOccupants = occupantMap.get(hexKey(coord)) ?? []
               const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
               const isSelected = cellOccupants.some((occupant) => selectedUnitSet.has(occupant.id))
+              const isCombatRange = combatRangeHexKeys?.has(hexKey(coord)) ?? false
               const isMoveReady = canSubmitMove && cellOccupants.some(
                 (occupant) => playerRole && isUnitMoveEligible(occupant, phase, playerRole)
               )
@@ -195,6 +197,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                     'hex-cell',
                     terrainType ? `hex-terrain-${terrainType}` : 'hex-terrain-default',
                     isSelected ? 'hex-cell-selected' : '',
+                    isCombatRange ? 'hex-cell-combat-range' : '',
                     isMoveReady ? 'hex-cell-move-ready' : '',
                     isReachable ? 'hex-cell-reachable' : '',
                     isOnion ? 'hex-cell-onion' : '',
