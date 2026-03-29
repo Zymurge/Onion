@@ -240,6 +240,7 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 - Phase one uses a left-rail attacker-selection flow rather than a separate action composer.
 - In defender combat, the attacker list shows all eligible defender units.
 - In Onion combat, the attacker list shows all eligible Onion weapons.
+- In Onion combat, board clicks do not add attackers; the weapon list is the only selection source.
 - Players can select one or more eligible attackers (units or weapons) using the dynamic list and ctrl+left-click on the map or in the sidebar.
 - All attacks are group-based, whether one or many attackers are chosen.
 - The list of available attackers is dynamic:
