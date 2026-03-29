@@ -141,6 +141,10 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
       return true
     }
 
+    if (activeCombatRole === 'onion') {
+      return false
+    }
+
     return occupant.id === onion.id ? activeCombatRole === 'onion' : activeCombatRole === 'defender'
   }
 
