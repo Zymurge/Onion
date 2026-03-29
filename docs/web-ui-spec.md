@@ -220,9 +220,14 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 - Selecting a unit with no move eligibility displays its stats but does not highlight any move radius.
 
 
+
 **Error Feedback:**
 
-- Right-clicking on an ineligible (out-of-range, blocked, or overstacked) hex displays a temporary error bubble near the cursor.
+- The error bubble for an illegal move is only shown when:
+   - The selected unit is owned by the current player
+   - The selected unit is eligible to move (operational, has movement allowance, and it is the correct movement phase)
+   - The player right-clicks an ineligible (out-of-range, blocked, or overstacked) hex
+- If the selected unit is not eligible (wrong player, wrong phase, disabled, or out of movement), no error bubble is shown.
 - The error bubble should eventually report a specific reason: 'out of range', 'blocked by terrain', or 'can't stack units', as appropriate. For now, a generic “Illegal move” message is shown.
 - The error bubble remains visible for 3 seconds or until dismissed by clicking anywhere.
 

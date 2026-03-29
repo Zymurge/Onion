@@ -248,21 +248,38 @@ describe('HexMapBoard', () => {
 		expect(screen.queryByText(/illegal move/i)).toBeNull()
 	})
 
-	it('shows an out-of-range bubble when the user right-clicks an invalid hex', () => {
+	it('shows an out-of-range bubble when the user right-clicks an invalid hex with an eligible unit', () => {
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
 				onion={onion}
 				phase="DEFENDER_MOVE"
-				selectedUnitId="onion-1"
+				selectedUnitId="puss-1"
 				onSelectUnit={vi.fn()}
 				onDeselect={vi.fn()}
 				onMoveUnit={vi.fn()}
 			/>,
 		)
-
 		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-4'))
 		expect(screen.getByText(/illegal move/i)).not.toBeNull()
+	})
+
+	it('does not show an error bubble when the selected unit is ineligible (e.g., disabled)', () => {
+		const disabledDefender = { ...defenders[0], status: 'disabled' }
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[disabledDefender]}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitId="puss-1"
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-4'))
+		expect(screen.queryByText(/illegal move/i)).toBeNull()
 	})
 })
