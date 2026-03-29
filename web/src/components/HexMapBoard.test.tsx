@@ -129,8 +129,8 @@ describe('HexMapBoard', () => {
 				scenarioMap={scenarioMap}
 				defenders={[sharedDefender]}
 				onion={sharedOnion}
-				phase="ONION_MOVE"
-				selectedUnitIds={["onion-1", "puss-1"]}
+				phase="ONION_COMBAT"
+				selectedUnitIds={["weapon:main-1"]}
 				onSelectUnit={onSelectUnit}
 				onDeselect={vi.fn()}
 				onMoveUnit={vi.fn()}
@@ -140,11 +140,11 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-unit-onion-1')).not.toBeNull()
 		expect(screen.getByTestId('hex-unit-puss-1')).not.toBeNull()
 		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('class')).toContain('hex-unit-stack-selected')
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).toContain('hex-unit-stack-selected')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).not.toContain('hex-unit-stack-selected')
 		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-cell-selected')
 
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
-		expect(onSelectUnit).toHaveBeenCalledWith('puss-1', true)
+		expect(onSelectUnit).not.toHaveBeenCalled()
 
 		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
 		expect(onSelectUnit).toHaveBeenCalledWith('onion-1', false)
@@ -158,8 +158,8 @@ describe('HexMapBoard', () => {
 				scenarioMap={scenarioMap}
 				defenders={defenders}
 				onion={onion}
-				phase="ONION_MOVE"
-				selectedUnitIds={["onion-1", "puss-1"]}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1", "wolf-2"]}
 				onSelectUnit={onSelectUnit}
 				onDeselect={vi.fn()}
 				onMoveUnit={vi.fn()}
@@ -168,6 +168,28 @@ describe('HexMapBoard', () => {
 
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
 		expect(onSelectUnit).toHaveBeenCalledWith('puss-1', true)
+	})
+
+	it('does not allow Onion combat selection to add defender units from the board', () => {
+		const onSelectUnit = vi.fn()
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="ONION_COMBAT"
+				selectedUnitIds={["weapon:main-1"]}
+				onSelectUnit={onSelectUnit}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
+		expect(onSelectUnit).not.toHaveBeenCalled()
+		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('class')).toContain('hex-unit-stack-selected')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).not.toContain('hex-unit-stack-selected')
 	})
 
 	it('ignores right-clicks when the selected unit is invalid', () => {
