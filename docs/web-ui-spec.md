@@ -149,6 +149,14 @@ Exit Criteria:
 
 ## State Model (Web)
 
+## Board Model (Web)
+
+1. The web battlefield board is an odd-r offset hex grid rendered in row-major order.
+2. Board positions are addressed with integer `q`/`r` coordinates, where `q` is the column index and `r` is the row index.
+3. Visual placement staggers odd-numbered rows to the right; this is a presentation detail and does not change the stored board coordinates.
+4. Range, reachability, and selection overlays must be derived from the same board geometry model used by the renderer so that the displayed hex map and all overlay previews stay aligned.
+5. Do not treat the web board coordinates as axial movement coordinates unless a helper explicitly converts between the two representations.
+
 ## Server State (Authoritative)
 
 1. `GameState`, `phase`, `turnNumber`, `eventSeq`.
@@ -247,6 +255,7 @@ unit roster, unit positions, or unit status once authoritative game data has loa
   - Onion player: shows available weapons (main, secondary, AP, missiles).
   - Defender: shows eligible units.
 - Selecting any attacker (or group) displays a range overlay on the map, similar to movement, but with an orange tint.
+- The range overlay must be computed in the web board model described above so it matches the rendered hex geometry.
 - For groups, the highlighted area is the intersection of all selected attackers’ ranges—only hexes all can reach are shown.
 
 **Step 2: Target Confirmation**
