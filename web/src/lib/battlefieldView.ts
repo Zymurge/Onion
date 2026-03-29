@@ -1,3 +1,22 @@
+// Returns true if the unit is eligible to move for the given player and phase
+export function isUnitMoveEligible(
+  unit: BattlefieldUnit | BattlefieldOnionView,
+  phase: string | null,
+  playerRole: 'onion' | 'defender'
+): boolean {
+  if (!unit || !phase) return false
+  // Only allow movement in movement phases
+  const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
+  if (!isMovementPhase) return false
+  // Only allow movement for player's own units
+  if (playerRole === 'onion' && 'movesRemaining' in unit) {
+    return unit.status === 'operational' && unit.movesRemaining > 0
+  }
+  if (playerRole === 'defender' && 'move' in unit) {
+    return unit.status === 'operational' && unit.move > 0
+  }
+  return false
+}
 export type Mode = 'fire' | 'combined' | 'end-phase'
 export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
 

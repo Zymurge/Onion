@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, hexKey, pointsToString } from '../lib/hex'
-import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
+import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex, isUnitMoveEligible } from '../lib/battlefieldView'
 import { canUnitCrossRidgelines } from '../../../src/shared/unitMovement'
 import { listReachableMoves } from '../../../src/shared/movePlanner'
 import './HexMapBoard.css'
@@ -81,9 +81,11 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
           unitType: occupant.type,
         }))
     })
+  const playerRole = canSubmitMove && phase && (phase.startsWith('ONION') ? 'onion' : phase.startsWith('DEFENDER') || phase === 'GEV_SECOND_MOVE' ? 'defender' : null)
   const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
+  const selectedIsEligible = !!(selectedOccupant && playerRole && isUnitMoveEligible(selectedOccupant, phase, playerRole))
   const reachableMoves =
-    isMovementPhase && selectedOccupant && selectedAllowance > 0
+    selectedIsEligible
       ? listReachableMoves({
           map: { ...scenarioMap, occupiedHexes },
           from: { q: selectedOccupant.q, r: selectedOccupant.r },
@@ -136,9 +138,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
               const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
               const isSelected = cellOccupants.some((occupant) => occupant.id === selectedUnitId)
               const isMoveReady = canSubmitMove && cellOccupants.some(
-                (occupant) =>
-                  occupant.status === 'operational' &&
-                  ((occupant.id === onion.id ? onion.movesRemaining : 'move' in occupant ? occupant.move : 0) > 0),
+                (occupant) => playerRole && isUnitMoveEligible(occupant, phase, playerRole)
               )
               const isReachable = canSubmitMove && reachableHexKeys.has(hexKey(coord))
 
@@ -176,15 +176,15 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                   }}
                   onContextMenu={(event) => {
                     event.preventDefault()
-                    if (!selectedOccupant || !canSubmitMove) {
+                    if (!selectedIsEligible || !canSubmitMove) {
                       return
                     }
                     if (isReachable) {
                       onMoveUnit(selectedOccupant.id, coord)
                       return
                     }
-                    // Only show error toast if move controls are enabled
-                    if (canSubmitMove) {
+                    // Only show error toast if move controls are enabled and selected unit is eligible
+                    if (canSubmitMove && selectedIsEligible) {
                       setMoveError({ message: 'Illegal move', x: event.clientX, y: event.clientY })
                     }
                   }}
