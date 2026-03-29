@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
+import type { GameSnapshot } from './lib/gameClient'
 
 const createHttpGameClient = vi.hoisted(() => vi.fn())
 const requestJson = vi.hoisted(() => vi.fn())
@@ -15,6 +16,103 @@ vi.mock('./lib/httpGameClient', () => ({
 vi.mock('../../src/shared/apiProtocol', () => ({
 	requestJson,
 }))
+
+function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapshot {
+	return {
+		gameId: 123,
+		phase,
+		selectedUnitId: 'wolf-2',
+		mode: 'fire',
+		scenarioName: 'Test Scenario',
+		turnNumber: 11,
+		lastEventSeq: 47,
+		authoritativeState: {
+			onion: {
+				id: 'onion-1',
+				type: 'TheOnion',
+				position: { q: 0, r: 1 },
+				treads: 33,
+				status: 'operational',
+				weapons: [
+					{
+						id: 'main-1',
+						name: 'Main Battery',
+						attack: 4,
+						range: 4,
+						defense: 4,
+						status: 'ready',
+						individuallyTargetable: true,
+					},
+				],
+				batteries: {
+					main: 1,
+					secondary: 0,
+					ap: 0,
+				},
+			},
+			defenders: {
+				'wolf-2': {
+					id: 'wolf-2',
+					type: 'BigBadWolf',
+					position: { q: 6, r: 6 },
+					status: 'operational',
+					weapons: [
+						{
+							id: 'main',
+							name: 'Main Gun',
+							attack: 4,
+							range: 2,
+							defense: 2,
+							status: 'ready',
+							individuallyTargetable: false,
+						},
+					],
+				},
+				'puss-1': {
+					id: 'puss-1',
+					type: 'Puss',
+					position: { q: 6, r: 4 },
+					status: 'operational',
+					weapons: [
+						{
+							id: 'main',
+							name: 'Main Gun',
+							attack: 4,
+							range: 2,
+							defense: 3,
+							status: 'ready',
+							individuallyTargetable: false,
+						},
+					],
+				},
+			},
+			ramsThisTurn: 0,
+		},
+		movementRemainingByUnit: {
+			'onion-1': 0,
+			'wolf-2': 4,
+			'puss-1': 3,
+		},
+		scenarioMap: {
+			width: 8,
+			height: 8,
+			hexes: [
+				{ q: 0, r: 0, t: 0 },
+				{ q: 1, r: 0, t: 0 },
+				{ q: 2, r: 0, t: 0 },
+				{ q: 3, r: 0, t: 0 },
+				{ q: 4, r: 0, t: 0 },
+				{ q: 5, r: 0, t: 0 },
+				{ q: 6, r: 0, t: 0 },
+				{ q: 7, r: 0, t: 0 },
+			],
+		},
+	} as GameSnapshot
+}
+
+beforeEach(() => {
+	vi.clearAllMocks()
+})
 
 describe('App connect gate', () => {
 	it('renders a connect form when runtime config is seeded but no client is ready', async () => {
@@ -45,15 +143,7 @@ describe('App connect gate', () => {
 
 		createHttpGameClient.mockReturnValue({
 			getState: vi.fn().mockResolvedValue({
-				snapshot: {
-					gameId: 123,
-					phase: 'ONION_MOVE',
-					selectedUnitId: 'wolf-2',
-					mode: 'fire',
-					scenarioName: 'Test Scenario',
-					turnNumber: 11,
-					lastEventSeq: 47,
-				},
+				snapshot: createLoadedSnapshot('ONION_MOVE'),
 				session: { role: 'onion' },
 			}),
 			submitAction,
@@ -81,14 +171,16 @@ describe('App connect gate', () => {
 			baseUrl: 'http://localhost:3000',
 			token: 'stub.token',
 		})
+
 		await screen.findByText(/Turn 11/i)
 		await screen.findByText(/Test Scenario/i)
-		await screen.findByText(/^Onion$/i, { selector: '.role-badge' })
-		expect(screen.getByText((_, element) => element?.classList.contains('role-badge-onion') === true)).not.toBeNull()
+		const roleBadge = await screen.findByText(/^Onion$/i, { selector: '.role-badge' })
+		expect(roleBadge.classList.contains('role-badge-onion')).toBe(true)
 		expect(screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Onion Movement')).not.toBeNull()
 		expect(
 			screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.classList.contains('phase-chip-active') === true),
 		).not.toBeNull()
+
 		await screen.findByText(/Selected unit: wolf-2/i)
 	})
 
@@ -103,15 +195,7 @@ describe('App connect gate', () => {
 
 		createHttpGameClient.mockReturnValue({
 			getState: vi.fn().mockResolvedValue({
-				snapshot: {
-					gameId: 123,
-					phase: 'DEFENDER_MOVE',
-					selectedUnitId: 'wolf-2',
-					mode: 'fire',
-					scenarioName: 'Test Scenario',
-					turnNumber: 11,
-					lastEventSeq: 47,
-				},
+				snapshot: createLoadedSnapshot('DEFENDER_MOVE'),
 				session: { role: 'onion' },
 			}),
 			submitAction: vi.fn(),
@@ -124,8 +208,7 @@ describe('App connect gate', () => {
 		await user.type(screen.getByLabelText(/password/i), 'secret')
 		await user.click(screen.getByRole('button', { name: /load game/i }))
 
-		await screen.findByText(/^Onion$/i, { selector: '.role-badge' })
-		const roleBadge = screen.getByText(/^Onion$/i, { selector: '.role-badge' })
+		const roleBadge = await screen.findByText(/^Onion$/i, { selector: '.role-badge' })
 		expect(roleBadge.classList.contains('role-badge-inactive')).toBe(true)
 		expect(roleBadge.classList.contains('role-badge-active')).toBe(false)
 	})
