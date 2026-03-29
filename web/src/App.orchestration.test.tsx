@@ -431,6 +431,72 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('class')).toContain('hex-unit-stack-selected')
 	})
 
+	it('sorts destroyed defenders to the bottom and disables them in the roster', async () => {
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				defenders: {
+					'dead-1': {
+						id: 'dead-1',
+						type: 'Puss',
+						position: { q: 6, r: 5 },
+						status: 'destroyed' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 4,
+								range: 2,
+								defense: 3,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'alive-1': {
+						id: 'alive-1',
+						type: 'BigBadWolf',
+						position: { q: 5, r: 5 },
+						status: 'operational' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 4,
+								range: 2,
+								defense: 2,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+			},
+			selectedUnitId: 'alive-1',
+		}
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const aliveButton = await screen.findByRole('button', { name: /alive-1/i })
+		const deadButton = await screen.findByRole('button', { name: /dead-1/i })
+
+		expect(aliveButton.compareDocumentPosition(deadButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+		expect((deadButton as HTMLButtonElement).disabled).toBe(true)
+		expect(deadButton.getAttribute('class')).toContain('tone-destroyed')
+
+		await userEvent.click(screen.getByRole('button', { name: /dead-1/i }))
+		expect(screen.getByText(/Selected unit: alive-1/i)).not.toBeNull()
+	})
+
 	it('renders a shared combat range overlay for selected onion weapons', async () => {
 		const user = userEvent.setup()
 		const baseSnapshot = createConnectedBattlefieldSnapshot()

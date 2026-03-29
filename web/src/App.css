@@ -575,6 +575,16 @@
   margin: -10px -12px;
 }
 
+.defender-card-button:disabled,
+.attacker-card-button:disabled {
+  cursor: not-allowed;
+}
+
+.defender-card-button:disabled:hover,
+.attacker-card-button:disabled:hover {
+  transform: none;
+}
+
 .onion-card-button h3,
 .defender-card-button h3 {
   margin: 2px 0 8px;
@@ -681,8 +691,16 @@
 }
 
 .tone-destroyed {
-  opacity: 0.5;
-  text-decoration: line-through;
+  opacity: 0.68;
+  color: var(--ink-muted);
+  background: linear-gradient(90deg, rgba(180, 180, 180, 0.2), rgba(245, 243, 239, 0.9));
+  border-color: rgba(145, 145, 145, 0.34);
+  text-decoration: none;
+}
+
+.tone-destroyed h3,
+.tone-destroyed .summary-line strong {
+  color: var(--ink-muted);
 }
 
 .map-frame {

@@ -140,17 +140,33 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
 
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
 
-  return Object.entries(authoritativeState.defenders).map(([defenderId, defender]) => ({
-    id: defender.id ?? defenderId,
-    type: defender.type,
-    status: defender.status,
-    q: defender.position.q,
-    r: defender.position.r,
-    move: activePhase === null ? 0 : movementRemainingByUnit[defender.id ?? defenderId] ?? 0,
-    weapons: formatWeaponSummary(defender.weapons),
-    attack: formatAttackSummary(defender.weapons),
-    actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
-  }))
+  return Object.entries(authoritativeState.defenders)
+    .map(([defenderId, defender], index) => ({
+      id: defender.id ?? defenderId,
+      type: defender.type,
+      status: defender.status,
+      q: defender.position.q,
+      r: defender.position.r,
+      move: activePhase === null ? 0 : movementRemainingByUnit[defender.id ?? defenderId] ?? 0,
+      weapons: formatWeaponSummary(defender.weapons),
+      attack: formatAttackSummary(defender.weapons),
+      actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
+      rosterOrder: index,
+    }))
+    .sort((left, right) => {
+      const destroyedDelta = Number(left.status === 'destroyed') - Number(right.status === 'destroyed')
+
+      if (destroyedDelta !== 0) {
+        return destroyedDelta
+      }
+
+      return left.rosterOrder - right.rosterOrder
+    })
+    .map(({ rosterOrder, ...unit }) => {
+      void rosterOrder
+
+      return unit
+    })
 }
 
 function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
@@ -222,6 +238,7 @@ function buildCombatRangeSources(
   }
 
   return displayedDefenders
+    .filter((unit) => unit.status !== 'destroyed')
     .filter((unit) => activeSelectedUnitIds.includes(unit.id))
     .map((unit) => ({
       q: unit.q,
@@ -423,6 +440,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }
 
   function handleSelectUnit(unitId: string, additive = false) {
+    if (displayedDefenders.some((unit) => unit.id === unitId && unit.status === 'destroyed')) {
+      return
+    }
+
     setSelectedUnitIds((currentSelection) => {
       const baseSelection = currentSelection ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
 
@@ -479,7 +500,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const hasBattlefieldData = displayedOnion !== null && displayedScenarioMap !== null
   const weaponSelectionIds = activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
   const isOnionSelected = displayedOnion !== null && (activeSelectedUnitIds.includes(displayedOnion.id) || weaponSelectionIds.length > 0)
-  const selectedDefender = displayedDefenders.find((unit) => unit.id === activeSelectedUnitId)
+  const selectedDefender = displayedDefenders.find((unit) => unit.id === activeSelectedUnitId && unit.status !== 'destroyed')
   const selectedUnit = selectedDefender ?? (displayedOnion !== null && isOnionSelected ? displayedOnion : null)
   const selectedUnitIsActionable = selectedDefender?.actionableModes.includes(activeMode) ?? false
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
@@ -799,6 +820,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                     const isSelected = activeSelectedUnitIds.includes(unit.id)
                     const isActionable = unit.actionableModes.includes(activeMode)
                     const attackStats = parseAttackStats(unit.attack)
+                    const isDestroyed = unit.status === 'destroyed'
                     return (
                       <button
                         key={unit.id}
@@ -809,7 +831,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                           isActionable ? 'is-actionable' : '',
                           `tone-${statusTone(unit.status)}`,
                         ].join(' ')}
+                        disabled={isDestroyed}
                         onClick={(event) => {
+                          if (isDestroyed) {
+                            event.stopPropagation()
+                            return
+                          }
+
                           event.stopPropagation()
                           handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                         }}
@@ -875,6 +903,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                       const isSelected = activeSelectedUnitIds.includes(unit.id)
                       const isActionable = unit.actionableModes.includes(activeMode)
                       const attackStats = parseAttackStats(unit.attack)
+                      const isDestroyed = unit.status === 'destroyed'
                       return (
                         <button
                           key={unit.id}
@@ -885,7 +914,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                             isActionable ? 'is-actionable' : '',
                             `tone-${statusTone(unit.status)}`,
                           ].join(' ')}
+                          disabled={isDestroyed}
                           onClick={(event) => {
+                            if (isDestroyed) {
+                              event.stopPropagation()
+                              return
+                            }
+
                             event.stopPropagation()
                             handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                           }}
