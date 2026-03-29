@@ -1,3 +1,5 @@
+import type { Weapon } from '../../../src/types/index'
+
 // Returns true if the unit is eligible to move for the given player and phase
 export function isUnitMoveEligible(
   unit: BattlefieldUnit | BattlefieldOnionView,
@@ -43,6 +45,7 @@ export type BattlefieldOnionView = {
   movesRemaining: number
   rams: number
   weapons: string
+  weaponDetails?: ReadonlyArray<Weapon>
 }
 
 export type TimelineEvent = {

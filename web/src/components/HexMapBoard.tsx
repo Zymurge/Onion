@@ -48,8 +48,28 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
 
-  const selectedUnitSet = useMemo(() => new Set(selectedUnitIds), [selectedUnitIds])
-  const selectedPrimaryUnitId = selectedUnitIds[0] ?? ''
+  const selectedUnitSet = useMemo(() => {
+    const selectedIds = new Set<string>()
+
+    for (const selectionId of selectedUnitIds) {
+      if (selectionId.startsWith('weapon:')) {
+        selectedIds.add(onion.id)
+        continue
+      }
+
+      selectedIds.add(selectionId)
+    }
+
+    return selectedIds
+  }, [onion.id, selectedUnitIds])
+  const selectedPrimaryUnitId = useMemo(() => {
+    const directSelection = selectedUnitIds.find((selectionId) => !selectionId.startsWith('weapon:'))
+    if (directSelection !== undefined) {
+      return directSelection
+    }
+
+    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onion.id : ''
+  }, [onion.id, selectedUnitIds])
 
   occupantMap.set(hexKey(onion), [onion])
   for (const defender of defenders) {

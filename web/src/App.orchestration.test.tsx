@@ -378,24 +378,57 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByText(/Selected unit: puss-1/i)).not.toBeNull()
 	})
 
-	it('renders the left-rail combat scaffold instead of the action composer', async () => {
-		const snapshot = createConnectedBattlefieldSnapshot()
+	it('renders attacker selection weapons during onion combat', async () => {
+		const user = userEvent.setup()
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'ONION_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				onion: {
+					...baseSnapshot.authoritativeState.onion,
+					weapons: [
+						{
+							id: 'main-1',
+							name: 'Main Battery',
+							attack: 4,
+							range: 4,
+							defense: 4,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+						{
+							id: 'secondary-1',
+							name: 'Secondary Battery',
+							attack: 3,
+							range: 2,
+							defense: 3,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+					],
+				},
+			},
+		}
 		const session = { role: 'defender' as const }
-		const submitAction = vi.fn().mockResolvedValue(snapshot)
 
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session }),
-			submitAction,
+			submitAction: vi.fn().mockResolvedValue(snapshot),
 			pollEvents: vi.fn().mockResolvedValue([]),
 		})
 
 		render(<App gameClient={client} gameId={123} />)
 
 		await screen.findByText(/Selected unit: wolf-2/i)
-		expect(screen.getByText(/Attack from the left rail/i)).not.toBeNull()
-		expect(screen.getByText(/Pick one or more attackers/i)).not.toBeNull()
+		expect(screen.getByText(/Attacker Selection/i)).not.toBeNull()
+		expect(screen.getByRole('button', { name: /main battery/i })).not.toBeNull()
+		expect(screen.getByRole('button', { name: /secondary battery/i })).not.toBeNull()
 		expect(screen.queryByText(/Defender command stack/i)).toBeNull()
-		expect(screen.queryByRole('button', { name: /end phase/i })).toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /main battery/i }))
+		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('class')).toContain('hex-unit-stack-selected')
 	})
 
 	it('supports grouped selection from the rail and map, ctrl-removal, and empty-space deselection', async () => {

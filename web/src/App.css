@@ -607,7 +607,8 @@
 }
 
 .defender-list,
-.availability-list {
+.availability-list,
+.attacker-selection-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -615,6 +616,7 @@
 
 .defender-row,
 .defender-card-button,
+.attacker-card-button,
 .availability-row,
 .mode-button,
 .primary-action {
@@ -623,6 +625,7 @@
 }
 
 .defender-row,
+.attacker-card-button,
 .availability-row {
   width: 100%;
   border-radius: 16px;
@@ -638,6 +641,7 @@
 
 .defender-row:hover,
 .defender-card-button:hover,
+.attacker-card-button:hover,
 .availability-row:hover,
 .mode-button:hover {
   transform: translateY(-1px);
@@ -658,6 +662,7 @@
 
 .defender-row.is-actionable,
 .defender-card-button.is-actionable,
+.attacker-card-button.is-actionable,
 .availability-row {
   border-color: rgba(121, 92, 32, 0.28);
   box-shadow: inset 0 0 0 1px rgba(121, 92, 32, 0.12);
@@ -665,6 +670,7 @@
 
 .defender-row.is-selected,
 .defender-card-button.is-selected,
+.attacker-card-button.is-selected,
 .availability-row-selected {
   background: linear-gradient(90deg, rgba(121, 92, 32, 0.13), rgba(255, 252, 245, 0.95));
   border-color: rgba(121, 92, 32, 0.45);

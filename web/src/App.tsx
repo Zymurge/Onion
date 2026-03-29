@@ -99,6 +99,23 @@ function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
   return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
 }
 
+function formatWeaponLabel(weapon: Weapon) {
+  const statusLabel = weapon.status === 'ready' ? 'ready' : weapon.status
+  return `${weapon.name} · ${weapon.attack}/${weapon.range} · ${statusLabel}`
+}
+
+function isWeaponSelectionId(selectionId: string) {
+  return selectionId.startsWith('weapon:')
+}
+
+function stripWeaponSelectionId(selectionId: string) {
+  return selectionId.replace(/^weapon:/, '')
+}
+
+function buildWeaponSelectionId(weaponId: string) {
+  return `weapon:${weaponId}`
+}
+
 function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean): Mode[] {
   if (!activeTurnActive || status === 'destroyed' || status === 'disabled') {
     return []
@@ -153,6 +170,7 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
     movesRemaining,
     rams: authoritativeState.ramsThisTurn ?? 0,
     weapons: formatWeaponSummary(onion.weapons),
+    weaponDetails: onion.weapons ?? [],
   }
 }
 
@@ -277,7 +295,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? null
   const activeSelectedUnitIds = selectedUnitIds ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
-  const activeSelectedUnitId = activeSelectedUnitIds[0] ?? ''
+  const activeSelectedUnitId = activeSelectedUnitIds.find((selectionId) => !isWeaponSelectionId(selectionId)) ?? ''
   const headerHasSnapshot = clientSnapshot !== null
   const activeTurnNumber = clientSnapshot?.turnNumber ?? null
   const activeScenarioName = clientSnapshot?.scenarioName ?? null
@@ -288,6 +306,8 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const shellPhase = activePhase ?? 'DEFENDER_MOVE'
   const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
   const activeMode: Mode = clientSnapshot?.mode ?? 'fire'
+  const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
+  const activeCombatRole = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -409,11 +429,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
   const displayedScenarioMap = buildScenarioMap(clientSnapshot)
   const hasBattlefieldData = displayedOnion !== null && displayedScenarioMap !== null
-  const isOnionSelected = displayedOnion !== null && activeSelectedUnitId === displayedOnion.id
+  const weaponSelectionIds = activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
+  const isOnionSelected = displayedOnion !== null && (activeSelectedUnitIds.includes(displayedOnion.id) || weaponSelectionIds.length > 0)
   const selectedDefender = displayedDefenders.find((unit) => unit.id === activeSelectedUnitId)
-  const selectedUnit = selectedDefender ?? null
-  const selectedUnitIsActionable = selectedUnit?.actionableModes.includes(activeMode) ?? false
+  const selectedUnit = selectedDefender ?? (displayedOnion !== null && isOnionSelected ? displayedOnion : null)
+  const selectedUnitIsActionable = selectedDefender?.actionableModes.includes(activeMode) ?? false
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
+  const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
 
   // Simulated last sync and event status for UI demo
   const [lastSync, setLastSync] = useState<Date>(new Date())
@@ -662,115 +684,175 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
       <main className="battlefield-grid" onClick={handleDeselectUnit}>
         <aside className="panel rail rail-left">
-          <section className="section-block combat-scaffold">
-            <div className="card-head">
-              <div>
-                <p className="eyebrow">Combat</p>
-                <h2>Attack from the left rail</h2>
-              </div>
-              <span className="mini-tag mini-tag-live">step 1</span>
-            </div>
-            <p className="detail-copy">
-              Select one or more eligible attackers from the lists below. Ctrl+click builds the attack group, and orange
-              overlays will preview the combined range before you right-click a target.
-            </p>
-            <div className="combat-step-list">
-              <div className="combat-step-card">
-                <strong>1</strong>
-                <span>Pick one or more attackers</span>
-              </div>
-              <div className="combat-step-card">
-                <strong>2</strong>
-                <span>Preview the shared attack range</span>
-              </div>
-              <div className="combat-step-card">
-                <strong>3</strong>
-                <span>Confirm, resolve, and update the board</span>
-              </div>
-            </div>
-            <p className="summary-line">
-              {activeRole === 'onion'
-                ? 'Onion weapons form the attacker pool.'
-                : activeRole === 'defender'
-                  ? 'Defender units form the attacker pool.'
-                  : 'Waiting for combat context.'}
-            </p>
-          </section>
-
-          <section className="section-block">
-            <div className="card-head">
-              <p className="eyebrow">Onion</p>
-            </div>
-            {displayedOnion ? (
-              <button
-                type="button"
-                className={`onion-card-button ${activeSelectedUnitIds.includes(displayedOnion.id) ? 'is-selected' : ''}`}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  handleSelectUnit(displayedOnion.id, event.ctrlKey || event.metaKey)
-                }}
-              >
-                <h3>{displayedOnion.id}</h3>
-                <div className="unit-summary">
-                  <div className="summary-line">
-                    <span>Treads <strong>{displayedOnion.treads}</strong></span>
-                    <span>Moves <strong>{displayedOnion.movesRemaining}</strong></span>
-                    <span>Rams <strong>{displayedOnion.rams}</strong></span>
-                  </div>
-                  <div className="summary-line">
-                    <span>Weapons <strong>{onionWeapons.operationalWeapons}</strong></span>
-                    <span>Missiles <strong>{onionWeapons.operationalMissiles}</strong></span>
-                  </div>
+          {isCombatPhase ? (
+            <section className="section-block combat-scaffold">
+              <div className="card-head">
+                <div>
+                  <p className="eyebrow">Combat</p>
+                  <h2>Attacker Selection</h2>
                 </div>
-              </button>
-            ) : (
-              <p className="summary-line">Waiting for battlefield data.</p>
-            )}
-          </section>
-
-          <section className="section-block">
-            <div className="card-head">
-              <p className="eyebrow">Defenders</p>
-              <span className="mini-tag">{displayedDefenders.length} tracked</span>
-            </div>
-            {displayedDefenders.length > 0 ? (
-              <div className="defender-list">
-                {displayedDefenders.map((unit) => {
-                  const isSelected = activeSelectedUnitIds.includes(unit.id)
-                  const isActionable = unit.actionableModes.includes(activeMode)
-                  const attackStats = parseAttackStats(unit.attack)
-                  return (
-                    <button
-                      key={unit.id}
-                      type="button"
-                      className={[
-                        'defender-card-button',
-                        isSelected ? 'is-selected' : '',
-                        isActionable ? 'is-actionable' : '',
-                        `tone-${statusTone(unit.status)}`,
-                      ].join(' ')}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
-                      }}
-                    >
-                      <p className="eyebrow">{unit.type}</p>
-                      <h3>{unit.id}</h3>
-                      <div className="unit-summary">
-                        <div className="summary-line">
-                          <span>Damage <strong>{attackStats.damage}</strong></span>
-                          <span>Range <strong>{attackStats.range}</strong></span>
-                          <span>Move <strong>{unit.move}</strong></span>
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
+                <span className="mini-tag mini-tag-live">step 1</span>
               </div>
-            ) : (
-              <p className="summary-line">Waiting for battlefield data.</p>
-            )}
-          </section>
+              <p className="detail-copy">
+                {activeCombatRole === 'onion'
+                  ? 'Pick one or more eligible weapons from the rail. Ctrl+click adds or removes weapons from the attack group.'
+                  : 'Pick one or more eligible units from the rail or board. Ctrl+click adds or removes units from the attack group.'}
+              </p>
+              <div className="combat-step-list">
+                <div className="combat-step-card">
+                  <strong>1</strong>
+                  <span>{activeCombatRole === 'onion' ? 'Select weapons' : 'Select units'}</span>
+                </div>
+                <div className="combat-step-card">
+                  <strong>2</strong>
+                  <span>Preview the shared attack range</span>
+                </div>
+                <div className="combat-step-card">
+                  <strong>3</strong>
+                  <span>Confirm, resolve, and update the board</span>
+                </div>
+              </div>
+
+              <div className="attacker-selection-list">
+                {activeCombatRole === 'onion' ? (
+                  readyWeaponDetails.length > 0 ? (
+                    readyWeaponDetails.map((weapon) => {
+                      const selectionId = buildWeaponSelectionId(weapon.id)
+                      const isSelected = activeSelectedUnitIds.includes(selectionId)
+                      return (
+                        <button
+                          key={weapon.id}
+                          type="button"
+                          className={`attacker-card-button ${isSelected ? 'is-selected' : ''}`}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleSelectUnit(selectionId, event.ctrlKey || event.metaKey)
+                          }}
+                        >
+                          <p className="eyebrow">{weapon.name}</p>
+                          <h3>{weapon.id}</h3>
+                          <p className="summary-line">{formatWeaponLabel(weapon)}</p>
+                        </button>
+                      )
+                    })
+                  ) : (
+                    <p className="summary-line">No ready weapons available.</p>
+                  )
+                ) : displayedDefenders.length > 0 ? (
+                  displayedDefenders.map((unit) => {
+                    const isSelected = activeSelectedUnitIds.includes(unit.id)
+                    const isActionable = unit.actionableModes.includes(activeMode)
+                    const attackStats = parseAttackStats(unit.attack)
+                    return (
+                      <button
+                        key={unit.id}
+                        type="button"
+                        className={[
+                          'attacker-card-button',
+                          isSelected ? 'is-selected' : '',
+                          isActionable ? 'is-actionable' : '',
+                          `tone-${statusTone(unit.status)}`,
+                        ].join(' ')}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
+                        }}
+                      >
+                        <p className="eyebrow">{unit.type}</p>
+                        <h3>{unit.id}</h3>
+                        <div className="unit-summary">
+                          <div className="summary-line">
+                            <span>Damage <strong>{attackStats.damage}</strong></span>
+                            <span>Range <strong>{attackStats.range}</strong></span>
+                            <span>Move <strong>{unit.move}</strong></span>
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })
+                ) : (
+                  <p className="summary-line">Waiting for battlefield data.</p>
+                )}
+              </div>
+            </section>
+          ) : (
+            <>
+              <section className="section-block">
+                <div className="card-head">
+                  <p className="eyebrow">Onion</p>
+                </div>
+                {displayedOnion ? (
+                  <button
+                    type="button"
+                    className={`onion-card-button ${activeSelectedUnitIds.includes(displayedOnion.id) ? 'is-selected' : ''}`}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      handleSelectUnit(displayedOnion.id, event.ctrlKey || event.metaKey)
+                    }}
+                  >
+                    <h3>{displayedOnion.id}</h3>
+                    <div className="unit-summary">
+                      <div className="summary-line">
+                        <span>Treads <strong>{displayedOnion.treads}</strong></span>
+                        <span>Moves <strong>{displayedOnion.movesRemaining}</strong></span>
+                        <span>Rams <strong>{displayedOnion.rams}</strong></span>
+                      </div>
+                      <div className="summary-line">
+                        <span>Weapons <strong>{onionWeapons.operationalWeapons}</strong></span>
+                        <span>Missiles <strong>{onionWeapons.operationalMissiles}</strong></span>
+                      </div>
+                    </div>
+                  </button>
+                ) : (
+                  <p className="summary-line">Waiting for battlefield data.</p>
+                )}
+              </section>
+
+              <section className="section-block">
+                <div className="card-head">
+                  <p className="eyebrow">Defenders</p>
+                  <span className="mini-tag">{displayedDefenders.length} tracked</span>
+                </div>
+                {displayedDefenders.length > 0 ? (
+                  <div className="defender-list">
+                    {displayedDefenders.map((unit) => {
+                      const isSelected = activeSelectedUnitIds.includes(unit.id)
+                      const isActionable = unit.actionableModes.includes(activeMode)
+                      const attackStats = parseAttackStats(unit.attack)
+                      return (
+                        <button
+                          key={unit.id}
+                          type="button"
+                          className={[
+                            'defender-card-button',
+                            isSelected ? 'is-selected' : '',
+                            isActionable ? 'is-actionable' : '',
+                            `tone-${statusTone(unit.status)}`,
+                          ].join(' ')}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
+                          }}
+                        >
+                          <p className="eyebrow">{unit.type}</p>
+                          <h3>{unit.id}</h3>
+                          <div className="unit-summary">
+                            <div className="summary-line">
+                              <span>Damage <strong>{attackStats.damage}</strong></span>
+                              <span>Range <strong>{attackStats.range}</strong></span>
+                              <span>Move <strong>{unit.move}</strong></span>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="summary-line">Waiting for battlefield data.</p>
+                )}
+              </section>
+            </>
+          )}
         </aside>
 
         <section className="panel map-stage">
