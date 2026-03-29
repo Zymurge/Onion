@@ -6,6 +6,7 @@
 
 import type { HexPos, UnitStatus, TurnPhase } from '../types/index.js'
 import logger from '../logger.js'
+import { onionMovementAllowance } from '../shared/movementAllowance.js'
 
 /**
  * All possible unit types in the game.
@@ -130,6 +131,8 @@ export interface EngineGameState {
   defenders: Record<string, DefenderUnit>
   /** Number of rams the Onion has performed this turn (max 2) */
   ramsThisTurn: number
+  /** Movement already spent this turn, keyed by phase and unit ID */
+  movementSpent?: Record<string, number>
   /** Current phase of play */
   currentPhase: TurnPhase
   /** Current turn number (1-based) */
@@ -160,17 +163,7 @@ export function getAllUnitDefinitions(): Record<UnitType, UnitDefinition> {
   return { ...UNIT_DEFINITIONS }
 }
 
-/**
- * Calculate movement allowance based on current tread points.
- * @param treads - Current tread points (0-45)
- * @returns Movement allowance (0-3)
- */
-export function onionMovementAllowance(treads: number): number {
-  if (treads === 0) return 0
-  if (treads <= 15) return 1
-  if (treads <= 30) return 2
-  return 3
-}
+export { onionMovementAllowance }
 
 /**
  * Check if a unit can perform a second move (GEV ability).

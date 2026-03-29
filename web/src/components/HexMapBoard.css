@@ -45,8 +45,33 @@
   stroke-width: 2;
 }
 
+.hex-cell-move-ready > .hex-shape {
+  stroke: #2e7d32;
+  stroke-width: 2;
+}
+
+.hex-cell-reachable > .hex-shape {
+  fill: rgba(102, 187, 106, 0.22);
+  stroke: #66bb6a;
+  stroke-width: 2;
+}
+
 .hex-shape {
   pointer-events: auto;
+}
+
+.hex-unit-stack {
+  cursor: pointer;
+  pointer-events: all;
+}
+
+.hex-unit-stack-selected .hex-unit-rect {
+  stroke: #ffeb3b;
+  stroke-width: 3;
+}
+
+.hex-unit-stack-move-ready .hex-unit-rect {
+  filter: saturate(1.15);
 }
 
 /* Unit rectangle - defender (red) */
@@ -64,10 +89,27 @@
 }
 
 /* Unit rectangle - actionable state (green tint) */
-.hex-unit-rect-actionable {
+.hex-unit-rect-move-ready {
   fill: #66bb6a;
   stroke: #2e7d32;
   stroke-width: 2.5;
+}
+
+.hex-unit-rect-selected {
+  stroke: #ffeb3b;
+  stroke-width: 3;
+}
+
+.hex-map-toast {
+  position: fixed;
+  z-index: 20;
+  padding: 8px 12px;
+  background: rgba(24, 39, 35, 0.95);
+  color: #f8fff8;
+  border: 1px solid rgba(102, 187, 106, 0.55);
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
 }
 
 .hex-unit-marker {

@@ -7,10 +7,12 @@ import logger from '../logger.js'
  */
 
 import type { HexPos, PlayerRole, Command } from '../types/index.js'
-import { isInBounds, findPath, movementCost } from './map.js'
+import { isInBounds } from './map.js'
 import type { GameMap } from './map.js'
-import { getUnitDefinition, onionMovementAllowance, isImmobile } from './units.js'
+import { getUnitDefinition, isImmobile } from './units.js'
 import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from './units.js'
+import { findMovePath, type MoveMapSnapshot } from '../shared/movePlanner.js'
+import { canUnitCrossRidgelines, canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, spendUnitMovement } from '../shared/unitMovement.js'
 
 /**
  * Result of validating a movement command.
@@ -105,13 +107,11 @@ function resolveUnit(state: EngineGameState, unitId: string): ResolvedUnit | nul
 }
 
 function getCapabilities(unit: GameUnit): MovementCapabilities {
-  const definition = getUnitDefinition(unit.type)
-
   return {
-    canRam: definition.abilities.canRam === true,
+    canRam: getUnitDefinition(unit.type).abilities.canRam === true,
     hasTreads: hasTreads(unit),
-    canSecondMove: definition.abilities.secondMove === true,
-    canCrossRidgelines: definition.abilities.canCrossRidgelines === true,
+    canSecondMove: canUnitSecondMove(unit.type),
+    canCrossRidgelines: canUnitCrossRidgelines(unit.type),
   }
 }
 
@@ -121,16 +121,18 @@ function getMovementAllowance(
   role: PlayerRole,
   capabilities: MovementCapabilities
 ): MovementAllowanceResult {
-  const definition = getUnitDefinition(unit.type)
-
   if (role === 'onion') {
     if (state.currentPhase !== 'ONION_MOVE') {
       return { ok: false, code: 'WRONG_PHASE', error: 'Not the Onion movement phase' }
     }
 
-    const movementAllowance = capabilities.hasTreads
-      ? onionMovementAllowance((unit as OnionUnit).treads)
-      : definition.movement
+    const movementAllowance = getRemainingUnitMovementAllowance(
+      unit.type,
+      state.currentPhase,
+      state,
+      unit.id,
+      capabilities.hasTreads ? (unit as OnionUnit).treads : undefined,
+    )
 
     if (movementAllowance === 0) {
       return { ok: false, code: 'NO_MOVEMENT_ALLOWANCE', error: 'Unit has no movement allowance' }
@@ -144,7 +146,7 @@ function getMovementAllowance(
       return { ok: false, code: 'SECOND_MOVE_NOT_ALLOWED', error: 'Unit cannot perform a second move' }
     }
 
-    const movementAllowance = definition.abilities.secondMoveAllowance ?? 0
+    const movementAllowance = getRemainingUnitMovementAllowance(unit.type, state.currentPhase, state, unit.id)
     if (movementAllowance === 0) {
       return { ok: false, code: 'NO_MOVEMENT_ALLOWANCE', error: 'Unit has no movement allowance' }
     }
@@ -156,9 +158,7 @@ function getMovementAllowance(
     return { ok: false, code: 'WRONG_PHASE', error: 'Not a defender movement phase' }
   }
 
-  const movementAllowance = capabilities.hasTreads
-    ? onionMovementAllowance((unit as OnionUnit).treads)
-    : definition.movement
+  const movementAllowance = getRemainingUnitMovementAllowance(unit.type, state.currentPhase, state, unit.id)
 
   if (movementAllowance === 0) {
     return { ok: false, code: 'NO_MOVEMENT_ALLOWANCE', error: 'Unit has no movement allowance' }
@@ -263,7 +263,15 @@ function validateMovePlan(
     return allowance
   }
 
-  const pathResult = findPath(map, unit.position, command.to, allowance.movementAllowance, capabilities.canCrossRidgelines)
+  const pathResult = findMovePath({
+    map: toMoveMapSnapshot(map, state, unit.id),
+    from: unit.position,
+    to: command.to,
+    movementAllowance: allowance.movementAllowance,
+    canCrossRidgelines: capabilities.canCrossRidgelines,
+    movingRole: role,
+    movingUnitType: unit.type,
+  })
   if (!pathResult.found) {
     return {
       ok: false,
@@ -309,6 +317,28 @@ function validateMovePlan(
   }
 }
 
+function toMoveMapSnapshot(map: GameMap, state: EngineGameState, movingUnitId: string): MoveMapSnapshot {
+  const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
+    ...(state.onion.id !== movingUnitId && state.onion.status !== 'destroyed'
+      ? [{ q: state.onion.position.q, r: state.onion.position.r, role: 'onion' as const, unitType: state.onion.type ?? 'TheOnion', squads: 1 }]
+      : []),
+    ...Object.values(state.defenders)
+      .filter((unit) => unit.id !== movingUnitId && unit.status !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.type, squads: unit.squads })),
+  ]
+
+  return {
+    width: map.width,
+    height: map.height,
+    hexes: Object.values(map.hexes).map((hex) => ({
+      q: hex.q,
+      r: hex.r,
+      t: hex.terrain === 'ridgeline' ? 1 : hex.terrain === 'crater' ? 2 : 0,
+    })),
+    occupiedHexes,
+  }
+}
+
 function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementResult {
   const resolved = resolveUnit(state, plan.unitId)
   if (!resolved) {
@@ -317,6 +347,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
 
   const { unit } = resolved
   unit.position = plan.to
+  spendUnitMovement(state, state.currentPhase, unit.id, plan.cost)
 
   const destroyedUnits: string[] = []
   if (plan.capabilities.canRam && plan.ramCapacityUsed > 0) {

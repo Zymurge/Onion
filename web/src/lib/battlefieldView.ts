@@ -21,7 +21,7 @@ export type BattlefieldOnionView = {
   status: string
   treads: number
   movesAllowed: number
-  movesUsed: number
+  movesRemaining: number
   rams: number
   weapons: string
 }

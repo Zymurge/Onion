@@ -1,6 +1,11 @@
+import { useEffect, useMemo, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, hexKey, pointsToString } from '../lib/hex'
-import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type Mode, type TerrainHex } from '../lib/battlefieldView'
+import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
+import { canUnitCrossRidgelines } from '../../../src/shared/unitMovement'
+import { listReachableMoves } from '../../../src/shared/movePlanner'
 import './HexMapBoard.css'
+
+type HexOccupant = BattlefieldUnit | BattlefieldOnionView
 
 type HexMapBoardProps = {
   scenarioMap: {
@@ -10,28 +15,108 @@ type HexMapBoardProps = {
   }
   defenders: BattlefieldUnit[]
   onion: BattlefieldOnionView
-  mode: Mode
+  phase: string | null
   selectedUnitId: string
+  canSubmitMove?: boolean
   onSelectUnit: (unitId: string) => void
+  onDeselect: () => void
+  onMoveUnit: (unitId: string, to: { q: number; r: number }) => void
 }
 
 const HEX_SIZE = 36
 const MAP_PADDING = 28
 
-export function HexMapBoard({ scenarioMap, defenders, onion, mode, selectedUnitId, onSelectUnit }: HexMapBoardProps) {
-  const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
-  const occupantMap = new Map<string, BattlefieldUnit | BattlefieldOnionView>()
+function getStackOffset(index: number, total: number): { dx: number; dy: number } {
+  if (total <= 1) {
+    return { dx: 0, dy: 0 }
+  }
 
-  occupantMap.set(hexKey(onion), onion)
+  if (total === 2) {
+    return { dx: 0, dy: index === 0 ? -11 : 11 }
+  }
+
+  const radius = 11
+  const angle = (Math.PI * 2 * index) / total - Math.PI / 2
+  return {
+    dx: Math.round(Math.cos(angle) * radius),
+    dy: Math.round(Math.sin(angle) * radius),
+  }
+}
+
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitId, canSubmitMove = true, onSelectUnit, onDeselect, onMoveUnit }: HexMapBoardProps) {
+  const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
+  const occupantMap = new Map<string, HexOccupant[]>()
+  const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
+
+  occupantMap.set(hexKey(onion), [onion])
   for (const defender of defenders) {
     if (defender.status === 'destroyed') continue
-    occupantMap.set(hexKey(defender), defender)
+    const key = hexKey(defender)
+    const occupants = occupantMap.get(key) ?? []
+    occupants.push(defender)
+    occupantMap.set(key, occupants)
   }
+
+  const selectedOccupant =
+    selectedUnitId === onion.id
+      ? onion
+      : defenders.find((unit) => unit.id === selectedUnitId) ?? null
+  const selectedAllowance = selectedOccupant
+    ? selectedOccupant.id === onion.id
+      ? onion.movesRemaining
+      : 'move' in selectedOccupant
+        ? selectedOccupant.move
+        : 0
+    : 0
+  const selectedCanCrossRidgelines = selectedOccupant ? canUnitCrossRidgelines(selectedOccupant.type) : false
+  const occupiedHexes = Array.from(occupantMap.entries())
+    .flatMap(([key, occupants]) => {
+      const [q, r] = key.split(',').map(Number)
+      return occupants
+        .filter((occupant) => occupant.id !== selectedUnitId && occupant.status !== 'destroyed')
+        .map((occupant) => ({
+          q,
+          r,
+          role: occupant.id === onion.id ? ('onion' as const) : ('defender' as const),
+          unitType: occupant.type,
+        }))
+    })
+  const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
+  const reachableMoves =
+    isMovementPhase && selectedOccupant && selectedAllowance > 0
+      ? listReachableMoves({
+          map: { ...scenarioMap, occupiedHexes },
+          from: { q: selectedOccupant.q, r: selectedOccupant.r },
+          movementAllowance: selectedAllowance,
+          canCrossRidgelines: selectedCanCrossRidgelines,
+          movingRole: selectedOccupant.id === onion.id ? 'onion' : 'defender',
+          movingUnitType: selectedOccupant.type,
+        })
+      : []
+  const reachableHexKeys = useMemo(() => new Set(reachableMoves.map((move) => hexKey(move.to))), [reachableMoves])
+
+  useEffect(() => {
+    if (!moveError) return undefined
+
+    const timeoutId = window.setTimeout(() => setMoveError(null), 3000)
+    const dismiss = () => setMoveError(null)
+    window.addEventListener('click', dismiss, true)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+      window.removeEventListener('click', dismiss, true)
+    }
+  }, [moveError])
 
   const bounds = boardPixelSize(scenarioMap.width, scenarioMap.height, HEX_SIZE, MAP_PADDING)
 
   return (
     <div className="hex-map-shell panel-subtle">
+      {moveError ? (
+        <div className="hex-map-toast" style={{ left: moveError.x + 12, top: moveError.y + 12 }} role="status">
+          {moveError.message}
+        </div>
+      ) : null}
       <svg
         className="hex-map-svg"
         width={bounds.width}
@@ -47,16 +132,16 @@ export function HexMapBoard({ scenarioMap, defenders, onion, mode, selectedUnitI
               const center = axialToPixel(coord, HEX_SIZE)
               const polygonPoints = pointsToString(hexCorners(center, HEX_SIZE - 1))
               const terrainType = terrain.get(hexKey(coord))
-              const occupant = occupantMap.get(hexKey(coord))
-              const isOnion = occupant?.id === onion.id
-              const isSelected = occupant?.id === selectedUnitId
-              const isActionable = Boolean(
-                occupant &&
-                  occupant.id !== onion.id &&
-                  'actionableModes' in occupant &&
-                  occupant.actionableModes.includes(mode),
+              const cellOccupants = occupantMap.get(hexKey(coord)) ?? []
+              const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
+              const isSelected = cellOccupants.some((occupant) => occupant.id === selectedUnitId)
+              const isMoveReady = cellOccupants.some(
+                (occupant) =>
+                  isMovementPhase &&
+                  occupant.status === 'operational' &&
+                  ((occupant.id === onion.id ? onion.movesRemaining : 'move' in occupant ? occupant.move : 0) > 0),
               )
-              const unitMarker = occupant ? unitCode(occupant.type) : null
+              const isReachable = reachableHexKeys.has(hexKey(coord))
 
 
               // Pick SVG image for terrain
@@ -70,18 +155,38 @@ export function HexMapBoard({ scenarioMap, defenders, onion, mode, selectedUnitI
               return (
                 <g
                   key={`${q}-${r}`}
+                  data-testid={`hex-cell-${q}-${r}`}
                   className={[
                     'hex-cell',
                     terrainType ? `hex-terrain-${terrainType}` : 'hex-terrain-default',
                     isSelected ? 'hex-cell-selected' : '',
-                    isActionable ? 'hex-cell-actionable' : '',
+                    isMoveReady ? 'hex-cell-move-ready' : '',
+                    isReachable ? 'hex-cell-reachable' : '',
                     isOnion ? 'hex-cell-onion' : '',
-                    occupant ? 'hex-cell-occupied' : '',
+                    cellOccupants.length > 0 ? 'hex-cell-occupied' : '',
                   ].join(' ')}
                   onClick={() => {
-                    if (occupant && occupant.id !== onion.id && 'actionableModes' in occupant) {
-                      onSelectUnit(occupant.id)
+                    if (cellOccupants.length === 0) {
+                      onDeselect()
+                      return
                     }
+
+                    if (cellOccupants.length === 1) {
+                      onSelectUnit(cellOccupants[0].id)
+                    }
+                  }}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    if (!selectedOccupant || !canSubmitMove) {
+                      return
+                    }
+
+                    if (isReachable) {
+                      onMoveUnit(selectedOccupant.id, coord)
+                      return
+                    }
+
+                    setMoveError({ message: 'Illegal move', x: event.clientX, y: event.clientY })
                   }}
                 >
                   <clipPath id={`hex-clip-${q}-${r}`}><polygon points={polygonPoints} /></clipPath>
@@ -95,25 +200,47 @@ export function HexMapBoard({ scenarioMap, defenders, onion, mode, selectedUnitI
                     preserveAspectRatio="xMidYMid slice"
                   />
                   <polygon className="hex-shape" points={polygonPoints} fill="none" />
-                  {occupant ? (
-                    <>
-                      <rect
+                  {cellOccupants.map((occupant, index) => {
+                    const isOccupantOnion = occupant.id === onion.id
+                    const isOccupantSelected = occupant.id === selectedUnitId
+                    const offset = getStackOffset(index, cellOccupants.length)
+                    const moveRemaining = isOccupantOnion ? onion.movesRemaining : 'move' in occupant ? occupant.move : 0
+
+                    return (
+                      <g
+                        key={occupant.id}
+                        data-testid={`hex-unit-${occupant.id}`}
                         className={[
-                          'hex-unit-rect',
-                          isOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
-                          isActionable ? 'hex-unit-rect-actionable' : '',
+                          'hex-unit-stack',
+                          isOccupantOnion ? 'hex-unit-stack-onion' : 'hex-unit-stack-defender',
+                          isOccupantSelected ? 'hex-unit-stack-selected' : '',
+                          isMovementPhase && occupant.status === 'operational' && moveRemaining > 0 ? 'hex-unit-stack-move-ready' : '',
                         ].join(' ')}
-                        x={center.x - 16}
-                        y={center.y - 11}
-                        width={32}
-                        height={22}
-                        rx={2}
-                      />
-                      <text className="hex-unit-marker" x={center.x} y={center.y + 4} textAnchor="middle">
-                        {unitMarker}
-                      </text>
-                    </>
-                  ) : null}
+                        transform={`translate(${offset.dx}, ${offset.dy})`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onSelectUnit(occupant.id)
+                        }}
+                      >
+                        <rect
+                          className={[
+                            'hex-unit-rect',
+                            isOccupantOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
+                            isOccupantSelected ? 'hex-unit-rect-selected' : '',
+                            isMovementPhase && occupant.status === 'operational' && moveRemaining > 0 ? 'hex-unit-rect-move-ready' : '',
+                          ].join(' ')}
+                          x={center.x - 16}
+                          y={center.y - 11}
+                          width={32}
+                          height={22}
+                          rx={2}
+                        />
+                        <text className="hex-unit-marker" x={center.x} y={center.y + 4} textAnchor="middle">
+                          {unitCode(occupant.type)}
+                        </text>
+                      </g>
+                    )
+                  })}
                   <text className="hex-coord" x={center.x} y={center.y + 18} textAnchor="middle">
                     {q},{r}
                   </text>

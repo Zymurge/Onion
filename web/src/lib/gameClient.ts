@@ -19,6 +19,7 @@ export type GameSnapshot = {
 	turnNumber?: number
 	lastEventSeq: number
 	authoritativeState?: GameState
+	movementRemainingByUnit?: Record<string, number>
 	scenarioMap?: ScenarioMapSnapshot
 }
 
@@ -34,6 +35,7 @@ export type GameStateEnvelope = {
 export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
+	| { type: 'MOVE'; unitId: string; to: { q: number; r: number } }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 

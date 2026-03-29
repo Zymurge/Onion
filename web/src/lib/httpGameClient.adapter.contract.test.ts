@@ -30,6 +30,10 @@ describe('http game client adapter contract', () => {
 						},
 					},
 				},
+				movementRemainingByUnit: {
+					'onion-1': 0,
+					'wolf-2': 0,
+				},
 				scenarioMap: {
 					width: 15,
 					height: 22,
@@ -63,6 +67,10 @@ describe('http game client adapter contract', () => {
 						},
 					},
 				},
+					movementRemainingByUnit: {
+						'onion-1': 0,
+						'wolf-2': 0,
+					},
 				gameId: 123,
 				phase: 'DEFENDER_COMBAT',
 				selectedUnitId: null,
@@ -119,6 +127,9 @@ describe('http game client adapter contract', () => {
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+					movementRemainingByUnit: {
+						'onion-1': 0,
+					},
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -128,6 +139,9 @@ describe('http game client adapter contract', () => {
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
 				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {} },
+					movementRemainingByUnit: {
+						'onion-1': 0,
+					},
 				eventSeq: 49,
 			}))
 
@@ -142,6 +156,7 @@ describe('http game client adapter contract', () => {
 
 		await expect(client.submitAction(123, { type: 'refresh' })).resolves.toEqual({
 			authoritativeState: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {} },
+			movementRemainingByUnit: { 'onion-1': 0 },
 			gameId: 123,
 			phase: 'DEFENDER_COMBAT',
 			selectedUnitId: 'wolf-2',
@@ -170,6 +185,7 @@ describe('http game client adapter contract', () => {
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 2,
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+				movementRemainingByUnit: { 'onion-1': 3 },
 				eventSeq: 12,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -179,6 +195,7 @@ describe('http game client adapter contract', () => {
 					{ seq: 13, type: 'PHASE_CHANGED', timestamp: '2026-03-26T12:00:00.000Z', from: 'ONION_MOVE', to: 'ONION_COMBAT', turnNumber: 2 },
 				],
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+				movementRemainingByUnit: { 'onion-1': 0 },
 				turnNumber: 2,
 				eventSeq: 13,
 			}))
@@ -192,6 +209,7 @@ describe('http game client adapter contract', () => {
 		await client.getState(123)
 		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toEqual({
 			authoritativeState: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+			movementRemainingByUnit: { 'onion-1': 0 },
 			gameId: 123,
 			phase: 'ONION_COMBAT',
 			selectedUnitId: null,
@@ -211,6 +229,66 @@ describe('http game client adapter contract', () => {
 					'content-type': 'application/json',
 				}),
 				body: JSON.stringify({ type: 'END_PHASE' }),
+			}),
+		)
+	})
+
+	it('sends MOVE actions to the backend actions endpoint', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_MOVE',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+				movementRemainingByUnit: { 'wolf-2': 4 },
+				eventSeq: 47,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
+				ok: true,
+				seq: 48,
+				events: [
+					{ seq: 48, type: 'UNIT_MOVED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'wolf-2', to: { q: 7, r: 6 } },
+				],
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+				movementRemainingByUnit: { 'wolf-2': 3 },
+				turnNumber: 8,
+				eventSeq: 48,
+			}))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			token: 'stub.token',
+		})
+
+		await client.getState(123)
+		await expect(client.submitAction(123, { type: 'MOVE', unitId: 'wolf-2', to: { q: 7, r: 6 } })).resolves.toEqual(
+			expect.objectContaining({
+				gameId: 123,
+				phase: 'DEFENDER_MOVE',
+				lastEventSeq: 48,
+				movementRemainingByUnit: { 'wolf-2': 3 },
+			}),
+		)
+
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123/actions')
+		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
+			expect.objectContaining({
+				method: 'POST',
+				headers: expect.objectContaining({
+					authorization: 'Bearer stub.token',
+					'content-type': 'application/json',
+				}),
+				body: JSON.stringify({ type: 'MOVE', unitId: 'wolf-2', to: { q: 7, r: 6 } }),
 			}),
 		)
 	})

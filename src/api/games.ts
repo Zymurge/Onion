@@ -12,6 +12,7 @@ import { advancePhaseWithEvents } from '../engine/game.js'
 import { createMap } from '../engine/map.js'
 import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '../engine/index.js'
 import type { EngineGameState } from '../engine/units.js'
+import { getRemainingUnitMovementAllowance } from '../shared/unitMovement.js'
 import { InitialStateSchema } from '../engine/scenarioSchema.js'
 import { normalizeInitialStateToGameState } from '../engine/scenarioNormalizer.js'
 import { resolveScenariosDir } from './scenarioPaths.js'
@@ -68,6 +69,26 @@ function buildEngineState(match: MatchRecord) {
     currentPhase: match.phase,
     turn: match.turnNumber,
   } as EngineGameState
+}
+
+function buildMovementRemainingByUnit(state: GameState, phase: TurnPhase): Record<string, number> {
+  const movementRemainingByUnit: Record<string, number> = {}
+  const onionId = state.onion.id ?? 'onion-1'
+
+  movementRemainingByUnit[onionId] = getRemainingUnitMovementAllowance(
+    state.onion.type ?? 'TheOnion',
+    phase,
+    state,
+    onionId,
+    state.onion.treads,
+  )
+
+  for (const [defenderId, defender] of Object.entries(state.defenders)) {
+    const resolvedId = defender.id ?? defenderId
+    movementRemainingByUnit[resolvedId] = getRemainingUnitMovementAllowance(defender.type, phase, state, resolvedId)
+  }
+
+  return movementRemainingByUnit
 }
 
 function getScenarioMaxTurns(scenarioSnapshot: ScenarioSnapshot | undefined): number {
@@ -207,6 +228,19 @@ function buildCombatEvents(
   }
 
   return events
+}
+
+function logSentEvents(gameId: number, actionType: string, events: EventEnvelope[]) {
+  logger.debug(
+    {
+      gameId,
+      actionType,
+      eventCount: events.length,
+      eventTypes: events.map((event) => event.type),
+      events,
+    },
+    'Events sent',
+  )
 }
 
 /**
@@ -490,6 +524,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         winner: match.winner,
         players: match.players,
         state: match.state,
+        movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
         scenarioMap,
         eventSeq: match.events.at(-1)?.seq ?? 0,
       })
@@ -594,8 +629,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         // Return updated state and events
         const turnNumber = result.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? 0
+        logSentEvents(match.gameId, 'END_PHASE', newEvents)
         logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
-        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, turnNumber, eventSeq })
+        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq })
       } else if (command.type === 'MOVE') {
         logger.info({ gameId: match.gameId, unitId: command.unitId }, 'Processing MOVE command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
@@ -662,8 +698,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         })
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
+        logSentEvents(match.gameId, 'MOVE', newEvents)
         logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
-        return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, turnNumber, eventSeq })
+        return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
       } else if (command.type === 'FIRE' || command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
@@ -707,8 +744,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         })
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
+        logSentEvents(match.gameId, command.type, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
-        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, turnNumber, eventSeq })
+        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
       }
     } catch (err) {
       if (err instanceof StaleMatchStateError) {
