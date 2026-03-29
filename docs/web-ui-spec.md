@@ -267,7 +267,9 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 
 **Selection and Eligibility Rules**
 - Only the active player can select and assign their own eligible attackers.
-- Selection/deselection rules mirror movement: only one group can be selected at a time, and clicking outside clears the selection and overlays.
+- Selection/deselection rules mirror movement: only one group can be selected at a time.
+- Ctrl-click toggles membership in the current selection group without clearing the rest.
+- Left-clicking any non-unit area of the game clears the current group and removes all overlays.
 
 ## Error Handling UX Baseline
 
