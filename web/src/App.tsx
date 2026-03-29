@@ -741,7 +741,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 onion={displayedOnion}
                 phase={activePhase}
                 selectedUnitId={activeSelectedUnitId}
-                canSubmitMove={activeTurnActive}
+                canSubmitMove={
+                  activeTurnActive && (
+                    activePhase === 'ONION_MOVE' ||
+                    activePhase === 'DEFENDER_MOVE' ||
+                    activePhase === 'GEV_SECOND_MOVE'
+                  )
+                }
                 onSelectUnit={handleSelectUnit}
                 onDeselect={handleDeselectUnit}
                 onMoveUnit={handleMoveUnit}

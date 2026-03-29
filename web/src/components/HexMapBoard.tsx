@@ -135,13 +135,12 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
               const cellOccupants = occupantMap.get(hexKey(coord)) ?? []
               const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
               const isSelected = cellOccupants.some((occupant) => occupant.id === selectedUnitId)
-              const isMoveReady = cellOccupants.some(
+              const isMoveReady = canSubmitMove && cellOccupants.some(
                 (occupant) =>
-                  isMovementPhase &&
                   occupant.status === 'operational' &&
                   ((occupant.id === onion.id ? onion.movesRemaining : 'move' in occupant ? occupant.move : 0) > 0),
               )
-              const isReachable = reachableHexKeys.has(hexKey(coord))
+              const isReachable = canSubmitMove && reachableHexKeys.has(hexKey(coord))
 
 
               // Pick SVG image for terrain
@@ -180,13 +179,14 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                     if (!selectedOccupant || !canSubmitMove) {
                       return
                     }
-
                     if (isReachable) {
                       onMoveUnit(selectedOccupant.id, coord)
                       return
                     }
-
-                    setMoveError({ message: 'Illegal move', x: event.clientX, y: event.clientY })
+                    // Only show error toast if move controls are enabled
+                    if (canSubmitMove) {
+                      setMoveError({ message: 'Illegal move', x: event.clientX, y: event.clientY })
+                    }
                   }}
                 >
                   <clipPath id={`hex-clip-${q}-${r}`}><polygon points={polygonPoints} /></clipPath>

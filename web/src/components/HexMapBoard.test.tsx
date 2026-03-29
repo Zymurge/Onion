@@ -1,3 +1,61 @@
+it('allows move submission during the active player\'s move phase', () => {
+	const onMoveUnit = vi.fn()
+	render(
+		<HexMapBoard
+			scenarioMap={scenarioMap}
+			defenders={defenders}
+			onion={onion}
+			phase="ONION_MOVE"
+			selectedUnitId="onion-1"
+			canSubmitMove={true}
+			onSelectUnit={vi.fn()}
+			onDeselect={vi.fn()}
+			onMoveUnit={onMoveUnit}
+		/>,
+	)
+	fireEvent.contextMenu(screen.getByTestId('hex-cell-1-1'))
+	expect(onMoveUnit).toHaveBeenCalledWith('onion-1', { q: 1, r: 1 })
+})
+
+it('disallows move submission during the other player\'s phase', () => {
+	const onMoveUnit = vi.fn()
+	render(
+		<HexMapBoard
+			scenarioMap={scenarioMap}
+			defenders={defenders}
+			onion={onion}
+			phase="DEFENDER_FIRE"
+			selectedUnitId="onion-1"
+			canSubmitMove={false}
+			onSelectUnit={vi.fn()}
+			onDeselect={vi.fn()}
+			onMoveUnit={onMoveUnit}
+		/>,
+	)
+	fireEvent.contextMenu(screen.getByTestId('hex-cell-1-1'))
+	expect(onMoveUnit).not.toHaveBeenCalled()
+	expect(screen.queryByText(/illegal move/i)).toBeNull()
+})
+
+it('disallows move submission during the active player\'s non-move phase', () => {
+	const onMoveUnit = vi.fn()
+	render(
+		<HexMapBoard
+			scenarioMap={scenarioMap}
+			defenders={defenders}
+			onion={onion}
+			phase="ONION_FIRE"
+			selectedUnitId="onion-1"
+			canSubmitMove={false}
+			onSelectUnit={vi.fn()}
+			onDeselect={vi.fn()}
+			onMoveUnit={onMoveUnit}
+		/>,
+	)
+	fireEvent.contextMenu(screen.getByTestId('hex-cell-1-1'))
+	expect(onMoveUnit).not.toHaveBeenCalled()
+	expect(screen.queryByText(/illegal move/i)).toBeNull()
+})
 // @vitest-environment jsdom
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
