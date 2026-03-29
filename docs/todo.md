@@ -15,3 +15,4 @@ break down into features/tasks as needed.
 ## Features / Work Items
 
 - (Add new features or tasks here as they come up)
+- Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.

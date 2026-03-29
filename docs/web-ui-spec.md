@@ -219,9 +219,11 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 - Right-clicking on a highlighted (in-range) hex instantly moves the selected unit to that hex, submits the move event, and refreshes the UI with the unit deselected.
 - Selecting a unit with no move eligibility displays its stats but does not highlight any move radius.
 
+
 **Error Feedback:**
 
-- Right-clicking on an ineligible (out-of-range or blocked) hex displays a temporary “Illegal move” bubble near the cursor.
+- Right-clicking on an ineligible (out-of-range, blocked, or overstacked) hex displays a temporary error bubble near the cursor.
+- The error bubble should eventually report a specific reason: 'out of range', 'blocked by terrain', or 'can't stack units', as appropriate. For now, a generic “Illegal move” message is shown.
 - The error bubble remains visible for 3 seconds or until dismissed by clicking anywhere.
 
 **Other Behaviors:**
