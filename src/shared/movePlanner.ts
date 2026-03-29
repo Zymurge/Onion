@@ -72,7 +72,12 @@ function canTraverseOccupiedHex(movingRole: MoveRole, occupants: Occupant[]): bo
 	return occupants.every((occupant) => occupant.role === 'defender')
 }
 
-function canStopOnOccupiedHex(movingRole: MoveRole, movingUnitType: string, occupants: Occupant[]): boolean {
+function canStopOnOccupiedHex(
+	movingRole: MoveRole,
+	movingUnitType: string,
+	occupants: Occupant[],
+	incomingSquads: number = 1
+): boolean {
 	if (occupants.length === 0) {
 		return true
 	}
@@ -90,7 +95,6 @@ function canStopOnOccupiedHex(movingRole: MoveRole, movingUnitType: string, occu
 		return false
 	}
 
-	const incomingSquads = 1
 	const destinationSquads = occupants.reduce((total, occupant) => total + (occupant.squads ?? 1), 0)
 	return incomingSquads + destinationSquads <= 3
 }
@@ -181,6 +185,7 @@ export function findMovePath(input: {
 	canCrossRidgelines: boolean
 	movingRole: MoveRole
 	movingUnitType: string
+	incomingSquads?: number
 }): { found: true; path: HexPos[]; cost: number } | { found: false; path: []; cost: 0 } {
 	if (!isInBounds(input.map, input.to)) {
 		return { found: false, path: [], cost: 0 }
@@ -204,7 +209,16 @@ export function findMovePath(input: {
 		const { pos, cost } = queue.shift()!
 		const currentOccupants = occupiedLookup.get(hexKey(pos)) ?? []
 
-		if (pos.q === input.to.q && pos.r === input.to.r && canStopOnOccupiedHex(input.movingRole, input.movingUnitType, currentOccupants)) {
+		if (
+			pos.q === input.to.q &&
+			pos.r === input.to.r &&
+			canStopOnOccupiedHex(
+				input.movingRole,
+				input.movingUnitType,
+				currentOccupants,
+				input.incomingSquads ?? 1
+			)
+		) {
 			return { found: true, path: reconstructPath(prev, input.from, input.to), cost }
 		}
 
@@ -239,6 +253,7 @@ export function listReachableMoves(input: {
 	canCrossRidgelines: boolean
 	movingRole: MoveRole
 	movingUnitType: string
+	incomingSquads?: number
 }): ReachableMove[] {
 	const { dist, prev } = exploreReachableMoves(input.map, input.from, input.movementAllowance, input.canCrossRidgelines, input.movingRole)
 	const occupiedLookup = getOccupiedLookup(input.map)
@@ -250,7 +265,7 @@ export function listReachableMoves(input: {
 		const [q, r] = key.split(',').map(Number)
 		const to = { q, r }
 		const occupants = occupiedLookup.get(key) ?? []
-		if (!canStopOnOccupiedHex(input.movingRole, input.movingUnitType, occupants)) {
+		if (!canStopOnOccupiedHex(input.movingRole, input.movingUnitType, occupants, input.incomingSquads ?? 1)) {
 			continue
 		}
 		moves.push({
