@@ -378,8 +378,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByText(/Selected unit: puss-1/i)).not.toBeNull()
 	})
 
-	it('submits actions through the injected client', async () => {
-		const user = userEvent.setup()
+	it('renders the left-rail combat scaffold instead of the action composer', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
 		const submitAction = vi.fn().mockResolvedValue(snapshot)
@@ -393,11 +392,10 @@ describe('App orchestration (injected game client)', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		await screen.findByText(/Selected unit: wolf-2/i)
-		expect(screen.getByText(/Defender/i, { selector: '.role-badge' })).not.toBeNull()
-
-		await user.click(screen.getByRole('button', { name: /end phase/i }))
-
-		expect(submitAction).toHaveBeenCalledWith(123, { type: 'set-mode', mode: 'end-phase' })
+		expect(screen.getByText(/Attack from the left rail/i)).not.toBeNull()
+		expect(screen.getByText(/Pick one or more attackers/i)).not.toBeNull()
+		expect(screen.queryByText(/Defender command stack/i)).toBeNull()
+		expect(screen.queryByRole('button', { name: /end phase/i })).toBeNull()
 	})
 
 	it('sends end phase through the debug control', async () => {

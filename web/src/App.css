@@ -445,7 +445,7 @@
 
 .battlefield-grid {
   display: grid;
-  grid-template-columns: 310px minmax(680px, 1fr) 390px;
+  grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
   gap: 22px;
   align-items: stretch;
   height: 100%;
@@ -607,8 +607,7 @@
 }
 
 .defender-list,
-.availability-list,
-.event-list {
+.availability-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -792,52 +791,6 @@
   margin: 0;
 }
 
-.controls-live {
-  box-shadow: 0 0 0 2px rgba(121, 92, 32, 0.12), 0 18px 40px rgba(51, 43, 26, 0.12);
-}
-
-.controls-muted {
-  opacity: 0.68;
-}
-
-.mode-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.mode-button {
-  border-radius: 14px;
-  border: 1px solid var(--border-soft);
-  padding: 10px 12px;
-  background: rgba(255, 252, 245, 0.9);
-  color: var(--ink-strong);
-}
-
-.mode-button-active {
-  background: var(--signal-live);
-  border-color: var(--signal-live);
-  color: #fff8ec;
-}
-
-.helper-copy {
-  margin-top: 10px;
-}
-
-.composer-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.composer-field {
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid var(--border-soft);
-  background: rgba(255, 252, 245, 0.84);
-}
-
 .primary-action {
   width: 100%;
   margin-top: 16px;
@@ -859,27 +812,43 @@
   background: rgba(255, 252, 245, 0.72);
 }
 
-.event-row {
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid var(--border-soft);
+.combat-scaffold {
+  border: 1px solid rgba(121, 92, 32, 0.18);
+  border-radius: 20px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(255, 248, 232, 0.96), rgba(248, 239, 219, 0.92));
+}
+
+.combat-step-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.combat-step-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(121, 92, 32, 0.18);
   background: rgba(255, 252, 245, 0.84);
 }
 
-.event-row-alert {
-  border-color: rgba(129, 64, 39, 0.32);
-  background: rgba(246, 228, 215, 0.78);
+.combat-step-card strong {
+  display: inline-flex;
+  width: 1.8rem;
+  height: 1.8rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(121, 92, 32, 0.12);
+  color: var(--signal-live);
+  flex: 0 0 auto;
 }
 
-.event-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+.combat-step-card span {
+  color: var(--ink-strong);
 }
 
 /* ============================================================================
@@ -887,12 +856,6 @@
    ============================================================================ */
 
 /* Defender phase active (player's turn) */
-.shell[data-phase='defender'] .battlefield-grid .rail-right {
-  position: relative;
-  opacity: 1;
-  transition: opacity 0.4s ease;
-}
-
 .shell[data-phase='defender'] .battlefield-grid .rail-left {
   position: relative;
   opacity: 1;
@@ -904,66 +867,6 @@
   position: relative;
   opacity: 1;
   transition: opacity 0.4s ease;
-}
-
-.shell[data-phase='onion'] .battlefield-grid .rail-right {
-  position: relative;
-  opacity: 0.54;
-  transition: opacity 0.4s ease;
-}
-
-.shell[data-phase='onion'] .battlefield-grid .rail-right::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 12px,
-    rgba(186, 170, 130, 0.16) 12px,
-    rgba(186, 170, 130, 0.16) 24px
-  );
-  pointer-events: none;
-  border-radius: 24px;
-}
-
-/* Phase button highlighting with animated crosshatch when not player's turn */
-.shell[data-phase='onion'] .battlefield-grid .primary-action {
-  position: relative;
-  opacity: 0.6;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.shell[data-phase='onion'] .battlefield-grid .primary-action::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 10px,
-    rgba(255, 252, 245, 0.12) 10px,
-    rgba(255, 252, 245, 0.12) 20px
-  );
-  animation: crosshatchWave 3s linear infinite;
-  pointer-events: none;
-  border-radius: 16px;
-}
-
-@keyframes crosshatchWave {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 28px 28px;
-  }
 }
 
 /* Glowing active state for role badge */

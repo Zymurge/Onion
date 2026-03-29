@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
-import { battlefieldModes, recentEvents } from './mockBattlefield'
 import {
   GameClientSeamError,
   type GameAction,
@@ -197,7 +196,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       '[12:00:01] [info] Game state loaded',
       '[12:00:02] [debug] Map rendered',
       '[12:00:03] [info] User selected unit wolf-2',
-      '[12:00:04] [debug] Action composer ready',
+      '[12:00:04] [debug] Combat selection scaffold ready',
       '[12:00:05] [info] Event timeline updated',
       '[12:00:06] [debug] Sync complete',
       '[12:00:07] [info] No errors detected',
@@ -208,7 +207,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       '[12:00:12] [debug] Unit positioning validated',
       '[12:00:13] [info] Onion unit placed at coordinates (5,3)',
       '[12:00:14] [debug] Defender units positioned: wolf-1, wolf-2, tiger-4, bear-1',
-      '[12:00:15] [info] Action composer initialized with 4 legal move paths',
+      '[12:00:15] [info] Left rail combat lists initialized for attacker selection',
       '[12:00:16] [debug] UI rendering pipeline started',
       '[12:00:17] [info] Header components mounted successfully',
       '[12:00:18] [debug] MapBoard component initialized with 42 hexes',
@@ -224,7 +223,6 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       '[12:00:28] [debug] Memory usage: 18.4 MB (within acceptable range)',
       '[12:00:29] [info] All systems operational. Ready for player input.',
     ]
-  const [mode, setMode] = useState<Mode>('fire')
   const [selectedUnitId, setSelectedUnitId] = useState<string>('')
   const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
   const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
@@ -278,7 +276,6 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? null
-  const activeMode = clientSnapshot?.mode ?? mode
   const activeSelectedUnitId = selectedUnitId !== '' ? selectedUnitId : (clientSnapshot?.selectedUnitId ?? '')
   const headerHasSnapshot = clientSnapshot !== null
   const activeTurnNumber = clientSnapshot?.turnNumber ?? null
@@ -289,6 +286,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const activeTurnActive = headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
   const shellPhase = activePhase ?? 'DEFENDER_MOVE'
   const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
+  const activeMode: Mode = clientSnapshot?.mode ?? 'fire'
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -368,15 +366,6 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     setActionError(null)
   }
 
-  function handleModeChange(nextMode: Mode) {
-    if (isControlledSession) {
-      void commitClientAction({ type: 'set-mode', mode: nextMode })
-      return
-    }
-
-    setMode(nextMode)
-  }
-
   async function handleMoveUnit(unitId: string, to: { q: number; r: number }) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
       return
@@ -407,11 +396,9 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
   const displayedScenarioMap = buildScenarioMap(clientSnapshot)
   const hasBattlefieldData = displayedOnion !== null && displayedScenarioMap !== null
-  const yourTurn = true
   const isOnionSelected = displayedOnion !== null && activeSelectedUnitId === displayedOnion.id
   const selectedDefender = displayedDefenders.find((unit) => unit.id === activeSelectedUnitId)
   const selectedUnit = selectedDefender ?? null
-  const targetLabel = activeMode === 'end-phase' ? 'No target required' : 'onion / treads'
   const selectedUnitIsActionable = selectedUnit?.actionableModes.includes(activeMode) ?? false
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
 
@@ -662,6 +649,41 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
       <main className="battlefield-grid">
         <aside className="panel rail rail-left">
+          <section className="section-block combat-scaffold">
+            <div className="card-head">
+              <div>
+                <p className="eyebrow">Combat</p>
+                <h2>Attack from the left rail</h2>
+              </div>
+              <span className="mini-tag mini-tag-live">step 1</span>
+            </div>
+            <p className="detail-copy">
+              Select one or more eligible attackers from the lists below. Ctrl+click builds the attack group, and orange
+              overlays will preview the combined range before you right-click a target.
+            </p>
+            <div className="combat-step-list">
+              <div className="combat-step-card">
+                <strong>1</strong>
+                <span>Pick one or more attackers</span>
+              </div>
+              <div className="combat-step-card">
+                <strong>2</strong>
+                <span>Preview the shared attack range</span>
+              </div>
+              <div className="combat-step-card">
+                <strong>3</strong>
+                <span>Confirm, resolve, and update the board</span>
+              </div>
+            </div>
+            <p className="summary-line">
+              {activeRole === 'onion'
+                ? 'Onion weapons form the attacker pool.'
+                : activeRole === 'defender'
+                  ? 'Defender units form the attacker pool.'
+                  : 'Waiting for combat context.'}
+            </p>
+          </section>
+
           <section className="section-block">
             <div className="card-head">
               <p className="eyebrow">Onion</p>
@@ -760,61 +782,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           </div>
         </section>
 
-        <aside className={`panel rail rail-right ${yourTurn ? 'controls-live' : 'controls-muted'}`}>
-          {hasBattlefieldData && !isOnionSelected && (
-            <section className="section-block">
-              <div className="card-head">
-                <div>
-                  <p className="eyebrow">Action Composer</p>
-                  <h2>Defender command stack</h2>
-                </div>
-                <span className="mini-tag mini-tag-live">controls active</span>
-              </div>
-
-              <div className="mode-row">
-                {battlefieldModes.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    className={`mode-button ${entry.id === activeMode ? 'mode-button-active' : ''}`}
-                    onClick={() => handleModeChange(entry.id)}
-                  >
-                    {entry.label}
-                  </button>
-                ))}
-              </div>
-
-              <p className="helper-copy">{battlefieldModes.find((entry) => entry.id === activeMode)?.helper}</p>
-
-              <div className="composer-grid">
-                <div className="composer-field">
-                  <span className="stat-label">Selected unit</span>
-                  <strong>{activeMode === 'end-phase' ? 'Not required' : selectedUnit?.id ?? 'No defender selected'}</strong>
-                </div>
-                <div className="composer-field">
-                  <span className="stat-label">Target</span>
-                  <strong>{targetLabel}</strong>
-                </div>
-                <div className="composer-field">
-                  <span className="stat-label">Weapon state</span>
-                  <strong>{activeMode === 'end-phase' ? 'n/a' : selectedUnit?.weapons ?? 'n/a'}</strong>
-                </div>
-                <div className="composer-field">
-                  <span className="stat-label">Validation</span>
-                  <strong>
-                    {activeMode === 'end-phase' || selectedUnitIsActionable
-                      ? 'ready to submit'
-                      : 'select an actionable unit'}
-                  </strong>
-                </div>
-              </div>
-
-              <button type="button" className="primary-action">
-                {activeMode === 'end-phase' ? `End ${activeRole === 'onion' ? 'Onion' : 'Defender'}` : 'Submit Action'}
-              </button>
-            </section>
-          )}
-
+        <aside className="panel rail rail-right">
           <section className="section-block panel-subtle">
             <div className="card-head">
               <div>
@@ -882,25 +850,6 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 )}
               </>
             )}
-          </section>
-
-          <section className="section-block">
-            <div className="card-head">
-              <p className="eyebrow">Event Timeline</p>
-              <span className="mini-tag">after seq 42</span>
-            </div>
-            <div className="event-list">
-              {recentEvents.map((event) => (
-                <article key={event.seq} className={`event-row ${event.tone === 'alert' ? 'event-row-alert' : ''}`}>
-                  <div className="event-head">
-                    <strong>#{event.seq}</strong>
-                    <span>{event.type}</span>
-                    <span>{event.timestamp}</span>
-                  </div>
-                  <p>{event.summary}</p>
-                </article>
-              ))}
-            </div>
           </section>
         </aside>
       </main>
