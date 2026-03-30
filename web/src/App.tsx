@@ -100,11 +100,6 @@ function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
   return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
 }
 
-function formatWeaponLabel(weapon: Weapon) {
-  const statusLabel = weapon.status === 'ready' ? 'ready' : weapon.status
-  return `${weapon.name} · ${weapon.attack}/${weapon.range} · ${statusLabel}`
-}
-
 function parseRangeValue(rangeText: string): number {
   const parsedRange = Number.parseInt(rangeText, 10)
   return Number.isNaN(parsedRange) ? 0 : parsedRange
@@ -179,7 +174,10 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
   const onion = authoritativeState.onion
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
-  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? 0
+  const movesRemaining =
+    activePhase === null
+      ? 0
+      : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
 
   return {
     id: onion.id ?? 'onion-1',
@@ -247,6 +245,71 @@ function buildCombatRangeSources(
     }))
 }
 
+type CombatTargetOption = {
+  id: string
+  kind: 'onion' | 'defender'
+  q: number
+  r: number
+  status: UnitStatus
+  label: string
+  detail: string
+}
+
+function buildCombatTargetOptions(
+  activeCombatRole: 'onion' | 'defender' | null,
+  combatRangeHexKeys: ReadonlySet<string>,
+  displayedDefenders: ReadonlyArray<BattlefieldUnit>,
+  displayedOnion: BattlefieldOnionView | null,
+): CombatTargetOption[] {
+  if (activeCombatRole === null) {
+    return []
+  }
+
+  if (activeCombatRole === 'onion') {
+    return displayedDefenders
+      .filter((unit) => unit.status !== 'destroyed')
+      .filter((unit) => combatRangeHexKeys.has(`${unit.q},${unit.r}`))
+      .map((unit) => ({
+        id: unit.id,
+        kind: 'defender' as const,
+        q: unit.q,
+        r: unit.r,
+        status: unit.status,
+        label: unit.type,
+        detail: `Defense: ${parseRangeValue(parseAttackStats(unit.attack).damage)}`,
+      }))
+  }
+
+  if (displayedOnion === null || !combatRangeHexKeys.has(`${displayedOnion.q},${displayedOnion.r}`)) {
+    return []
+  }
+
+  const weaponTargets = (displayedOnion.weaponDetails ?? [])
+    .filter((weapon) => weapon.individuallyTargetable && weapon.status === 'ready')
+    .map((weapon) => ({
+      id: `weapon:${weapon.id}`,
+      kind: 'onion' as const,
+      q: displayedOnion.q,
+      r: displayedOnion.r,
+      status: weapon.status as UnitStatus,
+      label: weapon.name,
+      detail: `Defense: ${weapon.defense}`,
+    }))
+
+  return [
+    {
+      id: `${displayedOnion.id}:treads`,
+      kind: 'onion' as const,
+      q: displayedOnion.q,
+      r: displayedOnion.r,
+      status: displayedOnion.status as UnitStatus,
+      label: 'Treads',
+      detail: `Treads: ${displayedOnion.treads}`,
+    },
+    ...weaponTargets,
+  ]
+}
+
 type AppProps = {
   gameClient?: GameClient
   gameId?: number
@@ -301,6 +364,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       '[12:00:29] [info] All systems operational. Ready for player input.',
     ]
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
+  const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
   const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
   const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
   const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
@@ -457,11 +521,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
       return [...baseSelection, unitId]
     })
+    setSelectedCombatTargetId(null)
     setActionError(null)
   }
 
   function handleDeselectUnit() {
     setSelectedUnitIds([])
+    setSelectedCombatTargetId(null)
     setActionError(null)
   }
 
@@ -501,7 +567,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const weaponSelectionIds = activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
   const isOnionSelected = displayedOnion !== null && (activeSelectedUnitIds.includes(displayedOnion.id) || weaponSelectionIds.length > 0)
   const selectedDefender = displayedDefenders.find((unit) => unit.id === activeSelectedUnitId && unit.status !== 'destroyed')
-  const selectedUnit = selectedDefender ?? (displayedOnion !== null && isOnionSelected ? displayedOnion : null)
+  const selectedUnit = selectedDefender
   const selectedUnitIsActionable = selectedDefender?.actionableModes.includes(activeMode) ?? false
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
   const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
@@ -513,6 +579,16 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     const combatSources = buildCombatRangeSources(activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion)
     return buildCombatRangeHexKeys(combatSources, displayedScenarioMap)
   }, [activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, displayedScenarioMap, isCombatPhase])
+  const combatTargetOptions = useMemo(
+    () => buildCombatTargetOptions(activeCombatRole, combatRangeHexKeys, displayedDefenders, displayedOnion),
+    [activeCombatRole, combatRangeHexKeys, displayedDefenders, displayedOnion],
+  )
+
+  useEffect(() => {
+    if (selectedCombatTargetId !== null && !combatTargetOptions.some((target) => target.id === selectedCombatTargetId)) {
+      setSelectedCombatTargetId(null)
+    }
+  }, [combatTargetOptions, selectedCombatTargetId])
 
   // Simulated last sync and event status for UI demo
   const [lastSync, setLastSync] = useState<Date>(new Date())
@@ -806,9 +882,11 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                             handleSelectUnit(selectionId, event.ctrlKey || event.metaKey)
                           }}
                         >
-                          <p className="eyebrow">{weapon.name}</p>
-                          <h3>{weapon.id}</h3>
-                          <p className="summary-line">{formatWeaponLabel(weapon)}</p>
+                          <div className="combat-card-header">
+                            <span className="combat-card-type"><strong>{weapon.name}</strong></span>
+                            <span className="combat-card-id">{weapon.id}</span>
+                          </div>
+                          <div className="combat-card-stats">Attack: {weapon.attack} · Range: {weapon.range}</div>
                         </button>
                       )
                     })
@@ -842,15 +920,11 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                           handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                         }}
                       >
-                        <p className="eyebrow">{unit.type}</p>
-                        <h3>{unit.id}</h3>
-                        <div className="unit-summary">
-                          <div className="summary-line">
-                            <span>Damage <strong>{attackStats.damage}</strong></span>
-                            <span>Range <strong>{attackStats.range}</strong></span>
-                            <span>Move <strong>{unit.move}</strong></span>
-                          </div>
+                        <div className="combat-card-header">
+                          <span className="combat-card-type"><strong>{unit.type}</strong></span>
+                          <span className="combat-card-id">{unit.id}</span>
                         </div>
+                        <div className="combat-card-stats">Attack: {attackStats.damage} · Range: {attackStats.range}</div>
                       </button>
                     )
                   })
@@ -976,6 +1050,52 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
         </section>
 
         <aside className="panel rail rail-right">
+          {isCombatPhase ? (
+            <section className="section-block panel-subtle">
+              <div className="card-head">
+                <div>
+                  <p className="eyebrow">Combat</p>
+                  <h3>Valid Targets</h3>
+                </div>
+                <span className="mini-tag">{combatTargetOptions.length} in range</span>
+              </div>
+              <p className="detail-copy">
+                Pick a target from the list. The list only includes targets currently in the active attack range.
+              </p>
+              {combatTargetOptions.length > 0 ? (
+                <div className="attacker-selection-list" data-testid="combat-target-list">
+                  {combatTargetOptions.map((target) => {
+                    const isSelected = selectedCombatTargetId === target.id
+                    return (
+                      <button
+                        key={target.id}
+                        type="button"
+                        className={[
+                          'attacker-card-button',
+                          isSelected ? 'is-selected' : '',
+                          `tone-${statusTone(target.status)}`,
+                        ].join(' ')}
+                        aria-pressed={isSelected}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setSelectedCombatTargetId(target.id)
+                        }}
+                      >
+                        <div className="combat-card-header">
+                          <span className="combat-card-type"><strong>{target.label}</strong></span>
+                          <span className="combat-card-id">{target.id}</span>
+                        </div>
+                        <div className="combat-card-stats">{target.detail}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="summary-line">No valid targets are currently in range.</p>
+              )}
+            </section>
+          ) : null}
+
           <section className="section-block panel-subtle">
             <div className="card-head">
               <div>

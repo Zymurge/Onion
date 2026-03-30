@@ -48,7 +48,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
-  const activeCombatRole = phase === null ? null : phase.startsWith('ONION_') ? 'onion' : phase.startsWith('DEFENDER_') ? 'defender' : null
+  const activeCombatRole = phase === 'ONION_COMBAT' ? 'onion' : phase === 'DEFENDER_COMBAT' ? 'defender' : null
 
   const selectedUnitSet = useMemo(() => {
     const selectedIds = new Set<string>()
@@ -146,7 +146,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
       return false
     }
 
-    return occupant.id === onion.id ? activeCombatRole === 'onion' : activeCombatRole === 'defender'
+    return occupant.id === onion.id ? false : activeCombatRole === 'defender'
   }
 
   return (

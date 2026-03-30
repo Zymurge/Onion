@@ -131,6 +131,26 @@ describe('HexMapBoard', () => {
 		expect(onMoveUnit).toHaveBeenCalledWith('puss-1', { q: 2, r: 1 })
 	})
 
+	it('allows the Onion to be selected from the map during Onion movement', () => {
+		const onSelectUnit = vi.fn()
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="ONION_MOVE"
+				selectedUnitIds={["onion-1"]}
+				onSelectUnit={onSelectUnit}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
+		expect(onSelectUnit).toHaveBeenCalledWith('onion-1', false)
+	})
+
 	it('highlights every selected unit across the board when a selection group is active', () => {
 		const onSelectUnit = vi.fn()
 		const sharedOnion: BattlefieldOnionView = {
@@ -275,7 +295,7 @@ describe('HexMapBoard', () => {
 	})
 
 	it('does not show an error bubble when the selected unit is ineligible (e.g., disabled)', () => {
-		const disabledDefender = { ...defenders[0], status: 'disabled' }
+		const disabledDefender = { ...defenders[0], status: 'disabled' as const }
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}

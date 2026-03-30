@@ -260,6 +260,31 @@ describe('App orchestration (injected game client)', () => {
 		expect(onionCard.textContent).toContain('Moves 1')
 	})
 
+	it('falls back to onion tread allowance when remaining movement is not provided', async () => {
+		const snapshot = {
+			...createConnectedBattlefieldSnapshot(),
+			phase: 'ONION_MOVE' as const,
+			authoritativeState: createMoveGameState(16),
+			movementRemainingByUnit: undefined,
+		}
+		const session = { role: 'onion' as const }
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		expect(onionCard.textContent).toContain('Moves 2')
+		await userEvent.click(onionCard)
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-1-2'))
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 1, r: 2 } })
+	})
+
 	it('selects a unit locally without submitting an action', async () => {
 		const user = userEvent.setup()
 		const snapshot = createConnectedBattlefieldSnapshot()
@@ -545,10 +570,155 @@ describe('App orchestration (injected game client)', () => {
 		await screen.findByText(/Selected unit: wolf-2/i)
 
 		await user.click(screen.getByRole('button', { name: /main battery/i }))
-		await user.click(screen.getByRole('button', { name: /secondary battery/i }), { ctrlKey: true })
+		fireEvent.click(screen.getByRole('button', { name: /secondary battery/i }), { ctrlKey: true })
 
 		expect(screen.getByTestId('hex-cell-3-1').getAttribute('class')).toContain('hex-cell-combat-range')
 		expect(screen.getByTestId('hex-cell-4-1').getAttribute('class')).not.toContain('hex-cell-combat-range')
+	})
+
+	it('renders a right-rail target list filtered to the active combat range', async () => {
+		const user = userEvent.setup()
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'ONION_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				onion: {
+					...baseSnapshot.authoritativeState.onion,
+					position: { q: 2, r: 2 },
+					weapons: [
+						{
+							id: 'main-1',
+							name: 'Main Battery',
+							attack: 4,
+							range: 1,
+							defense: 4,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+					],
+				},
+				defenders: {
+					'near-1': {
+						id: 'near-1',
+						type: 'Puss',
+						position: { q: 3, r: 2 },
+						status: 'operational' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 4,
+								range: 2,
+								defense: 3,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'far-1': {
+						id: 'far-1',
+						type: 'BigBadWolf',
+						position: { q: 7, r: 7 },
+						status: 'operational' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 4,
+								range: 2,
+								defense: 2,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+			},
+			movementRemainingByUnit: {
+				...baseSnapshot.movementRemainingByUnit,
+			},
+		}
+		const session = { role: 'onion' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByRole('button', { name: /main battery/i })
+		await user.click(screen.getByRole('button', { name: /main battery/i }))
+
+		const targetRail = screen.getByTestId('combat-target-list')
+		expect(targetRail.textContent).toContain('near-1')
+		expect(targetRail.textContent).not.toContain('far-1')
+
+		await user.click(screen.getByRole('button', { name: /near-1/i }))
+		expect(screen.getByRole('button', { name: /near-1/i }).getAttribute('class')).toContain('is-selected')
+	})
+
+	it('renders onion weapon targets in defender combat', async () => {
+		const user = userEvent.setup()
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'DEFENDER_COMBAT' as const,
+			selectedUnitId: 'wolf-2',
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				onion: {
+					...baseSnapshot.authoritativeState.onion,
+					weapons: [
+						{
+							id: 'main-1',
+							name: 'Main Battery',
+							attack: 4,
+							range: 4,
+							defense: 4,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+						{
+							id: 'secondary-1',
+							name: 'Secondary Battery',
+							attack: 3,
+							range: 2,
+							defense: 3,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+					],
+				},
+				defenders: {
+					...baseSnapshot.authoritativeState.defenders,
+					'wolf-2': {
+						...baseSnapshot.authoritativeState.defenders['wolf-2'],
+						position: { q: 1, r: 1 },
+					},
+				},
+			},
+		}
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const targetList = await screen.findByTestId('combat-target-list')
+		expect(targetList.textContent).toContain('Main Battery')
+		expect(targetList.textContent).toContain('Secondary Battery')
+		expect(targetList.textContent).toContain('Treads')
+
+		await user.click(screen.getByRole('button', { name: /Main Battery/i }))
+		expect(screen.getByRole('button', { name: /Main Battery/i }).getAttribute('aria-pressed')).toBe('true')
 	})
 
 	it('supports grouped selection from the rail and map, ctrl-removal, and empty-space deselection', async () => {
