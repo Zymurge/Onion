@@ -28,6 +28,9 @@ When a behavior crosses layers, test the narrowest stable boundary that owns the
 - If the code coordinates state in the App or CLI shell, test the orchestration layer.
 - If the behavior depends on rendering, interaction, or network wiring across layers, use component or integration tests.
 - Reserve E2E for user-critical paths that need the whole stack.
+- When tests need to identify a selected unit or target, use the stable unit id plus the selection state contract instead of visible copy.
+- Prefer `role`/accessible name for locating generic controls, `data-testid` for rail selection controls, board occupants, and hex cells, and `data-selected="true"` for asserting selection state.
+- Do not anchor selection tests to text like `Selected unit: ...` or to styling class names as the primary contract.
 
 ## Execution Profiles
 

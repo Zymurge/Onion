@@ -181,7 +181,7 @@ describe('App connect gate', () => {
 			screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.classList.contains('phase-chip-active') === true),
 		).not.toBeNull()
 
-		await screen.findByText(/Selected unit: wolf-2/i)
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
 	})
 
 	it('renders the role badge as inactive when it is not that role’s turn', async () => {

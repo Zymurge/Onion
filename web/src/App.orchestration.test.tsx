@@ -204,10 +204,11 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		expect(await screen.findByRole('button', { name: /dragon-7/i })).not.toBeNull()
-		expect(screen.queryByRole('button', { name: /wolf-2/i })).toBeNull()
-		expect(screen.getByText(/Selected unit: dragon-7/i)).not.toBeNull()
-		expect(screen.getByText(/Dragon · operational · \(0,1\)/i)).not.toBeNull()
+		const dragonButton = await screen.findByTestId('combat-unit-dragon-7')
+		const dragonUnit = await screen.findByTestId('hex-unit-dragon-7')
+		expect(dragonButton.getAttribute('data-selected')).toBe('true')
+		expect(dragonUnit.getAttribute('data-selected')).toBe('true')
+		expect(screen.queryByTestId('combat-unit-wolf-2')).toBeNull()
 	})
 
 	it('renders hex board bounds from the authoritative scenario map instead of the mock map', async () => {
@@ -299,11 +300,19 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByText(/Selected unit: wolf-2/i)
+		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
+		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		expect(wolfButton.getAttribute('data-selected')).toBe('true')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
-		await user.click(screen.getByRole('button', { name: /puss-1/i }))
+		await user.click(screen.getByTestId('combat-unit-puss-1'))
 
-		await screen.findByText(/Selected unit: puss-1/i)
+		const snapshotPussButton = await screen.findByTestId('combat-unit-puss-1')
+		const snapshotPussUnit = await screen.findByTestId('hex-unit-puss-1')
+		expect(snapshotPussButton.getAttribute('data-selected')).toBe('true')
+		expect(snapshotPussUnit.getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('combat-unit-wolf-2').getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 		expect(submitAction).not.toHaveBeenCalled()
 	})
 
@@ -322,7 +331,10 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByText(/Selected unit: wolf-2/i)
+		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
+		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		expect(wolfButton.getAttribute('data-selected')).toBe('true')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
 		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
 		await user.click(screen.getByRole('button', { name: /advance phase/i }))
@@ -348,7 +360,10 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByText(/Selected unit: wolf-2/i)
+		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
+		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		expect(wolfButton.getAttribute('data-selected')).toBe('true')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
 		fireEvent.contextMenu(screen.getByTestId('hex-cell-7-6'))
 
@@ -371,7 +386,10 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByText(/Selected unit: wolf-2/i)
+		const moveWolfButton = await screen.findByTestId('combat-unit-wolf-2')
+		const moveWolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		expect(moveWolfButton.getAttribute('data-selected')).toBe('true')
+		expect(moveWolfUnit.getAttribute('data-selected')).toBe('true')
 
 		fireEvent.contextMenu(screen.getByTestId('hex-cell-7-6'))
 
@@ -400,7 +418,8 @@ describe('App orchestration (injected game client)', () => {
 		expect(
 			screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.classList.contains('phase-chip-active') === true),
 		).not.toBeNull()
-		expect(screen.getByText(/Selected unit: puss-1/i)).not.toBeNull()
+		expect(screen.getByTestId('combat-unit-puss-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
 	})
 
 	it('renders attacker selection weapons during onion combat', async () => {
@@ -446,14 +465,15 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByText(/Selected unit: wolf-2/i)
+		await screen.findByTestId('combat-weapon-main-1')
+		await screen.findByTestId('combat-weapon-secondary-1')
 		expect(screen.getByText(/Attacker Selection/i)).not.toBeNull()
-		expect(screen.getByRole('button', { name: /main battery/i })).not.toBeNull()
-		expect(screen.getByRole('button', { name: /secondary battery/i })).not.toBeNull()
+		expect(screen.getByTestId('combat-weapon-main-1')).not.toBeNull()
+		expect(screen.getByTestId('combat-weapon-secondary-1')).not.toBeNull()
 		expect(screen.queryByText(/Defender command stack/i)).toBeNull()
 
-		await user.click(screen.getByRole('button', { name: /main battery/i }))
-		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('class')).toContain('hex-unit-stack-selected')
+		await user.click(screen.getByTestId('combat-weapon-main-1'))
+		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
 	})
 
 	it('sorts destroyed defenders to the bottom and disables them in the roster', async () => {
@@ -511,15 +531,16 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const aliveButton = await screen.findByRole('button', { name: /alive-1/i })
-		const deadButton = await screen.findByRole('button', { name: /dead-1/i })
+		const aliveButton = await screen.findByTestId('combat-unit-alive-1')
+		const deadButton = await screen.findByTestId('combat-unit-dead-1')
 
 		expect(aliveButton.compareDocumentPosition(deadButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
 		expect((deadButton as HTMLButtonElement).disabled).toBe(true)
 		expect(deadButton.getAttribute('class')).toContain('tone-destroyed')
 
-		await userEvent.click(screen.getByRole('button', { name: /dead-1/i }))
-		expect(screen.getByText(/Selected unit: alive-1/i)).not.toBeNull()
+		await userEvent.click(screen.getByTestId('combat-unit-dead-1'))
+		expect(screen.getByTestId('combat-unit-alive-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-alive-1').getAttribute('data-selected')).toBe('true')
 	})
 
 	it('renders a shared combat range overlay for selected onion weapons', async () => {
@@ -567,10 +588,11 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByText(/Selected unit: wolf-2/i)
+		await screen.findByTestId('combat-weapon-main-1')
+		await screen.findByTestId('combat-weapon-secondary-1')
 
-		await user.click(screen.getByRole('button', { name: /main battery/i }))
-		fireEvent.click(screen.getByRole('button', { name: /secondary battery/i }), { ctrlKey: true })
+		await user.click(screen.getByTestId('combat-weapon-main-1'))
+		fireEvent.click(screen.getByTestId('combat-weapon-secondary-1'), { ctrlKey: true })
 
 		expect(screen.getByTestId('hex-cell-3-1').getAttribute('class')).toContain('hex-cell-combat-range')
 		expect(screen.getByTestId('hex-cell-4-1').getAttribute('class')).not.toContain('hex-cell-combat-range')
@@ -650,15 +672,15 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByRole('button', { name: /main battery/i })
-		await user.click(screen.getByRole('button', { name: /main battery/i }))
+		await screen.findByTestId('combat-weapon-main-1')
+		await user.click(screen.getByTestId('combat-weapon-main-1'))
 
 		const targetRail = screen.getByTestId('combat-target-list')
 		expect(targetRail.textContent).toContain('near-1')
 		expect(targetRail.textContent).not.toContain('far-1')
 
-		await user.click(screen.getByRole('button', { name: /near-1/i }))
-		expect(screen.getByRole('button', { name: /near-1/i }).getAttribute('class')).toContain('is-selected')
+		await user.click(screen.getByTestId('combat-target-near-1'))
+		expect(screen.getByTestId('combat-target-near-1').getAttribute('data-selected')).toBe('true')
 	})
 
 	it('renders onion weapon targets in defender combat', async () => {
@@ -717,8 +739,8 @@ describe('App orchestration (injected game client)', () => {
 		expect(targetList.textContent).toContain('Secondary Battery')
 		expect(targetList.textContent).toContain('Treads')
 
-		await user.click(screen.getByRole('button', { name: /Main Battery/i }))
-		expect(screen.getByRole('button', { name: /Main Battery/i }).getAttribute('aria-pressed')).toBe('true')
+		await user.click(screen.getByTestId('combat-target-weapon:main-1'))
+		expect(screen.getByTestId('combat-target-weapon:main-1').getAttribute('data-selected')).toBe('true')
 	})
 
 	it('supports grouped selection from the rail and map, ctrl-removal, and empty-space deselection', async () => {
@@ -733,28 +755,31 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByText(/Selected unit: wolf-2/i)
+		const groupedWolfButton = await screen.findByTestId('combat-unit-wolf-2')
+		const groupedWolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		expect(groupedWolfButton.getAttribute('data-selected')).toBe('true')
+		expect(groupedWolfUnit.getAttribute('data-selected')).toBe('true')
 
-		const pussButton = screen.getByRole('button', { name: /puss-1/i })
-		const wolfButton = screen.getByRole('button', { name: /wolf-2/i })
+		const pussButton = screen.getByTestId('combat-unit-puss-1')
+		const wolfButton = screen.getByTestId('combat-unit-wolf-2')
 
 		await userEvent.click(pussButton)
-		expect(pussButton.getAttribute('class')).toContain('is-selected')
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).toContain('hex-unit-stack-selected')
+		expect(pussButton.getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
 
 		fireEvent.click(screen.getByTestId('hex-unit-wolf-2'), { ctrlKey: true })
-		expect(wolfButton.getAttribute('class')).toContain('is-selected')
-		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('class')).toContain('hex-unit-stack-selected')
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).toContain('hex-unit-stack-selected')
+		expect(wolfButton.getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
 
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
-		expect(pussButton.getAttribute('class') ?? '').not.toContain('is-selected')
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class') ?? '').not.toContain('hex-unit-stack-selected')
-		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('class')).toContain('hex-unit-stack-selected')
+		expect(pussButton.getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
 
 		fireEvent.click(screen.getByTestId('hex-cell-7-7'))
-		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('class') ?? '').not.toContain('hex-unit-stack-selected')
-		expect(wolfButton.getAttribute('class') ?? '').not.toContain('is-selected')
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
+		expect(wolfButton.getAttribute('data-selected')).toBe('false')
 	})
 
 	it('sends end phase through the debug control', async () => {

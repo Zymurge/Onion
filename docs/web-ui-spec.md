@@ -175,6 +175,13 @@ Exit Criteria:
 3. Panel visibility and layout preferences.
 4. Loading/submission statuses and API error surfaces.
 
+## Selection Contract
+
+1. Selection state on the web surface must be exposed with stable unit ids.
+2. Rail controls may expose `aria-pressed` when the selected state is represented by a button, but the shared test contract is `data-selected="true"` on the selected rail item and matching map occupant.
+3. Rail controls, map occupants, and hex cells must expose stable `data-testid` hooks keyed by unit id or coordinate so tests can pair a rail selection with the same unit on the board.
+4. Tests should assert selection and deselection by id and selection state, not by user-facing narration text.
+
 ## Rule
 
 Never mutate server-derived game state as if it were authoritative. Always reconcile

@@ -66,6 +66,7 @@ describe('HexMapBoard', () => {
 
 		const selectedCell = screen.getByTestId('hex-cell-1-1')
 		const reachableCell = screen.getByTestId('hex-cell-2-1')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
 		expect(selectedCell?.getAttribute('class')).toContain('hex-cell-selected')
 		expect(selectedCell?.getAttribute('class')).toContain('hex-cell-move-ready')
 		expect(reachableCell?.getAttribute('class')).toContain('hex-cell-reachable')
@@ -151,6 +152,52 @@ describe('HexMapBoard', () => {
 		expect(onSelectUnit).toHaveBeenCalledWith('onion-1', false)
 	})
 
+	it('selects a defender target directly from the map during Onion combat', () => {
+		const onSelectCombatTarget = vi.fn()
+		const onSelectUnit = vi.fn()
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="ONION_COMBAT"
+				selectedUnitIds={["weapon:main-1"]}
+				selectedCombatTargetId={null}
+				onSelectUnit={onSelectUnit}
+				onSelectCombatTarget={onSelectCombatTarget}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		fireEvent.click(screen.getByTestId('hex-unit-puss-1'))
+		expect(onSelectCombatTarget).toHaveBeenCalledWith('puss-1')
+		expect(onSelectUnit).not.toHaveBeenCalled()
+	})
+
+	it('selects a defender target from a right-click during Onion combat', () => {
+		const onSelectCombatTarget = vi.fn()
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="ONION_COMBAT"
+				selectedUnitIds={["weapon:main-1"]}
+				selectedCombatTargetId={null}
+				onSelectUnit={vi.fn()}
+				onSelectCombatTarget={onSelectCombatTarget}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		fireEvent.contextMenu(screen.getByTestId('hex-unit-puss-1'))
+		expect(onSelectCombatTarget).toHaveBeenCalledWith('puss-1')
+	})
+
 	it('highlights every selected unit across the board when a selection group is active', () => {
 		const onSelectUnit = vi.fn()
 		const sharedOnion: BattlefieldOnionView = {
@@ -179,8 +226,8 @@ describe('HexMapBoard', () => {
 
 		expect(screen.getByTestId('hex-unit-onion-1')).not.toBeNull()
 		expect(screen.getByTestId('hex-unit-puss-1')).not.toBeNull()
-		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('class')).toContain('hex-unit-stack-selected')
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).not.toContain('hex-unit-stack-selected')
+		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-cell-selected')
 
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
@@ -230,8 +277,8 @@ describe('HexMapBoard', () => {
 		expect(onSelectUnit).not.toHaveBeenCalled()
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
 		expect(onSelectUnit).not.toHaveBeenCalled()
-		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('class')).toContain('hex-unit-stack-selected')
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).not.toContain('hex-unit-stack-selected')
+		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 	})
 
 	it('ignores right-clicks when the selected unit is invalid', () => {
