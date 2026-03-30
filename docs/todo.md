@@ -30,7 +30,7 @@ break down into features/tasks as needed.
     - [x] Reuse a shared confirmation view that shows attack:defense ratio and relevant modifiers.
     - [x] Keep map selection and rail selection in sync when a target is chosen.
   - [ ] Step three: Unify combat math in a shared calculator used by both engine and web UI, including odds ratio and future terrain/stacking modifiers. This is shared rules logic only; base defense remains owned by the unit/weapon model and is out of scope.
-    - [ ] Define the shared combat calculation contract: inputs, outputs, and which side is authoritative.
+    - [x] Define the shared combat calculation contract: inputs, outputs, and which side is authoritative.
     - [ ] Extract a pure shared calculator for odds and defense modifiers.
     - [ ] Add tests around the shared rules and remove duplicate local calculations.
     - [ ] Move backend combat validation/execution to that shared calculator.
