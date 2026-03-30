@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
+import { CombatConfirmationView } from './components/CombatConfirmationView'
 import {
   GameClientSeamError,
   type GameAction,
@@ -105,6 +106,36 @@ function parseRangeValue(rangeText: string): number {
   return Number.isNaN(parsedRange) ? 0 : parsedRange
 }
 
+function getTerrainTypeAt(scenarioMap: { width: number; height: number; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
+  return scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t
+}
+
+function getDisplayDefense(type: string, squads: number | undefined, terrainType: number | undefined): number {
+  if (type === 'LittlePigs') {
+    const stackSize = squads ?? 1
+    return stackSize + (terrainType === 1 ? 1 : 0)
+  }
+
+  switch (type) {
+    case 'BigBadWolf':
+      return 4
+    case 'Puss':
+      return 3
+    case 'Witch':
+      return 2
+    case 'LordFarquaad':
+      return 0
+    case 'Pinocchio':
+      return 3
+    case 'Dragon':
+      return 3
+    case 'Castle':
+      return 0
+    default:
+      return 0
+  }
+}
+
 function isWeaponSelectionId(selectionId: string) {
   return selectionId.startsWith('weapon:')
 }
@@ -145,6 +176,8 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
       move: activePhase === null ? 0 : movementRemainingByUnit[defender.id ?? defenderId] ?? 0,
       weapons: formatWeaponSummary(defender.weapons),
       attack: formatAttackSummary(defender.weapons),
+      defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
+      squads: defender.squads,
       actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
       rosterOrder: index,
     }))
@@ -253,6 +286,8 @@ type CombatTargetOption = {
   status: UnitStatus
   label: string
   detail: string
+  defense: number
+  modifiers: string[]
 }
 
 function buildCombatTargetOptions(
@@ -260,6 +295,9 @@ function buildCombatTargetOptions(
   combatRangeHexKeys: ReadonlySet<string>,
   displayedDefenders: ReadonlyArray<BattlefieldUnit>,
   displayedOnion: BattlefieldOnionView | null,
+  activeAttackStrength: number,
+  activeAttackCount: number,
+  displayedScenarioMap: { width: number; height: number; hexes: TerrainHex[] } | null,
 ): CombatTargetOption[] {
   if (activeCombatRole === null) {
     return []
@@ -276,7 +314,13 @@ function buildCombatTargetOptions(
         r: unit.r,
         status: unit.status,
         label: unit.type,
-        detail: `Defense: ${parseRangeValue(parseAttackStats(unit.attack).damage)}`,
+        defense: unit.defense ?? 0,
+        modifiers: [
+          ...(activeAttackCount > 1 ? [`Combined fire: ${activeAttackCount} attackers`] : []),
+          ...(unit.type === 'LittlePigs' && unit.squads !== undefined && unit.squads > 1 ? [`Stacked infantry: ${unit.squads} squads`] : []),
+          ...(unit.type === 'LittlePigs' && getTerrainTypeAt(displayedScenarioMap, unit.q, unit.r) === 1 ? ['Ridgeline cover: +1 defense'] : []),
+        ],
+        detail: `Defense: ${unit.defense ?? 0}`,
       }))
   }
 
@@ -293,6 +337,11 @@ function buildCombatTargetOptions(
       r: displayedOnion.r,
       status: weapon.status as UnitStatus,
       label: weapon.name,
+        defense: weapon.defense,
+        modifiers: [
+          ...(activeAttackCount > 1 ? [`Combined fire: ${activeAttackCount} attackers`] : []),
+          `Subsystem target: ${weapon.name}`,
+        ],
       detail: `Defense: ${weapon.defense}`,
     }))
 
@@ -304,6 +353,11 @@ function buildCombatTargetOptions(
       r: displayedOnion.r,
       status: displayedOnion.status as UnitStatus,
       label: 'Treads',
+      defense: activeAttackStrength,
+      modifiers: [
+        ...(activeAttackCount > 1 ? [`Combined fire: ${activeAttackCount} attackers`] : []),
+        'Tread attack: damage applies directly to treads',
+      ],
       detail: `Treads: ${displayedOnion.treads}`,
     },
     ...weaponTargets,
@@ -433,6 +487,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const activeMode: Mode = clientSnapshot?.mode ?? 'fire'
   const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
   const activeCombatRole = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
+  const displayedScenarioMap = buildScenarioMap(clientSnapshot)
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -561,9 +616,36 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     [activePhase, activeTurnActive, clientSnapshot],
   )
   const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
-  const displayedScenarioMap = buildScenarioMap(clientSnapshot)
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
   const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
+  const selectedCombatAttackStrength = useMemo(() => {
+    if (!isCombatPhase) {
+      return 0
+    }
+
+    if (activeCombatRole === 'onion') {
+      const selectedWeaponIds = new Set(activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId))
+      return (displayedOnion?.weaponDetails ?? [])
+        .filter((weapon) => weapon.status === 'ready' && selectedWeaponIds.has(weapon.id))
+        .reduce((total, weapon) => total + weapon.attack, 0)
+    }
+
+    return displayedDefenders
+      .filter((unit) => activeSelectedUnitIds.includes(unit.id))
+      .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
+  }, [activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, isCombatPhase])
+  const selectedCombatAttackCount = useMemo(() => {
+    if (!isCombatPhase) {
+      return 0
+    }
+
+    if (activeCombatRole === 'onion') {
+      return activeSelectedUnitIds.filter(isWeaponSelectionId).length
+    }
+
+    return displayedDefenders.filter((unit) => activeSelectedUnitIds.includes(unit.id)).length
+  }, [activeCombatRole, activeSelectedUnitIds, displayedDefenders, isCombatPhase])
+  const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
   const combatRangeHexKeys = useMemo(() => {
     if (!isCombatPhase || displayedScenarioMap === null) {
       return new Set<string>()
@@ -573,9 +655,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     return buildCombatRangeHexKeys(combatSources, displayedScenarioMap)
   }, [activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, displayedScenarioMap, isCombatPhase])
   const combatTargetOptions = useMemo(
-    () => buildCombatTargetOptions(activeCombatRole, combatRangeHexKeys, displayedDefenders, displayedOnion),
-    [activeCombatRole, combatRangeHexKeys, displayedDefenders, displayedOnion],
+    () => buildCombatTargetOptions(activeCombatRole, combatRangeHexKeys, displayedDefenders, displayedOnion, selectedCombatAttackStrength, selectedCombatAttackCount, displayedScenarioMap),
+    [activeCombatRole, combatRangeHexKeys, displayedDefenders, displayedOnion, selectedCombatAttackStrength, selectedCombatAttackCount, displayedScenarioMap],
   )
+  const selectedCombatTarget = selectedCombatTargetId === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetId) ?? null
 
   useEffect(() => {
     if (selectedCombatTargetId !== null && !combatTargetOptions.some((target) => target.id === selectedCombatTargetId)) {
@@ -842,7 +925,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                     Attacker Selection
                   </h2>
                 </div>
-                <span className="mini-tag mini-tag-live">step 1</span>
+                <span className="mini-tag mini-tag-live" data-testid="combat-attack-total">{selectedCombatAttackLabel}</span>
               </div>
 
               <div className="attacker-selection-list">
@@ -1054,6 +1137,15 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 </div>
                 <span className="mini-tag">{combatTargetOptions.length} in range</span>
               </div>
+              {selectedCombatTarget !== null ? (
+                <CombatConfirmationView
+                  title={`Confirm attack on ${selectedCombatTarget.label}`}
+                  attackStrength={selectedCombatAttackStrength}
+                  defenseStrength={selectedCombatTarget.defense}
+                  modifiers={selectedCombatTarget.modifiers}
+                  dataTestId="combat-confirmation-view"
+                />
+              ) : null}
               {combatTargetOptions.length > 0 ? (
                 <div className="attacker-selection-list" data-testid="combat-target-list">
                   {combatTargetOptions.map((target) => {

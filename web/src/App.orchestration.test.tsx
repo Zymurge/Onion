@@ -678,9 +678,79 @@ describe('App orchestration (injected game client)', () => {
 		const targetRail = screen.getByTestId('combat-target-list')
 		expect(targetRail.textContent).toContain('near-1')
 		expect(targetRail.textContent).not.toContain('far-1')
+		expect(targetRail.textContent).toContain('Defense: 3')
 
 		await user.click(screen.getByTestId('combat-target-near-1'))
 		expect(screen.getByTestId('combat-target-near-1').getAttribute('data-selected')).toBe('true')
+	})
+
+	it('shows the shared combat confirmation view for the selected target', async () => {
+		const user = userEvent.setup()
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'ONION_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				onion: {
+					...baseSnapshot.authoritativeState.onion,
+					position: { q: 2, r: 2 },
+					weapons: [
+						{
+							id: 'main-1',
+							name: 'Main Battery',
+							attack: 4,
+							range: 1,
+							defense: 4,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+					],
+				},
+				defenders: {
+					'near-1': {
+						id: 'near-1',
+						type: 'LittlePigs',
+						position: { q: 3, r: 2 },
+						status: 'operational' as const,
+						squads: 1,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 3,
+								range: 2,
+								defense: 2,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+			},
+			scenarioMap: {
+				...baseSnapshot.scenarioMap,
+				hexes: [{ q: 3, r: 2, t: 1 }],
+			},
+		}
+		const session = { role: 'onion' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByTestId('combat-weapon-main-1')
+		await user.click(screen.getByTestId('combat-weapon-main-1'))
+		await user.click(screen.getByTestId('combat-target-near-1'))
+
+		const confirmationView = await screen.findByTestId('combat-confirmation-view')
+		expect(confirmationView.textContent).toContain('Attack:Defense ratio')
+		expect(confirmationView.textContent).toContain('2:1')
+		expect(confirmationView.textContent).toContain('Ridgeline cover: +1 defense')
 	})
 
 	it('renders onion weapon targets in defender combat', async () => {
@@ -759,6 +829,7 @@ describe('App orchestration (injected game client)', () => {
 		const groupedWolfUnit = await screen.findByTestId('hex-unit-wolf-2')
 		expect(groupedWolfButton.getAttribute('data-selected')).toBe('true')
 		expect(groupedWolfUnit.getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 4')
 
 		const pussButton = screen.getByTestId('combat-unit-puss-1')
 		const wolfButton = screen.getByTestId('combat-unit-wolf-2')
@@ -766,20 +837,24 @@ describe('App orchestration (injected game client)', () => {
 		await userEvent.click(pussButton)
 		expect(pussButton.getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 4')
 
 		fireEvent.click(screen.getByTestId('hex-unit-wolf-2'), { ctrlKey: true })
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 8')
 
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
 		expect(pussButton.getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 4')
 
 		fireEvent.click(screen.getByTestId('hex-cell-7-7'))
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 		expect(wolfButton.getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 0')
 	})
 
 	it('sends end phase through the debug control', async () => {

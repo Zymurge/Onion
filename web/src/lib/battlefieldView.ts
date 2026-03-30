@@ -31,6 +31,8 @@ export type BattlefieldUnit = {
   move: number
   weapons: string
   attack: string
+  defense?: number
+  squads?: number
   actionableModes: Mode[]
 }
 
