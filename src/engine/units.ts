@@ -50,6 +50,32 @@ export interface Weapon {
 /**
  * Special abilities that units can have.
  */
+export interface UnitTerrainRule {
+  /** Whether the unit can enter or cross this terrain feature. */
+  canCross?: boolean
+  /** Whether the unit can benefit from this terrain's defense cover. */
+  canAccessCover?: boolean
+  /** Whether the unit ignores underlying terrain while on this feature. */
+  ignoresUnderlyingTerrain?: boolean
+}
+
+/**
+ * Structured outcome for ram resolution against a unit.
+ */
+export interface RamProfile {
+  /** Result category when rammed. */
+  outcome: 'destroyed' | 'disabled' | 'tread-loss' | 'special'
+  /** Tread cost applied to the ramming unit when outcome is tread-loss. */
+  treadLoss?: 0 | 1 | 2 | 3
+  /** Inclusive die range for a disabled outcome. */
+  disableRollRange?: [number, number]
+  /** Freeform note for exceptional cases such as special attack resolution. */
+  specialNote?: string
+}
+
+/**
+ * Special abilities that units can have.
+ */
 export interface UnitAbilities {
   /** Can move and fire in the same turn (GEV) */
   secondMove?: boolean
@@ -57,6 +83,10 @@ export interface UnitAbilities {
   secondMoveAllowance?: number
   /** Can move through enemy units and ram them */
   canRam?: boolean
+  /** Per-terrain capability rules for movement and cover. */
+  terrainRules?: Record<string, UnitTerrainRule>
+  /** Structured ramming outcome for this unit when it is rammed. */
+  ramProfile?: RamProfile
   /** Maximum stacks per hex (1 for most units, 3 for infantry) */
   maxStacks: number
   /** Can cross ridgelines (Onion) */
@@ -340,7 +370,13 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movement: 1,
     defense: 1,     // per squad; getUnitDefense multiplies by unit.squads
     cost: 1,        // per 3 squads
-    abilities: { maxStacks: 3, canCrossRidgelines: true },
+    abilities: {
+      maxStacks: 3,
+      canCrossRidgelines: true,
+      terrainRules: {
+        ridgeline: { canCross: true, canAccessCover: true },
+      },
+    },
     weapons: [makeWeapon('rifle', 'Rifle', 1, 1, 1)],
   },
 
@@ -358,7 +394,14 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     type: 'TheOnion',
     movement: 3,    // max MA (at 31–45 treads); onionMovementAllowance() gives actual MA
     defense: 0,     // Onion has no unit-level defense; each subsystem has its own
-    abilities: { maxStacks: 1, canCrossRidgelines: true, canRam: true },
+    abilities: {
+      maxStacks: 1,
+      canCrossRidgelines: true,
+      canRam: true,
+      terrainRules: {
+        ridgeline: { canCross: true },
+      },
+    },
     weapons: [
       makeWeapon('main', 'Main Battery', 4, 3, 4, true),
       makeWeapon('secondary_1', 'Secondary Battery', 3, 2, 3, true),

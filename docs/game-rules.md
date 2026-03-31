@@ -57,6 +57,10 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
   - **Ridgelines**:
     - **Movement**: Impassable to armored units (Puss, Pinocchio, Dragon, Witch, Big Bad Wolf). The Onion and Little Pigs can cross ridgelines, but it costs 1 extra movement point to enter the hex.
     - **Cover**: Little Pigs in a Ridgeline hex gain +1 to their Defense strength (e.g., a 3-squad stack in cover has Defense 4).
+- **Movement and terrain modeling note**:
+  - The implementation should keep terrain effects as data, not hard-coded one-off checks. Unit descriptions should be able to declare per-terrain capabilities such as `canCrossRidgelines` or `canAccessRidgeCover`, and future terrain types should map to the same pattern.
+  - Road and bridge behavior should be modeled separately from hex terrain where needed, since some effects depend on the path of movement rather than the destination hex alone.
+  - Ramming outcomes should also live on the unit description as a structured rule, not as a plain numeric defense stat. That lets the model express destroyed, disabled, or tread-loss results without overloading one field.
 - **Line of Sight & Angles**:
   - Engagement angles (Front/Back/Side) do **not** affect combat modifiers in standard rules. All units have 360-degree firing arcs.
 

@@ -147,8 +147,17 @@ function getTerrainRule(staticRules: CombatStaticRules, terrainType: TerrainType
 	return staticRules.terrainRules[terrainType]
 }
 
+function canUseTerrainCover(definition: UnitDefinition, terrainType: TerrainType): boolean {
+	return definition.abilities.terrainRules?.[terrainType]?.canAccessCover === true
+}
+
 function getTerrainDefenseBonus(staticRules: CombatStaticRules, combatant: CombatCombatantState): number {
 	if (combatant.terrainType === undefined) {
+		return 0
+	}
+
+	const definition = getUnitDefinitionByType(staticRules, combatant.type)
+	if (!canUseTerrainCover(definition, combatant.terrainType)) {
 		return 0
 	}
 
@@ -196,6 +205,10 @@ function resolveDefenseStrength(staticRules: CombatStaticRules, liveState: Comba
 
 function resolveModifiers(staticRules: CombatStaticRules, liveState: CombatLiveState, targetId: string): ReadonlyArray<CombatModifier> {
 	const target = getCombatant(staticRules, liveState, targetId)
+	const definition = getUnitDefinitionByType(staticRules, target.type)
+	if (target.terrainType === undefined || !canUseTerrainCover(definition, target.terrainType)) {
+		return []
+	}
 	if (target.terrainType !== 'ridgeline') {
 		return []
 	}

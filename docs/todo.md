@@ -35,7 +35,7 @@ break down into features/tasks as needed.
     - [x] Define the shared combat calculation contract: inputs, outputs, and which side is authoritative.
     - [x] Add per-terrain capability and ram profile fields to unit descriptions so combat and movement rules stay data-driven.
     - [x] Extract a pure shared calculator for odds and defense modifiers.
-    - [ ] Add tests around the shared rules and remove duplicate local calculations.
+    - [x] Add tests around the shared rules and remove duplicate local calculations.
     - [ ] Move backend combat validation/execution to that shared calculator.
     - [ ] Move the web confirmation/preview UI to the same calculator.
   - [ ] Step four: combat results toast, then board reconciliation after dismissal.

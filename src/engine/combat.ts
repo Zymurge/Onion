@@ -9,6 +9,7 @@ import logger from '../logger.js'
 import type { Command } from '../types/index.js'
 import { hexDistance } from './map.js'
 import type { GameMap } from './map.js'
+import { calculateOdds as sharedCalculateOdds } from '../shared/combatCalculator.js'
 import { getReadyWeapons, getUnitDefense, getWeaponDefense, destroyWeapon } from './units.js'
 import type { GameUnit, OnionUnit, DefenderUnit, EngineGameState } from './units.js'
 
@@ -610,7 +611,7 @@ export function rollCombat(
   defenseValue: number,
   roll?: number
 ): CombatRoll {
-  const odds = calculateOdds(attackStrength, defenseValue)
+  const odds = sharedCalculateOdds(attackStrength, defenseValue)
   const d6 = roll ?? (Math.floor(Math.random() * 6) + 1)
   const result = CRT[odds][d6 - 1]
   return { roll: d6, result, odds }
@@ -623,15 +624,7 @@ export function rollCombat(
  * @returns Odds ratio as string (e.g., "1:1", "2:1", "1:3")
  */
 export function calculateOdds(attackStrength: number, defenseValue: number): string {
-  if (defenseValue === 0) return '5:1'
-  const ratio = attackStrength / defenseValue
-  if (ratio >= 5) return '5:1'
-  if (ratio >= 4) return '4:1'
-  if (ratio >= 3) return '3:1'
-  if (ratio >= 2) return '2:1'
-  if (ratio >= 1) return '1:1'
-  if (ratio >= 0.5) return '1:2'
-  return '1:3'
+  return sharedCalculateOdds(attackStrength, defenseValue)
 }
 
 /**

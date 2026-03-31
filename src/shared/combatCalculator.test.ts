@@ -40,14 +40,14 @@ describe('combatCalculator', () => {
 		expect(result.odds).toBe('2:1')
 	})
 
-	it('returns the ridgeline defense modifier for valid target units', () => {
+	it('returns the ridgeline defense modifier for eligible target units', () => {
 		const input: CombatCalculatorInput = {
 			attackerGroupIds: ['attack-1'],
 			targetId: 'target-1',
 			combatState: {
 				units: {
 					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'Puss', terrainType: 'ridgeline' },
+					'target-1': { type: 'LittlePigs', squads: 3, terrainType: 'ridgeline' },
 				},
 			},
 		}
@@ -63,6 +63,22 @@ describe('combatCalculator', () => {
 				appliesTo: 'target-1',
 			},
 		])
+	})
+
+	it('does not grant ridgeline cover to units without the terrain ability', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': { type: 'Puss', terrainType: 'ridgeline' },
+				},
+			},
+		}
+
+		expect(calculator.calculateModifiers(input)).toEqual([])
+		expect(calculator.calculateResult(input).defenseStrength).toBe(3)
 	})
 
 	it('uses weapon defense for individually targeted Onion subsystems', () => {
