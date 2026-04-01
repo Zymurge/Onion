@@ -16,6 +16,7 @@ break down into features/tasks as needed.
 
 - [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
 - [ ] Refactor movement resolution to read per-unit terrain rules from the shared unit definitions instead of hardcoded terrain checks.
+  - [ ] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
 - [ ] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
 - [ ] Unify combat math in a shared calculator used by both engine and web UI, including odds ratio and future terrain/stacking modifiers. This is shared rules logic only; base defense remains owned by the unit/weapon model and is out of scope.
 - [x] Audit defense source of truth for units and weapons so defense is defined once in the unit/weapon model and only derived for effective combat situations.
