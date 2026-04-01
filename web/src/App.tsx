@@ -17,6 +17,7 @@ import {
 } from './lib/battlefieldView'
 import { createHttpGameClient } from './lib/httpGameClient'
 import { buildCombatRangeHexKeys } from './lib/combatRange'
+import { buildCombatTargetOptions } from './lib/combatPreview'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
 import { requestJson } from '../../src/shared/apiProtocol'
 import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
@@ -278,92 +279,6 @@ function buildCombatRangeSources(
     }))
 }
 
-type CombatTargetOption = {
-  id: string
-  kind: 'onion' | 'defender'
-  q: number
-  r: number
-  status: UnitStatus
-  label: string
-  detail: string
-  defense: number
-  modifiers: string[]
-}
-
-function buildCombatTargetOptions(
-  activeCombatRole: 'onion' | 'defender' | null,
-  combatRangeHexKeys: ReadonlySet<string>,
-  displayedDefenders: ReadonlyArray<BattlefieldUnit>,
-  displayedOnion: BattlefieldOnionView | null,
-  activeAttackStrength: number,
-  activeAttackCount: number,
-  displayedScenarioMap: { width: number; height: number; hexes: TerrainHex[] } | null,
-): CombatTargetOption[] {
-  if (activeCombatRole === null) {
-    return []
-  }
-
-  if (activeCombatRole === 'onion') {
-    return displayedDefenders
-      .filter((unit) => unit.status !== 'destroyed')
-      .filter((unit) => combatRangeHexKeys.has(`${unit.q},${unit.r}`))
-      .map((unit) => ({
-        id: unit.id,
-        kind: 'defender' as const,
-        q: unit.q,
-        r: unit.r,
-        status: unit.status,
-        label: unit.type,
-        defense: unit.defense ?? 0,
-        modifiers: [
-          ...(activeAttackCount > 1 ? [`Combined fire: ${activeAttackCount} attackers`] : []),
-          ...(unit.type === 'LittlePigs' && unit.squads !== undefined && unit.squads > 1 ? [`Stacked infantry: ${unit.squads} squads`] : []),
-          ...(unit.type === 'LittlePigs' && getTerrainTypeAt(displayedScenarioMap, unit.q, unit.r) === 1 ? ['Ridgeline cover: +1 defense'] : []),
-        ],
-        detail: `Defense: ${unit.defense ?? 0}`,
-      }))
-  }
-
-  if (displayedOnion === null || !combatRangeHexKeys.has(`${displayedOnion.q},${displayedOnion.r}`)) {
-    return []
-  }
-
-  const weaponTargets = (displayedOnion.weaponDetails ?? [])
-    .filter((weapon) => weapon.individuallyTargetable && weapon.status === 'ready')
-    .map((weapon) => ({
-      id: `weapon:${weapon.id}`,
-      kind: 'onion' as const,
-      q: displayedOnion.q,
-      r: displayedOnion.r,
-      status: weapon.status as UnitStatus,
-      label: weapon.name,
-        defense: weapon.defense,
-        modifiers: [
-          ...(activeAttackCount > 1 ? [`Combined fire: ${activeAttackCount} attackers`] : []),
-          `Subsystem target: ${weapon.name}`,
-        ],
-      detail: `Defense: ${weapon.defense}`,
-    }))
-
-  return [
-    {
-      id: `${displayedOnion.id}:treads`,
-      kind: 'onion' as const,
-      q: displayedOnion.q,
-      r: displayedOnion.r,
-      status: displayedOnion.status as UnitStatus,
-      label: 'Treads',
-      defense: activeAttackStrength,
-      modifiers: [
-        ...(activeAttackCount > 1 ? [`Combined fire: ${activeAttackCount} attackers`] : []),
-        'Tread attack: damage applies directly to treads',
-      ],
-      detail: `Treads: ${displayedOnion.treads}`,
-    },
-    ...weaponTargets,
-  ]
-}
-
 type AppProps = {
   gameClient?: GameClient
   gameId?: number
@@ -371,19 +286,14 @@ type AppProps = {
   showConnectionGate?: boolean
 }
 
-type ConnectionState = {
-	apiBaseUrl: string
-  username: string
-  password: string
-  gameId: string
-}
-
 type AuthResponse = {
   userId: string
   token: string
 }
 
-function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
+function App({ gameClient, gameId, runtimeConfig: _runtimeConfig, showConnectionGate = false }: AppProps) {
+  void _runtimeConfig
+
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
     const mockDebugLines = [
@@ -417,20 +327,11 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       '[12:00:28] [debug] Memory usage: 18.4 MB (within acceptable range)',
       '[12:00:29] [info] All systems operational. Ready for player input.',
     ]
+    const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
+    const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
+    const [actionError, setActionError] = useState<string | null>(null)
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
-  const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
-  const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
-  const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
-  const [connectError, setConnectError] = useState<string | null>(null)
-  // New state for surfacing action errors to the UI
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [connectDraft, setConnectDraft] = useState<ConnectionState>({
-    apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
-    username: '',
-    password: '',
-    gameId: runtimeConfig?.gameId?.toString() ?? '',
-  })
 
   const runtimeConnectionSeeded = showConnectionGate
   const activeGameClient = gameClient ?? connectedSession?.gameClient
@@ -471,9 +372,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? null
+  const selectedSnapshotUnitId = clientSnapshot?.selectedUnitId ?? null
   const activeSelectedUnitIds = useMemo(
-    () => selectedUnitIds ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : []),
-    [clientSnapshot?.selectedUnitId, selectedUnitIds],
+    () => selectedUnitIds ?? (selectedSnapshotUnitId ? [selectedSnapshotUnitId] : []),
+    [selectedSnapshotUnitId, selectedUnitIds],
   )
   const headerHasSnapshot = clientSnapshot !== null
   const activeTurnNumber = clientSnapshot?.turnNumber ?? null
@@ -611,9 +513,16 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     }
   }
 
+  const authoritativeState = clientSnapshot?.authoritativeState ?? null
+  const scenarioMapSnapshot = clientSnapshot?.scenarioMap ?? null
+  const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
   const displayedDefenders = useMemo(
-    () => (clientSnapshot === null ? [] : buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive)),
-    [activePhase, activeTurnActive, clientSnapshot],
+    () => (authoritativeState === null ? [] : buildLiveDefenders({
+      authoritativeState,
+      scenarioMap: scenarioMapSnapshot,
+      movementRemainingByUnit: movementRemainingSnapshot,
+    } as GameSnapshot, activePhase, activeTurnActive)),
+    [activePhase, activeTurnActive, authoritativeState, movementRemainingSnapshot, scenarioMapSnapshot],
   )
   const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
@@ -634,17 +543,6 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       .filter((unit) => activeSelectedUnitIds.includes(unit.id))
       .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
   }, [activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, isCombatPhase])
-  const selectedCombatAttackCount = useMemo(() => {
-    if (!isCombatPhase) {
-      return 0
-    }
-
-    if (activeCombatRole === 'onion') {
-      return activeSelectedUnitIds.filter(isWeaponSelectionId).length
-    }
-
-    return displayedDefenders.filter((unit) => activeSelectedUnitIds.includes(unit.id)).length
-  }, [activeCombatRole, activeSelectedUnitIds, displayedDefenders, isCombatPhase])
   const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
   const combatRangeHexKeys = useMemo(() => {
     if (!isCombatPhase || displayedScenarioMap === null) {
@@ -655,8 +553,16 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     return buildCombatRangeHexKeys(combatSources, displayedScenarioMap)
   }, [activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, displayedScenarioMap, isCombatPhase])
   const combatTargetOptions = useMemo(
-    () => buildCombatTargetOptions(activeCombatRole, combatRangeHexKeys, displayedDefenders, displayedOnion, selectedCombatAttackStrength, selectedCombatAttackCount, displayedScenarioMap),
-    [activeCombatRole, combatRangeHexKeys, displayedDefenders, displayedOnion, selectedCombatAttackStrength, selectedCombatAttackCount, displayedScenarioMap],
+    () => buildCombatTargetOptions({
+      activeCombatRole,
+      combatRangeHexKeys,
+      displayedDefenders,
+      displayedOnion,
+      selectedUnitIds: activeSelectedUnitIds,
+      selectedAttackStrength: selectedCombatAttackStrength,
+      displayedScenarioMap,
+    }),
+    [activeCombatRole, activeSelectedUnitIds, combatRangeHexKeys, displayedDefenders, displayedOnion, selectedCombatAttackStrength, displayedScenarioMap],
   )
   const selectedCombatTarget = selectedCombatTargetId === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetId) ?? null
 

@@ -38,6 +38,6 @@ break down into features/tasks as needed.
     - [x] Extract a pure shared calculator for odds and defense modifiers.
     - [x] Add tests around the shared rules and remove duplicate local calculations.
     - [x] Move backend combat validation/execution to that shared calculator.
-    - [ ] Move the web confirmation/preview UI to the same calculator.
+    - [x] Move the web confirmation/preview UI to the same calculator.
   - [ ] Step four: combat results toast, then board reconciliation after dismissal.
     - [ ] Add regression tests for selection rules, range overlays, confirmation flow, and post-combat board updates.
