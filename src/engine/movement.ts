@@ -263,6 +263,11 @@ function validateMovePlan(
     return allowance
   }
 
+  const destinationStackingError = validateDestinationStacking(state, unit, role, command.to, capabilities)
+  if (destinationStackingError) {
+    return destinationStackingError
+  }
+
   const pathResult = findMovePath({
     map: toMoveMapSnapshot(map, state, unit.id),
     from: unit.position,
@@ -278,11 +283,6 @@ function validateMovePlan(
       code: 'NO_PATH',
       error: `No valid path to destination within movement allowance of ${allowance.movementAllowance}`,
     }
-  }
-
-  const destinationStackingError = validateDestinationStacking(state, unit, role, command.to, capabilities)
-  if (destinationStackingError) {
-    return destinationStackingError
   }
 
   const rammedUnits = capabilities.canRam ? collectPathOccupants(state, pathResult.path, unit.id) : []
