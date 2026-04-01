@@ -291,8 +291,7 @@ type AuthResponse = {
   token: string
 }
 
-function App({ gameClient, gameId, runtimeConfig: _runtimeConfig, showConnectionGate = false }: AppProps) {
-  void _runtimeConfig
+function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
 
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
@@ -330,6 +329,14 @@ function App({ gameClient, gameId, runtimeConfig: _runtimeConfig, showConnection
     const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
     const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
     const [actionError, setActionError] = useState<string | null>(null)
+    const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
+    const [connectError, setConnectError] = useState<string | null>(null)
+    const [connectDraft, setConnectDraft] = useState({
+      apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
+      username: '',
+      password: '',
+      gameId: runtimeConfig?.gameId?.toString() ?? '',
+    })
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
 
@@ -544,6 +551,17 @@ function App({ gameClient, gameId, runtimeConfig: _runtimeConfig, showConnection
       .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
   }, [activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, isCombatPhase])
   const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
+  const selectedCombatAttackCount = useMemo(() => {
+    if (!isCombatPhase) {
+      return 0
+    }
+
+    if (activeCombatRole === 'onion') {
+      return activeSelectedUnitIds.filter(isWeaponSelectionId).length
+    }
+
+    return activeSelectedUnitIds.length
+  }, [activeCombatRole, activeSelectedUnitIds, isCombatPhase])
   const combatRangeHexKeys = useMemo(() => {
     if (!isCombatPhase || displayedScenarioMap === null) {
       return new Set<string>()
@@ -1056,6 +1074,8 @@ function App({ gameClient, gameId, runtimeConfig: _runtimeConfig, showConnection
                 <div className="attacker-selection-list" data-testid="combat-target-list">
                   {combatTargetOptions.map((target) => {
                     const isSelected = selectedCombatTargetId === target.id
+                      const isTreadsTarget = target.id.endsWith(':treads')
+                      const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
                     return (
                       <button
                         key={target.id}
@@ -1063,15 +1083,35 @@ function App({ gameClient, gameId, runtimeConfig: _runtimeConfig, showConnection
                         className={[
                           'attacker-card-button',
                           isSelected ? 'is-selected' : '',
+                            isGroupAttackOnTreads ? 'is-disabled' : '',
                           `tone-${statusTone(target.status)}`,
                         ].join(' ')}
+                          disabled={isGroupAttackOnTreads}
+                          title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
                         aria-pressed={isSelected}
+                          aria-disabled={isGroupAttackOnTreads}
                         data-selected={isSelected}
                         data-testid={`combat-target-${target.id}`}
                         onClick={(event) => {
+                          if (isGroupAttackOnTreads) {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            return
+                          }
+
                           event.stopPropagation()
                           setSelectedCombatTargetId(target.id)
                         }}
+                          onContextMenu={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+
+                            if (isGroupAttackOnTreads) {
+                              return
+                            }
+
+                            setSelectedCombatTargetId(target.id)
+                          }}
                       >
                         <div className="combat-card-header">
                           <span className="combat-card-type"><strong>{target.label}</strong></span>

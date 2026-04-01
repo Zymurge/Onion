@@ -178,6 +178,65 @@ function createConnectedBattlefieldSnapshot(
 	}
 }
 
+function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot {
+	return {
+		...createConnectedBattlefieldSnapshot(),
+		phase: 'DEFENDER_COMBAT' as const,
+		selectedUnitId: 'wolf-2',
+		authoritativeState: {
+			...createConnectedBattlefieldSnapshot().authoritativeState,
+			onion: {
+				...createConnectedBattlefieldSnapshot().authoritativeState.onion,
+				weapons: [
+					{
+						id: 'main-1',
+						name: 'Main Battery',
+						attack: 4,
+						range: 4,
+						defense: 4,
+						status: 'ready' as const,
+						individuallyTargetable: true,
+					},
+					{
+						id: 'secondary-1',
+						name: 'Secondary Battery',
+						attack: 3,
+						range: 2,
+						defense: 3,
+						status: 'ready' as const,
+						individuallyTargetable: true,
+					},
+				],
+			},
+			defenders: {
+				...createConnectedBattlefieldSnapshot().authoritativeState.defenders,
+				'wolf-2': {
+					...createConnectedBattlefieldSnapshot().authoritativeState.defenders['wolf-2'],
+					position: { q: 1, r: 1 },
+				},
+			},
+		},
+	}
+}
+
+function createGroupedInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot {
+	const snapshot = createInRangeCombatSnapshot()
+
+	return {
+		...snapshot,
+		authoritativeState: {
+			...snapshot.authoritativeState,
+			defenders: {
+				...snapshot.authoritativeState.defenders,
+				'puss-1': {
+					...snapshot.authoritativeState.defenders['puss-1'],
+					position: { q: 1, r: 2 },
+				},
+			},
+		},
+	}
+}
+
 function createSnapshotWithTreads(treads: number, movementRemaining: number): AuthoritativeBattlefieldSnapshot {
 	return {
 		...createConnectedBattlefieldSnapshot(),
@@ -755,45 +814,7 @@ describe('App orchestration (injected game client)', () => {
 
 	it('renders onion weapon targets in defender combat', async () => {
 		const user = userEvent.setup()
-		const baseSnapshot = createConnectedBattlefieldSnapshot()
-		const snapshot = {
-			...baseSnapshot,
-			phase: 'DEFENDER_COMBAT' as const,
-			selectedUnitId: 'wolf-2',
-			authoritativeState: {
-				...baseSnapshot.authoritativeState,
-				onion: {
-					...baseSnapshot.authoritativeState.onion,
-					weapons: [
-						{
-							id: 'main-1',
-							name: 'Main Battery',
-							attack: 4,
-							range: 4,
-							defense: 4,
-							status: 'ready' as const,
-							individuallyTargetable: true,
-						},
-						{
-							id: 'secondary-1',
-							name: 'Secondary Battery',
-							attack: 3,
-							range: 2,
-							defense: 3,
-							status: 'ready' as const,
-							individuallyTargetable: true,
-						},
-					],
-				},
-				defenders: {
-					...baseSnapshot.authoritativeState.defenders,
-					'wolf-2': {
-						...baseSnapshot.authoritativeState.defenders['wolf-2'],
-						position: { q: 1, r: 1 },
-					},
-				},
-			},
-		}
+		const snapshot = createInRangeCombatSnapshot()
 		const session = { role: 'defender' as const }
 
 		const client = createGameClient({
@@ -811,6 +832,52 @@ describe('App orchestration (injected game client)', () => {
 
 		await user.click(screen.getByTestId('combat-target-weapon:main-1'))
 		expect(screen.getByTestId('combat-target-weapon:main-1').getAttribute('data-selected')).toBe('true')
+	})
+
+	it('selects a combat target from the rail on right click', async () => {
+		const snapshot = createInRangeCombatSnapshot()
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const target = await screen.findByTestId('combat-target-weapon:main-1')
+		fireEvent.contextMenu(target)
+
+		expect(target.getAttribute('data-selected')).toBe('true')
+		const confirmationView = await screen.findByTestId('combat-confirmation-view')
+		expect(confirmationView.textContent).toContain('Confirm attack on Main Battery')
+	})
+
+	it('disables treads for grouped attacks and explains why', async () => {
+		const snapshot = createGroupedInRangeCombatSnapshot()
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByTestId('combat-unit-wolf-2')
+		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
+
+		const treadsTarget = await screen.findByTestId('combat-target-onion-1:treads')
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 8')
+		expect(treadsTarget.disabled).toBe(true)
+		expect(treadsTarget.getAttribute('aria-disabled')).toBe('true')
+		expect(treadsTarget.getAttribute('title')).toBe('Treads must be singly targeted.')
+
+		fireEvent.contextMenu(treadsTarget)
+		expect(treadsTarget.getAttribute('data-selected')).toBe('false')
+		expect(screen.queryByTestId('combat-confirmation-view')).toBeNull()
 	})
 
 	it('supports grouped selection from the rail and map, ctrl-removal, and empty-space deselection', async () => {

@@ -58,7 +58,7 @@ export type CombatCombatantState = {
 }
 
 export type CombatLiveState = {
-	units: Readonly<Record<string, CombatCombatantState>>
+	units: Record<string, CombatCombatantState>
 }
 
 /**

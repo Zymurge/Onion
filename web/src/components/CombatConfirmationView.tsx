@@ -15,7 +15,6 @@ export function CombatConfirmationView({ title, attackStrength, defenseStrength,
     <article className="combat-confirmation-view" data-testid={dataTestId}>
       <div className="card-head combat-confirmation-head">
         <div>
-          <p className="eyebrow">Combat</p>
           <h3>{title}</h3>
         </div>
         <span className="mini-tag mini-tag-live">confirmation</span>

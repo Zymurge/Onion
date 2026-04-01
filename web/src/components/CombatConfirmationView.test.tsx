@@ -17,6 +17,7 @@ describe('CombatConfirmationView', () => {
     )
 
     expect(screen.getByTestId('combat-confirmation-view')).not.toBeNull()
+    expect(screen.queryByText(/^Combat$/i)).toBeNull()
     expect(screen.getByText(/Attack:Defense ratio/i)).not.toBeNull()
     expect(screen.getByText(/^1:1$/i)).not.toBeNull()
     expect(screen.getByText(/Ridgeline cover: \+1 defense/i)).not.toBeNull()
