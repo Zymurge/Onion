@@ -1,5 +1,5 @@
 import type { TerrainType } from '../engine/map.js'
-import type { UnitDefinition } from '../engine/units.js'
+import type { UnitDefinition, Weapon } from '../engine/units.js'
 
 /**
  * Shared combat rules contract.
@@ -52,6 +52,7 @@ export type CombatCombatantState = {
 	type: string
 	squads?: number
 	terrainType?: TerrainType
+	weapons?: ReadonlyArray<Weapon>
 	weaponIds?: ReadonlyArray<string>
 	weaponId?: string
 }
@@ -104,7 +105,7 @@ export type CombatCalculator = {
 function getUnitDefinitionByType(staticRules: CombatStaticRules, type: string): UnitDefinition {
 	const definition = Object.values(staticRules.unitDefinitions).find((candidate) => candidate.type === type)
 	if (definition === undefined) {
-		throw new Error(`Unknown unit type: ${type}`)
+		throw new Error(`Unit type '${type}' is not defined in the shared combat rules`)
 	}
 
 	return definition
@@ -113,25 +114,36 @@ function getUnitDefinitionByType(staticRules: CombatStaticRules, type: string): 
 function getCombatant(staticRules: CombatStaticRules, liveState: CombatLiveState, combatantId: string): CombatCombatantState {
 	const combatant = liveState.units[combatantId]
 	if (combatant === undefined) {
-		throw new Error(`Unknown combatant id: ${combatantId}`)
+		throw new Error(`Combatant '${combatantId}' was not found in the live combat state`)
 	}
 
 	getUnitDefinitionByType(staticRules, combatant.type)
 	return combatant
 }
 
-function getWeaponAttack(definition: UnitDefinition, weaponId: string): number {
+function getWeaponAttack(definition: UnitDefinition, combatant: CombatCombatantState | undefined, weaponId: string): number {
+	const liveWeapon = combatant?.weapons?.find((candidate) => candidate.id === weaponId)
+	if (liveWeapon !== undefined) {
+		return liveWeapon.attack
+	}
+
 	const weapon = definition.weapons.find((candidate) => candidate.id === weaponId)
 	if (weapon === undefined) {
-		throw new Error(`Unknown weapon '${weaponId}' for unit type '${definition.type}'`)
+		throw new Error(`Weapon '${weaponId}' was not found on unit type '${definition.type}'`)
 	}
 
 	return weapon.attack
 }
 
-function getBaseAttack(definition: UnitDefinition, weaponIds?: ReadonlyArray<string>): number {
+function getBaseAttack(definition: UnitDefinition, combatant: CombatCombatantState, weaponIds?: ReadonlyArray<string>): number {
 	if (weaponIds !== undefined && weaponIds.length > 0) {
-		return weaponIds.reduce((total, weaponId) => total + getWeaponAttack(definition, weaponId), 0)
+		return weaponIds.reduce((total, weaponId) => total + getWeaponAttack(definition, combatant, weaponId), 0)
+	}
+
+	if (combatant.weapons !== undefined) {
+		return combatant.weapons
+			.filter((weapon) => weapon.status === 'ready')
+			.reduce((total, weapon) => total + weapon.attack, 0)
 	}
 
 	return definition.weapons
@@ -156,6 +168,10 @@ function getTerrainDefenseBonus(staticRules: CombatStaticRules, combatant: Comba
 		return 0
 	}
 
+	if (combatant.terrainType !== 'ridgeline') {
+		return 0
+	}
+
 	const definition = getUnitDefinitionByType(staticRules, combatant.type)
 	if (!canUseTerrainCover(definition, combatant.terrainType)) {
 		return 0
@@ -177,7 +193,7 @@ function resolveAttackStrength(staticRules: CombatStaticRules, liveState: Combat
 	return attackerGroupIds.reduce((total, attackerId) => {
 		const attacker = getCombatant(staticRules, liveState, attackerId)
 		const definition = getUnitDefinitionByType(staticRules, attacker.type)
-		return total + getBaseAttack(definition, attacker.weaponIds)
+		return total + getBaseAttack(definition, attacker, attacker.weaponIds)
 	}, 0)
 }
 
@@ -187,7 +203,7 @@ function resolveDefenseStrength(staticRules: CombatStaticRules, liveState: Comba
 
 	if (definition.type === 'TheOnion') {
 		const weaponId = target.weaponId ?? 'main'
-		const weapon = definition.weapons.find((candidate) => candidate.id === weaponId)
+		const weapon = target.weapons?.find((candidate) => candidate.id === weaponId) ?? definition.weapons.find((candidate) => candidate.id === weaponId)
 		if (weapon === undefined) {
 			throw new Error(`Unknown target weapon '${weaponId}' for unit type '${definition.type}'`)
 		}

@@ -19,7 +19,52 @@ const staticRules = {
 
 const calculator = createCombatCalculator(staticRules)
 
+const terrainAdeptRules = {
+	unitDefinitions: {
+		...getAllUnitDefinitions(),
+		Puss: {
+			...getAllUnitDefinitions().Puss,
+			abilities: {
+				...getAllUnitDefinitions().Puss.abilities,
+				terrainRules: {
+					clear: { canAccessCover: true },
+					crater: { canAccessCover: true },
+				},
+			},
+		},
+	},
+	terrainRules: {
+		clear: { terrainType: 'clear' as TerrainType, defenseBonus: 2 },
+		ridgeline: { terrainType: 'ridgeline' as TerrainType, defenseBonus: 1 },
+		crater: { terrainType: 'crater' as TerrainType, defenseBonus: 2 },
+	},
+} satisfies CombatStaticRules
+
+const terrainAdeptCalculator = createCombatCalculator(terrainAdeptRules)
+
 describe('combatCalculator', () => {
+	it('exposes a working factory instance', () => {
+		expect(calculator).toMatchObject({
+			calculateOdds: expect.any(Function),
+			calculateModifiers: expect.any(Function),
+			calculateResult: expect.any(Function),
+		})
+
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': { type: 'Puss' },
+				},
+			},
+		}
+
+		expect(calculator.calculateOdds(input)).toBe('1:1')
+		expect(calculator.calculateResult(input).attackStrength).toBe(4)
+	})
+
 	it('sums attacker group ids and resolves defense from static unit data', () => {
 		const input: CombatCalculatorInput = {
 			attackerGroupIds: ['attack-1', 'attack-2'],
@@ -117,5 +162,121 @@ describe('combatCalculator', () => {
 		expect(result.attackStrength).toBe(12)
 		expect(result.defenseStrength).toBe(3)
 		expect(result.odds).toBe('4:1')
+	})
+
+	it('prefers live weapon state when calculating attacker strength', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': {
+						type: 'Dragon',
+						weapons: [
+							{ id: 'main_1', name: 'A', attack: 1, range: 3, defense: 3, status: 'ready', individuallyTargetable: false },
+							{ id: 'main_2', name: 'B', attack: 2, range: 3, defense: 3, status: 'ready', individuallyTargetable: false },
+						],
+					},
+					'target-1': { type: 'Puss' },
+				},
+			},
+		}
+
+		const result = calculator.calculateResult(input)
+
+		expect(result.attackStrength).toBe(3)
+		expect(result.defenseStrength).toBe(3)
+		expect(result.odds).toBe('1:1')
+	})
+
+	it('prefers live weapon state when resolving Onion subsystem defense', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': {
+						type: 'TheOnion',
+						weaponId: 'main',
+						weapons: [
+							{ id: 'main', name: 'Main Battery', attack: 4, range: 3, defense: 9, status: 'ready', individuallyTargetable: true },
+						],
+					},
+				},
+			},
+		}
+
+		const result = calculator.calculateResult(input)
+
+		expect(result.attackStrength).toBe(4)
+		expect(result.defenseStrength).toBe(9)
+		expect(result.odds).toBe('1:3')
+	})
+
+	it('ignores clear terrain even when the unit can access cover there', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': { type: 'Puss', terrainType: 'clear' },
+				},
+			},
+		}
+
+		expect(terrainAdeptCalculator.calculateModifiers(input)).toEqual([])
+		expect(terrainAdeptCalculator.calculateResult(input).defenseStrength).toBe(3)
+	})
+
+	it('ignores crater terrain even when the unit can access cover there', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': { type: 'Puss', terrainType: 'crater' },
+				},
+			},
+		}
+
+		expect(terrainAdeptCalculator.calculateModifiers(input)).toEqual([])
+		expect(terrainAdeptCalculator.calculateResult(input).defenseStrength).toBe(3)
+	})
+
+	it('throws clear errors for invalid combat inputs', () => {
+		expect(() =>
+			calculator.calculateResult({
+				attackerGroupIds: ['attack-1'],
+				targetId: 'missing-target',
+				combatState: { units: { 'attack-1': { type: 'Puss' } } },
+			}),
+		).toThrow("Combatant 'missing-target' was not found in the live combat state")
+
+		expect(() =>
+			calculator.calculateResult({
+				attackerGroupIds: ['attack-1'],
+				targetId: 'target-1',
+				combatState: { units: { 'attack-1': { type: 'Unknown' }, 'target-1': { type: 'Puss' } } },
+			}),
+		).toThrow("Unit type 'Unknown' is not defined in the shared combat rules")
+
+		expect(() =>
+			calculator.calculateResult({
+				attackerGroupIds: ['attack-1'],
+				targetId: 'target-1',
+				combatState: {
+					units: {
+						'attack-1': {
+							type: 'Dragon',
+							weaponIds: ['missing-weapon'],
+						},
+						'target-1': { type: 'Puss' },
+					},
+				},
+			}),
+		).toThrow("Weapon 'missing-weapon' was not found on unit type 'Dragon'")
 	})
 })

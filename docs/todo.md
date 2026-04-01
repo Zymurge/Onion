@@ -26,7 +26,7 @@ break down into features/tasks as needed.
     - [x] Support dynamic attacker lists by role: Onion shows available weapons; defender shows available units.
     - [x] Support ctrl-left click and sidebar selection for one or more eligible attackers.
     - [x] Render orange attack-range overlays, including intersection highlighting for combined attackers.
-  - [ ] Step two: target confirmation.
+  - [x] Step two: target confirmation.
     - [x] Allow defenders to be targeted directly on the map.
     - [x] Show a right-rail list of valid targets for the active attacker group. It should be filtered to only those within combined range.
     - [x] Support onion-system targets through the right rail even when they have no individual map location per system.
@@ -37,7 +37,7 @@ break down into features/tasks as needed.
     - [x] Add per-terrain capability and ram profile fields to unit descriptions so combat and movement rules stay data-driven.
     - [x] Extract a pure shared calculator for odds and defense modifiers.
     - [x] Add tests around the shared rules and remove duplicate local calculations.
-    - [ ] Move backend combat validation/execution to that shared calculator.
+    - [x] Move backend combat validation/execution to that shared calculator.
     - [ ] Move the web confirmation/preview UI to the same calculator.
   - [ ] Step four: combat results toast, then board reconciliation after dismissal.
     - [ ] Add regression tests for selection rules, range overlays, confirmation flow, and post-combat board updates.
