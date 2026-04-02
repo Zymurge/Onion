@@ -18,7 +18,8 @@
         "tee": true,
         "git fetch": true,
         "git checkout": true,
-        "git -C /home/zymurge/Dev/onion": true
+        "git -C /home/zymurge/Dev/onion": true,
+        "printf": true
     },
     "github.copilot.chat.cli.forkSessions.enabled": true
 }

@@ -10,6 +10,17 @@ export type GamePhase = 'onion' | 'defender'
 
 export type ActionMode = 'fire' | 'combined' | 'end-phase'
 
+export type CombatResolution = {
+	actionType: 'FIRE' | 'COMBINED_FIRE' | 'FIRE_UNIT' | 'FIRE_WEAPON'
+	attackers: string[]
+	targetId: string
+	outcome: 'NE' | 'D' | 'X'
+	outcomeLabel: 'Hit' | 'Miss'
+	roll?: number
+	odds?: string
+	details: string[]
+}
+
 export type GameSnapshot = {
 	gameId: number
 	phase: TurnPhase
@@ -21,6 +32,7 @@ export type GameSnapshot = {
 	authoritativeState?: GameState
 	movementRemainingByUnit?: Record<string, number>
 	scenarioMap?: ScenarioMapSnapshot
+	combatResolution?: CombatResolution
 }
 
 export type GameSessionContext = {
@@ -36,6 +48,7 @@ export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
 	| { type: 'MOVE'; unitId: string; to: { q: number; r: number } }
+	| { type: 'FIRE'; attackers: string[]; targetId: string }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 

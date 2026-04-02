@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
-import { battlefieldModes, recentEvents } from './mockBattlefield'
+import { CombatConfirmationView } from './components/CombatConfirmationView'
+import { CombatResolutionToast } from './components/CombatResolutionToast'
 import {
   GameClientSeamError,
   type GameAction,
@@ -16,6 +17,8 @@ import {
   type TerrainHex,
 } from './lib/battlefieldView'
 import { createHttpGameClient } from './lib/httpGameClient'
+import { buildCombatRangeHexKeys } from './lib/combatRange'
+import { buildCombatTargetOptions } from './lib/combatPreview'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
 import { requestJson } from '../../src/shared/apiProtocol'
 import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
@@ -100,6 +103,75 @@ function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
   return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
 }
 
+function getReadyWeaponRange(weapons: ReadonlyArray<Weapon> | undefined): number {
+  if (weapons === undefined || weapons.length === 0) {
+    return 0
+  }
+
+  return weapons
+    .filter((weapon) => weapon.status === 'ready')
+    .reduce((maxRange, weapon) => Math.max(maxRange, weapon.range), 0)
+}
+
+function parseRangeValue(rangeText: string): number {
+  const parsedRange = Number.parseInt(rangeText, 10)
+  return Number.isNaN(parsedRange) ? 0 : parsedRange
+}
+
+function getTerrainTypeAt(scenarioMap: { width: number; height: number; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
+  return scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t
+}
+
+function getDisplayDefense(type: string, squads: number | undefined, terrainType: number | undefined): number {
+  if (type === 'LittlePigs') {
+    const stackSize = squads ?? 1
+    return stackSize + (terrainType === 1 ? 1 : 0)
+  }
+
+  switch (type) {
+    case 'BigBadWolf':
+      return 4
+    case 'Puss':
+      return 3
+    case 'Witch':
+      return 2
+    case 'LordFarquaad':
+      return 0
+    case 'Pinocchio':
+      return 3
+    case 'Dragon':
+      return 3
+    case 'Castle':
+      return 0
+    default:
+      return 0
+  }
+}
+
+function isWeaponSelectionId(selectionId: string) {
+  return selectionId.startsWith('weapon:')
+}
+
+function stripWeaponSelectionId(selectionId: string) {
+  return selectionId.replace(/^weapon:/, '')
+}
+
+function buildWeaponSelectionId(weaponId: string) {
+  return `weapon:${weaponId}`
+}
+
+function buildCombatTargetActionId(targetId: string, onionId: string | undefined): string {
+  if (targetId.startsWith('weapon:')) {
+    return stripWeaponSelectionId(targetId)
+  }
+
+  if (targetId.endsWith(':treads')) {
+    return onionId ?? targetId
+  }
+
+  return targetId
+}
+
 function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean): Mode[] {
   if (!activeTurnActive || status === 'destroyed' || status === 'disabled') {
     return []
@@ -118,17 +190,36 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
 
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
 
-  return Object.entries(authoritativeState.defenders).map(([defenderId, defender]) => ({
-    id: defender.id ?? defenderId,
-    type: defender.type,
-    status: defender.status,
-    q: defender.position.q,
-    r: defender.position.r,
-    move: activePhase === null ? 0 : movementRemainingByUnit[defender.id ?? defenderId] ?? 0,
-    weapons: formatWeaponSummary(defender.weapons),
-    attack: formatAttackSummary(defender.weapons),
-    actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
-  }))
+  return Object.entries(authoritativeState.defenders)
+    .map(([defenderId, defender], index) => ({
+      id: defender.id ?? defenderId,
+      type: defender.type,
+      status: defender.status,
+      q: defender.position.q,
+      r: defender.position.r,
+      move: activePhase === null ? 0 : movementRemainingByUnit[defender.id ?? defenderId] ?? 0,
+      weapons: formatWeaponSummary(defender.weapons),
+      attack: formatAttackSummary(defender.weapons),
+      weaponDetails: defender.weapons ?? [],
+      defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
+      squads: defender.squads,
+      actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
+      rosterOrder: index,
+    }))
+    .sort((left, right) => {
+      const destroyedDelta = Number(left.status === 'destroyed') - Number(right.status === 'destroyed')
+
+      if (destroyedDelta !== 0) {
+        return destroyedDelta
+      }
+
+      return left.rosterOrder - right.rosterOrder
+    })
+    .map(({ rosterOrder, ...unit }) => {
+      void rosterOrder
+
+      return unit
+    })
 }
 
 function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
@@ -141,7 +232,10 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
   const onion = authoritativeState.onion
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
-  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? 0
+  const movesRemaining =
+    activePhase === null
+      ? 0
+      : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
 
   return {
     id: onion.id ?? 'onion-1',
@@ -154,6 +248,7 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
     movesRemaining,
     rams: authoritativeState.ramsThisTurn ?? 0,
     weapons: formatWeaponSummary(onion.weapons),
+    weaponDetails: onion.weapons ?? [],
   }
 }
 
@@ -171,18 +266,48 @@ function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; heigh
   }
 }
 
+function buildCombatRangeSources(
+  phase: TurnPhase | null,
+  activeCombatRole: 'onion' | 'defender' | null,
+  activeSelectedUnitIds: ReadonlyArray<string>,
+  displayedDefenders: ReadonlyArray<BattlefieldUnit>,
+  displayedOnion: BattlefieldOnionView | null,
+) {
+  if (phase === null || activeCombatRole === null) {
+    return []
+  }
+
+  if (activeCombatRole === 'onion') {
+    if (displayedOnion === null) {
+      return []
+    }
+
+    const selectedWeaponIds = new Set(activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId))
+
+    return (displayedOnion.weaponDetails ?? [])
+      .filter((weapon) => weapon.status === 'ready' && selectedWeaponIds.has(weapon.id))
+      .map((weapon) => ({
+        q: displayedOnion.q,
+        r: displayedOnion.r,
+        range: weapon.range,
+      }))
+  }
+
+  return displayedDefenders
+    .filter((unit) => unit.status !== 'destroyed')
+    .filter((unit) => activeSelectedUnitIds.includes(unit.id))
+    .map((unit) => ({
+      q: unit.q,
+      r: unit.r,
+      range: getReadyWeaponRange(unit.weaponDetails),
+    }))
+}
+
 type AppProps = {
   gameClient?: GameClient
   gameId?: number
   runtimeConfig?: WebRuntimeConfig
   showConnectionGate?: boolean
-}
-
-type ConnectionState = {
-	apiBaseUrl: string
-  username: string
-  password: string
-  gameId: string
 }
 
 type AuthResponse = {
@@ -191,13 +316,14 @@ type AuthResponse = {
 }
 
 function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
+
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
     const mockDebugLines = [
       '[12:00:01] [info] Game state loaded',
       '[12:00:02] [debug] Map rendered',
       '[12:00:03] [info] User selected unit wolf-2',
-      '[12:00:04] [debug] Action composer ready',
+      '[12:00:04] [debug] Combat selection scaffold ready',
       '[12:00:05] [info] Event timeline updated',
       '[12:00:06] [debug] Sync complete',
       '[12:00:07] [info] No errors detected',
@@ -208,7 +334,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       '[12:00:12] [debug] Unit positioning validated',
       '[12:00:13] [info] Onion unit placed at coordinates (5,3)',
       '[12:00:14] [debug] Defender units positioned: wolf-1, wolf-2, tiger-4, bear-1',
-      '[12:00:15] [info] Action composer initialized with 4 legal move paths',
+      '[12:00:15] [info] Left rail combat lists initialized for attacker selection',
       '[12:00:16] [debug] UI rendering pipeline started',
       '[12:00:17] [info] Header components mounted successfully',
       '[12:00:18] [debug] MapBoard component initialized with 42 hexes',
@@ -224,20 +350,21 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       '[12:00:28] [debug] Memory usage: 18.4 MB (within acceptable range)',
       '[12:00:29] [info] All systems operational. Ready for player input.',
     ]
-  const [mode, setMode] = useState<Mode>('fire')
-  const [selectedUnitId, setSelectedUnitId] = useState<string>('')
-  const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
-  const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
-  const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
-  const [connectError, setConnectError] = useState<string | null>(null)
-  // New state for surfacing action errors to the UI
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [connectDraft, setConnectDraft] = useState<ConnectionState>({
-    apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
-    username: '',
-    password: '',
-    gameId: runtimeConfig?.gameId?.toString() ?? '',
-  })
+    const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
+    const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [pendingCombatSnapshot, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
+    const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
+    const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
+    const [connectError, setConnectError] = useState<string | null>(null)
+    const [connectDraft, setConnectDraft] = useState({
+      apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
+      username: '',
+      password: '',
+      gameId: runtimeConfig?.gameId?.toString() ?? '',
+    })
+  const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
+  const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
 
   const runtimeConnectionSeeded = showConnectionGate
   const activeGameClient = gameClient ?? connectedSession?.gameClient
@@ -278,8 +405,11 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? null
-  const activeMode = clientSnapshot?.mode ?? mode
-  const activeSelectedUnitId = selectedUnitId !== '' ? selectedUnitId : (clientSnapshot?.selectedUnitId ?? '')
+  const selectedSnapshotUnitId = clientSnapshot?.selectedUnitId ?? null
+  const activeSelectedUnitIds = useMemo(
+    () => selectedUnitIds ?? (selectedSnapshotUnitId ? [selectedSnapshotUnitId] : []),
+    [selectedSnapshotUnitId, selectedUnitIds],
+  )
   const headerHasSnapshot = clientSnapshot !== null
   const activeTurnNumber = clientSnapshot?.turnNumber ?? null
   const activeScenarioName = clientSnapshot?.scenarioName ?? null
@@ -289,6 +419,21 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const activeTurnActive = headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
   const shellPhase = activePhase ?? 'DEFENDER_MOVE'
   const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
+  const activeMode: Mode = clientSnapshot?.mode ?? 'fire'
+  const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
+  const activeCombatRole = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
+  const displayedScenarioMap = buildScenarioMap(clientSnapshot)
+  const selectedCombatAttackerIds = useMemo(() => {
+    if (!isCombatPhase) {
+      return []
+    }
+
+    if (activeCombatRole === 'onion') {
+      return activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
+    }
+
+    return [...activeSelectedUnitIds]
+  }, [activeCombatRole, activeSelectedUnitIds, isCombatPhase])
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -298,8 +443,16 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     snapshotLoadVersion.current += 1
     try {
       const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, action)
-      setClientSnapshot(nextSnapshot)
       setActionError(null) // clear any previous error
+      if (nextSnapshot.combatResolution !== undefined) {
+        setPendingCombatSnapshot(nextSnapshot)
+        setPendingCombatResolution(nextSnapshot.combatResolution)
+        return
+      }
+
+      setPendingCombatSnapshot(null)
+      setPendingCombatResolution(null)
+      setClientSnapshot(nextSnapshot)
     } catch (error: unknown) {
       // Surface error to UI
       const errorMessage =
@@ -309,8 +462,43 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           ? `Error: ${error.message}`
           : 'Error unknown'
       setActionError(`Failed to submit action: ${errorMessage}`)
+      if (action.type === 'FIRE' && activeGameClient !== undefined && activeGameIdProp !== undefined) {
+        setPendingCombatSnapshot(null)
+        setPendingCombatResolution(null)
+        setSelectedUnitIds([])
+        setSelectedCombatTargetId(null)
+
+        try {
+          const refreshedState = await activeGameClient.getState(activeGameIdProp)
+          setClientSnapshot(refreshedState.snapshot)
+          setClientSession(refreshedState.session)
+        } catch {
+          // Keep the error banner; the user can retry or refresh manually.
+        }
+      }
       // Do not update clientSnapshot on failure
     }
+  }
+
+  function handleDismissCombatResolution() {
+    if (pendingCombatSnapshot === null) {
+      return
+    }
+
+    setClientSnapshot(pendingCombatSnapshot)
+    setPendingCombatSnapshot(null)
+    setPendingCombatResolution(null)
+    setSelectedUnitIds([])
+    setSelectedCombatTargetId(null)
+  }
+
+  function handleConfirmCombat() {
+    if (selectedCombatTarget === null || selectedCombatAttackerIds.length === 0 || displayedOnion === null) {
+      return
+    }
+
+    const targetId = buildCombatTargetActionId(selectedCombatTarget.id, displayedOnion.id)
+    void commitClientAction({ type: 'FIRE', attackers: selectedCombatAttackerIds, targetId })
   }
 
   function handleConnect(event: FormEvent<HTMLFormElement>) {
@@ -358,23 +546,32 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     })
   }
 
-  function handleSelectUnit(unitId: string) {
-    setSelectedUnitId(unitId)
+  function handleSelectUnit(unitId: string, additive = false) {
+    if (displayedDefenders.some((unit) => unit.id === unitId && unit.status === 'destroyed')) {
+      return
+    }
+
+    setSelectedUnitIds((currentSelection) => {
+      const baseSelection = currentSelection ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
+
+      if (!additive) {
+        return [unitId]
+      }
+
+      if (baseSelection.includes(unitId)) {
+        return baseSelection.filter((selectedId) => selectedId !== unitId)
+      }
+
+      return [...baseSelection, unitId]
+    })
+    setSelectedCombatTargetId(null)
     setActionError(null)
   }
 
   function handleDeselectUnit() {
-    setSelectedUnitId('')
+    setSelectedUnitIds([])
+    setSelectedCombatTargetId(null)
     setActionError(null)
-  }
-
-  function handleModeChange(nextMode: Mode) {
-    if (isControlledSession) {
-      void commitClientAction({ type: 'set-mode', mode: nextMode })
-      return
-    }
-
-    setMode(nextMode)
   }
 
   async function handleMoveUnit(unitId: string, to: { q: number; r: number }) {
@@ -391,7 +588,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     try {
       const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, { type: 'MOVE', unitId, to })
       setClientSnapshot(nextSnapshot)
-      setSelectedUnitId('')
+      setSelectedUnitIds([])
     } catch (error: unknown) {
       const errorMessage =
         error instanceof GameClientSeamError
@@ -403,17 +600,66 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     }
   }
 
-  const displayedDefenders = clientSnapshot === null ? [] : buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive)
+  const authoritativeState = clientSnapshot?.authoritativeState ?? null
+  const scenarioMapSnapshot = clientSnapshot?.scenarioMap ?? null
+  const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
+  const displayedDefenders = useMemo(
+    () => (authoritativeState === null ? [] : buildLiveDefenders({
+      authoritativeState,
+      scenarioMap: scenarioMapSnapshot,
+      movementRemainingByUnit: movementRemainingSnapshot,
+    } as GameSnapshot, activePhase, activeTurnActive)),
+    [activePhase, activeTurnActive, authoritativeState, movementRemainingSnapshot, scenarioMapSnapshot],
+  )
   const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
-  const displayedScenarioMap = buildScenarioMap(clientSnapshot)
-  const hasBattlefieldData = displayedOnion !== null && displayedScenarioMap !== null
-  const yourTurn = true
-  const isOnionSelected = displayedOnion !== null && activeSelectedUnitId === displayedOnion.id
-  const selectedDefender = displayedDefenders.find((unit) => unit.id === activeSelectedUnitId)
-  const selectedUnit = selectedDefender ?? null
-  const targetLabel = activeMode === 'end-phase' ? 'No target required' : 'onion / treads'
-  const selectedUnitIsActionable = selectedUnit?.actionableModes.includes(activeMode) ?? false
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
+  const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
+  const selectedCombatAttackStrength = useMemo(() => {
+    if (!isCombatPhase) {
+      return 0
+    }
+
+    if (activeCombatRole === 'onion') {
+      return (displayedOnion?.weaponDetails ?? [])
+        .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
+        .reduce((total, weapon) => total + weapon.attack, 0)
+    }
+
+    return displayedDefenders
+      .filter((unit) => activeSelectedUnitIds.includes(unit.id))
+      .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
+  }, [activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, isCombatPhase, selectedCombatAttackerIds])
+  const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
+  const selectedCombatAttackCount = useMemo(() => {
+    return selectedCombatAttackerIds.length
+  }, [selectedCombatAttackerIds])
+  const combatRangeHexKeys = useMemo(() => {
+    if (!isCombatPhase || displayedScenarioMap === null) {
+      return new Set<string>()
+    }
+
+    const combatSources = buildCombatRangeSources(activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion)
+    return buildCombatRangeHexKeys(combatSources, displayedScenarioMap)
+  }, [activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, displayedScenarioMap, isCombatPhase])
+  const combatTargetOptions = useMemo(
+    () => buildCombatTargetOptions({
+      activeCombatRole,
+      combatRangeHexKeys,
+      displayedDefenders,
+      displayedOnion,
+      selectedUnitIds: activeSelectedUnitIds,
+      selectedAttackStrength: selectedCombatAttackStrength,
+      displayedScenarioMap,
+    }),
+    [activeCombatRole, activeSelectedUnitIds, combatRangeHexKeys, displayedDefenders, displayedOnion, selectedCombatAttackStrength, displayedScenarioMap],
+  )
+  const selectedCombatTarget = selectedCombatTargetId === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetId) ?? null
+
+  useEffect(() => {
+    if (selectedCombatTargetId !== null && !combatTargetOptions.some((target) => target.id === selectedCombatTargetId)) {
+      setSelectedCombatTargetId(null)
+    }
+  }, [combatTargetOptions, selectedCombatTargetId])
 
   // Simulated last sync and event status for UI demo
   const [lastSync, setLastSync] = useState<Date>(new Date())
@@ -577,6 +823,14 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           {actionError}
         </div>
       )}
+      {pendingCombatResolution && selectedCombatTarget !== null ? (
+        <CombatResolutionToast
+          title={`Combat resolved on ${selectedCombatTarget.label}`}
+          resolution={pendingCombatResolution}
+          modifiers={selectedCombatTarget.modifiers}
+          onDismiss={handleDismissCombatResolution}
+        />
+      ) : null}
       <header className="topbar panel">
         <div
           className={`role-badge ${
@@ -660,76 +914,190 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
         />
       )}
 
-      <main className="battlefield-grid">
+      <main className="battlefield-grid" onClick={handleDeselectUnit}>
         <aside className="panel rail rail-left">
-          <section className="section-block">
-            <div className="card-head">
-              <p className="eyebrow">Onion</p>
-            </div>
-            {displayedOnion ? (
-              <button
-                type="button"
-                className={`onion-card-button ${activeSelectedUnitId === displayedOnion.id ? 'is-selected' : ''}`}
-                onClick={() => handleSelectUnit(displayedOnion.id)}
-              >
-                <h3>{displayedOnion.id}</h3>
-                <div className="unit-summary">
-                  <div className="summary-line">
-                    <span>Treads <strong>{displayedOnion.treads}</strong></span>
-                    <span>Moves <strong>{displayedOnion.movesRemaining}</strong></span>
-                    <span>Rams <strong>{displayedOnion.rams}</strong></span>
-                  </div>
-                  <div className="summary-line">
-                    <span>Weapons <strong>{onionWeapons.operationalWeapons}</strong></span>
-                    <span>Missiles <strong>{onionWeapons.operationalMissiles}</strong></span>
-                  </div>
+          {isCombatPhase ? (
+            <section className="section-block combat-scaffold">
+              <div className="card-head">
+                <div>
+                  <p className="eyebrow">Combat</p>
+                  <h2 title={activeCombatRole === 'onion'
+                    ? 'Pick one or more eligible weapons from the rail. Ctrl+click adds or removes weapons from the attack group.'
+                    : 'Pick one or more eligible units from the rail or board. Ctrl+click adds or removes units from the attack group.'
+                  }>
+                    Attacker Selection
+                  </h2>
                 </div>
-              </button>
-            ) : (
-              <p className="summary-line">Waiting for battlefield data.</p>
-            )}
-          </section>
-
-          <section className="section-block">
-            <div className="card-head">
-              <p className="eyebrow">Defenders</p>
-              <span className="mini-tag">{displayedDefenders.length} tracked</span>
-            </div>
-            {displayedDefenders.length > 0 ? (
-              <div className="defender-list">
-                {displayedDefenders.map((unit) => {
-                  const isSelected = unit.id === activeSelectedUnitId
-                  const isActionable = unit.actionableModes.includes(activeMode)
-                  const attackStats = parseAttackStats(unit.attack)
-                  return (
-                    <button
-                      key={unit.id}
-                      type="button"
-                      className={[
-                        'defender-card-button',
-                        isSelected ? 'is-selected' : '',
-                        isActionable ? 'is-actionable' : '',
-                        `tone-${statusTone(unit.status)}`,
-                      ].join(' ')}
-                      onClick={() => handleSelectUnit(unit.id)}
-                    >
-                      <p className="eyebrow">{unit.type}</p>
-                      <h3>{unit.id}</h3>
-                      <div className="unit-summary">
-                        <div className="summary-line">
-                          <span>Damage <strong>{attackStats.damage}</strong></span>
-                          <span>Range <strong>{attackStats.range}</strong></span>
-                          <span>Move <strong>{unit.move}</strong></span>
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
+                <span className="mini-tag mini-tag-live" data-testid="combat-attack-total">{selectedCombatAttackLabel}</span>
               </div>
-            ) : (
-              <p className="summary-line">Waiting for battlefield data.</p>
-            )}
-          </section>
+
+              <div className="attacker-selection-list">
+                {activeCombatRole === 'onion' ? (
+                  readyWeaponDetails.length > 0 ? (
+                    readyWeaponDetails.map((weapon) => {
+                      const selectionId = buildWeaponSelectionId(weapon.id)
+                      const isSelected = activeSelectedUnitIds.includes(selectionId)
+                      return (
+                        <button
+                          key={weapon.id}
+                          type="button"
+                          className={`attacker-card-button ${isSelected ? 'is-selected' : ''}`}
+                          aria-pressed={isSelected}
+                          data-selected={isSelected}
+                          data-testid={`combat-weapon-${weapon.id}`}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleSelectUnit(selectionId, event.ctrlKey || event.metaKey)
+                          }}
+                        >
+                          <div className="combat-card-header">
+                            <span className="combat-card-type"><strong>{weapon.name}</strong></span>
+                            <span className="combat-card-id">{weapon.id}</span>
+                          </div>
+                          <div className="combat-card-stats">Attack: {weapon.attack} · Range: {weapon.range}</div>
+                        </button>
+                      )
+                    })
+                  ) : (
+                    <p className="summary-line">No ready weapons available.</p>
+                  )
+                ) : displayedDefenders.length > 0 ? (
+                  displayedDefenders.map((unit) => {
+                    const isSelected = activeSelectedUnitIds.includes(unit.id)
+                    const isActionable = unit.actionableModes.includes(activeMode)
+                    const attackStats = parseAttackStats(unit.attack)
+                    const isDestroyed = unit.status === 'destroyed'
+                    const isDisabled = isDestroyed || !isActionable
+                    return (
+                      <button
+                        key={unit.id}
+                        type="button"
+                        className={[
+                          'attacker-card-button',
+                          isSelected ? 'is-selected' : '',
+                          isActionable ? 'is-actionable' : '',
+                          isDisabled ? 'is-disabled' : '',
+                          `tone-${statusTone(unit.status)}`,
+                        ].join(' ')}
+                        aria-pressed={isSelected}
+                        data-selected={isSelected}
+                        data-testid={`combat-unit-${unit.id}`}
+                        disabled={isDisabled}
+                        title={isDestroyed ? 'Destroyed units cannot attack.' : !isActionable ? 'This unit is not eligible to attack.' : undefined}
+                        onClick={(event) => {
+                          if (isDisabled) {
+                            event.stopPropagation()
+                            return
+                          }
+
+                          event.stopPropagation()
+                          handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
+                        }}
+                      >
+                        <div className="combat-card-header">
+                          <span className="combat-card-type"><strong>{unit.type}</strong></span>
+                          <span className="combat-card-id">{unit.id}</span>
+                        </div>
+                        <div className="combat-card-stats">Attack: {attackStats.damage} · Range: {attackStats.range}</div>
+                      </button>
+                    )
+                  })
+                ) : (
+                  <p className="summary-line">Waiting for battlefield data.</p>
+                )}
+              </div>
+            </section>
+          ) : (
+            <>
+              <section className="section-block">
+                <div className="card-head">
+                  <p className="eyebrow">Onion</p>
+                </div>
+                {displayedOnion ? (
+                  <button
+                    type="button"
+                    className={`onion-card-button ${activeSelectedUnitIds.includes(displayedOnion.id) ? 'is-selected' : ''}`}
+                    aria-pressed={activeSelectedUnitIds.includes(displayedOnion.id)}
+                    data-selected={activeSelectedUnitIds.includes(displayedOnion.id)}
+                    data-testid={`combat-unit-${displayedOnion.id}`}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      handleSelectUnit(displayedOnion.id, event.ctrlKey || event.metaKey)
+                    }}
+                  >
+                    <h3>{displayedOnion.id}</h3>
+                    <div className="unit-summary">
+                      <div className="summary-line">
+                        <span>Treads <strong>{displayedOnion.treads}</strong></span>
+                        <span>Moves <strong>{displayedOnion.movesRemaining}</strong></span>
+                        <span>Rams <strong>{displayedOnion.rams}</strong></span>
+                      </div>
+                      <div className="summary-line">
+                        <span>Weapons <strong>{onionWeapons.operationalWeapons}</strong></span>
+                        <span>Missiles <strong>{onionWeapons.operationalMissiles}</strong></span>
+                      </div>
+                    </div>
+                  </button>
+                ) : (
+                  <p className="summary-line">Waiting for battlefield data.</p>
+                )}
+              </section>
+
+              <section className="section-block">
+                <div className="card-head">
+                  <p className="eyebrow">Defenders</p>
+                  <span className="mini-tag">{displayedDefenders.length} tracked</span>
+                </div>
+                {displayedDefenders.length > 0 ? (
+                  <div className="defender-list">
+                    {displayedDefenders.map((unit) => {
+                      const isSelected = activeSelectedUnitIds.includes(unit.id)
+                      const isActionable = unit.actionableModes.includes(activeMode)
+                      const attackStats = parseAttackStats(unit.attack)
+                      const isDestroyed = unit.status === 'destroyed'
+                      return (
+                        <button
+                          key={unit.id}
+                          type="button"
+                          className={[
+                            'defender-card-button',
+                            isSelected ? 'is-selected' : '',
+                            isActionable ? 'is-actionable' : '',
+                            `tone-${statusTone(unit.status)}`,
+                          ].join(' ')}
+                          aria-pressed={isSelected}
+                          data-selected={isSelected}
+                          data-testid={`combat-unit-${unit.id}`}
+                          disabled={isDestroyed}
+                          onClick={(event) => {
+                            if (isDestroyed) {
+                              event.stopPropagation()
+                              return
+                            }
+
+                            event.stopPropagation()
+                            handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
+                          }}
+                        >
+                          <p className="eyebrow">{unit.type}</p>
+                          <h3>{unit.id}</h3>
+                          <div className="unit-summary">
+                            <div className="summary-line">
+                              <span>Damage <strong>{attackStats.damage}</strong></span>
+                              <span>Range <strong>{attackStats.range}</strong></span>
+                              <span>Move <strong>{unit.move}</strong></span>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="summary-line">Waiting for battlefield data.</p>
+                )}
+              </section>
+            </>
+          )}
         </aside>
 
         <section className="panel map-stage">
@@ -740,7 +1108,9 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 defenders={displayedDefenders}
                 onion={displayedOnion}
                 phase={activePhase}
-                selectedUnitId={activeSelectedUnitId}
+                selectedUnitIds={activeSelectedUnitIds}
+                selectedCombatTargetId={selectedCombatTargetId}
+                combatRangeHexKeys={combatRangeHexKeys}
                 canSubmitMove={
                   activeTurnActive && (
                     activePhase === 'ONION_MOVE' ||
@@ -749,6 +1119,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                   )
                 }
                 onSelectUnit={handleSelectUnit}
+                onSelectCombatTarget={(targetId) => setSelectedCombatTargetId(targetId)}
                 onDeselect={handleDeselectUnit}
                 onMoveUnit={handleMoveUnit}
               />
@@ -760,148 +1131,86 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           </div>
         </section>
 
-        <aside className={`panel rail rail-right ${yourTurn ? 'controls-live' : 'controls-muted'}`}>
-          {hasBattlefieldData && !isOnionSelected && (
-            <section className="section-block">
+        <aside className="panel rail rail-right">
+          {isCombatPhase ? (
+            <section className="section-block panel-subtle">
               <div className="card-head">
                 <div>
-                  <p className="eyebrow">Action Composer</p>
-                  <h2>Defender command stack</h2>
+                  <p className="eyebrow">Combat</p>
+                  <h2 title="Pick a target from the list. The list only includes targets currently in the active attack range.">
+                    Valid Targets
+                  </h2>
                 </div>
-                <span className="mini-tag mini-tag-live">controls active</span>
+                <span className="mini-tag">{combatTargetOptions.length} in range</span>
               </div>
+              {selectedCombatTarget !== null ? (
+                <CombatConfirmationView
+                  title={`Confirm attack on ${selectedCombatTarget.label}`}
+                  attackStrength={selectedCombatAttackStrength}
+                  defenseStrength={selectedCombatTarget.defense}
+                  modifiers={selectedCombatTarget.modifiers}
+                  confirmLabel="Resolve combat"
+                  onConfirm={handleConfirmCombat}
+                  dataTestId="combat-confirmation-view"
+                />
+              ) : null}
+              {combatTargetOptions.length > 0 ? (
+                <div className="attacker-selection-list" data-testid="combat-target-list">
+                  {combatTargetOptions.map((target) => {
+                    const isSelected = selectedCombatTargetId === target.id
+                      const isTreadsTarget = target.id.endsWith(':treads')
+                      const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
+                    return (
+                      <button
+                        key={target.id}
+                        type="button"
+                        className={[
+                          'attacker-card-button',
+                          isSelected ? 'is-selected' : '',
+                            isGroupAttackOnTreads ? 'is-disabled' : '',
+                          `tone-${statusTone(target.status)}`,
+                        ].join(' ')}
+                          disabled={isGroupAttackOnTreads}
+                          title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
+                        aria-pressed={isSelected}
+                          aria-disabled={isGroupAttackOnTreads}
+                        data-selected={isSelected}
+                        data-testid={`combat-target-${target.id}`}
+                        onClick={(event) => {
+                          if (isGroupAttackOnTreads) {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            return
+                          }
 
-              <div className="mode-row">
-                {battlefieldModes.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    className={`mode-button ${entry.id === activeMode ? 'mode-button-active' : ''}`}
-                    onClick={() => handleModeChange(entry.id)}
-                  >
-                    {entry.label}
-                  </button>
-                ))}
-              </div>
+                          event.stopPropagation()
+                          setSelectedCombatTargetId(target.id)
+                        }}
+                          onContextMenu={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
 
-              <p className="helper-copy">{battlefieldModes.find((entry) => entry.id === activeMode)?.helper}</p>
+                            if (isGroupAttackOnTreads) {
+                              return
+                            }
 
-              <div className="composer-grid">
-                <div className="composer-field">
-                  <span className="stat-label">Selected unit</span>
-                  <strong>{activeMode === 'end-phase' ? 'Not required' : selectedUnit?.id ?? 'No defender selected'}</strong>
+                            setSelectedCombatTargetId(target.id)
+                          }}
+                      >
+                        <div className="combat-card-header">
+                          <span className="combat-card-type"><strong>{target.label}</strong></span>
+                          <span className="combat-card-id">{target.id}</span>
+                        </div>
+                        <div className="combat-card-stats">{target.detail}</div>
+                      </button>
+                    )
+                  })}
                 </div>
-                <div className="composer-field">
-                  <span className="stat-label">Target</span>
-                  <strong>{targetLabel}</strong>
-                </div>
-                <div className="composer-field">
-                  <span className="stat-label">Weapon state</span>
-                  <strong>{activeMode === 'end-phase' ? 'n/a' : selectedUnit?.weapons ?? 'n/a'}</strong>
-                </div>
-                <div className="composer-field">
-                  <span className="stat-label">Validation</span>
-                  <strong>
-                    {activeMode === 'end-phase' || selectedUnitIsActionable
-                      ? 'ready to submit'
-                      : 'select an actionable unit'}
-                  </strong>
-                </div>
-              </div>
-
-              <button type="button" className="primary-action">
-                {activeMode === 'end-phase' ? `End ${activeRole === 'onion' ? 'Onion' : 'Defender'}` : 'Submit Action'}
-              </button>
+              ) : (
+                <p className="summary-line">No valid targets are currently in range.</p>
+              )}
             </section>
-          )}
-
-          <section className="section-block panel-subtle">
-            <div className="card-head">
-              <div>
-                <p className="eyebrow">
-                  {isOnionSelected ? 'Onion Details' : 'Selected Unit'}
-                </p>
-                <h3>{isOnionSelected ? displayedOnion?.id ?? 'Waiting' : selectedUnit?.id ?? 'Waiting'}</h3>
-              </div>
-            </div>
-            {!hasBattlefieldData ? (
-              <p className="summary-line">Waiting for battlefield data.</p>
-            ) : isOnionSelected && displayedOnion ? (
-              <>
-                <p className="summary-line">
-                  {displayedOnion.type} · {displayedOnion.status} · ({displayedOnion.q},{displayedOnion.r})
-                </p>
-                <dl className="inspector-grid inspector-grid-right">
-                  <div>
-                    <dt>Treads</dt>
-                    <dd>{displayedOnion.treads}</dd>
-                  </div>
-                  <div>
-                    <dt>Move Available</dt>
-                    <dd>{displayedOnion.movesRemaining} / {displayedOnion.movesAllowed}</dd>
-                  </div>
-                  <div>
-                    <dt>Rams</dt>
-                    <dd>{displayedOnion.rams}</dd>
-                  </div>
-                  <div>
-                    <dt>Weapons</dt>
-                    <dd style={{ gridColumn: '1 / -1' }}>{displayedOnion.weapons}</dd>
-                  </div>
-                </dl>
-              </>
-            ) : (
-              <>
-                <p className="summary-line">Selected unit: {selectedUnit?.id ?? 'No defender selected'}</p>
-                {selectedUnit ? (
-                  <>
-                    <p className="summary-line">
-                      {selectedUnit.type} · {selectedUnit.status} · ({selectedUnit.q},{selectedUnit.r})
-                    </p>
-                <dl className="inspector-grid inspector-grid-right">
-                  <div>
-                    <dt>Weapons</dt>
-                    <dd>{selectedUnit.weapons}</dd>
-                  </div>
-                  <div>
-                    <dt>Attack</dt>
-                    <dd>{selectedUnit.attack}</dd>
-                  </div>
-                  <div>
-                    <dt>Move</dt>
-                    <dd>{selectedUnit.move}</dd>
-                  </div>
-                  <div>
-                    <dt>Mode Ready</dt>
-                    <dd>{selectedUnitIsActionable ? 'yes' : 'no'}</dd>
-                  </div>
-                </dl>
-                  </>
-                ) : (
-                  <p className="summary-line">No defender data available.</p>
-                )}
-              </>
-            )}
-          </section>
-
-          <section className="section-block">
-            <div className="card-head">
-              <p className="eyebrow">Event Timeline</p>
-              <span className="mini-tag">after seq 42</span>
-            </div>
-            <div className="event-list">
-              {recentEvents.map((event) => (
-                <article key={event.seq} className={`event-row ${event.tone === 'alert' ? 'event-row-alert' : ''}`}>
-                  <div className="event-head">
-                    <strong>#{event.seq}</strong>
-                    <span>{event.type}</span>
-                    <span>{event.timestamp}</span>
-                  </div>
-                  <p>{event.summary}</p>
-                </article>
-              ))}
-            </div>
-          </section>
+          ) : null}
         </aside>
       </main>
     </div>

@@ -149,6 +149,14 @@ Exit Criteria:
 
 ## State Model (Web)
 
+## Board Model (Web)
+
+1. The web battlefield board is an odd-r offset hex grid rendered in row-major order.
+2. Board positions are addressed with integer `q`/`r` coordinates, where `q` is the column index and `r` is the row index.
+3. Visual placement staggers odd-numbered rows to the right; this is a presentation detail and does not change the stored board coordinates.
+4. Range, reachability, and selection overlays must be derived from the same board geometry model used by the renderer so that the displayed hex map and all overlay previews stay aligned.
+5. Do not treat the web board coordinates as axial movement coordinates unless a helper explicitly converts between the two representations.
+
 ## Server State (Authoritative)
 
 1. `GameState`, `phase`, `turnNumber`, `eventSeq`.
@@ -166,6 +174,13 @@ Exit Criteria:
 2. Draft action form fields.
 3. Panel visibility and layout preferences.
 4. Loading/submission statuses and API error surfaces.
+
+## Selection Contract
+
+1. Selection state on the web surface must be exposed with stable unit ids.
+2. Rail controls may expose `aria-pressed` when the selected state is represented by a button, but the shared test contract is `data-selected="true"` on the selected rail item and matching map occupant.
+3. Rail controls, map occupants, and hex cells must expose stable `data-testid` hooks keyed by unit id or coordinate so tests can pair a rail selection with the same unit on the board.
+4. Tests should assert selection and deselection by id and selection state, not by user-facing narration text.
 
 ## Rule
 
@@ -219,14 +234,9 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 - Right-clicking on a highlighted (in-range) hex instantly moves the selected unit to that hex, submits the move event, and refreshes the UI with the unit deselected.
 - Selecting a unit with no move eligibility displays its stats but does not highlight any move radius.
 
-
-
 **Error Feedback:**
 
-- The error bubble for an illegal move is only shown when:
-   - The selected unit is owned by the current player
-   - The selected unit is eligible to move (operational, has movement allowance, and it is the correct movement phase)
-   - The player right-clicks an ineligible (out-of-range, blocked, or overstacked) hex
+- The error bubble for an illegal move is only shown when the selected unit is owned by the current player, the selected unit is eligible to move (operational, has movement allowance, and it is the correct movement phase), and the player right-clicks an ineligible (out-of-range, blocked, or overstacked) hex.
 - If the selected unit is not eligible (wrong player, wrong phase, disabled, or out of movement), no error bubble is shown.
 - The error bubble should eventually report a specific reason: 'out of range', 'blocked by terrain', or 'can't stack units', as appropriate. For now, a generic “Illegal move” message is shown.
 - The error bubble remains visible for 3 seconds or until dismissed by clicking anywhere.
@@ -237,6 +247,47 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 - All move overlays and highlights are cleared when no unit is selected.
 - Movement is instant; no confirmation dialog is required.
 - Game state is stable during the player’s movement phase; no external changes are expected.
+
+## Combat UI Interaction Spec
+
+**Step 1: Attacker Selection and Range Preview**
+
+- Phase one uses a left-rail attacker-selection flow rather than a separate action composer.
+- In defender combat, the attacker list shows all eligible defender units.
+- In Onion combat, the attacker list shows all eligible Onion weapons.
+- In Onion combat, board clicks do not add attackers; the weapon list is the only selection source.
+- Destroyed defender units remain visible for context, but they are greyed out, sorted to the bottom of the defender list, and cannot be selected into attacker groups.
+- Players can select one or more eligible attackers (units or weapons) using the dynamic list and ctrl+left-click on the map or in the sidebar.
+- All attacks are group-based, whether one or many attackers are chosen.
+- The list of available attackers is dynamic:
+  - Onion player: shows available weapons (main, secondary, AP, missiles).
+  - Defender: shows eligible units.
+- Selecting any attacker (or group) displays a range overlay on the map, similar to movement, but with an orange tint.
+- The range overlay must be computed in the web board model described above so it matches the rendered hex geometry.
+- For groups, the highlighted area is the intersection of all selected attackers’ ranges—only hexes all can reach are shown.
+
+**Step 2: Target Confirmation**
+
+- Right-clicking an eligible target hex (within the highlighted range) opens a confirmation popup.
+- The popup displays:
+  - Attack:Defense ratio
+  - All relevant combat modifiers and stats (e.g., terrain, stacking, special abilities)
+  - Acknowledge/confirm button to commit the attack
+
+**Step 3: Combat Results**
+
+- After confirmation, combat results are shown in a toast notification with full details (dice, modifiers, outcome).
+- The toast auto-dismisses after 10 seconds or can be manually dismissed by clicking.
+- Once dismissed, the board updates to reflect the outcome:
+  - Destroyed units are removed
+  - Disabled units are greyed out or otherwise visually marked
+
+**Selection and Eligibility Rules**
+
+- Only the active player can select and assign their own eligible attackers.
+- Selection/deselection rules mirror movement: only one group can be selected at a time.
+- Ctrl-click toggles membership in the current selection group without clearing the rest.
+- Left-clicking any non-unit area of the game clears the current group and removes all overlays.
 
 ## Error Handling UX Baseline
 

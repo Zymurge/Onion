@@ -45,6 +45,12 @@
   stroke-width: 2;
 }
 
+.hex-cell-combat-range > .hex-shape {
+  fill: rgba(255, 167, 38, 0.24);
+  stroke: #ff9800;
+  stroke-width: 2;
+}
+
 .hex-cell-move-ready > .hex-shape {
   stroke: #2e7d32;
   stroke-width: 2;

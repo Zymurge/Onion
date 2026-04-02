@@ -293,6 +293,76 @@ describe('http game client adapter contract', () => {
 		)
 	})
 
+	it('sends FIRE actions and captures combat resolution details', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+				movementRemainingByUnit: { 'wolf-2': 4 },
+				eventSeq: 47,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
+				ok: true,
+				seq: 48,
+				events: [
+					{ seq: 48, type: 'FIRE_RESOLVED', timestamp: '2026-03-26T12:00:00.000Z', attackers: ['wolf-2'], targetId: 'onion-1', roll: 6, outcome: 'X', odds: '2:1' },
+					{ seq: 49, type: 'ONION_TREADS_LOST', timestamp: '2026-03-26T12:00:00.000Z', amount: 3, remaining: 42 },
+				],
+				state: { onion: { position: { q: 0, r: 0 }, treads: 42 }, defenders: {} },
+				movementRemainingByUnit: { 'wolf-2': 4 },
+				turnNumber: 8,
+				eventSeq: 49,
+			}))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			token: 'stub.token',
+		})
+
+		await client.getState(123)
+		await expect(client.submitAction(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1' })).resolves.toEqual(
+			expect.objectContaining({
+				gameId: 123,
+				phase: 'DEFENDER_COMBAT',
+				lastEventSeq: 49,
+				combatResolution: {
+					actionType: 'FIRE',
+					attackers: ['wolf-2'],
+					targetId: 'onion-1',
+					outcome: 'X',
+					outcomeLabel: 'Hit',
+					roll: 6,
+					odds: '2:1',
+					details: ['Treads lost: 3 (remaining 42)'],
+				},
+			}),
+		)
+
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123/actions')
+		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
+			expect.objectContaining({
+				method: 'POST',
+				headers: expect.objectContaining({
+					authorization: 'Bearer stub.token',
+					'content-type': 'application/json',
+				}),
+				body: JSON.stringify({ type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1' }),
+			}),
+		)
+	})
+
 	it('normalizes not found responses', async () => {
 		const fetchImpl = vi.fn().mockResolvedValue({
 			ok: false,

@@ -9,7 +9,14 @@ import logger from '../logger.js'
 import type { Command } from '../types/index.js'
 import { hexDistance } from './map.js'
 import type { GameMap } from './map.js'
+import {
+  createCombatCalculator,
+  calculateOdds as sharedCalculateOdds,
+  type CombatCalculatorInput,
+  type CombatStaticRules,
+} from '../shared/combatCalculator.js'
 import { getReadyWeapons, getUnitDefense, getWeaponDefense, destroyWeapon } from './units.js'
+import { getAllUnitDefinitions } from './units.js'
 import type { GameUnit, OnionUnit, DefenderUnit, EngineGameState } from './units.js'
 
 /**
@@ -104,6 +111,80 @@ type FireCommand = Extract<Command, { type: 'FIRE' }>
 type FireWeaponCommand = Extract<Command, { type: 'FIRE_WEAPON' }>
 type FireUnitCommand = Extract<Command, { type: 'FIRE_UNIT' }>
 type CombinedFireCommand = Extract<Command, { type: 'COMBINED_FIRE' }>
+
+const COMBAT_STATIC_RULES: CombatStaticRules = {
+  unitDefinitions: getAllUnitDefinitions(),
+  terrainRules: {
+    clear: { terrainType: 'clear' },
+    ridgeline: { terrainType: 'ridgeline', defenseBonus: 1 },
+    crater: { terrainType: 'crater' },
+  },
+}
+
+const combatCalculator = createCombatCalculator(COMBAT_STATIC_RULES)
+
+function getTerrainTypeAt(map: GameMap, position: { q: number; r: number }) {
+  return map.hexes[`${position.q},${position.r}`]?.terrain
+}
+
+function buildCombatCalculatorInput(
+  map: GameMap,
+  state: EngineGameState,
+  target: CombatTarget,
+  attackerIds: string[],
+): CombatCalculatorInput {
+  const units: CombatCalculatorInput['combatState']['units'] = {}
+
+  if (state.currentPhase === 'ONION_COMBAT') {
+    for (const attackerId of attackerIds) {
+      units[attackerId] = {
+        type: 'TheOnion',
+          weapons: state.onion.weapons,
+          weaponIds: [attackerId],
+      }
+    }
+
+    const defender = state.defenders[target.id]
+    if (defender) {
+      units[target.id] = {
+        type: defender.type,
+        squads: defender.squads,
+        terrainType: getTerrainTypeAt(map, defender.position),
+          weapons: defender.weapons,
+        }
+    }
+
+    return {
+      attackerGroupIds: [...attackerIds],
+      targetId: target.id,
+      combatState: { units },
+    }
+  }
+
+  for (const attackerId of attackerIds) {
+    const attacker = state.defenders[attackerId]
+    if (attacker) {
+        units[attackerId] = { type: attacker.type, weapons: attacker.weapons }
+    }
+  }
+
+  const targetPosition = target.kind === 'weapon'
+    ? state.onion.position
+    : state.onion.position
+
+  units[state.onion.id] = {
+    type: 'TheOnion',
+    weaponId: target.kind === 'weapon' ? target.id : undefined,
+    terrainType: getTerrainTypeAt(map, targetPosition),
+      weapons: state.onion.weapons,
+  }
+
+  return {
+    attackerGroupIds: [...attackerIds],
+    targetId: state.onion.id,
+    combatState: { units },
+  }
+}
 
 function resolveOnionWeaponId(onion: OnionUnit, command: FireWeaponCommand): string | null {
   if (command.weaponType === 'main') {
@@ -280,6 +361,10 @@ export function validateCombatAction(
       }
     }
 
+    const combatResult = combatCalculator.calculateResult(
+      buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.id }, [...normalizedCommand.attackers]),
+    )
+
     return {
       ok: true,
       plan: {
@@ -287,8 +372,8 @@ export function validateCombatAction(
         actor: 'onion',
         attackerIds: [...normalizedCommand.attackers],
         target: { kind: 'defender', id: target.id },
-        attackStrength,
-        defense: getUnitDefense(target, false),
+        attackStrength: combatResult.attackStrength,
+        defense: combatResult.defenseStrength,
         weaponIds,
       },
     }
@@ -336,6 +421,10 @@ export function validateCombatAction(
     attackStrength += readyWeapons.reduce((total, weapon) => total + weapon.attack, 0)
   }
 
+  const combatResult = combatCalculator.calculateResult(
+    buildCombatCalculatorInput(map, state, target, [...normalizedCommand.attackers]),
+  )
+
   return {
     ok: true,
     plan: {
@@ -343,8 +432,13 @@ export function validateCombatAction(
       actor: 'defender',
       attackerIds: [...normalizedCommand.attackers],
       target,
-      attackStrength,
-      defense: target.kind === 'weapon' ? getWeaponDefense(state.onion, target.id) : 0,
+      attackStrength: combatResult.attackStrength,
+        defense:
+          target.kind === 'weapon'
+            ? getWeaponDefense(state.onion, target.id)
+            : target.kind === 'treads'
+              ? combatResult.attackStrength
+              : combatResult.defenseStrength,
     },
   }
 }
@@ -610,7 +704,7 @@ export function rollCombat(
   defenseValue: number,
   roll?: number
 ): CombatRoll {
-  const odds = calculateOdds(attackStrength, defenseValue)
+  const odds = sharedCalculateOdds(attackStrength, defenseValue)
   const d6 = roll ?? (Math.floor(Math.random() * 6) + 1)
   const result = CRT[odds][d6 - 1]
   return { roll: d6, result, odds }
@@ -623,15 +717,7 @@ export function rollCombat(
  * @returns Odds ratio as string (e.g., "1:1", "2:1", "1:3")
  */
 export function calculateOdds(attackStrength: number, defenseValue: number): string {
-  if (defenseValue === 0) return '5:1'
-  const ratio = attackStrength / defenseValue
-  if (ratio >= 5) return '5:1'
-  if (ratio >= 4) return '4:1'
-  if (ratio >= 3) return '3:1'
-  if (ratio >= 2) return '2:1'
-  if (ratio >= 1) return '1:1'
-  if (ratio >= 0.5) return '1:2'
-  return '1:3'
+  return sharedCalculateOdds(attackStrength, defenseValue)
 }
 
 /**

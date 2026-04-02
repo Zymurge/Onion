@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
-import { createMap, findPath, hexDistance } from '../engine/map.js'
+import { hexDistance } from '../engine/map.js'
 import { getUnitDefinition, onionMovementAllowance } from '../engine/units.js'
+import { listReachableMoves, type MoveMapSnapshot } from '../shared/movePlanner.js'
 
 export type HexPos = { q: number; r: number }
 export type ScenarioMap = { width: number; height: number; hexes: Array<{ q: number; r: number; t: number }> }
@@ -123,6 +124,36 @@ function canCrossRidgelines(state: any, unitId: string): boolean {
   return definition?.abilities.canCrossRidgelines === true
 }
 
+function buildMoveMapSnapshot(map: ScenarioMap, state: any, unitId: string): MoveMapSnapshot {
+  const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
+    ...(state.onion.id !== unitId
+      ? [{
+          q: state.onion.position.q,
+          r: state.onion.position.r,
+          role: 'onion' as const,
+          unitType: state.onion.type ?? 'TheOnion',
+          squads: 1,
+        }]
+      : []),
+    ...Object.entries(state.defenders)
+      .filter(([defenderId, defender]: [string, any]) => defenderId !== unitId && defender.id !== unitId)
+      .map(([_defenderId, defender]: [string, any]) => ({
+        q: defender.position.q,
+        r: defender.position.r,
+        role: 'defender' as const,
+        unitType: defender.type,
+        squads: defender.squads,
+      })),
+  ]
+
+  return {
+    width: map.width,
+    height: map.height,
+    hexes: map.hexes,
+    occupiedHexes,
+  }
+}
+
 export function chooseReachableMoveToward(
   map: ScenarioMap,
   state: any,
@@ -135,32 +166,27 @@ export function chooseReachableMoveToward(
   const movementAllowance = movementAllowanceFor(state, unitId)
   if (movementAllowance <= 0) return null
 
-  const engineMap = createMap(map.width, map.height, map.hexes)
+  const moveMap = buildMoveMapSnapshot(map, state, unitId)
+  const reachableMoves = listReachableMoves({
+    map: moveMap,
+    from: unit.position,
+    movementAllowance,
+    canCrossRidgelines: canCrossRidgelines(state, unitId),
+    movingRole: unitId === state.onion.id ? 'onion' : 'defender',
+    movingUnitType: unit.type,
+    incomingSquads: unit.squads,
+  })
+
   const candidates: Array<{ position: HexPos; distance: number; cost: number }> = []
 
-  for (let q = 0; q < map.width; q++) {
-    for (let r = 0; r < map.height; r++) {
-      const position = { q, r }
-      if (position.q === unit.position.q && position.r === unit.position.r) continue
-      if (isOccupied(state, position, unitId)) continue
+  for (const move of reachableMoves) {
+    if (isOccupied(state, move.to, unitId)) continue
 
-      const path = findPath(
-        engineMap,
-        unit.position,
-        position,
-        movementAllowance,
-        canCrossRidgelines(state, unitId),
-      )
-
-      if (!path.found) continue
-      if (path.path.some((step) => isOccupied(state, step, unitId))) continue
-
-      candidates.push({
-        position,
-        distance: hexDistance(position, target),
-        cost: path.cost,
-      })
-    }
+    candidates.push({
+      position: move.to,
+      distance: hexDistance(move.to, target),
+      cost: move.cost,
+    })
   }
 
   candidates.sort((left, right) => {
