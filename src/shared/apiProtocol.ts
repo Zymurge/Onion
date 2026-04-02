@@ -23,6 +23,156 @@ export type ApiFailure = {
 
 export type ApiResult<T> = ApiSuccess<T> | ApiFailure
 
+export type ApiProtocolTrafficDirection = 'request' | 'response' | 'error'
+
+export type ApiProtocolTrafficEntry = {
+	id: number
+	timestamp: string
+	direction: ApiProtocolTrafficDirection
+	method: string
+	path: string
+	status?: number
+	requestBody?: unknown
+	responseBody?: unknown
+	message?: string
+}
+
+type ApiProtocolTrafficListener = (entry: ApiProtocolTrafficEntry) => void
+
+const API_PROTOCOL_TRAFFIC_LIMIT = 200
+
+let apiProtocolTrafficSeq = 0
+const apiProtocolTrafficLog: ApiProtocolTrafficEntry[] = []
+const apiProtocolTrafficListeners = new Set<ApiProtocolTrafficListener>()
+
+function redactProtocolValue(value: unknown, seen = new WeakSet<object>()): unknown {
+	if (value === null || value === undefined) {
+		return value
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((item) => redactProtocolValue(item, seen))
+	}
+
+	if (typeof value !== 'object') {
+		return value
+	}
+
+	if (seen.has(value)) {
+		return '[Circular]'
+	}
+
+	seen.add(value)
+
+	const record = value as Record<string, unknown>
+	return Object.fromEntries(
+		Object.entries(record).map(([key, entryValue]) => {
+			if (key === 'password' || key === 'token' || key === 'authorization') {
+				return [key, '(redacted)']
+			}
+
+			return [key, redactProtocolValue(entryValue, seen)]
+		}),
+	)
+}
+
+
+function formatJsonPayloadLines(value: unknown): string[] {
+	if (value === undefined) {
+		return []
+	}
+
+	const redacted = redactProtocolValue(value)
+	const serialized = JSON.stringify(redacted, null, 2)
+
+	if (serialized === undefined) {
+		return []
+	}
+
+	return serialized.split('\n').map((line) => `  ${line}`)
+}
+
+function appendFormattedPayload(lines: string[], label: 'request' | 'response', value: unknown): void {
+	const payloadLines = formatJsonPayloadLines(value)
+	if (payloadLines.length === 0) {
+		return
+	}
+
+	lines.push(`${label}:`)
+	lines.push(...payloadLines)
+}
+
+function pushApiProtocolTraffic(entry: Omit<ApiProtocolTrafficEntry, 'id' | 'timestamp'>) {
+	const record: ApiProtocolTrafficEntry = {
+		id: ++apiProtocolTrafficSeq,
+		timestamp: new Date().toISOString(),
+		...entry,
+	}
+
+	apiProtocolTrafficLog.push(record)
+	if (apiProtocolTrafficLog.length > API_PROTOCOL_TRAFFIC_LIMIT) {
+		apiProtocolTrafficLog.splice(0, apiProtocolTrafficLog.length - API_PROTOCOL_TRAFFIC_LIMIT)
+	}
+
+	for (const listener of apiProtocolTrafficListeners) {
+		listener(record)
+	}
+}
+
+export function getApiProtocolTrafficSnapshot(): ApiProtocolTrafficEntry[] {
+	return apiProtocolTrafficLog.slice()
+}
+
+export function subscribeApiProtocolTraffic(listener: ApiProtocolTrafficListener): () => void {
+	apiProtocolTrafficListeners.add(listener)
+	return () => {
+		apiProtocolTrafficListeners.delete(listener)
+	}
+}
+
+export function clearApiProtocolTraffic(): void {
+	apiProtocolTrafficLog.length = 0
+	apiProtocolTrafficSeq = 0
+}
+
+export function getApiProtocolTrafficVersion(): number {
+	return apiProtocolTrafficSeq
+}
+
+export function sanitizeApiProtocolTrafficEntry(entry: ApiProtocolTrafficEntry): ApiProtocolTrafficEntry {
+	return {
+		...entry,
+		requestBody: redactProtocolValue(entry.requestBody),
+		responseBody: redactProtocolValue(entry.responseBody),
+	}
+}
+
+export function formatApiProtocolTrafficEntry(entry: ApiProtocolTrafficEntry): string[] {
+	const time = new Date(entry.timestamp).toLocaleTimeString([], {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false,
+	})
+	const direction = entry.direction === 'request' ? '→' : entry.direction === 'response' ? '←' : '!'
+	const requestLine = `${direction} ${entry.method} ${entry.path}`
+	const lines = [`[${time}] ${requestLine}`]
+
+	if (entry.status !== undefined) {
+		lines.push(`status: ${entry.status}`)
+	}
+
+	if (entry.message !== undefined) {
+		lines.push(`message: ${entry.message}`)
+	}
+
+	appendFormattedPayload(lines, 'request', entry.requestBody)
+
+	appendFormattedPayload(lines, 'response', entry.responseBody)
+
+	return lines
+}
+
 export type ScenarioMapSnapshot = {
 	width: number
 	height: number
@@ -94,6 +244,12 @@ export async function requestJson<T>(options: {
 }): Promise<ApiResult<T>> {
 	const fetchImpl = options.fetchImpl ?? fetch
 	const requestBody = options.body === undefined ? undefined : JSON.stringify(options.body)
+	pushApiProtocolTraffic({
+		direction: 'request',
+		method: options.method,
+		path: options.path,
+		requestBody: options.body,
+	})
 
 	let response: Response
 	try {
@@ -103,6 +259,12 @@ export async function requestJson<T>(options: {
 			body: requestBody,
 		})
 	} catch (error) {
+		pushApiProtocolTraffic({
+			direction: 'error',
+			method: options.method,
+			path: options.path,
+			message: error instanceof Error ? error.message : 'Unknown network error',
+		})
 		return {
 			ok: false,
 			status: 0,
@@ -114,6 +276,13 @@ export async function requestJson<T>(options: {
 	const parsed = await parseBody(response)
 	if (!response.ok) {
 		const errorBody = typeof parsed === 'object' && parsed !== null ? (parsed as ApiErrorBody) : parsed
+		pushApiProtocolTraffic({
+			direction: 'response',
+			method: options.method,
+			path: options.path,
+			status: response.status,
+			responseBody: errorBody,
+		})
 		return {
 			ok: false,
 			status: response.status,
@@ -124,6 +293,14 @@ export async function requestJson<T>(options: {
 					: response.statusText || 'Request failed',
 		}
 	}
+
+	pushApiProtocolTraffic({
+		direction: 'response',
+		method: options.method,
+		path: options.path,
+		status: response.status,
+		responseBody: parsed,
+	})
 
 	return {
 		ok: true,

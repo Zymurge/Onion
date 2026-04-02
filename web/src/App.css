@@ -183,6 +183,41 @@
   word-break: break-word;
   line-height: 1.5;
 }
+.debug-json-print {
+  font-family: monospace;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.debug-json-print .data__type {
+  color: #f8f3e3;
+}
+.debug-json-print .data__type--opened,
+.debug-json-print .data__type--closed {
+  margin-bottom: 2px;
+}
+.debug-json-print .data__list-handle {
+  cursor: pointer;
+}
+.debug-json-print .data__key {
+  color: #e2d3a2;
+}
+.debug-json-print .data__value {
+  color: #f8f3e3;
+}
+.debug-json-print .data__value--string {
+  color: #9ed0ff;
+}
+.debug-json-print .data__value--number,
+.debug-json-print .data__value--boolean,
+.debug-json-print .data__value--null,
+.debug-json-print .data__value--undefined {
+  color: #f1c27d;
+}
+.debug-json-print .data__list-items {
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(191, 174, 122, 0.18);
+}
 .debug-line {
   margin-bottom: 2px;
 }

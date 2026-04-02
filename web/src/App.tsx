@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
+import { useState, useEffect, useRef, useSyncExternalStore, type FormEvent } from 'react'
+import ReactJsonPrintImport from 'react-json-print'
 import { HexMapBoard } from './components/HexMapBoard'
 import { CombatConfirmationView } from './components/CombatConfirmationView'
 import { CombatResolutionToast } from './components/CombatResolutionToast'
@@ -20,10 +22,22 @@ import { createHttpGameClient } from './lib/httpGameClient'
 import { buildCombatRangeHexKeys } from './lib/combatRange'
 import { buildCombatTargetOptions } from './lib/combatPreview'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
-import { requestJson } from '../../src/shared/apiProtocol'
+import {
+  getApiProtocolTrafficSnapshot,
+  getApiProtocolTrafficVersion,
+  type ApiProtocolTrafficEntry,
+  requestJson,
+  sanitizeApiProtocolTrafficEntry,
+  subscribeApiProtocolTraffic,
+} from '../../src/shared/apiProtocol'
 import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
 import type { TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
 import './App.css'
+
+const ReactJsonPrint =
+  typeof ReactJsonPrintImport === 'function'
+    ? ReactJsonPrintImport
+    : (ReactJsonPrintImport as { default?: typeof ReactJsonPrintImport }).default ?? ReactJsonPrintImport
 
 const turnPhaseLabels: Record<TurnPhase, string> = {
   ONION_MOVE: 'Onion Movement',
@@ -101,6 +115,27 @@ function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
   })
 
   return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
+}
+
+function formatDebugEntrySummary(entry: ApiProtocolTrafficEntry) {
+  const time = new Date(entry.timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+  const arrow = entry.direction === 'request' ? '→' : entry.direction === 'response' ? '←' : '!'
+  const parts = [`[${time}]`, `${arrow} ${entry.method} ${entry.path}`]
+
+  if (entry.status !== undefined) {
+    parts.push(`status ${entry.status}`)
+  }
+
+  if (entry.message !== undefined) {
+    parts.push(entry.message)
+  }
+
+  return parts.join(' ')
 }
 
 function getReadyWeaponRange(weapons: ReadonlyArray<Weapon> | undefined): number {
@@ -317,41 +352,123 @@ type AuthResponse = {
   token: string
 }
 
-function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
+type DebugPopupLayout = {
+  position: { x: number; y: number }
+  size: { width: number; height: number }
+}
 
+function DraggableDebugPopup({
+  layout,
+  onLayoutChange,
+  onClose,
+  lines,
+  onAdvancePhase,
+}: {
+  layout: DebugPopupLayout
+  onLayoutChange: (nextLayout: DebugPopupLayout) => void
+  onClose: () => void
+  lines: ReadonlyArray<ApiProtocolTrafficEntry>
+  onAdvancePhase: () => void
+}) {
+  const [dragging, setDragging] = useState(false)
+  const [resizing, setResizing] = useState(false)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
+
+  function onMouseDown(e: React.MouseEvent) {
+    setDragging(true)
+    setOffset({ x: e.clientX - layout.position.x, y: e.clientY - layout.position.y })
+    document.body.style.userSelect = 'none'
+  }
+
+  function onResizeMouseDown(e: React.MouseEvent) {
+    e.preventDefault()
+    setResizing(true)
+    setResizeStart({ x: e.clientX, y: e.clientY, width: layout.size.width, height: layout.size.height })
+    document.body.style.userSelect = 'none'
+  }
+
+  function onMouseMove(e: MouseEvent) {
+    if (dragging) {
+      onLayoutChange({
+        position: { x: e.clientX - offset.x, y: e.clientY - offset.y },
+        size: layout.size,
+      })
+    }
+    if (resizing) {
+      const deltaX = e.clientX - resizeStart.x
+      const deltaY = e.clientY - resizeStart.y
+      const newWidth = Math.max(250, resizeStart.width + deltaX)
+      const newHeight = Math.max(200, resizeStart.height + deltaY)
+      onLayoutChange({
+        position: layout.position,
+        size: { width: newWidth, height: newHeight },
+      })
+    }
+  }
+
+  function onMouseUp() {
+    setDragging(false)
+    setResizing(false)
+    document.body.style.userSelect = ''
+  }
+
+  useEffect(() => {
+    if (dragging || resizing) {
+      window.addEventListener('mousemove', onMouseMove)
+      window.addEventListener('mouseup', onMouseUp)
+      return () => {
+        window.removeEventListener('mousemove', onMouseMove)
+        window.removeEventListener('mouseup', onMouseUp)
+      }
+    }
+  })
+
+  return createPortal(
+    <div
+      className="debug-popup"
+      style={{ left: layout.position.x, top: layout.position.y, width: layout.size.width, height: layout.size.height }}
+    >
+      <div className="debug-popup-header" onMouseDown={onMouseDown} style={{ cursor: 'move' }}>
+        <span>Debug Diagnostics</span>
+        <button className="debug-popup-close" onClick={onClose} title="Close debug window">×</button>
+      </div>
+      <div className="debug-popup-body">
+        {lines.length === 0 ? (
+          <div className="debug-line">No protocol traffic yet.</div>
+        ) : (
+          lines.map((entry) => (
+            <section key={entry.id} className="debug-entry">
+              <div className="debug-entry-summary">{formatDebugEntrySummary(entry)}</div>
+              <div className="debug-json-print">
+                <ReactJsonPrint dataObject={entry} depth={2} />
+              </div>
+            </section>
+          ))
+        )}
+      </div>
+      <div className="debug-popup-footer">
+        <button
+          className="debug-cycle-phase-btn"
+          onClick={onAdvancePhase}
+          title="Send END_PHASE to the backend"
+        >
+          Advance Phase
+        </button>
+      </div>
+      <div className="debug-popup-resize" onMouseDown={onResizeMouseDown} title="Drag to resize">⤡</div>
+    </div>,
+    document.body,
+  )
+}
+
+function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
-    const mockDebugLines = [
-      '[12:00:01] [info] Game state loaded',
-      '[12:00:02] [debug] Map rendered',
-      '[12:00:03] [info] User selected unit wolf-2',
-      '[12:00:04] [debug] Combat selection scaffold ready',
-      '[12:00:05] [info] Event timeline updated',
-      '[12:00:06] [debug] Sync complete',
-      '[12:00:07] [info] No errors detected',
-      '[12:00:08] [debug] WebSocket connection initialized',
-      '[12:00:09] [info] Game rules validation complete',
-      '[12:00:10] [debug] Terrain generation started for scenario swamp-siege-01',
-      '[12:00:11] [info] Generated 42 hexes with mixed terrain types',
-      '[12:00:12] [debug] Unit positioning validated',
-      '[12:00:13] [info] Onion unit placed at coordinates (5,3)',
-      '[12:00:14] [debug] Defender units positioned: wolf-1, wolf-2, tiger-4, bear-1',
-      '[12:00:15] [info] Left rail combat lists initialized for attacker selection',
-      '[12:00:16] [debug] UI rendering pipeline started',
-      '[12:00:17] [info] Header components mounted successfully',
-      '[12:00:18] [debug] MapBoard component initialized with 42 hexes',
-      '[12:00:19] [info] Event timeline seeded with 6 mock events',
-      '[12:00:20] [debug] Performance: Initial render completed in 142ms',
-      '[12:00:21] [info] Listening for user input on map interactions',
-      '[12:00:22] [debug] Drag handlers attached to debug popup window',
-      '[12:00:23] [info] Refresh cycle: Last sync was 23 seconds ago',
-      '[12:00:24] [debug] Event fetch status: OK (events up to date)',
-      '[12:00:25] [info] Connection status: CONNECTED (polling mode)',
-      '[12:00:26] [debug] Checking for stale game state...',
-      '[12:00:27] [info] Game state fresh, no reconciliation needed',
-      '[12:00:28] [debug] Memory usage: 18.4 MB (within acceptable range)',
-      '[12:00:29] [info] All systems operational. Ready for player input.',
-    ]
+    const [debugPopupLayout, setDebugPopupLayout] = useState<DebugPopupLayout>(() => ({
+      position: { x: window.innerWidth - 380, y: 90 },
+      size: { width: 340, height: 400 },
+    }))
     const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
     const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
     const [actionError, setActionError] = useState<string | null>(null)
@@ -375,8 +492,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
   useEffect(() => {
     if (activeGameClient === undefined || activeGameIdProp === undefined) {
-      setClientSnapshot(null)
-      setClientSession(null)
+      queueMicrotask(() => {
+        setClientSnapshot(null)
+        setClientSession(null)
+      })
       return
     }
 
@@ -408,10 +527,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? null
   const selectedSnapshotUnitId = clientSnapshot?.selectedUnitId ?? null
-  const activeSelectedUnitIds = useMemo(
-    () => selectedUnitIds ?? (selectedSnapshotUnitId ? [selectedSnapshotUnitId] : []),
-    [selectedSnapshotUnitId, selectedUnitIds],
-  )
+  const activeSelectedUnitIds = selectedUnitIds ?? (selectedSnapshotUnitId ? [selectedSnapshotUnitId] : [])
   const headerHasSnapshot = clientSnapshot !== null
   const activeTurnNumber = clientSnapshot?.turnNumber ?? null
   const activeScenarioName = clientSnapshot?.scenarioName ?? null
@@ -425,17 +541,11 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
   const activeCombatRole = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
   const displayedScenarioMap = buildScenarioMap(clientSnapshot)
-  const selectedCombatAttackerIds = useMemo(() => {
-    if (!isCombatPhase) {
-      return []
-    }
-
-    if (activeCombatRole === 'onion') {
-      return activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
-    }
-
-    return [...activeSelectedUnitIds]
-  }, [activeCombatRole, activeSelectedUnitIds, isCombatPhase])
+  const selectedCombatAttackerIds = !isCombatPhase
+    ? []
+    : activeCombatRole === 'onion'
+      ? activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
+      : [...activeSelectedUnitIds]
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -614,64 +724,64 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const authoritativeState = clientSnapshot?.authoritativeState ?? null
   const scenarioMapSnapshot = clientSnapshot?.scenarioMap ?? null
   const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
-  const displayedDefenders = useMemo(
-    () => (authoritativeState === null ? [] : buildLiveDefenders({
-      authoritativeState,
-      scenarioMap: scenarioMapSnapshot,
-      movementRemainingByUnit: movementRemainingSnapshot,
-    } as GameSnapshot, activePhase, activeTurnActive)),
-    [activePhase, activeTurnActive, authoritativeState, movementRemainingSnapshot, scenarioMapSnapshot],
-  )
+  const displayedDefenders = authoritativeState === null ? [] : buildLiveDefenders({
+    authoritativeState,
+    scenarioMap: scenarioMapSnapshot,
+    movementRemainingByUnit: movementRemainingSnapshot,
+  } as GameSnapshot, activePhase, activeTurnActive)
   const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
   const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
   const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
-  const selectedCombatAttackStrength = useMemo(() => {
-    if (!isCombatPhase) {
-      return 0
-    }
-
-    if (activeCombatRole === 'onion') {
-      return (displayedOnion?.weaponDetails ?? [])
+  const selectedCombatAttackStrength = !isCombatPhase
+    ? 0
+    : activeCombatRole === 'onion'
+      ? (displayedOnion?.weaponDetails ?? [])
         .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
         .reduce((total, weapon) => total + weapon.attack, 0)
-    }
-
-    return displayedDefenders
-      .filter((unit) => activeSelectedUnitIds.includes(unit.id))
-      .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
-  }, [activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, isCombatPhase, selectedCombatAttackerIds])
+      : displayedDefenders
+        .filter((unit) => activeSelectedUnitIds.includes(unit.id))
+        .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
   const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
-  const selectedCombatAttackCount = useMemo(() => {
-    return selectedCombatAttackerIds.length
-  }, [selectedCombatAttackerIds])
-  const combatRangeHexKeys = useMemo(() => {
-    if (!isCombatPhase || displayedScenarioMap === null) {
-      return new Set<string>()
-    }
-
-    const combatSources = buildCombatRangeSources(activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion)
-    return buildCombatRangeHexKeys(combatSources, displayedScenarioMap)
-  }, [activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, displayedScenarioMap, isCombatPhase])
-  const combatTargetOptions = useMemo(
-    () => buildCombatTargetOptions({
-      activeCombatRole,
-      combatRangeHexKeys,
-      displayedDefenders,
-      displayedOnion,
-      selectedUnitIds: activeSelectedUnitIds,
-      selectedAttackStrength: selectedCombatAttackStrength,
+  const selectedCombatAttackCount = selectedCombatAttackerIds.length
+  const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
+    ? new Set<string>()
+    : buildCombatRangeHexKeys(
+      buildCombatRangeSources(activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion),
       displayedScenarioMap,
-    }),
-    [activeCombatRole, activeSelectedUnitIds, combatRangeHexKeys, displayedDefenders, displayedOnion, selectedCombatAttackStrength, displayedScenarioMap],
-  )
-  const combatTargetIds = useMemo(() => new Set(combatTargetOptions.map((target) => target.id)), [combatTargetOptions])
-  const selectedCombatTarget = selectedCombatTargetId === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetId) ?? null
+    )
+  const combatTargetOptions = buildCombatTargetOptions({
+    activeCombatRole,
+    combatRangeHexKeys,
+    displayedDefenders,
+    displayedOnion,
+    selectedUnitIds: activeSelectedUnitIds,
+    selectedAttackStrength: selectedCombatAttackStrength,
+    displayedScenarioMap,
+  })
+  const combatTargetIds = new Set(combatTargetOptions.map((target) => target.id))
+  const selectedCombatTargetIdForRender = selectedCombatTargetId !== null && combatTargetIds.has(selectedCombatTargetId) ? selectedCombatTargetId : null
+  const selectedCombatTarget = selectedCombatTargetIdForRender === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetIdForRender) ?? null
 
-  useEffect(() => {
-    if (selectedCombatTargetId !== null && !combatTargetOptions.some((target) => target.id === selectedCombatTargetId)) {
-      setSelectedCombatTargetId(null)
-    }
-  }, [combatTargetOptions, selectedCombatTargetId])
+  useSyncExternalStore(
+    (onStoreChange) => {
+      if (!debugOpen) {
+        return () => {}
+      }
+
+      return subscribeApiProtocolTraffic(() => {
+        onStoreChange()
+      })
+    },
+    () => (debugOpen ? getApiProtocolTrafficVersion() : 0),
+    () => 0,
+  )
+  const debugEntries = debugOpen
+    ? getApiProtocolTrafficSnapshot()
+      .slice()
+      .reverse()
+      .slice(0, 400)
+      .map((entry) => sanitizeApiProtocolTrafficEntry(entry))
+    : []
 
   // Simulated last sync and event status for UI demo
   const [lastSync, setLastSync] = useState<Date>(new Date())
@@ -744,85 +854,6 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
             <button type="submit" className="primary-action">Load Game</button>
           </form>
         </section>
-      </div>
-    )
-  }
-
-  // Floating, draggable, resizable debug popup component
-  function DraggableDebugPopup({ onClose, lines, onAdvancePhase }: { onClose: () => void; lines: string[]; onAdvancePhase: () => void }) {
-    const [pos, setPos] = useState({ x: window.innerWidth - 380, y: 90 })
-    const [size, setSize] = useState({ width: 340, height: 400 })
-    const [dragging, setDragging] = useState(false)
-    const [resizing, setResizing] = useState(false)
-    const [offset, setOffset] = useState({ x: 0, y: 0 })
-    const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
-
-    function onMouseDown(e: React.MouseEvent) {
-      setDragging(true)
-      setOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y })
-      document.body.style.userSelect = 'none'
-    }
-    
-    function onResizeMouseDown(e: React.MouseEvent) {
-      e.preventDefault()
-      setResizing(true)
-      setResizeStart({ x: e.clientX, y: e.clientY, width: size.width, height: size.height })
-      document.body.style.userSelect = 'none'
-    }
-    
-    function onMouseMove(e: MouseEvent) {
-      if (dragging) {
-        setPos({ x: e.clientX - offset.x, y: e.clientY - offset.y })
-      }
-      if (resizing) {
-        const deltaX = e.clientX - resizeStart.x
-        const deltaY = e.clientY - resizeStart.y
-        const newWidth = Math.max(250, resizeStart.width + deltaX)
-        const newHeight = Math.max(200, resizeStart.height + deltaY)
-        setSize({ width: newWidth, height: newHeight })
-      }
-    }
-    
-    function onMouseUp() {
-      setDragging(false)
-      setResizing(false)
-      document.body.style.userSelect = ''
-    }
-    
-    useEffect(() => {
-      if (dragging || resizing) {
-        window.addEventListener('mousemove', onMouseMove)
-        window.addEventListener('mouseup', onMouseUp)
-        return () => {
-          window.removeEventListener('mousemove', onMouseMove)
-          window.removeEventListener('mouseup', onMouseUp)
-        }
-      }
-    })
-    return (
-      <div
-        className="debug-popup"
-        style={{ left: pos.x, top: pos.y, width: size.width, height: size.height }}
-      >
-        <div className="debug-popup-header" onMouseDown={onMouseDown} style={{ cursor: 'move' }}>
-          <span>Debug Diagnostics</span>
-          <button className="debug-popup-close" onClick={onClose} title="Close debug window">×</button>
-        </div>
-        <div className="debug-popup-body">
-          {lines.map((line: string, i: number) => (
-            <div key={i} className="debug-line">{line}</div>
-          ))}
-        </div>
-        <div className="debug-popup-footer">
-          <button
-            className="debug-cycle-phase-btn"
-            onClick={onAdvancePhase}
-            title="Send END_PHASE to the backend"
-          >
-            Advance Phase
-          </button>
-        </div>
-        <div className="debug-popup-resize" onMouseDown={onResizeMouseDown} title="Drag to resize">⤡</div>
       </div>
     )
   }
@@ -918,8 +949,10 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
 
       {debugOpen && (
         <DraggableDebugPopup
+          layout={debugPopupLayout}
+          onLayoutChange={setDebugPopupLayout}
           onClose={() => setDebugOpen(false)}
-          lines={mockDebugLines}
+          lines={debugEntries}
           onAdvancePhase={() => {
             void commitClientAction({ type: 'end-phase' })
           }}
