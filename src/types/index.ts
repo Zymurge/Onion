@@ -13,6 +13,23 @@ export type PlayerRole = 'onion' | 'defender'
 
 export type OnionWeaponType = 'main' | 'secondary' | 'ap' | 'missile'
 
+/**
+ * Explicit targeting restrictions for a weapon definition.
+ *
+ * Use explicit unit and weapon identifiers instead of abstract combat classes
+ * so special-case rules remain easy to read and extend.
+ */
+export interface TargetRules {
+  /** Unit types this weapon may target. */
+  allowedTargetUnitTypes?: ReadonlyArray<string>
+  /** Weapon ids this weapon may target, when the target is a subsystem. */
+  allowedTargetWeaponIds?: ReadonlyArray<string>
+  /** Unit types that may target this unit. */
+  allowedAttackerUnitTypes?: ReadonlyArray<string>
+  /** Weapon ids that may target this unit. */
+  allowedAttackerWeaponIds?: ReadonlyArray<string>
+}
+
 export interface HexPos {
   q: number
   r: number
@@ -26,6 +43,8 @@ export interface Weapon {
   defense: number
   status: WeaponStatus
   individuallyTargetable: boolean
+  /** Optional target restrictions for this weapon. */
+  targetRules?: TargetRules
 }
 
 export interface DefenderUnit {
@@ -35,6 +54,7 @@ export interface DefenderUnit {
   status: UnitStatus
   weapons?: Weapon[]
   squads?: number
+  targetRules?: TargetRules
 }
 
 export interface GameState {
@@ -46,6 +66,7 @@ export interface GameState {
     missiles?: number
     status?: UnitStatus
     weapons?: Weapon[]
+    targetRules?: TargetRules
     batteries?: {
       main: number
       secondary: number

@@ -52,7 +52,14 @@ export function CombatConfirmationView({ title, attackStrength, defenseStrength,
 
       {onConfirm ? (
         <div className="combat-confirmation-actions">
-          <button className="combat-confirm-button" type="button" onClick={onConfirm}>
+          <button
+            className="combat-confirm-button"
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onConfirm()
+            }}
+          >
             {confirmLabel ?? 'Confirm attack'}
           </button>
         </div>

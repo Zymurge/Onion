@@ -5,6 +5,11 @@ import {
 	type CombatCalculatorInput,
 	type CombatStaticRules,
 } from '../../../src/shared/combatCalculator.js'
+import {
+	isTargetAllowedByRules,
+	resolveUnitTargetRules,
+	resolveWeaponTargetRules,
+} from '../../../src/shared/targetRules.js'
 
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex, UnitStatus, Weapon } from './battlefieldView'
 
@@ -77,6 +82,19 @@ function getSelectedAttackerIds(activeCombatRole: CombatRole, selectedUnitIds: R
 
 function getWeaponDetails(displayedOnion: BattlefieldOnionView): ReadonlyArray<Weapon> {
 	return displayedOnion.weaponDetails ?? []
+}
+
+function getStaticWeaponTargetRules(weaponId: string) {
+	return combatRules.unitDefinitions.TheOnion.weapons.find((weapon) => weapon.id === weaponId)?.targetRules
+}
+
+function getStaticUnitTargetRules(unitType: string) {
+	return combatRules.unitDefinitions[unitType]?.targetRules
+}
+
+function getSelectedWeapons(displayedOnion: BattlefieldOnionView, selectedAttackerIds: ReadonlyArray<string>): ReadonlyArray<Weapon> {
+	const selectedWeaponIds = new Set(selectedAttackerIds)
+	return getWeaponDetails(displayedOnion).filter((weapon) => selectedWeaponIds.has(weapon.id))
 }
 
 function buildCombatCalculatorInputForDefenderTarget(
@@ -162,9 +180,25 @@ export function buildCombatTargetOptions({
 	}
 
 	if (activeCombatRole === 'onion') {
+		const selectedWeapons = getSelectedWeapons(displayedOnion!, selectedAttackerIds)
 		return displayedDefenders
 			.filter((unit) => unit.status !== 'destroyed')
 			.filter((unit) => combatRangeHexKeys.has(`${unit.q},${unit.r}`))
+			.filter((unit) =>
+				selectedWeapons.every((weapon) =>
+					isTargetAllowedByRules(
+						{
+							unitType: 'TheOnion',
+							weaponId: weapon.id,
+							targetRules: resolveWeaponTargetRules(combatRules.unitDefinitions.TheOnion, weapon.id, weapon.targetRules ?? getStaticWeaponTargetRules(weapon.id)),
+						},
+						{
+							unitType: unit.type,
+							targetRules: resolveUnitTargetRules(combatRules.unitDefinitions[unit.type], unit.targetRules ?? getStaticUnitTargetRules(unit.type)),
+						},
+					),
+				),
+			)
 			.map((unit) => {
 				const result = combatCalculator.calculateResult(
 					buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, unit, displayedScenarioMap),
@@ -193,6 +227,19 @@ export function buildCombatTargetOptions({
 
 	const readyWeaponTargets = getWeaponDetails(displayedOnion)
 		.filter((weapon) => weapon.individuallyTargetable && weapon.status === 'ready')
+		.filter((weapon) =>
+			isTargetAllowedByRules(
+				{
+					unitType: 'TheOnion',
+					weaponId: weapon.id,
+					targetRules: resolveWeaponTargetRules(combatRules.unitDefinitions.TheOnion, weapon.id, weapon.targetRules ?? getStaticWeaponTargetRules(weapon.id)),
+				},
+				{
+					unitType: displayedOnion.type,
+					targetRules: resolveUnitTargetRules(combatRules.unitDefinitions[displayedOnion.type], displayedOnion.targetRules ?? getStaticUnitTargetRules(displayedOnion.type)),
+				},
+			),
+		)
 		.map((weapon) => {
 			const result = combatCalculator.calculateResult(
 				buildCombatCalculatorInputForWeaponTarget(selectedAttackerIds, displayedDefenders, displayedOnion, weapon, displayedScenarioMap),

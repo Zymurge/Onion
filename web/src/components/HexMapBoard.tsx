@@ -19,6 +19,7 @@ type HexMapBoardProps = {
   selectedUnitIds: string[]
   selectedCombatTargetId?: string | null
   combatRangeHexKeys?: ReadonlySet<string>
+  combatTargetIds?: ReadonlySet<string>
   canSubmitMove?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
   onSelectCombatTarget?: (targetId: string) => void
@@ -46,7 +47,7 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, canSubmitMove = true, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
@@ -145,19 +146,19 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
     }
 
     if (activeCombatRole === 'onion') {
-      return occupant.id !== onion.id
+      return occupant.id !== onion.id && (combatTargetIds === undefined || combatTargetIds.has(occupant.id))
     }
 
-    return occupant.id === onion.id ? false : activeCombatRole === 'defender'
+    return occupant.id !== onion.id
   }
 
   function selectCombatTarget(occupant: HexOccupant) {
-    if (activeCombatRole === 'onion' && occupant.id !== onion.id) {
+    if (activeCombatRole === 'onion' && occupant.id !== onion.id && (combatTargetIds === undefined || combatTargetIds.has(occupant.id))) {
       onSelectCombatTarget?.(occupant.id)
       return true
     }
 
-    if (activeCombatRole === 'defender' && occupant.id === onion.id) {
+    if (activeCombatRole === 'defender' && occupant.id === onion.id && (combatTargetIds === undefined || combatTargetIds.has(occupant.id))) {
       onSelectCombatTarget?.(occupant.id)
       return true
     }

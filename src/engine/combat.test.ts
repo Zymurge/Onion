@@ -422,6 +422,56 @@ describe('validateOnionWeaponFire', () => {
     const result = validateOnionWeaponFire(CLEAR_MAP, state, { type: 'FIRE', attackers: ['main'], targetId: 'd1' })
     expect(result.valid).toBe(false)
   })
+
+  it('rejects AP fire against non-infantry targets', () => {
+    const apWeapon = makeWeapon({
+      id: 'ap_1',
+      attack: 1,
+      range: 1,
+      defense: 1,
+      individuallyTargetable: true,
+    })
+    const onion = makeOnion({ weapons: [apWeapon] })
+    const defender = makeDefender({ id: 'wolf-1', type: 'BigBadWolf', position: { q: 1, r: 0 } })
+    const state = makeState({ onion, defenders: { 'wolf-1': defender } })
+
+    const result = validateOnionWeaponFire(CLEAR_MAP, state, { type: 'FIRE', attackers: ['ap_1'], targetId: 'wolf-1' })
+
+    expect(result.valid).toBe(false)
+    expect(result.error).toMatch(/AP/i)
+  })
+
+  it('allows AP fire against infantry targets', () => {
+    const apWeapon = makeWeapon({
+      id: 'ap_1',
+      attack: 1,
+      range: 1,
+      defense: 1,
+      individuallyTargetable: true,
+    })
+    const onion = makeOnion({ weapons: [apWeapon] })
+    const infantry = makeDefender({ id: 'pigs-1', type: 'LittlePigs', position: { q: 1, r: 0 }, squads: 1 })
+    const state = makeState({ onion, defenders: { 'pigs-1': infantry } })
+
+    const result = validateOnionWeaponFire(CLEAR_MAP, state, { type: 'FIRE', attackers: ['ap_1'], targetId: 'pigs-1' })
+
+    expect(result.valid).toBe(true)
+  })
+
+  it('rejects fire against a target unit that excludes the attacker type', () => {
+    const defender = makeDefender({
+      id: 'd1',
+      type: 'BigBadWolf',
+      position: { q: 1, r: 0 },
+      targetRules: { allowedAttackerUnitTypes: ['BigBadWolf'] },
+    })
+    const state = makeState({ defenders: { d1: defender } })
+
+    const result = validateOnionWeaponFire(CLEAR_MAP, state, { type: 'FIRE', attackers: ['main'], targetId: 'd1' })
+
+    expect(result.valid).toBe(false)
+    expect(result.error).toMatch(/cannot target|invalid target/i)
+  })
 })
 
 describe('validateCombatAction', () => {

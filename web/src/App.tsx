@@ -201,6 +201,7 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
       weapons: formatWeaponSummary(defender.weapons),
       attack: formatAttackSummary(defender.weapons),
       weaponDetails: defender.weapons ?? [],
+      targetRules: defender.targetRules,
       defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
       squads: defender.squads,
       actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
@@ -249,6 +250,7 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
     rams: authoritativeState.ramsThisTurn ?? 0,
     weapons: formatWeaponSummary(onion.weapons),
     weaponDetails: onion.weapons ?? [],
+    targetRules: onion.targetRules,
   }
 }
 
@@ -480,16 +482,22 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     }
   }
 
-  function handleDismissCombatResolution() {
-    if (pendingCombatSnapshot === null) {
-      return
+  function clearPendingCombatResolution(clearSelection: boolean) {
+    if (pendingCombatSnapshot !== null) {
+      setClientSnapshot(pendingCombatSnapshot)
     }
 
-    setClientSnapshot(pendingCombatSnapshot)
     setPendingCombatSnapshot(null)
     setPendingCombatResolution(null)
-    setSelectedUnitIds([])
-    setSelectedCombatTargetId(null)
+
+    if (clearSelection) {
+      setSelectedUnitIds([])
+      setSelectedCombatTargetId(null)
+    }
+  }
+
+  function handleDismissCombatResolution() {
+    clearPendingCombatResolution(true)
   }
 
   function handleConfirmCombat() {
@@ -551,6 +559,8 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       return
     }
 
+    clearPendingCombatResolution(false)
+
     setSelectedUnitIds((currentSelection) => {
       const baseSelection = currentSelection ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
 
@@ -569,6 +579,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }
 
   function handleDeselectUnit() {
+    clearPendingCombatResolution(false)
     setSelectedUnitIds([])
     setSelectedCombatTargetId(null)
     setActionError(null)
@@ -653,6 +664,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     }),
     [activeCombatRole, activeSelectedUnitIds, combatRangeHexKeys, displayedDefenders, displayedOnion, selectedCombatAttackStrength, displayedScenarioMap],
   )
+  const combatTargetIds = useMemo(() => new Set(combatTargetOptions.map((target) => target.id)), [combatTargetOptions])
   const selectedCombatTarget = selectedCombatTargetId === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetId) ?? null
 
   useEffect(() => {
@@ -1111,6 +1123,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                 selectedUnitIds={activeSelectedUnitIds}
                 selectedCombatTargetId={selectedCombatTargetId}
                 combatRangeHexKeys={combatRangeHexKeys}
+                combatTargetIds={combatTargetIds}
                 canSubmitMove={
                   activeTurnActive && (
                     activePhase === 'ONION_MOVE' ||

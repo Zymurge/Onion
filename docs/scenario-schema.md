@@ -79,11 +79,19 @@ We use an **Axial Coordinate System** (q, r) where:
 }
 ```
 
-## 3. Map Encoding Convention
+## 3. Unit and Weapon Population
+
+Scenario JSON only declares the starting unit types, positions, and stack sizes. The engine populates the full weapon lists, weapon stats, and any target-rule metadata from the shared unit definitions at normalization time.
+
+1. Do not put combat target restrictions directly in scenario JSON.
+2. If a weapon or unit has special targeting restrictions, define them on the shared unit definition in the engine source of truth.
+3. Scenario `initialState` should remain focused on initial placement, stack sizes, and status fields that vary per scenario.
+
+## 4. Map Encoding Convention
 
 Only non-clear hexes need to appear in the `hexes` array. Any hex coordinate not listed is assumed to be terrain type `0` (Clear). This keeps scenario files compact.
 
-## 4. Unit Status State Machine
+## 5. Unit Status State Machine
 
 Defender units cycle through three states. The engine is responsible for advancing state automatically at the start of each Defender turn.
 
@@ -91,7 +99,7 @@ Defender units cycle through three states. The engine is responsible for advanci
 - `disabled`: Unit was hit with a "D" result this turn. It cannot move or fire. At the start of the **next** Defender turn, the engine transitions it to `recovering`.
 - `recovering`: Unit was disabled last turn. It returns to `operational` at the **start of the Recovery Phase** this turn and may act normally.
 
-## 5. Zod Implementation Notes
+## 6. Zod Implementation Notes
 
 We will define the following TS interfaces:
 
@@ -122,3 +130,5 @@ const UnitSchema = z.object({
   squads: z.number().optional() // For Little Pigs stacks only
 });
 ```
+
+The runtime unit definitions, not the scenario schema, supply the full weapon list and any weapon/unit target rules used by combat selection.
