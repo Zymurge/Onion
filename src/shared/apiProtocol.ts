@@ -139,6 +139,14 @@ export function getApiProtocolTrafficVersion(): number {
 	return apiProtocolTrafficSeq
 }
 
+export function sanitizeApiProtocolTrafficEntry(entry: ApiProtocolTrafficEntry): ApiProtocolTrafficEntry {
+	return {
+		...entry,
+		requestBody: redactProtocolValue(entry.requestBody),
+		responseBody: redactProtocolValue(entry.responseBody),
+	}
+}
+
 export function formatApiProtocolTrafficEntry(entry: ApiProtocolTrafficEntry): string[] {
 	const time = new Date(entry.timestamp).toLocaleTimeString([], {
 		hour: '2-digit',

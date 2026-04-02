@@ -204,13 +204,16 @@ describe('App UI', () => {
 			),
 		})
 
-		const debugLines = await screen.findAllByText((_, element) => element?.classList.contains('debug-line') === true)
-		const debugLineTexts = debugLines.map((line) => line.textContent ?? '')
-		expect(debugLineTexts[0]).toMatch(/GET games\/123/i)
-		expect(debugLineTexts.some((text) => text.includes('request:'))).toBe(true)
-		expect(debugLineTexts.some((text) => text.includes('  "username": "player-1"'))).toBe(true)
-		expect(debugLineTexts.some((text) => text.includes('  "password": "(redacted)"'))).toBe(true)
-		expect(debugLineTexts.some((text) => text.includes('  "token": "(redacted)"'))).toBe(true)
+		const debugEntrySummaries = await screen.findAllByText(
+			(_, element) => element?.classList.contains('debug-entry-summary') === true,
+		)
+		const debugEntryTexts = debugEntrySummaries.map((entry) => entry.textContent ?? '')
+		expect(debugEntryTexts.some((text) => /games\/123/i.test(text))).toBe(true)
+		expect(screen.getAllByText('request').length).toBeGreaterThan(0)
+		expect(screen.getAllByText('response').length).toBeGreaterThan(0)
+		expect(screen.getAllByText('(redacted)').length).toBeGreaterThan(0)
+		expect(screen.getByText('player-1')).not.toBeNull()
+		expect(screen.getByText('username')).not.toBeNull()
 	})
 
 	it('preserves debug popup position and size when toggled closed and reopened', async () => {

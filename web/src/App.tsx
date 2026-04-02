@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useState, useEffect, useRef, useSyncExternalStore, type FormEvent } from 'react'
+import ReactJsonPrintImport from 'react-json-print'
 import { HexMapBoard } from './components/HexMapBoard'
 import { CombatConfirmationView } from './components/CombatConfirmationView'
 import { CombatResolutionToast } from './components/CombatResolutionToast'
@@ -22,15 +23,21 @@ import { buildCombatRangeHexKeys } from './lib/combatRange'
 import { buildCombatTargetOptions } from './lib/combatPreview'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
 import {
-  formatApiProtocolTrafficEntry,
   getApiProtocolTrafficSnapshot,
   getApiProtocolTrafficVersion,
+  type ApiProtocolTrafficEntry,
   requestJson,
+  sanitizeApiProtocolTrafficEntry,
   subscribeApiProtocolTraffic,
 } from '../../src/shared/apiProtocol'
 import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
 import type { TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
 import './App.css'
+
+const ReactJsonPrint =
+  typeof ReactJsonPrintImport === 'function'
+    ? ReactJsonPrintImport
+    : (ReactJsonPrintImport as { default?: typeof ReactJsonPrintImport }).default ?? ReactJsonPrintImport
 
 const turnPhaseLabels: Record<TurnPhase, string> = {
   ONION_MOVE: 'Onion Movement',
@@ -108,6 +115,27 @@ function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
   })
 
   return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
+}
+
+function formatDebugEntrySummary(entry: ApiProtocolTrafficEntry) {
+  const time = new Date(entry.timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+  const arrow = entry.direction === 'request' ? '→' : entry.direction === 'response' ? '←' : '!'
+  const parts = [`[${time}]`, `${arrow} ${entry.method} ${entry.path}`]
+
+  if (entry.status !== undefined) {
+    parts.push(`status ${entry.status}`)
+  }
+
+  if (entry.message !== undefined) {
+    parts.push(entry.message)
+  }
+
+  return parts.join(' ')
 }
 
 function getReadyWeaponRange(weapons: ReadonlyArray<Weapon> | undefined): number {
@@ -339,7 +367,7 @@ function DraggableDebugPopup({
   layout: DebugPopupLayout
   onLayoutChange: (nextLayout: DebugPopupLayout) => void
   onClose: () => void
-  lines: string[]
+  lines: ReadonlyArray<ApiProtocolTrafficEntry>
   onAdvancePhase: () => void
 }) {
   const [dragging, setDragging] = useState(false)
@@ -409,8 +437,13 @@ function DraggableDebugPopup({
         {lines.length === 0 ? (
           <div className="debug-line">No protocol traffic yet.</div>
         ) : (
-          lines.map((line: string, i: number) => (
-            <div key={i} className="debug-line">{line}</div>
+          lines.map((entry) => (
+            <section key={entry.id} className="debug-entry">
+              <div className="debug-entry-summary">{formatDebugEntrySummary(entry)}</div>
+              <div className="debug-json-print">
+                <ReactJsonPrint dataObject={entry} depth={2} />
+              </div>
+            </section>
           ))
         )}
       </div>
@@ -742,12 +775,12 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     () => (debugOpen ? getApiProtocolTrafficVersion() : 0),
     () => 0,
   )
-  const debugLines = debugOpen
+  const debugEntries = debugOpen
     ? getApiProtocolTrafficSnapshot()
       .slice()
       .reverse()
-      .flatMap((entry) => formatApiProtocolTrafficEntry(entry))
       .slice(0, 400)
+      .map((entry) => sanitizeApiProtocolTrafficEntry(entry))
     : []
 
   // Simulated last sync and event status for UI demo
@@ -919,7 +952,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           layout={debugPopupLayout}
           onLayoutChange={setDebugPopupLayout}
           onClose={() => setDebugOpen(false)}
-          lines={debugLines}
+          lines={debugEntries}
           onAdvancePhase={() => {
             void commitClientAction({ type: 'end-phase' })
           }}
