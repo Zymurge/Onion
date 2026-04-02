@@ -3,17 +3,23 @@
 This document tracks major upcoming work and epics. Add new items as they arise;
 break down into features/tasks as needed.
 
+## In progress
+
+- [ ] Transition to WebSocket for live updates
+  - [x] Define the WS message envelope and event contract for game state updates, actions, and reconnect handling.
+  - [ ] Add a server-side WS endpoint alongside the existing REST API without removing polling yet.
+  - [ ] Add a client transport adapter that can subscribe to live updates and fall back to the current HTTP path.
+  - [ ] Wire the web UI to consume live WS updates for the active match and keep the debug stream visible.
+  - [ ] Add integration coverage for connect, reconnect, and live state refresh behavior.
+- [ ] Place End Phase control in UI and wire to backend
 
 ## Epics / Major Work
 
 - [ ] Improve error handling (UI and backend)
-- [ ] Transition to WebSocket for live updates
 - [ ] JWT authentication (migrate to @fastify/jwt)
 - [ ] Game lobby for creation and joining (self-service matchmaking)
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
 - [ ] Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema later
-- [ ] Connect debug screen to API output (next)
-- [ ] Place End Phase control in UI and wire to backend
 
 ## Features / Work Items
 
@@ -21,6 +27,10 @@ break down into features/tasks as needed.
 - [ ] Refactor movement resolution to read per-unit terrain rules from the shared unit definitions instead of hardcoded terrain checks.
   - [ ] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
 - [ ] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
+
+## Done
+
+- [x] Connect debug screen to API output (next)
 - [x] Audit defense source of truth for units and weapons so defense is defined once in the unit/weapon model and only derived for effective combat situations.
 - [x] Reuse the left-rail step badge area to show the selected group's combined attack value while units are selected or deselected.
 - [x] Combat phase one: attacker selection, targeting, and result presentation.
