@@ -32,12 +32,18 @@ break down into features/tasks as needed.
     - [x] Support onion-system targets through the right rail even when they have no individual map location per system.
     - [x] Reuse a shared confirmation view that shows attack:defense ratio and relevant modifiers.
     - [x] Keep map selection and rail selection in sync when a target is chosen.
-  - [ ] Step three: Unify combat math in a shared calculator used by both engine and web UI, including odds ratio and future terrain/stacking modifiers. This is shared rules logic only; base defense remains owned by the unit/weapon model and is out of scope.
+  - [x] Step three: Unify combat math in a shared calculator used by both engine and web UI, including odds ratio and future terrain/stacking modifiers. This is shared rules logic only; base defense remains owned by the unit/weapon model and is out of scope.
     - [x] Define the shared combat calculation contract: inputs, outputs, and which side is authoritative.
     - [x] Add per-terrain capability and ram profile fields to unit descriptions so combat and movement rules stay data-driven.
     - [x] Extract a pure shared calculator for odds and defense modifiers.
     - [x] Add tests around the shared rules and remove duplicate local calculations.
     - [x] Move backend combat validation/execution to that shared calculator.
     - [x] Move the web confirmation/preview UI to the same calculator.
-  - [ ] Step four: combat results toast, then board reconciliation after dismissal.
-    - [ ] Add regression tests for selection rules, range overlays, confirmation flow, and post-combat board updates.
+  - [x] Step four: combat results toast, then board reconciliation after dismissal.
+    - [x] Define the result payload shown in the toast: hit/miss, damage or destroyed units, and any relevant combat modifiers.
+    - [x] Render the toast as a transient overlay that does not block reading the current board state.
+    - [x] Dismissing the toast should commit the reconciled board state and clear combat selection/preview state.
+    - [x] Wire the UI to the API to send the combat command and receive the result.
+    - [x] Reconcile the board from authoritative state after combat so destroyed units disappear and overlays/inspector state refresh correctly.
+    - [x] Handle stale or rejected combat outcomes cleanly so the UI can recover without leaving the board half-updated.
+    - [x] Add regression tests for selection rules, range overlays, confirmation flow, toast dismissal, and post-combat board updates.

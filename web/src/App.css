@@ -729,6 +729,85 @@
   margin-top: 4px;
 }
 
+.combat-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.combat-confirm-button,
+.combat-resolution-dismiss {
+  border: 1px solid rgba(121, 92, 32, 0.35);
+  background: linear-gradient(180deg, rgba(121, 92, 32, 0.12), rgba(121, 92, 32, 0.06));
+  color: #4f3a12;
+  border-radius: 12px;
+  padding: 0.72rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.combat-confirm-button:hover,
+.combat-resolution-dismiss:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(51, 43, 26, 0.08);
+}
+
+.combat-resolution-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1100;
+  width: min(440px, calc(100vw - 48px));
+  border-radius: 20px;
+  border: 1px solid rgba(121, 92, 32, 0.28);
+  background: linear-gradient(180deg, rgba(255, 251, 242, 0.98), rgba(246, 236, 216, 0.98));
+  box-shadow: 0 24px 54px rgba(51, 43, 26, 0.2);
+  padding: 18px;
+}
+
+.combat-resolution-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.combat-resolution-head h3 {
+  margin: 4px 0 0;
+}
+
+.combat-resolution-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.combat-resolution-stat {
+  display: grid;
+  gap: 4px;
+}
+
+.combat-resolution-section {
+  margin-top: 16px;
+}
+
+.combat-resolution-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.combat-resolution-list li + li {
+  margin-top: 6px;
+}
+
+.combat-resolution-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
 .defender-row:hover,
 .defender-card-button:hover,
 .attacker-card-button:hover,

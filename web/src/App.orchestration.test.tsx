@@ -403,6 +403,46 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByRole('alert').textContent).toMatch(/mock transport failure/i)
 	})
 
+	it('clears combat selection and refreshes state after a rejected combat submit', async () => {
+		const user = userEvent.setup()
+		const snapshot = createInRangeCombatSnapshot()
+		const refreshedSnapshot = {
+			...snapshot,
+			authoritativeState: {
+				...snapshot.authoritativeState,
+				onion: {
+					...snapshot.authoritativeState.onion,
+					treads: 29,
+				},
+			},
+		}
+		const session = { role: 'defender' as const }
+		const submitAction = vi.fn().mockRejectedValue(new Error('stale combat state'))
+
+		const client = createGameClient({
+			getState: vi.fn()
+				.mockResolvedValueOnce({ snapshot, session })
+				.mockResolvedValueOnce({ snapshot: refreshedSnapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const attacker = await screen.findByTestId('combat-unit-wolf-2')
+		await user.click(attacker)
+		await user.click(screen.getByTestId('combat-target-onion-1:treads'))
+		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1' })
+		expect(screen.getByRole('alert').textContent).toMatch(/stale combat state/i)
+		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
+		expect(screen.queryByTestId('combat-confirmation-view')).toBeNull()
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 0')
+		expect(screen.queryByTestId('combat-target-list')).toBeNull()
+		expect(screen.getByText(/No valid targets are currently in range/i)).not.toBeNull()
+	})
+
 	it('submits a move when the active player right-clicks an in-range hex', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot({
 			phase: 'DEFENDER_MOVE',

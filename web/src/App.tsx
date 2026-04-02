@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
 import { CombatConfirmationView } from './components/CombatConfirmationView'
+import { CombatResolutionToast } from './components/CombatResolutionToast'
 import {
   GameClientSeamError,
   type GameAction,
@@ -147,6 +148,18 @@ function stripWeaponSelectionId(selectionId: string) {
 
 function buildWeaponSelectionId(weaponId: string) {
   return `weapon:${weaponId}`
+}
+
+function buildCombatTargetActionId(targetId: string, onionId: string | undefined): string {
+  if (targetId.startsWith('weapon:')) {
+    return stripWeaponSelectionId(targetId)
+  }
+
+  if (targetId.endsWith(':treads')) {
+    return onionId ?? targetId
+  }
+
+  return targetId
 }
 
 function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean): Mode[] {
@@ -329,6 +342,8 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
     const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
     const [actionError, setActionError] = useState<string | null>(null)
+    const [pendingCombatSnapshot, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
+    const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
     const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
     const [connectError, setConnectError] = useState<string | null>(null)
     const [connectDraft, setConnectDraft] = useState({
@@ -397,6 +412,17 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
   const activeCombatRole = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
   const displayedScenarioMap = buildScenarioMap(clientSnapshot)
+  const selectedCombatAttackerIds = useMemo(() => {
+    if (!isCombatPhase) {
+      return []
+    }
+
+    if (activeCombatRole === 'onion') {
+      return activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
+    }
+
+    return [...activeSelectedUnitIds]
+  }, [activeCombatRole, activeSelectedUnitIds, isCombatPhase])
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -406,8 +432,16 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     snapshotLoadVersion.current += 1
     try {
       const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, action)
-      setClientSnapshot(nextSnapshot)
       setActionError(null) // clear any previous error
+      if (nextSnapshot.combatResolution !== undefined) {
+        setPendingCombatSnapshot(nextSnapshot)
+        setPendingCombatResolution(nextSnapshot.combatResolution)
+        return
+      }
+
+      setPendingCombatSnapshot(null)
+      setPendingCombatResolution(null)
+      setClientSnapshot(nextSnapshot)
     } catch (error: unknown) {
       // Surface error to UI
       const errorMessage =
@@ -417,8 +451,43 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           ? `Error: ${error.message}`
           : 'Error unknown'
       setActionError(`Failed to submit action: ${errorMessage}`)
+      if (action.type === 'FIRE' && activeGameClient !== undefined && activeGameIdProp !== undefined) {
+        setPendingCombatSnapshot(null)
+        setPendingCombatResolution(null)
+        setSelectedUnitIds([])
+        setSelectedCombatTargetId(null)
+
+        try {
+          const refreshedState = await activeGameClient.getState(activeGameIdProp)
+          setClientSnapshot(refreshedState.snapshot)
+          setClientSession(refreshedState.session)
+        } catch {
+          // Keep the error banner; the user can retry or refresh manually.
+        }
+      }
       // Do not update clientSnapshot on failure
     }
+  }
+
+  function handleDismissCombatResolution() {
+    if (pendingCombatSnapshot === null) {
+      return
+    }
+
+    setClientSnapshot(pendingCombatSnapshot)
+    setPendingCombatSnapshot(null)
+    setPendingCombatResolution(null)
+    setSelectedUnitIds([])
+    setSelectedCombatTargetId(null)
+  }
+
+  function handleConfirmCombat() {
+    if (selectedCombatTarget === null || selectedCombatAttackerIds.length === 0 || displayedOnion === null) {
+      return
+    }
+
+    const targetId = buildCombatTargetActionId(selectedCombatTarget.id, displayedOnion.id)
+    void commitClientAction({ type: 'FIRE', attackers: selectedCombatAttackerIds, targetId })
   }
 
   function handleConnect(event: FormEvent<HTMLFormElement>) {
@@ -540,28 +609,19 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     }
 
     if (activeCombatRole === 'onion') {
-      const selectedWeaponIds = new Set(activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId))
       return (displayedOnion?.weaponDetails ?? [])
-        .filter((weapon) => weapon.status === 'ready' && selectedWeaponIds.has(weapon.id))
+        .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
         .reduce((total, weapon) => total + weapon.attack, 0)
     }
 
     return displayedDefenders
       .filter((unit) => activeSelectedUnitIds.includes(unit.id))
       .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
-  }, [activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, isCombatPhase])
+  }, [activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion, isCombatPhase, selectedCombatAttackerIds])
   const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
   const selectedCombatAttackCount = useMemo(() => {
-    if (!isCombatPhase) {
-      return 0
-    }
-
-    if (activeCombatRole === 'onion') {
-      return activeSelectedUnitIds.filter(isWeaponSelectionId).length
-    }
-
-    return activeSelectedUnitIds.length
-  }, [activeCombatRole, activeSelectedUnitIds, isCombatPhase])
+    return selectedCombatAttackerIds.length
+  }, [selectedCombatAttackerIds])
   const combatRangeHexKeys = useMemo(() => {
     if (!isCombatPhase || displayedScenarioMap === null) {
       return new Set<string>()
@@ -752,6 +812,14 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           {actionError}
         </div>
       )}
+      {pendingCombatResolution && selectedCombatTarget !== null ? (
+        <CombatResolutionToast
+          title={`Combat resolved on ${selectedCombatTarget.label}`}
+          resolution={pendingCombatResolution}
+          modifiers={selectedCombatTarget.modifiers}
+          onDismiss={handleDismissCombatResolution}
+        />
+      ) : null}
       <header className="topbar panel">
         <div
           className={`role-badge ${
@@ -1067,6 +1135,8 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                   attackStrength={selectedCombatAttackStrength}
                   defenseStrength={selectedCombatTarget.defense}
                   modifiers={selectedCombatTarget.modifiers}
+                  confirmLabel="Resolve combat"
+                  onConfirm={handleConfirmCombat}
                   dataTestId="combat-confirmation-view"
                 />
               ) : null}

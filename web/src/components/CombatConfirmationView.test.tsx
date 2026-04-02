@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { CombatConfirmationView } from './CombatConfirmationView'
 
@@ -37,5 +37,24 @@ describe('CombatConfirmationView', () => {
 
     expect(screen.getByText(/^3:1$/i)).not.toBeNull()
     expect(screen.getByText(/No additional modifiers/i)).not.toBeNull()
+  })
+
+  it('renders a confirm button when a handler is provided', () => {
+    const onConfirm = vi.fn()
+
+    render(
+      <CombatConfirmationView
+        title="Confirm attack on Wolf"
+        attackStrength={3}
+        defenseStrength={1}
+        modifiers={[]}
+        confirmLabel="Resolve combat"
+        onConfirm={onConfirm}
+        dataTestId="combat-confirmation-view"
+      />,
+    )
+
+    screen.getByRole('button', { name: /resolve combat/i }).click()
+    expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 })

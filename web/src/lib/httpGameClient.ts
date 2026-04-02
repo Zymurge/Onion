@@ -11,6 +11,7 @@ import {
 
 import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../../src/shared/apiProtocol'
 import type { GameState, TurnPhase } from '../../../src/types/index'
+import { buildCombatResolution } from './combatResolution'
 
 type ActionSuccessResponse = {
 	ok: true
@@ -121,6 +122,7 @@ function mapActionSnapshot(
 		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : fallback.lastEventSeq,
 		authoritativeState: response.state ?? fallback.authoritativeState,
 		movementRemainingByUnit: response.movementRemainingByUnit ?? fallback.movementRemainingByUnit,
+		combatResolution: buildCombatResolution(response.events),
 	})
 }
 
@@ -190,6 +192,28 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 						type: 'MOVE',
 						unitId: action.unitId,
 						to: action.to,
+					},
+					fetchImpl,
+				})
+
+				if (!result.ok) {
+					throw buildError(result)
+				}
+
+				currentSnapshot = mapActionSnapshot(result.data, currentSnapshot, gameId)
+				return currentSnapshot
+			}
+
+			if (action.type === 'FIRE') {
+				const result = await requestJson<ActionSuccessResponse>({
+					baseUrl,
+					path: `games/${gameId}/actions`,
+					method: 'POST',
+					token: options.token,
+					body: {
+						type: 'FIRE',
+						attackers: action.attackers,
+						targetId: action.targetId,
 					},
 					fetchImpl,
 				})
