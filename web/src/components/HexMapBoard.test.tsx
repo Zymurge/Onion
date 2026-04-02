@@ -223,6 +223,26 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-cell-0-0').getAttribute('class')).toContain('hex-cell-selected')
 	})
 
+	it('allows defender combat board clicks on defender units to add to the selection group', () => {
+		const onSelectUnit = vi.fn()
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_COMBAT"
+				selectedUnitIds={['puss-1']}
+				onSelectUnit={onSelectUnit}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		fireEvent.click(screen.getByTestId('hex-unit-wolf-2'), { ctrlKey: true })
+		expect(onSelectUnit).toHaveBeenCalledWith('wolf-2', true)
+	})
+
 	it('does not select a combat target that is not in the legal target set', () => {
 		const onSelectCombatTarget = vi.fn()
 

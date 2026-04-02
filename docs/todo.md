@@ -12,6 +12,8 @@ break down into features/tasks as needed.
 - [ ] Game lobby for creation and joining (self-service matchmaking)
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
 - [ ] Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema later
+- [ ] Connect debug screen to API output (next)
+- [ ] Place End Phase control in UI and wire to backend
 
 ## Features / Work Items
 

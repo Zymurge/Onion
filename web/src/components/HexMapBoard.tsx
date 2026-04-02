@@ -159,7 +159,11 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
       return occupant.id !== onion.id && (combatTargetIds === undefined || combatTargetIds.has(combatTargetId))
     }
 
-    return occupant.id === onion.id && (combatTargetIds === undefined || combatTargetIds.has(combatTargetId))
+    if (occupant.id === onion.id) {
+      return combatTargetIds === undefined || combatTargetIds.has(combatTargetId)
+    }
+
+    return true
   }
 
   function selectCombatTarget(occupant: HexOccupant) {

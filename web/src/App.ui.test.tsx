@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 import { createGameClient, type GameSnapshot } from './lib/gameClient'
+import { clearApiProtocolTraffic, requestJson } from '../../src/shared/apiProtocol'
 import type { GameState } from '../../src/types/index'
 
 type LoadedBattlefieldSnapshot = GameSnapshot & {
@@ -102,6 +103,7 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 
 beforeEach(() => {
 	vi.clearAllMocks()
+	clearApiProtocolTraffic()
 })
 
 describe('App UI', () => {
@@ -159,10 +161,104 @@ describe('App UI', () => {
 		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
 
 		expect(screen.queryByText(/Debug Diagnostics/i)).not.toBeNull()
-		expect(screen.queryByText(/Game state loaded/i)).not.toBeNull()
+		expect(screen.queryByText(/No protocol traffic yet/i)).not.toBeNull()
 
 		await user.click(screen.getByRole('button', { name: /^×$/ }))
 
 		expect(screen.queryByText(/Debug Diagnostics/i)).toBeNull()
+	})
+
+	it('streams live protocol traffic into the debug popup', async () => {
+		const user = userEvent.setup()
+		render(<App />)
+
+		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+
+		expect(screen.getByText(/No protocol traffic yet/i)).not.toBeNull()
+
+		await requestJson({
+			baseUrl: 'http://example.com',
+			path: 'auth/login',
+			method: 'POST',
+			body: {
+				username: 'player-1',
+				password: 'secret',
+			},
+			fetchImpl: vi.fn().mockResolvedValue(
+				new Response(JSON.stringify({ userId: 'user-123', token: 'stub.token' }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}),
+			),
+		})
+
+		await requestJson({
+			baseUrl: 'http://example.com',
+			path: 'games/123',
+			method: 'GET',
+			fetchImpl: vi.fn().mockResolvedValue(
+				new Response(JSON.stringify({ ok: true }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}),
+			),
+		})
+
+		const debugLines = await screen.findAllByText((_, element) => element?.classList.contains('debug-line') === true)
+		const debugLineTexts = debugLines.map((line) => line.textContent ?? '')
+		expect(debugLineTexts[0]).toMatch(/GET games\/123/i)
+		expect(debugLineTexts.some((text) => text.includes('request:'))).toBe(true)
+		expect(debugLineTexts.some((text) => text.includes('  "username": "player-1"'))).toBe(true)
+		expect(debugLineTexts.some((text) => text.includes('  "password": "(redacted)"'))).toBe(true)
+		expect(debugLineTexts.some((text) => text.includes('  "token": "(redacted)"'))).toBe(true)
+	})
+
+	it('preserves debug popup position and size when toggled closed and reopened', async () => {
+		const user = userEvent.setup()
+		render(<App />)
+
+		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+
+		const getPopup = () => screen.getByText(/Debug Diagnostics/i).closest('.debug-popup') as HTMLElement
+		const initialPopup = getPopup()
+		const initialLeft = initialPopup.style.left
+		const initialTop = initialPopup.style.top
+		const initialWidth = initialPopup.style.width
+		const initialHeight = initialPopup.style.height
+
+		const header = screen.getByText(/Debug Diagnostics/i).parentElement as HTMLElement
+		fireEvent.mouseDown(header, { clientX: 650, clientY: 100 })
+		await waitFor(() => {
+			fireEvent.mouseMove(window, { clientX: 720, clientY: 160 })
+			expect(getPopup().style.left).not.toBe(initialLeft)
+		})
+		fireEvent.mouseUp(window)
+
+		const popupAfterDrag = getPopup()
+		const resizeHandle = popupAfterDrag.querySelector('.debug-popup-resize') as HTMLElement
+		fireEvent.mouseDown(resizeHandle, { clientX: 984, clientY: 490 })
+		await waitFor(() => {
+			fireEvent.mouseMove(window, { clientX: 1044, clientY: 530 })
+			expect(getPopup().style.width).not.toBe(initialWidth)
+		})
+		fireEvent.mouseUp(window)
+
+		await waitFor(() => {
+			expect(getPopup().style.left).not.toBe(initialLeft)
+			expect(getPopup().style.top).not.toBe(initialTop)
+			expect(getPopup().style.width).not.toBe(initialWidth)
+			expect(getPopup().style.height).not.toBe(initialHeight)
+		})
+
+		await user.click(screen.getByRole('button', { name: /^×$/ }))
+		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+
+		const reopenedPopup = getPopup()
+		await waitFor(() => {
+			expect(reopenedPopup.style.left).toBe(getPopup().style.left)
+			expect(reopenedPopup.style.top).toBe(getPopup().style.top)
+			expect(reopenedPopup.style.width).toBe(getPopup().style.width)
+			expect(reopenedPopup.style.height).toBe(getPopup().style.height)
+		})
 	})
 })

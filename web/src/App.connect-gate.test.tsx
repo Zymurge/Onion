@@ -8,6 +8,10 @@ import type { GameSnapshot } from './lib/gameClient'
 
 const createHttpGameClient = vi.hoisted(() => vi.fn())
 const requestJson = vi.hoisted(() => vi.fn())
+const clearApiProtocolTraffic = vi.hoisted(() => vi.fn())
+const getApiProtocolTrafficSnapshot = vi.hoisted(() => vi.fn().mockReturnValue([]))
+const formatApiProtocolTrafficEntry = vi.hoisted(() => vi.fn().mockReturnValue([]))
+const subscribeApiProtocolTraffic = vi.hoisted(() => vi.fn().mockReturnValue(vi.fn()))
 
 vi.mock('./lib/httpGameClient', () => ({
 	createHttpGameClient,
@@ -15,6 +19,10 @@ vi.mock('./lib/httpGameClient', () => ({
 
 vi.mock('../../src/shared/apiProtocol', () => ({
 	requestJson,
+	clearApiProtocolTraffic,
+	getApiProtocolTrafficSnapshot,
+	formatApiProtocolTrafficEntry,
+	subscribeApiProtocolTraffic,
 }))
 
 function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapshot {
