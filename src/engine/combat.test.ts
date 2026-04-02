@@ -492,6 +492,7 @@ describe('validateCombatAction', () => {
     if (!result.ok) return
     expect(result.plan.target.kind).toBe('treads')
     expect(result.plan.target.id).toBe('onion')
+    expect(result.plan.defense).toBe(result.plan.attackStrength)
   })
 })
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { CombatResolution } from '../lib/gameClient'
 
 type CombatResolutionToastProps = {
@@ -8,6 +9,16 @@ type CombatResolutionToastProps = {
 }
 
 export function CombatResolutionToast({ title, resolution, modifiers, onDismiss }: CombatResolutionToastProps) {
+	useEffect(() => {
+		const timer = window.setTimeout(() => {
+			onDismiss()
+		}, 10_000)
+
+		return () => {
+			window.clearTimeout(timer)
+		}
+	}, [onDismiss])
+
 	return (
 		<aside className="combat-resolution-toast" role="status" aria-live="polite" data-testid="combat-resolution-toast">
 			<div className="combat-resolution-head">

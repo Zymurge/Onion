@@ -433,7 +433,12 @@ export function validateCombatAction(
       attackerIds: [...normalizedCommand.attackers],
       target,
       attackStrength: combatResult.attackStrength,
-      defense: target.kind === 'weapon' ? getWeaponDefense(state.onion, target.id) : combatResult.defenseStrength,
+        defense:
+          target.kind === 'weapon'
+            ? getWeaponDefense(state.onion, target.id)
+            : target.kind === 'treads'
+              ? combatResult.attackStrength
+              : combatResult.defenseStrength,
     },
   }
 }

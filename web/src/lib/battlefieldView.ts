@@ -33,6 +33,7 @@ export type BattlefieldUnit = {
   attack: string
   defense?: number
   squads?: number
+  weaponDetails?: ReadonlyArray<Weapon>
   actionableModes: Mode[]
 }
 

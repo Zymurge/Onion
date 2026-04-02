@@ -103,6 +103,16 @@ function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
   return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
 }
 
+function getReadyWeaponRange(weapons: ReadonlyArray<Weapon> | undefined): number {
+  if (weapons === undefined || weapons.length === 0) {
+    return 0
+  }
+
+  return weapons
+    .filter((weapon) => weapon.status === 'ready')
+    .reduce((maxRange, weapon) => Math.max(maxRange, weapon.range), 0)
+}
+
 function parseRangeValue(rangeText: string): number {
   const parsedRange = Number.parseInt(rangeText, 10)
   return Number.isNaN(parsedRange) ? 0 : parsedRange
@@ -190,6 +200,7 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
       move: activePhase === null ? 0 : movementRemainingByUnit[defender.id ?? defenderId] ?? 0,
       weapons: formatWeaponSummary(defender.weapons),
       attack: formatAttackSummary(defender.weapons),
+      weaponDetails: defender.weapons ?? [],
       defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
       squads: defender.squads,
       actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
@@ -288,7 +299,7 @@ function buildCombatRangeSources(
     .map((unit) => ({
       q: unit.q,
       r: unit.r,
-      range: parseRangeValue(parseAttackStats(unit.attack).range),
+      range: getReadyWeaponRange(unit.weaponDetails),
     }))
 }
 
@@ -956,6 +967,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                     const isActionable = unit.actionableModes.includes(activeMode)
                     const attackStats = parseAttackStats(unit.attack)
                     const isDestroyed = unit.status === 'destroyed'
+                    const isDisabled = isDestroyed || !isActionable
                     return (
                       <button
                         key={unit.id}
@@ -964,14 +976,16 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
                           'attacker-card-button',
                           isSelected ? 'is-selected' : '',
                           isActionable ? 'is-actionable' : '',
+                          isDisabled ? 'is-disabled' : '',
                           `tone-${statusTone(unit.status)}`,
                         ].join(' ')}
                         aria-pressed={isSelected}
                         data-selected={isSelected}
                         data-testid={`combat-unit-${unit.id}`}
-                        disabled={isDestroyed}
+                        disabled={isDisabled}
+                        title={isDestroyed ? 'Destroyed units cannot attack.' : !isActionable ? 'This unit is not eligible to attack.' : undefined}
                         onClick={(event) => {
-                          if (isDestroyed) {
+                          if (isDisabled) {
                             event.stopPropagation()
                             return
                           }

@@ -582,6 +582,40 @@ describe('App orchestration (injected game client)', () => {
 			authoritativeState: {
 				...baseSnapshot.authoritativeState,
 				defenders: {
+					'no-ready-1': {
+						id: 'no-ready-1',
+						type: 'Witch',
+						position: { q: 4, r: 5 },
+						status: 'operational' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 3,
+								range: 2,
+								defense: 2,
+								status: 'spent' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'active-1': {
+						id: 'active-1',
+						type: 'BigBadWolf',
+						position: { q: 5, r: 5 },
+						status: 'operational' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 4,
+								range: 2,
+								defense: 2,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
 					'dead-1': {
 						id: 'dead-1',
 						type: 'Puss',
@@ -599,26 +633,9 @@ describe('App orchestration (injected game client)', () => {
 							},
 						],
 					},
-					'alive-1': {
-						id: 'alive-1',
-						type: 'BigBadWolf',
-						position: { q: 5, r: 5 },
-						status: 'operational' as const,
-						weapons: [
-							{
-								id: 'main',
-								name: 'Main Gun',
-								attack: 4,
-								range: 2,
-								defense: 2,
-								status: 'ready' as const,
-								individuallyTargetable: false,
-							},
-						],
-					},
 				},
 			},
-			selectedUnitId: 'alive-1',
+			selectedUnitId: 'active-1',
 		}
 		const session = { role: 'defender' as const }
 
@@ -630,16 +647,25 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const aliveButton = await screen.findByTestId('combat-unit-alive-1')
+		const activeButton = await screen.findByTestId('combat-unit-active-1')
+		const noReadyButton = await screen.findByTestId('combat-unit-no-ready-1')
 		const deadButton = await screen.findByTestId('combat-unit-dead-1')
+		const noReadyCombatButton = noReadyButton as HTMLButtonElement
+		const deadCombatButton = deadButton as HTMLButtonElement
 
-		expect(aliveButton.compareDocumentPosition(deadButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-		expect((deadButton as HTMLButtonElement).disabled).toBe(true)
+		expect(activeButton.compareDocumentPosition(deadButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+		expect(noReadyCombatButton.disabled).toBe(true)
+		expect(noReadyButton.getAttribute('title')).toBe('This unit is not eligible to attack.')
+		expect(deadCombatButton.disabled).toBe(true)
 		expect(deadButton.getAttribute('class')).toContain('tone-destroyed')
 
+		await userEvent.click(screen.getByTestId('combat-unit-no-ready-1'))
+		expect(screen.getByTestId('combat-unit-active-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-active-1').getAttribute('data-selected')).toBe('true')
+
 		await userEvent.click(screen.getByTestId('combat-unit-dead-1'))
-		expect(screen.getByTestId('combat-unit-alive-1').getAttribute('data-selected')).toBe('true')
-		expect(screen.getByTestId('hex-unit-alive-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('combat-unit-active-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-active-1').getAttribute('data-selected')).toBe('true')
 	})
 
 	it('renders a shared combat range overlay for selected onion weapons', async () => {
@@ -910,14 +936,90 @@ describe('App orchestration (injected game client)', () => {
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
 
 		const treadsTarget = await screen.findByTestId('combat-target-onion-1:treads')
+		const treadsButton = treadsTarget as HTMLButtonElement
 		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 8')
-		expect(treadsTarget.disabled).toBe(true)
+		expect(treadsButton.disabled).toBe(true)
 		expect(treadsTarget.getAttribute('aria-disabled')).toBe('true')
 		expect(treadsTarget.getAttribute('title')).toBe('Treads must be singly targeted.')
 
 		fireEvent.contextMenu(treadsTarget)
 		expect(treadsTarget.getAttribute('data-selected')).toBe('false')
 		expect(screen.queryByTestId('combat-confirmation-view')).toBeNull()
+	})
+
+	it('bases defender combat range on ready weapons rather than display summaries', async () => {
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'DEFENDER_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				defenders: {
+					'long-range-spent': {
+						id: 'long-range-spent',
+						type: 'Dragon',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 4,
+								range: 6,
+								defense: 3,
+								status: 'spent' as const,
+								individuallyTargetable: false,
+							},
+							{
+								id: 'secondary',
+								name: 'Secondary Gun',
+								attack: 2,
+								range: 2,
+								defense: 2,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'near-1': {
+						id: 'near-1',
+						type: 'Puss',
+						position: { q: 6, r: 4 },
+						status: 'operational' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 4,
+								range: 2,
+								defense: 3,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+			},
+			onion: {
+				...baseSnapshot.authoritativeState.onion,
+				position: { q: 7, r: 4 },
+			},
+			selectedUnitId: 'long-range-spent',
+		}
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const selectedUnit = await screen.findByTestId('combat-unit-long-range-spent')
+		expect(selectedUnit.getAttribute('data-selected')).toBe('true')
+		expect(screen.queryByTestId('combat-target-list')).toBeNull()
+		expect(screen.getByText(/No valid targets are currently in range/i)).not.toBeNull()
 	})
 
 	it('supports grouped selection from the rail and map, ctrl-removal, and empty-space deselection', async () => {
