@@ -5,6 +5,7 @@
  */
 
 import type { HexPos, UnitStatus, TurnPhase } from '../types/index.js'
+import type { TargetRules } from '../shared/targetRules.js'
 import logger from '../logger.js'
 import { onionMovementAllowance } from '../shared/movementAllowance.js'
 
@@ -45,6 +46,8 @@ export interface Weapon {
   status: WeaponStatus
   /** Whether this weapon can be individually targeted (true for Onion subsystems) */
   individuallyTargetable: boolean
+  /** Optional target restrictions for this weapon. */
+  targetRules?: TargetRules
 }
 
 /**
@@ -115,6 +118,8 @@ export interface UnitDefinition {
   abilities: UnitAbilities
   /** Weapon systems */
   weapons: Weapon[]
+  /** Optional target restrictions for this unit. */
+  targetRules?: TargetRules
 }
 
 /**
@@ -133,6 +138,8 @@ export interface GameUnit {
   squads?: number
   /** Current weapon states */
   weapons: Weapon[]
+  /** Optional target restrictions for this live unit state. */
+  targetRules?: TargetRules
 }
 
 /**
@@ -295,9 +302,10 @@ function makeWeapon(
   attack: number,
   range: number,
   defense: number,
-  individuallyTargetable = false
+  individuallyTargetable = false,
+  targetRules?: TargetRules
 ): Weapon {
-  return { id, name, attack, range, defense, status: 'ready', individuallyTargetable }
+  return { id, name, attack, range, defense, status: 'ready', individuallyTargetable, targetRules }
 }
 
 const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
@@ -408,14 +416,14 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       makeWeapon('secondary_2', 'Secondary Battery', 3, 2, 3, true),
       makeWeapon('secondary_3', 'Secondary Battery', 3, 2, 3, true),
       makeWeapon('secondary_4', 'Secondary Battery', 3, 2, 3, true),
-      makeWeapon('ap_1', 'AP Gun', 1, 1, 1, true),
-      makeWeapon('ap_2', 'AP Gun', 1, 1, 1, true),
-      makeWeapon('ap_3', 'AP Gun', 1, 1, 1, true),
-      makeWeapon('ap_4', 'AP Gun', 1, 1, 1, true),
-      makeWeapon('ap_5', 'AP Gun', 1, 1, 1, true),
-      makeWeapon('ap_6', 'AP Gun', 1, 1, 1, true),
-      makeWeapon('ap_7', 'AP Gun', 1, 1, 1, true),
-      makeWeapon('ap_8', 'AP Gun', 1, 1, 1, true),
+      makeWeapon('ap_1', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
+      makeWeapon('ap_2', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
+      makeWeapon('ap_3', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
+      makeWeapon('ap_4', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
+      makeWeapon('ap_5', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
+      makeWeapon('ap_6', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
+      makeWeapon('ap_7', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
+      makeWeapon('ap_8', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
       makeWeapon('missile_1', 'Missile', 6, 5, 3, true),
       makeWeapon('missile_2', 'Missile', 6, 5, 3, true),
     ],

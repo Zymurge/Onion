@@ -265,14 +265,18 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 - Selecting any attacker (or group) displays a range overlay on the map, similar to movement, but with an orange tint.
 - The range overlay must be computed in the web board model described above so it matches the rendered hex geometry.
 - For groups, the highlighted area is the intersection of all selected attackers’ ranges—only hexes all can reach are shown.
+- The attacker selector must also enforce weapon and unit targeting rules before showing a target as selectable.
+- The UI target list should only include targets allowed by the selected weapon(s) and by the target unit’s own restriction metadata, after range filtering is applied.
+- For the current AP rule, the selector must offer AP targets only for Little Pigs and the Castle.
 
 **Step 2: Target Confirmation**
 
-- Right-clicking an eligible target hex (within the highlighted range) opens a confirmation popup.
+- Right-clicking an eligible target hex or target list item (within the highlighted range and allowed by target rules) opens a confirmation popup.
 - The popup displays:
   - Attack:Defense ratio
   - All relevant combat modifiers and stats (e.g., terrain, stacking, special abilities)
   - Acknowledge/confirm button to commit the attack
+- If no legal target remains after applying weapon/unit target rules, the UI must show a clear empty-state message rather than offering an illegal target.
 
 **Step 3: Combat Results**
 

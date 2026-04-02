@@ -19,6 +19,7 @@ type HexMapBoardProps = {
   selectedUnitIds: string[]
   selectedCombatTargetId?: string | null
   combatRangeHexKeys?: ReadonlySet<string>
+  combatTargetIds?: ReadonlySet<string>
   canSubmitMove?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
   onSelectCombatTarget?: (targetId: string) => void
@@ -46,7 +47,7 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, canSubmitMove = true, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
@@ -139,26 +140,38 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
 
   const bounds = boardPixelSize(scenarioMap.width, scenarioMap.height, HEX_SIZE, MAP_PADDING)
 
+  function getCombatTargetIdForOccupant(occupant: HexOccupant): string {
+    if (activeCombatRole === 'defender' && occupant.id === onion.id) {
+      return `${onion.id}:treads`
+    }
+
+    return occupant.id
+  }
+
   function canSelectOccupant(occupant: HexOccupant): boolean {
     if (activeCombatRole === null) {
       return true
     }
 
+    const combatTargetId = getCombatTargetIdForOccupant(occupant)
+
     if (activeCombatRole === 'onion') {
-      return occupant.id !== onion.id
+      return occupant.id !== onion.id && (combatTargetIds === undefined || combatTargetIds.has(combatTargetId))
     }
 
-    return occupant.id === onion.id ? false : activeCombatRole === 'defender'
+    return occupant.id === onion.id && (combatTargetIds === undefined || combatTargetIds.has(combatTargetId))
   }
 
   function selectCombatTarget(occupant: HexOccupant) {
-    if (activeCombatRole === 'onion' && occupant.id !== onion.id) {
-      onSelectCombatTarget?.(occupant.id)
+    const combatTargetId = getCombatTargetIdForOccupant(occupant)
+
+    if (activeCombatRole === 'onion' && occupant.id !== onion.id && (combatTargetIds === undefined || combatTargetIds.has(combatTargetId))) {
+      onSelectCombatTarget?.(combatTargetId)
       return true
     }
 
-    if (activeCombatRole === 'defender' && occupant.id === onion.id) {
-      onSelectCombatTarget?.(occupant.id)
+    if (activeCombatRole === 'defender' && occupant.id === onion.id && (combatTargetIds === undefined || combatTargetIds.has(combatTargetId))) {
+      onSelectCombatTarget?.(combatTargetId)
       return true
     }
 
@@ -190,7 +203,14 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
               const cellOccupants = occupantMap.get(hexKey(coord)) ?? []
               const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
               const isSelected = cellOccupants.some((occupant) => selectedUnitSet.has(occupant.id))
-              const isCombatTargetSelected = selectedCombatTargetId !== undefined && selectedCombatTargetId !== null && cellOccupants.some((occupant) => occupant.id === selectedCombatTargetId)
+              const isCombatTargetSelected = selectedCombatTargetId !== undefined && selectedCombatTargetId !== null && cellOccupants.some((occupant) => {
+                const combatTargetId = getCombatTargetIdForOccupant(occupant)
+
+                return combatTargetId === selectedCombatTargetId
+                  || (activeCombatRole === 'defender' && occupant.id === onion.id && (
+                    selectedCombatTargetId.startsWith(`${onion.id}:`) || selectedCombatTargetId.startsWith('weapon:')
+                  ))
+              })
               const isCombatRange = combatRangeHexKeys?.has(hexKey(coord)) ?? false
               const isMoveReady = canSubmitMove && cellOccupants.some(
                 (occupant) => playerRole && isUnitMoveEligible(occupant, phase, playerRole)
@@ -282,7 +302,15 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                           event.stopPropagation()
                           if (activeCombatRole === 'onion' && occupant.id !== onion.id) {
                             if (onSelectCombatTarget !== undefined) {
-                              onSelectCombatTarget(occupant.id)
+                              onSelectCombatTarget(getCombatTargetIdForOccupant(occupant))
+                            }
+
+                            return
+                          }
+
+                          if (activeCombatRole === 'defender' && occupant.id === onion.id) {
+                            if (onSelectCombatTarget !== undefined) {
+                              onSelectCombatTarget(getCombatTargetIdForOccupant(occupant))
                             }
 
                             return

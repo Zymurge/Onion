@@ -15,6 +15,7 @@ import {
   type CombatCalculatorInput,
   type CombatStaticRules,
 } from '../shared/combatCalculator.js'
+import { isTargetAllowedByRules, resolveUnitTargetRules, resolveWeaponTargetRules } from '../shared/targetRules.js'
 import { getReadyWeapons, getUnitDefense, getWeaponDefense, destroyWeapon } from './units.js'
 import { getAllUnitDefinitions } from './units.js'
 import type { GameUnit, OnionUnit, DefenderUnit, EngineGameState } from './units.js'
@@ -69,6 +70,7 @@ export type CombatValidationCode =
   | 'ATTACKER_NOT_OPERATIONAL'
   | 'NO_READY_WEAPONS'
   | 'NO_TARGET'
+  | 'INVALID_TARGET'
   | 'TARGET_OUT_OF_RANGE'
   | 'NO_ATTACKERS'
   | 'COMBINED_FIRE_TREAD_TARGET'
@@ -358,6 +360,45 @@ export function validateCombatAction(
       const attackerId = normalizedCommand.attackers[index]
       if (hexDistance(state.onion.position, target.position) > weapon.range) {
         return { ok: false, code: 'TARGET_OUT_OF_RANGE', error: `Attacker '${attackerId}' is out of range` }
+      }
+    }
+
+    const defenderDefinition = COMBAT_STATIC_RULES.unitDefinitions[target.type]
+    const targetAllowed = weapons.every((weapon) =>
+      isTargetAllowedByRules(
+        {
+          unitType: 'TheOnion',
+          weaponId: weapon.id,
+          targetRules: resolveWeaponTargetRules(COMBAT_STATIC_RULES.unitDefinitions.TheOnion, weapon.id, weapon.targetRules),
+        },
+        {
+          unitType: target.type,
+          targetRules: resolveUnitTargetRules(defenderDefinition, target.targetRules),
+        },
+      ),
+    )
+
+    if (!targetAllowed) {
+      const invalidWeapon = weapons.find((weapon) =>
+        !isTargetAllowedByRules(
+          {
+            unitType: 'TheOnion',
+            weaponId: weapon.id,
+            targetRules: resolveWeaponTargetRules(COMBAT_STATIC_RULES.unitDefinitions.TheOnion, weapon.id, weapon.targetRules),
+          },
+          {
+            unitType: target.type,
+            targetRules: resolveUnitTargetRules(defenderDefinition, target.targetRules),
+          },
+        ),
+      )
+
+      return {
+        ok: false,
+        code: 'INVALID_TARGET',
+        error: invalidWeapon
+          ? `Weapon '${invalidWeapon.id}' cannot target '${target.id}'`
+          : `Target '${target.id}' is not valid for the selected weapon(s)`,
       }
     }
 

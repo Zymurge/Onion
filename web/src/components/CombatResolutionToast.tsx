@@ -75,7 +75,14 @@ export function CombatResolutionToast({ title, resolution, modifiers, onDismiss 
 			</div>
 
 			<div className="combat-resolution-actions">
-				<button className="combat-resolution-dismiss" type="button" onClick={onDismiss}>
+				<button
+					className="combat-resolution-dismiss"
+					type="button"
+					onClick={(event) => {
+						event.stopPropagation()
+						onDismiss()
+					}}
+				>
 					Dismiss
 				</button>
 			</div>

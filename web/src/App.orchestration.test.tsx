@@ -443,6 +443,53 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByText(/No valid targets are currently in range/i)).not.toBeNull()
 	})
 
+	it('does not resurrect the previous combat toast when replaying the same attack after clearing selection', async () => {
+		const user = userEvent.setup()
+		const snapshot = createInRangeCombatSnapshot()
+		const resolvedSnapshot = {
+			...snapshot,
+			combatResolution: {
+				actionType: 'FIRE' as const,
+				attackers: ['wolf-2'],
+				targetId: 'onion-1',
+				outcome: 'X' as const,
+				outcomeLabel: 'Hit' as const,
+				roll: 6,
+				odds: '2:1',
+				details: ['Treads lost: 3 (remaining 30)'],
+			},
+		}
+		const session = { role: 'defender' as const }
+		const submitAction = vi.fn().mockResolvedValue(resolvedSnapshot)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByTestId('combat-unit-wolf-2')
+		await user.click(screen.getByTestId('combat-unit-wolf-2'))
+		await user.click(screen.getByTestId('combat-target-onion-1:treads'))
+		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
+
+		expect(await screen.findByTestId('combat-resolution-toast')).not.toBeNull()
+
+		await user.click(screen.getByTestId('hex-cell-0-0'))
+		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
+
+		await user.click(screen.getByTestId('combat-unit-wolf-2'))
+		await user.click(screen.getByTestId('combat-target-onion-1:treads'))
+
+		expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Confirm attack on Treads')
+		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
+		expect(await screen.findByTestId('combat-resolution-toast')).not.toBeNull()
+	})
+
 	it('submits a move when the active player right-clicks an in-range hex', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot({
 			phase: 'DEFENDER_MOVE',

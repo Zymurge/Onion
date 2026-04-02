@@ -13,6 +13,10 @@ export type PlayerRole = 'onion' | 'defender'
 
 export type OnionWeaponType = 'main' | 'secondary' | 'ap' | 'missile'
 
+export type { TargetRules } from '../shared/targetRules.js'
+
+import type { TargetRules } from '../shared/targetRules.js'
+
 export interface HexPos {
   q: number
   r: number
@@ -26,6 +30,8 @@ export interface Weapon {
   defense: number
   status: WeaponStatus
   individuallyTargetable: boolean
+  /** Optional target restrictions for this weapon. */
+  targetRules?: TargetRules
 }
 
 export interface DefenderUnit {
@@ -35,6 +41,7 @@ export interface DefenderUnit {
   status: UnitStatus
   weapons?: Weapon[]
   squads?: number
+  targetRules?: TargetRules
 }
 
 export interface GameState {
@@ -46,6 +53,7 @@ export interface GameState {
     missiles?: number
     status?: UnitStatus
     weapons?: Weapon[]
+    targetRules?: TargetRules
     batteries?: {
       main: number
       secondary: number

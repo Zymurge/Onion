@@ -39,6 +39,16 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
   - **Tread Calculation**: Mk III starts with **45 Tread Points**.
     - 31-45 Treads: **MA 3** | 16-30 Treads: **MA 2** | 1-15 Treads: **MA 1** | 0 Treads: **MA 0**
 
+### Targeting Rules
+
+Target eligibility is data-driven and should be defined on the weapon or unit that owns the restriction. The engine and UI must use the same target-rule data when building legal target lists.
+
+- Weapon target rules live on the weapon definition when a specific weapon can only attack certain unit types or subsystems.
+- Unit target rules live on the unit definition when a unit can only be attacked by certain weapon types or weapon-defined target classes.
+- Target rules should use explicit unit and weapon identifiers, not abstract combat classes, so special cases remain easy to read and extend.
+- Scenario files do not author target rules directly; they reference unit types and the engine populates weapon and target-rule data from the shared unit definitions.
+- For the current Onion AP weapons, the source of truth is the Onion unit definition: AP weapons may target only Little Pigs and the Castle.
+
 ## Core Mechanics
 
 ### 1. Hexagonal Grid & Movement
