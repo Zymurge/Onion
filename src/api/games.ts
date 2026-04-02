@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import logger from '../logger.js'
+import type { WebSocket } from 'ws'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -13,6 +14,8 @@ import { createMap } from '../engine/map.js'
 import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '../engine/index.js'
 import type { EngineGameState } from '../engine/units.js'
 import { getRemainingUnitMovementAllowance } from '../shared/unitMovement.js'
+import type { GameStateResponse } from '../shared/apiProtocol.js'
+import type { WebSocketClientMessage, WebSocketServerEventMessage, WebSocketServerErrorMessage, WebSocketServerSnapshotMessage } from '../shared/websocketProtocol.js'
 import { InitialStateSchema } from '../engine/scenarioSchema.js'
 import { normalizeInitialStateToGameState } from '../engine/scenarioNormalizer.js'
 import { resolveScenariosDir } from './scenarioPaths.js'
@@ -243,6 +246,48 @@ function logSentEvents(gameId: number, actionType: string, events: EventEnvelope
   )
 }
 
+function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
+  const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+  const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+
+  return {
+    gameId: match.gameId,
+    scenarioId: match.scenarioId,
+    scenarioName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
+    scenarioDisplayName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
+    role: match.players.onion === userId ? 'onion' : 'defender',
+    phase: match.phase,
+    turnNumber: match.turnNumber,
+    winner: match.winner,
+    players: match.players,
+    state: match.state,
+    movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
+    scenarioMap,
+    eventSeq: match.events.at(-1)?.seq ?? 0,
+  }
+}
+
+function serializeWsMessage(message: WebSocketClientMessage | WebSocketServerEventMessage | WebSocketServerSnapshotMessage | WebSocketServerErrorMessage): string {
+  return JSON.stringify(message)
+}
+
+function parseWsMessage(rawMessage: string): WebSocketClientMessage | null {
+  try {
+    const parsed = JSON.parse(rawMessage) as Partial<WebSocketClientMessage> & { kind?: string }
+    if (parsed.kind === 'COMMAND' && parsed.command !== undefined) {
+      return parsed as WebSocketClientMessage
+    }
+
+    if (parsed.kind === 'RESUME' && typeof parsed.afterSeq === 'number') {
+      return parsed as WebSocketClientMessage
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
 /**
  * Load a scenario file by ID from the scenarios directory.
  * @param id - Scenario identifier
@@ -310,6 +355,43 @@ const INITIAL_STATE: GameState = {
  */
 export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: FastifyInstance, opts) => {
   const { db } = opts
+  const liveConnections = new Map<number, Set<WebSocket>>()
+
+  function broadcastGameEvents(gameId: number, events: EventEnvelope[]) {
+    const sockets = liveConnections.get(gameId)
+    if (!sockets || sockets.size === 0) {
+      return
+    }
+
+    for (const event of events) {
+      const payload: WebSocketServerEventMessage = { kind: 'EVENT', event }
+      const serialized = serializeWsMessage(payload)
+
+      for (const socket of sockets) {
+        if (socket.readyState === 1) {
+          socket.send(serialized)
+        }
+      }
+    }
+  }
+
+  function removeLiveConnection(gameId: number, socket: WebSocket) {
+    const sockets = liveConnections.get(gameId)
+    if (!sockets) {
+      return
+    }
+
+    sockets.delete(socket)
+    if (sockets.size === 0) {
+      liveConnections.delete(gameId)
+    }
+  }
+
+  function addLiveConnection(gameId: number, socket: WebSocket) {
+    const sockets = liveConnections.get(gameId) ?? new Set<WebSocket>()
+    sockets.add(socket)
+    liveConnections.set(gameId, sockets)
+  }
 
   /**
    * Create a new game match.
@@ -435,6 +517,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         role,
       }
       await db.appendEvents(match.gameId, [event])
+      broadcastGameEvents(match.gameId, [event])
       logger.debug({ gameId: match.gameId, event }, 'PLAYER_JOINED event appended')
 
       return reply.send({ gameId: match.gameId, role })
@@ -510,29 +593,122 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       }
 
       // Type assertion for scenarioSnapshot
-      const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
-      const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
       logger.debug({ gameId: match.gameId }, 'Game state fetched')
-      return reply.send({
-        gameId: match.gameId,
-        scenarioId: match.scenarioId,
-        scenarioName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
-        scenarioDisplayName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
-        role: match.players.onion === userId ? 'onion' : 'defender',
-        phase: match.phase,
-        turnNumber: match.turnNumber,
-        winner: match.winner,
-        players: match.players,
-        state: match.state,
-        movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
-        scenarioMap,
-        eventSeq: match.events.at(-1)?.seq ?? 0,
-      })
+      return reply.send(buildGameStateResponse(match, userId))
     } catch (err) {
       logger.error({ err }, 'Error fetching game state')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })
+
+  app.get<{ Params: { id: string }; Querystring: { after?: string } }>(
+    '/:id/ws',
+    {
+      websocket: true,
+      preValidation: async (req, reply) => {
+        const userId = extractUserId(req.headers.authorization)
+        if (!userId) {
+          return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+        }
+
+        const gameId = parseGameId(req.params.id)
+        if (gameId === null) {
+          return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+        }
+
+        const match = await db.findMatch(gameId)
+        if (!match) {
+          return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+        }
+
+        if (match.players.onion !== userId && match.players.defender !== userId) {
+          return reply.status(403).send({ ok: false, error: 'Forbidden', code: 'FORBIDDEN' })
+        }
+      },
+    },
+    (socket, req) => {
+      const gameId = parseGameId(req.params.id)
+      if (gameId === null) {
+        socket.close()
+        return
+      }
+
+      addLiveConnection(gameId, socket)
+
+      socket.on('close', () => {
+        removeLiveConnection(gameId, socket)
+      })
+
+      socket.on('message', async (rawMessage) => {
+        const parsed = parseWsMessage(rawMessage.toString())
+        if (parsed === null) {
+          const errorMessage: WebSocketServerErrorMessage = {
+            kind: 'ERROR',
+            message: 'Malformed websocket message',
+            code: 'INVALID_MESSAGE',
+          }
+          socket.send(serializeWsMessage(errorMessage))
+          return
+        }
+
+        if (parsed.kind === 'COMMAND') {
+          const errorMessage: WebSocketServerErrorMessage = {
+            kind: 'ERROR',
+            message: 'WebSocket command handling is not wired yet; use REST actions for now.',
+            code: 'NOT_IMPLEMENTED',
+          }
+          socket.send(serializeWsMessage(errorMessage))
+          return
+        }
+
+        if (parsed.kind === 'RESUME') {
+          try {
+            const events = await db.getEvents(gameId, parsed.afterSeq)
+            for (const event of events) {
+              const eventMessage: WebSocketServerEventMessage = { kind: 'EVENT', event }
+              socket.send(serializeWsMessage(eventMessage))
+            }
+          } catch (err) {
+            const errorMessage: WebSocketServerErrorMessage = {
+              kind: 'ERROR',
+              message: 'Failed to resume websocket stream',
+              code: 'RESUME_FAILED',
+            }
+            socket.send(serializeWsMessage(errorMessage))
+          }
+        }
+      })
+
+      void (async () => {
+        try {
+          const userId = extractUserId(req.headers.authorization)
+          if (!userId) {
+            socket.close()
+            return
+          }
+
+          const match = await db.findMatch(gameId)
+          if (!match) {
+            socket.close()
+            return
+          }
+
+          const snapshotMessage: WebSocketServerSnapshotMessage = {
+            kind: 'STATE_SNAPSHOT',
+            snapshot: buildGameStateResponse(match, userId),
+          }
+          socket.send(serializeWsMessage(snapshotMessage))
+        } catch (err) {
+          const errorMessage: WebSocketServerErrorMessage = {
+            kind: 'ERROR',
+            message: 'Failed to initialize websocket stream',
+            code: 'STREAM_INIT_FAILED',
+          }
+          socket.send(serializeWsMessage(errorMessage))
+        }
+      })()
+    },
+  )
 
   /**
    * Submit a game action.
