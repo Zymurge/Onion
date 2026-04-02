@@ -13,22 +13,9 @@ export type PlayerRole = 'onion' | 'defender'
 
 export type OnionWeaponType = 'main' | 'secondary' | 'ap' | 'missile'
 
-/**
- * Explicit targeting restrictions for a weapon definition.
- *
- * Use explicit unit and weapon identifiers instead of abstract combat classes
- * so special-case rules remain easy to read and extend.
- */
-export interface TargetRules {
-  /** Unit types this weapon may target. */
-  allowedTargetUnitTypes?: ReadonlyArray<string>
-  /** Weapon ids this weapon may target, when the target is a subsystem. */
-  allowedTargetWeaponIds?: ReadonlyArray<string>
-  /** Unit types that may target this unit. */
-  allowedAttackerUnitTypes?: ReadonlyArray<string>
-  /** Weapon ids that may target this unit. */
-  allowedAttackerWeaponIds?: ReadonlyArray<string>
-}
+export type { TargetRules } from '../shared/targetRules.js'
+
+import type { TargetRules } from '../shared/targetRules.js'
 
 export interface HexPos {
   q: number

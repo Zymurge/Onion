@@ -5,6 +5,7 @@
  */
 
 import type { HexPos, UnitStatus, TurnPhase } from '../types/index.js'
+import type { TargetRules } from '../shared/targetRules.js'
 import logger from '../logger.js'
 import { onionMovementAllowance } from '../shared/movementAllowance.js'
 
@@ -26,20 +27,6 @@ export type UnitType =
  * Status that a weapon can have.
  */
 export type WeaponStatus = 'ready' | 'spent' | 'destroyed'
-
-/**
- * A weapon system that a unit can use to attack.
- */
-export interface TargetRules {
-  /** Unit types this weapon or unit may target. */
-  allowedTargetUnitTypes?: ReadonlyArray<UnitType>
-  /** Weapon ids this weapon may target, when the target is a subsystem. */
-  allowedTargetWeaponIds?: ReadonlyArray<string>
-  /** Unit types that may target this unit. */
-  allowedAttackerUnitTypes?: ReadonlyArray<UnitType>
-  /** Weapon ids that may target this unit. */
-  allowedAttackerWeaponIds?: ReadonlyArray<string>
-}
 
 /**
  * A weapon system that a unit can use to attack.

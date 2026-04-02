@@ -198,6 +198,31 @@ describe('HexMapBoard', () => {
 		expect(onSelectCombatTarget).toHaveBeenCalledWith('puss-1')
 	})
 
+	it('maps defender combat clicks on the Onion to the treads target id', () => {
+		const onSelectCombatTarget = vi.fn()
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_COMBAT"
+				selectedUnitIds={['puss-1']}
+				selectedCombatTargetId={'onion-1:treads'}
+				combatTargetIds={new Set(['onion-1:treads', 'weapon:main'])}
+				onSelectUnit={vi.fn()}
+				onSelectCombatTarget={onSelectCombatTarget}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
+		expect(onSelectCombatTarget).toHaveBeenCalledWith('onion-1:treads')
+		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('hex-cell-0-0').getAttribute('class')).toContain('hex-cell-selected')
+	})
+
 	it('does not select a combat target that is not in the legal target set', () => {
 		const onSelectCombatTarget = vi.fn()
 
