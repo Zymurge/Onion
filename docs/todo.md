@@ -10,10 +10,10 @@ break down into features/tasks as needed.
   - [x] Add a server-side WS endpoint alongside the existing REST API without removing polling yet.
   - [x] Add a client transport adapter that can subscribe to live updates and fall back to the current HTTP path.
   - [x] Hook the connection status indicator and last update display in the header to the WS connection.
-  - [ ] Extend backend to fan out every persisted state-change event to all connected WS clients.
-    - [ ] Broadcast action-derived events after successful persistence for MOVE, FIRE, and END_PHASE.
-    - [ ] Keep resume/snapshot behavior intact so reconnecting clients can catch up from `afterSeq`.
-    - [ ] Add tests proving each action path emits the expected live event stream to an active websocket client.
+  - [x] Extend backend to fan out every persisted state-change event to all connected WS clients.
+    - [x] Broadcast action-derived events after successful persistence for MOVE, FIRE, and END_PHASE.
+    - [x] Keep resume/snapshot behavior intact so reconnecting clients can catch up from `afterSeq`.
+    - [x] Add tests proving each action path emits the expected live event stream to an active websocket client.
   - [ ] Wire the web UI to consume live WS updates for the active match and keep the debug stream visible.
   - [ ] Add integration coverage for connect, reconnect, and live state refresh behavior.
 - [ ] Place End Phase control in UI and wire to backend
