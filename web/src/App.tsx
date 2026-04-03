@@ -18,7 +18,7 @@ import {
   type Mode,
   type TerrainHex,
 } from './lib/battlefieldView'
-import { createHttpGameClient } from './lib/httpGameClient'
+import { createLiveGameClient, type LiveConnectionStatus, type LiveGameClient, type LiveGameClientState } from './lib/liveGameClient'
 import { buildCombatRangeHexKeys } from './lib/combatRange'
 import { buildCombatTargetOptions } from './lib/combatPreview'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
@@ -62,6 +62,25 @@ function getPhaseOwner(phase: TurnPhase | null): 'onion' | 'defender' | null {
   }
 
   return null
+}
+
+function isLiveGameClient(client: GameClient): client is LiveGameClient {
+  return typeof (client as Partial<LiveGameClient>).subscribeLiveState === 'function' && typeof (client as Partial<LiveGameClient>).getLiveState === 'function'
+}
+
+function formatLiveConnectionStatus(connectionStatus: LiveConnectionStatus) {
+  switch (connectionStatus) {
+    case 'connected':
+      return 'Connected'
+    case 'connecting':
+      return 'Connecting'
+    case 'reconnecting':
+      return 'Reconnecting'
+    case 'disconnected':
+      return 'Disconnected'
+    case 'idle':
+      return 'Idle'
+  }
 }
 
 function parseWeaponStats(weaponString: string) {
@@ -474,6 +493,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     const [actionError, setActionError] = useState<string | null>(null)
     const [pendingCombatSnapshot, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
     const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
+    const [liveState, setLiveState] = useState<LiveGameClientState | null>(null)
     const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
     const [connectError, setConnectError] = useState<string | null>(null)
     const [connectDraft, setConnectDraft] = useState({
@@ -489,6 +509,18 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const activeGameClient = gameClient ?? connectedSession?.gameClient
   const activeGameIdProp = gameId ?? connectedSession?.gameId
   const snapshotLoadVersion = useRef(0)
+
+  useEffect(() => {
+    if (activeGameClient === undefined || !isLiveGameClient(activeGameClient)) {
+      setLiveState(null)
+      return
+    }
+
+    setLiveState(activeGameClient.getLiveState())
+    return activeGameClient.subscribeLiveState((state) => {
+      setLiveState(state)
+    })
+  }, [activeGameClient])
 
   useEffect(() => {
     if (activeGameClient === undefined || activeGameIdProp === undefined) {
@@ -650,7 +682,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
         return
       }
 
-      const nextClient = createHttpGameClient({
+      const nextClient = createLiveGameClient({
         baseUrl: connectDraft.apiBaseUrl.trim(),
         token: loginResult.data.token,
       })
@@ -762,6 +794,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const selectedCombatTargetIdForRender = selectedCombatTargetId !== null && combatTargetIds.has(selectedCombatTargetId) ? selectedCombatTargetId : null
   const selectedCombatTarget = selectedCombatTargetIdForRender === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetIdForRender) ?? null
 
+  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const connectionStatus = liveState?.connectionStatus ?? 'idle'
+  const connectionLabel = formatLiveConnectionStatus(connectionStatus)
+  const lastUpdatedAt = liveState?.lastUpdatedAt ?? lastRefreshAt
+
   useSyncExternalStore(
     (onStoreChange) => {
       if (!debugOpen) {
@@ -783,26 +822,21 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       .map((entry) => sanitizeApiProtocolTrafficEntry(entry))
     : []
 
-  // Simulated last sync and event status for UI demo
-  const [lastSync, setLastSync] = useState<Date>(new Date())
-  const [eventStatus, setEventStatus] = useState<'ok' | 'fetching' | 'error'>('ok')
-
-  function handleRefresh() {
+  async function handleRefresh() {
+    setIsRefreshing(true)
     if (isControlledSession) {
-      setEventStatus('fetching')
-      void commitClientAction({ type: 'refresh' }).then(() => {
-        setLastSync(new Date())
-        setEventStatus('ok')
-      }).catch(() => {
-        setEventStatus('error')
-      })
+      try {
+        await commitClientAction({ type: 'refresh' })
+        setLastRefreshAt(new Date())
+      } finally {
+        setIsRefreshing(false)
+      }
       return
     }
 
-    setEventStatus('fetching')
     setTimeout(() => {
-      setLastSync(new Date())
-      setEventStatus('ok')
+      setLastRefreshAt(new Date())
+      setIsRefreshing(false)
     }, 800)
   }
 
@@ -913,9 +947,11 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
             <button
               className="refresh-btn"
               title="Refresh game state"
-              onClick={handleRefresh}
+              onClick={() => {
+                void handleRefresh()
+              }}
               aria-label="Refresh"
-              disabled={eventStatus === 'fetching'}
+              disabled={isRefreshing}
             >
               Refresh
             </button>
@@ -929,18 +965,16 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
             </button>
           </div>
           <div className="utility-group-vert">
-            <div className="sync-status-block" title={eventStatus === 'ok' ? 'Events up to date' : eventStatus === 'fetching' ? 'Fetching events...' : 'Event fetch error'}>
-              <span className="stat-label-small">Sync</span>
-              <span className={`event-status event-status-${eventStatus}`}>
-                {eventStatus === 'ok' && '●'}
-                {eventStatus === 'fetching' && <span className="event-dot-spinner" />}
-                {eventStatus === 'error' && '⚠'}
+            <div className="sync-status-block" title={`Live connection: ${connectionLabel}`}>
+              <span className="stat-label-small">Connection</span>
+              <span className={`connection-status connection-status-${connectionStatus}`}>
+                {connectionLabel}
               </span>
             </div>
-            <div className="last-sync-block" title="Last sync time">
+            <div className="last-sync-block" title="Last live update time">
               <span className="stat-label-small">Last</span>
               <span className="last-sync">
-                {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {lastUpdatedAt === null ? '—' : lastUpdatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>
             </div>
           </div>

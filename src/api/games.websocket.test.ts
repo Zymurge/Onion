@@ -21,15 +21,14 @@ describe('GET /games/:id/ws', () => {
 		await app.ready()
 
 		let snapshotMessagePromise: Promise<any> | null = null
-		const ws = await app.injectWS(`/games/${gameId}/ws`, {
-			headers: { authorization: `Bearer ${shrek.token}` },
-		}, {
+		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
 				snapshotMessagePromise = readWsMessage(openWs)
 			},
 		})
 
-		const snapshotMessage = await snapshotMessagePromise
+		expect(snapshotMessagePromise).not.toBeNull()
+		const snapshotMessage = await snapshotMessagePromise!
 		expect(snapshotMessage.kind).toBe('STATE_SNAPSHOT')
 		expect(snapshotMessage.snapshot.gameId).toBe(gameId)
 		expect(snapshotMessage.snapshot.role).toBe('onion')

@@ -249,16 +249,24 @@ function logSentEvents(gameId: number, actionType: string, events: EventEnvelope
 function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+  const role: GameStateResponse['role'] = match.players.onion === userId ? 'onion' : 'defender'
+  const winner: GameStateResponse['winner'] =
+    match.winner === null
+      ? null
+      : match.winner === match.players.onion
+        ? 'onion'
+        : match.winner === match.players.defender
+          ? 'defender'
+          : null
 
   return {
     gameId: match.gameId,
     scenarioId: match.scenarioId,
     scenarioName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
-    scenarioDisplayName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
-    role: match.players.onion === userId ? 'onion' : 'defender',
+    role,
     phase: match.phase,
     turnNumber: match.turnNumber,
-    winner: match.winner,
+    winner,
     players: match.players,
     state: match.state,
     movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
@@ -324,6 +332,20 @@ async function loadScenario(id: string): Promise<(ScenarioSnapshot & { id?: stri
 function extractUserId(authHeader: string | undefined): string | null {
   if (!authHeader?.startsWith('Bearer stub.')) return null
   const userId = authHeader.slice('Bearer stub.'.length)
+  return UUID_RE.test(userId) ? userId : null
+}
+
+function extractUserIdFromAuth(authHeader: string | undefined, token: string | undefined): string | null {
+  const headerUserId = extractUserId(authHeader)
+  if (headerUserId !== null) {
+    return headerUserId
+  }
+
+  if (!token?.startsWith('stub.')) {
+    return null
+  }
+
+  const userId = token.slice('stub.'.length)
   return UUID_RE.test(userId) ? userId : null
 }
 
@@ -601,12 +623,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     }
   })
 
-  app.get<{ Params: { id: string }; Querystring: { after?: string } }>(
+  app.get<{ Params: { id: string }; Querystring: { after?: string; token?: string } }>(
     '/:id/ws',
     {
       websocket: true,
       preValidation: async (req, reply) => {
-        const userId = extractUserId(req.headers.authorization)
+        const userId = extractUserIdFromAuth(req.headers.authorization, req.query.token)
         if (!userId) {
           return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
         }
@@ -639,7 +661,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         removeLiveConnection(gameId, socket)
       })
 
-      socket.on('message', async (rawMessage) => {
+      socket.on('message', async (rawMessage: string | Buffer) => {
         const parsed = parseWsMessage(rawMessage.toString())
         if (parsed === null) {
           const errorMessage: WebSocketServerErrorMessage = {
@@ -681,7 +703,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
 
       void (async () => {
         try {
-          const userId = extractUserId(req.headers.authorization)
+          const userId = extractUserIdFromAuth(req.headers.authorization, req.query.token)
           if (!userId) {
             socket.close()
             return

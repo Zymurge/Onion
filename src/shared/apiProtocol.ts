@@ -188,8 +188,8 @@ export type GameStateResponse = {
 	turnNumber: number
 	winner: 'onion' | 'defender' | null
 	players: {
-		onion: string
-		defender: string
+		onion: string | null
+		defender: string | null
 	}
 	state: GameState
 	movementRemainingByUnit: Record<string, number>
