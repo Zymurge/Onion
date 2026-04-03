@@ -99,13 +99,7 @@ export type {
 
 export {
   validateCombatAction,
-  validateOnionWeaponFire,
-  validateUnitFire,
-  validateCombinedFire,
   executeCombatAction,
-  executeOnionWeaponFire,
-  executeUnitFire,
-  executeCombinedFire,
   rollCombat,
   calculateOdds,
   applyDamage,

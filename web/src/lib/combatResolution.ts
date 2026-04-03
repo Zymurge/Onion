@@ -16,7 +16,7 @@ function getOutcomeLabel(outcome: unknown): 'Hit' | 'Miss' {
 }
 
 export type CombatResolution = {
-	actionType: 'FIRE' | 'COMBINED_FIRE'
+	actionType: 'FIRE'
 	attackers: string[]
 	targetId: string
 	outcome: 'NE' | 'D' | 'X'
@@ -27,7 +27,7 @@ export type CombatResolution = {
 }
 
 export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEvent>): CombatResolution | undefined {
-	const combatEvent = events.find((event) => event.type === 'FIRE_RESOLVED' || event.type === 'COMBINED_FIRE_RESOLVED')
+	const combatEvent = events.find((event) => event.type === 'FIRE_RESOLVED')
 	if (combatEvent === undefined) {
 		return undefined
 	}
@@ -65,7 +65,7 @@ export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEven
 	}
 
 	return {
-		actionType: combatEvent.type === 'COMBINED_FIRE_RESOLVED' ? 'COMBINED_FIRE' : 'FIRE',
+		actionType: 'FIRE',
 		attackers,
 		targetId,
 		outcome,

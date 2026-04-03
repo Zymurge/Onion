@@ -77,7 +77,7 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
 ### 2. Combat Resolution
 
 - **Sequential Combat**: Players make attacks in any order and observe the result of each before declaring the next.
-- **Combined Fire**: Multiple units can combine their attack strength against a single target (unless attacking Treads).
+- **Multi-attacker FIRE**: Multiple units can combine their attack strength against a single target (unless attacking Treads).
 - **CRT Tables & Odds**: Ratios rounded down in favor of the defender.
 
   | Roll | 1:2 | 1:1 | 2:1 | 3:1 | 4:1 |

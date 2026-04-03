@@ -11,7 +11,7 @@ export type GamePhase = 'onion' | 'defender'
 export type ActionMode = 'fire' | 'combined' | 'end-phase'
 
 export type CombatResolution = {
-	actionType: 'FIRE' | 'COMBINED_FIRE' | 'FIRE_UNIT' | 'FIRE_WEAPON'
+	actionType: 'FIRE'
 	attackers: string[]
 	targetId: string
 	outcome: 'NE' | 'D' | 'X'

@@ -206,7 +206,7 @@ export function buildCombatTargetOptions({
 					defense: result.defenseStrength,
 					modifiers: buildTargetModifiers(
 						result.modifiers,
-						selectedAttackerIds.length > 1 ? [`Combined fire: ${selectedAttackerIds.length} attackers`] : [],
+						selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 					),
 					detail: `Defense: ${result.defenseStrength}`,
 				}
@@ -233,7 +233,7 @@ export function buildCombatTargetOptions({
 				label: weapon.name,
 				defense: weapon.defense,
 				modifiers: buildTargetModifiers(result.modifiers, [
-					...(selectedAttackerIds.length > 1 ? [`Combined fire: ${selectedAttackerIds.length} attackers`] : []),
+					...(selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : []),
 					`Subsystem target: ${weapon.name}`,
 				]),
 				detail: `Defense: ${weapon.defense}`,
@@ -249,7 +249,7 @@ export function buildCombatTargetOptions({
 			status: displayedOnion.status as UnitStatus,
 			label: 'Treads',
 			defense: selectedAttackStrength,
-			modifiers: selectedAttackerIds.length > 1 ? [`Combined fire: ${selectedAttackerIds.length} attackers`] : [],
+			modifiers: selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 			detail: `Treads: ${displayedOnion.treads}`,
 		},
 		...readyWeaponTargets,

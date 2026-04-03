@@ -29,7 +29,7 @@ describe('CombatResolutionToast', () => {
 					odds: '2:1',
 					details: ['Treads lost: 3 (remaining 30)'],
 				}}
-				modifiers={['Combined fire: 2 attackers']}
+				modifiers={['Attackers: 2']}
 				onDismiss={onDismiss}
 			/>,
 		)
@@ -39,7 +39,7 @@ describe('CombatResolutionToast', () => {
 		expect(screen.getByText(/^Hit$/i)).not.toBeNull()
 		expect(screen.getByText(/^6$/i)).not.toBeNull()
 		expect(screen.getByText(/^2:1$/i)).not.toBeNull()
-		expect(screen.getByText(/Combined fire: 2 attackers/i)).not.toBeNull()
+		expect(screen.getByText(/Attackers: 2/i)).not.toBeNull()
 		expect(screen.getByText(/Treads lost: 3/i)).not.toBeNull()
 
 		fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
@@ -62,7 +62,7 @@ describe('CombatResolutionToast', () => {
 					odds: '2:1',
 					details: ['Treads lost: 3 (remaining 30)'],
 				}}
-				modifiers={['Combined fire: 2 attackers']}
+				modifiers={['Attackers: 2']}
 				onDismiss={onDismiss}
 			/>,
 		)

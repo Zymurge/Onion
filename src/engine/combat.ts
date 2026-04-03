@@ -73,7 +73,7 @@ export type CombatValidationCode =
   | 'INVALID_TARGET'
   | 'TARGET_OUT_OF_RANGE'
   | 'NO_ATTACKERS'
-  | 'COMBINED_FIRE_TREAD_TARGET'
+  | 'MULTI_ATTACK_TREAD_TARGET'
   | 'DUPLICATE_ATTACKER'
 
 export type CombatTarget =
@@ -82,7 +82,7 @@ export type CombatTarget =
   | { kind: 'weapon'; id: string }
 
 export interface CombatPlan {
-  actionType: Extract<Command, { type: 'FIRE' }>['type'] | Extract<Command, { type: 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>['type']
+  actionType: Extract<Command, { type: 'FIRE' }>['type']
   actor: 'onion' | 'defender'
   attackerIds: string[]
   target: CombatTarget
@@ -110,9 +110,6 @@ export interface CombatExecutionResult {
 }
 
 type FireCommand = Extract<Command, { type: 'FIRE' }>
-type FireWeaponCommand = Extract<Command, { type: 'FIRE_WEAPON' }>
-type FireUnitCommand = Extract<Command, { type: 'FIRE_UNIT' }>
-type CombinedFireCommand = Extract<Command, { type: 'COMBINED_FIRE' }>
 
 const COMBAT_STATIC_RULES: CombatStaticRules = {
   unitDefinitions: getAllUnitDefinitions(),
@@ -186,17 +183,6 @@ function buildCombatCalculatorInput(
     targetId: state.onion.id,
     combatState: { units },
   }
-}
-
-function resolveOnionWeaponId(onion: OnionUnit, command: FireWeaponCommand): string | null {
-  if (command.weaponType === 'main') {
-    return command.weaponIndex === 0 && onion.weapons.some((weapon) => weapon.id === 'main')
-      ? 'main'
-      : null
-  }
-
-  const candidateId = `${command.weaponType}_${command.weaponIndex + 1}`
-  return onion.weapons.some((weapon) => weapon.id === candidateId) ? candidateId : null
 }
 
 function resolveOnionTarget(state: EngineGameState, targetId: string): CombatTarget | null {
@@ -297,33 +283,17 @@ function toLegacyResult(result: CombatExecutionResult): CombatResultDetails {
 export function validateCombatAction(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'FIRE' | 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>
+  command: FireCommand
 ): CombatValidation {
   logger.info({ commandType: command.type }, 'Validating combat action')
   logger.debug({ map, state, command }, 'validateCombatAction input')
 
-  const normalizedCommand: FireCommand =
-    command.type === 'FIRE'
-      ? command
-      : command.type === 'FIRE_WEAPON'
-        ? {
-            type: 'FIRE',
-            attackers: (() => {
-              const weaponId = resolveOnionWeaponId(state.onion, command)
-              return weaponId ? [weaponId] : []
-            })(),
-            targetId: command.targetId,
-          }
-        : command.type === 'FIRE_UNIT'
-          ? { type: 'FIRE', attackers: [command.unitId], targetId: command.targetId }
-          : { type: 'FIRE', attackers: [...command.unitIds], targetId: command.targetId }
-
-  if (normalizedCommand.attackers.length === 0) {
+  if (command.attackers.length === 0) {
     return { ok: false, code: 'NO_ATTACKERS', error: 'No attackers specified for fire action' }
   }
 
   if (state.currentPhase === 'ONION_COMBAT') {
-    const target = state.defenders[normalizedCommand.targetId]
+    const target = state.defenders[command.targetId]
     if (!target) {
       return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
     }
@@ -336,7 +306,7 @@ export function validateCombatAction(
     const weapons: Array<OnionUnit['weapons'][number]> = []
     let attackStrength = 0
 
-    for (const attackerId of normalizedCommand.attackers) {
+    for (const attackerId of command.attackers) {
       if (seen.has(attackerId)) {
         return { ok: false, code: 'DUPLICATE_ATTACKER', error: `Duplicate attacker '${attackerId}'` }
       }
@@ -357,7 +327,7 @@ export function validateCombatAction(
 
     for (let index = 0; index < weapons.length; index += 1) {
       const weapon = weapons[index]
-      const attackerId = normalizedCommand.attackers[index]
+      const attackerId = command.attackers[index]
       if (hexDistance(state.onion.position, target.position) > weapon.range) {
         return { ok: false, code: 'TARGET_OUT_OF_RANGE', error: `Attacker '${attackerId}' is out of range` }
       }
@@ -403,7 +373,7 @@ export function validateCombatAction(
     }
 
     const combatResult = combatCalculator.calculateResult(
-      buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.id }, [...normalizedCommand.attackers]),
+      buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.id }, [...command.attackers]),
     )
 
     return {
@@ -411,7 +381,8 @@ export function validateCombatAction(
       plan: {
         actionType: 'FIRE',
         actor: 'onion',
-        attackerIds: [...normalizedCommand.attackers],
+        attackerIds: [...command.attackers],
+
         target: { kind: 'defender', id: target.id },
         attackStrength: combatResult.attackStrength,
         defense: combatResult.defenseStrength,
@@ -420,22 +391,15 @@ export function validateCombatAction(
     }
   }
 
-  if (state.currentPhase !== 'DEFENDER_COMBAT') {
-    return { ok: false, code: 'WRONG_PHASE', error: 'Not a combat phase' }
-  }
-
-  const target = resolveOnionTarget(state, normalizedCommand.targetId)
+  const target = resolveOnionTarget(state, command.targetId)
   if (!target) {
-    return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
+    return { ok: false, code: 'INVALID_TARGET', error: `Target '${command.targetId}' is not valid for the selected weapon(s)` }
   }
 
-  if (target.kind === 'treads' && normalizedCommand.attackers.length > 1) {
-    return { ok: false, code: 'COMBINED_FIRE_TREAD_TARGET', error: 'Combined fire is not allowed on Onion treads.' }
-  }
-
-  let attackStrength = 0
   const seen = new Set<string>()
-  for (const attackerId of normalizedCommand.attackers) {
+  let attackStrength = 0
+
+  for (const attackerId of command.attackers) {
     if (seen.has(attackerId)) {
       return { ok: false, code: 'DUPLICATE_ATTACKER', error: `Duplicate attacker '${attackerId}'` }
     }
@@ -463,7 +427,7 @@ export function validateCombatAction(
   }
 
   const combatResult = combatCalculator.calculateResult(
-    buildCombatCalculatorInput(map, state, target, [...normalizedCommand.attackers]),
+    buildCombatCalculatorInput(map, state, target, [...command.attackers]),
   )
 
   return {
@@ -471,15 +435,15 @@ export function validateCombatAction(
     plan: {
       actionType: 'FIRE',
       actor: 'defender',
-      attackerIds: [...normalizedCommand.attackers],
+      attackerIds: [...command.attackers],
       target,
       attackStrength: combatResult.attackStrength,
-        defense:
-          target.kind === 'weapon'
-            ? getWeaponDefense(state.onion, target.id)
-            : target.kind === 'treads'
-              ? combatResult.attackStrength
-              : combatResult.defenseStrength,
+      defense:
+        target.kind === 'weapon'
+          ? getWeaponDefense(state.onion, target.id)
+          : target.kind === 'treads'
+            ? combatResult.attackStrength
+            : combatResult.defenseStrength,
     },
   }
 }
@@ -600,126 +564,6 @@ export function executeCombatAction(
     treadsLost: damage.treads,
     destroyedWeaponId: damage.weaponDestroyed,
   }
-}
-
-/**
- * Validate an Onion weapon firing command.
- * @param map - The game map
- * @param state - Current game state
- * @param command - Fire weapon command to validate
- * @returns Validation result
- */
-export function validateOnionWeaponFire(
-  map: GameMap,
-  state: EngineGameState,
-  command: FireWeaponCommand | FireCommand
-): { valid: boolean; error?: string } {
-  return toLegacyValidation(validateCombatAction(map, state, command))
-}
-
-/**
- * Validate a defender unit firing command.
- * @param map - The game map
- * @param state - Current game state
- * @param unitId - ID of firing unit
- * @param command - Fire unit command to validate
- * @returns Validation result
- */
-export function validateUnitFire(
-  map: GameMap,
-  state: EngineGameState,
-  unitId: string,
-  command: FireUnitCommand | FireCommand
-): { valid: boolean; error?: string } {
-  if (command.type === 'FIRE') {
-    return toLegacyValidation(validateCombatAction(map, state, command))
-  }
-  return toLegacyValidation(validateCombatAction(map, state, { ...command, unitId }))
-}
-
-/**
- * Validate a combined fire command.
- * @param map - The game map
- * @param state - Current game state
- * @param command - Combined fire command to validate
- * @returns Validation result
- */
-export function validateCombinedFire(
-  map: GameMap,
-  state: EngineGameState,
-  command: CombinedFireCommand | FireCommand
-): { valid: boolean; error?: string } {
-  return toLegacyValidation(validateCombatAction(map, state, command))
-}
-
-/**
- * Execute an Onion weapon firing.
- * @param map - The game map
- * @param state - Current game state
- * @param command - Fire weapon command to execute
- * @param roll - Optional fixed die roll (1-6) for testing
- * @returns Combat result details
- */
-export function executeOnionWeaponFire(
-  map: GameMap,
-  state: EngineGameState,
-  command: FireWeaponCommand | FireCommand,
-  roll?: number
-): CombatResultDetails {
-  const validation = validateCombatAction(map, state, command)
-  if (!validation.ok) {
-    return { success: false, error: validation.error }
-  }
-
-  return toLegacyResult(executeCombatAction(state, validation.plan, roll))
-}
-
-/**
- * Execute a defender unit firing.
- * @param map - The game map
- * @param state - Current game state
- * @param unitId - ID of firing unit
- * @param command - Fire unit command to execute
- * @param roll - Optional fixed die roll (1-6) for testing
- * @returns Combat result details
- */
-export function executeUnitFire(
-  map: GameMap,
-  state: EngineGameState,
-  unitId: string,
-  command: FireUnitCommand | FireCommand,
-  roll?: number
-): CombatResultDetails {
-  const validation = command.type === 'FIRE'
-    ? validateCombatAction(map, state, command)
-    : validateCombatAction(map, state, { ...command, unitId })
-  if (!validation.ok) {
-    return { success: false, error: validation.error }
-  }
-
-  return toLegacyResult(executeCombatAction(state, validation.plan, roll))
-}
-
-/**
- * Execute a combined fire attack.
- * @param map - The game map
- * @param state - Current game state
- * @param command - Combined fire command to execute
- * @param roll - Optional fixed die roll (1-6) for testing
- * @returns Combat result details
- */
-export function executeCombinedFire(
-  map: GameMap,
-  state: EngineGameState,
-  command: CombinedFireCommand | FireCommand,
-  roll?: number
-): CombatResultDetails {
-  const validation = validateCombatAction(map, state, command)
-  if (!validation.ok) {
-    return { success: false, error: validation.error }
-  }
-
-  return toLegacyResult(executeCombatAction(state, validation.plan, roll))
 }
 
 /**

@@ -113,7 +113,7 @@ Header now includes:
 
 1. Move mode.
 2. Fire mode (single unit or onion weapon).
-3. Combined fire mode.
+3. Multi-attacker fire mode.
 4. End phase.
 
 ## Behavior

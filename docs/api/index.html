@@ -1,7 +1,18 @@
 <!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Onion Game Engine - v0.1.0</title><meta name="description" content="Documentation for Onion Game Engine"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><script async src="assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">Onion Game Engine - v0.1.0</a><div id="tsd-toolbar-links"><a href="https://github.com/Zymurge/Onion">GitHub</a><a href="docs/project-overview.md">Project Overview</a></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>Onion Game Engine - v0.1.0</h1></div><div class="tsd-panel tsd-typography"><h1 id="onion-web-game-project-overview" class="tsd-anchor-link">Onion Web Game Project Overview<a href="#onion-web-game-project-overview" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<ul>
+<li>Well-formed but invalid move commands (e.g., illegal movement, blocked path) return HTTP 422 with code MOVE_INVALID.</li>
+<li>Malformed or schema-invalid input returns HTTP 400 with code INVALID_INPUT.</li>
+<li>Unsupported action command types return HTTP 400 with code COMMAND_INVALID and detailCode <code>UNKNOWN_COMMAND &lt;command&gt;</code>.</li>
+</ul>
 <h2 id="project-description" class="tsd-anchor-link">Project Description<a href="#project-description" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>This project aims to create a web-based digital implementation of the classic board game Ogre (now renamed Onion) designed by Steve Jackson. The game will be developed as an open-source project, utilizing publicly available information about the game's rules, mechanics, and components. Any elements that are copyrighted or proprietary will be adapted or replaced to ensure the project remains compliant with open-source licensing and intellectual property laws.</p>
-<p>Onion is an asymmetrical tactical wargame set in a near-future sci-fi setting where one player controls a massive cybernetic tank called the &quot;Onion&quot; against another player's defensive forces consisting of conventional military units like tanks, infantry, and artillery.</p>
+<p>This project aims to create a web-based digital implementation of the classic board game Ogre (now renamed Onion),
+as designed by Steve Jackson. The game will be developed as an open-source project using publicly available
+information about the game's rules, mechanics, and components. Any elements that are copyrighted or
+proprietary will be adapted or replaced to ensure the project remains compliant with open-source licensing and
+intellectual property laws.</p>
+<p>Onion is an asymmetrical tactical wargame set in a near-future sci-fi setting where one player controls a massive
+cybernetic tank called the &quot;Onion&quot; against another player's defensive force of conventional military units such as
+tanks, infantry, and artillery.</p>
 <h2 id="implementation-phases" class="tsd-anchor-link">Implementation Phases<a href="#implementation-phases" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <table>
 <thead>
@@ -40,7 +51,7 @@
 <p><strong>Framework</strong>: Fastify.</p>
 </li>
 <li>
-<p><strong>Rules Engine</strong>: A stateless, functional core that processes player intents (e.g., <code>MoveUnit</code>, <code>FireWeapon</code>) and returns a new <code>GameState</code>. No side effects — all persistence is handled at the API layer.</p>
+<p><strong>Rules Engine</strong>: A functional core that processes player intents (e.g., <code>MoveUnit</code>, <code>FireWeapon</code>) by mutating <code>EngineGameState</code> in place. All engine functions (<code>executeOnionMovement</code>, <code>executeUnitFire</code>, <code>advancePhase</code>, etc.) take a state reference and modify it directly. Persistence is handled at the API layer, which snapshots the mutated state after each action.</p>
 </li>
 <li>
 <p><strong>Phase State Machine</strong>: Turn phases advance in strict server-enforced order. Actions submitted out of phase are rejected with an error. The six phases per turn cycle:</p>
@@ -50,6 +61,7 @@
 <th style="text-align:left">#</th>
 <th style="text-align:left">Phase</th>
 <th style="text-align:left">Actor</th>
+<th style="text-align:left">Side-effects on entry</th>
 </tr>
 </thead>
 <tbody>
@@ -57,35 +69,62 @@
 <td style="text-align:left">1</td>
 <td style="text-align:left"><code>ONION_MOVE</code></td>
 <td style="text-align:left">Onion player</td>
+<td style="text-align:left"><code>turn++</code>; <code>ramsThisTurn = 0</code>; <code>disabled → recovering</code></td>
 </tr>
 <tr>
 <td style="text-align:left">2</td>
 <td style="text-align:left"><code>ONION_COMBAT</code></td>
 <td style="text-align:left">Onion player</td>
+<td style="text-align:left">—</td>
 </tr>
 <tr>
 <td style="text-align:left">3</td>
 <td style="text-align:left"><code>DEFENDER_RECOVERY</code></td>
-<td style="text-align:left">Engine (auto-advance disabled units)</td>
+<td style="text-align:left">Engine (auto)</td>
+<td style="text-align:left"><code>recovering → operational</code>; immediately advances to <code>DEFENDER_MOVE</code></td>
 </tr>
 <tr>
 <td style="text-align:left">4</td>
 <td style="text-align:left"><code>DEFENDER_MOVE</code></td>
 <td style="text-align:left">Defender player</td>
+<td style="text-align:left">—</td>
 </tr>
 <tr>
 <td style="text-align:left">5</td>
 <td style="text-align:left"><code>DEFENDER_COMBAT</code></td>
 <td style="text-align:left">Defender player</td>
+<td style="text-align:left">—</td>
 </tr>
 <tr>
 <td style="text-align:left">6</td>
 <td style="text-align:left"><code>GEV_SECOND_MOVE</code></td>
-<td style="text-align:left">Defender player (Big Bad Wolf units only)</td>
+<td style="text-align:left">Defender player (Big Bad Wolf only)</td>
+<td style="text-align:left">—</td>
 </tr>
 </tbody>
 </table>
-<p>After <code>GEV_SECOND_MOVE</code>, the engine increments <code>turnNumber</code> and cycles back to <code>ONION_MOVE</code> until a victory condition is met.</p>
+<p>Phase transitions are handled by <code>advancePhase(state)</code> in <code>src/engine/phases.ts</code>. It mutates <code>EngineGameState</code> in place, applies any entry side-effects for the new phase, and auto-advances through engine-controlled phases (<code>DEFENDER_RECOVERY</code>) without waiting for player input.</p>
+</li>
+<li>
+<p><strong><code>EngineGameState</code></strong> (defined in <code>src/engine/units.ts</code>) is the engine's authoritative mutable game state. It contains:</p>
+<ul>
+<li><code>onion: OnionUnit</code> — position, treads, weapon statuses</li>
+<li><code>defenders: Record&lt;string, DefenderUnit&gt;</code> — all conventional units keyed by ID</li>
+<li><code>currentPhase: TurnPhase</code> — which phase is currently active</li>
+<li><code>turn: number</code> — current turn number (1-based; incremented on entry to <code>ONION_MOVE</code>)</li>
+<li><code>ramsThisTurn: number</code> — how many times the Onion has rammed this turn (max 2; reset on entry to <code>ONION_MOVE</code>)</li>
+</ul>
+</li>
+<li>
+<p><strong>Unit Disabled/Recovery flow</strong>: Defender units hit by a &quot;D&quot; (Disabled) combat result are set to <code>status: 'disabled'</code>. The <code>UnitStatus</code> lifecycle is:</p>
+<pre><code class="text">operational  ←─────────────────────────────────────────┐
+    │                                                   │
+    │ (D result from combat)                            │
+    ▼                                                   │
+ disabled  ──[entry to ONION_MOVE]──►  recovering  ──[DEFENDER_RECOVERY]──►  operational
+</code><button type="button">Copy</button></pre>
+
+<p>This means a unit disabled during the Onion's combat phase cannot act during that same defender turn. It transitions to <code>recovering</code> at the start of the <em>next</em> turn (entry to <code>ONION_MOVE</code>), and becomes <code>operational</code> again during that turn's <code>DEFENDER_RECOVERY</code> phase — just in time for <code>DEFENDER_MOVE</code>. A unit that enters turn N already in <code>recovering</code> (disabled on turn N-1) is fully operational by turn N's <code>DEFENDER_MOVE</code>.</p>
 </li>
 <li>
 <p><strong>API Protocol</strong>:</p>
@@ -95,13 +134,13 @@
 </ul>
 </li>
 <li>
-<p><strong>Manual Matching (Phase 1)</strong>: Player A calls <code>POST /games</code> with a scenario ID, receives a <code>gameId</code>. Player B calls <code>POST /games/{id}/join</code>. No lobby UI required — <code>gameId</code> is shared out-of-band.</p>
+<p><strong>Manual Matching (Phase 1)</strong>: Player A calls <code>POST /games</code> with a scenario ID, receives a numeric <code>gameId</code>. Player B calls <code>POST /games/{id}/join</code>. No lobby UI required — <code>gameId</code> is shared out-of-band. <strong>[DONE]</strong></p>
 </li>
 <li>
 <p><strong>Persistence</strong>: PostgreSQL. Core tables:</p>
 <ul>
 <li><code>users</code> — id, username, hashed password, created_at.</li>
-<li><code>matches</code> — id, scenario_id, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.</li>
+<li><code>matches</code> — id, scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.</li>
 <li><code>game_state</code> — match_id (FK), state JSONB, updated_at.</li>
 </ul>
 </li>
@@ -114,8 +153,16 @@
 </ul>
 <h3 id="frontend-client-tier" class="tsd-anchor-link">Frontend (Client Tier)<a href="#frontend-client-tier" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul>
-<li><strong>Phase 1 — CLI</strong>: Built with <strong>Node.js</strong> and <strong>Ink</strong> (React for terminals). Renders the ASCII hex map reactively as game state updates arrive over WebSocket.</li>
+<li><strong>Phase 1 — CLI</strong>: Built with <strong>Node.js</strong> and <strong>TypeScript</strong> as a simple REST-driven command-line client. It uses prompt-driven commands plus a minimal offset-grid text map to prove end-to-end gameplay with two human players in two shell instances.</li>
 <li><strong>Phase 2+ — Web UI</strong>: React SPA sharing TypeScript types with the engine. Reuses the existing hex-grid JS implementation once reviewed.</li>
+</ul>
+<hr>
+<p><strong>Status:</strong></p>
+<ul>
+<li>Manual matching: <strong>done</strong></li>
+<li>Web UI Phase 0: <strong>done</strong></li>
+<li>Web UI Phase 1: <strong>partial</strong></li>
+<li>Action affordance and turn presentation: <strong>done</strong></li>
 </ul>
 <h3 id="ai-tier-the-swamp-brain" class="tsd-anchor-link">AI Tier (The Swamp Brain)<a href="#ai-tier-the-swamp-brain" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul>
@@ -124,23 +171,16 @@
 <li><strong>Language</strong>: Go (penciled in for tactical tree-search performance).</li>
 </ul>
 <h3 id="testing-strategy" class="tsd-anchor-link">Testing Strategy<a href="#testing-strategy" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul>
-<li><strong>Methodology</strong>: Test-driven development (TDD) from Phase 1. Tests are written before or alongside implementation, not after.</li>
-<li><strong>Framework</strong>: <strong>Vitest</strong> — fast, native ESM support, TypeScript-first, compatible with the Node.js/Fastify stack.</li>
-<li><strong>Layers</strong>:
-<ul>
-<li><strong>Unit tests</strong>: Stateless rules engine functions (movement legality, CRT resolution, phase transitions, tread damage). No I/O.</li>
-<li><strong>Integration tests</strong>: Fastify route handlers against a test database (or in-memory mock). Covers REST endpoints and WebSocket event flows.</li>
-<li><strong>E2E tests</strong>: Deferred to Phase 2 — full CLI-to-server round trips.</li>
-</ul>
-</li>
-</ul>
+<p>The canonical layer map lives in <a href="media/testing-strategy.md">testing-strategy.md</a>. This project still uses TDD and Vitest, but the per-layer responsibilities now live in that dedicated doc.</p>
 <h4 id="test-organization-and-execution" class="tsd-anchor-link">Test Organization and Execution<a href="#test-organization-and-execution" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
-<p>Tests are organized into two separate Vitest projects to maintain clear separation between fast unit tests and slower integration tests:</p>
+<p>Tests are organized into separate fast and slower suites so the default regression run stays responsive while still covering the contract and persistence layers.</p>
+<h4 id="integration-smoke-suite-standard-regression" class="tsd-anchor-link">Integration Smoke Suite (Standard Regression)<a href="#integration-smoke-suite-standard-regression" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>The standard regression run includes two integration smoke tracks:</p>
 <ul>
-<li><strong>Unit Tests</strong> (<code>pnpm test</code>): Run against in-memory mocks. Cover API route logic without database dependencies. Use <code>InMemoryDb</code> adapter which stores data in Map objects. Tests complete in milliseconds.</li>
-<li><strong>Integration Tests</strong> (<code>pnpm test:integration</code>): Run against real PostgreSQL containers via testcontainers. Verify end-to-end SQL execution and data persistence. Tests take ~6 seconds due to container startup.</li>
+<li><strong>Regular smoke flow</strong> (<code>swamp-siege-01</code>): runs the modular phase/turn orchestrator for at least 5 full turns and validates phase sequencing plus state synchronization.</li>
+<li><strong>Endgame smoke flow</strong> (<code>smoke-endgame-01</code>): runs a bounded tread-focus assault loop and validates that a terminal condition is reached, including <code>GAME_OVER</code> rejection after winner lock-in.</li>
 </ul>
+<p>These smoke tests run as part of the default Vitest regression suite, so both paths are continuously covered on local runs and CI.</p>
 <h4 id="database-abstraction-layer-dal" class="tsd-anchor-link">Database Abstraction Layer (DAL)<a href="#database-abstraction-layer-dal" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <p>The <code>DbAdapter</code> interface provides a clean separation between business logic and storage implementation:</p>
 <ul>
@@ -204,7 +244,11 @@
 <ul>
 <li><strong>Project scaffolding</strong>: Initialize Node.js/TypeScript repo structure, Fastify server, and Docker Compose dev environment.</li>
 <li><strong>Turn engine</strong>: Implement the state machine for movement, combat, and recovery phases against the scenario schema.</li>
-<li><strong>API surface</strong>: Define REST and WebSocket endpoints for game creation, player actions, and state sync.</li>
-<li><strong>CLI client</strong>: Build the Ink-based terminal interface against the API.</li>
+<li><strong>API surface</strong>: Define REST endpoints for game creation, player actions, state sync, and event inspection. WebSocket support can be added later without changing the command/event model.</li>
+<li><strong>CLI client</strong>: Build the minimal TypeScript terminal client described in <a href="media/cli-spec.md">cli-spec.md</a>.</li>
 </ul>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#onion-web-game-project-overview"><span>Onion <wbr/>Web <wbr/>Game <wbr/>Project <wbr/>Overview</span></a><ul><li><a href="#project-description"><span>Project <wbr/>Description</span></a></li><li><a href="#implementation-phases"><span>Implementation <wbr/>Phases</span></a></li><li><a href="#technical-architecture"><span>Technical <wbr/>Architecture</span></a></li><li><ul><li><a href="#backend-the-onion-engine"><span>Backend (<wbr/>The <wbr/>Onion <wbr/>Engine)</span></a></li><li><a href="#frontend-client-tier"><span>Frontend (<wbr/>Client <wbr/>Tier)</span></a></li><li><a href="#ai-tier-the-swamp-brain"><span>AI <wbr/>Tier (<wbr/>The <wbr/>Swamp <wbr/>Brain)</span></a></li><li><a href="#testing-strategy"><span>Testing <wbr/>Strategy</span></a></li><li><ul><li><a href="#test-organization-and-execution"><span>Test <wbr/>Organization and <wbr/>Execution</span></a></li><li><a href="#database-abstraction-layer-dal"><span>Database <wbr/>Abstraction <wbr/>Layer (<wbr/>DAL)</span></a></li><li><a href="#test-coverage-goals"><span>Test <wbr/>Coverage <wbr/>Goals</span></a></li><li><a href="#test-execution-in-cicd"><span>Test <wbr/>Execution in <wbr/>CI/<wbr/>CD</span></a></li></ul></li><li><a href="#infrastructure"><span>Infrastructure</span></a></li></ul></li><li><a href="#game-mechanics-summary"><span>Game <wbr/>Mechanics <wbr/>Summary</span></a></li><li><a href="#name-changes"><span>Name <wbr/>Changes</span></a></li><li><a href="#next-steps-phase-1"><span>Next <wbr/>Steps (<wbr/>Phase 1)</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/Zymurge/Onion" class="tsd-nav-link">GitHub</a><a href="docs/project-overview.md" class="tsd-nav-link">Project Overview</a></nav><nav class="tsd-navigation"><a href="modules.html">Onion Game Engine - v0.1.0</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
+<h3 id="future-work-todos" class="tsd-anchor-link">Future Work TODOs<a href="#future-work-todos" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul>
+<li><strong>Authentication hardening</strong>: Replace current stub bearer token auth (<code>stub.{userId}</code>) with real JWT validation via <code>@fastify/jwt</code> once client integration stabilizes.</li>
+</ul>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#onion-web-game-project-overview"><span>Onion <wbr/>Web <wbr/>Game <wbr/>Project <wbr/>Overview</span></a><ul><li><a href="#project-description"><span>Project <wbr/>Description</span></a></li><li><a href="#implementation-phases"><span>Implementation <wbr/>Phases</span></a></li><li><a href="#technical-architecture"><span>Technical <wbr/>Architecture</span></a></li><li><ul><li><a href="#backend-the-onion-engine"><span>Backend (<wbr/>The <wbr/>Onion <wbr/>Engine)</span></a></li><li><a href="#frontend-client-tier"><span>Frontend (<wbr/>Client <wbr/>Tier)</span></a></li><li><a href="#ai-tier-the-swamp-brain"><span>AI <wbr/>Tier (<wbr/>The <wbr/>Swamp <wbr/>Brain)</span></a></li><li><a href="#testing-strategy"><span>Testing <wbr/>Strategy</span></a></li><li><ul><li><a href="#test-organization-and-execution"><span>Test <wbr/>Organization and <wbr/>Execution</span></a></li><li><a href="#integration-smoke-suite-standard-regression"><span>Integration <wbr/>Smoke <wbr/>Suite (<wbr/>Standard <wbr/>Regression)</span></a></li><li><a href="#database-abstraction-layer-dal"><span>Database <wbr/>Abstraction <wbr/>Layer (<wbr/>DAL)</span></a></li><li><a href="#test-coverage-goals"><span>Test <wbr/>Coverage <wbr/>Goals</span></a></li><li><a href="#test-execution-in-cicd"><span>Test <wbr/>Execution in <wbr/>CI/<wbr/>CD</span></a></li></ul></li><li><a href="#infrastructure"><span>Infrastructure</span></a></li></ul></li><li><a href="#game-mechanics-summary"><span>Game <wbr/>Mechanics <wbr/>Summary</span></a></li><li><a href="#name-changes"><span>Name <wbr/>Changes</span></a></li><li><a href="#next-steps-phase-1"><span>Next <wbr/>Steps (<wbr/>Phase 1)</span></a></li><li><ul><li><a href="#future-work-todos"><span>Future <wbr/>Work <wbr/>TOD<wbr/>Os</span></a></li></ul></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/Zymurge/Onion" class="tsd-nav-link">GitHub</a><a href="docs/project-overview.md" class="tsd-nav-link">Project Overview</a></nav><nav class="tsd-navigation"><a href="modules.html">Onion Game Engine - v0.1.0</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

@@ -128,7 +128,7 @@ function getWeaponTypeFromId(weaponId: string) {
 
 function buildCombatEvents(
   startSeq: number,
-  command: Extract<Command, { type: 'FIRE' | 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>,
+  command: Extract<Command, { type: 'FIRE' }>,
   result: ReturnType<typeof executeCombatAction>,
   state: any,
 ): EventEnvelope[] {
@@ -136,58 +136,16 @@ function buildCombatEvents(
   let seq = startSeq
   const events: EventEnvelope[] = []
 
-  if (command.type === 'FIRE') {
-    events.push({
-      seq: seq++,
-      type: 'FIRE_RESOLVED',
-      timestamp,
-      attackers: command.attackers,
-      targetId: result.targetId,
-      roll: result.roll?.roll,
-      outcome: result.roll?.result,
-      odds: result.roll?.odds,
-    })
-  }
-
-  if (command.type === 'FIRE_WEAPON') {
-    events.push({
-      seq: seq++,
-      type: 'WEAPON_FIRED',
-      timestamp,
-      weaponType: command.weaponType,
-      weaponIndex: command.weaponIndex,
-      targetId: result.targetId,
-      roll: result.roll?.roll,
-      outcome: result.roll?.result,
-      odds: result.roll?.odds,
-    })
-  }
-
-  if (command.type === 'FIRE_UNIT') {
-    events.push({
-      seq: seq++,
-      type: 'UNIT_FIRED',
-      timestamp,
-      unitId: command.unitId,
-      targetId: result.targetId,
-      roll: result.roll?.roll,
-      outcome: result.roll?.result,
-      odds: result.roll?.odds,
-    })
-  }
-
-  if (command.type === 'COMBINED_FIRE') {
-    events.push({
-      seq: seq++,
-      type: 'COMBINED_FIRE_RESOLVED',
-      timestamp,
-      unitIds: command.unitIds,
-      targetId: result.targetId,
-      roll: result.roll?.roll,
-      outcome: result.roll?.result,
-      odds: result.roll?.odds,
-    })
-  }
+  events.push({
+    seq: seq++,
+    type: 'FIRE_RESOLVED',
+    timestamp,
+    attackers: command.attackers,
+    targetId: result.targetId,
+    roll: result.roll?.roll,
+    outcome: result.roll?.result,
+    odds: result.roll?.odds,
+  })
 
   if (result.treadsLost !== undefined) {
     events.push({
@@ -793,7 +751,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
-      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE', 'FIRE_WEAPON', 'FIRE_UNIT', 'COMBINED_FIRE'])
+      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE'])
       if (!supportedCommands.has(command.type)) {
         logger.warn({ commandType: command.type }, 'Unknown command type')
         return reply.status(400).send({
@@ -901,7 +859,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
         return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
-      } else if (command.type === 'FIRE' || command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
+      } else if (command.type === 'FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
