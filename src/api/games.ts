@@ -828,6 +828,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = result.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? 0
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
+        broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq })
       } else if (command.type === 'MOVE') {
@@ -897,6 +898,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
         logSentEvents(match.gameId, 'MOVE', newEvents)
+        broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
         return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
       } else if (command.type === 'FIRE' || command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
@@ -943,6 +945,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
         logSentEvents(match.gameId, command.type, newEvents)
+        broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
       }

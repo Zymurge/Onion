@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildApp } from '../app.js'
-import { createGame, joinGame, register } from './helpers.js'
+import { createGame, endPhase, joinGame, register } from './helpers.js'
 
 async function readWsMessage(ws: { once: (event: 'message', handler: (data: Buffer | string) => void) => void }) {
 	return new Promise<any>((resolve) => {
@@ -40,6 +40,38 @@ describe('GET /games/:id/ws', () => {
 		expect(liveEventMessage.kind).toBe('EVENT')
 		expect(liveEventMessage.event.type).toBe('PLAYER_JOINED')
 		expect(liveEventMessage.event.role).toBe('defender')
+
+		ws.terminate()
+	})
+
+	it('broadcasts END_PHASE events to connected websocket clients', async () => {
+		const app = buildApp()
+		const shrek = await register(app, 'shrek')
+		const fiona = await register(app, 'fiona')
+		const { gameId } = await createGame(app, shrek.token, 'onion')
+		await app.ready()
+
+		let snapshotMessagePromise: Promise<any> | null = null
+		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
+			onOpen(openWs) {
+				snapshotMessagePromise = readWsMessage(openWs)
+			},
+		})
+
+		await snapshotMessagePromise
+
+		const joinEventPromise = readWsMessage(ws)
+		await joinGame(app, gameId, fiona.token)
+		const joinEventMessage = await joinEventPromise
+		expect(joinEventMessage.kind).toBe('EVENT')
+		expect(joinEventMessage.event.type).toBe('PLAYER_JOINED')
+
+		const phaseEventPromise = readWsMessage(ws)
+		await endPhase(app, gameId, shrek.token)
+		const phaseEventMessage = await phaseEventPromise
+
+		expect(phaseEventMessage.kind).toBe('EVENT')
+		expect(phaseEventMessage.event.type).toBe('PHASE_CHANGED')
 
 		ws.terminate()
 	})
