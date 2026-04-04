@@ -14,7 +14,7 @@ break down into features/tasks as needed.
     - [x] Broadcast action-derived events after successful persistence for MOVE, FIRE, and END_PHASE.
     - [x] Keep resume/snapshot behavior intact so reconnecting clients can catch up from `afterSeq`.
     - [x] Add tests proving each action path emits the expected live event stream to an active websocket client.
-  - [ ] Wire the web UI to consume live WS updates for the active match and keep the debug stream visible.
+  - [x] Wire the web UI to consume live WS updates for the active match and keep the debug stream visible.
   - [ ] Add integration coverage for connect, reconnect, and live state refresh behavior.
 - [ ] Place End Phase control in UI and wire to backend
 
@@ -28,6 +28,9 @@ break down into features/tasks as needed.
 
 ## Features / Work Items
 
+- [ ] Visually mark disabled units clearly in the rail and on the map so combat damage is obvious at a glance.
+- [ ] In combat phase, show disabled units as disabled in the attacker list and prevent them from being selected or used to fire.
+- [ ] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
 - [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
 - [ ] Refactor movement resolution to read per-unit terrain rules from the shared unit definitions instead of hardcoded terrain checks.
   - [ ] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.

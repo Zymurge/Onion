@@ -1,6 +1,7 @@
 import { createHttpGameClient } from './httpGameClient'
-import type { GameAction, GameClient, GameSnapshot, GameStateEnvelope } from './gameClient'
+import type { GameAction, GameClient, GameSnapshot } from './gameClient'
 import type { WebSocketClientMessage } from '../../../src/shared/websocketProtocol'
+import type { EventEnvelope } from '../../../src/types/index'
 import type { WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '../../../src/shared/websocketProtocol'
 
 export type LiveConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
@@ -9,6 +10,7 @@ export type LiveGameClientState = {
 	connectionStatus: LiveConnectionStatus
 	lastUpdatedAt: Date | null
 	lastEventSeq: number | null
+	lastEventType: EventEnvelope['type'] | null
 	gameId: number | null
 }
 
@@ -86,6 +88,7 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 			connectionStatus: 'idle',
 			lastUpdatedAt: null,
 			lastEventSeq: null,
+			lastEventType: null,
 			gameId,
 		}
 	}
@@ -100,13 +103,6 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 		for (const listener of listeners) {
 			listener(nextState)
 		}
-	}
-
-	async function refreshFromHttp(gameId: number) {
-		await httpClient.getState(gameId)
-		emitState(gameId, {
-			lastUpdatedAt: new Date(),
-		})
 	}
 
 	function ensureSocket(gameId: number) {
@@ -147,6 +143,7 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 				emitState(gameId, {
 					lastUpdatedAt: new Date(),
 					lastEventSeq: parsed.snapshot.eventSeq,
+					lastEventType: null,
 				})
 				return
 			}
@@ -155,8 +152,8 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 				emitState(gameId, {
 					lastEventSeq: parsed.event.seq,
 					lastUpdatedAt: new Date(),
+					lastEventType: parsed.event.type,
 				})
-				void refreshFromHttp(gameId)
 				return
 			}
 
@@ -194,6 +191,7 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 				connectionStatus: 'idle',
 				lastUpdatedAt: null,
 				lastEventSeq: null,
+				lastEventType: null,
 				gameId: null,
 			}
 		},

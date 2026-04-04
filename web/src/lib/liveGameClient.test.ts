@@ -111,7 +111,7 @@ describe('createLiveGameClient', () => {
 		expect(liveState.connectionStatus).toBe('connected')
 		expect(liveState.lastUpdatedAt).not.toBeNull()
 		expect(updates.some((state) => state.connectionStatus === 'connected')).toBe(true)
-		expect(fetchImpl).toHaveBeenCalledTimes(2)
+		expect(fetchImpl).toHaveBeenCalledTimes(1)
 
 		unsubscribe()
 	})

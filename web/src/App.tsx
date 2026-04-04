@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { useState, useEffect, useRef, useSyncExternalStore, type FormEvent } from 'react'
+import { useState, useEffect, useRef, useSyncExternalStore, useCallback, type FormEvent } from 'react'
 import ReactJsonPrintImport from 'react-json-print'
 import { HexMapBoard } from './components/HexMapBoard'
 import { CombatConfirmationView } from './components/CombatConfirmationView'
@@ -30,7 +30,7 @@ import {
   sanitizeApiProtocolTrafficEntry,
   subscribeApiProtocolTraffic,
 } from '../../src/shared/apiProtocol'
-import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
+import { getRemainingUnitMovementAllowance, getUnitMovementAllowance } from '../../src/shared/unitMovement'
 import type { TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
 import './App.css'
 
@@ -245,22 +245,36 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
 
   return Object.entries(authoritativeState.defenders)
-    .map(([defenderId, defender], index) => ({
-      id: defender.id ?? defenderId,
-      type: defender.type,
-      status: defender.status,
-      q: defender.position.q,
-      r: defender.position.r,
-      move: activePhase === null ? 0 : movementRemainingByUnit[defender.id ?? defenderId] ?? 0,
-      weapons: formatWeaponSummary(defender.weapons),
-      attack: formatAttackSummary(defender.weapons),
-      weaponDetails: defender.weapons ?? [],
-      targetRules: defender.targetRules,
-      defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
-      squads: defender.squads,
-      actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
-      rosterOrder: index,
-    }))
+    .map(([defenderId, defender], index) => {
+      const resolvedDefenderId = defender.id ?? defenderId
+      const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
+      const computedMovementRemaining =
+        activePhase === null
+          ? 0
+          : getRemainingUnitMovementAllowance(defender.type, activePhase, authoritativeState, resolvedDefenderId)
+
+      return {
+        id: resolvedDefenderId,
+        type: defender.type,
+        status: defender.status,
+        q: defender.position.q,
+        r: defender.position.r,
+        move:
+          activePhase === null
+            ? 0
+            : snapshotMovementRemaining === undefined || snapshotMovementRemaining === 0
+              ? computedMovementRemaining
+              : snapshotMovementRemaining,
+        weapons: formatWeaponSummary(defender.weapons),
+        attack: formatAttackSummary(defender.weapons),
+        weaponDetails: defender.weapons ?? [],
+        targetRules: defender.targetRules,
+        defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
+        squads: defender.squads,
+        actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
+        rosterOrder: index,
+      }
+    })
     .sort((left, right) => {
       const destroyedDelta = Number(left.status === 'destroyed') - Number(right.status === 'destroyed')
 
@@ -508,7 +522,74 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const runtimeConnectionSeeded = showConnectionGate
   const activeGameClient = gameClient ?? connectedSession?.gameClient
   const activeGameIdProp = gameId ?? connectedSession?.gameId
+  const liveRefreshQuietWindowMs = runtimeConfig?.liveRefreshQuietWindowMs ?? 500
   const snapshotLoadVersion = useRef(0)
+  const liveRefreshTimer = useRef<number | null>(null)
+  const liveRefreshInFlight = useRef(false)
+  const liveRefreshQueued = useRef(false)
+  const phaseRefreshRetryPending = useRef(false)
+  const phaseRefreshRetrySeq = useRef<number | null>(null)
+  const liveRefreshRequestedSeq = useRef<number | null>(null)
+  const isMountedRef = useRef(true)
+  const currentSnapshotEventSeqRef = useRef<number | null>(null)
+  const liveEventSeqRef = useRef<number | null>(null)
+
+  function isCombatSnapshotPhase(phase: TurnPhase | null): boolean {
+    return phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
+  }
+
+  const applyFetchedSnapshot = useCallback((nextSnapshot: GameSnapshot, nextSession: GameSessionContext, previousSnapshotPhase?: TurnPhase | null): boolean => {
+    const currentSnapshotSeq = currentSnapshotEventSeqRef.current
+
+    if (currentSnapshotSeq !== null && nextSnapshot.lastEventSeq < currentSnapshotSeq) {
+      return false
+    }
+
+    currentSnapshotEventSeqRef.current = nextSnapshot.lastEventSeq
+    setClientSnapshot(nextSnapshot)
+    setClientSession(nextSession)
+
+    if (
+      (previousSnapshotPhase !== undefined && previousSnapshotPhase !== null && nextSnapshot.phase !== previousSnapshotPhase)
+      || !isCombatSnapshotPhase(nextSnapshot.phase)
+    ) {
+      setPendingCombatSnapshot(null)
+      setPendingCombatResolution(null)
+      setSelectedCombatTargetId(null)
+    }
+
+    return true
+  }, [])
+
+  const refreshServerSnapshot = useCallback(async (previousSnapshotPhase?: TurnPhase | null): Promise<GameStateEnvelope | null> => {
+    if (activeGameClient === undefined || activeGameIdProp === undefined) {
+      return null
+    }
+
+    const loadVersion = ++snapshotLoadVersion.current
+    const state = await activeGameClient.getState(activeGameIdProp)
+
+    if (!isMountedRef.current || snapshotLoadVersion.current !== loadVersion) {
+      return null
+    }
+
+    return applyFetchedSnapshot(state.snapshot, state.session, previousSnapshotPhase) ? state : null
+  }, [activeGameClient, activeGameIdProp, applyFetchedSnapshot])
+
+  currentSnapshotEventSeqRef.current = clientSnapshot?.lastEventSeq ?? null
+  liveEventSeqRef.current = liveState?.lastEventSeq ?? null
+
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      isMountedRef.current = false
+      if (liveRefreshTimer.current !== null) {
+        window.clearTimeout(liveRefreshTimer.current)
+        liveRefreshTimer.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (activeGameClient === undefined || !isLiveGameClient(activeGameClient)) {
@@ -522,8 +603,132 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     })
   }, [activeGameClient])
 
+  const currentSnapshotEventSeq = currentSnapshotEventSeqRef.current
+  const liveEventSeq = liveEventSeqRef.current
+  const liveEventType = liveState?.lastEventType ?? null
+
+  useEffect(() => {
+    if (activeGameClient === undefined || activeGameIdProp === undefined || !isLiveGameClient(activeGameClient)) {
+      if (liveRefreshTimer.current !== null) {
+        window.clearTimeout(liveRefreshTimer.current)
+        liveRefreshTimer.current = null
+      }
+      liveRefreshRequestedSeq.current = null
+      phaseRefreshRetryPending.current = false
+      phaseRefreshRetrySeq.current = null
+      return
+    }
+
+    if (currentSnapshotEventSeq === null || liveEventSeq === null || (liveEventSeq <= currentSnapshotEventSeq && !phaseRefreshRetryPending.current)) {
+      if (liveRefreshTimer.current !== null) {
+        window.clearTimeout(liveRefreshTimer.current)
+        liveRefreshTimer.current = null
+      }
+      if (liveEventSeq !== null && currentSnapshotEventSeq !== null && liveEventSeq <= currentSnapshotEventSeq) {
+        phaseRefreshRetryPending.current = false
+        phaseRefreshRetrySeq.current = null
+      }
+      return
+    }
+
+    if (liveRefreshTimer.current !== null) {
+      window.clearTimeout(liveRefreshTimer.current)
+      liveRefreshTimer.current = null
+    }
+
+    liveRefreshRequestedSeq.current = liveEventSeq
+
+    liveRefreshTimer.current = window.setTimeout(() => {
+      liveRefreshTimer.current = null
+
+      void refreshLiveSnapshot()
+    }, liveRefreshQuietWindowMs)
+
+    async function refreshLiveSnapshot() {
+      if (activeGameClient === undefined || activeGameIdProp === undefined || !isLiveGameClient(activeGameClient)) {
+        return
+      }
+
+      if (liveRefreshInFlight.current) {
+        liveRefreshQueued.current = true
+        return
+      }
+
+      if (
+        currentSnapshotEventSeqRef.current === null
+        || liveEventSeqRef.current === null
+        || (liveEventSeqRef.current <= currentSnapshotEventSeqRef.current && !phaseRefreshRetryPending.current)
+      ) {
+        return
+      }
+
+      liveRefreshInFlight.current = true
+      const previousSnapshotPhase = clientSnapshot?.phase ?? null
+      const triggeringEventType = liveEventType
+      let refreshedSnapshot: GameSnapshot | null = null
+
+      try {
+        const state = await refreshServerSnapshot(previousSnapshotPhase)
+        refreshedSnapshot = state?.snapshot ?? null
+      } catch (error) {
+        if (isMountedRef.current) {
+          console.error('Failed to refresh live game state', error)
+        }
+      } finally {
+        liveRefreshInFlight.current = false
+
+        if (liveRefreshQueued.current) {
+          liveRefreshQueued.current = false
+          if (
+            currentSnapshotEventSeqRef.current !== null
+            && liveEventSeqRef.current !== null
+            && liveEventSeqRef.current > currentSnapshotEventSeqRef.current
+            && liveEventSeqRef.current !== liveRefreshRequestedSeq.current
+          ) {
+            liveRefreshTimer.current = window.setTimeout(() => {
+              liveRefreshTimer.current = null
+              void refreshLiveSnapshot()
+            }, liveRefreshQuietWindowMs)
+          }
+        } else {
+          const currentSnapshotSeq = currentSnapshotEventSeqRef.current
+          const currentLiveSeq = liveEventSeqRef.current
+          const phaseStillStale = triggeringEventType === 'PHASE_CHANGED'
+            && previousSnapshotPhase !== null
+            && refreshedSnapshot !== null
+            && refreshedSnapshot.phase === previousSnapshotPhase
+
+          phaseRefreshRetryPending.current = Boolean(
+            phaseStillStale
+            && currentLiveSeq !== null
+            && phaseRefreshRetrySeq.current !== currentLiveSeq
+          )
+          if (phaseStillStale && currentLiveSeq !== null) {
+            phaseRefreshRetrySeq.current = currentLiveSeq
+          }
+
+          if (
+            phaseRefreshRetryPending.current
+            || (
+              currentSnapshotSeq !== null
+              && currentLiveSeq !== null
+              && currentLiveSeq > currentSnapshotSeq
+              && currentLiveSeq !== liveRefreshRequestedSeq.current
+            )
+          ) {
+            liveRefreshTimer.current = window.setTimeout(() => {
+              liveRefreshTimer.current = null
+              void refreshLiveSnapshot()
+            }, liveRefreshQuietWindowMs)
+          }
+        }
+      }
+    }
+  }, [activeGameClient, activeGameIdProp, clientSnapshot?.phase, currentSnapshotEventSeq, liveEventSeq, liveEventType, liveRefreshQuietWindowMs, refreshServerSnapshot])
+
   useEffect(() => {
     if (activeGameClient === undefined || activeGameIdProp === undefined) {
+      snapshotLoadVersion.current += 1
       queueMicrotask(() => {
         setClientSnapshot(null)
         setClientSession(null)
@@ -531,30 +736,15 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       return
     }
 
-    let cancelled = false
-    const loadVersion = ++snapshotLoadVersion.current
-
-    void activeGameClient
-      .getState(activeGameIdProp)
-      .then((state) => {
-        if (!cancelled && snapshotLoadVersion.current === loadVersion) {
-          setClientSnapshot(state.snapshot)
-          setClientSession(state.session)
-        }
-      })
+    void refreshServerSnapshot()
       .catch((error) => {
-        // Handle errors from getState to avoid unhandled promise rejections
-        if (!cancelled && snapshotLoadVersion.current === loadVersion) {
+        if (isMountedRef.current) {
           console.error('Failed to load game state', error)
           setClientSnapshot(null)
           setClientSession(null)
         }
       })
-
-    return () => {
-      cancelled = true
-    }
-  }, [activeGameClient, activeGameIdProp])
+  }, [activeGameClient, activeGameIdProp, refreshServerSnapshot])
 
   const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
   const activePhase = clientSnapshot?.phase ?? null
@@ -597,6 +787,9 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       setPendingCombatSnapshot(null)
       setPendingCombatResolution(null)
       setClientSnapshot(nextSnapshot)
+      if (!isCombatSnapshotPhase(nextSnapshot.phase)) {
+        setSelectedCombatTargetId(null)
+      }
     } catch (error: unknown) {
       // Surface error to UI
       const errorMessage =
@@ -613,9 +806,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
         setSelectedCombatTargetId(null)
 
         try {
-          const refreshedState = await activeGameClient.getState(activeGameIdProp)
-          setClientSnapshot(refreshedState.snapshot)
-          setClientSession(refreshedState.session)
+          await refreshServerSnapshot()
         } catch {
           // Keep the error banner; the user can retry or refresh manually.
         }
@@ -826,7 +1017,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     setIsRefreshing(true)
     if (isControlledSession) {
       try {
-        await commitClientAction({ type: 'refresh' })
+        await refreshServerSnapshot()
         setLastRefreshAt(new Date())
       } finally {
         setIsRefreshing(false)

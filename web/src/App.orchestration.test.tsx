@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 import { createGameClient, type GameSnapshot } from './lib/gameClient'
+import type { LiveGameClient, LiveGameClientState } from './lib/liveGameClient'
 import type { GameState } from '../../src/types/index'
 import { createMoveGameState } from '../../src/shared/moveFixtures'
 
@@ -247,6 +248,17 @@ function createSnapshotWithTreads(treads: number, movementRemaining: number): Au
 			'wolf-2': 4,
 			'puss-1': 3,
 		},
+	}
+}
+
+function createLiveGameState(overrides: Partial<LiveGameClientState> = {}): LiveGameClientState {
+	return {
+		connectionStatus: 'idle',
+		lastUpdatedAt: null,
+		lastEventSeq: null,
+		lastEventType: null,
+		gameId: 123,
+		...overrides,
 	}
 }
 
@@ -1170,5 +1182,291 @@ describe('App orchestration (injected game client)', () => {
 
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
 		expect(await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Onion Combat')).not.toBeNull()
+	})
+
+	it('refreshes the active match from live websocket updates and keeps the debug popup visible', async () => {
+		vi.useFakeTimers()
+		try {
+		const runtimeConfig = { apiBaseUrl: null, gameId: 123, liveRefreshQuietWindowMs: 1 }
+		const liveStateListeners: Array<(state: LiveGameClientState) => void> = []
+		const initialSnapshot = createConnectedBattlefieldSnapshot({
+			phase: 'DEFENDER_COMBAT',
+			turnNumber: 8,
+			lastEventSeq: 47,
+			scenarioName: 'Live websocket initial state',
+		})
+		const staleSnapshot = createConnectedBattlefieldSnapshot({
+			phase: 'DEFENDER_COMBAT',
+			turnNumber: 8,
+			lastEventSeq: 48,
+			scenarioName: 'Live websocket stale refresh',
+		})
+		const refreshedSnapshot = createConnectedBattlefieldSnapshot({
+			phase: 'ONION_MOVE',
+			turnNumber: 9,
+			lastEventSeq: 49,
+			scenarioName: 'Live websocket refreshed state',
+		})
+		const staleQueuedSnapshot = createConnectedBattlefieldSnapshot({
+			phase: 'DEFENDER_COMBAT',
+			turnNumber: 8,
+			lastEventSeq: 48,
+			scenarioName: 'Live websocket stale queued refresh',
+		})
+		const staleSnapshotDeferred = createDeferred<{ snapshot: AuthoritativeBattlefieldSnapshot; session: { role: 'defender' } }>()
+		const refreshedSnapshotDeferred = createDeferred<{ snapshot: AuthoritativeBattlefieldSnapshot; session: { role: 'defender' } }>()
+		const staleQueuedSnapshotDeferred = createDeferred<{ snapshot: AuthoritativeBattlefieldSnapshot; session: { role: 'defender' } }>()
+		const getState = vi.fn()
+			.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
+			.mockReturnValueOnce(staleSnapshotDeferred.promise)
+			.mockReturnValueOnce(refreshedSnapshotDeferred.promise)
+			.mockReturnValueOnce(staleQueuedSnapshotDeferred.promise)
+
+		const client: LiveGameClient = {
+			getState,
+			submitAction: vi.fn().mockResolvedValue(initialSnapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+			subscribeLiveState: vi.fn((listener: (state: LiveGameClientState) => void) => {
+				liveStateListeners.push(listener)
+				return vi.fn()
+			}),
+			getLiveState: vi.fn(() => createLiveGameState()),
+		}
+
+		render(<App gameClient={client} gameId={123} runtimeConfig={runtimeConfig} />)
+
+		await act(async () => {
+			await Promise.resolve()
+		})
+		expect(screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Defender Combat')).not.toBeNull()
+
+		fireEvent.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+		expect(screen.getByText(/Debug Diagnostics/i)).not.toBeNull()
+
+		await act(async () => {
+			liveStateListeners[0]?.(createLiveGameState({
+				connectionStatus: 'connected',
+				lastUpdatedAt: new Date('2026-04-03T10:11:12.000Z'),
+				lastEventSeq: 48,
+				lastEventType: 'PHASE_CHANGED',
+			}))
+			await Promise.resolve()
+		})
+
+		expect(getState).toHaveBeenCalledTimes(1)
+		await act(async () => {
+			vi.runOnlyPendingTimers()
+			await Promise.resolve()
+		})
+
+		expect(getState).toHaveBeenCalledTimes(2)
+		await act(async () => {
+			liveStateListeners[0]?.(createLiveGameState({
+				connectionStatus: 'connected',
+				lastUpdatedAt: new Date('2026-04-03T10:11:13.000Z'),
+				lastEventSeq: 49,
+				lastEventType: 'PHASE_CHANGED',
+			}))
+			await Promise.resolve()
+		})
+		staleSnapshotDeferred.resolve({ snapshot: staleSnapshot, session: { role: 'defender' } })
+		await act(async () => {
+			for (let index = 0; index < 3; index += 1) {
+				await Promise.resolve()
+			}
+		})
+		await act(async () => {
+			vi.advanceTimersByTime(1)
+			await Promise.resolve()
+		})
+
+		expect(getState).toHaveBeenCalledTimes(3)
+		refreshedSnapshotDeferred.resolve({ snapshot: refreshedSnapshot, session: { role: 'defender' } })
+		await act(async () => {
+			await Promise.resolve()
+		})
+		await act(async () => {
+			vi.advanceTimersByTime(1)
+			await Promise.resolve()
+		})
+
+		expect(getState).toHaveBeenCalledTimes(4)
+		staleQueuedSnapshotDeferred.resolve({ snapshot: staleQueuedSnapshot, session: { role: 'defender' } })
+		await act(async () => {
+			await Promise.resolve()
+		})
+		expect(screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Onion Movement')).not.toBeNull()
+		expect(screen.getByText(/Debug Diagnostics/i)).not.toBeNull()
+		expect(screen.getByText(/Connected/i)).not.toBeNull()
+		expect(screen.getByText(/Live websocket refreshed state/i)).not.toBeNull()
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it('does not keep refreshing forever when a phase refresh stays stale for the same live seq', async () => {
+		vi.useFakeTimers()
+		try {
+			const runtimeConfig = { apiBaseUrl: null, gameId: 123, liveRefreshQuietWindowMs: 1 }
+			const liveStateListeners: Array<(state: LiveGameClientState) => void> = []
+			const initialSnapshot = createConnectedBattlefieldSnapshot({
+				phase: 'DEFENDER_COMBAT',
+				turnNumber: 8,
+				lastEventSeq: 47,
+				scenarioName: 'Loop guard initial state',
+			})
+			const staleSnapshot = createConnectedBattlefieldSnapshot({
+				phase: 'DEFENDER_COMBAT',
+				turnNumber: 8,
+				lastEventSeq: 48,
+				scenarioName: 'Loop guard stale state',
+			})
+			const firstRefreshDeferred = createDeferred<{ snapshot: AuthoritativeBattlefieldSnapshot; session: { role: 'defender' } }>()
+			const secondRefreshDeferred = createDeferred<{ snapshot: AuthoritativeBattlefieldSnapshot; session: { role: 'defender' } }>()
+			const getState = vi.fn()
+				.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
+				.mockReturnValueOnce(firstRefreshDeferred.promise)
+				.mockReturnValueOnce(secondRefreshDeferred.promise)
+
+			const client: LiveGameClient = {
+				getState,
+				submitAction: vi.fn().mockResolvedValue(initialSnapshot),
+				pollEvents: vi.fn().mockResolvedValue([]),
+				subscribeLiveState: vi.fn((listener: (state: LiveGameClientState) => void) => {
+					liveStateListeners.push(listener)
+					return vi.fn()
+				}),
+				getLiveState: vi.fn(() => createLiveGameState()),
+			}
+
+			render(<App gameClient={client} gameId={123} runtimeConfig={runtimeConfig} />)
+
+			await act(async () => {
+				await Promise.resolve()
+			})
+
+			await act(async () => {
+				liveStateListeners[0]?.(createLiveGameState({
+					connectionStatus: 'connected',
+					lastUpdatedAt: new Date('2026-04-03T10:11:12.000Z'),
+					lastEventSeq: 48,
+					lastEventType: 'PHASE_CHANGED',
+				}))
+				await Promise.resolve()
+			})
+
+			expect(getState).toHaveBeenCalledTimes(1)
+
+			await act(async () => {
+				vi.runOnlyPendingTimers()
+				await Promise.resolve()
+			})
+
+			expect(getState).toHaveBeenCalledTimes(2)
+			firstRefreshDeferred.resolve({ snapshot: staleSnapshot, session: { role: 'defender' } })
+			await act(async () => {
+				await Promise.resolve()
+			})
+
+			await act(async () => {
+				vi.advanceTimersByTime(1)
+				await Promise.resolve()
+			})
+
+			expect(getState).toHaveBeenCalledTimes(3)
+			secondRefreshDeferred.resolve({ snapshot: staleSnapshot, session: { role: 'defender' } })
+			await act(async () => {
+				await Promise.resolve()
+			})
+
+			await act(async () => {
+				vi.advanceTimersByTime(10)
+				await Promise.resolve()
+			})
+
+			expect(getState).toHaveBeenCalledTimes(3)
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it('coalesces rapid websocket events into one live refresh', async () => {
+		vi.useFakeTimers()
+		try {
+			const liveStateListeners: Array<(state: LiveGameClientState) => void> = []
+			const runtimeConfig = { apiBaseUrl: null, gameId: 123, liveRefreshQuietWindowMs: 500 }
+			const initialSnapshot = createConnectedBattlefieldSnapshot({
+				phase: 'DEFENDER_COMBAT',
+				turnNumber: 8,
+				lastEventSeq: 47,
+				scenarioName: 'Burst websocket initial state',
+			})
+			const refreshedSnapshot = createConnectedBattlefieldSnapshot({
+				phase: 'ONION_MOVE',
+				turnNumber: 9,
+				lastEventSeq: 50,
+				scenarioName: 'Burst websocket refreshed state',
+			})
+			const refreshedSnapshotDeferred = createDeferred<{ snapshot: AuthoritativeBattlefieldSnapshot; session: { role: 'defender' } }>()
+			const getState = vi.fn()
+				.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
+				.mockReturnValueOnce(refreshedSnapshotDeferred.promise)
+
+			const client: LiveGameClient = {
+				getState,
+				submitAction: vi.fn().mockResolvedValue(initialSnapshot),
+				pollEvents: vi.fn().mockResolvedValue([]),
+				subscribeLiveState: vi.fn((listener: (state: LiveGameClientState) => void) => {
+					liveStateListeners.push(listener)
+					return vi.fn()
+				}),
+				getLiveState: vi.fn(() => createLiveGameState()),
+			}
+
+			render(<App gameClient={client} gameId={123} runtimeConfig={runtimeConfig} />)
+
+			await act(async () => {
+				await Promise.resolve()
+			})
+			expect(screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Defender Combat')).not.toBeNull()
+
+			await act(async () => {
+				liveStateListeners[0]?.(createLiveGameState({
+					connectionStatus: 'connected',
+					lastUpdatedAt: new Date('2026-04-03T10:11:12.000Z'),
+					lastEventSeq: 48,
+					lastEventType: 'PHASE_CHANGED',
+				}))
+				liveStateListeners[0]?.(createLiveGameState({
+					connectionStatus: 'connected',
+					lastUpdatedAt: new Date('2026-04-03T10:11:13.000Z'),
+					lastEventSeq: 49,
+					lastEventType: 'PHASE_CHANGED',
+				}))
+				liveStateListeners[0]?.(createLiveGameState({
+					connectionStatus: 'connected',
+					lastUpdatedAt: new Date('2026-04-03T10:11:14.000Z'),
+					lastEventSeq: 50,
+					lastEventType: 'PHASE_CHANGED',
+				}))
+				await Promise.resolve()
+			})
+
+			expect(getState).toHaveBeenCalledTimes(1)
+			await act(async () => {
+				vi.advanceTimersByTime(500)
+				await Promise.resolve()
+			})
+
+			expect(getState).toHaveBeenCalledTimes(2)
+			refreshedSnapshotDeferred.resolve({ snapshot: refreshedSnapshot, session: { role: 'defender' } })
+			await act(async () => {
+				await Promise.resolve()
+			})
+
+			expect(screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Onion Movement')).not.toBeNull()
+		} finally {
+			vi.useRealTimers()
+		}
 	})
 })

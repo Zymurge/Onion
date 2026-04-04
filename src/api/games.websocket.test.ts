@@ -186,7 +186,8 @@ describe('GET /games/:id/ws', () => {
 			},
 		})
 
-		const snapshotMessage = await snapshotMessagePromise
+		expect(snapshotMessagePromise).not.toBeNull()
+		const snapshotMessage = await snapshotMessagePromise!
 		expect(snapshotMessage.kind).toBe('STATE_SNAPSHOT')
 		expect(snapshotMessage.snapshot.eventSeq).toBe(2)
 

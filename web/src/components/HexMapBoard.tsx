@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, hexKey, pointsToString } from '../lib/hex'
 import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex, isUnitMoveEligible } from '../lib/battlefieldView'
-import { canUnitCrossRidgelines } from '../../../src/shared/unitMovement'
+import { canUnitCrossRidgelines, getUnitMovementAllowance } from '../../../src/shared/unitMovement'
 import { listReachableMoves } from '../../../src/shared/movePlanner'
 import './HexMapBoard.css'
 
@@ -52,6 +52,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
   const activeCombatRole = phase === 'ONION_COMBAT' ? 'onion' : phase === 'DEFENDER_COMBAT' ? 'defender' : null
+  const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
 
   const selectedUnitSet = useMemo(() => {
     const selectedIds = new Set<string>()
@@ -91,9 +92,17 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
       : defenders.find((unit) => unit.id === selectedPrimaryUnitId) ?? null
   const selectedAllowance = selectedOccupant
     ? selectedOccupant.id === onion.id
-      ? onion.movesRemaining
+      ? onion.movesRemaining > 0
+        ? onion.movesRemaining
+        : phase === null
+          ? 0
+          : getUnitMovementAllowance('TheOnion', phase, onion.treads)
       : 'move' in selectedOccupant
-        ? selectedOccupant.move
+        ? selectedOccupant.move > 0
+          ? selectedOccupant.move
+          : phase === null
+            ? 0
+            : getUnitMovementAllowance(selectedOccupant.type, phase)
         : 0
     : 0
   const selectedCanCrossRidgelines = selectedOccupant ? canUnitCrossRidgelines(selectedOccupant.type) : false
@@ -110,8 +119,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
         }))
     })
   const playerRole = canSubmitMove && phase && (phase.startsWith('ONION') ? 'onion' : phase.startsWith('DEFENDER') || phase === 'GEV_SECOND_MOVE' ? 'defender' : null)
-  const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
-  const selectedIsEligible = !!(selectedOccupant && playerRole && isUnitMoveEligible(selectedOccupant, phase, playerRole))
+  const selectedIsEligible = !!(selectedOccupant && playerRole && isMovementPhase && selectedOccupant.status === 'operational' && selectedAllowance > 0)
   const reachableMoves =
     selectedIsEligible
       ? listReachableMoves({
@@ -216,9 +224,21 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                   ))
               })
               const isCombatRange = combatRangeHexKeys?.has(hexKey(coord)) ?? false
-              const isMoveReady = canSubmitMove && cellOccupants.some(
-                (occupant) => playerRole && isUnitMoveEligible(occupant, phase, playerRole)
-              )
+                  const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
+                    if (!playerRole || !isMovementPhase || occupant.status !== 'operational') {
+                      return false
+                    }
+
+                    if (occupant.id === onion.id) {
+                      return onion.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance('TheOnion', phase, onion.treads) > 0)
+                    }
+
+                    if (!('move' in occupant)) {
+                      return false
+                    }
+
+                    return occupant.move > 0 || (phase !== null && getUnitMovementAllowance(occupant.type, phase) > 0)
+                  })
               const isReachable = canSubmitMove && reachableHexKeys.has(hexKey(coord))
 
 
@@ -283,7 +303,19 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                     const isOccupantOnion = occupant.id === onion.id
                     const isOccupantSelected = selectedUnitSet.has(occupant.id)
                     const offset = getStackOffset(index, cellOccupants.length)
-                    const moveRemaining = isOccupantOnion ? onion.movesRemaining : 'move' in occupant ? occupant.move : 0
+                    const moveRemaining = isOccupantOnion
+                      ? onion.movesRemaining > 0
+                        ? onion.movesRemaining
+                        : phase === null
+                          ? 0
+                          : getUnitMovementAllowance('TheOnion', phase, onion.treads)
+                      : 'move' in occupant
+                        ? occupant.move > 0
+                          ? occupant.move
+                          : phase === null
+                            ? 0
+                            : getUnitMovementAllowance(occupant.type, phase)
+                        : 0
 
                     return (
                       <g
