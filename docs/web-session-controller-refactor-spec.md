@@ -33,9 +33,9 @@ The authoritative contract for the refactor lives in [web/src/lib/gameSessionTyp
 - [x] Implement the transport split
 - [x] Add red controller tests for `GameSessionController`
 - [x] Implement the controller and `useGameSession`
-- [ ] Rewire `App.tsx` to consume the controller
 - [ ] Add the fake backend harness
 - [ ] Migrate broad App functional tests onto the fake backend harness
+- [ ] Rewire `App.tsx` to consume the controller
 
 ## Target Architecture
 
@@ -244,7 +244,24 @@ Exit criteria:
 3. controller contract and behavior tests pass
 4. controller tests cover live-hint refresh, stale refresh rejection, phase-retry handling, and normalized errors
 
-### Phase 3: Shrink App And Extract Presentation Modules
+
+### Phase 3: Add Fake Backend Harness
+
+Deliverables:
+
+1. fake request transport
+2. fake live event source
+3. reusable deterministic session fixtures
+4. migrated App functional tests for controller-driven live behavior
+5. broad App functional tests migrated off browser WebSocket stubs and live-client state shims
+
+Exit criteria:
+
+1. controller and future app tests can drive live behavior without browser WebSocket stubs
+2. broad App orchestration coverage runs through fake ports rather than live-client state shims
+3. fake backend tests cover the full controller and App flow used by the refactor
+
+### Phase 4: Shrink App And Extract Presentation Modules
 
 Deliverables:
 
@@ -260,22 +277,6 @@ Exit criteria:
 2. app no longer owns refresh timers or event sequence refs
 3. App tests at this phase do not reintroduce transport or synchronization policy assertions
 4. the remaining App tests only validate controller wiring and UI-only state
-
-### Phase 4: Add Fake Backend Harness
-
-Deliverables:
-
-1. fake request transport
-2. fake live event source
-3. reusable deterministic session fixtures
-4. migrated App functional tests for controller-driven live behavior
-5. broad App functional tests migrated off browser WebSocket stubs and live-client state shims
-
-Exit criteria:
-
-1. controller and future app tests can drive live behavior without browser WebSocket stubs
-2. broad App orchestration coverage runs through fake ports rather than live-client state shims
-3. fake backend tests cover the full controller and App flow used by the refactor
 
 ## TDD Plan
 
