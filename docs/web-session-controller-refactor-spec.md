@@ -32,7 +32,7 @@ The authoritative contract for the refactor lives in [web/src/lib/gameSessionTyp
 - [x] Add red transport contract tests for `GameRequestTransport` and `LiveEventSource`
 - [x] Implement the transport split
 - [x] Add red controller tests for `GameSessionController`
-- [ ] Implement the controller and `useGameSession`
+- [x] Implement the controller and `useGameSession`
 - [ ] Rewire `App.tsx` to consume the controller
 - [ ] Add the fake backend harness
 - [ ] Migrate broad App functional tests onto the fake backend harness
