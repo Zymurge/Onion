@@ -1,36 +1,23 @@
-import { createHttpGameClient } from './httpGameClient'
-import type { GameAction, GameClient, GameSnapshot } from './gameClient'
-import type { WebSocketClientMessage } from '../../../src/shared/websocketProtocol'
-import type { EventEnvelope } from '../../../src/types/index'
-import type { WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '../../../src/shared/websocketProtocol'
+import { createGameClient, type GameAction, type GameClient, type GameSnapshot } from './gameClient'
+import { createHttpGameClient, createHttpGameRequestTransport } from './httpGameClient'
+import type { LiveConnectionStatus as LiveConnectionStatusType } from './gameSessionTypes'
+import { createLiveEventSource, type LiveEventSourceOptions } from './liveEventSource'
 
-export type LiveConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
+export type { LiveConnectionStatus } from './gameSessionTypes'
+export type { WebSocketLike } from './liveEventSource'
 
 export type LiveGameClientState = {
-	connectionStatus: LiveConnectionStatus
+	connectionStatus: LiveConnectionStatusType
 	lastUpdatedAt: Date | null
 	lastEventSeq: number | null
-	lastEventType: EventEnvelope['type'] | null
+	lastEventType: string | null
 	gameId: number | null
 }
 
 export type LiveGameClientListener = (state: LiveGameClientState) => void
 
-export type WebSocketLike = {
-	readonly readyState: number
-	send(message: string): void
-	close(): void
-	onopen: null | (() => void)
-	onmessage: null | ((event: { data: string }) => void)
-	onclose: null | (() => void)
-	onerror: null | ((event?: unknown) => void)
-}
-
-export type LiveGameClientOptions = {
-	baseUrl: string
+export type LiveGameClientOptions = LiveEventSourceOptions & {
 	fetchImpl?: typeof fetch
-	token?: string
-	webSocketFactory?: (url: string) => WebSocketLike
 }
 
 export type LiveGameClient = GameClient & {
@@ -38,57 +25,42 @@ export type LiveGameClient = GameClient & {
 	getLiveState(): LiveGameClientState
 }
 
-function trimTrailingSlash(baseUrl: string) {
-	return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-}
-
-function buildWebSocketUrl(baseUrl: string, gameId: number, token?: string) {
-	const url = new URL(`games/${gameId}/ws`, `${trimTrailingSlash(baseUrl)}/`)
-	url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-	if (token !== undefined) {
-		url.searchParams.set('token', token)
+function createIdleState(): LiveGameClientState {
+	return {
+		connectionStatus: 'idle',
+		lastUpdatedAt: null,
+		lastEventSeq: null,
+		lastEventType: null,
+		gameId: null,
 	}
-	return url.toString()
-}
-
-function isSnapshotMessage(message: WebSocketClientMessage | WebSocketServerSnapshotMessage | WebSocketServerEventMessage | WebSocketServerErrorMessage): message is WebSocketServerSnapshotMessage {
-	return (message as WebSocketServerSnapshotMessage).kind === 'STATE_SNAPSHOT'
-}
-
-function isEventMessage(message: WebSocketClientMessage | WebSocketServerSnapshotMessage | WebSocketServerEventMessage | WebSocketServerErrorMessage): message is WebSocketServerEventMessage {
-	return (message as WebSocketServerEventMessage).kind === 'EVENT'
-}
-
-function parseMessage(rawMessage: string): WebSocketClientMessage | WebSocketServerSnapshotMessage | WebSocketServerEventMessage | WebSocketServerErrorMessage | null {
-	try {
-		const parsed = JSON.parse(rawMessage) as WebSocketClientMessage | WebSocketServerSnapshotMessage | WebSocketServerEventMessage | WebSocketServerErrorMessage
-		if (typeof parsed === 'object' && parsed !== null && 'kind' in parsed) {
-			return parsed
-		}
-	} catch {
-		return null
-	}
-
-	return null
 }
 
 export function createLiveGameClient(options: LiveGameClientOptions): LiveGameClient {
-	const httpClient = createHttpGameClient({
+	const requestTransport = createHttpGameRequestTransport({
 		baseUrl: options.baseUrl,
 		fetchImpl: options.fetchImpl,
 		token: options.token,
 	})
+	const compatibilityClient = createHttpGameClient({
+		baseUrl: options.baseUrl,
+		fetchImpl: options.fetchImpl,
+		token: options.token,
+	})
+	const client = createGameClient({
+		...requestTransport,
+		pollEvents: compatibilityClient.pollEvents,
+	})
+	const liveEventSource = createLiveEventSource({
+		baseUrl: options.baseUrl,
+		token: options.token,
+		webSocketFactory: options.webSocketFactory,
+	})
 	const listeners = new Set<LiveGameClientListener>()
 	const liveStateByGameId = new Map<number, LiveGameClientState>()
-	const socketsByGameId = new Map<number, WebSocketLike>()
-	const webSocketFactory = options.webSocketFactory ?? ((url) => new WebSocket(url) as unknown as WebSocketLike)
 
 	function getStateFor(gameId: number): LiveGameClientState {
 		return liveStateByGameId.get(gameId) ?? {
-			connectionStatus: 'idle',
-			lastUpdatedAt: null,
-			lastEventSeq: null,
-			lastEventType: null,
+			...createIdleState(),
 			gameId,
 		}
 	}
@@ -103,81 +75,39 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 		for (const listener of listeners) {
 			listener(nextState)
 		}
+		return nextState
 	}
 
-	function ensureSocket(gameId: number) {
-		const existingSocket = socketsByGameId.get(gameId)
-		if (existingSocket !== undefined && existingSocket.readyState !== 3) {
-			return existingSocket
+	liveEventSource.subscribe((signal) => {
+		if (signal.kind === 'connection') {
+			emitState(signal.gameId, {
+				connectionStatus: signal.status,
+			})
+			return
 		}
 
-		emitState(gameId, {
-			connectionStatus: existingSocket === undefined ? 'connecting' : 'reconnecting',
+		if (signal.kind === 'snapshot') {
+			emitState(signal.gameId, {
+				lastUpdatedAt: new Date(),
+				lastEventSeq: signal.eventSeq,
+				lastEventType: null,
+			})
+			return
+		}
+
+		if (signal.kind === 'event') {
+			emitState(signal.gameId, {
+				lastUpdatedAt: new Date(),
+				lastEventSeq: signal.eventSeq,
+				lastEventType: signal.eventType,
+			})
+			return
+		}
+
+		emitState(signal.gameId, {
+			connectionStatus: 'disconnected',
 		})
-
-		const socket = webSocketFactory(buildWebSocketUrl(options.baseUrl, gameId, options.token))
-		socketsByGameId.set(gameId, socket)
-
-		socket.onopen = () => {
-			emitState(gameId, {
-				connectionStatus: 'connected',
-			})
-
-			const liveState = getStateFor(gameId)
-			if (liveState.lastEventSeq !== null && liveState.lastEventSeq > 0) {
-				const resumeMessage: WebSocketClientMessage = {
-					kind: 'RESUME',
-					afterSeq: liveState.lastEventSeq,
-				}
-				socket.send(JSON.stringify(resumeMessage))
-			}
-		}
-
-		socket.onmessage = (event) => {
-			const parsed = parseMessage(event.data)
-			if (parsed === null) {
-				return
-			}
-
-			if (isSnapshotMessage(parsed)) {
-				emitState(gameId, {
-					lastUpdatedAt: new Date(),
-					lastEventSeq: parsed.snapshot.eventSeq,
-					lastEventType: null,
-				})
-				return
-			}
-
-			if (isEventMessage(parsed)) {
-				emitState(gameId, {
-					lastEventSeq: parsed.event.seq,
-					lastUpdatedAt: new Date(),
-					lastEventType: parsed.event.type,
-				})
-				return
-			}
-
-			if (parsed.kind === 'ERROR') {
-				emitState(gameId, {
-					connectionStatus: 'disconnected',
-				})
-			}
-		}
-
-		socket.onclose = () => {
-			emitState(gameId, {
-				connectionStatus: 'disconnected',
-			})
-		}
-
-		socket.onerror = () => {
-			emitState(gameId, {
-				connectionStatus: 'disconnected',
-			})
-		}
-
-		return socket
-	}
+	})
 
 	return {
 		subscribeLiveState(listener) {
@@ -187,34 +117,30 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 			}
 		},
 		getLiveState() {
-			return Array.from(liveStateByGameId.values()).at(-1) ?? {
-				connectionStatus: 'idle',
-				lastUpdatedAt: null,
-				lastEventSeq: null,
-				lastEventType: null,
-				gameId: null,
-			}
+			return Array.from(liveStateByGameId.values()).at(-1) ?? createIdleState()
 		},
 		async getState(gameId: number) {
-			ensureSocket(gameId)
-			const envelope = await httpClient.getState(gameId)
+			liveEventSource.connect(gameId)
+			const envelope = await client.getState(gameId)
 			emitState(gameId, {
 				lastUpdatedAt: new Date(),
 				lastEventSeq: envelope.snapshot.lastEventSeq,
+				lastEventType: null,
 			})
 			return envelope
 		},
 		async submitAction(gameId: number, action: GameAction) {
-			ensureSocket(gameId)
-			const snapshot = await httpClient.submitAction(gameId, action)
+			liveEventSource.connect(gameId)
+			const snapshot = await client.submitAction(gameId, action)
 			emitState(gameId, {
 				lastUpdatedAt: new Date(),
 				lastEventSeq: snapshot.lastEventSeq,
+				lastEventType: null,
 			})
 			return snapshot as GameSnapshot
 		},
 		async pollEvents(gameId: number, afterSeq: number) {
-			return httpClient.pollEvents(gameId, afterSeq)
+			return client.pollEvents(gameId, afterSeq)
 		},
 	}
 }
