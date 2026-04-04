@@ -61,6 +61,16 @@ export type GameSessionRefreshReason = 'manual' | 'live-event' | 'phase-retry'
 export type GameSessionListener = (state: GameSessionViewState) => void
 
 /**
+ * Construction options for the session controller.
+ */
+export type GameSessionControllerOptions = {
+	gameId: number
+	requestTransport: GameRequestTransport
+	liveEventSource: LiveEventSource
+	liveRefreshQuietWindowMs?: number
+}
+
+/**
  * The orchestration boundary above transport.
  *
  * The controller owns load, refresh, submit, sequencing, quiet-window handling,
@@ -73,6 +83,14 @@ export type GameSessionController = {
 	refresh(reason?: GameSessionRefreshReason): Promise<void>
 	submitAction(action: GameAction): Promise<void>
 	dispose(): void
+}
+
+/**
+ * Thin React adapter options for consuming a controller.
+ */
+export type UseGameSessionOptions = {
+	autoLoad?: boolean
+	disposeOnUnmount?: boolean
 }
 
 /**
