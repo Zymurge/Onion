@@ -1,50 +1,22 @@
 # Web Session Controller Refactor Spec
 
-Status: Proposed
+Status: Plan of record
 Date: 2026-04-04
-Branch: `feature/websocket-live-updates`
+Branch: `feature/web-session-controller-refactor`
 
 ## Purpose
 
-Define a one-time refactor that removes transport and live-sync knowledge from the web app shell and replaces it with a single-game session controller boundary.
+This refactor removes transport and live-sync knowledge from `App.tsx` and moves it into a single-game session controller boundary.
 
-This spec is intentionally narrow. It is not a general frontend roadmap. It covers one refactor only:
-
-1. make `App.tsx` substantially thinner
-2. hide WebSocket versus REST concerns from the app layer
-3. move sequencing, batching, timing, and refresh policy into a testable session module
-4. create a clean seam for a fake backend that can drive client tests without browser WebSocket stubbing
-
-## Problem Statement
-
-The current web client has a transport seam, but not a session seam.
-
-Today:
-
-1. `web/src/lib/gameClient.ts` provides a useful transport contract.
-2. `web/src/lib/httpGameClient.ts` maps HTTP requests into domain snapshots.
-3. `web/src/lib/liveGameClient.ts` manages socket connection state and event metadata.
-4. `web/src/App.tsx` still owns the hard part: live refresh timing, event sequencing, stale snapshot rejection, retry behavior, and session-level orchestration.
-
-That leads to two architectural problems:
-
-1. the app shell has become a state machine
-2. a fake backend is harder to plug in because tests must currently coordinate React state, timers, HTTP responses, and fake socket events at once
-
-## Locked Decisions
-
-1. One app instance maps to exactly one game session.
-2. The app layer must not know whether updates arrive via WebSocket, polling, or any later transport.
-3. The app layer must not know about event batching, resume timing, event sequence bookkeeping, or reconnect policy.
-4. The refactor should prefer delegation and encapsulation over adding another large hook inside `App.tsx`.
+The authoritative contract for the refactor lives in [web/src/lib/gameSessionTypes.ts](../web/src/lib/gameSessionTypes.ts).
 
 ## Goals
 
-1. Introduce a single-session controller boundary above the transport seam.
-2. Keep authoritative game state server-driven.
-3. Make live sync behavior testable without React rendering.
-4. Make transport replaceable with a fake request transport and fake live event source.
-5. Reduce `App.tsx` to presentation and UI-only orchestration.
+1. Keep the web app scoped to one game session at a time.
+2. Keep transport and live-sync policy out of `App.tsx`.
+3. Use server snapshots as the authoritative render source.
+4. Make the session boundary testable without React rendering.
+5. Keep the contract, transport seam, controller, and fake backend split into small, explicit files.
 
 ## Non-Goals
 
@@ -54,9 +26,22 @@ That leads to two architectural problems:
 4. No attempt to fix the full test suite in this refactor.
 5. No multi-game session support.
 
+## Actionable Checklist
+
+- [x] Move the contract into [web/src/lib/gameSessionTypes.ts](../web/src/lib/gameSessionTypes.ts)
+- [ ] Add red transport contract tests for `GameRequestTransport` and `LiveEventSource`
+- [ ] Implement the transport split
+- [ ] Add red controller tests for `GameSessionController`
+- [ ] Implement the controller and `useGameSession`
+- [ ] Rewire `App.tsx` to consume the controller
+- [ ] Add the fake backend harness
+- [ ] Migrate broad App functional tests onto the fake backend harness
+
 ## Target Architecture
 
 The target shape is a three-layer model.
+
+The authoritative contract for the controller, transport, and live signals lives in [web/src/lib/gameSessionTypes.ts](../web/src/lib/gameSessionTypes.ts).
 
 ### 1. App Layer
 
@@ -87,7 +72,7 @@ Responsibilities:
 4. coalesce bursts of events
 5. reject stale refreshes and stale event-derived updates
 6. manage retry policy for phase-change refresh races
-7. expose one stable subscribe and getSnapshot API for React
+7. expose one stable subscribe and getSnapshot API for consumers
 8. normalize transport errors into domain-facing session state
 
 This is the layer where fake backends become easy to plug in.
@@ -104,6 +89,14 @@ Responsibilities:
 The transport layer must not decide the app's refresh policy.
 
 ## Proposed Module Layout
+
+The module layout below is locked for this refactor's planning and TDD work.
+
+Rules:
+
+1. these paths are the default implementation targets for the parallel workstreams
+2. additive helper modules are allowed if they stay under the same ownership boundary
+3. renaming or collapsing the primary modules below requires updating this spec first so agent scopes do not drift
 
 ### New Modules
 
@@ -123,50 +116,6 @@ The transport layer must not decide the app's refresh policy.
 
 1. `web/src/lib/gameClient.ts`
 2. shared protocol and domain types under `src/shared` and `src/types`
-
-## Proposed Contracts
-
-The exact names can change, but the shape should remain close to this.
-
-```ts
-export type GameSessionViewState = {
-  status: 'idle' | 'loading' | 'ready' | 'refreshing' | 'error'
-  snapshot: GameSnapshot | null
-  session: GameSessionContext | null
-  liveConnection: 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
-  lastAppliedEventSeq: number | null
-  lastAppliedEventType: string | null
-  lastUpdatedAt: Date | null
-  error: GameClientSeamError | null
-}
-
-export type GameSessionController = {
-  subscribe(listener: (state: GameSessionViewState) => void): () => void
-  getSnapshot(): GameSessionViewState
-  load(): Promise<void>
-  refresh(reason?: 'manual' | 'live-event' | 'phase-retry'): Promise<void>
-  submitAction(action: GameAction): Promise<void>
-  dispose(): void
-}
-
-export type GameRequestTransport = {
-  getState(gameId: number): Promise<GameStateEnvelope>
-  submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
-}
-
-export type LiveEventSource = {
-  subscribe(listener: (event: LiveSessionSignal) => void): () => void
-  connect(gameId: number): void
-  disconnect(gameId: number): void
-  getConnectionState(gameId: number): LiveConnectionStatus
-}
-
-export type LiveSessionSignal =
-  | { kind: 'connection'; status: LiveConnectionStatus; gameId: number }
-  | { kind: 'snapshot'; gameId: number; eventSeq: number | null }
-  | { kind: 'event'; gameId: number; eventSeq: number; eventType: string }
-  | { kind: 'error'; gameId: number; message: string }
-```
 
 ## Session Ownership Rules
 
@@ -201,90 +150,19 @@ The following should not remain embedded in the transport's cached snapshot stat
 
 Those belong either in the app layer or in a separate UI-focused controller if one is introduced later.
 
-## Recommended Synchronization Strategies
+## Sync Implementation Plan
 
-There are two credible designs.
+Implement snapshot-driven synchronization in the session controller.
 
-### Option A: Snapshot-Driven Sync Triggered By Live Events
+Controller behavior to build:
 
-Model:
-
-1. live events are treated as sync hints
-2. the controller uses them to decide when to fetch a fresh authoritative snapshot
-3. rendering remains based on server snapshots, not locally replayed event projections
-
-Pros:
-
-1. simpler correctness model
-2. easier to reason about with the current backend contract
-3. lower risk of client and server rule drift
-4. phase transitions remain authoritative and consistent
-5. easier rollback because the client never becomes a partial rules engine
-6. smaller refactor footprint for this branch
-
-Cons:
-
-1. extra network round trips after live events
-2. UI responsiveness depends on refresh timing and quiet-window tuning
-3. bursty events may still collapse into coarse-grained updates rather than immediate local transitions
-4. some live events become metadata instead of directly visible state changes
-
-Best fit when:
-
-1. server authority matters more than low-latency local animation
-2. the backend already exposes a reliable snapshot endpoint
-3. the team wants the smallest risky change now
-
-### Option B: Event-Applied Client Projection With Snapshot Reconciliation
-
-Model:
-
-1. live events are applied directly to a client-side projection
-2. snapshots are used to initialize state and periodically reconcile drift
-3. the controller becomes responsible for event application semantics
-
-Pros:
-
-1. lower perceived latency
-2. fewer refresh round trips in steady-state play
-3. more fluid live feedback if the event model is complete and stable
-4. can support richer incremental UI transitions later
-
-Cons:
-
-1. much higher complexity
-2. requires stable and complete event semantics for every state change that matters to rendering
-3. increases risk of divergence between server state and client projection
-4. expands the controller into a projection engine
-5. makes fake backends and controller tests more complex, not less
-6. harder to land safely in a one-time refactor focused on encapsulation
-
-Best fit when:
-
-1. the event model is already comprehensive and trusted as the primary state stream
-2. low-latency incremental updates are a product requirement
-3. the team is willing to invest in a larger synchronization engine
-
-### Recommendation
-
-Choose Option A for this refactor.
-
-Reasoning:
-
-1. it directly satisfies the encapsulation goal
-2. it removes live-sync policy from `App.tsx` without introducing a projection engine
-3. it preserves server authority with the least architectural risk
-4. it still leaves room to evolve toward Option B later if event completeness and latency needs justify it
-
-This should be treated as the default architecture, not as a temporary tie.
-
-Option B is explicitly deferred unless one or more of the following become true:
-
-1. measured latency or refresh volume becomes a real product problem
-2. the event stream becomes complete enough to support projection without hidden snapshot dependencies
-3. richer live interaction is required beyond what a human-paced turn-based game needs
-
-Until then, prefer a simpler authoritative snapshot model and keep the controller free of event-application semantics.
+1. treat live signals as refresh hints
+2. keep the authoritative state in server snapshots
+3. track the latest applied event sequence and event type
+4. coalesce bursts of live signals into a single refresh window
+5. reject stale refresh results that arrive behind a newer live signal
+6. retry the phase-change refresh path when the controller observes a phase transition race
+7. surface connection state and normalized transport errors through the session snapshot
 
 ## Fake Backend Design
 
@@ -324,11 +202,14 @@ Deliverables:
 1. this spec
 2. agreed controller contract
 3. agreed ownership split between app, controller, and transport
+4. locked file layout for the initial implementation workstreams
+5. transport contract tests defined as the first red step
 
 Exit criteria:
 
 1. no unresolved ambiguity about single-game scope
 2. sync strategy selected
+3. transport contract tests exist and fail for the intended transport seam
 
 ### Phase 1: Split Transport Ports
 
@@ -337,11 +218,14 @@ Deliverables:
 1. introduce `GameRequestTransport` and `LiveEventSource`
 2. narrow `liveGameClient.ts` so it behaves as a live event source plus diagnostics emitter
 3. keep current behavior working behind adapter shims if needed
+4. add transport contract tests covering request loading, action submission, live connect/disconnect, and diagnostics
 
 Exit criteria:
 
 1. no app code depends on raw WebSocket-like objects
 2. transport responsibilities are clearly separated from refresh policy
+3. the transport contract tests pass
+4. the transport contract tests cover request loading, action submission, live connect/disconnect, and diagnostics
 
 ### Phase 2: Implement Session Controller
 
@@ -351,11 +235,14 @@ Deliverables:
 2. controller subscribe and getSnapshot API
 3. internal refresh scheduling, coalescing, retry, and stale rejection logic moved out of `App.tsx`
 4. `useGameSession` hook as a thin React adapter around the controller
+5. add controller behavior tests covering live-hint refresh, stale refresh rejection, phase-retry handling, and normalized errors
 
 Exit criteria:
 
 1. live sync logic no longer lives in `App.tsx`
 2. the controller can be exercised without React rendering
+3. controller contract and behavior tests pass
+4. controller tests cover live-hint refresh, stale refresh rejection, phase-retry handling, and normalized errors
 
 ### Phase 3: Shrink App And Extract Presentation Modules
 
@@ -364,11 +251,15 @@ Deliverables:
 1. `App.tsx` updated to consume the controller only
 2. utility extraction for pure battlefield view helpers if needed
 3. component extraction for connection gate, header, and debug diagnostics if it reduces shell complexity without blocking the controller work
+4. only the minimal App test updates needed to keep delegation coverage intact before the fake backend harness lands
+5. narrow App tests that verify controller wiring and UI-only state
 
 Exit criteria:
 
 1. app no longer checks whether the client is "live"
 2. app no longer owns refresh timers or event sequence refs
+3. App tests at this phase do not reintroduce transport or synchronization policy assertions
+4. the remaining App tests only validate controller wiring and UI-only state
 
 ### Phase 4: Add Fake Backend Harness
 
@@ -377,10 +268,25 @@ Deliverables:
 1. fake request transport
 2. fake live event source
 3. reusable deterministic session fixtures
+4. migrated App functional tests for controller-driven live behavior
+5. broad App functional tests migrated off browser WebSocket stubs and live-client state shims
 
 Exit criteria:
 
 1. controller and future app tests can drive live behavior without browser WebSocket stubs
+2. broad App orchestration coverage runs through fake ports rather than live-client state shims
+3. fake backend tests cover the full controller and App flow used by the refactor
+
+## TDD Plan
+
+Implementation follows red-green-refactor, with the phase blocks above carrying the test work and pass criteria.
+
+Overview:
+
+1. Write transport contract tests before Phase 1 implementation.
+2. Write controller behavior tests before Phase 2 implementation.
+3. Keep Phase 3 App tests narrow and delegation-focused.
+4. Move broad App functional coverage to Phase 4 after the fake backend harness exists.
 
 ## Parallel Agent Plan
 
@@ -401,6 +307,12 @@ Consult that file before assigning work so model choice stays consistent with cu
 Before parallel work starts, one lead change must land first:
 
 1. lock the contract and file layout from this spec
+
+That serial gate now includes these explicit testing decisions:
+
+1. transport contract tests are the first required red step before Phase 1 implementation
+2. broad App functional-test rewrites are deferred until Phase 4 introduces the fake backend harness
+3. only narrow App wiring tests may move earlier
 
 After that, the following work can proceed with low overlap.
 
@@ -533,10 +445,12 @@ The refactor is complete when all of the following are true:
 
 ## Delivery Notes
 
-Implementation should follow a red-green-refactor loop once coding begins, but this document intentionally stops at architecture and execution planning.
+This document now locks the serial-gate contract, file layout, and TDD sequencing for the refactor.
 
 When implementation starts:
 
-1. lock the contract first
-2. add focused controller-level tests around the chosen sync strategy
-3. then rewire the app against the controller
+1. write the transport contract tests first and make them fail
+2. implement the transport split until those tests pass
+3. write focused controller-level tests around the chosen sync strategy
+4. then rewire the app against the controller
+5. defer broad App orchestration-test rewrites until the fake backend harness is available
