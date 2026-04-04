@@ -29,9 +29,9 @@ The authoritative contract for the refactor lives in [web/src/lib/gameSessionTyp
 ## Actionable Checklist
 
 - [x] Move the contract into [web/src/lib/gameSessionTypes.ts](../web/src/lib/gameSessionTypes.ts)
-- [ ] Add red transport contract tests for `GameRequestTransport` and `LiveEventSource`
-- [ ] Implement the transport split
-- [ ] Add red controller tests for `GameSessionController`
+- [x] Add red transport contract tests for `GameRequestTransport` and `LiveEventSource`
+- [x] Implement the transport split
+- [x] Add red controller tests for `GameSessionController`
 - [ ] Implement the controller and `useGameSession`
 - [ ] Rewire `App.tsx` to consume the controller
 - [ ] Add the fake backend harness
