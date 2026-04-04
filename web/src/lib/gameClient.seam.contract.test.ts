@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
 	createGameClient,
-	type GameClientTransport,
 	type GameSnapshot,
 	type GameStateEnvelope,
 	type GameAction,
 	GameClientSeamError,
 } from './gameClient'
+import type { GameRequestTransport } from './gameSessionTypes'
 
 describe('game client seam contract', () => {
 	const snapshot: GameSnapshot = {
@@ -24,7 +24,7 @@ describe('game client seam contract', () => {
 	const action: GameAction = { type: 'set-mode', mode: 'end-phase' }
 
 	it('loads the current state through the seam', async () => {
-		const transport: GameClientTransport = {
+		const transport: GameRequestTransport = {
 			getState: vi.fn().mockResolvedValue({ snapshot, session }),
 			submitAction: vi.fn(),
 		}
@@ -36,7 +36,7 @@ describe('game client seam contract', () => {
 	})
 
 	it('submits actions through the seam', async () => {
-		const transport: GameClientTransport = {
+		const transport: GameRequestTransport = {
 			getState: vi.fn(),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
 		}
@@ -48,7 +48,7 @@ describe('game client seam contract', () => {
 	})
 
 	it('submits end phase actions through the seam', async () => {
-		const transport: GameClientTransport = {
+		const transport: GameRequestTransport = {
 			getState: vi.fn(),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
 		}
@@ -60,7 +60,7 @@ describe('game client seam contract', () => {
 	})
 
 	it('normalizes transport failures into a client error', async () => {
-		const transport: GameClientTransport = {
+		const transport: GameRequestTransport = {
 			getState: vi.fn().mockRejectedValue(new Error('socket closed')),
 			submitAction: vi.fn(),
 		}
@@ -73,7 +73,7 @@ describe('game client seam contract', () => {
 	})
 
 	it('handles transport failures when submitting actions', async () => {
-		const transport: GameClientTransport = {
+		const transport: GameRequestTransport = {
 			getState: vi.fn(),
 			submitAction: vi.fn().mockRejectedValue(new GameClientSeamError('transport', 'mocked fault' )),
 		}

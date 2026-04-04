@@ -1,4 +1,5 @@
 import type { GameState, TurnPhase } from '../../../src/types/index'
+import type { GameRequestTransport } from './gameSessionTypes'
 
 export type ScenarioMapSnapshot = {
 	width: number
@@ -64,9 +65,7 @@ export type GameClientError = {
 	message: string
 }
 
-export type GameClientTransport = {
-	getState(gameId: number): Promise<GameStateEnvelope>
-	submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
+export type GameClientTransport = GameRequestTransport & {
 	pollEvents?(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }
 
