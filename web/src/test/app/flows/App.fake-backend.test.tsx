@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { useMemo } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createFakeGameBackend } from '../../../lib/fakeGameBackend'
 import { createGameSessionController } from '../../../lib/gameSessionController'
@@ -110,5 +110,69 @@ describe('App fake backend vertical slice', () => {
 			expect(screen.getByTestId('connection').textContent).toBe('connected')
 		})
 		expect(backend.getEmittedSignals().filter((signal) => signal.kind === 'connection').length).toBeGreaterThanOrEqual(3)
+	})
+
+	it('reconnects and still applies a later live refresh through the fake backend', async () => {
+		const session: GameSessionContext = { role: 'defender' }
+		const backend = createFakeGameBackend({
+			initialSnapshot: createSnapshot({
+				phase: 'DEFENDER_COMBAT',
+				lastEventSeq: 70,
+				scenarioName: 'Reconnect baseline snapshot',
+			}),
+			session,
+		})
+
+		render(<SessionHarness backend={backend} gameId={123} />)
+
+		await waitFor(() => {
+			expect(screen.getByTestId('status').textContent).toBe('ready')
+		})
+		expect(screen.getByTestId('connection').textContent).toBe('connected')
+
+		vi.useFakeTimers()
+		try {
+			act(() => {
+				backend.liveEventSource.disconnect(123)
+			})
+			expect(screen.getByTestId('connection').textContent).toBe('disconnected')
+
+			backend.queueRefresh(
+				createSnapshot({
+					phase: 'ONION_MOVE',
+					lastEventSeq: 71,
+					scenarioName: 'Reconnect refreshed snapshot',
+				}),
+				session,
+			)
+
+			act(() => {
+				backend.liveEventSource.connect(123)
+			})
+
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(1)
+			})
+			expect(screen.getByTestId('connection').textContent).toBe('connected')
+
+			act(() => {
+				backend.emitLiveSignal({
+					kind: 'event',
+					gameId: 123,
+					eventSeq: 71,
+					eventType: 'PHASE_CHANGED',
+				})
+			})
+
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(5)
+			})
+
+			expect(screen.getByTestId('phase').textContent).toBe('ONION_MOVE')
+			expect(screen.getByTestId('sequence').textContent).toBe('71')
+			expect(screen.getByTestId('scenario').textContent).toBe('Reconnect refreshed snapshot')
+		} finally {
+			vi.useRealTimers()
+		}
 	})
 })
