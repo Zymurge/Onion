@@ -35,6 +35,7 @@ break down into features/tasks as needed.
 - [ ] Refactor movement resolution to read per-unit terrain rules from the shared unit definitions instead of hardcoded terrain checks.
   - [ ] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
 - [ ] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
+- [ ] Reorganize backend tests into the same layer-and-purpose folders used by the web test tree.
 
 ## Done
 

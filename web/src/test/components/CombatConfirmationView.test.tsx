@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { CombatConfirmationView } from './CombatConfirmationView'
+import { CombatConfirmationView } from '../../components/CombatConfirmationView'
 
 describe('CombatConfirmationView', () => {
   it('renders the attack ratio and relevant modifiers', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCombatRangeHexKeys } from './combatRange'
+import { buildCombatRangeHexKeys } from '../../../lib/combatRange'
 
 describe('buildCombatRangeHexKeys', () => {
   it('returns an empty set when no sources are selected', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createHttpGameRequestTransport } from './httpGameClient'
+import { createHttpGameRequestTransport } from '../../../lib/httpGameClient'
 
 describe('http game request transport contract', () => {
 	it('loads state over HTTP through the request transport seam', async () => {

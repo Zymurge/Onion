@@ -6,8 +6,9 @@ import {
 	type GameStateEnvelope,
 	type GameAction,
 	GameClientSeamError,
-} from './gameClient'
-import type { GameRequestTransport } from './gameSessionTypes'
+} from '../../../lib/gameClient'
+import { createFakeGameBackend } from '../../../lib/fakeGameBackend'
+import type { GameRequestTransport } from '../../../lib/gameSessionTypes'
 
 describe('game client seam contract', () => {
 	const snapshot: GameSnapshot = {
@@ -47,6 +48,45 @@ describe('game client seam contract', () => {
 		expect(transport.submitAction).toHaveBeenCalledWith(123, action)
 	})
 
+	it('passes through a fake backend transport and normalizes load failures', async () => {
+		const backend = createFakeGameBackend({
+			initialSnapshot: snapshot,
+			session,
+		})
+		backend.failNextRefreshWith(new Error('fake backend refresh failed'))
+
+		const client = createGameClient(backend.requestTransport)
+
+		await expect(client.getState(123)).rejects.toMatchObject({
+			kind: 'transport',
+			message: 'fake backend refresh failed',
+		})
+		expect(backend.getCurrentSnapshot()).toEqual(snapshot)
+		expect(backend.getCurrentSession()).toEqual(session)
+	})
+
+	it('passes through a fake backend transport for actions and records submitted payloads', async () => {
+		const backend = createFakeGameBackend({
+			initialSnapshot: snapshot,
+			session,
+		})
+		const client = createGameClient(backend.requestTransport)
+
+		await expect(client.submitAction(123, action)).resolves.toEqual(snapshot)
+		expect(backend.getSubmittedActions()).toEqual([
+			{ gameId: 123, action },
+		])
+	})
+
+	it('returns an empty live event list when the transport does not expose polling', async () => {
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+		})
+
+		await expect(client.pollEvents(123, 47)).resolves.toEqual([])
+	})
+
 	it('submits end phase actions through the seam', async () => {
 		const transport: GameRequestTransport = {
 			getState: vi.fn(),
@@ -72,6 +112,20 @@ describe('game client seam contract', () => {
 		})
 	})
 
+	it('normalizes non-error transport failures using the fallback message', async () => {
+		const transport: GameRequestTransport = {
+			getState: vi.fn().mockRejectedValue('socket closed'),
+			submitAction: vi.fn(),
+		}
+
+		const client = createGameClient(transport)
+
+		await expect(client.getState(123)).rejects.toMatchObject({
+			kind: 'transport',
+			message: 'Unexpected transport failure',
+		})
+	})
+
 	it('handles transport failures when submitting actions', async () => {
 		const transport: GameRequestTransport = {
 			getState: vi.fn(),
@@ -89,5 +143,18 @@ describe('game client seam contract', () => {
 		
 		expect((error as GameClientSeamError).kind).toBe('transport')
 		expect((error as GameClientSeamError).message).toBe('mocked fault')
+	})
+
+	it('normalizes poll failures from the seam', async () => {
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockRejectedValue(new Error('poll socket closed')),
+		})
+
+		await expect(client.pollEvents(123, 47)).rejects.toMatchObject({
+			kind: 'transport',
+			message: 'poll socket closed',
+		})
 	})
 })

@@ -2,8 +2,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { HexMapBoard } from './HexMapBoard'
-import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '../lib/battlefieldView'
+import { HexMapBoard } from '../../components/HexMapBoard'
+import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '../../lib/battlefieldView'
 
 const scenarioMap = {
 	width: 5,

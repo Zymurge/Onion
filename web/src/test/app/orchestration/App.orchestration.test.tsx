@@ -3,11 +3,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import App from './App'
-import { createGameClient, type GameSnapshot } from './lib/gameClient'
-import type { LiveGameClient, LiveGameClientState } from './lib/liveGameClient'
-import type { GameState } from '../../src/types/index'
-import { createMoveGameState } from '../../src/shared/moveFixtures'
+import App from '../../../App'
+import { createGameClient, type GameSnapshot } from '../../../lib/gameClient'
+import type { LiveGameClient, LiveGameClientState } from '../../../lib/liveGameClient'
+import type { GameState } from '../../../../../src/types/index'
+import { createMoveGameState } from '../../../../../src/shared/moveFixtures'
 
 type AuthoritativeBattlefieldSnapshot = GameSnapshot & {
 	authoritativeState: GameState

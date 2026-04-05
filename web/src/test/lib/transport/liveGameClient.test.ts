@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createLiveGameClient, type LiveGameClientState } from './liveGameClient'
+import { createLiveGameClient, type LiveGameClientState } from '../../../lib/liveGameClient'
 
 class FakeWebSocket {
 	static CONNECTING = 0

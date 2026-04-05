@@ -3,8 +3,8 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { GameSessionController, GameSessionViewState } from './gameSessionTypes'
-import { useGameSession } from './useGameSession'
+import type { GameSessionController, GameSessionViewState } from '../../../lib/gameSessionTypes'
+import { useGameSession } from '../../../lib/useGameSession'
 
 function createState(overrides: Partial<GameSessionViewState> = {}): GameSessionViewState {
 	return {

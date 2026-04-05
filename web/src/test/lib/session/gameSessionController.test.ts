@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { GameClientSeamError, type GameSnapshot } from './gameClient'
-import { createGameSessionController } from './gameSessionController'
+import { GameClientSeamError, type GameSnapshot } from '../../../lib/gameClient'
+import { createGameSessionController } from '../../../lib/gameSessionController'
 import type {
 	GameRequestTransport,
 	GameSessionController,
@@ -9,8 +9,8 @@ import type {
 	LiveConnectionStatus,
 	LiveEventSource,
 	LiveSessionSignal,
-} from './gameSessionTypes'
-import type { TurnPhase } from '../../../src/types/index'
+} from '../../../lib/gameSessionTypes'
+import type { TurnPhase } from '../../../../../src/types/index'
 
 function createDeferred<T>() {
 	let resolve!: (value: T | PromiseLike<T>) => void

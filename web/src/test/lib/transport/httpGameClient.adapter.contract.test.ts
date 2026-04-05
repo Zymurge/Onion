@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createHttpGameClient } from './httpGameClient'
+import { createHttpGameClient } from '../../../lib/httpGameClient'
 
 describe('http game client adapter contract', () => {
 	it('loads state and polls events over HTTP', async () => {

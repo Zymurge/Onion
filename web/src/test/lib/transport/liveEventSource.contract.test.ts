@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { createLiveEventSource } from './liveEventSource'
-import type { LiveSessionSignal } from './gameSessionTypes'
+import { createLiveEventSource } from '../../../lib/liveEventSource'
+import type { LiveSessionSignal } from '../../../lib/gameSessionTypes'
 
 class FakeWebSocket {
 	static CONNECTING = 0

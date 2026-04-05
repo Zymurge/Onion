@@ -3,8 +3,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import App from './App'
-import type { GameSnapshot } from './lib/gameClient'
+import App from '../../../App'
+import type { GameSnapshot } from '../../../lib/gameClient'
 
 const createLiveGameClient = vi.hoisted(() => vi.fn())
 const requestJson = vi.hoisted(() => vi.fn())
@@ -13,11 +13,11 @@ const getApiProtocolTrafficSnapshot = vi.hoisted(() => vi.fn().mockReturnValue([
 const formatApiProtocolTrafficEntry = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const subscribeApiProtocolTraffic = vi.hoisted(() => vi.fn().mockReturnValue(vi.fn()))
 
-vi.mock('./lib/liveGameClient', () => ({
+vi.mock('../../../lib/liveGameClient', () => ({
 	createLiveGameClient,
 }))
 
-vi.mock('../../src/shared/apiProtocol', () => ({
+vi.mock('../../../../../src/shared/apiProtocol', () => ({
 	requestJson,
 	clearApiProtocolTraffic,
 	getApiProtocolTrafficSnapshot,

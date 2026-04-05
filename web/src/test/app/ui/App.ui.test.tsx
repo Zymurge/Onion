@@ -4,10 +4,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import App from './App'
-import { createGameClient, type GameSnapshot } from './lib/gameClient'
-import { clearApiProtocolTraffic, requestJson } from '../../src/shared/apiProtocol'
-import type { GameState } from '../../src/types/index'
+import App from '../../../App'
+import { createGameClient, type GameSnapshot } from '../../../lib/gameClient'
+import { clearApiProtocolTraffic, requestJson } from '../../../../../src/shared/apiProtocol'
+import type { GameState } from '../../../../../src/types/index'
 
 type LoadedBattlefieldSnapshot = GameSnapshot & {
 	authoritativeState: GameState
