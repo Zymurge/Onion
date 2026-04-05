@@ -15,7 +15,7 @@ break down into features/tasks as needed.
     - [x] Keep resume/snapshot behavior intact so reconnecting clients can catch up from `afterSeq`.
     - [x] Add tests proving each action path emits the expected live event stream to an active websocket client.
   - [x] Wire the web UI to consume live WS updates for the active match and keep the debug stream visible.
-  - [ ] Add integration coverage for connect, reconnect, and live state refresh behavior.
+  - [ ] Add integration coverage for connect, reconnect, live state refresh, and App/controller wiring behavior through the fake backend harness.
 - [ ] Place End Phase control in UI and wire to backend
 
 ## Epics / Major Work
