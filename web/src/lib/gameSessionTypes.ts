@@ -81,7 +81,7 @@ export type GameSessionController = {
 	getSnapshot(): GameSessionViewState
 	load(): Promise<void>
 	refresh(reason?: GameSessionRefreshReason): Promise<void>
-	submitAction(action: GameAction): Promise<void>
+	submitAction(action: GameAction): Promise<GameSnapshot | null>
 	dispose(): void
 }
 

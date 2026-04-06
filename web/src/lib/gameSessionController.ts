@@ -338,10 +338,49 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 			await loadOrRefresh(reason)
 		},
-		async submitAction() {
-			// Action submission is intentionally disabled for now.
-			// Re-enable this path when the transport and controller submission flow is back in scope.
-			return
+		async submitAction(action) {
+			if (disposed) {
+				return null
+			}
+
+			options.liveEventSource.connect(options.gameId)
+			setState({ status: 'refreshing', error: null })
+
+			const version = ++requestVersion
+			const currentSession = state.session
+
+			try {
+				const nextSnapshot = await options.requestTransport.submitAction(options.gameId, action)
+
+				if (!shouldAcceptSnapshot(nextSnapshot.lastEventSeq, null, version)) {
+					return null
+				}
+
+				latestObservedEventSeq = latestObservedEventSeq === null
+					? nextSnapshot.lastEventSeq
+					: Math.max(latestObservedEventSeq, nextSnapshot.lastEventSeq)
+				latestObservedEventType = null
+
+				state = {
+					...state,
+					status: 'ready',
+					snapshot: nextSnapshot,
+					session: currentSession,
+					lastAppliedEventSeq: latestObservedEventSeq,
+					lastAppliedEventType: latestObservedEventType,
+					lastUpdatedAt: new Date(),
+					error: null,
+				}
+				emit()
+				return nextSnapshot
+			} catch (error) {
+				const normalizedError = normalizeTransportError(error)
+				setState({
+					status: 'error',
+					error: normalizedError,
+				})
+				throw normalizedError
+			}
 		},
 		dispose() {
 			if (disposed) {

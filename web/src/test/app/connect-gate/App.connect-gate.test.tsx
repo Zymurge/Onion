@@ -6,15 +6,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../../App'
 import type { GameSnapshot } from '../../../lib/gameClient'
 
-const createLiveGameClient = vi.hoisted(() => vi.fn())
+const createHttpGameRequestTransport = vi.hoisted(() => vi.fn())
+const createLiveEventSource = vi.hoisted(() => vi.fn())
 const requestJson = vi.hoisted(() => vi.fn())
 const clearApiProtocolTraffic = vi.hoisted(() => vi.fn())
 const getApiProtocolTrafficSnapshot = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const formatApiProtocolTrafficEntry = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const subscribeApiProtocolTraffic = vi.hoisted(() => vi.fn().mockReturnValue(vi.fn()))
 
-vi.mock('../../../lib/liveGameClient', () => ({
-	createLiveGameClient,
+vi.mock('../../../lib/httpGameClient', () => ({
+	createHttpGameRequestTransport,
+}))
+
+vi.mock('../../../lib/liveEventSource', () => ({
+	createLiveEventSource,
 }))
 
 vi.mock('../../../../../src/shared/apiProtocol', () => ({
@@ -151,20 +156,18 @@ describe('App connect gate', () => {
 			data: { userId: 'user-123', token: 'stub.token' },
 		})
 
-		createLiveGameClient.mockReturnValue({
+		createHttpGameRequestTransport.mockReturnValue({
 			getState: vi.fn().mockResolvedValue({
 				snapshot: createLoadedSnapshot('ONION_MOVE'),
 				session: { role: 'onion' },
 			}),
 			submitAction,
-			pollEvents: vi.fn().mockResolvedValue([]),
-			subscribeLiveState: vi.fn().mockReturnValue(vi.fn()),
-			getLiveState: vi.fn().mockReturnValue({
-				connectionStatus: 'connected',
-				lastUpdatedAt,
-				lastEventSeq: 47,
-				gameId: 123,
-			}),
+		})
+		createLiveEventSource.mockReturnValue({
+			subscribe: vi.fn().mockReturnValue(vi.fn()),
+			connect: vi.fn(),
+			disconnect: vi.fn(),
+			getConnectionState: vi.fn().mockReturnValue('connected'),
 		})
 
 		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123 }} showConnectionGate />)
@@ -184,7 +187,11 @@ describe('App connect gate', () => {
 				},
 			}),
 		)
-		expect(createLiveGameClient).toHaveBeenCalledWith({
+		expect(createHttpGameRequestTransport).toHaveBeenCalledWith({
+			baseUrl: 'http://localhost:3000',
+			token: 'stub.token',
+		})
+		expect(createLiveEventSource).toHaveBeenCalledWith({
 			baseUrl: 'http://localhost:3000',
 			token: 'stub.token',
 		})
@@ -214,20 +221,18 @@ describe('App connect gate', () => {
 			data: { userId: 'user-123', token: 'stub.token' },
 		})
 
-		createLiveGameClient.mockReturnValue({
+		createHttpGameRequestTransport.mockReturnValue({
 			getState: vi.fn().mockResolvedValue({
 				snapshot: createLoadedSnapshot('DEFENDER_MOVE'),
 				session: { role: 'onion' },
 			}),
 			submitAction: vi.fn(),
-			pollEvents: vi.fn().mockResolvedValue([]),
-			subscribeLiveState: vi.fn().mockReturnValue(vi.fn()),
-			getLiveState: vi.fn().mockReturnValue({
-				connectionStatus: 'connected',
-				lastUpdatedAt: null,
-				lastEventSeq: 47,
-				gameId: 123,
-			}),
+		})
+		createLiveEventSource.mockReturnValue({
+			subscribe: vi.fn().mockReturnValue(vi.fn()),
+			connect: vi.fn(),
+			disconnect: vi.fn(),
+			getConnectionState: vi.fn().mockReturnValue('connected'),
 		})
 
 		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123 }} showConnectionGate />)

@@ -1,6 +1,6 @@
 # Web Session Controller Refactor Spec
 
-Status: Plan of record
+Status: Implemented through Phase 4
 Date: 2026-04-04
 Branch: `feature/web-session-controller-refactor`
 
@@ -33,9 +33,9 @@ The authoritative contract for the refactor lives in [web/src/lib/gameSessionTyp
 - [x] Implement the transport split
 - [x] Add red controller tests for `GameSessionController`
 - [x] Implement the controller and `useGameSession`
-- [ ] Add the fake backend harness
-- [ ] Migrate broad App functional tests onto the fake backend harness
-- [ ] Rewire `App.tsx` to consume the controller
+- [x] Add the fake backend harness *(Phase 3 complete as of 2026-04-05)*
+- [x] Migrate broad App functional tests onto the fake backend harness *(Phase 3 complete as of 2026-04-05)*
+- [x] Rewire `App.tsx` to consume the controller *(Phase 4 complete as of 2026-04-05)*
 
 ## Target Architecture
 
@@ -244,7 +244,6 @@ Exit criteria:
 3. controller contract and behavior tests pass
 4. controller tests cover live-hint refresh, stale refresh rejection, phase-retry handling, and normalized errors
 
-
 ### Phase 3: Add Fake Backend Harness
 
 Deliverables:
@@ -262,6 +261,8 @@ Exit criteria:
 3. fake backend tests cover the full controller and App flow used by the refactor
 
 ### Phase 4: Shrink App And Extract Presentation Modules
+
+Status: Complete as of 2026-04-05
 
 Deliverables:
 

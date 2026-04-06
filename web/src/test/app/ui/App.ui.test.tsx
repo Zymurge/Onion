@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { StrictMode } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -230,32 +230,34 @@ describe('App UI', () => {
 
 		expect(screen.getByText(/No protocol traffic yet/i)).not.toBeNull()
 
-		await requestJson({
-			baseUrl: 'http://example.com',
-			path: 'auth/login',
-			method: 'POST',
-			body: {
-				username: 'player-1',
-				password: 'secret',
-			},
-			fetchImpl: vi.fn().mockResolvedValue(
-				new Response(JSON.stringify({ userId: 'user-123', token: 'stub.token' }), {
-					status: 200,
-					headers: { 'content-type': 'application/json' },
-				}),
-			),
-		})
+		await act(async () => {
+			await requestJson({
+				baseUrl: 'http://example.com',
+				path: 'auth/login',
+				method: 'POST',
+				body: {
+					username: 'player-1',
+					password: 'secret',
+				},
+				fetchImpl: vi.fn().mockResolvedValue(
+					new Response(JSON.stringify({ userId: 'user-123', token: 'stub.token' }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}),
+				),
+			})
 
-		await requestJson({
-			baseUrl: 'http://example.com',
-			path: 'games/123',
-			method: 'GET',
-			fetchImpl: vi.fn().mockResolvedValue(
-				new Response(JSON.stringify({ ok: true }), {
-					status: 200,
-					headers: { 'content-type': 'application/json' },
-				}),
-			),
+			await requestJson({
+				baseUrl: 'http://example.com',
+				path: 'games/123',
+				method: 'GET',
+				fetchImpl: vi.fn().mockResolvedValue(
+					new Response(JSON.stringify({ ok: true }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}),
+				),
+			})
 		})
 
 		const debugEntrySummaries = await screen.findAllByText(
