@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '../../../App'
-import type { GameSnapshot } from '../../../lib/gameClient'
+import type { GameClient, GameSnapshot } from '../../../lib/gameClient'
+import type { LiveEventSource } from '../../../lib/gameSessionTypes'
 
 const createHttpGameRequestTransport = vi.hoisted(() => vi.fn())
 const createLiveEventSource = vi.hoisted(() => vi.fn())
@@ -121,6 +122,26 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 			],
 		},
 	} as GameSnapshot
+}
+
+function createControlledClient(snapshot: GameSnapshot): GameClient {
+	return {
+		getState: vi.fn().mockResolvedValue({
+			snapshot,
+			session: { role: 'onion' },
+		}),
+		submitAction: vi.fn(),
+		pollEvents: vi.fn().mockResolvedValue([]),
+	}
+}
+
+function createControlledLiveEventSource(connectionStatus: 'connected' | 'idle' = 'connected'): LiveEventSource & { disconnect: ReturnType<typeof vi.fn> } {
+	return {
+		subscribe: vi.fn().mockReturnValue(vi.fn()),
+		connect: vi.fn(),
+		disconnect: vi.fn(),
+		getConnectionState: vi.fn().mockReturnValue(connectionStatus),
+	}
 }
 
 beforeEach(() => {
@@ -245,5 +266,40 @@ describe('App connect gate', () => {
 		expect(roleBadge.classList.contains('role-badge-inactive')).toBe(true)
 		expect(roleBadge.classList.contains('role-badge-active')).toBe(false)
 		timeSpy.mockRestore()
+	})
+
+	it('disposes the previous session controller when the bound session changes', async () => {
+		const firstClient = createControlledClient(createLoadedSnapshot('ONION_MOVE'))
+		const secondClient = createControlledClient({
+			...createLoadedSnapshot('DEFENDER_MOVE'),
+			gameId: 456,
+			turnNumber: 12,
+		})
+		const firstLiveEventSource = createControlledLiveEventSource()
+		const secondLiveEventSource = createControlledLiveEventSource()
+
+		const view = render(
+			<App
+				gameClient={firstClient}
+				gameId={123}
+				liveEventSource={firstLiveEventSource}
+			/>,
+		)
+
+		await waitFor(() => {
+			expect(firstClient.getState).toHaveBeenCalledTimes(1)
+		})
+
+		view.rerender(
+			<App
+				gameClient={secondClient}
+				gameId={456}
+				liveEventSource={secondLiveEventSource}
+			/>,
+		)
+
+		await waitFor(() => {
+			expect(firstLiveEventSource.disconnect).toHaveBeenCalledWith(123)
+		})
 	})
 })

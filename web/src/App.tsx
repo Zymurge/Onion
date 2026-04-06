@@ -620,7 +620,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const sessionState = useGameSession(activeSessionController ?? idleSessionController, {
     autoLoad: activeSessionController !== null,
-    disposeOnUnmount: false,
+    disposeOnUnmount: true,
   })
 
   const clientSnapshot = combatBaseSnapshot ?? sessionState.snapshot
