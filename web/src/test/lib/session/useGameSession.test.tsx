@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 
+import { StrictMode } from 'react'
+
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -75,6 +77,33 @@ describe('useGameSession', () => {
 		})
 
 		view.unmount()
-		expect(controller.dispose).toHaveBeenCalledTimes(1)
+		await waitFor(() => {
+			expect(controller.dispose).toHaveBeenCalledTimes(1)
+		})
+	})
+
+	it('does not dispose the active controller during StrictMode effect replay', async () => {
+		const controller = createController()
+		const view = render(
+			<StrictMode>
+				<TestHarness controller={controller} />
+			</StrictMode>,
+		)
+
+		await waitFor(() => {
+			expect(controller.load).toHaveBeenCalled()
+		})
+
+		await act(async () => {
+			await Promise.resolve()
+		})
+
+		expect(controller.dispose).toHaveBeenCalledTimes(0)
+
+		view.unmount()
+
+		await waitFor(() => {
+			expect(controller.dispose).toHaveBeenCalledTimes(1)
+		})
 	})
 })
