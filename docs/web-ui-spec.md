@@ -182,6 +182,14 @@ Exit Criteria:
 3. Rail controls, map occupants, and hex cells must expose stable `data-testid` hooks keyed by unit id or coordinate so tests can pair a rail selection with the same unit on the board.
 4. Tests should assert selection and deselection by id and selection state, not by user-facing narration text.
 
+## Right Rail Drawer
+
+1. The right rail is the default unit inspector drawer in every phase.
+2. Any unit that is not currently selected can be opened in the right rail for inspection, regardless of owner.
+3. Inspection shows the unit's stats, status, and other read-only details.
+4. When combat attacker selection is active, the right rail temporarily switches to the targeting list and confirmation view for that selection.
+5. When no unit is selected and no combat targeting is active, the right rail may remain collapsed.
+
 ## Rule
 
 Never mutate server-derived game state as if it were authoritative. Always reconcile
@@ -197,7 +205,7 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 1. During non-active role turn: action controls lowlighted/disabled, read-only
    explanation shown.
 2. During active phase: show only legal command entry points for that role/phase.
-3. For `END_PHASE`: always visible when caller has active role and game not over.
+3. The phase advancement control lives in the header and uses a context-aware label based on the current phase and role.
 4. For fire actions: enforce complete required inputs before enabling submit.
 5. In each action mode, units that can act are visually highlighted and listed with
    pertinent stats.
@@ -225,8 +233,14 @@ unit roster, unit positions, or unit status once authoritative game data has loa
 
 **Selection & Deselection:**
 
-- Left-clicking on any unit selects it, displaying its details in the right rail and deselecting any previously selected unit.
+- Left-clicking on any unit selects it, displaying its details in the right rail inspector and deselecting any previously selected unit.
 - Left-clicking on any empty hex or non-unit area of the hexmap deselects the current selection and removes all move overlays.
+
+**Inspector Drawer:**
+
+- Any unselected unit on the map or in a rail can be opened in the right rail for inspection in any phase.
+- Inspecting a unit does not change the current selection unless the user explicitly selects it.
+- The inspector is the default right-rail content unless combat targeting is active.
 
 **Move Radius & Action:**
 
@@ -322,3 +336,141 @@ bounds from authoritative game state and scenario map data rather than from
 2. Is websocket support required for Phase 2, or explicitly deferred to Phase 3?
 3. Do we need spectator mode in this track, or post-1.0 web milestone?
 4. Preferred design token baseline and brand style direction for final visual pass?
+
+## Phase Advancement Control and MOVE Phase UI (2026-04-05)
+
+### Context-Aware Phase Advancement Button
+
+- The UI presents a context-aware button for phase advancement, with the label and presence determined by the current phase and player role.
+- The button is always visible to the active player, even if they have not used all available moves, allowing them to proceed to the next phase at any time.
+- The button mapping is as follows:
+
+  | Phase                | Owner     | Button Label           | Visible? |
+  |----------------------|-----------|------------------------|----------|
+  | ONION_MOVE           | onion     | Start Combat           | Yes      |
+  | ONION_COMBAT         | onion     | End Turn               | Yes      |
+  | DEFENDER_MOVE        | defender  | Start Combat           | Yes      |
+  | DEFENDER_COMBAT      | defender  | Begin Secondary Move   | Yes      |
+  | GEV_SECOND_MOVE      | defender  | End Turn               | Yes      |
+  | DEFENDER_RECOVERY    | defender  | —                      | No/??    |
+
+- The dispatched action remains `{ type: 'end-phase' }`, but the UI adapts the label and tooltip for clarity.
+- The phase-to-label mapping should be centralized in a helper for maintainability.
+
+### MOVE Phase UI Redesign
+
+#### General Principles
+
+- The MOVE phase is focused on unit movement; only actionable units should be visually prominent and selectable.
+- The UI should minimize distractions and focus the player on movement decisions.
+
+#### Defender MOVE
+
+- **Left Rail:**
+  - Show only the list of defender units that can move (omit Onion entirely).
+  - Each defender card displays unit type, ID, remaining movement allowance, and status.
+  - Allow selection of a unit to highlight it on the map and enable movement.
+  - Optionally, group or visually separate units that are out of moves or disabled.
+- **Right Rail:**
+  - Shows inspector details for any unselected unit that the user opens from the map or rail.
+  - May show contextual help only when no unit is being inspected.
+- **Map:**
+  - Highlight the selected unit and its possible destinations.
+  - Clicking a destination moves the unit.
+  - Disabled units are visually distinct (dimmed, grayed out).
+- **Phase Advancement:**
+  - The "Start Combat" button is always visible, allowing the player to proceed to combat at any time, even if not all moves are used.
+
+#### Onion MOVE
+
+- **Left Rail:**
+  - Show only the Onion card (since only the Onion moves in this phase).
+  - Display Onion’s remaining moves, treads, and status.
+  - Omit defenders entirely.
+- **Right Rail:**
+  - Shows inspector details for any unselected unit that the user opens from the map or rail.
+  - May show contextual help only when no unit is being inspected.
+- **Map:**
+  - Highlight Onion and its possible destinations.
+  - Clicking a destination moves the Onion.
+- **Phase Advancement:**
+  - The "Start Combat" button is always visible, allowing the player to proceed to combat at any time.
+
+#### Secondary Move (GEV_SECOND_MOVE) Phase UI
+
+- The UI treatment for the Secondary Move phase is identical to the primary MOVE phase:
+  - **Left Rail:** Only show defender units eligible for a secondary move (e.g., GEVs or any future unit types with second moves).
+  - **Right Rail:** Same as MOVE—show inspector details for any unselected unit, with contextual help only when nothing is being inspected.
+  - **Map:** Highlight eligible units and their possible destinations.
+  - **Phase Advancement:** The "End Turn" button is always visible, allowing the player to proceed at any time.
+- The only difference is in the underlying logic that determines which units are eligible for a secondary move (e.g., only GEVs, or other types as rules evolve).
+
+#### Additional UX Notes
+
+- If no units can move, show a clear message (“No units available to move”).
+- Use tooltips or hover states to explain why a unit cannot move (e.g., “Disabled”, “No moves left”).
+- Provide a prominent, always-visible "Start Combat" button during MOVE phases.
+- Remove Onion from defender’s left rail and defenders from Onion’s left rail.
+- Use the right rail as the inspector drawer in MOVE; it remains available for any unselected unit in the phase.
+- Focus the UI on actionable units and movement, minimizing clutter.
+- Hovering over an opponent's unit will provide a pop-up with their stats
+
+#### Combat Phase UI (Consistency & Targeting List)
+
+- The left rail is always for attacker selection (Onion weapons or defender units).
+- The right rail is the default inspector drawer, but when an attacker (or group) is selected it switches to the targeting list and confirmation view for that selection.
+- The map visually reflects both attacker and target selections, with overlays for range and eligibility.
+
+##### Onion Combat Phase
+
+- **Left Rail:**
+  - List all Onion weapons eligible to attack (grouped by type if needed).
+  - Allow multi-select (ctrl/cmd-click) for combined attacks.
+  - Show weapon stats and status.
+- **Right Rail:**
+  - Shows the targeting list and confirmation view while at least one weapon is selected.
+  - Otherwise acts as the inspector drawer for any unselected unit.
+  - Lists all valid targets for the current attacker selection, with target stats and modifiers.
+  - Selecting a target highlights it on the map and enables confirmation.
+- **Map:**
+  - Highlights range overlays for selected weapons.
+  - Highlights valid targets within range.
+  - Clicking a target on the map also selects it in the right rail (and vice versa).
+- **Confirmation:**
+  - Once attackers and a target are selected, show a confirmation view (in the right rail or as a modal) with attack/defense breakdown and a “Resolve Combat” button.
+
+##### Defender Combat Phase
+
+- **Left Rail:**
+  - List all defender units eligible to attack.
+  - Allow multi-select for group attacks.
+  - Show unit stats and status.
+- **Right Rail:**
+  - Shows the targeting list and confirmation view while at least one unit is selected.
+  - Otherwise acts as the inspector drawer for any unselected unit.
+  - Lists all valid Onion targets for the current attacker selection, with target stats and modifiers.
+- **Map:**
+  - Highlights range overlays for selected units.
+  - Highlights valid targets.
+  - Map and right rail selections are synchronized.
+- **Confirmation:**
+  - As above, show a confirmation view with attack/defense breakdown and a “Resolve Combat” button.
+
+##### Targeting List UX
+
+- The right rail is the canonical targeting list while attacker selection is active.
+- Only shows targets that are legal for the current attacker selection.
+- If no valid targets, show a clear message (“No valid targets in range”).
+- Map and right rail are always in sync: selecting a target in one highlights it in the other.
+
+##### Additional Consistency Points
+
+- Always use the same layout: left = attackers, right (drawer) = targets, map = visual context.
+- Use consistent selection/deselection and multi-select patterns.
+- Always require explicit confirmation before resolving combat.
+- Disabled or ineligible attackers/targets are visible but clearly marked and not selectable.
+
+##### Phase Advancement Control Placement
+
+- The context-aware phase advancement control (e.g., "Start Combat", "End Turn") is placed in the header, near the current phase indicator, for maximum visibility and consistency.
+- This keeps phase context and control together, reducing confusion and improving discoverability.

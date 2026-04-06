@@ -5,18 +5,45 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [ ] Transition to WebSocket for live updates
-  - [x] Define the WS message envelope and event contract for game state updates, actions, and reconnect handling.
-  - [x] Add a server-side WS endpoint alongside the existing REST API without removing polling yet.
-  - [x] Add a client transport adapter that can subscribe to live updates and fall back to the current HTTP path.
-  - [x] Hook the connection status indicator and last update display in the header to the WS connection.
-  - [x] Extend backend to fan out every persisted state-change event to all connected WS clients.
-    - [x] Broadcast action-derived events after successful persistence for MOVE, FIRE, and END_PHASE.
-    - [x] Keep resume/snapshot behavior intact so reconnecting clients can catch up from `afterSeq`.
-    - [x] Add tests proving each action path emits the expected live event stream to an active websocket client.
-  - [x] Wire the web UI to consume live WS updates for the active match and keep the debug stream visible.
-  - [x] Add integration coverage for connect, reconnect, live state refresh, and App/controller wiring behavior through the fake backend harness.
 - [ ] Place End Phase control in UI and wire to backend
+  - [x] Identify all phases where a context-aware phase advancement control should be available to the active player, with a label that matches the next phase or action (e.g., "Start Combat", "End Turn").
+  - [x] The control's label and presence are determined by the current phase and role, not a static location.
+
+  ### Pre-Implementation Checklist
+
+**UI Spec Finalization**
+
+- [x] All phase flows, rail content, and button placements are documented. (Spec updated: right rail is default inspector, header-based phase control)
+- [x] Context-aware phase advancement control mapping is clear. (Spec updated, action affordance matrix revised)
+- [x] Combat and movement UI/UX is specified for both roles. (Spec and matrix revised, outdated/conflicting guidance removed)
+
+**Component/State Design**
+
+- [ ] Confirm or sketch component boundaries (e.g., LeftRail, RightRailDrawer, Header, Map, PhaseControl).
+- [ ] Ensure state flows (selected attacker, selected target, eligible units) are clear and testable.
+
+**Phase/Role Logic**
+
+- [ ] Centralize phase/role → UI mapping in a helper (for button labels, eligible units, etc.).
+- [ ] Confirm eligibility logic for movement and combat is well-defined.
+
+**Test Plan**
+
+- [ ] Identify key UI states and transitions to cover in component/integration tests.
+- [ ] Plan for red-first tests for new/changed UI flows.
+
+**Design Tokens/Style**
+
+- [ ] If you want a consistent look, confirm any design tokens, colors, or spacing rules (can be refined later).
+
+**API/Contract Review**
+
+- [ ] Confirm all required data is available from the session controller and game state.
+- [ ] Ensure the action dispatch contract (`{ type: 'end-phase' }`, etc.) is stable.
+
+**Migration/Refactor Plan**
+
+- [ ] Decide if you will refactor incrementally (e.g., MOVE phase first, then COMBAT), or as a single PR.
 
 ## Epics / Major Work
 
@@ -68,3 +95,14 @@ break down into features/tasks as needed.
     - [x] Reconcile the board from authoritative state after combat so destroyed units disappear and overlays/inspector state refresh correctly.
     - [x] Handle stale or rejected combat outcomes cleanly so the UI can recover without leaving the board half-updated.
     - [x] Add regression tests for selection rules, range overlays, confirmation flow, toast dismissal, and post-combat board updates.
+- [x] Transition to WebSocket for live updates
+  - [x] Define the WS message envelope and event contract for game state updates, actions, and reconnect handling.
+  - [x] Add a server-side WS endpoint alongside the existing REST API without removing polling yet.
+  - [x] Add a client transport adapter that can subscribe to live updates and fall back to the current HTTP path.
+  - [x] Hook the connection status indicator and last update display in the header to the WS connection.
+  - [x] Extend backend to fan out every persisted state-change event to all connected WS clients.
+    - [x] Broadcast action-derived events after successful persistence for MOVE, FIRE, and END_PHASE.
+    - [x] Keep resume/snapshot behavior intact so reconnecting clients can catch up from `afterSeq`.
+    - [x] Add tests proving each action path emits the expected live event stream to an active websocket client.
+  - [x] Wire the web UI to consume live WS updates for the active match and keep the debug stream visible.
+  - [x] Add integration coverage for connect, reconnect, live state refresh, and App/controller wiring behavior through the fake backend harness.
