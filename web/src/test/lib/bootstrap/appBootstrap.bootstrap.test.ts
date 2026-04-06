@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveWebRuntimeConfig } from './appBootstrap'
+import { resolveWebRuntimeConfig } from '../../../lib/appBootstrap'
 
 describe('appBootstrap bootstrap', () => {
 	it('prefers query gameId and trims env base url', () => {
@@ -15,6 +15,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: 123,
+			liveRefreshQuietWindowMs: 2000,
 		})
 	})
 
@@ -30,6 +31,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: 42,
+			liveRefreshQuietWindowMs: 2000,
 		})
 	})
 
@@ -45,6 +47,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: 42,
+			liveRefreshQuietWindowMs: 2000,
 		})
 	})
 
@@ -60,6 +63,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: null,
+			liveRefreshQuietWindowMs: 2000,
 		})
 	})
 
@@ -75,6 +79,24 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: null,
 			gameId: null,
+			liveRefreshQuietWindowMs: 2000,
+		})
+	})
+
+	it('accepts an explicit quiet window override', () => {
+		expect(
+			resolveWebRuntimeConfig(
+				{
+					VITE_ONION_API_URL: 'http://localhost:3000',
+					VITE_ONION_LIVE_REFRESH_QUIET_WINDOW_MS: '750',
+				},
+				'?liveRefreshQuietWindowMs=250',
+				'/',
+			),
+		).toEqual({
+			apiBaseUrl: 'http://localhost:3000',
+			gameId: null,
+			liveRefreshQuietWindowMs: 250,
 		})
 	})
 })

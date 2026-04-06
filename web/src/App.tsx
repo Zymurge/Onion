@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { useState, useEffect, useRef, useSyncExternalStore, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useRef, useSyncExternalStore, type FormEvent } from 'react'
 import ReactJsonPrintImport from 'react-json-print'
 import { HexMapBoard } from './components/HexMapBoard'
 import { CombatConfirmationView } from './components/CombatConfirmationView'
@@ -8,7 +8,6 @@ import {
   GameClientSeamError,
   type GameAction,
   type GameClient,
-  type GameSessionContext,
   type GameSnapshot,
 } from './lib/gameClient'
 import {
@@ -18,10 +17,13 @@ import {
   type Mode,
   type TerrainHex,
 } from './lib/battlefieldView'
-import { createHttpGameClient } from './lib/httpGameClient'
+import { createGameSessionController } from './lib/gameSessionController'
 import { buildCombatRangeHexKeys } from './lib/combatRange'
 import { buildCombatTargetOptions } from './lib/combatPreview'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
+import { createHttpGameRequestTransport } from './lib/httpGameClient'
+import { createLiveEventSource } from './lib/liveEventSource'
+import { useGameSession } from './lib/useGameSession'
 import {
   getApiProtocolTrafficSnapshot,
   getApiProtocolTrafficVersion,
@@ -30,8 +32,15 @@ import {
   sanitizeApiProtocolTrafficEntry,
   subscribeApiProtocolTraffic,
 } from '../../src/shared/apiProtocol'
-import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
+import { getRemainingUnitMovementAllowance, getUnitMovementAllowance } from '../../src/shared/unitMovement'
 import type { TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
+import type {
+  GameRequestTransport,
+  GameSessionController,
+  GameSessionViewState,
+  LiveConnectionStatus,
+  LiveEventSource,
+} from './lib/gameSessionTypes'
 import './App.css'
 
 const ReactJsonPrint =
@@ -62,6 +71,21 @@ function getPhaseOwner(phase: TurnPhase | null): 'onion' | 'defender' | null {
   }
 
   return null
+}
+
+function formatLiveConnectionStatus(connectionStatus: LiveConnectionStatus) {
+  switch (connectionStatus) {
+    case 'connected':
+      return 'Connected'
+    case 'connecting':
+      return 'Connecting'
+    case 'reconnecting':
+      return 'Reconnecting'
+    case 'disconnected':
+      return 'Disconnected'
+    case 'idle':
+      return 'Idle'
+  }
 }
 
 function parseWeaponStats(weaponString: string) {
@@ -226,22 +250,36 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
 
   return Object.entries(authoritativeState.defenders)
-    .map(([defenderId, defender], index) => ({
-      id: defender.id ?? defenderId,
-      type: defender.type,
-      status: defender.status,
-      q: defender.position.q,
-      r: defender.position.r,
-      move: activePhase === null ? 0 : movementRemainingByUnit[defender.id ?? defenderId] ?? 0,
-      weapons: formatWeaponSummary(defender.weapons),
-      attack: formatAttackSummary(defender.weapons),
-      weaponDetails: defender.weapons ?? [],
-      targetRules: defender.targetRules,
-      defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
-      squads: defender.squads,
-      actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
-      rosterOrder: index,
-    }))
+    .map(([defenderId, defender], index) => {
+      const resolvedDefenderId = defender.id ?? defenderId
+      const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
+      const computedMovementRemaining =
+        activePhase === null
+          ? 0
+          : getRemainingUnitMovementAllowance(defender.type, activePhase, authoritativeState, resolvedDefenderId)
+
+      return {
+        id: resolvedDefenderId,
+        type: defender.type,
+        status: defender.status,
+        q: defender.position.q,
+        r: defender.position.r,
+        move:
+          activePhase === null
+            ? 0
+            : snapshotMovementRemaining === undefined || snapshotMovementRemaining === 0
+              ? computedMovementRemaining
+              : snapshotMovementRemaining,
+        weapons: formatWeaponSummary(defender.weapons),
+        attack: formatAttackSummary(defender.weapons),
+        weaponDetails: defender.weapons ?? [],
+        targetRules: defender.targetRules,
+        defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
+        squads: defender.squads,
+        actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
+        rosterOrder: index,
+      }
+    })
     .sort((left, right) => {
       const destroyedDelta = Number(left.status === 'destroyed') - Number(right.status === 'destroyed')
 
@@ -343,6 +381,7 @@ function buildCombatRangeSources(
 type AppProps = {
   gameClient?: GameClient
   gameId?: number
+  liveEventSource?: LiveEventSource
   runtimeConfig?: WebRuntimeConfig
   showConnectionGate?: boolean
 }
@@ -355,6 +394,64 @@ type AuthResponse = {
 type DebugPopupLayout = {
   position: { x: number; y: number }
   size: { width: number; height: number }
+}
+
+type SessionBinding = {
+  gameId: number
+  requestTransport: GameRequestTransport
+  liveEventSource: LiveEventSource
+}
+
+const idleSessionState: GameSessionViewState = {
+  status: 'idle',
+  snapshot: null,
+  session: null,
+  liveConnection: 'idle',
+  lastAppliedEventSeq: null,
+  lastAppliedEventType: null,
+  lastUpdatedAt: null,
+  error: null,
+}
+
+const idleLiveEventSource: LiveEventSource = {
+  subscribe() {
+    return () => {}
+  },
+  connect() {},
+  disconnect() {},
+  getConnectionState() {
+    return 'idle'
+  },
+}
+
+const idleSessionController: GameSessionController = {
+  subscribe() {
+    return () => {}
+  },
+  getSnapshot() {
+    return idleSessionState
+  },
+  async load() {
+    return
+  },
+  async refresh() {
+    return
+  },
+  async submitAction() {
+    return null
+  },
+  dispose() {},
+}
+
+function createRequestTransportFromGameClient(gameClient: GameClient): GameRequestTransport {
+  return {
+    getState(gameId) {
+      return gameClient.getState(gameId)
+    },
+    submitAction(gameId, action) {
+      return gameClient.submitAction(gameId, action)
+    },
+  }
 }
 
 function DraggableDebugPopup({
@@ -462,19 +559,18 @@ function DraggableDebugPopup({
   )
 }
 
-function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: AppProps) {
+function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectionGate = false }: AppProps) {
     // Debug diagnostics popup state
     const [debugOpen, setDebugOpen] = useState(false)
     const [debugPopupLayout, setDebugPopupLayout] = useState<DebugPopupLayout>(() => ({
       position: { x: window.innerWidth - 380, y: 90 },
       size: { width: 340, height: 400 },
     }))
-    const [clientSnapshot, setClientSnapshot] = useState<GameSnapshot | null>(null)
-    const [clientSession, setClientSession] = useState<GameSessionContext | null>(null)
     const [actionError, setActionError] = useState<string | null>(null)
-    const [pendingCombatSnapshot, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
+    const [, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
     const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
-    const [connectedSession, setConnectedSession] = useState<{ gameClient: GameClient; gameId: number } | null>(null)
+    const [combatBaseSnapshot, setCombatBaseSnapshot] = useState<GameSnapshot | null>(null)
+    const [connectedSession, setConnectedSession] = useState<SessionBinding | null>(null)
     const [connectError, setConnectError] = useState<string | null>(null)
     const [connectDraft, setConnectDraft] = useState({
       apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
@@ -486,45 +582,73 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
 
   const runtimeConnectionSeeded = showConnectionGate
-  const activeGameClient = gameClient ?? connectedSession?.gameClient
-  const activeGameIdProp = gameId ?? connectedSession?.gameId
-  const snapshotLoadVersion = useRef(0)
+  const liveRefreshQuietWindowMs = runtimeConfig?.liveRefreshQuietWindowMs ?? 500
+  const previousSnapshotPhaseRef = useRef<TurnPhase | null>(null)
+
+  const providedRequestTransport = useMemo(() => {
+    if (gameClient === undefined) {
+      return null
+    }
+
+    return createRequestTransportFromGameClient(gameClient)
+  }, [gameClient])
+
+  const activeSessionBinding = useMemo<SessionBinding | null>(() => {
+    if (providedRequestTransport !== null && gameId !== undefined) {
+      return {
+        gameId,
+        requestTransport: providedRequestTransport,
+        liveEventSource: liveEventSource ?? idleLiveEventSource,
+      }
+    }
+
+    return connectedSession
+  }, [connectedSession, gameId, liveEventSource, providedRequestTransport])
+
+  const activeSessionController = useMemo(() => {
+    if (activeSessionBinding === null) {
+      return null
+    }
+
+    return createGameSessionController({
+      gameId: activeSessionBinding.gameId,
+      requestTransport: activeSessionBinding.requestTransport,
+      liveEventSource: activeSessionBinding.liveEventSource,
+      liveRefreshQuietWindowMs,
+    })
+  }, [activeSessionBinding, liveRefreshQuietWindowMs])
+
+  const sessionState = useGameSession(activeSessionController ?? idleSessionController, {
+    autoLoad: activeSessionController !== null,
+    disposeOnUnmount: true,
+  })
+
+  const clientSnapshot = combatBaseSnapshot ?? sessionState.snapshot
+  const clientSession = sessionState.session
+  const activeGameIdProp = activeSessionBinding?.gameId
 
   useEffect(() => {
-    if (activeGameClient === undefined || activeGameIdProp === undefined) {
-      queueMicrotask(() => {
-        setClientSnapshot(null)
-        setClientSession(null)
-      })
-      return
+    const nextSnapshotPhase = sessionState.snapshot?.phase ?? null
+    const previousSnapshotPhase = previousSnapshotPhaseRef.current
+
+    if (
+      sessionState.snapshot === null
+      || (previousSnapshotPhase !== null && previousSnapshotPhase !== nextSnapshotPhase)
+      || !isCombatSnapshotPhase(nextSnapshotPhase)
+    ) {
+      setPendingCombatSnapshot(null)
+      setPendingCombatResolution(null)
+      setCombatBaseSnapshot(null)
+      setSelectedCombatTargetId(null)
     }
 
-    let cancelled = false
-    const loadVersion = ++snapshotLoadVersion.current
+    previousSnapshotPhaseRef.current = nextSnapshotPhase
+  }, [sessionState.snapshot])
 
-    void activeGameClient
-      .getState(activeGameIdProp)
-      .then((state) => {
-        if (!cancelled && snapshotLoadVersion.current === loadVersion) {
-          setClientSnapshot(state.snapshot)
-          setClientSession(state.session)
-        }
-      })
-      .catch((error) => {
-        // Handle errors from getState to avoid unhandled promise rejections
-        if (!cancelled && snapshotLoadVersion.current === loadVersion) {
-          console.error('Failed to load game state', error)
-          setClientSnapshot(null)
-          setClientSession(null)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [activeGameClient, activeGameIdProp])
-
-  const isControlledSession = activeGameClient !== undefined && activeGameIdProp !== undefined
+  function isCombatSnapshotPhase(phase: TurnPhase | null): boolean {
+    return phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
+  }
+  const isControlledSession = activeSessionBinding !== null
   const activePhase = clientSnapshot?.phase ?? null
   const selectedSnapshotUnitId = clientSnapshot?.selectedUnitId ?? null
   const activeSelectedUnitIds = selectedUnitIds ?? (selectedSnapshotUnitId ? [selectedSnapshotUnitId] : [])
@@ -548,23 +672,27 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       : [...activeSelectedUnitIds]
 
   async function commitClientAction(action: GameAction) {
-    if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
+    if (!isControlledSession || activeSessionController === null) {
       return
     }
 
-    snapshotLoadVersion.current += 1
     try {
-      const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, action)
+      const previousSnapshot = clientSnapshot
+      const nextSnapshot = await activeSessionController.submitAction(action)
       setActionError(null) // clear any previous error
-      if (nextSnapshot.combatResolution !== undefined) {
+      if (nextSnapshot?.combatResolution !== undefined) {
+        setCombatBaseSnapshot(previousSnapshot)
         setPendingCombatSnapshot(nextSnapshot)
         setPendingCombatResolution(nextSnapshot.combatResolution)
         return
       }
 
+      setCombatBaseSnapshot(null)
       setPendingCombatSnapshot(null)
       setPendingCombatResolution(null)
-      setClientSnapshot(nextSnapshot)
+      if (nextSnapshot !== null && !isCombatSnapshotPhase(nextSnapshot.phase)) {
+        setSelectedCombatTargetId(null)
+      }
     } catch (error: unknown) {
       // Surface error to UI
       const errorMessage =
@@ -574,16 +702,15 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
           ? `Error: ${error.message}`
           : 'Error unknown'
       setActionError(`Failed to submit action: ${errorMessage}`)
-      if (action.type === 'FIRE' && activeGameClient !== undefined && activeGameIdProp !== undefined) {
+      if (action.type === 'FIRE' && activeSessionController !== null) {
         setPendingCombatSnapshot(null)
         setPendingCombatResolution(null)
+        setCombatBaseSnapshot(null)
         setSelectedUnitIds([])
         setSelectedCombatTargetId(null)
 
         try {
-          const refreshedState = await activeGameClient.getState(activeGameIdProp)
-          setClientSnapshot(refreshedState.snapshot)
-          setClientSession(refreshedState.session)
+          await activeSessionController.refresh()
         } catch {
           // Keep the error banner; the user can retry or refresh manually.
         }
@@ -593,10 +720,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }
 
   function clearPendingCombatResolution(clearSelection: boolean) {
-    if (pendingCombatSnapshot !== null) {
-      setClientSnapshot(pendingCombatSnapshot)
-    }
-
+    setCombatBaseSnapshot(null)
     setPendingCombatSnapshot(null)
     setPendingCombatResolution(null)
 
@@ -650,13 +774,19 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
         return
       }
 
-      const nextClient = createHttpGameClient({
-        baseUrl: connectDraft.apiBaseUrl.trim(),
+      const baseUrl = connectDraft.apiBaseUrl.trim()
+      const requestTransport = createHttpGameRequestTransport({
+        baseUrl,
+        token: loginResult.data.token,
+      })
+      const nextLiveEventSource = createLiveEventSource({
+        baseUrl,
         token: loginResult.data.token,
       })
 
       setConnectedSession({
-        gameClient: nextClient,
+        requestTransport,
+        liveEventSource: nextLiveEventSource,
         gameId: parsedGameId,
       })
     })().catch(() => {
@@ -696,7 +826,7 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   }
 
   async function handleMoveUnit(unitId: string, to: { q: number; r: number }) {
-    if (!isControlledSession || activeGameClient === undefined || activeGameIdProp === undefined) {
+    if (!isControlledSession || activeSessionController === null) {
       return
     }
 
@@ -705,10 +835,8 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
     }
 
     setActionError(null)
-    snapshotLoadVersion.current += 1
     try {
-      const nextSnapshot = await activeGameClient.submitAction(activeGameIdProp, { type: 'MOVE', unitId, to })
-      setClientSnapshot(nextSnapshot)
+      await activeSessionController.submitAction({ type: 'MOVE', unitId, to })
       setSelectedUnitIds([])
     } catch (error: unknown) {
       const errorMessage =
@@ -762,6 +890,13 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
   const selectedCombatTargetIdForRender = selectedCombatTargetId !== null && combatTargetIds.has(selectedCombatTargetId) ? selectedCombatTargetId : null
   const selectedCombatTarget = selectedCombatTargetIdForRender === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetIdForRender) ?? null
 
+  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const connectionStatus = sessionState.liveConnection
+  const connectionLabel = formatLiveConnectionStatus(connectionStatus)
+  const lastUpdatedAt = sessionState.lastUpdatedAt ?? lastRefreshAt
+
   useSyncExternalStore(
     (onStoreChange) => {
       if (!debugOpen) {
@@ -783,26 +918,21 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
       .map((entry) => sanitizeApiProtocolTrafficEntry(entry))
     : []
 
-  // Simulated last sync and event status for UI demo
-  const [lastSync, setLastSync] = useState<Date>(new Date())
-  const [eventStatus, setEventStatus] = useState<'ok' | 'fetching' | 'error'>('ok')
-
-  function handleRefresh() {
-    if (isControlledSession) {
-      setEventStatus('fetching')
-      void commitClientAction({ type: 'refresh' }).then(() => {
-        setLastSync(new Date())
-        setEventStatus('ok')
-      }).catch(() => {
-        setEventStatus('error')
-      })
+  async function handleRefresh() {
+    setIsRefreshing(true)
+    if (activeSessionController !== null) {
+      try {
+        await activeSessionController.refresh()
+        setLastRefreshAt(new Date())
+      } finally {
+        setIsRefreshing(false)
+      }
       return
     }
 
-    setEventStatus('fetching')
     setTimeout(() => {
-      setLastSync(new Date())
-      setEventStatus('ok')
+      setLastRefreshAt(new Date())
+      setIsRefreshing(false)
     }, 800)
   }
 
@@ -913,9 +1043,11 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
             <button
               className="refresh-btn"
               title="Refresh game state"
-              onClick={handleRefresh}
+              onClick={() => {
+                void handleRefresh()
+              }}
               aria-label="Refresh"
-              disabled={eventStatus === 'fetching'}
+              disabled={isRefreshing}
             >
               Refresh
             </button>
@@ -929,18 +1061,16 @@ function App({ gameClient, gameId, runtimeConfig, showConnectionGate = false }: 
             </button>
           </div>
           <div className="utility-group-vert">
-            <div className="sync-status-block" title={eventStatus === 'ok' ? 'Events up to date' : eventStatus === 'fetching' ? 'Fetching events...' : 'Event fetch error'}>
-              <span className="stat-label-small">Sync</span>
-              <span className={`event-status event-status-${eventStatus}`}>
-                {eventStatus === 'ok' && '●'}
-                {eventStatus === 'fetching' && <span className="event-dot-spinner" />}
-                {eventStatus === 'error' && '⚠'}
+            <div className="sync-status-block" title={`Live connection: ${connectionLabel}`}>
+              <span className="stat-label-small">Connection</span>
+              <span className={`connection-status connection-status-${connectionStatus}`}>
+                {connectionLabel}
               </span>
             </div>
-            <div className="last-sync-block" title="Last sync time">
+            <div className="last-sync-block" title="Last live update time">
               <span className="stat-label-small">Last</span>
               <span className="last-sync">
-                {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {lastUpdatedAt === null ? '—' : lastUpdatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </span>
             </div>
           </div>

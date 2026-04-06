@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import App from './App'
-import { createGameClient, type GameSnapshot } from './lib/gameClient'
-import type { GameState } from '../../src/types/index'
-import { createMoveGameState } from '../../src/shared/moveFixtures'
+import App from '../../../App'
+import { createGameClient, type GameSnapshot } from '../../../lib/gameClient'
+import type { GameState } from '../../../../../src/types/index'
+import { createMoveGameState } from '../../../../../src/shared/moveFixtures'
 
 type AuthoritativeBattlefieldSnapshot = GameSnapshot & {
 	authoritativeState: GameState
@@ -341,7 +341,10 @@ describe('App orchestration (injected game client)', () => {
 		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
 		expect(onionCard.textContent).toContain('Moves 2')
 		await userEvent.click(onionCard)
-		fireEvent.contextMenu(screen.getByTestId('hex-cell-1-2'))
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-1-2'))
+		})
+		await screen.findByRole('button', { name: /onion-1/i })
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 1, r: 2 } })
 	})
 
@@ -511,7 +514,9 @@ describe('App orchestration (injected game client)', () => {
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
-		fireEvent.contextMenu(screen.getByTestId('hex-cell-7-6'))
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-7-6'))
+		})
 
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'wolf-2', to: { q: 7, r: 6 } })
 	})
@@ -1171,4 +1176,5 @@ describe('App orchestration (injected game client)', () => {
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
 		expect(await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.textContent === 'Onion Combat')).not.toBeNull()
 	})
+
 })

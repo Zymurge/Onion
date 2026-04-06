@@ -222,7 +222,7 @@ describe('POST /games/:id/actions MOVE', () => {
     })
     const body = stateRes.json()
     expect(body.winner).not.toBeNull()
-    expect(body.winner).toBe(fiona.userId)
+    expect(body.winner).toBe('defender')
   })
 
   it('emits ONION_TREADS_LOST and UNIT_STATUS_CHANGED events when a ram destroys a unit', async () => {

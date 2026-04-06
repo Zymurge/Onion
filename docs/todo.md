@@ -3,24 +3,43 @@
 This document tracks major upcoming work and epics. Add new items as they arise;
 break down into features/tasks as needed.
 
+## In progress
+
+- [ ] Transition to WebSocket for live updates
+  - [x] Define the WS message envelope and event contract for game state updates, actions, and reconnect handling.
+  - [x] Add a server-side WS endpoint alongside the existing REST API without removing polling yet.
+  - [x] Add a client transport adapter that can subscribe to live updates and fall back to the current HTTP path.
+  - [x] Hook the connection status indicator and last update display in the header to the WS connection.
+  - [x] Extend backend to fan out every persisted state-change event to all connected WS clients.
+    - [x] Broadcast action-derived events after successful persistence for MOVE, FIRE, and END_PHASE.
+    - [x] Keep resume/snapshot behavior intact so reconnecting clients can catch up from `afterSeq`.
+    - [x] Add tests proving each action path emits the expected live event stream to an active websocket client.
+  - [x] Wire the web UI to consume live WS updates for the active match and keep the debug stream visible.
+  - [x] Add integration coverage for connect, reconnect, live state refresh, and App/controller wiring behavior through the fake backend harness.
+- [ ] Place End Phase control in UI and wire to backend
 
 ## Epics / Major Work
 
 - [ ] Improve error handling (UI and backend)
-- [ ] Transition to WebSocket for live updates
 - [ ] JWT authentication (migrate to @fastify/jwt)
 - [ ] Game lobby for creation and joining (self-service matchmaking)
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
 - [ ] Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema later
-- [ ] Connect debug screen to API output (next)
-- [ ] Place End Phase control in UI and wire to backend
 
 ## Features / Work Items
 
+- [ ] Visually mark disabled units clearly in the rail and on the map so combat damage is obvious at a glance.
+- [ ] In combat phase, show disabled units as disabled in the attacker list and prevent them from being selected or used to fire.
+- [ ] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
 - [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
 - [ ] Refactor movement resolution to read per-unit terrain rules from the shared unit definitions instead of hardcoded terrain checks.
   - [ ] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
 - [ ] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
+- [ ] Reorganize backend tests into the same layer-and-purpose folders used by the web test tree.
+
+## Done
+
+- [x] Connect debug screen to API output (next)
 - [x] Audit defense source of truth for units and weapons so defense is defined once in the unit/weapon model and only derived for effective combat situations.
 - [x] Reuse the left-rail step badge area to show the selected group's combined attack value while units are selected or deselected.
 - [x] Combat phase one: attacker selection, targeting, and result presentation.

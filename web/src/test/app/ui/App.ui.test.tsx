@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import App from './App'
-import { createGameClient, type GameSnapshot } from './lib/gameClient'
-import { clearApiProtocolTraffic, requestJson } from '../../src/shared/apiProtocol'
-import type { GameState } from '../../src/types/index'
+import App from '../../../App'
+import { createGameClient, type GameSnapshot } from '../../../lib/gameClient'
+import { clearApiProtocolTraffic, requestJson } from '../../../../../src/shared/apiProtocol'
+import type { GameState } from '../../../../../src/types/index'
 
 type LoadedBattlefieldSnapshot = GameSnapshot & {
 	authoritativeState: GameState
@@ -101,6 +102,25 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 	}
 }
 
+function createDefenderMoveSnapshotWithStaleAllowance(): LoadedBattlefieldSnapshot {
+	const snapshot = createLoadedBattlefieldSnapshot()
+
+	return {
+		...snapshot,
+		phase: 'DEFENDER_MOVE',
+		selectedUnitId: 'wolf-2',
+		authoritativeState: {
+			...snapshot.authoritativeState,
+			movementSpent: {},
+		},
+		movementRemainingByUnit: {
+			'onion-1': 0,
+			'wolf-2': 0,
+			'puss-1': 3,
+		},
+	}
+}
+
 beforeEach(() => {
 	vi.clearAllMocks()
 	clearApiProtocolTraffic()
@@ -152,6 +172,40 @@ describe('App UI', () => {
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 	})
 
+	it('renders defender move paths even when the live snapshot briefly reports zero allowance', async () => {
+		const snapshot = createDefenderMoveSnapshotWithStaleAllowance()
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
+		expect(wolfUnit.getAttribute('class')).toContain('hex-unit-stack-move-ready')
+		expect(screen.getByTestId('hex-cell-7-6').getAttribute('class')).toContain('hex-cell-reachable')
+	})
+
+	it('loads initial state under StrictMode', async () => {
+		const snapshot = createLoadedBattlefieldSnapshot()
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(
+			<StrictMode>
+				<App gameClient={client} gameId={123} />
+			</StrictMode>,
+		)
+
+		expect(await screen.findByText(/Selection Contract Test/i)).not.toBeNull()
+		expect(screen.getByTestId('hex-unit-wolf-2')).not.toBeNull()
+	})
+
 	it('toggles the debug diagnostics popup', async () => {
 		const user = userEvent.setup()
 		render(<App />)
@@ -176,32 +230,34 @@ describe('App UI', () => {
 
 		expect(screen.getByText(/No protocol traffic yet/i)).not.toBeNull()
 
-		await requestJson({
-			baseUrl: 'http://example.com',
-			path: 'auth/login',
-			method: 'POST',
-			body: {
-				username: 'player-1',
-				password: 'secret',
-			},
-			fetchImpl: vi.fn().mockResolvedValue(
-				new Response(JSON.stringify({ userId: 'user-123', token: 'stub.token' }), {
-					status: 200,
-					headers: { 'content-type': 'application/json' },
-				}),
-			),
-		})
+		await act(async () => {
+			await requestJson({
+				baseUrl: 'http://example.com',
+				path: 'auth/login',
+				method: 'POST',
+				body: {
+					username: 'player-1',
+					password: 'secret',
+				},
+				fetchImpl: vi.fn().mockResolvedValue(
+					new Response(JSON.stringify({ userId: 'user-123', token: 'stub.token' }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}),
+				),
+			})
 
-		await requestJson({
-			baseUrl: 'http://example.com',
-			path: 'games/123',
-			method: 'GET',
-			fetchImpl: vi.fn().mockResolvedValue(
-				new Response(JSON.stringify({ ok: true }), {
-					status: 200,
-					headers: { 'content-type': 'application/json' },
-				}),
-			),
+			await requestJson({
+				baseUrl: 'http://example.com',
+				path: 'games/123',
+				method: 'GET',
+				fetchImpl: vi.fn().mockResolvedValue(
+					new Response(JSON.stringify({ ok: true }), {
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}),
+				),
+			})
 		})
 
 		const debugEntrySummaries = await screen.findAllByText(

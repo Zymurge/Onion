@@ -39,6 +39,16 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
   - **Tread Calculation**: Mk III starts with **45 Tread Points**.
     - 31-45 Treads: **MA 3** | 16-30 Treads: **MA 2** | 1-15 Treads: **MA 1** | 0 Treads: **MA 0**
 
+### Targeting Rules
+
+Target eligibility is data-driven and should be defined on the weapon or unit that owns the restriction. The engine and UI must use the same target-rule data when building legal target lists.
+
+- Weapon target rules live on the weapon definition when a specific weapon can only attack certain unit types or subsystems.
+- Unit target rules live on the unit definition when a unit can only be attacked by certain weapon types or weapon-defined target classes.
+- Target rules should use explicit unit and weapon identifiers, not abstract combat classes, so special cases remain easy to read and extend.
+- Scenario files do not author target rules directly; they reference unit types and the engine populates weapon and target-rule data from the shared unit definitions.
+- For the current Onion AP weapons, the source of truth is the Onion unit definition: AP weapons may target only Little Pigs and the Castle.
+
 ## Core Mechanics
 
 ### 1. Hexagonal Grid & Movement
@@ -57,13 +67,17 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
   - **Ridgelines**:
     - **Movement**: Impassable to armored units (Puss, Pinocchio, Dragon, Witch, Big Bad Wolf). The Onion and Little Pigs can cross ridgelines, but it costs 1 extra movement point to enter the hex.
     - **Cover**: Little Pigs in a Ridgeline hex gain +1 to their Defense strength (e.g., a 3-squad stack in cover has Defense 4).
+- **Movement and terrain modeling note**:
+  - The implementation should keep terrain effects as data, not hard-coded one-off checks. Unit descriptions should be able to declare per-terrain capabilities such as `canCrossRidgelines` or `canAccessRidgeCover`, and future terrain types should map to the same pattern.
+  - Road and bridge behavior should be modeled separately from hex terrain where needed, since some effects depend on the path of movement rather than the destination hex alone.
+  - Ramming outcomes should also live on the unit description as a structured rule, not as a plain numeric defense stat. That lets the model express destroyed, disabled, or tread-loss results without overloading one field.
 - **Line of Sight & Angles**:
   - Engagement angles (Front/Back/Side) do **not** affect combat modifiers in standard rules. All units have 360-degree firing arcs.
 
 ### 2. Combat Resolution
 
 - **Sequential Combat**: Players make attacks in any order and observe the result of each before declaring the next.
-- **Combined Fire**: Multiple units can combine their attack strength against a single target (unless attacking Treads).
+- **Multi-attacker FIRE**: Multiple units can combine their attack strength against a single target (unless attacking Treads).
 - **CRT Tables & Odds**: Ratios rounded down in favor of the defender.
 
   | Roll | 1:2 | 1:1 | 2:1 | 3:1 | 4:1 |
@@ -101,15 +115,24 @@ The Onion does not follow the standard CRT for destruction. Attackers must targe
 ## Turn Structure
 
 1. **Onion Player Turn**
-   - **Movement Phase**: Move the Onion (including ramming).
-   - **Combat Phase**: Fire Onion weapons.
+   - **Movement Phase** (`ONION_MOVE`): Move the Onion (including ramming). On entry: turn counter increments, ram count resets, and any `disabled` units transition to `recovering`.
+   - **Combat Phase** (`ONION_COMBAT`): Fire Onion weapons. Combat "D" results set defender units to `disabled`.
 2. **Defender Player Turn**
-   - **Recovery Phase**: "Disabled" units from previous turn return to normal.
-   - **Movement Phase**: Move all conventional units.
-   - **Combat Phase**: Fire all conventional units.
-   - **Big Bad Wolf Second Move Phase**: Big Bad Wolves move their remaining 3 hexes.
+   - **Recovery Phase** (`DEFENDER_RECOVERY`): Engine-controlled; automatically processed. Units in `recovering` state return to `operational`. Units newly set to `disabled` this turn are **not** affected — they must wait until the next turn's `ONION_MOVE` entry to transition to `recovering`.
+   - **Movement Phase** (`DEFENDER_MOVE`): Move all conventional units. Only `operational` units may move.
+   - **Combat Phase** (`DEFENDER_COMBAT`): Fire all conventional units. Only `operational` units may fire.
+   - **Big Bad Wolf Second Move Phase** (`GEV_SECOND_MOVE`): Big Bad Wolves move their remaining 3 hexes.
 
-For a practical demonstration of these rules in action, see the [Example Turn](example-turn.md).
+### Unit Status Lifecycle
+
+| Status | Meaning | Transitions |
+| :--- | :--- | :--- |
+| `operational` | Active; can move and fire | → `disabled` on "D" combat result; → `destroyed` on "X" combat result |
+| `disabled` | Knocked out this turn | → `recovering` on entry to `ONION_MOVE` (start of next turn) |
+| `recovering` | Was disabled last turn | → `operational` during `DEFENDER_RECOVERY` |
+| `destroyed` | Permanently removed | No further transitions |
+
+A unit disabled on turn N is recovered and operational by turn N+1's `DEFENDER_MOVE`.
 
 ## Victory Conditions
 

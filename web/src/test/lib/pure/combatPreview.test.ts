@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCombatTargetOptions } from './combatPreview'
+import { buildCombatTargetOptions } from '../../../lib/combatPreview'
 
 describe('buildCombatTargetOptions', () => {
 	it('builds shared combat preview data for ridgeline targets', () => {

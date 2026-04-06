@@ -4,10 +4,10 @@ import {
 	type ActionMode,
 	type GameAction,
 	type GameClient,
-	type GameClientTransport,
 	type GameStateEnvelope,
 	type GameSnapshot,
 } from './gameClient'
+import type { GameRequestTransport } from './gameSessionTypes'
 
 import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../../src/shared/apiProtocol'
 import type { GameState, TurnPhase } from '../../../src/types/index'
@@ -140,12 +140,15 @@ function updateLocalSnapshot(currentSnapshot: GameSnapshot | null, action: GameA
 	return baseSnapshot
 }
 
-export function createHttpGameClient(options: HttpGameClientOptions): GameClient {
+function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
+	requestTransport: GameRequestTransport
+	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<{ seq: number; type: string; summary: string; timestamp: string }>>
+} {
 	const fetchImpl = options.fetchImpl ?? fetch
 	const baseUrl = trimTrailingSlash(options.baseUrl)
 	let currentSnapshot: GameSnapshot | null = null
 
-	const transport: GameClientTransport = {
+	const requestTransport: GameRequestTransport = {
 		async getState(gameId: number) {
 			const result = await requestJson<GameStateResponse>({
 				baseUrl,
@@ -247,30 +250,47 @@ export function createHttpGameClient(options: HttpGameClientOptions): GameClient
 			currentSnapshot = updateLocalSnapshot(currentSnapshot, action, gameId)
 			return currentSnapshot
 		},
-		async pollEvents(gameId: number, afterSeq: number) {
-			const result = await requestJson<EventsResponse>({
-				baseUrl,
-				path: `games/${gameId}/events?after=${afterSeq}`,
-				method: 'GET',
-				token: options.token,
-				fetchImpl,
-			})
-
-			if (!result.ok) {
-				throw buildError(result)
-			}
-
-			const events = result.data.events ?? []
-			const lastEvent = events.at(-1)
-			if (lastEvent !== undefined && currentSnapshot !== null) {
-				currentSnapshot = mergeSnapshot(currentSnapshot, {
-					lastEventSeq: lastEvent.seq,
-				})
-			}
-
-			return events
-		},
 	}
 
-	return createGameClient(transport)
+	async function pollEvents(gameId: number, afterSeq: number) {
+		const result = await requestJson<EventsResponse>({
+			baseUrl,
+			path: `games/${gameId}/events?after=${afterSeq}`,
+			method: 'GET',
+			token: options.token,
+			fetchImpl,
+		})
+
+		if (!result.ok) {
+			throw buildError(result)
+		}
+
+		const events = result.data.events ?? []
+		const lastEvent = events.at(-1)
+		if (lastEvent !== undefined && currentSnapshot !== null) {
+			currentSnapshot = mergeSnapshot(currentSnapshot, {
+				lastEventSeq: lastEvent.seq,
+			})
+		}
+
+		return events
+	}
+
+	return {
+		requestTransport,
+		pollEvents,
+	}
+}
+
+export function createHttpGameRequestTransport(options: HttpGameClientOptions): GameRequestTransport {
+	return createHttpGameTransportRuntime(options).requestTransport
+}
+
+export function createHttpGameClient(options: HttpGameClientOptions): GameClient {
+	const { requestTransport, pollEvents } = createHttpGameTransportRuntime(options)
+
+	return createGameClient({
+		...requestTransport,
+		pollEvents,
+	})
 }

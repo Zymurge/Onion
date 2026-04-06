@@ -6,6 +6,41 @@ import * as engineGame from '../engine/index.js'
 import { advanceToPhase, createGame, joinGame, register, submitAction } from './helpers.js'
 
 describe('POST /games/:id/actions combat API contract', () => {
+  it('rejects legacy FIRE_* command variants', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const legacyCommands = [
+      {
+        phase: 'ONION_COMBAT',
+        token: shrek.token,
+        command: { type: 'FIRE_WEAPON', weaponType: 'main', weaponIndex: 0, targetId: 'wolf-1' },
+      },
+      {
+        phase: 'DEFENDER_COMBAT',
+        token: fiona.token,
+        command: { type: 'FIRE_UNIT', unitId: 'wolf-1', targetId: 'onion' },
+      },
+      {
+        phase: 'DEFENDER_COMBAT',
+        token: fiona.token,
+        command: { type: 'COMBINED_FIRE', unitIds: ['wolf-1', 'puss-1'], targetId: 'onion' },
+      },
+    ] as const
+
+    for (const { phase, token, command } of legacyCommands) {
+      await advanceToPhase(app, gameId, shrek.token, fiona.token, phase)
+      const res = await submitAction(app, gameId, token, command as unknown as Record<string, unknown>)
+      expect(res.statusCode).toBe(400)
+      const body = res.json()
+      expect(body.code).toBe('COMMAND_INVALID')
+      expect(body.detailCode).toBe(`UNKNOWN_COMMAND ${command.type}`)
+    }
+  })
+
   it('returns 422 and detailCode for illegal multi-attacker fire on Onion treads', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
@@ -16,8 +51,8 @@ describe('POST /games/:id/actions combat API contract', () => {
 
     const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
       ok: false,
-      code: 'COMBINED_FIRE_TREAD_TARGET',
-      error: 'Combined fire is not allowed on Onion treads.',
+      code: 'MULTI_ATTACK_TREAD_TARGET',
+      error: 'Multi-attacker fire is not allowed on Onion treads.',
     })
 
     const res = await submitAction(app, gameId, fiona.token, {
@@ -30,8 +65,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     const body = res.json()
     expect(body.ok).toBe(false)
     expect(body.code).toBe('MOVE_INVALID')
-    expect(body.detailCode).toBe('COMBINED_FIRE_TREAD_TARGET')
-    expect(body.error).toMatch(/Combined fire is not allowed on Onion treads/)
+    expect(body.detailCode).toBe('MULTI_ATTACK_TREAD_TARGET')
+    expect(body.error).toMatch(/Multi-attacker fire is not allowed on Onion treads/)
     validateSpy.mockRestore()
   })
 
@@ -322,6 +357,6 @@ describe('POST /games/:id/actions combat API contract', () => {
     })
     const body = stateRes.json()
     expect(body.winner).not.toBeNull()
-    expect(body.winner).toBe(shrek.userId)
+    expect(body.winner).toBe('onion')
   })
 })

@@ -29,7 +29,7 @@ This document provides a detailed walkthrough of a single game round to illustra
 1. **Main Battery Attack**: Targets the **Puss Tank**.
    - *Stats*: 4 Attack vs. 3 Defense. Odds: **1:1**.
    - *Roll*: **4**. Result: **D (Disabled)**.
-2. **Secondary Batteries**: Combined fire targeting the **Witch**.
+2. **Secondary Batteries**: Multi-attacker fire targeting the **Witch**.
    - *Stats*: 6 Attack vs. 2 Defense. Odds: **3:1**.
    - *Roll*: **5**. Result: **X (Destroyed)**.
 3. **Missile Launch**: The Onion launches its only Missile.

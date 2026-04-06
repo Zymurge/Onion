@@ -7,6 +7,7 @@ import { resolveWebRuntimeConfig } from './lib/appBootstrap'
 const runtimeConfig = resolveWebRuntimeConfig(
   {
     VITE_ONION_API_URL: import.meta.env.VITE_ONION_API_URL,
+    VITE_ONION_LIVE_REFRESH_QUIET_WINDOW_MS: import.meta.env.VITE_ONION_LIVE_REFRESH_QUIET_WINDOW_MS,
   },
   window.location.search,
   window.location.pathname,

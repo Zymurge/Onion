@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCombatResolution } from './combatResolution'
+import { buildCombatResolution } from '../../../lib/combatResolution'
 
 describe('buildCombatResolution', () => {
 	it('summarizes combat events for a toast', () => {

@@ -234,49 +234,25 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 Ramming is resolved as part of `MOVE` path execution (up to 2 rams per
 turn), not as a separate command.
 
-### Onion Combat Phase (`ONION_COMBAT`)
+### Combat Actions
 
-#### Fire a weapon system (Onion)
+Combat uses a single `FIRE` command shape for both Onion and defender attacks.
 
 ```json
-{
-  "type":        "FIRE_WEAPON",
-  "weaponType":  "main" | "secondary" | "ap" | "missile",
-  "weaponIndex": number,
-  "targetId":    string
-}
+{ "type": "FIRE", "attackers": [string, ...], "targetId": string }
 ```
 
-`weaponIndex` identifies which instance of a multi-count battery
-(e.g., secondary battery 0–3). Use `0` for single-instance weapons.
+`attackers` contains one or more attacker IDs. For Onion, each entry is a weapon id. For defenders, each entry is a unit id. The engine resolves whether the command is valid for the current phase and target.
 
-### Defender Movement Phase (`DEFENDER_MOVE`, `GEV_SECOND_MOVE`)
+`FIRE` with multiple attackers is legal when attacking a weapon or unit target, but not when targeting Onion treads. In that case, each attacker must fire separately.
+
+### Movement Commands
 
 #### Move a unit
 
 ```json
 { "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
 ```
-
-### Defender Combat Phase (`DEFENDER_COMBAT`)
-
-#### Defender combat actions
-
-**Fire a unit** (single attacker)
-
-```json
-{ "type": "FIRE_UNIT", "unitId": string, "targetId": string }
-```
-
-**Combined fire** (multiple attackers on same target)
-
-```json
-{ "type": "COMBINED_FIRE", "unitIds": string[], "targetId": string }
-```
-
-Note: combined fire is not legal when targeting Onion treads (each unit
-must fire individually per Special Rule 7.13.2). The engine enforces
-this.
 
 ---
 
@@ -286,10 +262,10 @@ Combat actions return structured errors:
 
 - HTTP 400 for malformed input, schema errors, or unsupported commands.
 - HTTP 422 for well-formed but invalid combat actions
-  (e.g., illegal target, exhausted weapon, combined fire on treads).
+  (e.g., illegal target, exhausted weapon, multi-attacker fire on treads).
 - Response body includes `detailCode` for granular error
   (e.g., `NO_TARGET`, `WEAPON_EXHAUSTED`,
-  `COMBINED_FIRE_TREAD_TARGET`).
+  `MULTI_ATTACK_TREAD_TARGET`).
 
 Unsupported action command types are rejected with:
 
@@ -308,9 +284,9 @@ Unsupported action command types are rejected with:
 ```json
 {
   "ok": false,
-  "error": "Combined fire is not allowed on Onion treads.",
+  "error": "Multi-attacker fire is not allowed on Onion treads.",
   "code": "MOVE_INVALID",
-  "detailCode": "COMBINED_FIRE_TREAD_TARGET",
+  "detailCode": "MULTI_ATTACK_TREAD_TARGET",
   "currentPhase": "DEFENDER_COMBAT"
 }
 ```
@@ -364,13 +340,9 @@ WEAPON_FIRED      { weaponType: string, weaponIndex: number, targetId: string,
                     attackStrength: number, defenseStrength: number,
                     roll: number, result: "NE" | "D" | "X" }
 
-UNIT_FIRED        { unitId: string, targetId: string,
+FIRE_RESOLVED     { attackers: string[], targetId: string,
                     attackStrength: number, defenseStrength: number,
                     roll: number, result: "NE" | "D" | "X" }
-
-COMBINED_FIRE_RESOLVED { unitIds: string[], targetId: string,
-                         totalAttack: number, defenseStrength: number,
-                         roll: number, result: "NE" | "D" | "X" }
 ```
 
 ### State Change Events
@@ -483,7 +455,7 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from
 | `UNIT_NOT_FOUND` | `unitId` does not exist in this game |
 | `WEAPON_EXHAUSTED` | Targeted battery or missile already destroyed/used |
 | `RAM_LIMIT_REACHED` | Onion has already rammed twice this turn |
-| `COMBINED_FIRE_TREAD_TARGET` | Combined fire on Onion treads is illegal |
+| `MULTI_ATTACK_TREAD_TARGET` | Multi-attacker fire on Onion treads is illegal |
 | `GAME_OVER` | Match is already decided |
 | `GAME_FULL` | Both player slots are taken |
 | `INVALID_INPUT` | Input failed schema validation or required fields missing |

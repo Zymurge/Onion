@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import type { FastifyInstance } from 'fastify'
+import websocket from '@fastify/websocket'
 import { authRoutes } from './api/auth.js'
 import { scenarioRoutes } from './api/scenarios.js'
 import { gameRoutes } from './api/games.js'
@@ -46,6 +47,8 @@ export function buildApp(db?: Partial<DbAdapter>): FastifyInstance {
     reply.headers(corsHeaders)
     return payload
   })
+
+  app.register(websocket)
 
   app.get('/health', async () => ({ ok: true }))
 

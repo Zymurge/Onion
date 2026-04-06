@@ -254,18 +254,6 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
       }
     }
 
-    if (event.type === 'WEAPON_FIRED' && event.weaponType) {
-      const spentTracker = getOrCreateSpentTracker(expected)
-      if ((event.weaponType === 'main' || event.weaponType === 'secondary' || event.weaponType === 'ap') && expected.onion.batteries) {
-        const weaponType = event.weaponType as 'main' | 'secondary' | 'ap'
-        expected.onion.batteries[weaponType] = Math.max(0, (expected.onion.batteries[weaponType] ?? 0) - 1)
-        spentTracker[weaponType] += 1
-      }
-      if (event.weaponType === 'missile' && expected.onion.missiles !== undefined) {
-        expected.onion.missiles = Math.max(0, expected.onion.missiles - 1)
-      }
-    }
-
     if (event.type === 'UNIT_STATUS_CHANGED' && expected.defenders[event.unitId]) {
       expected.defenders[event.unitId].status = event.to
     }

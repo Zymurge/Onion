@@ -2,8 +2,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { HexMapBoard } from './HexMapBoard'
-import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '../lib/battlefieldView'
+import { HexMapBoard } from '../../components/HexMapBoard'
+import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '../../lib/battlefieldView'
 
 const scenarioMap = {
 	width: 5,
@@ -49,6 +49,17 @@ const defenders: BattlefieldUnit[] = [
 	},
 ]
 
+const staleDefenderMove: BattlefieldUnit[] = [
+	{
+		...defenders[0],
+		move: 0,
+	},
+	{
+		...defenders[1],
+		move: 0,
+	},
+]
+
 describe('HexMapBoard', () => {
 	it('highlights an eligible selected unit and its reachable move radius', () => {
 		render(
@@ -70,6 +81,24 @@ describe('HexMapBoard', () => {
 		expect(selectedCell?.getAttribute('class')).toContain('hex-cell-selected')
 		expect(selectedCell?.getAttribute('class')).toContain('hex-cell-move-ready')
 		expect(reachableCell?.getAttribute('class')).toContain('hex-cell-reachable')
+	})
+
+	it('recovers defender move paths when the rendered allowance is stale', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={staleDefenderMove}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).toContain('hex-unit-stack-move-ready')
+		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).toContain('hex-cell-reachable')
 	})
 
 	it('renders combat range overlays when provided', () => {

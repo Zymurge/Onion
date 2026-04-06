@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import logger from '../logger.js'
+import type { WebSocket } from 'ws'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -13,6 +14,8 @@ import { createMap } from '../engine/map.js'
 import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '../engine/index.js'
 import type { EngineGameState } from '../engine/units.js'
 import { getRemainingUnitMovementAllowance } from '../shared/unitMovement.js'
+import type { GameStateResponse } from '../shared/apiProtocol.js'
+import type { WebSocketClientMessage, WebSocketServerEventMessage, WebSocketServerErrorMessage, WebSocketServerSnapshotMessage } from '../shared/websocketProtocol.js'
 import { InitialStateSchema } from '../engine/scenarioSchema.js'
 import { normalizeInitialStateToGameState } from '../engine/scenarioNormalizer.js'
 import { resolveScenariosDir } from './scenarioPaths.js'
@@ -125,7 +128,7 @@ function getWeaponTypeFromId(weaponId: string) {
 
 function buildCombatEvents(
   startSeq: number,
-  command: Extract<Command, { type: 'FIRE' | 'FIRE_WEAPON' | 'FIRE_UNIT' | 'COMBINED_FIRE' }>,
+  command: Extract<Command, { type: 'FIRE' }>,
   result: ReturnType<typeof executeCombatAction>,
   state: any,
 ): EventEnvelope[] {
@@ -133,58 +136,16 @@ function buildCombatEvents(
   let seq = startSeq
   const events: EventEnvelope[] = []
 
-  if (command.type === 'FIRE') {
-    events.push({
-      seq: seq++,
-      type: 'FIRE_RESOLVED',
-      timestamp,
-      attackers: command.attackers,
-      targetId: result.targetId,
-      roll: result.roll?.roll,
-      outcome: result.roll?.result,
-      odds: result.roll?.odds,
-    })
-  }
-
-  if (command.type === 'FIRE_WEAPON') {
-    events.push({
-      seq: seq++,
-      type: 'WEAPON_FIRED',
-      timestamp,
-      weaponType: command.weaponType,
-      weaponIndex: command.weaponIndex,
-      targetId: result.targetId,
-      roll: result.roll?.roll,
-      outcome: result.roll?.result,
-      odds: result.roll?.odds,
-    })
-  }
-
-  if (command.type === 'FIRE_UNIT') {
-    events.push({
-      seq: seq++,
-      type: 'UNIT_FIRED',
-      timestamp,
-      unitId: command.unitId,
-      targetId: result.targetId,
-      roll: result.roll?.roll,
-      outcome: result.roll?.result,
-      odds: result.roll?.odds,
-    })
-  }
-
-  if (command.type === 'COMBINED_FIRE') {
-    events.push({
-      seq: seq++,
-      type: 'COMBINED_FIRE_RESOLVED',
-      timestamp,
-      unitIds: command.unitIds,
-      targetId: result.targetId,
-      roll: result.roll?.roll,
-      outcome: result.roll?.result,
-      odds: result.roll?.odds,
-    })
-  }
+  events.push({
+    seq: seq++,
+    type: 'FIRE_RESOLVED',
+    timestamp,
+    attackers: command.attackers,
+    targetId: result.targetId,
+    roll: result.roll?.roll,
+    outcome: result.roll?.result,
+    odds: result.roll?.odds,
+  })
 
   if (result.treadsLost !== undefined) {
     events.push({
@@ -243,6 +204,56 @@ function logSentEvents(gameId: number, actionType: string, events: EventEnvelope
   )
 }
 
+function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
+  const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+  const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+  const role: GameStateResponse['role'] = match.players.onion === userId ? 'onion' : 'defender'
+  const winner: GameStateResponse['winner'] =
+    match.winner === null
+      ? null
+      : match.winner === match.players.onion
+        ? 'onion'
+        : match.winner === match.players.defender
+          ? 'defender'
+          : null
+
+  return {
+    gameId: match.gameId,
+    scenarioId: match.scenarioId,
+    scenarioName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
+    role,
+    phase: match.phase,
+    turnNumber: match.turnNumber,
+    winner,
+    players: match.players,
+    state: match.state,
+    movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
+    scenarioMap,
+    eventSeq: match.events.at(-1)?.seq ?? 0,
+  }
+}
+
+function serializeWsMessage(message: WebSocketClientMessage | WebSocketServerEventMessage | WebSocketServerSnapshotMessage | WebSocketServerErrorMessage): string {
+  return JSON.stringify(message)
+}
+
+function parseWsMessage(rawMessage: string): WebSocketClientMessage | null {
+  try {
+    const parsed = JSON.parse(rawMessage) as Partial<WebSocketClientMessage> & { kind?: string }
+    if (parsed.kind === 'COMMAND' && parsed.command !== undefined) {
+      return parsed as WebSocketClientMessage
+    }
+
+    if (parsed.kind === 'RESUME' && typeof parsed.afterSeq === 'number') {
+      return parsed as WebSocketClientMessage
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
 /**
  * Load a scenario file by ID from the scenarios directory.
  * @param id - Scenario identifier
@@ -282,6 +293,20 @@ function extractUserId(authHeader: string | undefined): string | null {
   return UUID_RE.test(userId) ? userId : null
 }
 
+function extractUserIdFromAuth(authHeader: string | undefined, token: string | undefined): string | null {
+  const headerUserId = extractUserId(authHeader)
+  if (headerUserId !== null) {
+    return headerUserId
+  }
+
+  if (!token?.startsWith('stub.')) {
+    return null
+  }
+
+  const userId = token.slice('stub.'.length)
+  return UUID_RE.test(userId) ? userId : null
+}
+
 function parseGameId(rawId: string): number | null {
   if (!GAME_ID_RE.test(rawId)) return null
   const parsed = Number(rawId)
@@ -310,6 +335,43 @@ const INITIAL_STATE: GameState = {
  */
 export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: FastifyInstance, opts) => {
   const { db } = opts
+  const liveConnections = new Map<number, Set<WebSocket>>()
+
+  function broadcastGameEvents(gameId: number, events: EventEnvelope[]) {
+    const sockets = liveConnections.get(gameId)
+    if (!sockets || sockets.size === 0) {
+      return
+    }
+
+    for (const event of events) {
+      const payload: WebSocketServerEventMessage = { kind: 'EVENT', event }
+      const serialized = serializeWsMessage(payload)
+
+      for (const socket of sockets) {
+        if (socket.readyState === 1) {
+          socket.send(serialized)
+        }
+      }
+    }
+  }
+
+  function removeLiveConnection(gameId: number, socket: WebSocket) {
+    const sockets = liveConnections.get(gameId)
+    if (!sockets) {
+      return
+    }
+
+    sockets.delete(socket)
+    if (sockets.size === 0) {
+      liveConnections.delete(gameId)
+    }
+  }
+
+  function addLiveConnection(gameId: number, socket: WebSocket) {
+    const sockets = liveConnections.get(gameId) ?? new Set<WebSocket>()
+    sockets.add(socket)
+    liveConnections.set(gameId, sockets)
+  }
 
   /**
    * Create a new game match.
@@ -435,6 +497,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         role,
       }
       await db.appendEvents(match.gameId, [event])
+      broadcastGameEvents(match.gameId, [event])
       logger.debug({ gameId: match.gameId, event }, 'PLAYER_JOINED event appended')
 
       return reply.send({ gameId: match.gameId, role })
@@ -510,29 +573,122 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       }
 
       // Type assertion for scenarioSnapshot
-      const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
-      const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
       logger.debug({ gameId: match.gameId }, 'Game state fetched')
-      return reply.send({
-        gameId: match.gameId,
-        scenarioId: match.scenarioId,
-        scenarioName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
-        scenarioDisplayName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
-        role: match.players.onion === userId ? 'onion' : 'defender',
-        phase: match.phase,
-        turnNumber: match.turnNumber,
-        winner: match.winner,
-        players: match.players,
-        state: match.state,
-        movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
-        scenarioMap,
-        eventSeq: match.events.at(-1)?.seq ?? 0,
-      })
+      return reply.send(buildGameStateResponse(match, userId))
     } catch (err) {
       logger.error({ err }, 'Error fetching game state')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })
+
+  app.get<{ Params: { id: string }; Querystring: { after?: string; token?: string } }>(
+    '/:id/ws',
+    {
+      websocket: true,
+      preValidation: async (req, reply) => {
+        const userId = extractUserIdFromAuth(req.headers.authorization, req.query.token)
+        if (!userId) {
+          return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+        }
+
+        const gameId = parseGameId(req.params.id)
+        if (gameId === null) {
+          return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+        }
+
+        const match = await db.findMatch(gameId)
+        if (!match) {
+          return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+        }
+
+        if (match.players.onion !== userId && match.players.defender !== userId) {
+          return reply.status(403).send({ ok: false, error: 'Forbidden', code: 'FORBIDDEN' })
+        }
+      },
+    },
+    (socket, req) => {
+      const gameId = parseGameId(req.params.id)
+      if (gameId === null) {
+        socket.close()
+        return
+      }
+
+      addLiveConnection(gameId, socket)
+
+      socket.on('close', () => {
+        removeLiveConnection(gameId, socket)
+      })
+
+      socket.on('message', async (rawMessage: string | Buffer) => {
+        const parsed = parseWsMessage(rawMessage.toString())
+        if (parsed === null) {
+          const errorMessage: WebSocketServerErrorMessage = {
+            kind: 'ERROR',
+            message: 'Malformed websocket message',
+            code: 'INVALID_MESSAGE',
+          }
+          socket.send(serializeWsMessage(errorMessage))
+          return
+        }
+
+        if (parsed.kind === 'COMMAND') {
+          const errorMessage: WebSocketServerErrorMessage = {
+            kind: 'ERROR',
+            message: 'WebSocket command handling is not wired yet; use REST actions for now.',
+            code: 'NOT_IMPLEMENTED',
+          }
+          socket.send(serializeWsMessage(errorMessage))
+          return
+        }
+
+        if (parsed.kind === 'RESUME') {
+          try {
+            const events = await db.getEvents(gameId, parsed.afterSeq)
+            for (const event of events) {
+              const eventMessage: WebSocketServerEventMessage = { kind: 'EVENT', event }
+              socket.send(serializeWsMessage(eventMessage))
+            }
+          } catch (err) {
+            const errorMessage: WebSocketServerErrorMessage = {
+              kind: 'ERROR',
+              message: 'Failed to resume websocket stream',
+              code: 'RESUME_FAILED',
+            }
+            socket.send(serializeWsMessage(errorMessage))
+          }
+        }
+      })
+
+      void (async () => {
+        try {
+          const userId = extractUserIdFromAuth(req.headers.authorization, req.query.token)
+          if (!userId) {
+            socket.close()
+            return
+          }
+
+          const match = await db.findMatch(gameId)
+          if (!match) {
+            socket.close()
+            return
+          }
+
+          const snapshotMessage: WebSocketServerSnapshotMessage = {
+            kind: 'STATE_SNAPSHOT',
+            snapshot: buildGameStateResponse(match, userId),
+          }
+          socket.send(serializeWsMessage(snapshotMessage))
+        } catch (err) {
+          const errorMessage: WebSocketServerErrorMessage = {
+            kind: 'ERROR',
+            message: 'Failed to initialize websocket stream',
+            code: 'STREAM_INIT_FAILED',
+          }
+          socket.send(serializeWsMessage(errorMessage))
+        }
+      })()
+    },
+  )
 
   /**
    * Submit a game action.
@@ -595,7 +751,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
-      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE', 'FIRE_WEAPON', 'FIRE_UNIT', 'COMBINED_FIRE'])
+      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE'])
       if (!supportedCommands.has(command.type)) {
         logger.warn({ commandType: command.type }, 'Unknown command type')
         return reply.status(400).send({
@@ -630,6 +786,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = result.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? 0
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
+        broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq })
       } else if (command.type === 'MOVE') {
@@ -699,9 +856,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
         logSentEvents(match.gameId, 'MOVE', newEvents)
+        broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
         return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
-      } else if (command.type === 'FIRE' || command.type === 'FIRE_WEAPON' || command.type === 'FIRE_UNIT' || command.type === 'COMBINED_FIRE') {
+      } else if (command.type === 'FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
@@ -745,6 +903,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
         logSentEvents(match.gameId, command.type, newEvents)
+        broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
       }

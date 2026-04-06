@@ -1,4 +1,5 @@
 import type { GameState, TurnPhase } from '../../../src/types/index'
+import type { GameRequestTransport } from './gameSessionTypes'
 
 export type ScenarioMapSnapshot = {
 	width: number
@@ -11,7 +12,7 @@ export type GamePhase = 'onion' | 'defender'
 export type ActionMode = 'fire' | 'combined' | 'end-phase'
 
 export type CombatResolution = {
-	actionType: 'FIRE' | 'COMBINED_FIRE' | 'FIRE_UNIT' | 'FIRE_WEAPON'
+	actionType: 'FIRE'
 	attackers: string[]
 	targetId: string
 	outcome: 'NE' | 'D' | 'X'
@@ -64,9 +65,7 @@ export type GameClientError = {
 	message: string
 }
 
-export type GameClientTransport = {
-	getState(gameId: number): Promise<GameStateEnvelope>
-	submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
+export type GameClientTransport = GameRequestTransport & {
 	pollEvents?(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }
 
