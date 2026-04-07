@@ -7,14 +7,14 @@ describe('hexDistance', () => {
     expect(hexDistance({ q: 3, r: 3 }, { q: 3, r: 3 })).toBe(0)
   })
 
-  it('returns 1 for all six direct odd-r neighbors', () => {
+  it('returns 1 for all six direct axial neighbors', () => {
     const origin = { q: 2, r: 2 }
 
     expect(hexDistance(origin, { q: 3, r: 2 })).toBe(1)
     expect(hexDistance(origin, { q: 1, r: 2 })).toBe(1)
     expect(hexDistance(origin, { q: 2, r: 3 })).toBe(1)
     expect(hexDistance(origin, { q: 2, r: 1 })).toBe(1)
-    expect(hexDistance(origin, { q: 1, r: 1 })).toBe(1)
+    expect(hexDistance(origin, { q: 3, r: 1 })).toBe(1)
     expect(hexDistance(origin, { q: 1, r: 3 })).toBe(1)
   })
 
@@ -33,11 +33,11 @@ describe('hexesWithinRange', () => {
     expect(keys).toHaveLength(18)
     expect(keys).not.toContain('0,0')
     expect(new Set(keys)).toEqual(new Set([
-      '-2,-1', '-2,0', '-2,1',
-      '-1,-2', '-1,-1', '-1,0', '-1,1', '-1,2',
+      '-2,0', '-2,1', '-2,2',
+      '-1,-1', '-1,0', '-1,1', '-1,2',
       '0,-2', '0,-1', '0,1', '0,2',
-      '1,-2', '1,-1', '1,0', '1,1', '1,2',
-      '2,0',
+      '1,-2', '1,-1', '1,0', '1,1',
+      '2,-2', '2,-1', '2,0',
     ]))
   })
 

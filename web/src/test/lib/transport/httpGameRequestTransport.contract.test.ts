@@ -23,7 +23,7 @@ describe('http game request transport contract', () => {
 						'wolf-2': {
 							id: 'wolf-2',
 							type: 'BigBadWolf',
-							position: { q: 6, r: 6 },
+							position: { q: 3, r: 6 },
 							status: 'operational',
 							weapons: [],
 						},
@@ -56,7 +56,7 @@ describe('http game request transport contract', () => {
 						'wolf-2': {
 							id: 'wolf-2',
 							type: 'BigBadWolf',
-							position: { q: 6, r: 6 },
+							position: { q: 3, r: 6 },
 							status: 'operational',
 							weapons: [],
 						},

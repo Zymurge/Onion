@@ -10,15 +10,17 @@ describe('buildCombatRangeHexKeys', () => {
   it('intersects overlapping ranges from multiple sources', () => {
     const keys = buildCombatRangeHexKeys(
       [
-        { q: 0, r: 0, range: 4 },
-        { q: 0, r: 0, range: 2 },
+        { q: 1, r: 1, range: 1 },
+        { q: 1, r: 1, range: 1 },
       ],
-      { width: 10, height: 10 },
+      { width: 3, height: 3 },
     )
 
-    expect(keys.has('2,0')).toBe(true)
-    expect(keys.has('3,0')).toBe(false)
-    expect(keys.has('0,0')).toBe(false)
+    expect(keys).toEqual(new Set([
+      '0,1', '0,2',
+      '1,0', '1,2',
+      '2,0', '2,1',
+    ]))
   })
 
   it('clips the range to the current board bounds', () => {

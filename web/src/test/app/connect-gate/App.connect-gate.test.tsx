@@ -68,7 +68,7 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
-					position: { q: 6, r: 6 },
+					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
 						{
@@ -85,7 +85,7 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
-					position: { q: 6, r: 4 },
+					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
 						{

@@ -40,7 +40,7 @@ const defenders: BattlefieldUnit[] = [
 		id: 'wolf-2',
 		type: 'BigBadWolf',
 		status: 'operational',
-		q: 2,
+		q: 1,
 		r: 2,
 		move: 4,
 		weapons: 'main: ready',
@@ -435,7 +435,7 @@ describe('HexMapBoard', () => {
 				onMoveUnit={vi.fn()}
 			/>,
 		)
-		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-4'))
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-2-4'))
 		expect(screen.getByText(/illegal move/i)).not.toBeNull()
 	})
 
@@ -453,7 +453,7 @@ describe('HexMapBoard', () => {
 				onMoveUnit={vi.fn()}
 			/>,
 		)
-		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-4'))
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-2-4'))
 		expect(screen.queryByText(/illegal move/i)).toBeNull()
 	})
 })

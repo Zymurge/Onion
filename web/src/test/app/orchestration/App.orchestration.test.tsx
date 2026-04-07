@@ -130,7 +130,7 @@ function createConnectedBattlefieldSnapshot(
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
-					position: { q: 6, r: 6 },
+					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
 						{
@@ -147,7 +147,7 @@ function createConnectedBattlefieldSnapshot(
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
-					position: { q: 6, r: 4 },
+					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
 						{
@@ -230,7 +230,7 @@ function createGroupedInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot 
 				...snapshot.authoritativeState.defenders,
 				'puss-1': {
 					...snapshot.authoritativeState.defenders['puss-1'],
-					position: { q: 1, r: 2 },
+					position: { q: 0, r: 2 },
 				},
 			},
 		},
@@ -342,10 +342,10 @@ describe('App orchestration (injected game client)', () => {
 		expect(onionCard.textContent).toContain('Moves 2')
 		await userEvent.click(onionCard)
 		await act(async () => {
-			fireEvent.contextMenu(screen.getByTestId('hex-cell-1-2'))
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-2'))
 		})
 		await screen.findByRole('button', { name: /onion-1/i })
-		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 1, r: 2 } })
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 0, r: 2 } })
 	})
 
 	it('selects a unit locally without submitting an action', async () => {
@@ -515,10 +515,10 @@ describe('App orchestration (injected game client)', () => {
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
 		await act(async () => {
-			fireEvent.contextMenu(screen.getByTestId('hex-cell-7-6'))
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-4-6'))
 		})
 
-		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'wolf-2', to: { q: 7, r: 6 } })
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'wolf-2', to: { q: 4, r: 6 } })
 	})
 
 	it('does not submit a move when the player is inactive', async () => {
@@ -542,7 +542,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(moveWolfButton.getAttribute('data-selected')).toBe('true')
 		expect(moveWolfUnit.getAttribute('data-selected')).toBe('true')
 
-		fireEvent.contextMenu(screen.getByTestId('hex-cell-7-6'))
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-6'))
 
 		expect(submitAction).not.toHaveBeenCalled()
 	})
@@ -637,7 +637,7 @@ describe('App orchestration (injected game client)', () => {
 					'no-ready-1': {
 						id: 'no-ready-1',
 						type: 'Witch',
-						position: { q: 4, r: 5 },
+						position: { q: 2, r: 5 },
 						status: 'operational' as const,
 						weapons: [
 							{
@@ -654,7 +654,7 @@ describe('App orchestration (injected game client)', () => {
 					'active-1': {
 						id: 'active-1',
 						type: 'BigBadWolf',
-						position: { q: 5, r: 5 },
+						position: { q: 3, r: 5 },
 						status: 'operational' as const,
 						weapons: [
 							{
@@ -671,7 +671,7 @@ describe('App orchestration (injected game client)', () => {
 					'dead-1': {
 						id: 'dead-1',
 						type: 'Puss',
-						position: { q: 6, r: 5 },
+						position: { q: 4, r: 5 },
 						status: 'destroyed' as const,
 						weapons: [
 							{
@@ -785,7 +785,7 @@ describe('App orchestration (injected game client)', () => {
 				...baseSnapshot.authoritativeState,
 				onion: {
 					...baseSnapshot.authoritativeState.onion,
-					position: { q: 2, r: 2 },
+						position: { q: 1, r: 2 },
 					weapons: [
 						{
 							id: 'main-1',
@@ -802,7 +802,7 @@ describe('App orchestration (injected game client)', () => {
 					'near-1': {
 						id: 'near-1',
 						type: 'Puss',
-						position: { q: 3, r: 2 },
+						position: { q: 2, r: 2 },
 						status: 'operational' as const,
 						weapons: [
 							{
@@ -819,7 +819,7 @@ describe('App orchestration (injected game client)', () => {
 					'far-1': {
 						id: 'far-1',
 						type: 'BigBadWolf',
-						position: { q: 7, r: 7 },
+						position: { q: 4, r: 7 },
 						status: 'operational' as const,
 						weapons: [
 							{
@@ -871,7 +871,7 @@ describe('App orchestration (injected game client)', () => {
 				...baseSnapshot.authoritativeState,
 				onion: {
 					...baseSnapshot.authoritativeState.onion,
-					position: { q: 2, r: 2 },
+						position: { q: 1, r: 2 },
 					weapons: [
 						{
 							id: 'main-1',
@@ -888,7 +888,7 @@ describe('App orchestration (injected game client)', () => {
 					'near-1': {
 						id: 'near-1',
 						type: 'LittlePigs',
-						position: { q: 3, r: 2 },
+						position: { q: 2, r: 2 },
 						status: 'operational' as const,
 						squads: 1,
 						weapons: [
@@ -907,7 +907,7 @@ describe('App orchestration (injected game client)', () => {
 			},
 			scenarioMap: {
 				...baseSnapshot.scenarioMap,
-				hexes: [{ q: 3, r: 2, t: 1 }],
+					hexes: [{ q: 2, r: 2, t: 1 }],
 			},
 		}
 		const session = { role: 'onion' as const }
@@ -1010,7 +1010,7 @@ describe('App orchestration (injected game client)', () => {
 					'long-range-spent': {
 						id: 'long-range-spent',
 						type: 'Dragon',
-						position: { q: 4, r: 4 },
+						position: { q: 2, r: 4 },
 						status: 'operational' as const,
 						weapons: [
 							{
@@ -1036,7 +1036,7 @@ describe('App orchestration (injected game client)', () => {
 					'near-1': {
 						id: 'near-1',
 						type: 'Puss',
-						position: { q: 6, r: 4 },
+						position: { q: 4, r: 4 },
 						status: 'operational' as const,
 						weapons: [
 							{
@@ -1054,7 +1054,7 @@ describe('App orchestration (injected game client)', () => {
 			},
 			onion: {
 				...baseSnapshot.authoritativeState.onion,
-				position: { q: 7, r: 4 },
+					position: { q: 5, r: 4 },
 			},
 			selectedUnitId: 'long-range-spent',
 		}
@@ -1112,7 +1112,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 4')
 
-		fireEvent.click(screen.getByTestId('hex-cell-7-7'))
+		fireEvent.click(screen.getByTestId('hex-cell-4-7'))
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 		expect(wolfButton.getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 0')
