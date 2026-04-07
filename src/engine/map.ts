@@ -24,6 +24,16 @@ export interface Hex extends HexPos {
 
 /**
  * A game map consisting of a collection of hexes.
+ *
+ * The map is defined as a bounded axial region, not a rectangle.
+ * Implementations should treat membership as a shape concern: a hex is valid
+ * only when it belongs to the scenario's declared region. Width and height are
+ * retained as viewport and presentation hints, but they do not define map
+ * membership on their own.
+ *
+ * Shape-aware code should rely on a future shared helper or shape contract to
+ * enumerate valid cells and test membership. Rectangular q/r loops are only
+ * acceptable for legacy compatibility layers, not as the canonical model.
  */
 export interface GameMap {
   /** Width of the map in hexes */
