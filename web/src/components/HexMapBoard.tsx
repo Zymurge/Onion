@@ -92,17 +92,9 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
       : defenders.find((unit) => unit.id === selectedPrimaryUnitId) ?? null
   const selectedAllowance = selectedOccupant
     ? selectedOccupant.id === onion.id
-      ? onion.movesRemaining > 0
-        ? onion.movesRemaining
-        : phase === null
-          ? 0
-          : getUnitMovementAllowance('TheOnion', phase, onion.treads)
+      ? onion.movesRemaining
       : 'move' in selectedOccupant
-        ? selectedOccupant.move > 0
-          ? selectedOccupant.move
-          : phase === null
-            ? 0
-            : getUnitMovementAllowance(selectedOccupant.type, phase)
+        ? selectedOccupant.move
         : 0
     : 0
   const selectedCanCrossRidgelines = selectedOccupant ? canUnitCrossRidgelines(selectedOccupant.type) : false
@@ -304,17 +296,9 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                     const isOccupantSelected = selectedUnitSet.has(occupant.id)
                     const offset = getStackOffset(index, cellOccupants.length)
                     const moveRemaining = isOccupantOnion
-                      ? onion.movesRemaining > 0
-                        ? onion.movesRemaining
-                        : phase === null
-                          ? 0
-                          : getUnitMovementAllowance('TheOnion', phase, onion.treads)
+                      ? onion.movesRemaining
                       : 'move' in occupant
-                        ? occupant.move > 0
-                          ? occupant.move
-                          : phase === null
-                            ? 0
-                            : getUnitMovementAllowance(occupant.type, phase)
+                        ? occupant.move
                         : 0
 
                     return (

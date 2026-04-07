@@ -420,6 +420,23 @@
   justify-content: center;
 }
 
+.phase-advance-btn {
+  border: 1px solid rgba(121, 92, 32, 0.35);
+  background: linear-gradient(180deg, rgba(121, 92, 32, 0.12), rgba(121, 92, 32, 0.06));
+  color: #4f3a12;
+  border-radius: 12px;
+  padding: 0.68rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+
+.phase-advance-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(51, 43, 26, 0.08);
+}
+
 .topbar-meta-small {
   display: flex;
   align-items: center;
@@ -1004,6 +1021,10 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.selection-panel-header h2 {
+  margin: 2px 0 0;
 }
 
 .selection-panel-content {

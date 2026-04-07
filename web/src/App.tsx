@@ -32,7 +32,7 @@ import {
   sanitizeApiProtocolTrafficEntry,
   subscribeApiProtocolTraffic,
 } from '../../src/shared/apiProtocol'
-import { getRemainingUnitMovementAllowance, getUnitMovementAllowance } from '../../src/shared/unitMovement'
+import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
 import type { TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
 import type {
   GameRequestTransport,
@@ -71,6 +71,27 @@ function getPhaseOwner(phase: TurnPhase | null): 'onion' | 'defender' | null {
   }
 
   return null
+}
+
+function getPhaseAdvanceLabel(phase: TurnPhase | null, role: 'onion' | 'defender' | null): string | null {
+  if (phase === null || role === null) {
+    return null
+  }
+
+  switch (phase) {
+    case 'ONION_MOVE':
+      return role === 'onion' ? 'Start Combat' : null
+    case 'ONION_COMBAT':
+      return role === 'onion' ? 'End Turn' : null
+    case 'DEFENDER_MOVE':
+      return role === 'defender' ? 'Start Combat' : null
+    case 'DEFENDER_COMBAT':
+      return role === 'defender' ? 'Begin Secondary Move' : null
+    case 'GEV_SECOND_MOVE':
+      return role === 'defender' ? 'End Turn' : null
+    case 'DEFENDER_RECOVERY':
+      return null
+  }
 }
 
 function formatLiveConnectionStatus(connectionStatus: LiveConnectionStatus) {
@@ -253,10 +274,6 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
     .map(([defenderId, defender], index) => {
       const resolvedDefenderId = defender.id ?? defenderId
       const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
-      const computedMovementRemaining =
-        activePhase === null
-          ? 0
-          : getRemainingUnitMovementAllowance(defender.type, activePhase, authoritativeState, resolvedDefenderId)
 
       return {
         id: resolvedDefenderId,
@@ -264,12 +281,7 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
         status: defender.status,
         q: defender.position.q,
         r: defender.position.r,
-        move:
-          activePhase === null
-            ? 0
-            : snapshotMovementRemaining === undefined || snapshotMovementRemaining === 0
-              ? computedMovementRemaining
-              : snapshotMovementRemaining,
+        move: activePhase === null ? 0 : snapshotMovementRemaining ?? 0,
         weapons: formatWeaponSummary(defender.weapons),
         attack: formatAttackSummary(defender.weapons),
         weaponDetails: defender.weapons ?? [],
@@ -306,10 +318,7 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
   const onion = authoritativeState.onion
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
-  const movesRemaining =
-    activePhase === null
-      ? 0
-      : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
+  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? 0
 
   return {
     id: onion.id ?? 'onion-1',
@@ -659,11 +668,13 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? null
   const activePhaseOwner = getPhaseOwner(activePhase)
   const activeTurnActive = headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
+  const phaseAdvanceLabel = getPhaseAdvanceLabel(activePhase, activeRole)
   const shellPhase = activePhase ?? 'DEFENDER_MOVE'
   const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
   const activeMode: Mode = clientSnapshot?.mode ?? 'fire'
   const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
   const activeCombatRole = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
+  const isMovementPhase = activePhase === 'ONION_MOVE' || activePhase === 'DEFENDER_MOVE' || activePhase === 'GEV_SECOND_MOVE'
   const displayedScenarioMap = buildScenarioMap(clientSnapshot)
   const selectedCombatAttackerIds = !isCombatPhase
     ? []
@@ -871,6 +882,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
   const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
   const selectedCombatAttackCount = selectedCombatAttackerIds.length
+  const selectedInspectorUnitId = activeSelectedUnitIds.find((selectionId) => !isWeaponSelectionId(selectionId)) ?? null
+  const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
+  const selectedInspectorDefender =
+    selectedInspectorOnion !== null || selectedInspectorUnitId === null
+      ? null
+      : displayedDefenders.find((unit) => unit.id === selectedInspectorUnitId) ?? null
   const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
     ? new Set<string>()
     : buildCombatRangeHexKeys(
@@ -1027,6 +1044,17 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           <div className={`phase-chip phase-chip-state${activeTurnActive ? ' phase-chip-active' : ''}${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}>
             <span>{headerHasSnapshot ? activePhaseLabel : 'WAITING'}</span>
           </div>
+          {phaseAdvanceLabel !== null ? (
+            <button
+              type="button"
+              className="phase-advance-btn"
+              onClick={() => {
+                void commitClientAction({ type: 'end-phase' })
+              }}
+            >
+              {phaseAdvanceLabel}
+            </button>
+          ) : null}
         </div>
         <div className="header-utility-controls">
           <div className="utility-group-vert">
@@ -1182,8 +1210,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 )}
               </div>
             </section>
-          ) : (
-            <>
+          ) : isMovementPhase ? (
+            activeRole === 'onion' ? (
               <section className="section-block">
                 <div className="card-head">
                   <p className="eyebrow">Onion</p>
@@ -1217,7 +1245,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                   <p className="summary-line">Waiting for battlefield data.</p>
                 )}
               </section>
-
+            ) : activeRole === 'defender' ? (
               <section className="section-block">
                 <div className="card-head">
                   <p className="eyebrow">Defenders</p>
@@ -1271,8 +1299,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                   <p className="summary-line">Waiting for battlefield data.</p>
                 )}
               </section>
-            </>
-          )}
+            ) : null
+          ) : null}
         </aside>
 
         <section className="panel map-stage">
@@ -1334,8 +1362,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 <div className="attacker-selection-list" data-testid="combat-target-list">
                   {combatTargetOptions.map((target) => {
                     const isSelected = selectedCombatTargetId === target.id
-                      const isTreadsTarget = target.id.endsWith(':treads')
-                      const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
+                    const isTreadsTarget = target.id.endsWith(':treads')
+                    const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
                     return (
                       <button
                         key={target.id}
@@ -1343,13 +1371,13 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                         className={[
                           'attacker-card-button',
                           isSelected ? 'is-selected' : '',
-                            isGroupAttackOnTreads ? 'is-disabled' : '',
+                          isGroupAttackOnTreads ? 'is-disabled' : '',
                           `tone-${statusTone(target.status)}`,
                         ].join(' ')}
-                          disabled={isGroupAttackOnTreads}
-                          title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
+                        disabled={isGroupAttackOnTreads}
+                        title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
                         aria-pressed={isSelected}
-                          aria-disabled={isGroupAttackOnTreads}
+                        aria-disabled={isGroupAttackOnTreads}
                         data-selected={isSelected}
                         data-testid={`combat-target-${target.id}`}
                         onClick={(event) => {
@@ -1362,16 +1390,16 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                           event.stopPropagation()
                           setSelectedCombatTargetId(target.id)
                         }}
-                          onContextMenu={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
+                        onContextMenu={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
 
-                            if (isGroupAttackOnTreads) {
-                              return
-                            }
+                          if (isGroupAttackOnTreads) {
+                            return
+                          }
 
-                            setSelectedCombatTargetId(target.id)
-                          }}
+                          setSelectedCombatTargetId(target.id)
+                        }}
                       >
                         <div className="combat-card-header">
                           <span className="combat-card-type"><strong>{target.label}</strong></span>
@@ -1386,7 +1414,97 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 <p className="summary-line">No valid targets are currently in range.</p>
               )}
             </section>
-          ) : null}
+          ) : isMovementPhase ? (
+            <section className="selection-panel panel-subtle">
+              <div className="selection-panel-header">
+                <div>
+                  <p className="eyebrow">Inspector</p>
+                </div>
+              </div>
+              <div className="empty-state">Select a unit on the map or in the rail to inspect it here.</div>
+            </section>
+          ) : selectedInspectorOnion !== null ? (
+            <section className="selection-panel panel-subtle">
+              <div className="selection-panel-header">
+                <div>
+                  <p className="eyebrow">Inspector</p>
+                  <h2>{selectedInspectorOnion.id}</h2>
+                </div>
+                <span className="mini-tag">Selected</span>
+              </div>
+              <dl className="inspector-grid inspector-grid-right">
+                <div>
+                  <dt>Type</dt>
+                  <dd>{selectedInspectorOnion.type}</dd>
+                </div>
+                <div>
+                  <dt>Treads</dt>
+                  <dd>{selectedInspectorOnion.treads}</dd>
+                </div>
+                <div>
+                  <dt>Moves</dt>
+                  <dd>{selectedInspectorOnion.movesRemaining}</dd>
+                </div>
+                <div>
+                  <dt>Rams</dt>
+                  <dd>{selectedInspectorOnion.rams}</dd>
+                </div>
+                <div>
+                  <dt>Weapons</dt>
+                  <dd>{parseWeaponStats(selectedInspectorOnion.weapons ?? '').operationalWeapons}</dd>
+                </div>
+                <div>
+                  <dt>Missiles</dt>
+                  <dd>{parseWeaponStats(selectedInspectorOnion.weapons ?? '').operationalMissiles}</dd>
+                </div>
+              </dl>
+            </section>
+          ) : selectedInspectorDefender !== null ? (
+            <section className="selection-panel panel-subtle">
+              <div className="selection-panel-header">
+                <div>
+                  <p className="eyebrow">Inspector</p>
+                  <h2>{selectedInspectorDefender.id}</h2>
+                </div>
+                <span className="mini-tag">Selected</span>
+              </div>
+              <dl className="inspector-grid inspector-grid-right">
+                <div>
+                  <dt>Type</dt>
+                  <dd>{selectedInspectorDefender.type}</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{selectedInspectorDefender.status}</dd>
+                </div>
+                <div>
+                  <dt>Damage</dt>
+                  <dd>{parseAttackStats(selectedInspectorDefender.attack).damage}</dd>
+                </div>
+                <div>
+                  <dt>Range</dt>
+                  <dd>{parseAttackStats(selectedInspectorDefender.attack).range}</dd>
+                </div>
+                <div>
+                  <dt>Move</dt>
+                  <dd>{selectedInspectorDefender.move}</dd>
+                </div>
+                <div>
+                  <dt>Selected</dt>
+                  <dd>{activeSelectedUnitIds.length}</dd>
+                </div>
+              </dl>
+            </section>
+          ) : (
+            <section className="selection-panel panel-subtle">
+              <div className="selection-panel-header">
+                <div>
+                  <p className="eyebrow">Inspector</p>
+                </div>
+              </div>
+              <div className="empty-state">Select a unit on the map or in the rail to inspect it here.</div>
+            </section>
+          )}
         </aside>
       </main>
     </div>

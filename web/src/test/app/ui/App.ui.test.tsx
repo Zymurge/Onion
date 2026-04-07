@@ -121,6 +121,44 @@ function createDefenderMoveSnapshotWithStaleAllowance(): LoadedBattlefieldSnapsh
 	}
 }
 
+function createDefenderMoveSnapshotWithZeroMa(): LoadedBattlefieldSnapshot {
+	const snapshot = createLoadedBattlefieldSnapshot()
+
+	return {
+		...snapshot,
+		phase: 'DEFENDER_MOVE',
+		selectedUnitId: 'wolf-2',
+		authoritativeState: {
+			...snapshot.authoritativeState,
+			movementSpent: {},
+		},
+		movementRemainingByUnit: {
+			'onion-1': 0,
+			'wolf-2': 0,
+			'puss-1': 3,
+		},
+	}
+}
+
+function createOnionMoveSnapshot(selectedUnitId: string | null = null, onionMovesRemaining = 4): LoadedBattlefieldSnapshot {
+	const snapshot = createLoadedBattlefieldSnapshot()
+
+	return {
+		...snapshot,
+		phase: 'ONION_MOVE',
+		selectedUnitId,
+		authoritativeState: {
+			...snapshot.authoritativeState,
+			movementSpent: {},
+		},
+		movementRemainingByUnit: {
+			'onion-1': onionMovesRemaining,
+			'wolf-2': 4,
+			'puss-1': 3,
+		},
+	}
+}
+
 beforeEach(() => {
 	vi.clearAllMocks()
 	clearApiProtocolTraffic()
@@ -172,7 +210,7 @@ describe('App UI', () => {
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 	})
 
-	it('renders defender move paths even when the live snapshot briefly reports zero allowance', async () => {
+	it('keeps defender movement collapsed when the live snapshot reports zero allowance', async () => {
 		const snapshot = createDefenderMoveSnapshotWithStaleAllowance()
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
@@ -184,8 +222,57 @@ describe('App UI', () => {
 
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
-		expect(wolfUnit.getAttribute('class')).toContain('hex-unit-stack-move-ready')
-		expect(screen.getByTestId('hex-cell-7-6').getAttribute('class')).toContain('hex-cell-reachable')
+		expect(wolfUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
+		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
+	})
+
+	it('does not show full move range when a defender has zero MA', async () => {
+		const snapshot = createDefenderMoveSnapshotWithZeroMa()
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
+		expect(wolfUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
+		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
+	})
+
+	it('keeps Onion MOVE focused on Onion and leaves the inspector empty until a unit is selected', async () => {
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByTestId('combat-unit-onion-1')).not.toBeNull()
+		expect(screen.queryByTestId('combat-unit-wolf-2')).toBeNull()
+		expect(screen.queryByTestId('combat-unit-puss-1')).toBeNull()
+		expect(screen.queryByText(/unit details/i)).toBeNull()
+		expect(screen.getByText('Select a unit on the map or in the rail to inspect it here.')).not.toBeNull()
+	})
+
+	it('does not reopen Onion movement range after moves are exhausted', async () => {
+		const snapshot = createOnionMoveSnapshot('onion-1', 0)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const onionUnit = await screen.findByTestId('hex-unit-onion-1')
+		expect(screen.getByTestId('combat-unit-onion-1').textContent).toContain('Moves 0')
+		expect(onionUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
+		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
 	})
 
 	it('loads initial state under StrictMode', async () => {
