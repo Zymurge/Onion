@@ -11,6 +11,15 @@ const scenarioMap = {
 	hexes: [] as TerrainHex[],
 }
 
+const sparseScenarioMap = {
+	width: 5,
+	height: 5,
+	hexes: [
+		{ q: 0, r: 0, t: 0 },
+		{ q: 2, r: 1, t: 1 },
+	],
+}
+
 const onion: BattlefieldOnionView = {
 	id: 'onion-1',
 	type: 'TheOnion',
@@ -119,6 +128,26 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-cell-combat-range')
 		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).toContain('hex-cell-combat-range')
 		expect(screen.getByTestId('hex-cell-0-0').getAttribute('class')).not.toContain('hex-cell-combat-range')
+	})
+
+	it('renders only the actual scenario hexes instead of the full rectangular grid', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={sparseScenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-0-0')).not.toBeNull()
+		expect(screen.getByTestId('hex-cell-2-1')).not.toBeNull()
+		expect(screen.queryByTestId('hex-cell-1-0')).toBeNull()
+		expect(screen.queryByTestId('hex-cell-4-4')).toBeNull()
 	})
 
 	it('deselects when the user left-clicks an empty hex', () => {

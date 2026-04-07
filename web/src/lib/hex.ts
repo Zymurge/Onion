@@ -31,17 +31,15 @@ export function pointsToString(points: HexPoint[]): string {
   return points.map((point) => `${point.x},${point.y}`).join(' ')
 }
 
-export function boardPixelSize(width: number, height: number, size: number, padding: number) {
+export function boardPixelSize(cells: ReadonlyArray<HexCoord>, size: number, padding: number) {
   const horizontalRadius = (SQRT_3 / 2) * size
   let maxCenterX = 0
   let maxCenterY = 0
 
-  for (let r = 0; r < height; r += 1) {
-    for (let q = 0; q < width; q += 1) {
-      const center = axialToPixel({ q, r }, size)
-      if (center.x > maxCenterX) maxCenterX = center.x
-      if (center.y > maxCenterY) maxCenterY = center.y
-    }
+  for (const coord of cells) {
+    const center = axialToPixel(coord, size)
+    if (center.x > maxCenterX) maxCenterX = center.x
+    if (center.y > maxCenterY) maxCenterY = center.y
   }
 
   return {

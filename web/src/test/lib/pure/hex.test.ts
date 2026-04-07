@@ -67,9 +67,31 @@ describe('board hex layout', () => {
   })
 
   it('sizes the board to the rendered rectangle rather than an expanding axial parallelogram', () => {
-    const bounds = boardPixelSize(5, 5, 36, 28)
+    const bounds = boardPixelSize(
+      [
+        { q: 0, r: 0 },
+        { q: 4, r: 4 },
+      ],
+      36,
+      28,
+    )
 
-    expect(bounds.width).toBeCloseTo(Math.sqrt(3) * 36 * 5 + 56, 5)
-    expect(bounds.height).toBeCloseTo(36 * 7 + 56, 5)
+    expect(bounds.width).toBeCloseTo(Math.sqrt(3) * 36 * 4 + (Math.sqrt(3) / 2) * 36 + 56, 5)
+    expect(bounds.height).toBeCloseTo(36 * 4 * 1.5 + 36 + 56, 5)
+  })
+
+  it('sizes a sparse board from the actual rendered cells', () => {
+    const bounds = boardPixelSize(
+      [
+        { q: 0, r: 0 },
+        { q: 2, r: 1 },
+      ],
+      36,
+      28,
+    )
+
+    expect(bounds.width).toBeGreaterThan(0)
+    expect(bounds.height).toBeGreaterThan(0)
+    expect(bounds.width).toBeLessThan(boardPixelSize([{ q: 0, r: 0 }, { q: 4, r: 4 }], 36, 28).width)
   })
 })
