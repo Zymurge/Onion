@@ -3,7 +3,7 @@ import { getNeighbors, hexDistance, type HexPos } from '../shared/hex.js'
 import { getUnitDefinition, onionMovementAllowance } from '../engine/units.js'
 import { listReachableMoves, type MoveMapSnapshot } from '../shared/movePlanner.js'
 
-export type ScenarioMap = { width: number; height: number; hexes: Array<{ q: number; r: number; t: number }> }
+export type ScenarioMap = { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: Array<{ q: number; r: number; t: number }> }
 
 export interface ExpectedState {
   onion: any
@@ -57,7 +57,7 @@ export async function registerAndLoginUser(app: any, username: string, password:
 }
 
 function isInBounds(map: ScenarioMap, position: HexPos): boolean {
-  return position.q >= 0 && position.q < map.width && position.r >= 0 && position.r < map.height
+  return map.cells.some((cell) => cell.q === position.q && cell.r === position.r)
 }
 
 function isPassableTerrain(map: ScenarioMap, position: HexPos): boolean {

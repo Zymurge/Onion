@@ -8,16 +8,8 @@ import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '../../li
 const scenarioMap = {
 	width: 5,
 	height: 5,
-	hexes: [] as TerrainHex[],
-}
-
-const sparseScenarioMap = {
-	width: 5,
-	height: 5,
-	hexes: [
-		{ q: 0, r: 0, t: 0 },
-		{ q: 2, r: 1, t: 1 },
-	],
+	cells: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r }))).flat(),
+	hexes: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r, t: 0 } as TerrainHex))).flat(),
 }
 
 const onion: BattlefieldOnionView = {
@@ -130,10 +122,15 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-cell-0-0').getAttribute('class')).not.toContain('hex-cell-combat-range')
 	})
 
-	it('renders only the actual scenario hexes instead of the full rectangular grid', () => {
+	it('renders default terrain cells alongside special terrain overrides', () => {
 		render(
 			<HexMapBoard
-				scenarioMap={sparseScenarioMap}
+				scenarioMap={{
+					width: 5,
+					height: 5,
+					cells: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 2, r: 1, t: 1 }],
+				}}
 				defenders={defenders}
 				onion={onion}
 				phase="DEFENDER_MOVE"
@@ -146,8 +143,8 @@ describe('HexMapBoard', () => {
 
 		expect(screen.getByTestId('hex-cell-0-0')).not.toBeNull()
 		expect(screen.getByTestId('hex-cell-2-1')).not.toBeNull()
-		expect(screen.queryByTestId('hex-cell-1-0')).toBeNull()
-		expect(screen.queryByTestId('hex-cell-4-4')).toBeNull()
+		expect(screen.getByTestId('hex-cell-1-0').getAttribute('class')).toContain('hex-terrain-default')
+		expect(screen.getByTestId('hex-cell-4-4').getAttribute('class')).toContain('hex-terrain-default')
 	})
 
 	it('deselects when the user left-clicks an empty hex', () => {

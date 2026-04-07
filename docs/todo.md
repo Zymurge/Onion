@@ -10,9 +10,10 @@ break down into features/tasks as needed.
   - [x] Add a shared helper that enumerates valid axial cells for the chosen map shape.
   - [x] Update movement and pathfinding bounds checks to use map membership instead of rectangular `q`/`r` limits.
   - [x] Update the web board renderer to iterate the generated axial cell set and size the SVG from the actual rendered cells.
-  - [ ] Add intentional edge treatment so clipped board boundaries read clearly in the viewport.
+  - [x] Add intentional edge treatment so clipped board boundaries read clearly in the viewport.
+  - [x] Update the scenario loader and snapshot shapes to carry the canonical axial board contract.
+  - [x] Update existing scenario data to the new axial shape format. (Decision: no compatibility migration is needed; recreate games from the canonical axial contract.)
   - [ ] Add regression tests for map membership, overlay alignment, and viewport sizing.
-  - [ ] Plan compatibility for existing rectangular scenarios and migrate them safely.
 
   ### Pre-Implementation Checklist
 

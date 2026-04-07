@@ -13,6 +13,7 @@ type AuthoritativeBattlefieldSnapshot = GameSnapshot & {
 	scenarioMap: {
 		width: number
 		height: number
+		cells: Array<{ q: number; r: number }>
 		hexes: Array<{ q: number; r: number; t: number }>
 	}
 }
@@ -86,6 +87,7 @@ function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefieldSnaps
 		scenarioMap: {
 			width: 2,
 			height: 2,
+			cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 1 }],
 			hexes: [{ q: 1, r: 1, t: 1 }],
 		},
 	}
@@ -172,6 +174,7 @@ function createConnectedBattlefieldSnapshot(
 		scenarioMap: {
 			width: 8,
 			height: 8,
+			cells: Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, q) => ({ q, r }))).flat(),
 			hexes: [{ q: 1, r: 1, t: 1 }],
 		},
 		...overrides,

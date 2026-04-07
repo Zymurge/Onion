@@ -198,7 +198,7 @@ function parseRangeValue(rangeText: string): number {
   return Number.isNaN(parsedRange) ? 0 : parsedRange
 }
 
-function getTerrainTypeAt(scenarioMap: { width: number; height: number; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
+function getTerrainTypeAt(scenarioMap: { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
   return scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t
 }
 
@@ -336,7 +336,7 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
   }
 }
 
-function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; height: number; hexes: TerrainHex[] } | null {
+function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
   const scenarioMap = snapshot?.scenarioMap
 
   if (scenarioMap === undefined) {
@@ -346,6 +346,7 @@ function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; heigh
   return {
     width: scenarioMap.width,
     height: scenarioMap.height,
+    cells: scenarioMap.cells,
     hexes: scenarioMap.hexes,
   }
 }

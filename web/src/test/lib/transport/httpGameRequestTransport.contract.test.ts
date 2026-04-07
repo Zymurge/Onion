@@ -36,6 +36,7 @@ describe('http game request transport contract', () => {
 				scenarioMap: {
 					width: 15,
 					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
 				},
 				eventSeq: 47,
@@ -73,6 +74,7 @@ describe('http game request transport contract', () => {
 				scenarioMap: {
 					width: 15,
 					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
 				},
 				scenarioName: "The Siege of Shrek's Swamp",

@@ -37,10 +37,12 @@ type ScenarioSnapshot = {
   }
   width?: number
   height?: number
+  cells?: Array<{ q: number; r: number }>
   hexes?: Array<{ q: number; r: number; t: number }>
   map?: {
     width: number
     height: number
+    cells?: Array<{ q: number; r: number }>
     hexes?: Array<{ q: number; r: number; t: number }>
   }
   initialState?: unknown
@@ -49,6 +51,7 @@ type ScenarioSnapshot = {
 type ScenarioMapSnapshot = {
   width: number
   height: number
+  cells: Array<{ q: number; r: number }>
   hexes: Array<{ q: number; r: number; t: number }>
 }
 
@@ -57,10 +60,14 @@ function getScenarioMapSnapshot(scenarioSnapshot: ScenarioSnapshot | undefined):
   if (!candidate || typeof candidate.width !== 'number' || typeof candidate.height !== 'number') {
     throw new Error('Invalid scenario map snapshot')
   }
+  if (!Array.isArray(candidate.cells)) {
+    throw new Error('Invalid scenario map snapshot: missing cells')
+  }
 
   return {
     width: candidate.width,
     height: candidate.height,
+    cells: candidate.cells,
     hexes: candidate.hexes ?? [],
   }
 }

@@ -14,6 +14,7 @@ type LoadedBattlefieldSnapshot = GameSnapshot & {
 	scenarioMap: {
 		width: number
 		height: number
+		cells: Array<{ q: number; r: number }>
 		hexes: Array<{ q: number; r: number; t: number }>
 	}
 }
@@ -97,6 +98,7 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 		scenarioMap: {
 			width: 8,
 			height: 8,
+			cells: Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, q) => ({ q, r }))).flat(),
 			hexes: [],
 		},
 	}

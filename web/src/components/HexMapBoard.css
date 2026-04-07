@@ -1,3 +1,31 @@
+.hex-map-shell {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.12), transparent 22%),
+    radial-gradient(circle at 80% 12%, rgba(255, 255, 255, 0.08), transparent 18%),
+    radial-gradient(circle at 30% 82%, rgba(0, 0, 0, 0.05), transparent 24%),
+    linear-gradient(180deg, #b89a67 0%, #a37f4c 52%, #8f6a3b 100%);
+  background-blend-mode: screen, screen, multiply, normal;
+}
+
+.hex-map-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.24;
+  background-image:
+    repeating-linear-gradient(135deg, rgba(255, 244, 214, 0.14) 0 1px, transparent 1px 11px),
+    radial-gradient(circle at 50% 50%, rgba(86, 63, 28, 0.12) 0 1px, transparent 1.25px 10px);
+  background-size: 18px 18px, 28px 28px;
+}
+
+.hex-map-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
 .hex-map {
   user-select: none;
   background-color: #f5f5f5;

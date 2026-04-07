@@ -39,6 +39,7 @@ export const ScenarioSchema = z.object({
   map: z.object({
     width: z.number(),
     height: z.number(),
+    cells: z.array(HexPosSchema),
     hexes: z.array(z.object({
       q: z.number(),
       r: z.number(),

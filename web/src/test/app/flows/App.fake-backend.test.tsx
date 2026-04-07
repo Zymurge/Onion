@@ -53,7 +53,7 @@ function SessionHarness(props: {
 
 function createAppShellSnapshot(): GameSnapshot & {
 	authoritativeState: GameState
-	scenarioMap: { width: number; height: number; hexes: Array<{ q: number; r: number; t: number }> }
+	scenarioMap: { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: Array<{ q: number; r: number; t: number }> }
 } {
 	return {
 		...createSnapshot({
