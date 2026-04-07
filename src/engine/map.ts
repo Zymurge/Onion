@@ -7,6 +7,9 @@ import logger from '../logger.js'
  */
 
 import type { HexPos } from '../types/index.js'
+import { getNeighbors, hexDistance, hexKey } from '../shared/hex.js'
+
+export { getNeighbors, hexDistance } from '../shared/hex.js'
 
 /**
  * Terrain types that can exist on hexes.
@@ -55,10 +58,6 @@ export interface PathResult {
   cost: number
 }
 
-function hexKey(pos: HexPos): string {
-  return `${pos.q},${pos.r}`
-}
-
 function terrainFromT(t: number): TerrainType {
   if (t === 1) return 'ridgeline'
   if (t === 2) return 'crater'
@@ -93,22 +92,6 @@ export function getHex(map: GameMap, pos: HexPos): Hex | null {
 
 export function isInBounds(map: GameMap, pos: HexPos): boolean {
   return pos.q >= 0 && pos.q < map.width && pos.r >= 0 && pos.r < map.height
-}
-
-export function hexDistance(a: HexPos, b: HexPos): number {
-  const dq = a.q - b.q
-  const dr = a.r - b.r
-  return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr))
-}
-
-const AXIAL_DIRECTIONS: readonly HexPos[] = [
-  { q: 1, r: 0 }, { q: -1, r: 0 },
-  { q: 0, r: 1 }, { q: 0, r: -1 },
-  { q: 1, r: -1 }, { q: -1, r: 1 },
-]
-
-export function getNeighbors(pos: HexPos): HexPos[] {
-  return AXIAL_DIRECTIONS.map(d => ({ q: pos.q + d.q, r: pos.r + d.r }))
 }
 
 export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | null {

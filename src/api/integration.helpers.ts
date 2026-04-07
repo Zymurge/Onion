@@ -1,9 +1,8 @@
 import { expect } from 'vitest'
-import { hexDistance } from '../engine/map.js'
+import { getNeighbors, hexDistance, type HexPos } from '../shared/hex.js'
 import { getUnitDefinition, onionMovementAllowance } from '../engine/units.js'
 import { listReachableMoves, type MoveMapSnapshot } from '../shared/movePlanner.js'
 
-export type HexPos = { q: number; r: number }
 export type ScenarioMap = { width: number; height: number; hexes: Array<{ q: number; r: number; t: number }> }
 
 export interface ExpectedState {
@@ -55,17 +54,6 @@ export async function registerAndLoginUser(app: any, username: string, password:
   expect(loginUserId).toBe(userId)
 
   return { userId, token }
-}
-
-function getNeighbors(position: HexPos): HexPos[] {
-  return [
-    { q: position.q + 1, r: position.r },
-    { q: position.q - 1, r: position.r },
-    { q: position.q, r: position.r + 1 },
-    { q: position.q, r: position.r - 1 },
-    { q: position.q + 1, r: position.r - 1 },
-    { q: position.q - 1, r: position.r + 1 },
-  ]
 }
 
 function isInBounds(map: ScenarioMap, position: HexPos): boolean {

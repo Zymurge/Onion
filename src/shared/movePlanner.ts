@@ -1,4 +1,4 @@
-import type { HexPos } from '../types/index.js'
+import { getNeighbors, hexKey, type HexPos } from './hex.js'
 
 export type MoveMapSnapshot = {
 	width: number
@@ -24,10 +24,6 @@ type TerrainType = 'clear' | 'ridgeline' | 'crater'
 type MoveRole = 'onion' | 'defender'
 
 type Occupant = NonNullable<MoveMapSnapshot['occupiedHexes']>[number]
-
-function hexKey(pos: HexPos): string {
-	return `${pos.q},${pos.r}`
-}
 
 function terrainFromT(t: number): TerrainType {
 	if (t === 1) return 'ridgeline'
@@ -97,28 +93,6 @@ function canStopOnOccupiedHex(
 
 	const destinationSquads = occupants.reduce((total, occupant) => total + (occupant.squads ?? 1), 0)
 	return incomingSquads + destinationSquads <= 3
-}
-
-function getNeighbors(pos: HexPos): HexPos[] {
-	if (pos.r & 1) {
-		return [
-			{ q: pos.q + 1, r: pos.r },
-			{ q: pos.q - 1, r: pos.r },
-			{ q: pos.q + 1, r: pos.r - 1 },
-			{ q: pos.q, r: pos.r - 1 },
-			{ q: pos.q + 1, r: pos.r + 1 },
-			{ q: pos.q, r: pos.r + 1 },
-		]
-	}
-
-	return [
-		{ q: pos.q + 1, r: pos.r },
-		{ q: pos.q - 1, r: pos.r },
-		{ q: pos.q, r: pos.r - 1 },
-		{ q: pos.q - 1, r: pos.r - 1 },
-		{ q: pos.q, r: pos.r + 1 },
-		{ q: pos.q - 1, r: pos.r + 1 },
-	]
 }
 
 function reconstructPath(prev: Map<string, HexPos | null>, from: HexPos, to: HexPos): HexPos[] {

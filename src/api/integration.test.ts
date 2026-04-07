@@ -574,7 +574,7 @@ describe('Integration Orchestrators', () => {
     expect(onionImmobilized || defendersRemaining === 0).toBe(true)
 
     if (onionImmobilized) {
-      expect(finalState.winner).toBe(ctx.defenderUser.userId)
+	  expect(finalState.winner).toBe('defender')
       const postGameAction = await ctx.app.inject({
         method: 'POST',
         url: `/games/${ctx.gameId}/actions`,

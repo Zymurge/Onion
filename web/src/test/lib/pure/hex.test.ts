@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { hexDistance, hexKey, hexesWithinRange } from '../../../lib/hex'
+import { hexDistance, hexKey, hexesWithinRange } from '../../../../../src/shared/hex'
 
 describe('hexDistance', () => {
   it('returns 0 for the same hex', () => {

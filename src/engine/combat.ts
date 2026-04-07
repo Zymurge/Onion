@@ -292,6 +292,10 @@ export function validateCombatAction(
     return { ok: false, code: 'NO_ATTACKERS', error: 'No attackers specified for fire action' }
   }
 
+  if (state.currentPhase !== 'ONION_COMBAT' && state.currentPhase !== 'DEFENDER_COMBAT') {
+    return { ok: false, code: 'WRONG_PHASE', error: 'Not a combat phase' }
+  }
+
   if (state.currentPhase === 'ONION_COMBAT') {
     const target = state.defenders[command.targetId]
     if (!target) {
@@ -394,6 +398,10 @@ export function validateCombatAction(
   const target = resolveOnionTarget(state, command.targetId)
   if (!target) {
     return { ok: false, code: 'INVALID_TARGET', error: `Target '${command.targetId}' is not valid for the selected weapon(s)` }
+  }
+
+  if (target.kind === 'treads' && command.attackers.length > 1) {
+    return { ok: false, code: 'MULTI_ATTACK_TREAD_TARGET', error: 'Multiple attackers cannot target Onion treads in one attack' }
   }
 
   const seen = new Set<string>()

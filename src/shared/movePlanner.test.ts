@@ -49,11 +49,11 @@ describe('movePlanner', () => {
 		})
 	})
 
-	it('treats the southeast hex from an odd row as an adjacent move', () => {
+	it('treats the southwest axial diagonal as an adjacent move', () => {
 		const result = findMovePath({
 			map: clearMap,
 			from: { q: 1, r: 1 },
-			to: { q: 2, r: 2 },
+			to: { q: 0, r: 2 },
 			movementAllowance: 1,
 			canCrossRidgelines: false,
 			movingRole: 'defender',
@@ -62,7 +62,7 @@ describe('movePlanner', () => {
 
 		expect(result).toEqual({
 			found: true,
-			path: [{ q: 2, r: 2 }],
+			path: [{ q: 0, r: 2 }],
 			cost: 1,
 		})
 	})
@@ -200,6 +200,9 @@ describe('movePlanner', () => {
 		expect(result).toHaveLength(6)
 		expect(result).toContainEqual({ to: { q: 2, r: 1 }, path: [{ q: 2, r: 1 }], cost: 1 })
 		expect(result).toContainEqual({ to: { q: 0, r: 1 }, path: [{ q: 0, r: 1 }], cost: 1 })
+		expect(result).toContainEqual({ to: { q: 2, r: 0 }, path: [{ q: 2, r: 0 }], cost: 1 })
+		expect(result).toContainEqual({ to: { q: 0, r: 2 }, path: [{ q: 0, r: 2 }], cost: 1 })
+		expect(result).toContainEqual({ to: { q: 1, r: 0 }, path: [{ q: 1, r: 0 }], cost: 1 })
 		expect(result).toContainEqual({ to: { q: 1, r: 2 }, path: [{ q: 1, r: 2 }], cost: 1 })
 	})
 

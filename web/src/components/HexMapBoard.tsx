@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { axialToPixel, boardPixelSize, hexCorners, hexKey, pointsToString } from '../lib/hex'
-import { listReachableMoves } from '../lib/axialMovePlanner'
+import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
 import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex, isUnitMoveEligible } from '../lib/battlefieldView'
+import { hexKey } from '../../../src/shared/hex'
+import { listReachableMoves } from '../../../src/shared/movePlanner'
 import { canUnitCrossRidgelines, getUnitMovementAllowance } from '../../../src/shared/unitMovement'
 import './HexMapBoard.css'
 

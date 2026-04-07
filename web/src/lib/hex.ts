@@ -10,69 +10,6 @@ export type HexCoord = {
 
 const SQRT_3 = Math.sqrt(3)
 
-export function hexKey({ q, r }: HexCoord): string {
-  return `${q},${r}`
-}
-
-function axialToCube({ q, r }: HexCoord) {
-  const x = q
-  const z = r
-  const y = -x - z
-
-  return { x, y, z }
-}
-
-export function hexDistance(a: HexCoord, b: HexCoord): number {
-  const left = axialToCube(a)
-  const right = axialToCube(b)
-
-  return Math.max(
-    Math.abs(left.x - right.x),
-    Math.abs(left.y - right.y),
-    Math.abs(left.z - right.z),
-  )
-}
-
-export function hexesWithinRange(center: HexCoord, maxDistance: number, minDistance = 1): HexCoord[] {
-  const normalizedMax = Math.floor(maxDistance)
-  const normalizedMin = Math.max(0, Math.floor(minDistance))
-
-  if (normalizedMax < normalizedMin || normalizedMax < 0) {
-    return []
-  }
-
-  const hexes: HexCoord[] = []
-
-  for (let q = center.q - normalizedMax; q <= center.q + normalizedMax; q += 1) {
-    for (let r = center.r - normalizedMax; r <= center.r + normalizedMax; r += 1) {
-      const candidate = { q, r }
-      const distance = hexDistance(center, candidate)
-
-      if (distance < normalizedMin || distance > normalizedMax) {
-        continue
-      }
-
-      hexes.push(candidate)
-    }
-  }
-
-  hexes.sort((left, right) => {
-    const distanceDelta = hexDistance(center, left) - hexDistance(center, right)
-
-    if (distanceDelta !== 0) {
-      return distanceDelta
-    }
-
-    if (left.q !== right.q) {
-      return left.q - right.q
-    }
-
-    return left.r - right.r
-  })
-
-  return hexes
-}
-
 export function axialToPixel({ q, r }: HexCoord, size: number): HexPoint {
   return {
     x: size * SQRT_3 * (q + r / 2),
