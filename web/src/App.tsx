@@ -318,7 +318,7 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
   const onion = authoritativeState.onion
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
-  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? 0
+  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? movesAllowed
 
   return {
     id: onion.id ?? 'onion-1',

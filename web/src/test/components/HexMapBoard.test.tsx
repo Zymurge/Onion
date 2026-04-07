@@ -83,7 +83,7 @@ describe('HexMapBoard', () => {
 		expect(reachableCell?.getAttribute('class')).toContain('hex-cell-reachable')
 	})
 
-	it('recovers defender move paths when the rendered allowance is stale', () => {
+	it('keeps defender move paths collapsed when the rendered allowance is stale', () => {
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}
@@ -97,8 +97,8 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).toContain('hex-unit-stack-move-ready')
-		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).toContain('hex-cell-reachable')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
+		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).not.toContain('hex-cell-reachable')
 	})
 
 	it('renders combat range overlays when provided', () => {

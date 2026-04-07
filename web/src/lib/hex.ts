@@ -14,8 +14,8 @@ export function hexKey({ q, r }: HexCoord): string {
   return `${q},${r}`
 }
 
-function oddROffsetToCube({ q, r }: HexCoord) {
-  const x = q - ((r - (r & 1)) / 2)
+function axialToCube({ q, r }: HexCoord) {
+  const x = q
   const z = r
   const y = -x - z
 
@@ -23,8 +23,8 @@ function oddROffsetToCube({ q, r }: HexCoord) {
 }
 
 export function hexDistance(a: HexCoord, b: HexCoord): number {
-  const left = oddROffsetToCube(a)
-  const right = oddROffsetToCube(b)
+  const left = axialToCube(a)
+  const right = axialToCube(b)
 
   return Math.max(
     Math.abs(left.x - right.x),
@@ -75,7 +75,7 @@ export function hexesWithinRange(center: HexCoord, maxDistance: number, minDista
 
 export function axialToPixel({ q, r }: HexCoord, size: number): HexPoint {
   return {
-    x: size * SQRT_3 * (q + (r & 1 ? 0.5 : 0)),
+    x: size * SQRT_3 * (q + r / 2),
     y: size * 1.5 * r,
   }
 }

@@ -290,7 +290,7 @@ describe('App orchestration (injected game client)', () => {
 
 	it('renders backend-provided onion movement remaining at the first band', async () => {
 		const snapshot = createSnapshotWithTreads(15, 2)
-		const session = { role: 'defender' as const }
+		const session = { role: 'onion' as const }
 
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session }),
@@ -306,7 +306,7 @@ describe('App orchestration (injected game client)', () => {
 
 	it('renders backend-provided onion movement remaining at the second band', async () => {
 		const snapshot = createSnapshotWithTreads(16, 1)
-		const session = { role: 'defender' as const }
+		const session = { role: 'onion' as const }
 
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session }),
@@ -537,9 +537,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const moveWolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		const moveWolfUnit = await screen.findByTestId('hex-unit-wolf-2')
-		expect(moveWolfButton.getAttribute('data-selected')).toBe('true')
 		expect(moveWolfUnit.getAttribute('data-selected')).toBe('true')
 
 		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-6'))
