@@ -3,13 +3,12 @@ import {
   createMap,
   getHex,
   isInBounds,
-  hexDistance,
-  getNeighbors,
   hasLineOfSight,
   findPath,
   movementCost,
 } from './map.js'
 import type { GameMap, Hex } from './map.js'
+import { getNeighbors, hexDistance } from '../shared/hex.js'
 import logger from '../logger.js'
 
 let infoSpy: ReturnType<typeof vi.spyOn>

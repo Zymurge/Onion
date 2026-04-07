@@ -19,8 +19,6 @@ export {
   createMap,
   getHex,
   isInBounds,
-  hexDistance,
-  getNeighbors,
   hasLineOfSight,
   findPath,
   movementCost,

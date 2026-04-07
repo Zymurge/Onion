@@ -7,8 +7,8 @@ import logger from '../logger.js'
  */
 
 import type { Command } from '../types/index.js'
-import { hexDistance } from './map.js'
 import type { GameMap } from './map.js'
+import { hexDistance } from '../shared/hex.js'
 import {
   createCombatCalculator,
   calculateOdds as sharedCalculateOdds,

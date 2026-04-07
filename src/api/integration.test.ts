@@ -9,7 +9,7 @@ import {
   registerAndLoginUser,
   type ScenarioMap,
 } from './integration.helpers.js'
-import { hexDistance } from '../engine/map.js'
+import { hexDistance } from '../shared/hex.js'
 import { getUnitDefinition } from '../engine/units.js'
 import type { Weapon, DefenderUnit } from '../types/index.js'
 

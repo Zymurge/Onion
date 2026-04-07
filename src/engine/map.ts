@@ -9,8 +9,6 @@ import logger from '../logger.js'
 import type { HexPos } from '../types/index.js'
 import { getNeighbors, hexDistance, hexKey } from '../shared/hex.js'
 
-export { getNeighbors, hexDistance } from '../shared/hex.js'
-
 /**
  * Terrain types that can exist on hexes.
  */
