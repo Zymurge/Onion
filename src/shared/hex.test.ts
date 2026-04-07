@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { getNeighbors, hexDistance, hexKey, hexesWithinRange } from './hex.js'
+import { createAxialRegion, getNeighbors, hexDistance, hexKey, hexesWithinRange } from './hex.js'
 
 describe('shared hex primitives', () => {
 	describe('hexDistance', () => {
@@ -91,6 +91,49 @@ describe('shared hex primitives', () => {
 
 		it('returns an empty array when the requested range is invalid', () => {
 			expect(hexesWithinRange({ q: 0, r: 0 }, 1, 2)).toEqual([])
+		})
+	})
+
+	describe('createAxialRegion', () => {
+		it('enumerates all cells in a bounded radius with the origin at the center by default', () => {
+			const region = createAxialRegion(2)
+
+			expect(region.radius).toBe(2)
+			expect(region.center).toEqual({ q: 0, r: 0 })
+			expect(region.cells).toHaveLength(19)
+			expect(new Set(region.cells.map(hexKey))).toEqual(
+				new Set([
+					'0,0',
+					'-1,0', '1,0', '0,-1', '0,1', '1,-1', '-1,1',
+					'-2,0', '-2,1', '-2,2',
+					'-1,-1', '-1,2',
+					'0,-2', '0,2',
+					'1,-2', '1,1',
+					'2,-2', '2,-1', '2,0',
+				]),
+			)
+		})
+
+		it('treats membership as distance-bounded axial containment', () => {
+			const region = createAxialRegion(2, { q: 3, r: 4 })
+
+			expect(region.contains({ q: 3, r: 4 })).toBe(true)
+			expect(region.contains({ q: 5, r: 4 })).toBe(true)
+			expect(region.contains({ q: 6, r: 4 })).toBe(false)
+			expect(region.contains({ q: 4, r: 2 })).toBe(true)
+			expect(region.contains({ q: 1, r: 1 })).toBe(false)
+		})
+
+		it('normalizes non-integer and invalid radii to a non-negative integer region', () => {
+			const fractional = createAxialRegion(2.9)
+			const invalid = createAxialRegion(-1)
+
+			expect(fractional.radius).toBe(2)
+			expect(fractional.cells).toHaveLength(19)
+			expect(invalid.radius).toBe(0)
+			expect(invalid.cells).toEqual([{ q: 0, r: 0 }])
+			expect(invalid.contains({ q: 0, r: 0 })).toBe(true)
+			expect(invalid.contains({ q: 0, r: 1 })).toBe(false)
 		})
 	})
 })

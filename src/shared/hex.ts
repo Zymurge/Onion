@@ -2,6 +2,13 @@ import type { HexPos } from '../types/index.js'
 
 export type { HexPos } from '../types/index.js'
 
+export interface AxialRegion {
+	radius: number
+	center: HexPos
+	cells: HexPos[]
+	contains(pos: HexPos): boolean
+}
+
 export function hexKey({ q, r }: HexPos): string {
 	return `${q},${r}`
 }
@@ -79,4 +86,18 @@ export function hexesWithinRange(center: HexPos, maxDistance: number, minDistanc
 	})
 
 	return hexes
+}
+
+export function createAxialRegion(radius: number, center: HexPos = { q: 0, r: 0 }): AxialRegion {
+	const normalizedRadius = Math.max(0, Math.floor(radius))
+	const cells = hexesWithinRange(center, normalizedRadius, 0)
+
+	return {
+		radius: normalizedRadius,
+		center,
+		cells,
+		contains(pos: HexPos) {
+			return hexDistance(center, pos) <= normalizedRadius
+		},
+	}
 }

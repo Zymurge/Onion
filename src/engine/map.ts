@@ -85,6 +85,10 @@ export function createMap(width: number, height: number, hexes: Array<{ q: numbe
   return { width, height, hexes: record }
 }
 
+function hasHex(map: GameMap, pos: HexPos): boolean {
+  return Boolean(map.hexes[hexKey(pos)])
+}
+
 export function getHex(map: GameMap, pos: HexPos): Hex | null {
   if (!isInBounds(map, pos)) {
     logger.warn({ pos }, 'getHex: position out of bounds')
@@ -99,7 +103,7 @@ export function getHex(map: GameMap, pos: HexPos): Hex | null {
 }
 
 export function isInBounds(map: GameMap, pos: HexPos): boolean {
-  return pos.q >= 0 && pos.q < map.width && pos.r >= 0 && pos.r < map.height
+  return hasHex(map, pos)
 }
 
 export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | null {
@@ -122,6 +126,10 @@ export function findPath(
 ): PathResult {
   if (!isInBounds(map, to)) {
     logger.warn({ from, to }, 'findPath: destination out of bounds')
+    return { found: false, path: [], cost: 0 }
+  }
+  if (!isInBounds(map, from)) {
+    logger.warn({ from, to }, 'findPath: origin out of bounds')
     return { found: false, path: [], cost: 0 }
   }
   if (from.q === to.q && from.r === to.r) return { found: true, path: [], cost: 0 }

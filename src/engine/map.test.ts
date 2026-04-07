@@ -46,6 +46,19 @@ function terrainMap(): GameMap {
   ])
 }
 
+function sparseMap(): GameMap {
+  return {
+    width: 5,
+    height: 5,
+    hexes: {
+      '0,0': { q: 0, r: 0, terrain: 'clear' },
+      '1,0': { q: 1, r: 0, terrain: 'clear' },
+      '1,1': { q: 1, r: 1, terrain: 'clear' },
+      '2,1': { q: 2, r: 1, terrain: 'clear' },
+    },
+  }
+}
+
 // ─── createMap ────────────────────────────────────────────────────────────────
 
 describe('createMap', () => {
@@ -112,6 +125,14 @@ describe('getHex', () => {
     getHex(clearMap(), { q: 0, r: 5 })
     expect(warnSpy).toHaveBeenCalledWith({ pos: { q: 0, r: 5 } }, expect.stringContaining('out of bounds'))
   })
+
+  it('returns null for positions missing from map membership even when they are inside width and height', () => {
+    const map = sparseMap()
+
+    expect(isInBounds(map, { q: 3, r: 3 })).toBe(false)
+    expect(getHex(map, { q: 3, r: 3 })).toBeNull()
+    expect(warnSpy).toHaveBeenCalledWith({ pos: { q: 3, r: 3 } }, expect.stringContaining('out of bounds'))
+  })
 })
 
 // ─── isInBounds ───────────────────────────────────────────────────────────────
@@ -133,6 +154,14 @@ describe('isInBounds', () => {
     const map = createMap(5, 5, [])
     expect(isInBounds(map, { q: 5, r: 0 })).toBe(false)
     expect(isInBounds(map, { q: 0, r: 5 })).toBe(false)
+  })
+
+  it('returns false for positions absent from map membership', () => {
+    const map = sparseMap()
+
+    expect(isInBounds(map, { q: 0, r: 0 })).toBe(true)
+    expect(isInBounds(map, { q: 2, r: 1 })).toBe(true)
+    expect(isInBounds(map, { q: 3, r: 3 })).toBe(false)
   })
 })
 
@@ -338,5 +367,18 @@ describe('findPath', () => {
   it('returns found:false for destination out of bounds', () => {
     const result = findPath(clearMap(), { q: 0, r: 0 }, { q: 10, r: 10 }, 20, false)
     expect(result.found).toBe(false)
+  })
+
+  it('returns found:false when the destination is missing from map membership inside the rectangular limits', () => {
+    const map = sparseMap()
+    const result = findPath(map, { q: 0, r: 0 }, { q: 3, r: 3 }, 20, false)
+
+    expect(result.found).toBe(false)
+    expect(result.path).toEqual([])
+    expect(result.cost).toBe(0)
+    expect(warnSpy).toHaveBeenCalledWith(
+      { from: { q: 0, r: 0 }, to: { q: 3, r: 3 } },
+      expect.stringContaining('out of bounds')
+    )
   })
 })
