@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { HexMapBoard } from '../../components/HexMapBoard'
+import { boardPixelSize } from '../../lib/hex'
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '../../lib/battlefieldView'
 
 const scenarioMap = {
@@ -10,6 +11,13 @@ const scenarioMap = {
 	height: 5,
 	cells: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r }))).flat(),
 	hexes: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r, t: 0 } as TerrainHex))).flat(),
+}
+
+const sparseScenarioMap = {
+	width: 5,
+	height: 5,
+	cells: [{ q: 0, r: 0 }, { q: 4, r: 4 }],
+	hexes: [{ q: 4, r: 4, t: 1 } as TerrainHex],
 }
 
 const onion: BattlefieldOnionView = {
@@ -145,6 +153,44 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-cell-2-1')).not.toBeNull()
 		expect(screen.getByTestId('hex-cell-1-0').getAttribute('class')).toContain('hex-terrain-default')
 		expect(screen.getByTestId('hex-cell-4-4').getAttribute('class')).toContain('hex-terrain-default')
+	})
+
+	it('sizes the svg from sparse cell membership and keeps overlays on the rendered cell', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={sparseScenarioMap}
+				defenders={[
+					{
+						id: 'wolf-2',
+						type: 'BigBadWolf',
+						status: 'operational',
+						q: 4,
+						r: 4,
+						move: 4,
+						weapons: 'main: ready',
+						attack: '2 / rng 2',
+						actionableModes: ['fire', 'combined'],
+					},
+				]}
+				onion={onion}
+				phase="ONION_COMBAT"
+				selectedUnitIds={["weapon:main-1"]}
+				selectedCombatTargetId={null}
+				combatRangeHexKeys={new Set(['4,4'])}
+				onSelectUnit={vi.fn()}
+				onSelectCombatTarget={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const svg = screen.getByRole('img', { name: /swamp siege hex map/i }) as SVGSVGElement
+		const expectedBounds = boardPixelSize(sparseScenarioMap.cells, 36, 28)
+
+		expect(svg.getAttribute('width')).toBe(String(expectedBounds.width))
+		expect(svg.getAttribute('height')).toBe(String(expectedBounds.height))
+		expect(screen.getByTestId('hex-cell-4-4').getAttribute('class')).toContain('hex-cell-combat-range')
+		expect(screen.queryByTestId('hex-cell-1-1')).toBeNull()
 	})
 
 	it('deselects when the user left-clicks an empty hex', () => {

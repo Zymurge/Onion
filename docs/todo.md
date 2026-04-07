@@ -13,7 +13,7 @@ break down into features/tasks as needed.
   - [x] Add intentional edge treatment so clipped board boundaries read clearly in the viewport.
   - [x] Update the scenario loader and snapshot shapes to carry the canonical axial board contract.
   - [x] Update existing scenario data to the new axial shape format. (Decision: no compatibility migration is needed; recreate games from the canonical axial contract.)
-  - [ ] Add regression tests for map membership, overlay alignment, and viewport sizing.
+  - [x] Add regression tests for map membership, overlay alignment, and viewport sizing.
 
   ### Pre-Implementation Checklist
 
