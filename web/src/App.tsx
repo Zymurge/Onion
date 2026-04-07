@@ -1000,6 +1000,34 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             </label>
             {connectError && <p className="connect-error" role="alert">{connectError}</p>}
             <button type="submit" className="primary-action">Load Game</button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
+              <button
+                type="button"
+                style={{ minWidth: 36, fontWeight: 600, fontSize: 18, borderRadius: 8, padding: '4px 0' }}
+                aria-label="Login as test user 1"
+                onClick={() => {
+                  setConnectDraft((draft) => ({ ...draft, username: 'User1', password: 'user1P4ss' }));
+                  setTimeout(() => {
+                    (document.querySelector('.connect-form') as HTMLFormElement)?.requestSubmit();
+                  }, 0);
+                }}
+              >
+                1
+              </button>
+              <button
+                type="button"
+                style={{ minWidth: 36, fontWeight: 600, fontSize: 18, borderRadius: 8, padding: '4px 0' }}
+                aria-label="Login as test user 2"
+                onClick={() => {
+                  setConnectDraft((draft) => ({ ...draft, username: 'User2', password: 'user2P4ss' }));
+                  setTimeout(() => {
+                    (document.querySelector('.connect-form') as HTMLFormElement)?.requestSubmit();
+                  }, 0);
+                }}
+              >
+                2
+              </button>
+            </div>
           </form>
         </section>
       </div>
