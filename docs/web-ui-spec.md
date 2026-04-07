@@ -151,11 +151,11 @@ Exit Criteria:
 
 ## Board Model (Web)
 
-1. The web battlefield board is an odd-r offset hex grid rendered in row-major order.
-2. Board positions are addressed with integer `q`/`r` coordinates, where `q` is the column index and `r` is the row index.
-3. Visual placement staggers odd-numbered rows to the right; this is a presentation detail and does not change the stored board coordinates.
-4. Range, reachability, and selection overlays must be derived from the same board geometry model used by the renderer so that the displayed hex map and all overlay previews stay aligned.
-5. Do not treat the web board coordinates as axial movement coordinates unless a helper explicitly converts between the two representations.
+1. The web battlefield board uses the same canonical axial coordinate system as the rules engine.
+2. The board is not required to be rectangular. The map may be a bounded axial region that extends beyond the viewport and is revealed through scrolling.
+3. Board positions are addressed with axial `q`/`r` coordinates. Any edge treatment, clipping, or visual shaping is presentation-only and must not introduce a second runtime coordinate system.
+4. Range, reachability, and selection overlays must be derived from the same axial board geometry used by the renderer so the displayed hex map and all overlay previews stay aligned.
+5. Scenario creation may use a centered origin, generated axial bounds, or another shape rule, but the runtime board model stays axial.
 
 ## Server State (Authoritative)
 
@@ -277,7 +277,7 @@ unit roster, unit positions, or unit status once authoritative game data has loa
   - Onion player: shows available weapons (main, secondary, AP, missiles).
   - Defender: shows eligible units.
 - Selecting any attacker (or group) displays a range overlay on the map, similar to movement, but with an orange tint.
-- The range overlay must be computed in the web board model described above so it matches the rendered hex geometry.
+- The range overlay must be computed from the same axial board geometry described above so it matches the rendered map.
 - For groups, the highlighted area is the intersection of all selected attackers’ ranges—only hexes all can reach are shown.
 - The attacker selector must also enforce weapon and unit targeting rules before showing a target as selectable.
 - The UI target list should only include targets allowed by the selected weapon(s) and by the target unit’s own restriction metadata, after range filtering is applied.

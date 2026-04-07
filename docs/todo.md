@@ -5,9 +5,14 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [ ] Place End Phase control in UI and wire to backend
-  - [x] Identify all phases where a context-aware phase advancement control should be available to the active player, with a label that matches the next phase or action (e.g., "Start Combat", "End Turn").
-  - [x] The control's label and presence are determined by the current phase and role, not a static location.
+- [ ] UI restructure for pure axial coordinates
+  - [ ] Define the scenario/map shape contract for a bounded axial region.
+  - [ ] Add a shared helper that enumerates valid axial cells for the chosen map shape.
+  - [ ] Update movement and pathfinding bounds checks to use map membership instead of rectangular `q`/`r` limits.
+  - [ ] Update the web board renderer to iterate the generated axial cell set and size the SVG from the actual rendered cells.
+  - [ ] Add intentional edge treatment so clipped board boundaries read clearly in the viewport.
+  - [ ] Add regression tests for map membership, overlay alignment, and viewport sizing.
+  - [ ] Plan compatibility for existing rectangular scenarios and migrate them safely.
 
   ### Pre-Implementation Checklist
 
@@ -106,3 +111,6 @@ break down into features/tasks as needed.
     - [x] Add tests proving each action path emits the expected live event stream to an active websocket client.
   - [x] Wire the web UI to consume live WS updates for the active match and keep the debug stream visible.
   - [x] Add integration coverage for connect, reconnect, live state refresh, and App/controller wiring behavior through the fake backend harness.
+- [x] Place End Phase control in UI and wire to backend
+  - [x] Identify all phases where a context-aware phase advancement control should be available to the active player, with a label that matches the next phase or action (e.g., "Start Combat", "End Turn").
+  - [x] The control's label and presence are determined by the current phase and role, not a static location.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { hexDistance, hexKey, hexesWithinRange } from '../../../../../src/shared/hex'
+import { axialToPixel, boardPixelSize } from '../../../lib/hex'
 
 describe('hexDistance', () => {
   it('returns 0 for the same hex', () => {
@@ -52,5 +53,23 @@ describe('hexesWithinRange', () => {
 
   it('returns an empty array when the requested range is invalid', () => {
     expect(hexesWithinRange({ q: 0, r: 0 }, 1, 2)).toEqual([])
+  })
+})
+
+describe('board hex layout', () => {
+  it('stagger odd rows without accumulating horizontal drift', () => {
+    const topRow = axialToPixel({ q: 0, r: 0 }, 36)
+    const oddRow = axialToPixel({ q: 0, r: 1 }, 36)
+    const nextEvenRow = axialToPixel({ q: 0, r: 2 }, 36)
+
+    expect(oddRow.x - topRow.x).toBeCloseTo(Math.sqrt(3) * 18, 5)
+    expect(nextEvenRow.x).toBeCloseTo(topRow.x, 5)
+  })
+
+  it('sizes the board to the rendered rectangle rather than an expanding axial parallelogram', () => {
+    const bounds = boardPixelSize(5, 5, 36, 28)
+
+    expect(bounds.width).toBeCloseTo(Math.sqrt(3) * 36 * 5 + 56, 5)
+    expect(bounds.height).toBeCloseTo(36 * 7 + 56, 5)
   })
 })
