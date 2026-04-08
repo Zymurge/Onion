@@ -71,6 +71,18 @@ function mergeSnapshot(base: GameSnapshot, next: Partial<GameSnapshot>): GameSna
 	}
 }
 
+function requireScenarioMap(response: GameStateResponse) {
+	if (response.scenarioMap === undefined || response.scenarioMap === null) {
+		throw new GameClientSeamError('transport', 'Missing scenario map in game state response')
+	}
+
+	if (!Array.isArray(response.scenarioMap.cells)) {
+		throw new GameClientSeamError('transport', 'Missing scenario map cells in game state response')
+	}
+
+	return response.scenarioMap
+}
+
 function buildError(result: ApiFailure): GameClientSeamError {
 	if (result.status === 404) {
 		return new GameClientSeamError('not-found', result.message)
@@ -89,6 +101,7 @@ function mapServerSnapshot(
 	gameId: number,
 ): GameStateEnvelope {
 	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
+	const scenarioMap = requireScenarioMap(response)
 	return {
 		snapshot: mergeSnapshot(fallback, {
 			gameId: response.gameId ?? gameId,
@@ -98,7 +111,7 @@ function mapServerSnapshot(
 			lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : fallback.lastEventSeq,
 			authoritativeState: response.state ?? fallback.authoritativeState,
 			movementRemainingByUnit: response.movementRemainingByUnit ?? fallback.movementRemainingByUnit,
-			scenarioMap: response.scenarioMap ?? fallback.scenarioMap,
+			scenarioMap,
 		}),
 		session: {
 			role: response.role,

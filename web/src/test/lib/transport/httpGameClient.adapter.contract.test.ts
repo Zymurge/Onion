@@ -132,6 +132,12 @@ describe('http game client adapter contract', () => {
 					movementRemainingByUnit: {
 						'onion-1': 0,
 					},
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -144,6 +150,12 @@ describe('http game client adapter contract', () => {
 					movementRemainingByUnit: {
 						'onion-1': 0,
 					},
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
 				eventSeq: 49,
 			}))
 
@@ -164,6 +176,12 @@ describe('http game client adapter contract', () => {
 			selectedUnitId: 'wolf-2',
 			mode: 'combined',
 			scenarioName: "The Siege of Shrek's Swamp",
+			scenarioMap: {
+				width: 15,
+				height: 22,
+				cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+				hexes: [{ q: 1, r: 0, t: 1 }],
+			},
 			turnNumber: 8,
 			lastEventSeq: 49,
 		})
@@ -188,6 +206,12 @@ describe('http game client adapter contract', () => {
 				turnNumber: 2,
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 				movementRemainingByUnit: { 'onion-1': 3 },
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
 				eventSeq: 12,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -217,8 +241,15 @@ describe('http game client adapter contract', () => {
 			selectedUnitId: null,
 			mode: 'fire',
 			scenarioName: "The Siege of Shrek's Swamp",
+			scenarioMap: {
+				width: 15,
+				height: 22,
+				cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+				hexes: [{ q: 1, r: 0, t: 1 }],
+			},
 			turnNumber: 2,
 			lastEventSeq: 13,
+			combatResolution: undefined,
 		})
 
 		expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://onion.test/api/games/123')
@@ -252,6 +283,12 @@ describe('http game client adapter contract', () => {
 				turnNumber: 8,
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 				movementRemainingByUnit: { 'wolf-2': 4 },
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -312,6 +349,12 @@ describe('http game client adapter contract', () => {
 				turnNumber: 8,
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 				movementRemainingByUnit: { 'wolf-2': 4 },
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -380,5 +423,55 @@ describe('http game client adapter contract', () => {
 		await expect(client.getState(404)).rejects.toMatchObject({
 			kind: 'not-found',
 		})
+	})
+
+	it('rejects game state responses that omit scenario map data', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: {
+					onion: { position: { q: 0, r: 0 }, treads: 45 },
+					defenders: {},
+				},
+				movementRemainingByUnit: {},
+				eventSeq: 47,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: {
+					onion: { position: { q: 0, r: 0 }, treads: 45 },
+					defenders: {},
+				},
+				movementRemainingByUnit: {},
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					hexes: [],
+				},
+				eventSeq: 48,
+			}))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+		})
+
+		await expect(client.getState(123)).rejects.toThrow('Missing scenario map in game state response')
+		await expect(client.getState(123)).rejects.toThrow('Missing scenario map cells in game state response')
 	})
 })

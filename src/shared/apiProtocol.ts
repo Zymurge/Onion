@@ -173,13 +173,37 @@ export function formatApiProtocolTrafficEntry(entry: ApiProtocolTrafficEntry): s
 	return lines
 }
 
+/**
+ * Canonical scenario map snapshot for all game state responses.
+ *
+ * - `cells` is the only supported geometry representation. All clients and tests must require it.
+ * - `hexes` contains terrain and type information for each cell.
+ * - `width` and `height` are provided for convenience but are not used for geometry.
+ *
+ * There is no fallback or compatibility logic for missing `cells`.
+ */
 export type ScenarioMapSnapshot = {
+	/** Board width (for UI layout only; not used for geometry) */
 	width: number
+	/** Board height (for UI layout only; not used for geometry) */
 	height: number
+	/**
+	 * List of all valid cell coordinates (q, r). This is the authoritative geometry.
+	 * Must always be present and non-empty.
+	 */
 	cells: Array<{ q: number; r: number }>
+	/**
+	 * List of all hexes with terrain/type info. Each entry must correspond to a cell.
+	 */
 	hexes: Array<{ q: number; r: number; t: number }>
 }
 
+/**
+ * Full game state response for GET /games/{id} and action results.
+ *
+ * - `scenarioMap` is always required and must include a non-empty `cells` array.
+ * - There is no compatibility logic for missing or legacy map fields.
+ */
 export type GameStateResponse = {
 	gameId: number
 	scenarioId: string
@@ -194,7 +218,10 @@ export type GameStateResponse = {
 	}
 	state: GameState
 	movementRemainingByUnit: Record<string, number>
-	scenarioMap?: ScenarioMapSnapshot
+	/**
+	 * Canonical scenario map snapshot. Must always be present and valid.
+	 */
+	scenarioMap: ScenarioMapSnapshot
 	eventSeq: number
 }
 

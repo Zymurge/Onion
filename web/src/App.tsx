@@ -337,17 +337,23 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
 }
 
 function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
-  const scenarioMap = snapshot?.scenarioMap
-
-  if (scenarioMap === undefined) {
+  if (snapshot === null) {
     return null
   }
 
+  if (snapshot.scenarioMap === undefined || snapshot.scenarioMap === null) {
+    throw new Error('Loaded game snapshot is missing scenario map data')
+  }
+
+  if (!Array.isArray(snapshot.scenarioMap.cells)) {
+    throw new Error('Loaded game snapshot is missing scenario map cells')
+  }
+
   return {
-    width: scenarioMap.width,
-    height: scenarioMap.height,
-    cells: scenarioMap.cells,
-    hexes: scenarioMap.hexes,
+    width: snapshot.scenarioMap.width,
+    height: snapshot.scenarioMap.height,
+    cells: snapshot.scenarioMap.cells,
+    hexes: snapshot.scenarioMap.hexes,
   }
 }
 
@@ -862,7 +868,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   }
 
   const authoritativeState = clientSnapshot?.authoritativeState ?? null
-  const scenarioMapSnapshot = clientSnapshot?.scenarioMap ?? null
+  const scenarioMapSnapshot = clientSnapshot === null ? null : buildScenarioMap(clientSnapshot)
   const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
   const displayedDefenders = authoritativeState === null ? [] : buildLiveDefenders({
     authoritativeState,
@@ -1006,7 +1012,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 style={{ minWidth: 36, fontWeight: 600, fontSize: 18, borderRadius: 8, padding: '4px 0' }}
                 aria-label="Login as test user 1"
                 onClick={() => {
-                  setConnectDraft((draft) => ({ ...draft, username: 'User1', password: 'user1P4ss' }));
+                  setConnectDraft((draft) => ({ ...draft, username: 'user1', password: 'user1P4ss' }));
                   setTimeout(() => {
                     (document.querySelector('.connect-form') as HTMLFormElement)?.requestSubmit();
                   }, 0);
@@ -1019,7 +1025,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 style={{ minWidth: 36, fontWeight: 600, fontSize: 18, borderRadius: 8, padding: '4px 0' }}
                 aria-label="Login as test user 2"
                 onClick={() => {
-                  setConnectDraft((draft) => ({ ...draft, username: 'User2', password: 'user2P4ss' }));
+                  setConnectDraft((draft) => ({ ...draft, username: 'user2', password: 'user2P4ss' }));
                   setTimeout(() => {
                     (document.querySelector('.connect-form') as HTMLFormElement)?.requestSubmit();
                   }, 0);

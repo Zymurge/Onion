@@ -132,10 +132,11 @@ Errors:   404 game not found
 
 ### `GET /games/{id}`
 
+
 Full current game state. Suitable for initial render and reconnect.
 
-```text
-Response: {
+```json
+{
   "gameId":      number,
   "scenarioId":  string,
   "scenarioName": string,
@@ -150,12 +151,20 @@ Response: {
   "scenarioMap": {
     "width": number,
     "height": number,
-    "hexes": Array<{ "q": number, "r": number, "t": number }>
+    "cells": [ { "q": number, "r": number } ], // required, canonical geometry
+    "hexes": [ { "q": number, "r": number, "t": number } ]
   },
   "state": GameState,
+  "movementRemainingByUnit": { [unitId: string]: number },
   "eventSeq":    number   // highest event sequence number so far
 }
 ```
+
+**Notes:**
+- `scenarioMap` is always required and must include a non-empty `cells` array. There is no fallback or compatibility logic for missing geometry.
+- All clients and tests must require `cells` for board geometry.
+- `hexes` contains terrain/type info for each cell.
+- `width` and `height` are provided for convenience but are not used for geometry.
 
 ---
 
@@ -297,11 +306,9 @@ All errors include `detailCode` for granular client feedback.
 
 ## Scenario Map Loading (MOVE Route)
 
-The MOVE route always uses the scenario's `map` property (if present)
-for pathfinding and validation. This ensures that stored scenarios with
-nested map fields are handled correctly. If `map` is not present, the
-route falls back to the root-level `width`, `height`, and `hexes`
-fields for backward compatibility.
+## Scenario Map Loading
+
+All routes and clients require the canonical `scenarioMap` with a non-empty `cells` array. There is no fallback or compatibility logic for missing geometry fields. All geometry and pathfinding must use the `cells` array.
 
 ### Any Phase
 
