@@ -5,6 +5,7 @@ import { findMovePath, listReachableMoves } from './movePlanner.js'
 type MoveMapSnapshot = {
 	width: number
 	height: number
+	cells: Array<{ q: number; r: number }>
 	hexes: Array<{ q: number; r: number; t: number }>
 	occupiedHexes?: Array<{
 		q: number
@@ -18,12 +19,14 @@ type MoveMapSnapshot = {
 const clearMap: MoveMapSnapshot = {
 	width: 4,
 	height: 4,
+	cells: Array.from({ length: 4 }, (_, r) => Array.from({ length: 4 }, (_, q) => ({ q, r }))).flat(),
 	hexes: [],
 }
 
 const terrainMap: MoveMapSnapshot = {
 	width: 4,
 	height: 4,
+	cells: Array.from({ length: 4 }, (_, r) => Array.from({ length: 4 }, (_, q) => ({ q, r }))).flat(),
 	hexes: [
 		{ q: 2, r: 1, t: 1 },
 		{ q: 2, r: 2, t: 2 },
@@ -234,5 +237,26 @@ describe('movePlanner', () => {
 		})
 
 		expect(result.find((move) => move.to.q === 2 && move.to.r === 1)).toBeUndefined()
+	})
+
+	it('restricts reachable moves to the explicit cell list', () => {
+		const result = listReachableMoves({
+			map: {
+				width: 4,
+				height: 4,
+				cells: [{ q: 1, r: 1 }, { q: 2, r: 1 }, { q: 1, r: 2 }],
+				hexes: [],
+			},
+			from: { q: 1, r: 1 },
+			movementAllowance: 2,
+			canCrossRidgelines: false,
+			movingRole: 'defender',
+			movingUnitType: 'Puss',
+		})
+
+		expect(result).toEqual([
+			{ to: { q: 1, r: 2 }, path: [{ q: 1, r: 2 }], cost: 1 },
+			{ to: { q: 2, r: 1 }, path: [{ q: 2, r: 1 }], cost: 1 },
+		])
 	})
 })

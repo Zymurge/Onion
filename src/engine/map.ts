@@ -40,6 +40,8 @@ export interface GameMap {
   width: number
   /** Height of the map in hexes */
   height: number
+  /** Explicit cell membership for the map shape */
+  cells: HexPos[]
   /** All hexes on the map, keyed by "q,r" coordinates */
   hexes: Record<string, Hex>
 }
@@ -72,17 +74,23 @@ function terrainFromT(t: number): TerrainType {
   return 'clear'
 }
 
-export function createMap(width: number, height: number, hexes: Array<{ q: number; r: number; t: number }>): GameMap {
+export function createMap(
+  width: number,
+  height: number,
+  hexes: Array<{ q: number; r: number; t: number }>,
+  cells?: HexPos[],
+): GameMap {
   const overrides = new Map(hexes.map(h => [hexKey(h), terrainFromT(h.t)]))
   const record: Record<string, Hex> = {}
-  for (let q = 0; q < width; q++) {
-    for (let r = 0; r < height; r++) {
-      const pos = { q, r }
-      const key = hexKey(pos)
-      record[key] = { q, r, terrain: overrides.get(key) ?? 'clear' }
-    }
+  const cellList =
+  cells ?? Array.from({ length: height }, (_, r) => Array.from({ length: width }, (_, q) => ({ q, r }))).flat()
+
+  for (const pos of cellList) {
+  const key = hexKey(pos)
+  record[key] = { q: pos.q, r: pos.r, terrain: overrides.get(key) ?? 'clear' }
   }
-  return { width, height, hexes: record }
+
+  return { width, height, cells: cellList, hexes: record }
 }
 
 function hasHex(map: GameMap, pos: HexPos): boolean {

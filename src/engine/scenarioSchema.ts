@@ -5,6 +5,12 @@ export const HexPosSchema = z.object({
   r: z.number(),
 })
 
+const TerrainHexSchema = z.object({
+  q: z.number(),
+  r: z.number(),
+  t: z.number(),
+})
+
 export const OnionSchema = z.object({
   type: z.string(), // e.g., 'TheOnion', 'MkIII', etc.
   position: HexPosSchema,
@@ -36,16 +42,19 @@ export const ScenarioSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  map: z.object({
+  map: z.union([
+  z.object({
+    radius: z.number().int().nonnegative(),
+    shape: z.literal('hex').optional(),
+    hexes: z.array(TerrainHexSchema).default([]),
+  }),
+  z.object({
     width: z.number(),
     height: z.number(),
     cells: z.array(HexPosSchema),
-    hexes: z.array(z.object({
-      q: z.number(),
-      r: z.number(),
-      t: z.number(),
-    })),
+    hexes: z.array(TerrainHexSchema),
   }),
+  ]),
   initialState: InitialStateSchema,
   victoryConditions: z.any(), // For now, accept any shape
 })

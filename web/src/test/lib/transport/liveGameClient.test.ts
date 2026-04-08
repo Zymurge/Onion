@@ -1,4 +1,6 @@
+
 import { describe, expect, it, vi } from 'vitest'
+import { materializeScenarioMap } from '../../../../shared/scenarioMap'
 
 import { createLiveGameClient, type LiveGameClientState } from '../../../lib/liveGameClient'
 
@@ -38,18 +40,21 @@ class FakeWebSocket {
 
 describe('createLiveGameClient', () => {
 	it('connects to the websocket endpoint and refreshes state when live events arrive', async () => {
-		const snapshot = {
-			gameId: 123,
-			phase: 'DEFENDER_MOVE',
-			selectedUnitId: 'wolf-2',
-			mode: 'fire',
-			scenarioName: 'The Siege of Shrek\'s Swamp',
-			turnNumber: 8,
-			lastEventSeq: 47,
-			movementRemainingByUnit: {
-				'wolf-2': 4,
-			},
-		}
+		// Import the scenario map materializer
+		// Use a radius-7 map with a few terrain hexes for test realism
+		const scenarioMap = materializeScenarioMap({
+			radius: 7,
+			hexes: [
+				{ q: 1, r: 0, t: 1 },
+				{ q: 2, r: 0, t: 1 },
+				{ q: 3, r: 1, t: 1 },
+				{ q: 4, r: 1, t: 1 },
+				{ q: 5, r: 2, t: 1 },
+				{ q: 3, r: 8, t: 2 },
+				{ q: 4, r: 8, t: 2 },
+				{ q: 7, r: 5, t: 3 },
+			],
+		})
 
 		const fetchImpl = vi
 			.fn()
@@ -60,11 +65,12 @@ describe('createLiveGameClient', () => {
 					gameId: 123,
 					role: 'defender',
 					phase: 'DEFENDER_MOVE',
-					scenarioName: 'The Siege of Shrek\'s Swamp',
+					scenarioName: "The Siege of Shrek's Swamp",
 					turnNumber: 8,
 					state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 					movementRemainingByUnit: { 'onion-1': 0 },
 					eventSeq: 47,
+					scenarioMap,
 				})),
 			})
 			.mockResolvedValueOnce({
@@ -74,11 +80,12 @@ describe('createLiveGameClient', () => {
 					gameId: 123,
 					role: 'defender',
 					phase: 'DEFENDER_MOVE',
-					scenarioName: 'The Siege of Shrek\'s Swamp',
+					scenarioName: "The Siege of Shrek's Swamp",
 					turnNumber: 8,
 					state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {} },
 					movementRemainingByUnit: { 'onion-1': 0 },
 					eventSeq: 48,
+					scenarioMap,
 				})),
 			})
 

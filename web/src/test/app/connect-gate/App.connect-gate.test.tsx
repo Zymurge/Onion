@@ -32,6 +32,8 @@ vi.mock('../../../../../src/shared/apiProtocol', () => ({
 }))
 
 function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapshot {
+	const cells = Array.from({ length: 8 }, (_, q) => Array.from({ length: 8 }, (_, r) => ({ q, r }))).flat()
+
 	return {
 		gameId: 123,
 		phase,
@@ -110,6 +112,7 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 		scenarioMap: {
 			width: 8,
 			height: 8,
+			cells,
 			hexes: [
 				{ q: 0, r: 0, t: 0 },
 				{ q: 1, r: 0, t: 0 },
@@ -121,7 +124,7 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 				{ q: 7, r: 0, t: 0 },
 			],
 		},
-	} as GameSnapshot
+	} satisfies GameSnapshot
 }
 
 function createControlledClient(snapshot: GameSnapshot): GameClient {
@@ -139,7 +142,7 @@ function createControlledLiveEventSource(connectionStatus: 'connected' | 'idle' 
 	return {
 		subscribe: vi.fn().mockReturnValue(vi.fn()),
 		connect: vi.fn(),
-		disconnect: vi.fn(),
+		disconnect: vi.fn() as LiveEventSource['disconnect'],
 		getConnectionState: vi.fn().mockReturnValue(connectionStatus),
 	}
 }
@@ -150,7 +153,7 @@ beforeEach(() => {
 
 describe('App connect gate', () => {
 	it('renders a connect form when runtime config is seeded but no client is ready', async () => {
-		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123 }} showConnectionGate />)
+		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }} showConnectionGate />)
 
 		expect(screen.getByRole('heading', { name: /open a live game session/i })).not.toBeNull()
 		expect((screen.getByLabelText(/api base url/i) as HTMLInputElement).value).toBe('http://localhost:3000')
@@ -160,7 +163,6 @@ describe('App connect gate', () => {
 
 	it('logs in and loads an existing game when the form is submitted', async () => {
 		const user = userEvent.setup()
-		const lastUpdatedAt = new Date('2026-04-02T13:14:15.000Z')
 		const timeSpy = vi.spyOn(Date.prototype, 'toLocaleTimeString').mockReturnValue('01:14:15 PM')
 		const submitAction = vi.fn().mockResolvedValue({
 			gameId: 123,
@@ -191,7 +193,7 @@ describe('App connect gate', () => {
 			getConnectionState: vi.fn().mockReturnValue('connected'),
 		})
 
-		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123 }} showConnectionGate />)
+		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }} showConnectionGate />)
 
 		await user.type(screen.getByLabelText(/username/i), 'player-1')
 		await user.type(screen.getByLabelText(/password/i), 'secret')
@@ -256,7 +258,7 @@ describe('App connect gate', () => {
 			getConnectionState: vi.fn().mockReturnValue('connected'),
 		})
 
-		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123 }} showConnectionGate />)
+		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }} showConnectionGate />)
 
 		await user.type(screen.getByLabelText(/username/i), 'player-1')
 		await user.type(screen.getByLabelText(/password/i), 'secret')

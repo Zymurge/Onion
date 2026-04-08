@@ -19,7 +19,8 @@
         "git fetch": true,
         "git checkout": true,
         "git -C /home/zymurge/Dev/onion": true,
-        "printf": true
+        "printf": true,
+        "docker compose": true
     },
     "github.copilot.chat.cli.forkSessions.enabled": true
 }

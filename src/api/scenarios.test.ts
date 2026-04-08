@@ -36,6 +36,24 @@ describe('GET /scenarios/:id', () => {
     expect(body).toHaveProperty('map')
     expect(body).toHaveProperty('initialState')
     expect(body).toHaveProperty('victoryConditions')
+    expect(body.map.cells).toHaveLength(169)
+
+    const rowCounts = new Map<number, number>()
+    for (const cell of body.map.cells) {
+      rowCounts.set(cell.r, (rowCounts.get(cell.r) ?? 0) + 1)
+    }
+
+    expect(rowCounts.get(0)).toBe(8)
+    expect(rowCounts.get(1)).toBe(9)
+    expect(rowCounts.get(2)).toBe(10)
+    expect(rowCounts.get(3)).toBe(11)
+    expect(rowCounts.get(4)).toBe(12)
+    expect(rowCounts.get(7)).toBe(15)
+    expect(rowCounts.get(10)).toBe(12)
+    expect(rowCounts.get(11)).toBe(11)
+    expect(rowCounts.get(12)).toBe(10)
+    expect(rowCounts.get(13)).toBe(9)
+    expect(rowCounts.get(14)).toBe(8)
   })
 
   it('returns 404 for an unknown id', async () => {

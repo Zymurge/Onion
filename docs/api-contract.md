@@ -132,7 +132,6 @@ Errors:   404 game not found
 
 ### `GET /games/{id}`
 
-
 Full current game state. Suitable for initial render and reconnect.
 
 ```json
@@ -161,6 +160,7 @@ Full current game state. Suitable for initial render and reconnect.
 ```
 
 **Notes:**
+
 - `scenarioMap` is always required and must include a non-empty `cells` array. There is no fallback or compatibility logic for missing geometry.
 - All clients and tests must require `cells` for board geometry.
 - `hexes` contains terrain/type info for each cell.

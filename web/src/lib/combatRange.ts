@@ -9,6 +9,7 @@ export type CombatRangeSource = {
 export type CombatRangeBounds = {
   width: number
   height: number
+  cells: Array<{ q: number; r: number }>
 }
 
 function inBounds(bounds: CombatRangeBounds | undefined, q: number, r: number): boolean {
@@ -16,7 +17,7 @@ function inBounds(bounds: CombatRangeBounds | undefined, q: number, r: number): 
     return true
   }
 
-  return q >= 0 && q < bounds.width && r >= 0 && r < bounds.height
+  return bounds.cells.some((cell) => cell.q === q && cell.r === r)
 }
 
 export function buildCombatRangeHexKeys(sources: ReadonlyArray<CombatRangeSource>, bounds?: CombatRangeBounds): Set<string> {

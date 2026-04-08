@@ -57,13 +57,14 @@ describe('hexesWithinRange', () => {
 })
 
 describe('board hex layout', () => {
-  it('stagger odd rows without accumulating horizontal drift', () => {
+  it('advances each successive axial row by half a hex width', () => {
     const topRow = axialToPixel({ q: 0, r: 0 }, 36)
-    const oddRow = axialToPixel({ q: 0, r: 1 }, 36)
-    const nextEvenRow = axialToPixel({ q: 0, r: 2 }, 36)
+    const nextRow = axialToPixel({ q: 0, r: 1 }, 36)
+    const nextNextRow = axialToPixel({ q: 0, r: 2 }, 36)
 
-    expect(oddRow.x - topRow.x).toBeCloseTo(Math.sqrt(3) * 18, 5)
-    expect(nextEvenRow.x).toBeCloseTo(topRow.x, 5)
+    expect(nextRow.x - topRow.x).toBeCloseTo(Math.sqrt(3) * 18, 5)
+    expect(nextNextRow.x - nextRow.x).toBeCloseTo(Math.sqrt(3) * 18, 5)
+    expect(nextRow.y - topRow.y).toBeCloseTo(54, 5)
   })
 
   it('sizes the board to the rendered rectangle rather than an expanding axial parallelogram', () => {
@@ -76,7 +77,7 @@ describe('board hex layout', () => {
       28,
     )
 
-    expect(bounds.width).toBeCloseTo(Math.sqrt(3) * 36 * 4 + (Math.sqrt(3) / 2) * 36 + 56, 5)
+    expect(bounds.width).toBeCloseTo(Math.sqrt(3) * 36 * 6 + (Math.sqrt(3) / 2) * 36 + 56, 5)
     expect(bounds.height).toBeCloseTo(36 * 4 * 1.5 + 36 + 56, 5)
   })
 

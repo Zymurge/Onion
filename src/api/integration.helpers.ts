@@ -137,6 +137,7 @@ function buildMoveMapSnapshot(map: ScenarioMap, state: any, unitId: string): Mov
   return {
     width: map.width,
     height: map.height,
+    cells: map.cells,
     hexes: map.hexes,
     occupiedHexes,
   }

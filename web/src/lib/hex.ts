@@ -12,7 +12,7 @@ const SQRT_3 = Math.sqrt(3)
 
 export function axialToPixel({ q, r }: HexCoord, size: number): HexPoint {
   return {
-    x: size * SQRT_3 * (q + (r & 1 ? 0.5 : 0)),
+    x: size * SQRT_3 * (q + r / 2),
     y: size * 1.5 * r,
   }
 }

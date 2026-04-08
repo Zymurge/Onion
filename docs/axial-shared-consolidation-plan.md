@@ -187,7 +187,7 @@ Action later:
 Remove:
 
 - any offset-era or parity-based neighbor logic in src/shared/movePlanner.ts
-- any shared tests that exist only to preserve odd-r adjacency semantics
+- any shared tests that exist only to preserve legacy parity-based adjacency semantics
 
 ### Backend Duplication Deprecations
 
@@ -272,4 +272,4 @@ This phase is complete when:
 - deprecated shared tests are removed or rewritten
 - backend regression suite is green
 
-Only after those conditions are met should the app migration onto shared axial modules begin.
+Only after those conditions are met should the app migration onto shared axial modules begin

@@ -50,6 +50,12 @@ function sparseMap(): GameMap {
   return {
     width: 5,
     height: 5,
+    cells: [
+      { q: 0, r: 0 },
+      { q: 1, r: 0 },
+      { q: 1, r: 1 },
+      { q: 2, r: 1 },
+    ],
     hexes: {
       '0,0': { q: 0, r: 0, terrain: 'clear' },
       '1,0': { q: 1, r: 0, terrain: 'clear' },
@@ -88,6 +94,13 @@ describe('createMap', () => {
   it('maps any other t value to clear', () => {
     const map = createMap(5, 5, [{ q: 1, r: 1, t: 3 }])
     expect(getHex(map, { q: 1, r: 1 })?.terrain).toBe('clear')
+  })
+
+  it('respects explicit cell membership when provided', () => {
+    const map = createMap(5, 5, [], [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: 1 }])
+
+    expect(isInBounds(map, { q: 1, r: 1 })).toBe(true)
+    expect(isInBounds(map, { q: 4, r: 4 })).toBe(false)
   })
 })
 

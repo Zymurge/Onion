@@ -28,8 +28,7 @@ We use an **Axial Coordinate System** (q, r) where:
   "displayName": "The Siege of Shrek's Swamp",
   "description": "The Onion must reach the Castle while defenders hold the ridgeline.",
   "map": {
-    "width": 15,
-    "height": 22,
+    "radius": 7,
     "hexes": [
       { "q": 0, "r": 0, "t": 0 },
       { "q": 1, "r": 0, "t": 1 },
@@ -88,6 +87,10 @@ Scenario JSON only declares the starting unit types, positions, and stack sizes.
 3. Scenario `initialState` should remain focused on initial placement, stack sizes, and status fields that vary per scenario.
 
 ## 4. Map Encoding Convention
+
+Authored scenarios may declare a hex map by `radius` instead of enumerating every cell. At load time, the engine materializes that authored map into an explicit `cells` array using a translated axial hex region centered at `(radius, radius)`, which keeps all generated coordinates non-negative.
+
+The runtime/API map shape still uses explicit `cells`; `radius` is only an authoring convenience.
 
 Only non-clear hexes need to appear in the `hexes` array. Any hex coordinate not listed is assumed to be terrain type `0` (Clear). This keeps scenario files compact.
 
