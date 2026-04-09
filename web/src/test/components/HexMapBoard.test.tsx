@@ -193,6 +193,37 @@ describe('HexMapBoard', () => {
 		expect(screen.queryByTestId('hex-cell-1-1')).toBeNull()
 	})
 
+	it('zooms from the vertical slider and preserves the current scroll anchor', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const viewport = screen.getByTestId('hex-map-viewport') as HTMLDivElement
+		const scrollTo = vi.fn()
+		Object.defineProperty(viewport, 'clientWidth', { value: 240, configurable: true })
+		Object.defineProperty(viewport, 'clientHeight', { value: 180, configurable: true })
+		Object.defineProperty(viewport, 'scrollLeft', { value: 90, writable: true, configurable: true })
+		Object.defineProperty(viewport, 'scrollTop', { value: 60, writable: true, configurable: true })
+		Object.defineProperty(viewport, 'scrollTo', { value: scrollTo, configurable: true })
+
+		fireEvent.change(screen.getByRole('slider', { name: /map zoom/i }), { target: { value: '150' } })
+
+		const svg = screen.getByRole('img', { name: /swamp siege hex map/i })
+		const expectedBounds = boardPixelSize(scenarioMap.cells, 36, 28)
+		expect(svg.getAttribute('width')).toBe(String(expectedBounds.width * 1.5))
+		expect(svg.getAttribute('height')).toBe(String(expectedBounds.height * 1.5))
+		expect(scrollTo).toHaveBeenCalledWith({ left: 195, top: 135, behavior: 'auto' })
+	})
+
 	it('deselects when the user left-clicks an empty hex', () => {
 		const onDeselect = vi.fn()
 

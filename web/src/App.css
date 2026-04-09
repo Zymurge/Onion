@@ -946,7 +946,8 @@
 
 .map-frame {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  overflow: hidden;
   position: relative;
   min-height: 0;
 }
