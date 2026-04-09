@@ -39,7 +39,6 @@ body,
 
 body {
   margin: 0;
-  min-width: 1420px;
   background-color: var(--paper);
   background-image:
     linear-gradient(rgba(90, 72, 43, 0.06) 1px, transparent 1px),
