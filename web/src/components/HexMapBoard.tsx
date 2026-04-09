@@ -65,6 +65,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
   const [zoomPercent, setZoomPercent] = useState(100)
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
+  const zoomSliderRef = useRef<HTMLInputElement | null>(null)
   const previousZoomRef = useRef(1)
   const activeCombatRole = phase === 'ONION_COMBAT' ? 'onion' : phase === 'DEFENDER_COMBAT' ? 'defender' : null
   const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
@@ -220,6 +221,29 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
 
     return () => {
       viewport.removeEventListener('wheel', handleWheel)
+    }
+  }, [])
+
+  useEffect(() => {
+    const slider = zoomSliderRef.current
+
+    if (!slider) {
+      return undefined
+    }
+
+    function handleWheel(event: WheelEvent) {
+      if (event.deltaY === 0) {
+        return
+      }
+
+      event.preventDefault()
+      adjustZoom(event.deltaY < 0 ? 1 : -1)
+    }
+
+    slider.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      slider.removeEventListener('wheel', handleWheel)
     }
   }, [])
 
@@ -445,26 +469,20 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
           </g>
         </svg>
       </div>
-      <input
-        id="hex-map-zoom-slider"
-        className="hex-map-zoom-slider"
-        type="range"
-        min={ZOOM_PERCENT_MIN}
-        max={ZOOM_PERCENT_MAX}
-        step={ZOOM_PERCENT_STEP}
-        value={zoomPercent}
-        aria-label="Map zoom"
-        onChange={(event) => setZoomPercent(Number(event.target.value))}
-        onWheel={(event) => {
-          if (event.deltaY === 0) {
-            return
-          }
-
-          event.preventDefault()
-          event.stopPropagation()
-          adjustZoom(event.deltaY < 0 ? 1 : -1)
-        }}
-      />
+      <div className="hex-map-zoom-control">
+        <input
+          ref={zoomSliderRef}
+          id="hex-map-zoom-slider"
+          className="hex-map-zoom-slider"
+          type="range"
+          min={ZOOM_PERCENT_MIN}
+          max={ZOOM_PERCENT_MAX}
+          step={ZOOM_PERCENT_STEP}
+          value={zoomPercent}
+          aria-label="Map zoom"
+          onChange={(event) => setZoomPercent(Number(event.target.value))}
+        />
+      </div>
     </div>
   )
 }
