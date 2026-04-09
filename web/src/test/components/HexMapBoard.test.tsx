@@ -280,6 +280,25 @@ describe('HexMapBoard', () => {
 		expect(Number(svg.getAttribute('width'))).toBeGreaterThan(initialWidth)
 	})
 
+	it('exposes a zoom range that can fully fit the map', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const slider = screen.getByLabelText(/map zoom/i)
+		expect(slider.getAttribute('min')).toBe('50')
+		expect(slider.getAttribute('max')).toBe('200')
+	})
+
 	it('deselects when the user left-clicks an empty hex', () => {
 		const onDeselect = vi.fn()
 

@@ -31,8 +31,8 @@ type HexMapBoardProps = {
 
 const HEX_SIZE = 36
 const MAP_PADDING = 28
-const ZOOM_MIN = 0.75
-const ZOOM_MAX = 2.25
+const ZOOM_MIN = 0.5
+const ZOOM_MAX = 2.0
 const ZOOM_STEP = 0.05
 const ZOOM_PERCENT_MIN = Math.round(ZOOM_MIN * 100)
 const ZOOM_PERCENT_MAX = Math.round(ZOOM_MAX * 100)
