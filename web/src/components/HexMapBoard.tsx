@@ -247,12 +247,24 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
         data-testid="hex-map-viewport"
         ref={scrollViewportRef}
         onWheel={(event) => {
-          if (event.deltaY === 0) {
+          if (event.deltaX === 0 && event.deltaY === 0) {
             return
           }
 
           event.preventDefault()
-          adjustZoom(event.deltaY < 0 ? 1 : -1)
+          const viewport = scrollViewportRef.current
+
+          if (!viewport) {
+            return
+          }
+
+          if (typeof viewport.scrollBy === 'function') {
+            viewport.scrollBy({ left: event.deltaX, top: event.deltaY, behavior: 'auto' })
+            return
+          }
+
+          viewport.scrollLeft += event.deltaX
+          viewport.scrollTop += event.deltaY
         }}
       >
         <svg
