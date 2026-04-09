@@ -527,7 +527,7 @@
 
 .battlefield-grid {
   display: grid;
-  grid-template-columns: minmax(340px, 400px) minmax(0, 1fr) minmax(340px, 400px);
+  grid-template-columns: minmax(220px, 20%) minmax(0, 1fr) minmax(220px, 20%);
   gap: 22px;
   align-items: stretch;
   height: 100%;

@@ -59,40 +59,15 @@
   left: 14px;
   bottom: 14px;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: 74px;
+  width: 30px;
   height: clamp(160px, 25vh, 260px);
-  padding: 12px 10px;
-  border: 1px solid rgba(121, 92, 32, 0.22);
-  border-radius: 18px;
-  background: rgba(255, 251, 242, 0.88);
-  box-shadow: 0 18px 36px rgba(51, 43, 26, 0.16);
-  backdrop-filter: blur(6px);
-}
-
-.hex-map-zoom-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  font-size: 0.74rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-}
-
-.hex-map-zoom-label strong {
-  font-size: 0.95rem;
-  letter-spacing: 0.08em;
-  color: var(--ink-strong);
 }
 
 .hex-map-zoom-slider {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
   margin: 0;
   writing-mode: vertical-rl;
   direction: rtl;

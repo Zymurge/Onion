@@ -224,6 +224,37 @@ describe('HexMapBoard', () => {
 		expect(scrollTo).toHaveBeenCalledWith({ left: 195, top: 135, behavior: 'auto' })
 	})
 
+	it('zooms when the user wheels over the map viewport', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const viewport = screen.getByTestId('hex-map-viewport') as HTMLDivElement
+		const scrollTo = vi.fn()
+		Object.defineProperty(viewport, 'clientWidth', { value: 240, configurable: true })
+		Object.defineProperty(viewport, 'clientHeight', { value: 180, configurable: true })
+		Object.defineProperty(viewport, 'scrollLeft', { value: 90, writable: true, configurable: true })
+		Object.defineProperty(viewport, 'scrollTop', { value: 60, writable: true, configurable: true })
+		Object.defineProperty(viewport, 'scrollTo', { value: scrollTo, configurable: true })
+
+		const svg = screen.getByRole('img', { name: /swamp siege hex map/i })
+		const initialWidth = Number(svg.getAttribute('width'))
+
+		fireEvent.wheel(viewport, { deltaY: -120 })
+
+		expect(Number(svg.getAttribute('width'))).toBeGreaterThan(initialWidth)
+		expect(scrollTo).toHaveBeenCalled()
+	})
+
 	it('deselects when the user left-clicks an empty hex', () => {
 		const onDeselect = vi.fn()
 
