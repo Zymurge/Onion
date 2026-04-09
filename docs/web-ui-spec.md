@@ -1,4 +1,5 @@
 # Onion Web UI Specification (v0.1)
+
 **Status: Completed (April 2026)**
 
 ## Purpose

@@ -1,5 +1,6 @@
-**Status: Completed (April 2026)**
 # Web Session Controller Refactor Spec
+
+**Status: Completed (April 2026)**
 
 Status: Implemented through Phase 4
 Date: 2026-04-04

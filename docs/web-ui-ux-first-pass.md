@@ -1,4 +1,5 @@
 # Onion Web UI UX First Pass (Core Game Interface)
+
 **Status: Completed (April 2026)**
 
 ## Goals
@@ -48,8 +49,8 @@ Header now includes:
 4. Debug diagnostics toggle (near connection status; when active, streams debug output to a read-only, scrollable popup window).
 5. Active side is indicated by highlighting (or glowing) the game phase when the current player is active. When waiting on the other player, the phase chip shows an animated faded crosshatch pattern.
 
-
 ## Implementation Status (March 2026)
+
 **All core UI/UX requirements are implemented.**
 
 ### Complete or Present
@@ -71,7 +72,6 @@ Header now includes:
 - Selection inspector and hover overlays not present
 - Error banners/diagnostics not present
 - No live backend wiring; mock data only
-
 
 ## Next Steps Todo List
 
