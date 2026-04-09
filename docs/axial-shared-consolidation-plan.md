@@ -1,5 +1,7 @@
 # Axial Shared Consolidation Plan
 
+**Status: Completed (April 2026)**
+
 ## Purpose
 
 This document is the plan of record for steps 1, 2, and 3 of the axial consolidation.
