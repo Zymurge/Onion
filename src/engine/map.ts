@@ -83,11 +83,12 @@ export function createMap(
   const overrides = new Map(hexes.map(h => [hexKey(h), terrainFromT(h.t)]))
   const record: Record<string, Hex> = {}
   const cellList =
-  cells ?? Array.from({ length: height }, (_, r) => Array.from({ length: width }, (_, q) => ({ q, r }))).flat()
+    cells ??
+    Array.from({ length: height }, (_, r) => Array.from({ length: width }, (_, q) => ({ q, r }))).flat()
 
   for (const pos of cellList) {
-  const key = hexKey(pos)
-  record[key] = { q: pos.q, r: pos.r, terrain: overrides.get(key) ?? 'clear' }
+    const key = hexKey(pos)
+    record[key] = { q: pos.q, r: pos.r, terrain: overrides.get(key) ?? 'clear' }
   }
 
   return { width, height, cells: cellList, hexes: record }
