@@ -193,6 +193,36 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
     previousZoomRef.current = zoomLevel
   }, [scaledBounds.height, scaledBounds.width, zoomLevel])
 
+  useEffect(() => {
+    const viewport = scrollViewportRef.current
+
+    if (!viewport) {
+      return undefined
+    }
+
+    function handleWheel(event: WheelEvent) {
+      if (event.deltaX === 0 && event.deltaY === 0) {
+        return
+      }
+
+      event.preventDefault()
+
+      if (typeof viewport.scrollBy === 'function') {
+        viewport.scrollBy({ left: event.deltaX, top: event.deltaY, behavior: 'auto' })
+        return
+      }
+
+      viewport.scrollLeft += event.deltaX
+      viewport.scrollTop += event.deltaY
+    }
+
+    viewport.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      viewport.removeEventListener('wheel', handleWheel)
+    }
+  }, [])
+
   function getCombatTargetIdForOccupant(occupant: HexOccupant): string {
     if (activeCombatRole === 'defender' && occupant.id === onion.id) {
       return `${onion.id}:treads`
@@ -246,26 +276,6 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
         className="hex-map-viewport"
         data-testid="hex-map-viewport"
         ref={scrollViewportRef}
-        onWheel={(event) => {
-          if (event.deltaX === 0 && event.deltaY === 0) {
-            return
-          }
-
-          event.preventDefault()
-          const viewport = scrollViewportRef.current
-
-          if (!viewport) {
-            return
-          }
-
-          if (typeof viewport.scrollBy === 'function') {
-            viewport.scrollBy({ left: event.deltaX, top: event.deltaY, behavior: 'auto' })
-            return
-          }
-
-          viewport.scrollLeft += event.deltaX
-          viewport.scrollTop += event.deltaY
-        }}
       >
         <svg
           className="hex-map-svg"
