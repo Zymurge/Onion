@@ -952,6 +952,11 @@
   min-height: 0;
 }
 
+.map-frame > .hex-map-shell {
+  position: absolute;
+  inset: 0;
+}
+
 .hex-map-shell {
   display: flex;
   flex: 1;

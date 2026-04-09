@@ -60,10 +60,10 @@
 }
 
 .hex-map-zoom-control {
-  position: fixed;
+  position: absolute;
   left: 16px;
   bottom: 16px;
-  z-index: 1200;
+  z-index: 5;
   pointer-events: auto;
   width: 30px;
   height: clamp(160px, 25vh, 260px);
