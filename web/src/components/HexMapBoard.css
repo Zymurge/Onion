@@ -54,7 +54,7 @@
   transition: filter 0.2s ease;
 }
 
-.hex-map-svg {
+.hex-map-viewport > .hex-map-svg {
   display: block;
   flex: none;
 }
