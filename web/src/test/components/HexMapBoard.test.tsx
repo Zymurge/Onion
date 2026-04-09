@@ -257,6 +257,29 @@ describe('HexMapBoard', () => {
 		expect(scrollBy).toHaveBeenCalledWith({ left: 0, top: -120, behavior: 'auto' })
 	})
 
+	it('zooms when the user wheels over the zoom slider', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const slider = screen.getByLabelText(/map zoom/i)
+		const svg = screen.getByRole('img', { name: /swamp siege hex map/i })
+		const initialWidth = Number(svg.getAttribute('width'))
+
+		fireEvent.wheel(slider, { deltaY: -120 })
+
+		expect(Number(svg.getAttribute('width'))).toBeGreaterThan(initialWidth)
+	})
+
 	it('deselects when the user left-clicks an empty hex', () => {
 		const onDeselect = vi.fn()
 

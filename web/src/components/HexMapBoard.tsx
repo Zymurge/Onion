@@ -455,6 +455,15 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
         value={zoomPercent}
         aria-label="Map zoom"
         onChange={(event) => setZoomPercent(Number(event.target.value))}
+        onWheel={(event) => {
+          if (event.deltaY === 0) {
+            return
+          }
+
+          event.preventDefault()
+          event.stopPropagation()
+          adjustZoom(event.deltaY < 0 ? 1 : -1)
+        }}
       />
     </div>
   )
