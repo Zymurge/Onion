@@ -36,26 +36,27 @@ export function createFakeGameBackend(options: {
 	const requestTransport: GameRequestTransport = {
     async getState(_gameId: number) {
       void _gameId // suppress unused variable warning
-			if (failNextRefresh) {
-				const err = failNextRefresh
-				failNextRefresh = null
-				throw err
-			}
-			if (refreshQueue.length > 0) {
-				const { snapshot, session } = refreshQueue.shift()!
-				currentSnapshot = snapshot
-				currentSession = session
-			}
-			return {
-				snapshot: currentSnapshot,
-				session: currentSession,
-			}
-		},
-		async submitAction(gameId: number, action: GameAction) {
-			submittedActions.push({ gameId, action })
-			// For the fake, just return the current snapshot (could be extended for more realism)
-			return currentSnapshot
-		},
+      if (failNextRefresh) {
+        const err = failNextRefresh
+        failNextRefresh = null
+        throw err
+      }
+      if (refreshQueue.length > 0) {
+        const { snapshot, session } = refreshQueue.shift()!
+        currentSnapshot = snapshot
+        currentSession = session
+      }
+      // Return envelope for GameClient
+      return {
+        snapshot: currentSnapshot,
+        session: currentSession,
+      }
+    },
+    async submitAction(gameId: number, action: GameAction) {
+      submittedActions.push({ gameId, action })
+      // For the fake, just return the current snapshot (could be extended for more realism)
+      return currentSnapshot
+    },
 	}
 
 

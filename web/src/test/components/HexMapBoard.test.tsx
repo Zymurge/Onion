@@ -3,12 +3,21 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { HexMapBoard } from '../../components/HexMapBoard'
+import { boardPixelSize } from '../../lib/hex'
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '../../lib/battlefieldView'
 
 const scenarioMap = {
 	width: 5,
 	height: 5,
-	hexes: [] as TerrainHex[],
+	cells: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r }))).flat(),
+	hexes: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r, t: 0 } as TerrainHex))).flat(),
+}
+
+const sparseScenarioMap = {
+	width: 5,
+	height: 5,
+	cells: [{ q: 0, r: 0 }, { q: 4, r: 4 }],
+	hexes: [{ q: 4, r: 4, t: 1 } as TerrainHex],
 }
 
 const onion: BattlefieldOnionView = {
@@ -40,7 +49,7 @@ const defenders: BattlefieldUnit[] = [
 		id: 'wolf-2',
 		type: 'BigBadWolf',
 		status: 'operational',
-		q: 2,
+		q: 1,
 		r: 2,
 		move: 4,
 		weapons: 'main: ready',
@@ -83,7 +92,7 @@ describe('HexMapBoard', () => {
 		expect(reachableCell?.getAttribute('class')).toContain('hex-cell-reachable')
 	})
 
-	it('recovers defender move paths when the rendered allowance is stale', () => {
+	it('keeps defender move paths collapsed when the rendered allowance is stale', () => {
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}
@@ -97,8 +106,8 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).toContain('hex-unit-stack-move-ready')
-		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).toContain('hex-cell-reachable')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
+		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).not.toContain('hex-cell-reachable')
 	})
 
 	it('renders combat range overlays when provided', () => {
@@ -119,6 +128,175 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-cell-combat-range')
 		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).toContain('hex-cell-combat-range')
 		expect(screen.getByTestId('hex-cell-0-0').getAttribute('class')).not.toContain('hex-cell-combat-range')
+	})
+
+	it('renders default terrain cells alongside special terrain overrides', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={{
+					width: 5,
+					height: 5,
+					cells: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 2, r: 1, t: 1 }],
+				}}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-0-0')).not.toBeNull()
+		expect(screen.getByTestId('hex-cell-2-1')).not.toBeNull()
+		expect(screen.getByTestId('hex-cell-1-0').getAttribute('class')).toContain('hex-terrain-default')
+		expect(screen.getByTestId('hex-cell-4-4').getAttribute('class')).toContain('hex-terrain-default')
+	})
+
+	it('sizes the svg from sparse cell membership and keeps overlays on the rendered cell', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={sparseScenarioMap}
+				defenders={[
+					{
+						id: 'wolf-2',
+						type: 'BigBadWolf',
+						status: 'operational',
+						q: 4,
+						r: 4,
+						move: 4,
+						weapons: 'main: ready',
+						attack: '2 / rng 2',
+						actionableModes: ['fire', 'combined'],
+					},
+				]}
+				onion={onion}
+				phase="ONION_COMBAT"
+				selectedUnitIds={["weapon:main-1"]}
+				selectedCombatTargetId={null}
+				combatRangeHexKeys={new Set(['4,4'])}
+				onSelectUnit={vi.fn()}
+				onSelectCombatTarget={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const svg = screen.getByRole('img', { name: /swamp siege hex map/i }) as SVGSVGElement
+		const expectedBounds = boardPixelSize(sparseScenarioMap.cells, 36, 28)
+
+		expect(svg.getAttribute('width')).toBe(String(expectedBounds.width))
+		expect(svg.getAttribute('height')).toBe(String(expectedBounds.height))
+		expect(screen.getByTestId('hex-cell-4-4').getAttribute('class')).toContain('hex-cell-combat-range')
+		expect(screen.queryByTestId('hex-cell-1-1')).toBeNull()
+	})
+
+	it('zooms from the vertical slider and preserves the current scroll anchor', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const viewport = screen.getByTestId('hex-map-viewport') as HTMLDivElement
+		const scrollTo = vi.fn()
+		Object.defineProperty(viewport, 'clientWidth', { value: 240, configurable: true })
+		Object.defineProperty(viewport, 'clientHeight', { value: 180, configurable: true })
+		Object.defineProperty(viewport, 'scrollLeft', { value: 90, writable: true, configurable: true })
+		Object.defineProperty(viewport, 'scrollTop', { value: 60, writable: true, configurable: true })
+		Object.defineProperty(viewport, 'scrollTo', { value: scrollTo, configurable: true })
+
+		fireEvent.change(screen.getByRole('slider', { name: /map zoom/i }), { target: { value: '150' } })
+
+		const svg = screen.getByRole('img', { name: /swamp siege hex map/i })
+		const expectedBounds = boardPixelSize(scenarioMap.cells, 36, 28)
+		expect(svg.getAttribute('width')).toBe(String(expectedBounds.width * 1.5))
+		expect(svg.getAttribute('height')).toBe(String(expectedBounds.height * 1.5))
+		expect(scrollTo).toHaveBeenCalledWith({ left: 195, top: 135, behavior: 'auto' })
+	})
+
+	it('scrolls when the user wheels over the map viewport', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const viewport = screen.getByTestId('hex-map-viewport') as HTMLDivElement
+		const scrollTo = vi.fn()
+		const scrollBy = vi.fn()
+		Object.defineProperty(viewport, 'clientWidth', { value: 240, configurable: true })
+		Object.defineProperty(viewport, 'clientHeight', { value: 180, configurable: true })
+		Object.defineProperty(viewport, 'scrollLeft', { value: 90, writable: true, configurable: true })
+		Object.defineProperty(viewport, 'scrollTop', { value: 60, writable: true, configurable: true })
+		Object.defineProperty(viewport, 'scrollTo', { value: scrollTo, configurable: true })
+		Object.defineProperty(viewport, 'scrollBy', { value: scrollBy, configurable: true })
+
+		const svg = screen.getByRole('img', { name: /swamp siege hex map/i })
+		const initialWidth = Number(svg.getAttribute('width'))
+
+		fireEvent.wheel(viewport, { deltaY: -120 })
+
+		expect(Number(svg.getAttribute('width'))).toBe(initialWidth)
+		expect(scrollBy).toHaveBeenCalledWith({ left: 0, top: -120, behavior: 'auto' })
+	})
+
+	it('zooms when the user wheels over the zoom slider', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const slider = screen.getByLabelText(/map zoom/i)
+		const svg = screen.getByRole('img', { name: /swamp siege hex map/i })
+		const initialWidth = Number(svg.getAttribute('width'))
+
+		fireEvent.wheel(slider, { deltaY: -120 })
+
+		expect(Number(svg.getAttribute('width'))).toBeGreaterThan(initialWidth)
+	})
+
+	it('exposes a zoom range that can fully fit the map', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const slider = screen.getByLabelText(/map zoom/i)
+		expect(slider.getAttribute('min')).toBe('50')
+		expect(slider.getAttribute('max')).toBe('200')
 	})
 
 	it('deselects when the user left-clicks an empty hex', () => {
@@ -435,7 +613,7 @@ describe('HexMapBoard', () => {
 				onMoveUnit={vi.fn()}
 			/>,
 		)
-		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-4'))
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-2-4'))
 		expect(screen.getByText(/illegal move/i)).not.toBeNull()
 	})
 
@@ -453,7 +631,7 @@ describe('HexMapBoard', () => {
 				onMoveUnit={vi.fn()}
 			/>,
 		)
-		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-4'))
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-2-4'))
 		expect(screen.queryByText(/illegal move/i)).toBeNull()
 	})
 })

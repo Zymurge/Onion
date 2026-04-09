@@ -4,8 +4,7 @@
   "displayName": "Smoke Endgame Detection",
   "description": "Low-tread smoke scenario where defenders focus Onion treads.",
   "map": {
-    "width": 12,
-    "height": 12,
+    "radius": 5,
     "hexes": []
   },
   "initialState": {

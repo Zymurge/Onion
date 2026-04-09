@@ -330,6 +330,7 @@ function toMoveMapSnapshot(map: GameMap, state: EngineGameState, movingUnitId: s
   return {
     width: map.width,
     height: map.height,
+    cells: map.cells,
     hexes: Object.values(map.hexes).map((hex) => ({
       q: hex.q,
       r: hex.r,

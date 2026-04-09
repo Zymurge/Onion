@@ -4,8 +4,7 @@
   "displayName": "The Siege of Shrek's Swamp",
   "description": "The Onion must cross the ridgeline and destroy the Castle while defenders hold the line.",
   "map": {
-    "width": 15,
-    "height": 22,
+    "radius": 7,
     "hexes": [
       { "q": 1, "r": 0, "t": 1 },
       { "q": 2, "r": 0, "t": 1 },
@@ -20,7 +19,7 @@
   "initialState": {
     "onion": {
       "type": "TheOnion",
-      "position": { "q": 0, "r": 10 },
+      "position": { "q": 3, "r": 10 },
       "treads": 45,
       "missiles": 2,
       "batteries": {

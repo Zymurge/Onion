@@ -1,4 +1,4 @@
-import { hexKey, hexesWithinRange } from './hex'
+import { hexKey, hexesWithinRange } from '../../../src/shared/hex'
 
 export type CombatRangeSource = {
   q: number
@@ -9,14 +9,23 @@ export type CombatRangeSource = {
 export type CombatRangeBounds = {
   width: number
   height: number
+  cells: Array<{ q: number; r: number }>
 }
 
-function inBounds(bounds: CombatRangeBounds | undefined, q: number, r: number): boolean {
+function buildBoundsLookup(bounds: CombatRangeBounds | undefined): Set<string> | null {
   if (bounds === undefined) {
+    return null
+  }
+
+  return new Set(bounds.cells.map(hexKey))
+}
+
+function inBounds(boundsLookup: Set<string> | null, q: number, r: number): boolean {
+  if (boundsLookup === null) {
     return true
   }
 
-  return q >= 0 && q < bounds.width && r >= 0 && r < bounds.height
+  return boundsLookup.has(hexKey({ q, r }))
 }
 
 export function buildCombatRangeHexKeys(sources: ReadonlyArray<CombatRangeSource>, bounds?: CombatRangeBounds): Set<string> {
@@ -24,12 +33,13 @@ export function buildCombatRangeHexKeys(sources: ReadonlyArray<CombatRangeSource
     return new Set()
   }
 
+  const boundsLookup = buildBoundsLookup(bounds)
   let sharedHexKeys: Set<string> | null = null
 
   for (const source of sources) {
     const sourceHexKeys = new Set(
       hexesWithinRange({ q: source.q, r: source.r }, source.range)
-        .filter((coord) => inBounds(bounds, coord.q, coord.r))
+        .filter((coord) => inBounds(boundsLookup, coord.q, coord.r))
         .map(hexKey),
     )
 

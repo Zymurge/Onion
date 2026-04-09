@@ -4,6 +4,7 @@ import type { GameRequestTransport } from './gameSessionTypes'
 export type ScenarioMapSnapshot = {
 	width: number
 	height: number
+	cells: Array<{ q: number; r: number }>
 	hexes: Array<{ q: number; r: number; t: number }>
 }
 

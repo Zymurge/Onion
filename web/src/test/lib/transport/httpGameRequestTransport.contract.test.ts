@@ -23,7 +23,7 @@ describe('http game request transport contract', () => {
 						'wolf-2': {
 							id: 'wolf-2',
 							type: 'BigBadWolf',
-							position: { q: 6, r: 6 },
+							position: { q: 3, r: 6 },
 							status: 'operational',
 							weapons: [],
 						},
@@ -36,6 +36,7 @@ describe('http game request transport contract', () => {
 				scenarioMap: {
 					width: 15,
 					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
 				},
 				eventSeq: 47,
@@ -56,7 +57,7 @@ describe('http game request transport contract', () => {
 						'wolf-2': {
 							id: 'wolf-2',
 							type: 'BigBadWolf',
-							position: { q: 6, r: 6 },
+							position: { q: 3, r: 6 },
 							status: 'operational',
 							weapons: [],
 						},
@@ -73,6 +74,7 @@ describe('http game request transport contract', () => {
 				scenarioMap: {
 					width: 15,
 					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
 				},
 				scenarioName: "The Siege of Shrek's Swamp",
@@ -111,6 +113,12 @@ describe('http game request transport contract', () => {
 					turnNumber: 8,
 					state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 					movementRemainingByUnit: { 'wolf-2': 4 },
+					scenarioMap: {
+						width: 15,
+						height: 22,
+						cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+						hexes: [{ q: 1, r: 0, t: 1 }],
+					},
 					eventSeq: 47,
 				}),
 			)
@@ -121,6 +129,12 @@ describe('http game request transport contract', () => {
 					events: [{ seq: 48, type: 'UNIT_MOVED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'wolf-2', to: { q: 7, r: 6 } }],
 					state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 					movementRemainingByUnit: { 'wolf-2': 3 },
+					scenarioMap: {
+						width: 15,
+						height: 22,
+						cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+						hexes: [{ q: 1, r: 0, t: 1 }],
+					},
 					turnNumber: 8,
 					eventSeq: 48,
 				}),

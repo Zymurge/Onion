@@ -34,7 +34,7 @@ type CombatPreviewInput = {
 	displayedOnion: BattlefieldOnionView | null
 	selectedUnitIds: ReadonlyArray<string>
 	selectedAttackStrength: number
-	displayedScenarioMap: { width: number; height: number; hexes: TerrainHex[] } | null
+	displayedScenarioMap: { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null
 }
 
 const combatRules: CombatStaticRules = {

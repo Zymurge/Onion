@@ -1,8 +1,9 @@
-import type { HexPos } from '../types/index.js'
+import { getNeighbors, hexKey, type HexPos } from './hex.js'
 
 export type MoveMapSnapshot = {
 	width: number
 	height: number
+	cells: Array<{ q: number; r: number }>
 	hexes: Array<{ q: number; r: number; t: number }>
 	occupiedHexes?: Array<{
 		q: number
@@ -25,10 +26,6 @@ type MoveRole = 'onion' | 'defender'
 
 type Occupant = NonNullable<MoveMapSnapshot['occupiedHexes']>[number]
 
-function hexKey(pos: HexPos): string {
-	return `${pos.q},${pos.r}`
-}
-
 function terrainFromT(t: number): TerrainType {
 	if (t === 1) return 'ridgeline'
 	if (t === 2) return 'crater'
@@ -41,8 +38,8 @@ function terrainCost(terrain: TerrainType, canCrossRidgelines: boolean): number 
 	return 1
 }
 
-function isInBounds(map: MoveMapSnapshot, pos: HexPos): boolean {
-	return pos.q >= 0 && pos.q < map.width && pos.r >= 0 && pos.r < map.height
+function getCellLookup(map: MoveMapSnapshot): Set<string> {
+	return new Set(map.cells.map(hexKey))
 }
 
 function getTerrainLookup(map: MoveMapSnapshot): Map<string, TerrainType> {
@@ -99,28 +96,6 @@ function canStopOnOccupiedHex(
 	return incomingSquads + destinationSquads <= 3
 }
 
-function getNeighbors(pos: HexPos): HexPos[] {
-	if (pos.r & 1) {
-		return [
-			{ q: pos.q + 1, r: pos.r },
-			{ q: pos.q - 1, r: pos.r },
-			{ q: pos.q + 1, r: pos.r - 1 },
-			{ q: pos.q, r: pos.r - 1 },
-			{ q: pos.q + 1, r: pos.r + 1 },
-			{ q: pos.q, r: pos.r + 1 },
-		]
-	}
-
-	return [
-		{ q: pos.q + 1, r: pos.r },
-		{ q: pos.q - 1, r: pos.r },
-		{ q: pos.q, r: pos.r - 1 },
-		{ q: pos.q - 1, r: pos.r - 1 },
-		{ q: pos.q, r: pos.r + 1 },
-		{ q: pos.q - 1, r: pos.r + 1 },
-	]
-}
-
 function reconstructPath(prev: Map<string, HexPos | null>, from: HexPos, to: HexPos): HexPos[] {
 	const path: HexPos[] = []
 	let cursor: HexPos | null = to
@@ -142,6 +117,7 @@ function exploreReachableMoves(
 ) {
 	const terrainLookup = getTerrainLookup(map)
 	const occupiedLookup = getOccupiedLookup(map)
+	const cellLookup = getCellLookup(map)
 	const dist = new Map<string, number>()
 	const prev = new Map<string, HexPos | null>()
 	const queue: Array<{ pos: HexPos; cost: number }> = [{ pos: from, cost: 0 }]
@@ -154,7 +130,7 @@ function exploreReachableMoves(
 		const { pos, cost } = queue.shift()!
 
 		for (const neighbor of getNeighbors(pos)) {
-			if (!isInBounds(map, neighbor)) continue
+			if (!cellLookup.has(hexKey(neighbor))) continue
 			const neighborOccupants = occupiedLookup.get(hexKey(neighbor)) ?? []
 			if (!canTraverseOccupiedHex(movingRole, neighborOccupants)) continue
 
@@ -187,7 +163,9 @@ export function findMovePath(input: {
 	movingUnitType: string
 	incomingSquads?: number
 }): { found: true; path: HexPos[]; cost: number } | { found: false; path: []; cost: 0 } {
-	if (!isInBounds(input.map, input.to)) {
+	const cellLookup = getCellLookup(input.map)
+
+	if (!cellLookup.has(hexKey(input.to))) {
 		return { found: false, path: [], cost: 0 }
 	}
 
@@ -223,7 +201,7 @@ export function findMovePath(input: {
 		}
 
 		for (const neighbor of getNeighbors(pos)) {
-			if (!isInBounds(input.map, neighbor)) continue
+			if (!cellLookup.has(hexKey(neighbor))) continue
 			const neighborOccupants = occupiedLookup.get(hexKey(neighbor)) ?? []
 			if (!canTraverseOccupiedHex(input.movingRole, neighborOccupants)) continue
 

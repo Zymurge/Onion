@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { materializeScenarioMap, type AuthoredScenarioMap } from '../shared/scenarioMap.js'
 import { resolveScenariosDir } from './scenarioPaths.js'
 
 const SCENARIOS_DIR = resolveScenariosDir()
@@ -32,10 +33,11 @@ async function loadById(id: string): Promise<any | null> {
   const files = await readdir(SCENARIOS_DIR)
   for (const file of files.filter((f) => f.endsWith('.json'))) {
     const raw = await readFile(join(SCENARIOS_DIR, file), 'utf8')
-    const s = JSON.parse(raw) as { id: string; name: string; displayName?: string }
+    const s = JSON.parse(raw) as { id: string; name: string; displayName?: string; map: AuthoredScenarioMap }
     if (s.id === id) {
       return {
         ...s,
+        map: materializeScenarioMap(s.map),
         displayName: s.displayName ?? s.name,
       }
     }

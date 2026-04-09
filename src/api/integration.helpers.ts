@@ -1,10 +1,9 @@
 import { expect } from 'vitest'
-import { hexDistance } from '../engine/map.js'
+import { getNeighbors, hexDistance, type HexPos } from '../shared/hex.js'
 import { getUnitDefinition, onionMovementAllowance } from '../engine/units.js'
 import { listReachableMoves, type MoveMapSnapshot } from '../shared/movePlanner.js'
 
-export type HexPos = { q: number; r: number }
-export type ScenarioMap = { width: number; height: number; hexes: Array<{ q: number; r: number; t: number }> }
+export type ScenarioMap = { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: Array<{ q: number; r: number; t: number }> }
 
 export interface ExpectedState {
   onion: any
@@ -57,19 +56,8 @@ export async function registerAndLoginUser(app: any, username: string, password:
   return { userId, token }
 }
 
-function getNeighbors(position: HexPos): HexPos[] {
-  return [
-    { q: position.q + 1, r: position.r },
-    { q: position.q - 1, r: position.r },
-    { q: position.q, r: position.r + 1 },
-    { q: position.q, r: position.r - 1 },
-    { q: position.q + 1, r: position.r - 1 },
-    { q: position.q - 1, r: position.r + 1 },
-  ]
-}
-
 function isInBounds(map: ScenarioMap, position: HexPos): boolean {
-  return position.q >= 0 && position.q < map.width && position.r >= 0 && position.r < map.height
+  return map.cells.some((cell) => cell.q === position.q && cell.r === position.r)
 }
 
 function isPassableTerrain(map: ScenarioMap, position: HexPos): boolean {
@@ -149,6 +137,7 @@ function buildMoveMapSnapshot(map: ScenarioMap, state: any, unitId: string): Mov
   return {
     width: map.width,
     height: map.height,
+    cells: map.cells,
     hexes: map.hexes,
     occupiedHexes,
   }

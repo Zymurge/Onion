@@ -7,6 +7,7 @@ import logger from '../logger.js'
  */
 
 import type { HexPos } from '../types/index.js'
+import { getNeighbors, hexDistance, hexKey } from '../shared/hex.js'
 
 /**
  * Terrain types that can exist on hexes.
@@ -23,12 +24,24 @@ export interface Hex extends HexPos {
 
 /**
  * A game map consisting of a collection of hexes.
+ *
+ * The map is defined as a bounded axial region, not a rectangle.
+ * Implementations should treat membership as a shape concern: a hex is valid
+ * only when it belongs to the scenario's declared region. Width and height are
+ * retained as viewport and presentation hints, but they do not define map
+ * membership on their own.
+ *
+ * Shape-aware code should rely on a future shared helper or shape contract to
+ * enumerate valid cells and test membership. Rectangular q/r loops are only
+ * acceptable for legacy compatibility layers, not as the canonical model.
  */
 export interface GameMap {
   /** Width of the map in hexes */
   width: number
   /** Height of the map in hexes */
   height: number
+  /** Explicit cell membership for the map shape */
+  cells: HexPos[]
   /** All hexes on the map, keyed by "q,r" coordinates */
   hexes: Record<string, Hex>
 }
@@ -55,27 +68,34 @@ export interface PathResult {
   cost: number
 }
 
-function hexKey(pos: HexPos): string {
-  return `${pos.q},${pos.r}`
-}
-
 function terrainFromT(t: number): TerrainType {
   if (t === 1) return 'ridgeline'
   if (t === 2) return 'crater'
   return 'clear'
 }
 
-export function createMap(width: number, height: number, hexes: Array<{ q: number; r: number; t: number }>): GameMap {
+export function createMap(
+  width: number,
+  height: number,
+  hexes: Array<{ q: number; r: number; t: number }>,
+  cells?: HexPos[],
+): GameMap {
   const overrides = new Map(hexes.map(h => [hexKey(h), terrainFromT(h.t)]))
   const record: Record<string, Hex> = {}
-  for (let q = 0; q < width; q++) {
-    for (let r = 0; r < height; r++) {
-      const pos = { q, r }
-      const key = hexKey(pos)
-      record[key] = { q, r, terrain: overrides.get(key) ?? 'clear' }
-    }
+  const cellList =
+    cells ??
+    Array.from({ length: height }, (_, r) => Array.from({ length: width }, (_, q) => ({ q, r }))).flat()
+
+  for (const pos of cellList) {
+    const key = hexKey(pos)
+    record[key] = { q: pos.q, r: pos.r, terrain: overrides.get(key) ?? 'clear' }
   }
-  return { width, height, hexes: record }
+
+  return { width, height, cells: cellList, hexes: record }
+}
+
+function hasHex(map: GameMap, pos: HexPos): boolean {
+  return Boolean(map.hexes[hexKey(pos)])
 }
 
 export function getHex(map: GameMap, pos: HexPos): Hex | null {
@@ -92,23 +112,7 @@ export function getHex(map: GameMap, pos: HexPos): Hex | null {
 }
 
 export function isInBounds(map: GameMap, pos: HexPos): boolean {
-  return pos.q >= 0 && pos.q < map.width && pos.r >= 0 && pos.r < map.height
-}
-
-export function hexDistance(a: HexPos, b: HexPos): number {
-  const dq = a.q - b.q
-  const dr = a.r - b.r
-  return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr))
-}
-
-const AXIAL_DIRECTIONS: readonly HexPos[] = [
-  { q: 1, r: 0 }, { q: -1, r: 0 },
-  { q: 0, r: 1 }, { q: 0, r: -1 },
-  { q: 1, r: -1 }, { q: -1, r: 1 },
-]
-
-export function getNeighbors(pos: HexPos): HexPos[] {
-  return AXIAL_DIRECTIONS.map(d => ({ q: pos.q + d.q, r: pos.r + d.r }))
+  return hasHex(map, pos)
 }
 
 export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | null {
@@ -131,6 +135,10 @@ export function findPath(
 ): PathResult {
   if (!isInBounds(map, to)) {
     logger.warn({ from, to }, 'findPath: destination out of bounds')
+    return { found: false, path: [], cost: 0 }
+  }
+  if (!isInBounds(map, from)) {
+    logger.warn({ from, to }, 'findPath: origin out of bounds')
     return { found: false, path: [], cost: 0 }
   }
   if (from.q === to.q && from.r === to.r) return { found: true, path: [], cost: 0 }

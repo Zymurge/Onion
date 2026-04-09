@@ -13,6 +13,7 @@ import { advancePhaseWithEvents } from '../engine/game.js'
 import { createMap } from '../engine/map.js'
 import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '../engine/index.js'
 import type { EngineGameState } from '../engine/units.js'
+import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '../shared/scenarioMap.js'
 import { getRemainingUnitMovementAllowance } from '../shared/unitMovement.js'
 import type { GameStateResponse } from '../shared/apiProtocol.js'
 import type { WebSocketClientMessage, WebSocketServerEventMessage, WebSocketServerErrorMessage, WebSocketServerSnapshotMessage } from '../shared/websocketProtocol.js'
@@ -34,35 +35,107 @@ type ScenarioSnapshot = {
   displayName?: string
   victoryConditions?: {
     maxTurns?: number
+    onion?: {
+	  targetHex?: { q: number; r: number }
+	}
   }
-  width?: number
-  height?: number
-  hexes?: Array<{ q: number; r: number; t: number }>
-  map?: {
-    width: number
-    height: number
-    hexes?: Array<{ q: number; r: number; t: number }>
-  }
+  map?: AuthoredScenarioMap
   initialState?: unknown
 }
 
-type ScenarioMapSnapshot = {
-  width: number
-  height: number
-  hexes: Array<{ q: number; r: number; t: number }>
-}
+type ScenarioMapSnapshot = ExplicitScenarioMap
 
 function getScenarioMapSnapshot(scenarioSnapshot: ScenarioSnapshot | undefined): ScenarioMapSnapshot {
   const candidate = scenarioSnapshot?.map ?? scenarioSnapshot
-  if (!candidate || typeof candidate.width !== 'number' || typeof candidate.height !== 'number') {
+  if (!candidate) {
     throw new Error('Invalid scenario map snapshot')
   }
 
-  return {
-    width: candidate.width,
-    height: candidate.height,
-    hexes: candidate.hexes ?? [],
+  return materializeScenarioMap(candidate as AuthoredScenarioMap)
+}
+
+/**
+ * Normalize radius-authored scenario state into runtime axial coordinates.
+ *
+ * This is the backend translation step for authored initial positions and
+ * victory targets. The client receives only the materialized axial result.
+ */
+function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined): ScenarioSnapshot | undefined {
+  if (initial === undefined || initial.map === undefined || !('radius' in initial.map)) {
+    return initial
   }
+
+  const radius = Math.max(0, Math.floor(initial.map.radius))
+  const translatedInitialState = initial.initialState && typeof initial.initialState === 'object'
+    ? (() => {
+      const state = initial.initialState as {
+        onion?: { position?: { q: number; r: number } }
+        defenders?: Record<string, { position?: { q: number; r: number } }>
+      }
+
+      return {
+        ...state,
+        onion: state.onion?.position
+          ? { ...state.onion, position: translateScenarioCoord(state.onion.position, radius) }
+          : state.onion,
+        defenders: state.defenders
+          ? Object.fromEntries(
+            Object.entries(state.defenders).map(([key, defender]) => [
+              key,
+              defender.position
+                ? { ...defender, position: translateScenarioCoord(defender.position, radius) }
+                : defender,
+            ]),
+          )
+          : state.defenders,
+      }
+    })()
+    : initial.initialState
+
+  const translatedVictoryConditions = initial.victoryConditions && typeof initial.victoryConditions === 'object'
+    ? (() => {
+      const victoryConditions = initial.victoryConditions as {
+        onion?: { targetHex?: { q: number; r: number } }
+      }
+
+      return victoryConditions.onion?.targetHex
+        ? {
+          ...victoryConditions,
+          onion: {
+            ...victoryConditions.onion,
+            targetHex: translateScenarioCoord(victoryConditions.onion.targetHex, radius),
+          },
+        }
+        : victoryConditions
+    })()
+    : initial.victoryConditions
+
+  return {
+    ...initial,
+    map: materializeScenarioMap(initial.map),
+    initialState: translatedInitialState,
+    victoryConditions: translatedVictoryConditions,
+  }
+}
+
+/**
+ * Validate that the normalized scenario state still fits the materialized map.
+ */
+function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, scenarioSnapshot: ScenarioSnapshot, state: GameState): void {
+	const positions: Array<{ label: string; position: { q: number; r: number } }> = [
+		{ label: 'onion start', position: state.onion.position },
+		...Object.entries(state.defenders).map(([defenderId, defender]) => ({
+			label: `defender start ${defender.id ?? defenderId}`,
+			position: defender.position,
+		})),
+	]
+
+	const targetHex = scenarioSnapshot.victoryConditions?.onion?.targetHex
+	if (targetHex !== undefined) {
+		positions.push({ label: 'victory target', position: targetHex })
+	}
+
+	assertScenarioPositionsInMap(scenarioMap, positions)
 }
 
 function buildEngineState(match: MatchRecord) {
@@ -272,7 +345,15 @@ async function loadScenario(id: string): Promise<(ScenarioSnapshot & { id?: stri
         continue
       }
       if (s.id === id) {
-        return s
+    const translated = translateScenarioSnapshot(s)
+    if (!translated) {
+      return null
+    }
+
+    return {
+      ...translated,
+      displayName: translated.displayName ?? translated.name,
+    }
       }
     }
   } catch (err) {
@@ -397,11 +478,13 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logger.warn({ scenarioId }, 'Scenario not found')
         return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
       }
+      const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
       let state: GameState
       if (scenarioSnapshot.initialState) {
         try {
           const parsedState = InitialStateSchema.parse(scenarioSnapshot.initialState)
           state = normalizeInitialStateToGameState(parsedState)
+		  assertScenarioStateFitsMap(scenarioMap, scenarioSnapshot, state)
         } catch (err) {
           logger.error({ err }, 'Invalid scenario initialState')
           return reply.status(400).send({ ok: false, error: 'Invalid scenario initialState', code: 'INVALID_SCENARIO' })
@@ -793,11 +876,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logger.info({ gameId: match.gameId, unitId: command.unitId }, 'Processing MOVE command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
-        const map = createMap(
-          scenarioMap.width,
-          scenarioMap.height,
-          scenarioMap.hexes
-        )
+        const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
         const validation = validateUnitMovement(map, state, command)
         if (!validation.ok) {
@@ -863,11 +942,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
-        const map = createMap(
-          scenarioMap.width,
-          scenarioMap.height,
-          scenarioMap.hexes
-        )
+        const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
         const validation = validateCombatAction(map, state, command)
         if (!validation.ok) {

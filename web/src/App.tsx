@@ -32,7 +32,7 @@ import {
   sanitizeApiProtocolTrafficEntry,
   subscribeApiProtocolTraffic,
 } from '../../src/shared/apiProtocol'
-import { getRemainingUnitMovementAllowance, getUnitMovementAllowance } from '../../src/shared/unitMovement'
+import { getUnitMovementAllowance } from '../../src/shared/unitMovement'
 import type { TurnPhase, UnitStatus, Weapon } from '../../src/types/index'
 import type {
   GameRequestTransport,
@@ -71,6 +71,27 @@ function getPhaseOwner(phase: TurnPhase | null): 'onion' | 'defender' | null {
   }
 
   return null
+}
+
+function getPhaseAdvanceLabel(phase: TurnPhase | null, role: 'onion' | 'defender' | null): string | null {
+  if (phase === null || role === null) {
+    return null
+  }
+
+  switch (phase) {
+    case 'ONION_MOVE':
+      return role === 'onion' ? 'Start Combat' : null
+    case 'ONION_COMBAT':
+      return role === 'onion' ? 'End Turn' : null
+    case 'DEFENDER_MOVE':
+      return role === 'defender' ? 'Start Combat' : null
+    case 'DEFENDER_COMBAT':
+      return role === 'defender' ? 'Begin Secondary Move' : null
+    case 'GEV_SECOND_MOVE':
+      return role === 'defender' ? 'End Turn' : null
+    case 'DEFENDER_RECOVERY':
+      return null
+  }
 }
 
 function formatLiveConnectionStatus(connectionStatus: LiveConnectionStatus) {
@@ -177,10 +198,12 @@ function parseRangeValue(rangeText: string): number {
   return Number.isNaN(parsedRange) ? 0 : parsedRange
 }
 
-function getTerrainTypeAt(scenarioMap: { width: number; height: number; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
+function getTerrainTypeAt(scenarioMap: { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
   return scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t
 }
 
+
+// Defense for Little Pigs: squads + 1 if in forest (terrainType === 1)
 function getDisplayDefense(type: string, squads: number | undefined, terrainType: number | undefined): number {
   if (type === 'LittlePigs') {
     const stackSize = squads ?? 1
@@ -253,10 +276,6 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
     .map(([defenderId, defender], index) => {
       const resolvedDefenderId = defender.id ?? defenderId
       const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
-      const computedMovementRemaining =
-        activePhase === null
-          ? 0
-          : getRemainingUnitMovementAllowance(defender.type, activePhase, authoritativeState, resolvedDefenderId)
 
       return {
         id: resolvedDefenderId,
@@ -264,12 +283,7 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
         status: defender.status,
         q: defender.position.q,
         r: defender.position.r,
-        move:
-          activePhase === null
-            ? 0
-            : snapshotMovementRemaining === undefined || snapshotMovementRemaining === 0
-              ? computedMovementRemaining
-              : snapshotMovementRemaining,
+        move: activePhase === null ? 0 : snapshotMovementRemaining ?? 0,
         weapons: formatWeaponSummary(defender.weapons),
         attack: formatAttackSummary(defender.weapons),
         weaponDetails: defender.weapons ?? [],
@@ -306,10 +320,7 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
   const onion = authoritativeState.onion
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
-  const movesRemaining =
-    activePhase === null
-      ? 0
-      : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
+  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? movesAllowed
 
   return {
     id: onion.id ?? 'onion-1',
@@ -327,17 +338,24 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
   }
 }
 
-function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; height: number; hexes: TerrainHex[] } | null {
-  const scenarioMap = snapshot?.scenarioMap
-
-  if (scenarioMap === undefined) {
+function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
+  if (snapshot === null) {
     return null
   }
 
+  if (snapshot.scenarioMap === undefined || snapshot.scenarioMap === null) {
+    throw new Error('Loaded game snapshot is missing scenario map data')
+  }
+
+  if (!Array.isArray(snapshot.scenarioMap.cells)) {
+    throw new Error('Loaded game snapshot is missing scenario map cells')
+  }
+
   return {
-    width: scenarioMap.width,
-    height: scenarioMap.height,
-    hexes: scenarioMap.hexes,
+    width: snapshot.scenarioMap.width,
+    height: snapshot.scenarioMap.height,
+    cells: snapshot.scenarioMap.cells,
+    hexes: snapshot.scenarioMap.hexes,
   }
 }
 
@@ -659,11 +677,13 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? null
   const activePhaseOwner = getPhaseOwner(activePhase)
   const activeTurnActive = headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
+  const phaseAdvanceLabel = getPhaseAdvanceLabel(activePhase, activeRole)
   const shellPhase = activePhase ?? 'DEFENDER_MOVE'
   const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
   const activeMode: Mode = clientSnapshot?.mode ?? 'fire'
   const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
   const activeCombatRole = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
+  const isMovementPhase = activePhase === 'ONION_MOVE' || activePhase === 'DEFENDER_MOVE' || activePhase === 'GEV_SECOND_MOVE'
   const displayedScenarioMap = buildScenarioMap(clientSnapshot)
   const selectedCombatAttackerIds = !isCombatPhase
     ? []
@@ -745,27 +765,31 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   function handleConnect(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    void submitConnectDraft(connectDraft)
+  }
+
+  async function submitConnectDraft(draft: typeof connectDraft) {
     setConnectError(null)
 
-    if (!connectDraft.apiBaseUrl.trim() || !connectDraft.username.trim() || !connectDraft.password.trim() || !connectDraft.gameId.trim()) {
+    if (!draft.apiBaseUrl.trim() || !draft.username.trim() || !draft.password.trim() || !draft.gameId.trim()) {
       setConnectError('API base URL, username, password, and game ID are required.')
       return
     }
 
-    const parsedGameId = Number(connectDraft.gameId.trim())
+    const parsedGameId = Number(draft.gameId.trim())
     if (!Number.isSafeInteger(parsedGameId) || parsedGameId <= 0) {
       setConnectError('Game ID must be a positive integer.')
       return
     }
 
-    void (async () => {
+    try {
       const loginResult = await requestJson<AuthResponse>({
-        baseUrl: connectDraft.apiBaseUrl.trim(),
+        baseUrl: draft.apiBaseUrl.trim(),
         path: 'auth/login',
         method: 'POST',
         body: {
-          username: connectDraft.username.trim(),
-          password: connectDraft.password,
+          username: draft.username.trim(),
+          password: draft.password,
         },
       })
 
@@ -789,9 +813,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         liveEventSource: nextLiveEventSource,
         gameId: parsedGameId,
       })
-    })().catch(() => {
+    } catch {
       setConnectError('Unable to connect to the backend.')
-    })
+    }
   }
 
   function handleSelectUnit(unitId: string, additive = false) {
@@ -850,7 +874,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   }
 
   const authoritativeState = clientSnapshot?.authoritativeState ?? null
-  const scenarioMapSnapshot = clientSnapshot?.scenarioMap ?? null
+  const scenarioMapSnapshot = clientSnapshot === null ? null : buildScenarioMap(clientSnapshot)
   const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
   const displayedDefenders = authoritativeState === null ? [] : buildLiveDefenders({
     authoritativeState,
@@ -871,6 +895,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
   const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
   const selectedCombatAttackCount = selectedCombatAttackerIds.length
+  const selectedInspectorUnitId = activeSelectedUnitIds.find((selectionId) => !isWeaponSelectionId(selectionId)) ?? null
+  const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
+  const selectedInspectorDefender =
+    selectedInspectorOnion !== null || selectedInspectorUnitId === null
+      ? null
+      : displayedDefenders.find((unit) => unit.id === selectedInspectorUnitId) ?? null
   const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
     ? new Set<string>()
     : buildCombatRangeHexKeys(
@@ -982,6 +1012,32 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             </label>
             {connectError && <p className="connect-error" role="alert">{connectError}</p>}
             <button type="submit" className="primary-action">Load Game</button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
+              <button
+                type="button"
+                style={{ minWidth: 36, fontWeight: 600, fontSize: 18, borderRadius: 8, padding: '4px 0' }}
+                aria-label="Login as test user 1"
+                onClick={() => {
+                  const nextDraft = { ...connectDraft, username: 'user1', password: 'user1P4ss' }
+                  setConnectDraft(nextDraft)
+                  void submitConnectDraft(nextDraft)
+                }}
+              >
+                1
+              </button>
+              <button
+                type="button"
+                style={{ minWidth: 36, fontWeight: 600, fontSize: 18, borderRadius: 8, padding: '4px 0' }}
+                aria-label="Login as test user 2"
+                onClick={() => {
+                  const nextDraft = { ...connectDraft, username: 'user2', password: 'user2P4ss' }
+                  setConnectDraft(nextDraft)
+                  void submitConnectDraft(nextDraft)
+                }}
+              >
+                2
+              </button>
+            </div>
           </form>
         </section>
       </div>
@@ -1027,6 +1083,17 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           <div className={`phase-chip phase-chip-state${activeTurnActive ? ' phase-chip-active' : ''}${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}>
             <span>{headerHasSnapshot ? activePhaseLabel : 'WAITING'}</span>
           </div>
+          {phaseAdvanceLabel !== null ? (
+            <button
+              type="button"
+              className="phase-advance-btn"
+              onClick={() => {
+                void commitClientAction({ type: 'end-phase' })
+              }}
+            >
+              {phaseAdvanceLabel}
+            </button>
+          ) : null}
         </div>
         <div className="header-utility-controls">
           <div className="utility-group-vert">
@@ -1116,7 +1183,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                         <button
                           key={weapon.id}
                           type="button"
-                          className={`attacker-card-button ${isSelected ? 'is-selected' : ''}`}
+                          className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}`}
                           aria-pressed={isSelected}
                           data-selected={isSelected}
                           data-testid={`combat-weapon-${weapon.id}`}
@@ -1125,11 +1192,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                             handleSelectUnit(selectionId, event.ctrlKey || event.metaKey)
                           }}
                         >
-                          <div className="combat-card-header">
-                            <span className="combat-card-type"><strong>{weapon.name}</strong></span>
-                            <span className="combat-card-id">{weapon.id}</span>
-                          </div>
-                          <div className="combat-card-stats">Attack: {weapon.attack} · Range: {weapon.range}</div>
+                          <div className="weapon-card-name">{weapon.name}</div>
+                          <div className="weapon-card-stats">Attack: {weapon.attack} &nbsp;·&nbsp; Range: {weapon.range}</div>
                         </button>
                       )
                     })
@@ -1157,23 +1221,15 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                         aria-pressed={isSelected}
                         data-selected={isSelected}
                         data-testid={`combat-unit-${unit.id}`}
-                        disabled={isDisabled}
+                        disabled={false} // Always allow click for inspector
                         title={isDestroyed ? 'Destroyed units cannot attack.' : !isActionable ? 'This unit is not eligible to attack.' : undefined}
                         onClick={(event) => {
-                          if (isDisabled) {
-                            event.stopPropagation()
-                            return
-                          }
-
                           event.stopPropagation()
                           handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                         }}
                       >
-                        <div className="combat-card-header">
-                          <span className="combat-card-type"><strong>{unit.type}</strong></span>
-                          <span className="combat-card-id">{unit.id}</span>
-                        </div>
-                        <div className="combat-card-stats">Attack: {attackStats.damage} · Range: {attackStats.range}</div>
+                        <div className="weapon-card-name">{unit.type}</div>
+                        <div className="weapon-card-stats">Attack: {attackStats.damage} &nbsp;·&nbsp; Range: {attackStats.range}</div>
                       </button>
                     )
                   })
@@ -1182,8 +1238,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 )}
               </div>
             </section>
-          ) : (
-            <>
+          ) : isMovementPhase ? (
+            activeRole === 'onion' ? (
               <section className="section-block">
                 <div className="card-head">
                   <p className="eyebrow">Onion</p>
@@ -1217,7 +1273,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                   <p className="summary-line">Waiting for battlefield data.</p>
                 )}
               </section>
-
+            ) : activeRole === 'defender' ? (
               <section className="section-block">
                 <div className="card-head">
                   <p className="eyebrow">Defenders</p>
@@ -1236,6 +1292,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                           type="button"
                           className={[
                             'defender-card-button',
+                            'slim-weapon-card',
                             isSelected ? 'is-selected' : '',
                             isActionable ? 'is-actionable' : '',
                             `tone-${statusTone(unit.status)}`,
@@ -1249,20 +1306,17 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                               event.stopPropagation()
                               return
                             }
-
                             event.stopPropagation()
-                            handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
+                            if (isCombatPhase && activeCombatRole === 'defender') {
+                              setSelectedUnitIds([])
+                              setSelectedCombatTargetId('onion')
+                            } else {
+                              handleSelectUnit(unit.id, event.ctrlKey || event.metaKey)
+                            }
                           }}
                         >
-                          <p className="eyebrow">{unit.type}</p>
-                          <h3>{unit.id}</h3>
-                          <div className="unit-summary">
-                            <div className="summary-line">
-                              <span>Damage <strong>{attackStats.damage}</strong></span>
-                              <span>Range <strong>{attackStats.range}</strong></span>
-                              <span>Move <strong>{unit.move}</strong></span>
-                            </div>
-                          </div>
+                          <div className="weapon-card-name">{unit.type}</div>
+                          <div className="weapon-card-stats">Damage: {attackStats.damage} &nbsp;·&nbsp; Range: {attackStats.range} &nbsp;·&nbsp; Move: {unit.move}</div>
                         </button>
                       )
                     })}
@@ -1271,8 +1325,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                   <p className="summary-line">Waiting for battlefield data.</p>
                 )}
               </section>
-            </>
-          )}
+            ) : null
+          ) : null}
         </aside>
 
         <section className="panel map-stage">
@@ -1308,7 +1362,158 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         </section>
 
         <aside className="panel rail rail-right">
-          {isCombatPhase ? (
+          {/* Always show targeting list (combat UI) during defender combat phase; inspector only outside defender combat phase */}
+          {isCombatPhase && activeCombatRole === 'defender'
+            ? (
+                <section className="section-block panel-subtle">
+                  <div className="card-head">
+                    <div>
+                      <p className="eyebrow">Combat</p>
+                      <h2 title="Pick a target from the list. The list only includes targets currently in the active attack range.">
+                        Valid Targets
+                      </h2>
+                    </div>
+                    <span className="mini-tag">{combatTargetOptions.length} in range</span>
+                  </div>
+                  {selectedCombatTarget !== null ? (
+                    <CombatConfirmationView
+                      title={`Confirm attack on ${selectedCombatTarget.label}`}
+                      attackStrength={selectedCombatAttackStrength}
+                      defenseStrength={selectedCombatTarget.defense}
+                      modifiers={selectedCombatTarget.modifiers}
+                      confirmLabel="Resolve combat"
+                      onConfirm={handleConfirmCombat}
+                      dataTestId="combat-confirmation-view"
+                    />
+                  ) : null}
+                  {combatTargetOptions.length > 0 ? (
+                    <div className="attacker-selection-list" data-testid="combat-target-list">
+                      {combatTargetOptions.map((target) => {
+                        const isSelected = selectedCombatTargetId === target.id
+                        const isTreadsTarget = target.id.endsWith(':treads')
+                        const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
+                        return (
+                          <button
+                            key={target.id}
+                            type="button"
+                            className={[
+                              'attacker-card-button',
+                              'slim-weapon-card',
+                              isSelected ? 'is-selected' : '',
+                              isGroupAttackOnTreads ? 'is-disabled' : '',
+                              `tone-${statusTone(target.status)}`,
+                            ].join(' ')}
+                            disabled={isGroupAttackOnTreads}
+                            title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
+                            aria-pressed={isSelected}
+                            aria-disabled={isGroupAttackOnTreads}
+                            data-selected={isSelected}
+                            data-testid={`combat-target-${target.id}`}
+                            onClick={(event) => {
+                              if (isGroupAttackOnTreads) {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                return
+                              }
+
+                              event.stopPropagation()
+                              setSelectedCombatTargetId(target.id)
+                            }}
+                            onContextMenu={(event) => {
+                              event.preventDefault()
+                              event.stopPropagation()
+
+                              if (isGroupAttackOnTreads) {
+                                return
+                              }
+
+                              setSelectedCombatTargetId(target.id)
+                            }}
+                          >
+                            <div className="weapon-card-name">{target.label}</div>
+                            <div className="weapon-card-stats">{target.detail}</div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="summary-line">No valid targets are currently in range.</p>
+                  )}
+                </section>
+              )
+            : selectedInspectorOnion !== null ? (
+                <section className="selection-panel panel-subtle">
+                  <div className="selection-panel-header">
+                    <div>
+                      <p className="eyebrow">Inspector</p>
+                      <h2>{selectedInspectorOnion.type}</h2>
+                    </div>
+                    <span className="mini-tag">Selected</span>
+                  </div>
+                  <dl className="inspector-grid inspector-grid-right">
+                    <div>
+                      <dt>Stack</dt>
+                      <dd>1</dd>
+                    </div>
+                    <div>
+                      <dt>Treads</dt>
+                      <dd>{selectedInspectorOnion.treads}</dd>
+                    </div>
+                    <div>
+                      <dt>Moves</dt>
+                      <dd>{selectedInspectorOnion.movesRemaining}</dd>
+                    </div>
+                    <div>
+                      <dt>Rams</dt>
+                      <dd>{selectedInspectorOnion.rams}</dd>
+                    </div>
+                    <div>
+                      <dt>Weapons</dt>
+                      <dd>{parseWeaponStats(selectedInspectorOnion.weapons ?? '').operationalWeapons}</dd>
+                    </div>
+                    <div>
+                      <dt>Missiles</dt>
+                      <dd>{parseWeaponStats(selectedInspectorOnion.weapons ?? '').operationalMissiles}</dd>
+                    </div>
+                  </dl>
+                </section>
+              ) : selectedInspectorDefender !== null ? (
+                <section className="selection-panel panel-subtle">
+                  <div className="selection-panel-header">
+                    <div>
+                      <p className="eyebrow">Inspector</p>
+                      <h2>{selectedInspectorDefender.type}</h2>
+                    </div>
+                    <span className="mini-tag">Selected</span>
+                  </div>
+                  <dl className="inspector-grid inspector-grid-right">
+                    <div>
+                      <dt>Stack</dt>
+                      <dd>{selectedInspectorDefender.type === 'LittlePigs' ? selectedInspectorDefender.squads ?? 1 : 1}</dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>{selectedInspectorDefender.status}</dd>
+                    </div>
+                    <div>
+                      <dt>Damage</dt>
+                      <dd>{parseAttackStats(selectedInspectorDefender.attack).damage}</dd>
+                    </div>
+                    <div>
+                      <dt>Range</dt>
+                      <dd>{parseAttackStats(selectedInspectorDefender.attack).range}</dd>
+                    </div>
+                    <div>
+                      <dt>Move</dt>
+                      <dd>{selectedInspectorDefender.move}</dd>
+                    </div>
+                    <div>
+                      <dt>Selected</dt>
+                      <dd>{activeSelectedUnitIds.length}</dd>
+                    </div>
+                  </dl>
+                </section>
+              ) : isCombatPhase ? (
             <section className="section-block panel-subtle">
               <div className="card-head">
                 <div>
@@ -1334,22 +1539,23 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 <div className="attacker-selection-list" data-testid="combat-target-list">
                   {combatTargetOptions.map((target) => {
                     const isSelected = selectedCombatTargetId === target.id
-                      const isTreadsTarget = target.id.endsWith(':treads')
-                      const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
+                    const isTreadsTarget = target.id.endsWith(':treads')
+                    const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
                     return (
                       <button
                         key={target.id}
                         type="button"
                         className={[
                           'attacker-card-button',
+                          'slim-weapon-card',
                           isSelected ? 'is-selected' : '',
-                            isGroupAttackOnTreads ? 'is-disabled' : '',
+                          isGroupAttackOnTreads ? 'is-disabled' : '',
                           `tone-${statusTone(target.status)}`,
                         ].join(' ')}
-                          disabled={isGroupAttackOnTreads}
-                          title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
+                        disabled={isGroupAttackOnTreads}
+                        title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
                         aria-pressed={isSelected}
-                          aria-disabled={isGroupAttackOnTreads}
+                        aria-disabled={isGroupAttackOnTreads}
                         data-selected={isSelected}
                         data-testid={`combat-target-${target.id}`}
                         onClick={(event) => {
@@ -1362,22 +1568,19 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                           event.stopPropagation()
                           setSelectedCombatTargetId(target.id)
                         }}
-                          onContextMenu={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
+                        onContextMenu={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
 
-                            if (isGroupAttackOnTreads) {
-                              return
-                            }
+                          if (isGroupAttackOnTreads) {
+                            return
+                          }
 
-                            setSelectedCombatTargetId(target.id)
-                          }}
+                          setSelectedCombatTargetId(target.id)
+                        }}
                       >
-                        <div className="combat-card-header">
-                          <span className="combat-card-type"><strong>{target.label}</strong></span>
-                          <span className="combat-card-id">{target.id}</span>
-                        </div>
-                        <div className="combat-card-stats">{target.detail}</div>
+                        <div className="weapon-card-name">{target.label}</div>
+                        <div className="weapon-card-stats">{target.detail}</div>
                       </button>
                     )
                   })}
@@ -1386,7 +1589,16 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 <p className="summary-line">No valid targets are currently in range.</p>
               )}
             </section>
-          ) : null}
+          ) : (
+            <section className="selection-panel panel-subtle">
+              <div className="selection-panel-header">
+                <div>
+                  <p className="eyebrow">Inspector</p>
+                </div>
+              </div>
+              <div className="empty-state">Select a unit on the map or in the rail to inspect it here.</div>
+            </section>
+          )}
         </aside>
       </main>
     </div>

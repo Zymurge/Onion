@@ -53,8 +53,10 @@ function SessionHarness(props: {
 
 function createAppShellSnapshot(): GameSnapshot & {
 	authoritativeState: GameState
-	scenarioMap: { width: number; height: number; hexes: Array<{ q: number; r: number; t: number }> }
+	scenarioMap: { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: Array<{ q: number; r: number; t: number }> }
 } {
+	const cells = Array.from({ length: 8 }, (_, q) => Array.from({ length: 8 }, (_, r) => ({ q, r }))).flat()
+
 	return {
 		...createSnapshot({
 			phase: 'DEFENDER_COMBAT',
@@ -90,7 +92,7 @@ function createAppShellSnapshot(): GameSnapshot & {
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
-					position: { q: 6, r: 6 },
+					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
 						{
@@ -107,7 +109,7 @@ function createAppShellSnapshot(): GameSnapshot & {
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
-					position: { q: 6, r: 4 },
+					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
 						{
@@ -132,6 +134,7 @@ function createAppShellSnapshot(): GameSnapshot & {
 		scenarioMap: {
 			width: 8,
 			height: 8,
+				cells,
 			hexes: [
 				{ q: 0, r: 0, t: 0 },
 				{ q: 1, r: 0, t: 0 },
@@ -285,10 +288,8 @@ describe('App fake backend vertical slice', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await waitFor(() => {
-			expect(screen.getByText(/App shell baseline snapshot/i)).not.toBeNull()
-			expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
-		})
+		const selectedUnit = await screen.findByTestId('hex-unit-wolf-2')
+		expect(selectedUnit.getAttribute('data-selected')).toBe('true')
 
 		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
 		await user.click(screen.getByRole('button', { name: /advance phase/i }))

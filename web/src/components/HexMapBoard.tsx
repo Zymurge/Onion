@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
-import { axialToPixel, boardPixelSize, hexCorners, hexKey, pointsToString } from '../lib/hex'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
 import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex, isUnitMoveEligible } from '../lib/battlefieldView'
-import { canUnitCrossRidgelines, getUnitMovementAllowance } from '../../../src/shared/unitMovement'
+import { hexKey } from '../../../src/shared/hex'
 import { listReachableMoves } from '../../../src/shared/movePlanner'
+import { canUnitCrossRidgelines, getUnitMovementAllowance } from '../../../src/shared/unitMovement'
 import './HexMapBoard.css'
 
 type HexOccupant = BattlefieldUnit | BattlefieldOnionView
@@ -11,6 +12,7 @@ type HexMapBoardProps = {
   scenarioMap: {
     width: number
     height: number
+    cells: Array<{ q: number; r: number }>
     hexes: TerrainHex[]
   }
   defenders: BattlefieldUnit[]
@@ -29,6 +31,16 @@ type HexMapBoardProps = {
 
 const HEX_SIZE = 36
 const MAP_PADDING = 28
+const ZOOM_MIN = 0.5
+const ZOOM_MAX = 2.0
+const ZOOM_STEP = 0.05
+const ZOOM_PERCENT_MIN = Math.round(ZOOM_MIN * 100)
+const ZOOM_PERCENT_MAX = Math.round(ZOOM_MAX * 100)
+const ZOOM_PERCENT_STEP = Math.round(ZOOM_STEP * 100)
+
+function clampZoomPercent(value: number) {
+  return Math.max(ZOOM_PERCENT_MIN, Math.min(ZOOM_PERCENT_MAX, value))
+}
 
 function getStackOffset(index: number, total: number): { dx: number; dy: number } {
   if (total <= 1) {
@@ -51,8 +63,13 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
+  const [zoomPercent, setZoomPercent] = useState(100)
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null)
+  const zoomSliderRef = useRef<HTMLInputElement | null>(null)
+  const previousZoomRef = useRef(1)
   const activeCombatRole = phase === 'ONION_COMBAT' ? 'onion' : phase === 'DEFENDER_COMBAT' ? 'defender' : null
   const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
+  const zoomLevel = zoomPercent / 100
 
   const selectedUnitSet = useMemo(() => {
     const selectedIds = new Set<string>()
@@ -92,17 +109,9 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
       : defenders.find((unit) => unit.id === selectedPrimaryUnitId) ?? null
   const selectedAllowance = selectedOccupant
     ? selectedOccupant.id === onion.id
-      ? onion.movesRemaining > 0
-        ? onion.movesRemaining
-        : phase === null
-          ? 0
-          : getUnitMovementAllowance('TheOnion', phase, onion.treads)
+      ? onion.movesRemaining
       : 'move' in selectedOccupant
-        ? selectedOccupant.move > 0
-          ? selectedOccupant.move
-          : phase === null
-            ? 0
-            : getUnitMovementAllowance(selectedOccupant.type, phase)
+        ? selectedOccupant.move
         : 0
     : 0
   const selectedCanCrossRidgelines = selectedOccupant ? canUnitCrossRidgelines(selectedOccupant.type) : false
@@ -146,7 +155,97 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
     }
   }, [moveError])
 
-  const bounds = boardPixelSize(scenarioMap.width, scenarioMap.height, HEX_SIZE, MAP_PADDING)
+  const renderedCells = scenarioMap.cells
+  const bounds = boardPixelSize(renderedCells, HEX_SIZE, MAP_PADDING)
+  const scaledBounds = {
+    width: bounds.width * zoomLevel,
+    height: bounds.height * zoomLevel,
+  }
+
+  function adjustZoom(direction: 1 | -1) {
+    setZoomPercent((current) => clampZoomPercent(current + direction * ZOOM_PERCENT_STEP))
+  }
+
+  useLayoutEffect(() => {
+    const viewport = scrollViewportRef.current
+
+    if (!viewport) {
+      previousZoomRef.current = zoomLevel
+      return
+    }
+
+    const previousZoom = previousZoomRef.current
+    if (previousZoom === zoomLevel) {
+      return
+    }
+
+    const centerX = (viewport.scrollLeft + viewport.clientWidth / 2) / previousZoom
+    const centerY = (viewport.scrollTop + viewport.clientHeight / 2) / previousZoom
+    const nextScrollLeft = Math.max(0, Math.min(centerX * zoomLevel - viewport.clientWidth / 2, scaledBounds.width - viewport.clientWidth))
+    const nextScrollTop = Math.max(0, Math.min(centerY * zoomLevel - viewport.clientHeight / 2, scaledBounds.height - viewport.clientHeight))
+
+    if (typeof viewport.scrollTo === 'function') {
+      viewport.scrollTo({ left: nextScrollLeft, top: nextScrollTop, behavior: 'auto' })
+    } else {
+      viewport.scrollLeft = nextScrollLeft
+      viewport.scrollTop = nextScrollTop
+    }
+
+    previousZoomRef.current = zoomLevel
+  }, [scaledBounds.height, scaledBounds.width, zoomLevel])
+
+  useEffect(() => {
+    const viewport = scrollViewportRef.current
+
+    if (!viewport) {
+      return undefined
+    }
+
+    function handleWheel(event: WheelEvent) {
+      if (event.deltaX === 0 && event.deltaY === 0) {
+        return
+      }
+
+      event.preventDefault()
+
+      if (typeof viewport.scrollBy === 'function') {
+        viewport.scrollBy({ left: event.deltaX, top: event.deltaY, behavior: 'auto' })
+        return
+      }
+
+      viewport.scrollLeft += event.deltaX
+      viewport.scrollTop += event.deltaY
+    }
+
+    viewport.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      viewport.removeEventListener('wheel', handleWheel)
+    }
+  }, [])
+
+  useEffect(() => {
+    const slider = zoomSliderRef.current
+
+    if (!slider) {
+      return undefined
+    }
+
+    function handleWheel(event: WheelEvent) {
+      if (event.deltaY === 0) {
+        return
+      }
+
+      event.preventDefault()
+      adjustZoom(event.deltaY < 0 ? 1 : -1)
+    }
+
+    slider.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      slider.removeEventListener('wheel', handleWheel)
+    }
+  }, [])
 
   function getCombatTargetIdForOccupant(occupant: HexOccupant): string {
     if (activeCombatRole === 'defender' && occupant.id === onion.id) {
@@ -197,18 +296,21 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
           {moveError.message}
         </div>
       ) : null}
-      <svg
-        className="hex-map-svg"
-        width={bounds.width}
-        height={bounds.height}
-        viewBox={`0 0 ${bounds.width} ${bounds.height}`}
-        role="img"
-        aria-label="Swamp Siege hex map"
+      <div
+        className="hex-map-viewport"
+        data-testid="hex-map-viewport"
+        ref={scrollViewportRef}
       >
-        <g transform={`translate(${MAP_PADDING}, ${MAP_PADDING})`}>
-          {Array.from({ length: scenarioMap.height }, (_, r) =>
-            Array.from({ length: scenarioMap.width }, (_, q) => {
-              const coord = { q, r }
+        <svg
+          className="hex-map-svg"
+          width={scaledBounds.width}
+          height={scaledBounds.height}
+          viewBox={`0 0 ${bounds.width} ${bounds.height}`}
+          role="img"
+          aria-label="Swamp Siege hex map"
+        >
+          <g transform={`translate(${MAP_PADDING}, ${MAP_PADDING})`}>
+            {renderedCells.map((coord) => {
               const center = axialToPixel(coord, HEX_SIZE)
               const polygonPoints = pointsToString(hexCorners(center, HEX_SIZE - 1))
               const terrainType = terrain.get(hexKey(coord))
@@ -224,36 +326,29 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                   ))
               })
               const isCombatRange = combatRangeHexKeys?.has(hexKey(coord)) ?? false
-                  const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
-                    if (!playerRole || !isMovementPhase || occupant.status !== 'operational') {
-                      return false
-                    }
+              const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
+                if (!playerRole || !isMovementPhase || occupant.status !== 'operational') {
+                  return false
+                }
 
-                    if (occupant.id === onion.id) {
-                      return onion.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance('TheOnion', phase, onion.treads) > 0)
-                    }
+                if (occupant.id === onion.id) {
+                  return onion.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance('TheOnion', phase, onion.treads) > 0)
+                }
 
-                    if (!('move' in occupant)) {
-                      return false
-                    }
+                if (!('move' in occupant)) {
+                  return false
+                }
 
-                    return occupant.move > 0 || (phase !== null && getUnitMovementAllowance(occupant.type, phase) > 0)
-                  })
+                return occupant.move > 0 || (phase !== null && getUnitMovementAllowance(occupant.type, phase) > 0)
+              })
               const isReachable = canSubmitMove && reachableHexKeys.has(hexKey(coord))
+              const terrainImg = terrainType === 1 ? '/terrain/ridges.svg' : terrainType === 2 ? '/terrain/craters.svg' : '/terrain/default.svg'
+              const imgSize = HEX_SIZE * 2
 
-
-              // Pick SVG image for terrain
-              let terrainImg = '/terrain/default.svg';
-              if (terrainType === 1) terrainImg = '/terrain/ridges.svg';
-              else if (terrainType === 2) terrainImg = '/terrain/craters.svg';
-              // else if (terrainType === 3) ...
-
-              // The SVG image is sized to fit the hex
-              const imgSize = HEX_SIZE * 2;
               return (
                 <g
-                  key={`${q}-${r}`}
-                  data-testid={`hex-cell-${q}-${r}`}
+                  key={`${coord.q}-${coord.r}`}
+                  data-testid={`hex-cell-${coord.q}-${coord.r}`}
                   className={[
                     'hex-cell',
                     terrainType ? `hex-terrain-${terrainType}` : 'hex-terrain-default',
@@ -282,20 +377,19 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                       onMoveUnit(selectedOccupant.id, coord)
                       return
                     }
-                    // Only show error toast if move controls are enabled and selected unit is eligible
                     if (canSubmitMove && selectedIsEligible) {
                       setMoveError({ message: 'Illegal move', x: event.clientX, y: event.clientY })
                     }
                   }}
                 >
-                  <clipPath id={`hex-clip-${q}-${r}`}><polygon points={polygonPoints} /></clipPath>
+                  <clipPath id={`hex-clip-${coord.q}-${coord.r}`}><polygon points={polygonPoints} /></clipPath>
                   <image
                     href={terrainImg}
                     x={center.x - HEX_SIZE}
                     y={center.y - HEX_SIZE}
                     width={imgSize}
                     height={imgSize}
-                    clipPath={`url(#hex-clip-${q}-${r})`}
+                    clipPath={`url(#hex-clip-${coord.q}-${coord.r})`}
                     preserveAspectRatio="xMidYMid slice"
                   />
                   <polygon className="hex-shape" points={polygonPoints} fill="none" />
@@ -304,17 +398,9 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                     const isOccupantSelected = selectedUnitSet.has(occupant.id)
                     const offset = getStackOffset(index, cellOccupants.length)
                     const moveRemaining = isOccupantOnion
-                      ? onion.movesRemaining > 0
-                        ? onion.movesRemaining
-                        : phase === null
-                          ? 0
-                          : getUnitMovementAllowance('TheOnion', phase, onion.treads)
+                      ? onion.movesRemaining
                       : 'move' in occupant
-                        ? occupant.move > 0
-                          ? occupant.move
-                          : phase === null
-                            ? 0
-                            : getUnitMovementAllowance(occupant.type, phase)
+                        ? occupant.move
                         : 0
 
                     return (
@@ -330,28 +416,8 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                         ].join(' ')}
                         transform={`translate(${offset.dx}, ${offset.dy})`}
                         onClick={(event) => {
-                          if (!canSelectOccupant(occupant)) {
-                            event.stopPropagation()
-                            return
-                          }
-
                           event.stopPropagation()
-                          if (activeCombatRole === 'onion' && occupant.id !== onion.id) {
-                            if (onSelectCombatTarget !== undefined) {
-                              onSelectCombatTarget(getCombatTargetIdForOccupant(occupant))
-                            }
-
-                            return
-                          }
-
-                          if (activeCombatRole === 'defender' && occupant.id === onion.id) {
-                            if (onSelectCombatTarget !== undefined) {
-                              onSelectCombatTarget(getCombatTargetIdForOccupant(occupant))
-                            }
-
-                            return
-                          }
-
+                          // Always update inspector for any unit click, even if not eligible for action
                           onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
                         }}
                       >
@@ -375,14 +441,28 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                     )
                   })}
                   <text className="hex-coord" x={center.x} y={center.y + 18} textAnchor="middle">
-                    {q},{r}
+                        {coord.q},{coord.r}
                   </text>
                 </g>
               )
-            }),
-          )}
-        </g>
-      </svg>
+            })}
+          </g>
+        </svg>
+      </div>
+      <div className="hex-map-zoom-control">
+        <input
+          ref={zoomSliderRef}
+          id="hex-map-zoom-slider"
+          className="hex-map-zoom-slider"
+          type="range"
+          min={ZOOM_PERCENT_MIN}
+          max={ZOOM_PERCENT_MAX}
+          step={ZOOM_PERCENT_STEP}
+          value={zoomPercent}
+          aria-label="Map zoom"
+          onChange={(event) => setZoomPercent(Number(event.target.value))}
+        />
+      </div>
     </div>
   )
 }

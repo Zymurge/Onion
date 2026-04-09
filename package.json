@@ -9,6 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "cli": "tsx src/cli/index.ts",
     "cli:dev": "tsx watch src/cli/index.ts",
+    "cli:test-game": "npm run build && node dist/cli/test-game.js",
     "web:dev": "pnpm --dir web dev",
     "web:build": "pnpm --dir web build",
     "web:preview": "pnpm --dir web preview",

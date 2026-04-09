@@ -9,7 +9,7 @@ import {
   registerAndLoginUser,
   type ScenarioMap,
 } from './integration.helpers.js'
-import { hexDistance } from '../engine/map.js'
+import { hexDistance } from '../shared/hex.js'
 import { getUnitDefinition } from '../engine/units.js'
 import type { Weapon, DefenderUnit } from '../types/index.js'
 
@@ -574,7 +574,7 @@ describe('Integration Orchestrators', () => {
     expect(onionImmobilized || defendersRemaining === 0).toBe(true)
 
     if (onionImmobilized) {
-      expect(finalState.winner).toBe(ctx.defenderUser.userId)
+	  expect(finalState.winner).toBe('defender')
       const postGameAction = await ctx.app.inject({
         method: 'POST',
         url: `/games/${ctx.gameId}/actions`,

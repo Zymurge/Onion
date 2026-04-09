@@ -28,8 +28,7 @@ We use an **Axial Coordinate System** (q, r) where:
   "displayName": "The Siege of Shrek's Swamp",
   "description": "The Onion must reach the Castle while defenders hold the ridgeline.",
   "map": {
-    "width": 15,
-    "height": 22,
+    "radius": 7,
     "hexes": [
       { "q": 0, "r": 0, "t": 0 },
       { "q": 1, "r": 0, "t": 1 },
@@ -88,6 +87,12 @@ Scenario JSON only declares the starting unit types, positions, and stack sizes.
 3. Scenario `initialState` should remain focused on initial placement, stack sizes, and status fields that vary per scenario.
 
 ## 4. Map Encoding Convention
+
+Authored scenarios may declare a hex map by `radius` instead of enumerating every cell. In that authoring mode, the backend/shared scenario pipeline converts the authored positions into runtime axial coordinates and materializes the map as an explicit `cells` array centered at `(radius, radius)`, which keeps the generated board geometry consistent and non-negative.
+
+When `radius` is used, the authored coordinates are not raw runtime coordinates. The backend treats `r` as the authored row index and `q` as the authored column index within that row, then translates those authored positions into runtime axial coordinates before the scenario reaches the client.
+
+The runtime/API map shape still uses explicit `cells`; `radius` is only an authoring convenience for scenario authors. The frontend consumes the materialized axial coordinates as-is and does not perform any coordinate translation.
 
 Only non-clear hexes need to appear in the `hexes` array. Any hex coordinate not listed is assumed to be terrain type `0` (Clear). This keeps scenario files compact.
 

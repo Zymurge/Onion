@@ -1,20 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
-import { hexDistance, hexKey, hexesWithinRange } from '../../../lib/hex'
+import { hexDistance, hexKey, hexesWithinRange } from '../../../../../src/shared/hex'
+import { axialToPixel, boardPixelSize } from '../../../lib/hex'
 
 describe('hexDistance', () => {
   it('returns 0 for the same hex', () => {
     expect(hexDistance({ q: 3, r: 3 }, { q: 3, r: 3 })).toBe(0)
   })
 
-  it('returns 1 for all six direct odd-r neighbors', () => {
+  it('returns 1 for all six direct axial neighbors', () => {
     const origin = { q: 2, r: 2 }
 
     expect(hexDistance(origin, { q: 3, r: 2 })).toBe(1)
     expect(hexDistance(origin, { q: 1, r: 2 })).toBe(1)
     expect(hexDistance(origin, { q: 2, r: 3 })).toBe(1)
     expect(hexDistance(origin, { q: 2, r: 1 })).toBe(1)
-    expect(hexDistance(origin, { q: 1, r: 1 })).toBe(1)
+    expect(hexDistance(origin, { q: 3, r: 1 })).toBe(1)
     expect(hexDistance(origin, { q: 1, r: 3 })).toBe(1)
   })
 
@@ -33,11 +34,11 @@ describe('hexesWithinRange', () => {
     expect(keys).toHaveLength(18)
     expect(keys).not.toContain('0,0')
     expect(new Set(keys)).toEqual(new Set([
-      '-2,-1', '-2,0', '-2,1',
-      '-1,-2', '-1,-1', '-1,0', '-1,1', '-1,2',
+      '-2,0', '-2,1', '-2,2',
+      '-1,-1', '-1,0', '-1,1', '-1,2',
       '0,-2', '0,-1', '0,1', '0,2',
-      '1,-2', '1,-1', '1,0', '1,1', '1,2',
-      '2,0',
+      '1,-2', '1,-1', '1,0', '1,1',
+      '2,-2', '2,-1', '2,0',
     ]))
   })
 
@@ -52,5 +53,46 @@ describe('hexesWithinRange', () => {
 
   it('returns an empty array when the requested range is invalid', () => {
     expect(hexesWithinRange({ q: 0, r: 0 }, 1, 2)).toEqual([])
+  })
+})
+
+describe('board hex layout', () => {
+  it('advances each successive axial row by half a hex width', () => {
+    const topRow = axialToPixel({ q: 0, r: 0 }, 36)
+    const nextRow = axialToPixel({ q: 0, r: 1 }, 36)
+    const nextNextRow = axialToPixel({ q: 0, r: 2 }, 36)
+
+    expect(nextRow.x - topRow.x).toBeCloseTo(Math.sqrt(3) * 18, 5)
+    expect(nextNextRow.x - nextRow.x).toBeCloseTo(Math.sqrt(3) * 18, 5)
+    expect(nextRow.y - topRow.y).toBeCloseTo(54, 5)
+  })
+
+  it('sizes the board to the rendered rectangle rather than an expanding axial parallelogram', () => {
+    const bounds = boardPixelSize(
+      [
+        { q: 0, r: 0 },
+        { q: 4, r: 4 },
+      ],
+      36,
+      28,
+    )
+
+    expect(bounds.width).toBeCloseTo(Math.sqrt(3) * 36 * 6 + (Math.sqrt(3) / 2) * 36 + 56, 5)
+    expect(bounds.height).toBeCloseTo(36 * 4 * 1.5 + 36 + 56, 5)
+  })
+
+  it('sizes a sparse board from the actual rendered cells', () => {
+    const bounds = boardPixelSize(
+      [
+        { q: 0, r: 0 },
+        { q: 2, r: 1 },
+      ],
+      36,
+      28,
+    )
+
+    expect(bounds.width).toBeGreaterThan(0)
+    expect(bounds.height).toBeGreaterThan(0)
+    expect(bounds.width).toBeLessThan(boardPixelSize([{ q: 0, r: 0 }, { q: 4, r: 4 }], 36, 28).width)
   })
 })

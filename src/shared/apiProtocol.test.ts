@@ -4,6 +4,7 @@ import {
 	clearApiProtocolTraffic,
 	formatApiProtocolTrafficEntry,
 	getApiProtocolTrafficSnapshot,
+	type GameStateResponse,
 	requestJson,
 	subscribeApiProtocolTraffic,
 } from './apiProtocol.js'
@@ -11,6 +12,35 @@ import {
 describe('apiProtocol traffic logging', () => {
 	beforeEach(() => {
 		clearApiProtocolTraffic()
+	})
+
+	it('requires scenario map cells on game state responses', () => {
+		const response: GameStateResponse = {
+			gameId: 123,
+			scenarioId: 'swamp-siege-01',
+			role: 'defender',
+			phase: 'DEFENDER_MOVE',
+			turnNumber: 8,
+			winner: null,
+			players: {
+				onion: 'onion-user',
+				defender: 'defender-user',
+			},
+			state: {
+				onion: { position: { q: 0, r: 0 }, treads: 45 },
+				defenders: {},
+			},
+			movementRemainingByUnit: {},
+			scenarioMap: {
+				width: 2,
+				height: 2,
+				cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 1 }],
+				hexes: [],
+			},
+			eventSeq: 7,
+		}
+
+		expect(response.scenarioMap.cells).toHaveLength(4)
 	})
 
 	it('captures request and response traffic for requests', async () => {
