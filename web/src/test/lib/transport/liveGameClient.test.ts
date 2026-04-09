@@ -1,41 +1,46 @@
 
 import { describe, expect, it, vi } from 'vitest'
-import { materializeScenarioMap } from '../../../../shared/scenarioMap'
+import { materializeScenarioMap } from '../../../../../src/shared/scenarioMap'
 
 import { createLiveGameClient, type LiveGameClientState } from '../../../lib/liveGameClient'
 
 class FakeWebSocket {
-	static CONNECTING = 0
-	static OPEN = 1
-	static CLOSING = 2
-	static CLOSED = 3
+       static CONNECTING = 0;
+       static OPEN = 1;
+       static CLOSING = 2;
+       static CLOSED = 3;
 
-	readyState = FakeWebSocket.CONNECTING
-	sentMessages: string[] = []
-	onopen: null | (() => void) = null
-	onmessage: null | ((event: MessageEvent<string>) => void) = null
-	onclose: null | (() => void) = null
-	onerror: null | (() => void) = null
+       readyState: number;
+       sentMessages: string[];
+       url: string;
+       onopen: (() => void) | null = null;
+       onmessage: ((event: { data: string }) => void) | null = null;
+       onclose: (() => void) | null = null;
+       onerror: (() => void) | null = null;
 
-	constructor(public readonly url: string) {}
+       constructor(url: string) {
+	       this.url = url;
+	       this.readyState = FakeWebSocket.CONNECTING;
+	       this.sentMessages = [];
+       }
 
-	send(message: string) {
-		this.sentMessages.push(message)
-	}
+       send(message: string) {
+	       this.sentMessages.push(message);
+       }
 
-	close() {
-		this.readyState = FakeWebSocket.CLOSED
-		this.onclose?.()
-	}
+       close() {
+	       this.readyState = FakeWebSocket.CLOSED;
+	       if (this.onclose) this.onclose();
+       }
 
-	open() {
-		this.readyState = FakeWebSocket.OPEN
-		this.onopen?.()
-	}
+       open() {
+	       this.readyState = FakeWebSocket.OPEN;
+	       if (this.onopen) this.onopen();
+       }
 
-	receive(message: unknown) {
-		this.onmessage?.({ data: JSON.stringify(message) } as MessageEvent<string>)
-	}
+       receive(message: unknown) {
+	       if (this.onmessage) this.onmessage({ data: JSON.stringify(message) });
+       }
 }
 
 describe('createLiveGameClient', () => {
@@ -97,7 +102,17 @@ describe('createLiveGameClient', () => {
 			webSocketFactory: (url) => {
 				const socket = new FakeWebSocket(url)
 				sockets.push(socket)
-				return socket as unknown as WebSocket
+				       // Adapt to WebSocketLike: onopen, onclose, onerror, onmessage are (() => void) | null
+				       return socket as unknown as {
+					       url: string;
+					       readyState: number;
+					       send: (message: string) => void;
+					       close: () => void;
+					       onopen: (() => void) | null;
+					       onclose: (() => void) | null;
+					       onerror: (() => void) | null;
+					       onmessage: ((event: { data: string }) => void) | null;
+				       };
 			},
 		})
 

@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '../../../App'
 import type { GameClient, GameSnapshot } from '../../../lib/gameClient'
-import type { LiveEventSource } from '../../../lib/gameSessionTypes'
 
 const createHttpGameRequestTransport = vi.hoisted(() => vi.fn())
 const createLiveEventSource = vi.hoisted(() => vi.fn())
@@ -138,13 +137,14 @@ function createControlledClient(snapshot: GameSnapshot): GameClient {
 	}
 }
 
-function createControlledLiveEventSource(connectionStatus: 'connected' | 'idle' = 'connected'): LiveEventSource & { disconnect: ReturnType<typeof vi.fn> } {
-	return {
-		subscribe: vi.fn().mockReturnValue(vi.fn()),
-		connect: vi.fn(),
-		disconnect: vi.fn() as LiveEventSource['disconnect'],
-		getConnectionState: vi.fn().mockReturnValue(connectionStatus),
-	}
+function createControlledLiveEventSource(connectionStatus: 'connected' | 'idle' = 'connected') {
+       const disconnect = vi.fn();
+       return {
+	       subscribe: vi.fn().mockReturnValue(vi.fn()),
+	       connect: vi.fn(),
+	       disconnect,
+	       getConnectionState: vi.fn().mockReturnValue(connectionStatus),
+       };
 }
 
 beforeEach(() => {
