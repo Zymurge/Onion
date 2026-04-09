@@ -157,6 +157,12 @@ Exit Criteria:
 4. Range, reachability, and selection overlays must be derived from the same axial board geometry used by the renderer so the displayed hex map and all overlay previews stay aligned.
 5. Scenario creation may use a centered origin, generated axial bounds, or another shape rule, but the runtime board model stays axial.
 
+6. **Zoom Controls:**
+  - The map supports smooth zooming via mouse wheel and a floating zoom slider overlay (lower left).
+  - The minimum zoom ensures the entire map fits in the viewport; the maximum allows close inspection.
+  - The zoom slider is always visible as an overlay and does not affect map layout or scrollbars.
+  - Zooming preserves the current map center and scroll position.
+
 ## Server State (Authoritative)
 
 1. `GameState`, `phase`, `turnNumber`, `eventSeq`.

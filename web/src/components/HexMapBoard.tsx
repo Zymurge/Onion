@@ -416,28 +416,8 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                         ].join(' ')}
                         transform={`translate(${offset.dx}, ${offset.dy})`}
                         onClick={(event) => {
-                          if (!canSelectOccupant(occupant)) {
-                            event.stopPropagation()
-                            return
-                          }
-
                           event.stopPropagation()
-                          if (activeCombatRole === 'onion' && occupant.id !== onion.id) {
-                            if (onSelectCombatTarget !== undefined) {
-                              onSelectCombatTarget(getCombatTargetIdForOccupant(occupant))
-                            }
-
-                            return
-                          }
-
-                          if (activeCombatRole === 'defender' && occupant.id === onion.id) {
-                            if (onSelectCombatTarget !== undefined) {
-                              onSelectCombatTarget(getCombatTargetIdForOccupant(occupant))
-                            }
-
-                            return
-                          }
-
+                          // Always update inspector for any unit click, even if not eligible for action
                           onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
                         }}
                       >

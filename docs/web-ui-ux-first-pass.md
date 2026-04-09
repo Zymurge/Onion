@@ -143,6 +143,17 @@ Header now includes:
 4. Selected objects are highlighted with clear visual state.
 5. Destroyed units are non-interactive by default.
 
+## Map Zoom and Overlay Controls
+
+1. The map supports interactive zooming:
+   - Mouse wheel zooms in/out, centered on the pointer.
+   - A floating zoom slider overlay (lower left) allows precise zoom control.
+   - The minimum zoom always fits the entire map in the viewport; maximum zoom allows close inspection.
+   - The slider is always visible, styled as an overlay, and does not affect map layout or scrollbars.
+   - Zooming preserves the current map center and scroll position.
+2. Panning is performed by scrolling the map viewport (native scrollbars or drag, as supported).
+3. The UI prevents page overflow and disables text selection during map drag for a seamless experience.
+
 Fallback support:
 
 1. Manual coordinate and unit ID input remains available in composer advanced section for edge cases.
