@@ -80,6 +80,10 @@ function requireScenarioMap(response: GameStateResponse) {
 		throw new GameClientSeamError('transport', 'Missing scenario map cells in game state response')
 	}
 
+	if (response.scenarioMap.cells.length === 0) {
+		throw new GameClientSeamError('transport', 'Scenario map cells must not be empty in game state response')
+	}
+
 	return response.scenarioMap
 }
 

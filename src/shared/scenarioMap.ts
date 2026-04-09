@@ -57,6 +57,10 @@ export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenar
 			})()
 
 	const cellLookup = buildCellLookup(materialized.cells)
+	if (materialized.cells.length === 0) {
+		throw new Error('Scenario map must contain at least one cell')
+	}
+
 	for (const hex of materialized.hexes) {
 		if (!cellLookup.has(hexKey(hex))) {
 			throw new Error(`Scenario terrain hex is outside the map at (${hex.q}, ${hex.r})`)

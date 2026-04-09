@@ -35,6 +35,17 @@ describe('scenarioMap materialization', () => {
 		)
 	})
 
+	it('rejects explicit maps with no cells', () => {
+		expect(() =>
+			materializeScenarioMap({
+				width: 1,
+				height: 1,
+				cells: [],
+				hexes: [],
+			}),
+		).toThrow('Scenario map must contain at least one cell')
+	})
+
 	it('rejects authored positions outside the map membership', () => {
 		const map = materializeScenarioMap({ radius: 1, hexes: [] })
 
