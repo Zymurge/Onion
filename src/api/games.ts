@@ -54,6 +54,12 @@ function getScenarioMapSnapshot(scenarioSnapshot: ScenarioSnapshot | undefined):
   return materializeScenarioMap(candidate as AuthoredScenarioMap)
 }
 
+/**
+ * Normalize radius-authored scenario state into runtime axial coordinates.
+ *
+ * This is the backend translation step for authored initial positions and
+ * victory targets. The client receives only the materialized axial result.
+ */
 function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined): ScenarioSnapshot | undefined {
   if (initial === undefined || initial.map === undefined || !('radius' in initial.map)) {
     return initial
@@ -112,6 +118,9 @@ function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined): Scena
   }
 }
 
+/**
+ * Validate that the normalized scenario state still fits the materialized map.
+ */
 function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, scenarioSnapshot: ScenarioSnapshot, state: GameState): void {
 	const positions: Array<{ label: string; position: { q: number; r: number } }> = [
 		{ label: 'onion start', position: state.onion.position },

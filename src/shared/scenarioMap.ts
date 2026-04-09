@@ -25,6 +25,13 @@ function buildCellLookup(cells: ReadonlyArray<HexPos>): Set<string> {
 	return new Set(cells.map(hexKey))
 }
 
+/**
+ * Translate an authored radius coordinate into runtime axial coordinates.
+ *
+ * In radius-authored scenarios, `q` is the authored column index within the row
+ * and `r` is the authored row index. The backend materializes those authored
+ * coordinates before the client receives the scenario data.
+ */
 export function translateScenarioCoord(coord: HexPos, radius: number): HexPos {
 	return {
 		q: coord.q + radius - coord.r,
@@ -32,6 +39,12 @@ export function translateScenarioCoord(coord: HexPos, radius: number): HexPos {
 	}
 }
 
+/**
+ * Materialize an authored scenario map into the canonical explicit runtime map.
+ *
+ * Radius-authored maps are converted into runtime axial cells; explicit maps are
+ * validated and passed through as-is.
+ */
 export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenarioMap {
 	const materialized =
 		'cells' in map
@@ -70,6 +83,9 @@ export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenar
 	return materialized
 }
 
+/**
+ * Verify that authored positions are present in the runtime explicit cell set.
+ */
 export function assertScenarioPositionsInMap(
 	map: ExplicitScenarioMap,
 	positions: ReadonlyArray<{ label: string; position: HexPos }>,
