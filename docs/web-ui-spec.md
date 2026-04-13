@@ -160,10 +160,11 @@ Exit Criteria:
 5. Scenario creation may use a centered origin, generated axial bounds, or another shape rule, but the runtime board model stays axial.
 
 6. **Zoom Controls:**
-  - The map supports smooth zooming via mouse wheel and a floating zoom slider overlay (lower left).
-  - The minimum zoom ensures the entire map fits in the viewport; the maximum allows close inspection.
-  - The zoom slider is always visible as an overlay and does not affect map layout or scrollbars.
-  - Zooming preserves the current map center and scroll position.
+
+- The map supports smooth zooming via mouse wheel and a floating zoom slider overlay (lower left).
+- The minimum zoom ensures the entire map fits in the viewport; the maximum allows close inspection.
+- The zoom slider is always visible as an overlay and does not affect map layout or scrollbars.
+- Zooming preserves the current map center and scroll position.
 
 ## Server State (Authoritative)
 
@@ -203,7 +204,7 @@ Exit Criteria:
 Never mutate server-derived game state as if it were authoritative. Always reconcile
 from response snapshots and event deltas.
 
-Connected rendering must not fall back to `web/src/mockBattlefield.ts` for map terrain,
+Connected rendering must not fall back to a mock battlefield fixture for map terrain,
 unit roster, unit positions, or unit status once authoritative game data has loaded.
 
 ## Action Affordance Matrix (Initial)
@@ -335,7 +336,7 @@ journeys.
 For the connected game screen specifically, add red-first component tests that
 prove App renders the defender roster, selected-unit inspector, and hex-board
 bounds from authoritative game state and scenario map data rather than from
-`mockBattlefield`.
+a mock battlefield fixture.
 
 ## Open Questions
 

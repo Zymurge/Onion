@@ -144,18 +144,47 @@ The `DbAdapter` interface provides a clean separation between business logic and
 
 Core rules are derived from the public domain portions of the [OGRE Designer's Edition Rulebook (v6.0)](https://www.sjgames.com/ogre/kickstarter/ogre_rulebook.pdf) by Steve Jackson Games, adapted and renamed for this project. Detailed rule mappings are in [game-rules.md](game-rules.md).
 
-- **Asymmetrical Gameplay**: One player commands the Onion, a powerful super-tank, while the other defends with a mix of infantry, armor, and artillery units.
-
-- **Components**:
-  - Hexagonal grid map with terrain features (ridgelines, craters).
-  - Web-based interface to manage turns and combat logic.
-  - Integration with JSON-based scenario configurations.
-  - An API interface to the game engine service to allow multiple client types to play.
-  - An AI engine that can play either side, via the API.
+- Hexagonal grid map with terrain features (ridgelines, craters).
+- Web-based interface to manage turns and combat logic.
+- Integration with JSON-based scenario configurations.
+- An API interface to the game engine service to allow multiple client types to play.
+- An AI engine that can play either side, via the API.
 
 *Note: The initial implementation will focus on the Mark III scenario. Some scenario-configurable concepts may initially be hard-coded.*
 
 Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md). For a sample turn walkthrough, check out [example-turn.md](example-turn.md).
+
+## Upcoming Major Features (Epics)
+
+### Stacked Unit Management
+
+**TODO:** See docs/todo.md (Epic: Stacked unit management)
+
+*Planned:* Add UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions. Backend and scenario schema impacts to be defined. This section will be fleshed out when feature work begins.
+
+### Game Lobby & Matchmaking
+
+**TODO:** See docs/todo.md (Epic: Game lobby for creation and joining)
+
+*Planned:* Add self-service matchmaking, game creation, join-by-code/invite, and session listing. Backend contract and UI flow to be specified. This section will be expanded when implementation starts.
+
+### JWT Authentication Migration
+
+**TODO:** See docs/todo.md (Epic: JWT authentication)
+
+*Planned:* Migrate to @fastify/jwt for authentication. Update API contract and error codes as needed. Details will be added when migration is scheduled.
+
+### Error Handling Improvements
+
+**TODO:** See docs/todo.md (Epic: Improve error handling)
+
+*Planned:* Improve error handling in both UI and backend. Add error overlays, normalize API error responses, and clarify error flows. This section will be detailed during implementation.
+
+### Shared Data Model for Units & Weapons
+
+**TODO:** See docs/todo.md (Epic: Externalize unit and weapon definitions)
+
+*Planned:* Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema. Details to be defined when this work is prioritized.
 
 ## Name Changes
 

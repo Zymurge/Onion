@@ -3,14 +3,16 @@
     "target": "esnext",
     "module": "NodeNext",
     "moduleResolution": "nodenext",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "types": ["node", "vitest"]
   },
-  "include": ["src"],
+  "include": ["server", "shared", "test/server/**/*.ts*", "test/shared/**/*.ts*"],
   "exclude": ["node_modules", "dist"]
 }

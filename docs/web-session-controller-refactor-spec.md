@@ -10,7 +10,7 @@ Branch: `feature/web-session-controller-refactor`
 
 This refactor removes transport and live-sync knowledge from `App.tsx` and moves it into a single-game session controller boundary.
 
-The authoritative contract for the refactor lives in [web/src/lib/gameSessionTypes.ts](../web/src/lib/gameSessionTypes.ts).
+The authoritative contract for the refactor lives in [web/lib/gameSessionTypes.ts](../web/lib/gameSessionTypes.ts).
 
 ## Goals
 
@@ -30,7 +30,7 @@ The authoritative contract for the refactor lives in [web/src/lib/gameSessionTyp
 
 ## Actionable Checklist
 
-- [x] Move the contract into [web/src/lib/gameSessionTypes.ts](../web/src/lib/gameSessionTypes.ts)
+- [x] Move the contract into [web/lib/gameSessionTypes.ts](../web/lib/gameSessionTypes.ts)
 - [x] Add red transport contract tests for `GameRequestTransport` and `LiveEventSource`
 - [x] Implement the transport split
 - [x] Add red controller tests for `GameSessionController`
@@ -43,7 +43,7 @@ The authoritative contract for the refactor lives in [web/src/lib/gameSessionTyp
 
 The target shape is a three-layer model.
 
-The authoritative contract for the controller, transport, and live signals lives in [web/src/lib/gameSessionTypes.ts](../web/src/lib/gameSessionTypes.ts).
+The authoritative contract for the controller, transport, and live signals lives in [web/lib/gameSessionTypes.ts](../web/lib/gameSessionTypes.ts).
 
 ### 1. App Layer
 
@@ -102,21 +102,21 @@ Rules:
 
 ### New Modules
 
-1. `web/src/lib/gameSessionController.ts`
-2. `web/src/lib/gameSessionTypes.ts`
-3. `web/src/lib/liveEventSource.ts`
-4. `web/src/lib/fakeGameBackend.ts`
-5. `web/src/lib/useGameSession.ts`
+1. `web/lib/gameSessionController.ts`
+2. `web/lib/gameSessionTypes.ts`
+3. `web/lib/liveEventSource.ts`
+4. `web/lib/fakeGameBackend.ts`
+5. `web/lib/useGameSession.ts`
 
 ### Existing Modules To Narrow
 
-1. `web/src/lib/liveGameClient.ts`
-2. `web/src/lib/httpGameClient.ts`
-3. `web/src/App.tsx`
+1. `web/lib/liveGameClient.ts`
+2. `web/lib/httpGameClient.ts`
+3. `web/App.tsx`
 
 ### Existing Modules To Leave Stable If Possible
 
-1. `web/src/lib/gameClient.ts`
+1. `web/lib/gameClient.ts`
 2. shared protocol and domain types under `src/shared` and `src/types`
 
 ## Session Ownership Rules
@@ -328,10 +328,10 @@ Objective:
 
 Primary files:
 
-1. `web/src/lib/gameClient.ts`
-2. `web/src/lib/httpGameClient.ts`
-3. `web/src/lib/liveGameClient.ts`
-4. new `web/src/lib/liveEventSource.ts`
+1. `web/lib/gameClient.ts`
+2. `web/lib/httpGameClient.ts`
+3. `web/lib/liveGameClient.ts`
+4. new `web/lib/liveEventSource.ts`
 
 Constraints:
 
@@ -351,9 +351,9 @@ Objective:
 
 Primary files:
 
-1. new `web/src/lib/gameSessionTypes.ts`
-2. new `web/src/lib/gameSessionController.ts`
-3. new `web/src/lib/useGameSession.ts`
+1. new `web/lib/gameSessionTypes.ts`
+2. new `web/lib/gameSessionController.ts`
+3. new `web/lib/useGameSession.ts`
 
 Constraints:
 
@@ -373,9 +373,9 @@ Objective:
 
 Primary files:
 
-1. `web/src/App.tsx`
-2. optional extracted presentation modules under `web/src/components`
-3. optional pure helper extraction under `web/src/lib`
+1. `web/App.tsx`
+2. optional extracted presentation modules under `web/components`
+3. optional pure helper extraction under `web/lib`
 
 Constraints:
 
@@ -395,8 +395,8 @@ Objective:
 
 Primary files:
 
-1. new `web/src/lib/fakeGameBackend.ts`
-2. supporting fixtures under `web/src/lib` or `web/src/test`
+1. new `web/lib/fakeGameBackend.ts`
+2. supporting fixtures under `web/lib` or `test/web`
 
 Constraints:
 

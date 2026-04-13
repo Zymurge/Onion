@@ -4,12 +4,14 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    include: ['test/**/*.test.ts'],
     exclude: ['**/node_modules/**', 'dist/**', '**/*.integration.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/**'],
-      exclude: ['src/index.ts', 'src/db/client.ts', '**/*.integration.test.ts'],
+      include: ['server/**', 'shared/**', 'types/**'],
+      exclude: ['server/**/*.test.ts', 'server/**/*.integration.test.ts', 'shared/**/*.test.ts', 'test/**'],
     },
+    maxWorkers: 1
   },
 })

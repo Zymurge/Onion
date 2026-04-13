@@ -4,6 +4,30 @@ This document defines the JSON structure for game scenarios. This schema will be
 
 Core rules mechanics referenced from the public domain portions of the [OGRE Designer's Edition Rulebook (v6.0)](https://www.sjgames.com/ogre/kickstarter/ogre_rulebook.pdf) by Steve Jackson Games.
 
+## Schema and Normalization Overview (2026)
+
+This schema is designed for authoring flexibility and robust normalization. The backend engine materializes all runtime geometry and unit/weapon state from authored scenario JSON as follows:
+
+- **Authoring:** Scenarios may specify a map by `radius` (for a regular hexagon) or by explicit `cells`/`hexes`. Only non-clear terrain needs to be listed in `hexes`.
+- **Backend Normalization:**
+  - If `radius` is present, the backend generates a canonical list of axial coordinates for all valid map cells, centered at `(radius, radius)`.
+  - The backend translates authored `q`/`r` positions into runtime coordinates and materializes the full `cells` array.
+  - The frontend always receives explicit `cells` and does not perform coordinate translation.
+- **Unit/Weapon Population:**
+  - Scenario JSON only declares starting unit types, positions, and stack sizes (for infantry).
+  - The engine populates all weapon lists, weapon stats, and targeting rules from the shared unit definitions at game start.
+  - Do not put combat target restrictions or weapon stats directly in scenario JSON; these are always sourced from the engine.
+- **Unit Status State Machine:**
+  - All units default to `operational` if status is missing.
+  - Defender units cycle: `operational` → `disabled` (if hit) → `recovering` (start of next turn) → `operational` (start of Recovery Phase).
+  - The engine manages all status transitions automatically.
+- **IDs:**
+  - Any `id` fields in scenario JSON are ignored; the engine assigns unique IDs at game start for all units.
+- **Victory Conditions:**
+  - Scenario JSON specifies victory conditions, but the engine enforces and tracks win/loss state.
+
+See also: [server/engine/units.ts] for canonical unit/weapon definitions and rules.
+
 ## 1. Map Configuration (Axial Hex Coordinates)
 
 We use an **Axial Coordinate System** (q, r) where:

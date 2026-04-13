@@ -22,5 +22,6 @@
         "printf": true,
         "docker compose": true
     },
-    "github.copilot.chat.cli.forkSessions.enabled": true
+    "github.copilot.chat.cli.forkSessions.enabled": true,
+    "npm.scriptRunner": "pnpm"
 }

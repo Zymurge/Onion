@@ -52,7 +52,7 @@ Why:
 
 ## testing rules
 
-The canonical layer map lives in [testing-strategy.md](testing-strategy.md). For this seam, keep contract tests in `web/src/test/lib`, App orchestration tests in `web/src/test/app`, and UI/E2E tests above that boundary.
+The canonical layer map lives in [testing-strategy.md](testing-strategy.md). For this seam, keep contract tests in `test/web/lib`, App orchestration tests in `test/web/app`, and UI/E2E tests above that boundary.
 
 ## initial contract
 

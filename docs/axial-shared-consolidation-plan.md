@@ -90,7 +90,7 @@ Engine-specific code may import or re-export shared primitives, but should not k
 
 ### Web Layer
 
-Web layer should keep only presentation-specific hex helpers in web/src/lib/hex.ts:
+Web layer should keep only presentation-specific hex helpers in web/lib/hex.ts:
 
 - axialToPixel
 - hexCorners
@@ -154,7 +154,7 @@ Action:
 - replace local helper with shared getNeighbors
 - keep scenario/test orchestration logic local
 
-### Existing Module: web/src/lib/hex.ts
+### Existing Module: web/lib/hex.ts
 
 Keep here:
 
@@ -173,7 +173,7 @@ Action later:
 
 - move app callers of shared-style coordinate helpers onto src/shared/hex.ts
 
-### Existing Module: web/src/lib/axialMovePlanner.ts
+### Existing Module: web/lib/axialMovePlanner.ts
 
 Deprecate entire file.
 
@@ -203,10 +203,10 @@ Deprecate duplicate shared coordinate ownership in:
 
 Deprecate after backend/shared is green:
 
-- web/src/lib/axialMovePlanner.ts
-- web/src/lib/hex.ts: hexKey
-- web/src/lib/hex.ts: hexDistance
-- web/src/lib/hex.ts: hexesWithinRange
+- web/lib/axialMovePlanner.ts
+- web/lib/hex.ts: hexKey
+- web/lib/hex.ts: hexDistance
+- web/lib/hex.ts: hexesWithinRange
 
 ## Test Plan
 
@@ -249,7 +249,7 @@ Run and keep green before app migration:
 
 Likely rewrite or redirect after app migration:
 
-- web/src/test/lib/pure/hex.test.ts
+- test/web/lib/pure/hex.test.ts
 
 These should eventually target the shared axial behavior, not a duplicate web-owned implementation of shared math.
 

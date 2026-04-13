@@ -2,23 +2,24 @@
   "$schema": "https://typedoc.org/schema.json",
   "name": "Onion Game Engine",
   "entryPoints": [
-    "src/index.ts",
-    "src/app.ts",
-    "src/db/adapter.ts",
-    "src/db/memory.ts",
-    "src/db/postgres.ts",
-    "src/api/auth.ts",
-    "src/api/games.ts",
-    "src/api/scenarios.ts",
-    "src/engine/phases.ts",
-    "src/types/index.ts"
+    "server/index.ts",
+    "server/app.ts",
+    "server/db/adapter.ts",
+    "server/db/memory.ts",
+    "server/db/postgres.ts",
+    "server/api/auth.ts",
+    "server/api/games.ts",
+    "server/api/scenarios.ts",
+    "server/engine/phases.ts",
+    "shared/types/index.ts"
   ],
   "out": "docs/api",
   "exclude": [
     "**/*.test.ts",
     "**/*.integration.test.ts",
-    "src/db/client.ts",
-    "src/db/migrations/**"
+    "server/db/client.ts",
+    "server/db/migrations/**",
+    "test/**"
   ],
   "excludePrivate": true,
   "excludeProtected": true,

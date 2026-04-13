@@ -14,4 +14,4 @@ RUN pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/dist ./dist
 COPY scenarios ./scenarios
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/server/index.js"]

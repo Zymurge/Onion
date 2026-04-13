@@ -456,7 +456,7 @@ Example:
 raw {"type":"MOVE","unitId":"onion","to":{"q":1,"r":10}}
 ```
 
-This mode exists for backend testing and should bypass all client-side action-shape convenience logic except basic JSON parsing.
+This mode exists for backend testing and should bypass all client-side action-shape convenience logic except basic JSON parsing. For the expected payload shapes, see the [API Contract](api-contract.md#actions).
 
 ## Parser Behavior
 
@@ -750,17 +750,7 @@ This should stay small. If a module is only used once and stays under control, k
 
 ## Backend Assumptions
 
-Phase 1 CLI relies only on existing REST endpoints.
-
-- `POST /auth/register`
-- `POST /auth/login`
-- `GET /scenarios`
-- `GET /scenarios/{id}`
-- `POST /games`
-- `POST /games/{id}/join`
-- `GET /games/{id}`
-- `POST /games/{id}/actions`
-- `GET /games/{id}/events`
+Phase 1 CLI relies only on the REST endpoints defined in the [API Contract](api-contract.md#phase-1--pure-rest). See that document for the full list and details of request/response payloads.
 
 Event fetching exists for manual inspection and recovery, not mandatory background polling.
 
@@ -790,34 +780,19 @@ Deliverable: a usable authenticated shell.
 
 ### Step 4. Add state and summary rendering
 
-- Render phase, turn, winner, onion status, and defenders
-- Render recent events and action responses
-
 Deliverable: a text client that can inspect live game state.
 
 ### Step 5. Add the offset hex renderer
-
-- Render the scenario map with alternating row offsets
-- Overlay units on terrain
-
-Deliverable: a functional tactical display.
 
 ### Step 6. Add action commands
 
 - Move
 - Fire weapon
 - Fire unit
-- Multi-attacker fire
-- End phase
 
 Deliverable: a full manual play loop through the CLI.
 
 ### Step 7. Add strong error reporting
-
-- Render status code, error code, detail code, message, and current phase
-- Verify out-of-phase attempts are obvious and useful
-
-Deliverable: CLI suitable for backend manual testing.
 
 ### Step 8. Add convenience features
 
@@ -826,18 +801,10 @@ Deliverable: CLI suitable for backend manual testing.
 - Explicit refresh
 - Event browsing since last seen sequence
 
-Deliverable: easier manual regression testing.
-
 ## Acceptance Criteria
 
-The CLI is successful when:
-
-- Two shell instances can register/login separately.
 - One shell can create a game and the other can join it.
 - Both shells can inspect the same game state.
-- The active shell can complete movement, combat, and end-phase actions.
-- Illegal actions return backend errors clearly.
-- The operator can play both sides manually to a terminal game result.
 - No polling or reactive terminal framework is required.
 
 ## Future Evolution

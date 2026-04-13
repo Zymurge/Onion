@@ -149,9 +149,9 @@ Goals:
 3. Keep App-facing compatibility shims only where necessary.
 
 Primary files:
-1. web/src/lib/gameClient.ts
-2. web/src/lib/httpGameClient.ts
-3. web/src/lib/liveGameClient.ts
+1. web/lib/gameClient.ts
+2. web/lib/httpGameClient.ts
+3. web/lib/liveGameClient.ts
 4. new transport-focused modules if needed
 
 Deliverables:
@@ -201,9 +201,9 @@ Goals:
 4. Make the controller testable with fake ports.
 
 Primary files:
-1. new web/src/lib/gameSessionTypes.ts
-2. new web/src/lib/gameSessionController.ts
-3. optional web/src/lib/useGameSession.ts
+1. new web/lib/gameSessionTypes.ts
+2. new web/lib/gameSessionController.ts
+3. optional web/lib/useGameSession.ts
 4. controller-level tests
 
 Deliverables:
@@ -239,7 +239,7 @@ Recommended model:
 Prompt:
 
 ```md
-Refactor web/src/App.tsx to consume the GameSessionController defined by docs/web-session-controller-refactor-spec.md.
+Refactor web/App.tsx to consume the GameSessionController defined by docs/web-session-controller-refactor-spec.md.
 
 Constraints:
 1. App must not know about WebSocket versus REST, connection resume, batching, event sequencing, or refresh timers.
@@ -252,9 +252,9 @@ Goals:
 3. Extract presentation modules only where it meaningfully reduces shell complexity.
 
 Primary files:
-1. web/src/App.tsx
-2. optional new presentation modules under web/src/components
-3. optional pure helper extraction under web/src/lib
+1. web/App.tsx
+2. optional new presentation modules under web/components
+3. optional pure helper extraction under web/lib
 
 Deliverables:
 1. Thin App shell focused on rendering and UI event delegation
@@ -300,7 +300,7 @@ Goals:
 3. Make the harness reusable for controller tests first, and app tests later.
 
 Primary files:
-1. new web/src/lib/fakeGameBackend.ts
+1. new web/lib/fakeGameBackend.ts
 2. related test helpers or fixtures
 3. controller tests that consume the fake harness
 
