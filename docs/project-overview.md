@@ -152,7 +152,7 @@ Core rules are derived from the public domain portions of the [OGRE Designer's E
 
 *Note: The initial implementation will focus on the Mark III scenario. Some scenario-configurable concepts may initially be hard-coded.*
 
-Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md). For a sample turn walkthrough, check out [example-turn.md](example-turn.md).
+Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md). For a sample turn walkthrough, check out [archive/example-turn.md](archive/example-turn.md).
 
 ## Upcoming Major Features (Epics)
 

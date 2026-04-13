@@ -5,52 +5,6 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [ ] UI restructure for pure axial coordinates
-  - [x] Define the scenario/map shape contract for a bounded axial region.
-  - [x] Add a shared helper that enumerates valid axial cells for the chosen map shape.
-  - [x] Update movement and pathfinding bounds checks to use map membership instead of rectangular `q`/`r` limits.
-  - [x] Update the web board renderer to iterate the generated axial cell set and size the SVG from the actual rendered cells.
-  - [x] Add intentional edge treatment so clipped board boundaries read clearly in the viewport.
-  - [x] Update the scenario loader and snapshot shapes to carry the canonical axial board contract.
-  - [x] Update existing scenario data to the new axial shape format. (Decision: no compatibility migration is needed; recreate games from the canonical axial contract.)
-  - [x] Add regression tests for map membership, overlay alignment, and viewport sizing.
-
-  ### Pre-Implementation Checklist
-
-**UI Spec Finalization**
-
-- [x] All phase flows, rail content, and button placements are documented. (Spec updated: right rail is default inspector, header-based phase control)
-- [x] Context-aware phase advancement control mapping is clear. (Spec updated, action affordance matrix revised)
-- [x] Combat and movement UI/UX is specified for both roles. (Spec and matrix revised, outdated/conflicting guidance removed)
-
-**Component/State Design**
-
-- [ ] Confirm or sketch component boundaries (e.g., LeftRail, RightRailDrawer, Header, Map, PhaseControl).
-- [ ] Ensure state flows (selected attacker, selected target, eligible units) are clear and testable.
-
-**Phase/Role Logic**
-
-- [ ] Centralize phase/role → UI mapping in a helper (for button labels, eligible units, etc.).
-- [ ] Confirm eligibility logic for movement and combat is well-defined.
-
-**Test Plan**
-
-- [ ] Identify key UI states and transitions to cover in component/integration tests.
-- [ ] Plan for red-first tests for new/changed UI flows.
-
-**Design Tokens/Style**
-
-- [ ] If you want a consistent look, confirm any design tokens, colors, or spacing rules (can be refined later).
-
-**API/Contract Review**
-
-- [ ] Confirm all required data is available from the session controller and game state.
-- [ ] Ensure the action dispatch contract (`{ type: 'end-phase' }`, etc.) is stable.
-
-**Migration/Refactor Plan**
-
-- [ ] Decide if you will refactor incrementally (e.g., MOVE phase first, then COMBAT), or as a single PR.
-
 ## Epics / Major Work
 
 - [ ] Improve error handling (UI and backend)
@@ -62,7 +16,7 @@ break down into features/tasks as needed.
 ## Features / Work Items
 
 - [ ] Visually mark disabled units clearly in the rail and on the map so combat damage is obvious at a glance.
-- [ ] In combat phase, show disabled units as disabled in the attacker list and prevent them from being selected or used to fire.
+- [x] In combat phase, show disabled units as disabled in the attacker list and prevent them from being selected or used to fire.
 - [ ] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
 - [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
 - [ ] Refactor movement resolution to read per-unit terrain rules from the shared unit definitions instead of hardcoded terrain checks.
@@ -115,4 +69,12 @@ break down into features/tasks as needed.
 - [x] Place End Phase control in UI and wire to backend
   - [x] Identify all phases where a context-aware phase advancement control should be available to the active player, with a label that matches the next phase or action (e.g., "Start Combat", "End Turn").
   - [x] The control's label and presence are determined by the current phase and role, not a static location.
-  
+- [x] UI restructure for pure axial coordinates
+  - [x] Define the scenario/map shape contract for a bounded axial region.
+  - [x] Add a shared helper that enumerates valid axial cells for the chosen map shape.
+  - [x] Update movement and pathfinding bounds checks to use map membership instead of rectangular `q`/`r` limits.
+  - [x] Update the web board renderer to iterate the generated axial cell set and size the SVG from the actual rendered cells.
+  - [x] Add intentional edge treatment so clipped board boundaries read clearly in the viewport.
+  - [x] Update the scenario loader and snapshot shapes to carry the canonical axial board contract.
+  - [x] Update existing scenario data to the new axial shape format. (Decision: no compatibility migration is needed; recreate games from the canonical axial contract.)
+  - [x] Add regression tests for map membership, overlay alignment, and viewport sizing.
