@@ -384,6 +384,7 @@ describe('App UI', () => {
 		expect(jsonPrintText).toContain('(redacted)')
 		expect(jsonPrintText).toContain('player-1')
 		expect(jsonPrintText).toContain('username')
+		expect(screen.getAllByTestId('react-json-print-mock').every((entry) => entry.getAttribute('data-depth') === '0')).toBe(true)
 	})
 
 	it('shows a ram resolution toast after a successful MOVE with ramming', async () => {

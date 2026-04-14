@@ -613,7 +613,7 @@ function DraggableDebugPopup({
             <section key={entry.id} className="debug-entry">
               <div className="debug-entry-summary">{formatDebugEntrySummary(entry)}</div>
               <div className="debug-json-print">
-                <ReactJsonPrint dataObject={entry} depth={2} />
+                <ReactJsonPrint dataObject={entry} depth={0} />
               </div>
             </section>
           ))

@@ -21,7 +21,7 @@ break down into features/tasks as needed.
 
 ## Features / Work Items
 
-- [ ] Improve debug folding so protocol entries preserve full detail instead of collapsing the fetched response payloads.
+- [x] Improve debug folding so protocol entries preserve full detail instead of collapsing the fetched response payloads.
 - [ ] Add more robust server-side logging that includes event details for MOVE and FIRE outcomes.
 - [ ] Add event-driven toasts for inactive players so the non-active client can surface actions taken by the other side (for example: MOVE ram results, combat outcomes, unit destruction, and phase changes).
   - [ ] Define which events should trigger passive toasts, how they are deduplicated, and how they should appear when the player is not the active actor.
