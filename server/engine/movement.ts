@@ -14,7 +14,7 @@ import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from './units
 import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner.js'
 import { getStopOnOccupiedHexFailure } from '../../shared/movementRules.js'
 import { calculateRamming as calculateSharedRamming } from '../../shared/rammingCalculator.js'
-import { canUnitCrossRidgelines, canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, spendUnitMovement } from '../../shared/unitMovement.js'
+import { canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, spendUnitMovement } from '../../shared/unitMovement.js'
 
 /**
  * Result of validating a movement command.
