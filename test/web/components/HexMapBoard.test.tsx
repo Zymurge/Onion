@@ -1,3 +1,88 @@
+	it('colors Onion combat map state with Onion green and defenders yellow', () => {
+		const eligible: BattlefieldUnit = {
+			...defenders[0],
+			id: 'puss-1',
+			status: 'operational',
+			actionableModes: ['fire', 'combined'],
+		}
+		const inspectable: BattlefieldUnit = {
+			...defenders[1],
+			id: 'wolf-2',
+			status: 'operational',
+			actionableModes: [],
+		}
+		const disabled: BattlefieldUnit = {
+			...defenders[1],
+			id: 'witch-3', // unique id
+			status: 'disabled',
+			actionableModes: [],
+		}
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[eligible, inspectable, disabled]}
+				onion={onion}
+				phase="ONION_COMBAT"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+		// Onion is the active combat side and should be green.
+		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		// Defenders are non-active in Onion combat and should be yellow.
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
+		// Disabled unit should be grey
+		expect(screen.getByTestId('hex-unit-witch-3').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-disabled')
+	})
+
+	it('colors Defender combat map state with defenders green and Onion yellow', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_COMBAT"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
+	})
+
+	it('applies correct movement eligibility coloring for eligible and disabled units', () => {
+		const eligible: BattlefieldUnit = {
+			...defenders[0],
+			status: 'operational',
+			move: 2,
+		}
+		const disabled: BattlefieldUnit = {
+			...defenders[1],
+			status: 'disabled',
+			move: 2,
+		}
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[eligible, disabled]}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+		// Eligible unit should be green.
+		expect(screen.getByTestId('hex-unit-puss-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-eligible')
+		// Disabled unit should be grey
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-disabled')
+	})
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -31,6 +116,9 @@ const onion: BattlefieldOnionView = {
 	movesRemaining: 3,
 	rams: 0,
 	weapons: 'main: ready',
+	weaponDetails: [
+		{ id: 'main-1', name: 'Main Battery', attack: 4, range: 4, defense: 4, status: 'ready', individuallyTargetable: true },
+	],
 }
 
 const defenders: BattlefieldUnit[] = [
@@ -108,6 +196,67 @@ describe('HexMapBoard', () => {
 
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
 		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).not.toContain('hex-cell-reachable')
+	})
+
+	it('colors Onion move map state with Onion green and defenders yellow', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-eligible')
+		expect(screen.getByTestId('hex-unit-puss-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-inspectable')
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-inspectable')
+	})
+
+	it('colors Defender move map state with defenders green and Onion yellow', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-eligible')
+		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-inspectable')
+	})
+
+	it('greys out disabled movement units on the map', () => {
+		const disabledDefender: BattlefieldUnit = {
+			...defenders[0],
+			id: 'puss-disabled',
+			status: 'disabled',
+			move: 3,
+		}
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[disabledDefender]}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-puss-disabled').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-disabled')
 	})
 
 	it('renders combat range overlays when provided', () => {
@@ -428,6 +577,31 @@ describe('HexMapBoard', () => {
 		expect(onSelectCombatTarget).toHaveBeenCalledWith('onion-1:treads')
 		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-cell-0-0').getAttribute('class')).toContain('hex-cell-selected')
+	})
+
+	it('lets the Onion client inspect the Onion by left click during defender combat', () => {
+		const onSelectUnit = vi.fn()
+		const onSelectCombatTarget = vi.fn()
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_COMBAT"
+				viewerRole="onion"
+				selectedUnitIds={['puss-1']}
+				selectedCombatTargetId={null}
+				onSelectUnit={onSelectUnit}
+				onSelectCombatTarget={onSelectCombatTarget}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
+		expect(onSelectUnit).toHaveBeenCalledWith('onion-1', false)
+		expect(onSelectCombatTarget).not.toHaveBeenCalled()
 	})
 
 	it('allows defender combat board clicks on defender units to add to the selection group', () => {

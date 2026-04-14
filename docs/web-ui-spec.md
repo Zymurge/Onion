@@ -99,9 +99,23 @@ Primary backend endpoints used by the web client:
 
 - **Green:** Actionable.
 - **Red:** Inactionable for the active player.
-- **Yellow:** Inspectable, but not actionable, for the non-active player.
+- **Yellow:** Operational, but not actionable, for the non-active player.
 - **Grey:** Disabled or destroyed.
 - This standard applies consistently across combat for both Onion and defender views.
+
+## Phase Visibility Matrix
+
+Unit colors are determined by the active side in the current phase.
+
+| Phase | Active side units | Inactive side units |
+| --- | --- | --- |
+| Move phases (`ONION_MOVE`, `DEFENDER_MOVE`, `GEV_SECOND_MOVE`) | Green if move-eligible, red if ineligible, grey if disabled/destroyed | Yellow if operational, grey if disabled/destroyed |
+| Combat phases (`ONION_COMBAT`, `DEFENDER_COMBAT`) | Green if attack-eligible, red if ineligible, grey if disabled/destroyed | Yellow if operational, grey if disabled/destroyed |
+
+- Onion and defender clients see the same phase-relative colors.
+- The active side owns the green/red/grey states.
+- The inactive side is yellow unless it is disabled or destroyed.
+- Any inactive player's units can be inspected.
 
 ### Selection and Eligibility Rules
 

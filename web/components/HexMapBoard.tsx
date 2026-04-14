@@ -18,6 +18,7 @@ type HexMapBoardProps = {
   defenders: BattlefieldUnit[]
   onion: BattlefieldOnionView
   phase: string | null
+  viewerRole?: 'onion' | 'defender' | null
   selectedUnitIds: string[]
   selectedCombatTargetId?: string | null
   combatRangeHexKeys?: ReadonlySet<string>
@@ -59,7 +60,7 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
@@ -381,12 +382,43 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                     const isOccupantOnion = occupant.id === onion.id
                     const isOccupantSelected = selectedUnitSet.has(occupant.id)
                     const offset = getStackOffset(index, cellOccupants.length)
-                    const moveRemaining = isOccupantOnion
-                      ? onion.movesRemaining
-                      : 'move' in occupant
-                        ? occupant.move
-                        : 0
 
+                    const isDestroyed = occupant.status === 'destroyed'
+                    const isDisabled = occupant.status === 'disabled'
+                    const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
+                    const isMovementPhaseActiveSide = phase === 'ONION_MOVE' ? isOccupantOnion : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE' ? !isOccupantOnion : false
+                    const combatHasReadyAttack = isOccupantOnion
+                      ? (occupant.weaponDetails ?? []).some((weapon) => weapon.status === 'ready')
+                      : 'actionableModes' in occupant && occupant.actionableModes.includes('fire')
+                    const moveHasRemaining = isOccupantOnion
+                      ? onion.movesRemaining > 0
+                      : 'move' in occupant && occupant.move > 0
+                    const combatEligibilityClass = !isCombatPhase
+                      ? ''
+                      : isDestroyed || isDisabled
+                        ? 'hex-unit-rect-combat-disabled'
+                        : activeCombatRole === 'onion'
+                          ? isOccupantOnion
+                            ? combatHasReadyAttack
+                              ? 'hex-unit-rect-combat-eligible'
+                              : 'hex-unit-rect-combat-ineligible'
+                            : 'hex-unit-rect-combat-inspectable'
+                          : activeCombatRole === 'defender'
+                            ? !isOccupantOnion
+                              ? combatHasReadyAttack
+                                ? 'hex-unit-rect-combat-eligible'
+                                : 'hex-unit-rect-combat-ineligible'
+                              : 'hex-unit-rect-combat-inspectable'
+                            : ''
+                    const movementEligibilityClass = !isMovementPhase
+                      ? ''
+                      : isDestroyed || isDisabled
+                        ? 'hex-unit-rect-move-disabled'
+                        : isMovementPhaseActiveSide
+                          ? moveHasRemaining
+                            ? 'hex-unit-rect-move-eligible'
+                            : 'hex-unit-rect-move-ineligible'
+                          : 'hex-unit-rect-move-inspectable'
                     return (
                       <g
                         key={occupant.id}
@@ -396,11 +428,24 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                           'hex-unit-stack',
                           isOccupantOnion ? 'hex-unit-stack-onion' : 'hex-unit-stack-defender',
                           isOccupantSelected ? 'hex-unit-stack-selected' : '',
-                          isMovementPhase && occupant.status === 'operational' && moveRemaining > 0 ? 'hex-unit-stack-move-ready' : '',
+                          isMovementPhase && movementEligibilityClass === 'hex-unit-rect-move-eligible' ? 'hex-unit-stack-move-ready' : '',
+                          isDisabled ? 'hex-unit-stack-disabled' : '',
                         ].join(' ')}
                         transform={`translate(${offset.dx}, ${offset.dy})`}
                         onClick={(event) => {
                           event.stopPropagation()
+
+                          if (isCombatPhase && viewerRole !== activeCombatRole) {
+                            onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
+                            return
+                          }
+
+                          const occupantIsActiveCombatSide = activeCombatRole === 'onion' ? isOccupantOnion : activeCombatRole === 'defender' ? !isOccupantOnion : false
+
+                          if (isCombatPhase && !occupantIsActiveCombatSide) {
+                            onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
+                            return
+                          }
 
                           if (selectCombatTarget(occupant)) {
                             return
@@ -419,7 +464,9 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                             'hex-unit-rect',
                             isOccupantOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
                             isOccupantSelected ? 'hex-unit-rect-selected' : '',
-                            isMovementPhase && occupant.status === 'operational' && moveRemaining > 0 ? 'hex-unit-rect-move-ready' : '',
+                            movementEligibilityClass,
+                            isDisabled ? 'hex-unit-rect-disabled' : '',
+                            combatEligibilityClass,
                           ].join(' ')}
                           x={center.x - 16}
                           y={center.y - 11}
@@ -430,6 +477,30 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, selectedUnit
                         <text className="hex-unit-marker" x={center.x} y={center.y + 4} textAnchor="middle">
                           {unitCode(occupant.type)}
                         </text>
+                        {isDisabled && (
+                          <g className="hex-unit-disabled-indicator">
+                            <rect
+                              x={center.x - 16}
+                              y={center.y - 11}
+                              width={32}
+                              height={22}
+                              rx={2}
+                              fill="#888"
+                              opacity="0.18"
+                            />
+                            <text
+                              x={center.x + 12}
+                              y={center.y - 7}
+                              fontSize="13"
+                              fill="#b71c1c"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              className="hex-unit-disabled-icon"
+                            >
+                              &#9888;
+                            </text>
+                          </g>
+                        )}
                       </g>
                     )
                   })}

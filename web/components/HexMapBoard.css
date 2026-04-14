@@ -1,3 +1,73 @@
+.hex-unit-rect-combat-inspectable {
+  fill: #ffe082 !important;
+  stroke: #ffb300 !important;
+  stroke-width: 2.5;
+  filter: brightness(1.05) saturate(1.1);
+}
+.hex-unit-rect-combat-eligible {
+  fill: #66bb6a !important;
+  stroke: #2e7d32 !important;
+  stroke-width: 2.5;
+  filter: saturate(1.15);
+}
+
+.hex-unit-rect-combat-ineligible {
+  fill: #e53935 !important;
+  stroke: #b71c1c !important;
+  stroke-width: 2.5;
+  filter: grayscale(0.15) brightness(0.95);
+}
+
+.hex-unit-rect-combat-disabled {
+  fill: #888 !important;
+  stroke: #444 !important;
+  stroke-width: 2.5;
+  filter: grayscale(0.85) brightness(0.85) opacity(0.7);
+}
+.hex-unit-rect-move-eligible {
+  fill: #66bb6a !important;
+  stroke: #2e7d32 !important;
+  stroke-width: 2.5;
+  filter: saturate(1.15);
+}
+
+.hex-unit-rect-move-ineligible {
+  fill: #e53935 !important;
+  stroke: #b71c1c !important;
+  stroke-width: 2.5;
+  filter: grayscale(0.15) brightness(0.95);
+}
+
+.hex-unit-rect-move-inspectable {
+  fill: #ffe082 !important;
+  stroke: #ffb300 !important;
+  stroke-width: 2.5;
+  filter: brightness(1.05) saturate(1.1);
+}
+
+.hex-unit-rect-move-disabled {
+  fill: #888 !important;
+  stroke: #444 !important;
+  stroke-width: 2.5;
+  filter: grayscale(0.85) brightness(0.85) opacity(0.7);
+}
+.hex-unit-stack-disabled .hex-unit-rect,
+.hex-unit-rect-disabled {
+  filter: grayscale(0.85) brightness(0.85) opacity(0.7);
+}
+
+.hex-unit-disabled-indicator {
+  pointer-events: none;
+}
+
+.hex-unit-disabled-icon {
+  font-family: inherit;
+  font-size: 13px;
+  fill: #b71c1c;
+  text-shadow: 1px 1px 2px #fff, 0 0 2px #fff;
+  opacity: 0.85;
+  pointer-events: none;
+}
 .hex-map-shell {
   display: flex;
   flex-direction: column;

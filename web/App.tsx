@@ -256,12 +256,24 @@ function buildCombatTargetActionId(targetId: string, onionId: string | undefined
   return targetId
 }
 
-function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean): Mode[] {
-  if (!activeTurnActive || status === 'destroyed' || status === 'disabled') {
+function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean, activePhase: TurnPhase | null): Mode[] {
+  if (status === 'destroyed' || status === 'disabled') {
     return []
   }
 
   const hasReadyWeapon = (weapons ?? []).some((weapon) => weapon.status === 'ready')
+  if (activePhase === 'DEFENDER_COMBAT') {
+    return hasReadyWeapon ? ['fire', 'combined'] : []
+  }
+
+  if (activePhase === 'ONION_COMBAT') {
+    return []
+  }
+
+  if (!activeTurnActive) {
+    return []
+  }
+
   return hasReadyWeapon ? ['fire', 'combined'] : []
 }
 
@@ -306,7 +318,7 @@ function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | nul
         targetRules: defender.targetRules,
         defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
         squads: defender.squads,
-        actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive),
+        actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive, activePhase),
         rosterOrder: index,
       }
     })
@@ -1353,6 +1365,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 defenders={displayedDefenders}
                 onion={displayedOnion}
                 phase={activePhase}
+                viewerRole={activeRole}
                 selectedUnitIds={activeSelectedUnitIds}
                 selectedCombatTargetId={selectedCombatTargetId}
                 combatRangeHexKeys={combatRangeHexKeys}
@@ -1379,7 +1392,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
         <aside className="panel rail rail-right">
           {/* Always show targeting list (combat UI) during defender combat phase; inspector only outside defender combat phase */}
-          {isCombatPhase && activeCombatRole === 'defender'
+          {isCombatPhase && activeRole === activeCombatRole && selectedCombatAttackerIds.length > 0
             ? (
                 <section className="section-block panel-subtle">
                   <div className="card-head">

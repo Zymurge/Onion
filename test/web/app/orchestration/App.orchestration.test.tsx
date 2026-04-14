@@ -778,6 +778,60 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('hex-cell-4-1').getAttribute('class')).not.toContain('hex-cell-combat-range')
 	})
 
+	it('clears the onion combat target rail and opens the inspector when the active player clicks an enemy unit', async () => {
+		const user = userEvent.setup()
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'ONION_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				onion: {
+					...baseSnapshot.authoritativeState.onion,
+					position: { q: 1, r: 1 },
+					weapons: [
+						{
+							id: 'main-1',
+							name: 'Main Battery',
+							attack: 4,
+							range: 4,
+							defense: 4,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+					],
+				},
+				defenders: {
+					...baseSnapshot.authoritativeState.defenders,
+					'puss-1': {
+						...baseSnapshot.authoritativeState.defenders['puss-1'],
+						position: { q: 2, r: 2 },
+					},
+				},
+			},
+		}
+		const session = { role: 'onion' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByTestId('combat-weapon-main-1')
+		await user.click(screen.getByTestId('combat-weapon-main-1'))
+		expect(screen.getByTestId('combat-target-list')).not.toBeNull()
+
+		await user.click(screen.getByTestId('hex-unit-puss-1'))
+
+		expect(screen.queryByTestId('combat-target-list')).toBeNull()
+		expect(screen.getByText(/Inspector/i)).not.toBeNull()
+		expect(screen.getByText(/Puss/i)).not.toBeNull()
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+	})
+
 	it('renders a right-rail target list filtered to the active combat range', async () => {
 		const user = userEvent.setup()
 		const baseSnapshot = createConnectedBattlefieldSnapshot()
@@ -954,6 +1008,70 @@ describe('App orchestration (injected game client)', () => {
 
 		await user.click(screen.getByTestId('combat-target-weapon:main-1'))
 		expect(screen.getByTestId('combat-target-weapon:main-1').getAttribute('data-selected')).toBe('true')
+	})
+
+	it('shows defender combat readiness on the Onion client by defender attack eligibility', async () => {
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'DEFENDER_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				defenders: {
+					...baseSnapshot.authoritativeState.defenders,
+					'wolf-2': {
+						...baseSnapshot.authoritativeState.defenders['wolf-2'],
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 4,
+								range: 2,
+								defense: 2,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'puss-1': {
+						...baseSnapshot.authoritativeState.defenders['puss-1'],
+						id: 'puss-1',
+						position: { q: 4, r: 6 },
+						weapons: [
+							{
+								id: 'spent',
+								name: 'Spare Gun',
+								attack: 2,
+								range: 2,
+								defense: 2,
+								status: 'spent' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+			},
+		}
+		const session = { role: 'onion' as const }
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByTestId('combat-unit-wolf-2')
+		expect(screen.queryByTestId('combat-target-list')).toBeNull()
+		expect(screen.getByTestId('combat-unit-wolf-2').getAttribute('class')).toContain('is-actionable')
+		expect(screen.getByTestId('combat-unit-puss-1').getAttribute('class')).toContain('is-disabled')
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		expect(screen.getByTestId('hex-unit-puss-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-ineligible')
+		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
+
+		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
+		expect(screen.getByText(/Inspector/i)).not.toBeNull()
+		expect(screen.getByText(/TheOnion/i)).not.toBeNull()
 	})
 
 	it('selects a combat target from the rail on right click', async () => {
