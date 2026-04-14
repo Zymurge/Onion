@@ -8,6 +8,8 @@ break down into features/tasks as needed.
 ## Epics / Major Work
 
 - [ ] Improve error handling (UI and backend)
+  - [ ] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
+  - [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
 - [ ] JWT authentication (migrate to @fastify/jwt)
 - [ ] Game lobby for creation and joining (self-service matchmaking)
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
@@ -15,14 +17,8 @@ break down into features/tasks as needed.
 
 ## Features / Work Items
 
-- [ ] Visually mark disabled units clearly in the rail and on the map so combat damage is obvious at a glance.
-- [x] In combat phase, show disabled units as disabled in the attacker list and prevent them from being selected or used to fire.
-- [ ] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
-- [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
-- [ ] Refactor movement resolution to read per-unit terrain rules from the shared unit definitions instead of hardcoded terrain checks.
-  - [ ] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
+- [ ] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
 - [ ] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
-- [ ] Reorganize backend tests into the same layer-and-purpose folders used by the web test tree.
 
 ## Done
 
@@ -78,3 +74,7 @@ break down into features/tasks as needed.
   - [x] Update the scenario loader and snapshot shapes to carry the canonical axial board contract.
   - [x] Update existing scenario data to the new axial shape format. (Decision: no compatibility migration is needed; recreate games from the canonical axial contract.)
   - [x] Add regression tests for map membership, overlay alignment, and viewport sizing.
+  - [x] Visually mark disabled units clearly in the rail and on the map so combat damage is obvious at a glance.
+- [x] In combat phase, show disabled units as disabled in the attacker list and prevent them from being selected or used to fire.
+- [x] Refactor movement resolution to read per-unit terrain rules from the shared unit definitions instead of hardcoded terrain checks.
+- [x] Reorganize backend tests into the same layer-and-purpose folders used by the web test tree.

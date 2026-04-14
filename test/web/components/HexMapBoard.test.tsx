@@ -788,7 +788,11 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 		fireEvent.contextMenu(screen.getByTestId('hex-cell-2-4'))
-		expect(screen.getByText(/illegal move/i)).not.toBeNull()
+		const toast = screen.getByText(/illegal move/i)
+		expect(toast).not.toBeNull()
+		expect(toast.parentElement?.classList.contains('hex-map-toast-overlay')).toBe(true)
+		fireEvent.click(document.body)
+		expect(screen.queryByText(/illegal move/i)).toBeNull()
 	})
 
 	it('does not show an error bubble when the selected unit is ineligible (e.g., disabled)', () => {

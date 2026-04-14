@@ -63,7 +63,7 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
 export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
-  const [moveError, setMoveError] = useState<{ message: string; x: number; y: number } | null>(null)
+  const [moveError, setMoveError] = useState<string | null>(null)
   const [zoomPercent, setZoomPercent] = useState(100)
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
   const zoomSliderRef = useRef<HTMLInputElement | null>(null)
@@ -277,8 +277,10 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
   return (
     <div className="hex-map-shell panel-subtle">
       {moveError ? (
-        <div className="hex-map-toast" style={{ left: moveError.x + 12, top: moveError.y + 12 }} role="status">
-          {moveError.message}
+        <div className="hex-map-toast-overlay" aria-live="polite">
+          <div className="hex-map-toast" role="status">
+            {moveError}
+          </div>
         </div>
       ) : null}
       <div
@@ -363,7 +365,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                       return
                     }
                     if (canSubmitMove && selectedIsEligible) {
-                      setMoveError({ message: 'Illegal move', x: event.clientX, y: event.clientY })
+                      setMoveError('Illegal move')
                     }
                   }}
                 >

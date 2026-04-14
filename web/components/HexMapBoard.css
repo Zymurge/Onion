@@ -294,16 +294,34 @@
   stroke-width: 3;
 }
 
-.hex-map-toast {
-  position: fixed;
+.hex-map-toast-overlay {
+  position: absolute;
+  inset: 0;
   z-index: 20;
-  padding: 8px 12px;
-  background: rgba(24, 39, 35, 0.95);
+  padding: 24px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.hex-map-toast {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: min(420px, 100%);
+  max-width: 100%;
+  padding: 14px 20px;
+  background: rgba(24, 39, 35, 0.96);
   color: #f8fff8;
-  border: 1px solid rgba(102, 187, 106, 0.55);
+  border: 1px solid rgba(102, 187, 106, 0.6);
   border-radius: 999px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
+  text-align: center;
   pointer-events: auto;
+  font-weight: 700;
 }
 
 .hex-unit-marker {

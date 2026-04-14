@@ -405,8 +405,15 @@ describe('App orchestration (injected game client)', () => {
 		await user.click(screen.getByRole('button', { name: /advance phase/i }))
 
 		await screen.findByRole('alert')
+		expect(screen.getByRole('alert').classList.contains('error-overlay')).toBe(true)
+		expect(screen.getByRole('alert').classList.contains('error-overlay-app')).toBe(true)
+		expect(screen.getByRole('alert').closest('.shell')).not.toBeNull()
 		expect(screen.getByRole('alert').textContent).toMatch(/Failed to submit action/i)
 		expect(screen.getByRole('alert').textContent).toMatch(/mock transport failure/i)
+		expect(screen.getByRole('button', { name: /dismiss error/i })).not.toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /dismiss error/i }))
+		expect(screen.queryByRole('alert')).toBeNull()
 	})
 
 	it('clears combat selection and refreshes state after a rejected combat submit', async () => {

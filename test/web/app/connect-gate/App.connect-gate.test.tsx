@@ -161,6 +161,22 @@ describe('App connect gate', () => {
 		expect((screen.getByLabelText(/game id/i) as HTMLInputElement).value).toBe('123')
 	})
 
+	it('shows a dismissable overlay when connect validation fails', async () => {
+		const user = userEvent.setup()
+
+		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }} showConnectionGate />)
+
+		await user.click(screen.getByRole('button', { name: /load game/i }))
+
+		const alert = await screen.findByRole('alert')
+		expect(alert.classList.contains('error-overlay')).toBe(true)
+		expect(alert.textContent).toMatch(/api base url, username, password, and game id are required/i)
+		expect(screen.getByRole('button', { name: /dismiss error/i })).not.toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /dismiss error/i }))
+		expect(screen.queryByRole('alert')).toBeNull()
+	})
+
 	it('logs in and loads an existing game when the form is submitted', async () => {
 		const user = userEvent.setup()
 		const timeSpy = vi.spyOn(Date.prototype, 'toLocaleTimeString').mockReturnValue('01:14:15 PM')

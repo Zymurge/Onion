@@ -111,6 +111,31 @@ function formatLiveConnectionStatus(connectionStatus: LiveConnectionStatus) {
   }
 }
 
+function ErrorOverlay({
+  message,
+  onDismiss,
+  className,
+  placement = 'corner',
+}: {
+  message: string
+  onDismiss: () => void
+  className?: string
+  placement?: 'corner' | 'map'
+}) {
+  return (
+    <div
+      className={['error-overlay', placement === 'app' ? 'error-overlay-app' : '', className].filter(Boolean).join(' ')}
+      role="alert"
+      aria-live="assertive"
+    >
+      <span className="error-overlay-message">{message}</span>
+      <button type="button" className="error-overlay-dismiss" onClick={onDismiss} aria-label="Dismiss error">
+        Dismiss
+      </button>
+    </div>
+  )
+}
+
 function parseWeaponStats(weaponString: string) {
   const weapons = weaponString.split(',').map((w) => w.trim())
   let operationalWeapons = 0
@@ -997,6 +1022,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   if (!isControlledSession && runtimeConnectionSeeded) {
     return (
       <div className="shell connect-shell">
+        {connectError ? <ErrorOverlay message={connectError} className="error-overlay-connect" onDismiss={() => setConnectError(null)} /> : null}
         <section className="panel connect-panel">
           <div className="card-head">
             <div>
@@ -1038,7 +1064,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 placeholder="123"
               />
             </label>
-            {connectError && <p className="connect-error" role="alert">{connectError}</p>}
             <button type="submit" className="primary-action">Load Game</button>
             <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
               <button
@@ -1074,12 +1099,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   return (
     <div className="shell" data-phase={shellPhase}>
-      {/* Show action error as a toast/banner if present */}
-      {actionError && (
-        <div className="action-error-banner" role="alert" style={{ background: '#fbeaea', color: '#a94442', padding: '8px 16px', marginBottom: 8, borderRadius: 4, textAlign: 'center', fontWeight: 500 }}>
-          {actionError}
-        </div>
-      )}
+      {actionError ? <ErrorOverlay message={actionError} placement="app" onDismiss={() => setActionError(null)} /> : null}
       {pendingCombatResolution && selectedCombatTarget !== null ? (
         <CombatResolutionToast
           title={`Combat resolved on ${selectedCombatTarget.label}`}
