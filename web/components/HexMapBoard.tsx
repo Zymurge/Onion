@@ -440,14 +440,14 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                             return
                           }
 
+                          if (selectCombatTarget(occupant)) {
+                            return
+                          }
+
                           const occupantIsActiveCombatSide = activeCombatRole === 'onion' ? isOccupantOnion : activeCombatRole === 'defender' ? !isOccupantOnion : false
 
                           if (isCombatPhase && !occupantIsActiveCombatSide) {
                             onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
-                            return
-                          }
-
-                          if (selectCombatTarget(occupant)) {
                             return
                           }
 

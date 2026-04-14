@@ -1,4 +1,4 @@
-import type { SessionRole } from './session/store.js'
+import type { SessionRole } from '#server/cli/session/store'
 
 export type CliCommand =
   | { kind: 'help'; topic?: string }

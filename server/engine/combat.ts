@@ -1,4 +1,4 @@
-import logger from '../logger.js'
+import logger from '#server/logger'
 /**
  * Combat resolution system for the Onion game engine.
  *
@@ -6,18 +6,18 @@ import logger from '../logger.js'
  * special combat rules, and victory condition checking.
  */
 
-import type { Command } from '../../shared/types/index.js'
-import type { GameMap } from './map.js'
-import { hexDistance } from '../../shared/hex.js'
+import type { Command } from '#shared/types/index'
+import type { GameMap } from '#server/engine/map'
+import { hexDistance } from '#shared/hex'
 import {
   createCombatCalculator,
   calculateOdds as sharedCalculateOdds,
   type CombatCalculatorInput,
-} from '../../shared/combatCalculator.js'
-import { ONION_STATIC_RULES } from '../../shared/staticRules.js'
-import { isTargetAllowedByRules, resolveUnitTargetRules, resolveWeaponTargetRules } from '../../shared/targetRules.js'
-import { getReadyWeapons, getUnitDefense, getWeaponDefense, destroyWeapon } from './units.js'
-import type { GameUnit, OnionUnit, DefenderUnit, EngineGameState } from './units.js'
+} from '#shared/combatCalculator'
+import { ONION_STATIC_RULES } from '#shared/staticRules'
+import { isTargetAllowedByRules, resolveUnitTargetRules, resolveWeaponTargetRules } from '#shared/targetRules'
+import { getReadyWeapons, getUnitDefense, getWeaponDefense, destroyWeapon } from '#server/engine/units'
+import type { GameUnit, OnionUnit, DefenderUnit, EngineGameState } from '#server/engine/units'
 
 /**
  * Combat Results Table outcomes.

@@ -1,4 +1,4 @@
-import type { CliCommand, ParseResult } from './types.js'
+import type { CliCommand, ParseResult } from '#server/cli/types'
 
 function tokenize(input: string): string[] {
   const tokens: string[] = []

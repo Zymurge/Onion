@@ -1,7 +1,7 @@
-import type { InitialState } from './scenarioSchema.js'
-import type { DefenderUnit, EngineGameState, OnionUnit } from './units.js'
-import { getUnitDefinition } from './units.js'
-import logger from '../logger.js'
+import type { InitialState } from '#server/engine/scenarioSchema'
+import type { DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
+import { getUnitDefinition } from '#server/engine/units'
+import logger from '#server/logger'
 
 /**
  * Normalize a scenario initialState into a valid EngineGameState.

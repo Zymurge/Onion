@@ -1,4 +1,4 @@
-import type { EventEnvelope } from '../../../shared/types/index.js'
+import type { EventEnvelope } from '#shared/types/index'
 
 export function renderEvents(events: EventEnvelope[]): string {
   if (events.length === 0) {

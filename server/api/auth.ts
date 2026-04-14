@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { scryptSync, randomBytes, timingSafeEqual } from 'node:crypto'
-import type { DbAdapter } from '../db/adapter.js'
+import type { DbAdapter } from '#server/db/adapter'
 
 const CredentialsSchema = z.object({
   username: z.string().min(3).max(50),

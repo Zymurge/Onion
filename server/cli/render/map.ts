@@ -1,5 +1,5 @@
-import type { GameState, HexPos } from '../../../shared/types/index.js'
-import type { ScenarioDetail } from '../api/client.js'
+import type { GameState, HexPos } from '#shared/types/index'
+import type { ScenarioDetail } from '#server/cli/api/client'
 
 function terrainCode(terrain: number | undefined): string {
   switch (terrain) {

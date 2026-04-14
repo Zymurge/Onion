@@ -1,8 +1,8 @@
-import { resetMovementSpent } from '../../shared/unitMovement.js'
-import logger from '../logger.js'
-import type { TurnPhase, GameState, EventEnvelope } from '../../shared/types/index.js'
-import type { MatchRecord } from '../db/adapter.js';
-import { TURN_PHASES, phaseActor } from './phases.js';
+import { resetMovementSpent } from '#shared/unitMovement'
+import logger from '#server/logger'
+import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
+import type { MatchRecord } from '#server/db/adapter'
+import { TURN_PHASES, phaseActor } from '#server/engine/phases'
 
 function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'missile' | null {
   if (weaponId === 'main') return 'main'

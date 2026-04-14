@@ -2,7 +2,7 @@ import {
   getLoggerLevel,
   isDebugLoggingEnabled,
   setLoggerLevel,
-} from '../logger.js'
+} from '#server/logger'
 import {
   createGame,
   formatApiError,
@@ -16,13 +16,13 @@ import {
   registerUser,
   submitAction,
 } from './api/client.js'
-import logger from '../logger.js'
-import { renderEvents } from './render/events.js'
-import { renderMap } from './render/map.js'
-import { renderDefenders, renderGameSummary, renderLatestEvents, renderOnion } from './render/summary.js'
-import type { SessionStore } from './session/store.js'
-import type { CliCommand } from './types.js'
-import type { EventEnvelope } from '../../shared/types/index.js'
+import logger from '#server/logger'
+import { renderEvents } from '#server/cli/render/events'
+import { renderMap } from '#server/cli/render/map'
+import { renderDefenders, renderGameSummary, renderLatestEvents, renderOnion } from '#server/cli/render/summary'
+import type { SessionStore } from '#server/cli/session/store'
+import type { CliCommand } from '#server/cli/types'
+import type { EventEnvelope } from '#shared/types/index'
 
 export type CommandExecutionResult = {
   message: string

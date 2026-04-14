@@ -1,4 +1,4 @@
-import logger from '../logger.js'
+import logger from '#server/logger'
 /**
  * Movement validation and execution for the Onion game engine.
  *
@@ -6,16 +6,15 @@ import logger from '../logger.js'
  * movement mechanics like Onion ramming and GEV second moves.
  */
 
-import type { HexPos, PlayerRole, Command } from '../../shared/types/index.js'
-import { isInBounds } from './map.js'
-import type { GameMap } from './map.js'
-import { getUnitDefinition, isImmobile } from './units.js'
-import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from './units.js'
-import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner.js'
-import { getStopOnOccupiedHexFailure } from '../../shared/movementRules.js'
-import { calculateRamming as calculateSharedRamming } from '../../shared/rammingCalculator.js'
-import { canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, spendUnitMovement } from '../../shared/unitMovement.js'
-import { getUnitRamCapacity } from '../../shared/unitMovement.js'
+import type { HexPos, PlayerRole, Command } from '#shared/types/index'
+import { isInBounds } from '#server/engine/map'
+import type { GameMap } from '#server/engine/map'
+import { getUnitDefinition, isImmobile } from '#server/engine/units'
+import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
+import { findMovePath, type MoveMapSnapshot } from '#shared/movePlanner'
+import { getStopOnOccupiedHexFailure } from '#shared/movementRules'
+import { calculateRamming as calculateSharedRamming } from '#shared/rammingCalculator'
+import { canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, getUnitRamCapacity, spendUnitMovement } from '#shared/unitMovement'
 
 /**
  * Result of validating a movement command.

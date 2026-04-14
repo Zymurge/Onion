@@ -1,5 +1,5 @@
-import type { DefenderUnit, EventEnvelope, GameState, HexPos, UnitStatus, Weapon } from '../../../shared/types/index.js'
-import type { SessionStore } from '../session/store.js'
+import type { DefenderUnit, EventEnvelope, GameState, HexPos, UnitStatus, Weapon } from '#shared/types/index'
+import type { SessionStore } from '#server/cli/session/store'
 
 function posText(pos: HexPos): string {
   return `(${pos.q},${pos.r})`

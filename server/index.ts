@@ -1,7 +1,7 @@
-import logger from './logger.js'
-import { buildApp } from './app.js'
-import { getPool, closePool } from './db/client.js'
-import { PostgresDb } from './db/postgres.js'
+import logger from '#server/logger'
+import { buildApp } from '#server/app'
+import { getPool, closePool } from '#server/db/client'
+import { PostgresDb } from '#server/db/postgres'
 
 const port = Number(process.env.PORT ?? 3000)
 const host = process.env.HOST ?? '0.0.0.0'

@@ -2,13 +2,13 @@
  * Unit definitions and capabilities for the Onion game engine.
  */
 
-import type { HexPos, UnitStatus, TurnPhase, Weapon, TargetRules } from '../../shared/types/index.js'
-import type { UnitDefinition, UnitType } from '../../shared/engineTypes.js'
-import { getAllUnitDefinitions as getSharedUnitDefinitions } from '../../shared/unitDefinitions.js'
-import logger from '../logger.js'
-import { onionMovementAllowance } from '../../shared/movementAllowance.js'
-export type { RamProfile, UnitAbilities, UnitTerrainRule, UnitDefinition, UnitType, WeaponStatus } from '../../shared/engineTypes.js'
-export type { Weapon } from '../../shared/types/index.js'
+import type { HexPos, UnitStatus, TurnPhase, Weapon, TargetRules } from '#shared/types/index'
+import type { UnitDefinition, UnitType } from '#shared/engineTypes'
+import { getAllUnitDefinitions as getSharedUnitDefinitions } from '#shared/unitDefinitions'
+import logger from '#server/logger'
+import { onionMovementAllowance } from '#shared/movementAllowance'
+export type { RamProfile, UnitAbilities, UnitTerrainRule, UnitDefinition, UnitType, WeaponStatus } from '#shared/engineTypes'
+export type { Weapon } from '#shared/types/index'
 
 /**
  * A game unit with current state.

@@ -1,12 +1,12 @@
 import Fastify from 'fastify'
 import type { FastifyInstance } from 'fastify'
 import websocket from '@fastify/websocket'
-import { authRoutes } from './api/auth.js'
-import { scenarioRoutes } from './api/scenarios.js'
-import { gameRoutes } from './api/games.js'
-import { getPool } from './db/client.js'
-import type { DbAdapter } from './db/adapter.js'
-import { InMemoryDb } from './db/memory.js'
+import { authRoutes } from '#server/api/auth'
+import { scenarioRoutes } from '#server/api/scenarios'
+import { gameRoutes } from '#server/api/games'
+import { getPool } from '#server/db/client'
+import type { DbAdapter } from '#server/db/adapter'
+import { InMemoryDb } from '#server/db/memory'
 
 function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
   const fallback = new InMemoryDb()

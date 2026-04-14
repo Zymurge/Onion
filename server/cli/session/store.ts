@@ -1,7 +1,7 @@
 export type SessionRole = 'onion' | 'defender'
 
-import type { EventEnvelope, GameState } from '../../../shared/types/index.js'
-import type { ScenarioDetail } from '../api/client.js'
+import type { EventEnvelope, GameState } from '#shared/types/index'
+import type { ScenarioDetail } from '#server/cli/api/client'
 
 export type SessionStore = {
   baseUrl: string | null

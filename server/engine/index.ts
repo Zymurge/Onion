@@ -1,4 +1,4 @@
-import logger from '../logger.js'
+import logger from '#server/logger'
 /**
  * Onion Game Engine
  *
@@ -13,7 +13,7 @@ export type {
   GameMap,
   LineOfSightResult,
   PathResult,
-} from './map.js'
+} from '#server/engine/map'
 
 export {
   createMap,
@@ -22,7 +22,7 @@ export {
   hasLineOfSight,
   findPath,
   movementCost,
-} from './map.js'
+} from '#server/engine/map'
 
 // Unit definitions and capabilities
 export type {
@@ -35,7 +35,7 @@ export type {
   OnionUnit,
   DefenderUnit,
   EngineGameState,
-} from './units.js'
+} from '#server/engine/units'
 
 export {
   getUnitDefinition,
@@ -49,7 +49,7 @@ export {
   isDestroyed,
   canTargetWeapon,
   destroyWeapon,
-} from './units.js'
+} from '#server/engine/units'
 
 // Movement validation and execution
 export type {
@@ -58,7 +58,7 @@ export type {
   MovementCapabilities,
   MovementPlan,
   MovementResult,
-} from './movement.js'
+} from '#server/engine/movement'
 
 export {
   validateOnionMovement,
@@ -70,10 +70,10 @@ export {
   calculateRamming,
   canMoveThrough,
   getRammedUnits,
-} from './movement.js'
+} from '#server/engine/movement'
 
 // Turn phases and victory conditions
-export type { PhaseActor } from './phases.js'
+export type { PhaseActor } from '#server/engine/phases'
 
 export {
   TURN_PHASES,
@@ -81,7 +81,7 @@ export {
   phaseActor,
   advancePhase,
   checkVictoryConditions,
-} from './phases.js'
+} from '#server/engine/phases'
 
 // Combat resolution system
 export type {
@@ -93,7 +93,7 @@ export type {
   CombatPlan,
   CombatValidation,
   CombatExecutionResult,
-} from './combat.js'
+} from '#server/engine/combat'
 
 export {
   validateCombatAction,
@@ -102,4 +102,4 @@ export {
   calculateOdds,
   applyDamage,
   getValidTargets,
-} from './combat.js'
+} from '#server/engine/combat'

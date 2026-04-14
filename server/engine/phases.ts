@@ -1,6 +1,6 @@
-import type { TurnPhase } from '../../shared/types/index.js'
-import type { EngineGameState } from './units.js'
-import logger from '../logger.js'
+import type { TurnPhase } from '#shared/types/index'
+import type { EngineGameState } from '#server/engine/units'
+import logger from '#server/logger'
 
 function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'missile' | null {
   if (weaponId === 'main') return 'main'

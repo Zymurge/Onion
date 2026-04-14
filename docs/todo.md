@@ -13,7 +13,7 @@ break down into features/tasks as needed.
 ## Epics / Major Work
 
 - [ ] Improve error handling (UI and backend)
-  - [ ] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
+  - [x] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
   - [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
 - [ ] JWT authentication (migrate to @fastify/jwt)
 - [ ] Game lobby for creation and joining (self-service matchmaking)
@@ -21,8 +21,6 @@ break down into features/tasks as needed.
 
 ## Features / Work Items
 
-- [ ] Consolidate shared pure tests under one directory and normalize aliases/import paths as part of that cleanup.
-- [ ] Normalize imports across all server code so shared and server modules use aliases consistently.
 - [ ] Improve debug folding so protocol entries preserve full detail instead of collapsing the fetched response payloads.
 - [ ] Add more robust server-side logging that includes event details for MOVE and FIRE outcomes.
 - [ ] Add event-driven toasts for inactive players so the non-active client can surface actions taken by the other side (for example: MOVE ram results, combat outcomes, unit destruction, and phase changes).
@@ -86,3 +84,5 @@ break down into features/tasks as needed.
 - [x] In combat phase, show disabled units as disabled in the attacker list and prevent them from being selected or used to fire.
 - [x] Refactor movement resolution to read per-unit terrain rules from the shared unit definitions instead of hardcoded terrain checks.
 - [x] Reorganize backend tests into the same layer-and-purpose folders used by the web test tree.
+- [x] Consolidate shared pure tests under one directory and normalize aliases/import paths as part of that cleanup.
+- [x] Normalize imports across all server code so shared and server modules use aliases consistently.

@@ -1,4 +1,4 @@
-import logger from '../logger.js'
+import logger from '#server/logger'
 /**
  * Hex grid and terrain management for the Onion game engine.
  *
@@ -6,8 +6,8 @@ import logger from '../logger.js'
  * line-of-sight calculations, and movement pathfinding.
  */
 
-import type { HexPos } from '../../shared/types/index.js'
-import { getNeighbors, hexDistance, hexKey } from '../../shared/hex.js'
+import type { HexPos } from '#shared/types/index'
+import { getNeighbors, hexDistance, hexKey } from '#shared/hex'
 
 /**
  * Terrain types that can exist on hexes.

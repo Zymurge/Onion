@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { materializeScenarioMap, type AuthoredScenarioMap } from '../../shared/scenarioMap.js'
-import { resolveScenariosDir } from './scenarioPaths.js'
+import { materializeScenarioMap, type AuthoredScenarioMap } from '#shared/scenarioMap'
+import { resolveScenariosDir } from '#server/api/scenarioPaths'
 
 const SCENARIOS_DIR = resolveScenariosDir()
 

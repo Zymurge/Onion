@@ -9,9 +9,9 @@ import type {
 	WebSocketServerEventMessage,
 	WebSocketServerMessage,
 	WebSocketServerSnapshotMessage,
-} from '../../shared/websocketProtocol.js'
-import type { Command, EventEnvelope, GameState } from '../../shared/types/index.js'
-import type { GameStateResponse } from '../../shared/apiProtocol.js'
+} from '#shared/websocketProtocol'
+import type { Command, EventEnvelope, GameState } from '#shared/types/index'
+import type { GameStateResponse } from '#shared/apiProtocol'
 
 describe('websocketProtocol definitions', () => {
 	it('describes client command and resume messages', () => {

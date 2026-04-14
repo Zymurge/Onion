@@ -1,8 +1,8 @@
-import logger from '../../logger.js'
-import type { ActionOkResponse, Command, EventEnvelope, GameState, TurnPhase } from '../../../shared/types/index.js'
-export { formatApiError } from '../../../shared/apiProtocol.js'
-import { requestJson, type ApiResult } from '../../../shared/apiProtocol.js'
-import type { SessionRole, SessionStore } from '../session/store.js'
+import logger from '#server/logger'
+import type { ActionOkResponse, Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
+export { formatApiError } from '#shared/apiProtocol'
+import { requestJson, type ApiResult } from '#shared/apiProtocol'
+import type { SessionRole, SessionStore } from '#server/cli/session/store'
 
 export type AuthResponse = {
   userId: string

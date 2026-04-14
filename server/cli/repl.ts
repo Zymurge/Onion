@@ -1,9 +1,9 @@
 import { createInterface } from 'node:readline/promises'
 import { stdin as input, stdout as output } from 'node:process'
 
-import { executeCommand, renderHelpText, renderStatusText } from './runtime.js'
-import { parseCommand } from './parser.js'
-import { createSessionStore } from './session/store.js'
+import { executeCommand, renderHelpText, renderStatusText } from '#server/cli/runtime'
+import { parseCommand } from '#server/cli/parser'
+import { createSessionStore } from '#server/cli/session/store'
 
 
 function getPrompt(session: { username: string | null; role: string | null }): string {

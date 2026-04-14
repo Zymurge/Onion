@@ -1,5 +1,5 @@
-import logger from '../logger.js'
-import { startCli } from './repl.js'
+import logger from '#server/logger'
+import { startCli } from '#server/cli/repl'
 
 try {
   await startCli()

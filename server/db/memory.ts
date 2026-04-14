@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import type { TurnPhase, GameState, EventEnvelope } from '../../shared/types/index.js'
-import { StaleMatchStateError } from './adapter.js'
-import type { DbAdapter, MatchRecord, PersistMatchProgressInput } from './adapter.js'
+import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
+import { StaleMatchStateError } from '#server/db/adapter'
+import type { DbAdapter, MatchRecord, PersistMatchProgressInput } from '#server/db/adapter'
 
 /**
  * In-memory implementation of DbAdapter for testing and development.

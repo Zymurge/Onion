@@ -13,6 +13,6 @@
     "resolveJsonModule": true,
     "types": ["node", "vitest"]
   },
-  "include": ["server", "shared", "test/server/**/*.ts*", "test/shared/**/*.ts*"],
+  "include": ["server", "shared", "test/server/**/*.ts*"],
   "exclude": ["node_modules", "dist"]
 }
