@@ -54,7 +54,7 @@ export interface EngineGameState {
   onion: OnionUnit
   /** All defender units, keyed by unit ID */
   defenders: Record<string, DefenderUnit>
-  /** Number of rams the Onion has performed this turn (max 2) */
+  /** Number of rams the Onion has performed this turn */
   ramsThisTurn: number
   /** Movement already spent this turn, keyed by phase and unit ID */
   movementSpent?: Record<string, number>

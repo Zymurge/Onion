@@ -243,6 +243,17 @@ describe('validateUnitMovement', () => {
     expect(result.plan.capabilities.hasTreads).toBe(true)
   })
 
+  it('rejects the legacy onion alias when the actual Onion id differs', () => {
+    const state = makeState({ onion: makeOnion({ id: 'onion-1' }) })
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 2, r: 0 } })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'UNIT_NOT_FOUND',
+      error: "Unit 'onion' not found",
+    })
+  })
+
   it('allows Onion to move into an occupied defender destination as a ram', () => {
     const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })

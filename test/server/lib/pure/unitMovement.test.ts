@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { canUnitCrossRidgelines, canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, isUnitImmobile, spendUnitMovement } from '#shared/unitMovement'
+import { canUnitCrossRidgelines, canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, getUnitRamCapacity, isUnitImmobile, spendUnitMovement } from '#shared/unitMovement'
 
 describe('unit movement helpers', () => {
 	it('returns Onion movement allowance by tread band during the movement phase', () => {
@@ -32,6 +32,7 @@ describe('unit movement helpers', () => {
 		expect(canUnitCrossRidgelines('TheOnion')).toBe(true)
 		expect(canUnitCrossRidgelines('LittlePigs')).toBe(true)
 		expect(canUnitCrossRidgelines('Puss')).toBe(false)
+		expect(getUnitRamCapacity('TheOnion')).toBe(2)
 		expect(isUnitImmobile('LordFarquaad')).toBe(true)
 		expect(isUnitImmobile('Puss')).toBe(false)
 	})

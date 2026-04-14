@@ -31,8 +31,16 @@ describe('POST /games/:id/actions MOVE', () => {
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
 
+    const initialStateRes = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+    const initialStateBody = initialStateRes.json<{ state: { onion: { id?: string; position: { q: number; r: number } } } }>()
+    const onionUnitId = initialStateBody.state.onion.id ?? 'onion-1'
+
     const moveTo = { q: 1, r: 10 }
-    const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo] })
+    const validatedPlan = createMovePlan({ unitId: onionUnitId, from: initialStateBody.state.onion.position, to: moveTo, path: [moveTo] })
     const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
     const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
       state.onion.position = plan.to
@@ -43,7 +51,7 @@ describe('POST /games/:id/actions MOVE', () => {
       method: 'POST',
       url: `/games/${gameId}/actions`,
       headers: { authorization: `Bearer ${shrek.token}` },
-      payload: { type: 'MOVE', unitId: 'onion', to: moveTo },
+      payload: { type: 'MOVE', unitId: onionUnitId, to: moveTo },
     })
 
     expect(res.statusCode).toBe(200)
@@ -233,8 +241,16 @@ describe('POST /games/:id/actions MOVE', () => {
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
 
+    const initialStateRes = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+    const initialStateBody = initialStateRes.json<{ state: { onion: { id?: string; position: { q: number; r: number } } } }>()
+    const onionUnitId = initialStateBody.state.onion.id ?? 'onion-1'
+
     const moveTo = { q: 1, r: 10 }
-    const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo], rammedUnitIds: ['d1'], ramCapacityUsed: 1, treadCost: 1 })
+    const validatedPlan = createMovePlan({ unitId: onionUnitId, from: initialStateBody.state.onion.position, to: moveTo, path: [moveTo], rammedUnitIds: ['d1'], ramCapacityUsed: 1, treadCost: 1 })
     const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
     const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
       state.onion.position = plan.to
@@ -253,7 +269,7 @@ describe('POST /games/:id/actions MOVE', () => {
       method: 'POST',
       url: `/games/${gameId}/actions`,
       headers: { authorization: `Bearer ${shrek.token}` },
-      payload: { type: 'MOVE', unitId: 'onion', to: moveTo },
+      payload: { type: 'MOVE', unitId: onionUnitId, to: moveTo },
     })
 
     validateSpy.mockRestore()
@@ -290,8 +306,16 @@ describe('POST /games/:id/actions MOVE', () => {
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
 
+    const initialStateRes = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+    const initialStateBody = initialStateRes.json<{ state: { onion: { id?: string; position: { q: number; r: number } } } }>()
+    const onionUnitId = initialStateBody.state.onion.id ?? 'onion-1'
+
     const moveTo = { q: 1, r: 10 }
-    const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo], rammedUnitIds: ['d1'], ramCapacityUsed: 1, treadCost: 1 })
+    const validatedPlan = createMovePlan({ unitId: onionUnitId, from: initialStateBody.state.onion.position, to: moveTo, path: [moveTo], rammedUnitIds: ['d1'], ramCapacityUsed: 1, treadCost: 1 })
     const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
     const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
       state.onion.position = plan.to
@@ -310,7 +334,7 @@ describe('POST /games/:id/actions MOVE', () => {
       method: 'POST',
       url: `/games/${gameId}/actions`,
       headers: { authorization: `Bearer ${shrek.token}` },
-      payload: { type: 'MOVE', unitId: 'onion', to: moveTo },
+      payload: { type: 'MOVE', unitId: onionUnitId, to: moveTo },
     })
 
     validateSpy.mockRestore()

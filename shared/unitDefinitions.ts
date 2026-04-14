@@ -102,6 +102,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilities: {
       maxStacks: 1,
       canRam: true,
+      ramCapacity: 2,
       terrainRules: {
         ridgeline: { canCross: true },
       },

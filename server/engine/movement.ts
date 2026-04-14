@@ -15,6 +15,7 @@ import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner.js'
 import { getStopOnOccupiedHexFailure } from '../../shared/movementRules.js'
 import { calculateRamming as calculateSharedRamming } from '../../shared/rammingCalculator.js'
 import { canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, spendUnitMovement } from '../../shared/unitMovement.js'
+import { canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, getUnitRamCapacity, spendUnitMovement } from '../../shared/unitMovement.js'
 
 /**
  * Result of validating a movement command.
@@ -294,12 +295,13 @@ function validateMovePlan(
 
   const rammedUnits = capabilities.canRam ? collectPathOccupants(state, pathResult.path, unit.id) : []
   const ramCapacityUsed = rammedUnits.length
+  const ramCapacityLimit = getUnitRamCapacity(unit.type)
 
-  if (capabilities.canRam && state.ramsThisTurn + ramCapacityUsed > 2) {
+  if (capabilities.canRam && state.ramsThisTurn + ramCapacityUsed > ramCapacityLimit) {
     return {
       ok: false,
       code: 'RAM_LIMIT_EXCEEDED',
-      error: `Would exceed ram limit (${state.ramsThisTurn} used, ${ramCapacityUsed} on path)`,
+      error: `Would exceed ram limit (${state.ramsThisTurn} used, ${ramCapacityUsed} on path, limit ${ramCapacityLimit})`,
     }
   }
 

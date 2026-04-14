@@ -17,6 +17,10 @@ export function canUnitCrossRidgelines(unitType: string): boolean {
 	return canUnitCrossRidgeline(unitType)
 }
 
+export function getUnitRamCapacity(unitType: string): number {
+	return getDefinition(unitType)?.abilities.ramCapacity ?? 2
+}
+
 export function canUnitSecondMove(unitType: string): boolean {
 	return getDefinition(unitType)?.abilities.secondMove === true
 }

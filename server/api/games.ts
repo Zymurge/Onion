@@ -266,18 +266,22 @@ function buildCombatEvents(
 
 function buildMoveEvents(
   startSeq: number,
+  moveUnitId: string,
   command: Extract<Command, { type: 'MOVE' }>,
   result: ReturnType<typeof executeUnitMovement>,
   state: any,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
+  const onionUnitId = state.onion.id
+  const canonicalMoveUnitId = moveUnitId
+  const isOnionMove = canonicalMoveUnitId === onionUnitId
   const events: EventEnvelope[] = [
     {
       seq: seq++,
-      type: command.unitId === 'onion' ? 'ONION_MOVED' : 'UNIT_MOVED',
+      type: isOnionMove ? 'ONION_MOVED' : 'UNIT_MOVED',
       timestamp,
-      ...(command.unitId === 'onion' ? { to: command.to } : { unitId: command.unitId, to: command.to }),
+      ...(isOnionMove ? { to: command.to } : { unitId: canonicalMoveUnitId, to: command.to }),
     },
   ]
 
@@ -288,7 +292,7 @@ function buildMoveEvents(
       seq: seq++,
       type: 'MOVE_RESOLVED',
       timestamp,
-      unitId: command.unitId,
+      unitId: canonicalMoveUnitId,
       rammedUnitIds,
       destroyedUnitIds,
       treadDamage: result.treadDamage ?? 0,
@@ -951,7 +955,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = buildMoveEvents(nextSeq, command, result, state)
+        newEvents = buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state)
 
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner

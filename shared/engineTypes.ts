@@ -30,6 +30,7 @@ export interface UnitAbilities {
   secondMove?: boolean
   secondMoveAllowance?: number
   canRam?: boolean
+  ramCapacity?: number
   terrainRules?: Record<string, UnitTerrainRule>
   ramProfile?: RamProfile
   maxStacks: number

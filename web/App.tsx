@@ -34,7 +34,7 @@ import {
   sanitizeApiProtocolTrafficEntry,
   subscribeApiProtocolTraffic,
 } from '../shared/apiProtocol'
-import { getUnitMovementAllowance } from '../shared/unitMovement'
+import { getUnitMovementAllowance, getUnitRamCapacity } from '../shared/unitMovement'
 import type { TargetRules, TurnPhase, UnitStatus, Weapon } from '../shared/types/index'
 import type {
   GameRequestTransport,
@@ -376,7 +376,7 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
   const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? movesAllowed
-  const ramCapacity = 2
+  const ramCapacity = getUnitRamCapacity(onion.type ?? 'TheOnion')
   const ramsRemaining = Math.max(ramCapacity - (authoritativeState.ramsThisTurn ?? 0), 0)
 
   return {
