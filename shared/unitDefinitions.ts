@@ -79,7 +79,6 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     cost: 1,
     abilities: {
       maxStacks: 3,
-      canCrossRidgelines: true,
       ramProfile: { treadLoss: 0, destroyOnRollAtMost: 4 },
       terrainRules: {
         ridgeline: { canCross: true, canAccessCover: true },
@@ -102,7 +101,6 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     defense: 0,
     abilities: {
       maxStacks: 1,
-      canCrossRidgelines: true,
       canRam: true,
       terrainRules: {
         ridgeline: { canCross: true },

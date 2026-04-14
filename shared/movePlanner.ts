@@ -37,12 +37,6 @@ function terrainFromT(t: number): TerrainType {
 	return 'clear'
 }
 
-function terrainCost(terrain: TerrainType, canCrossRidgelines: boolean): number | null {
-	if (terrain === 'crater') return null
-	if (terrain === 'ridgeline') return canCrossRidgelines ? 2 : null
-	return 1
-}
-
 function getCellLookup(map: MoveMapSnapshot): Set<string> {
 	return new Set(map.cells.map(hexKey))
 }
@@ -124,7 +118,6 @@ export function findMovePath(input: {
 	from: HexPos
 	to: HexPos
 	movementAllowance: number
-	canCrossRidgelines: boolean
 	movingRole: MoveRole
 	movingUnitType: string
 	incomingSquads?: number
@@ -194,7 +187,6 @@ export function listReachableMoves(input: {
 	map: MoveMapSnapshot
 	from: HexPos
 	movementAllowance: number
-	canCrossRidgelines: boolean
 	movingRole: MoveRole
 	movingUnitType: string
 	incomingSquads?: number

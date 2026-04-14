@@ -34,7 +34,6 @@ export interface MovementCapabilities {
   canRam: boolean
   hasTreads: boolean
   canSecondMove: boolean
-  canCrossRidgelines: boolean
 }
 
 export interface MovementPlan {
@@ -113,7 +112,6 @@ function getCapabilities(unit: GameUnit): MovementCapabilities {
     canRam: getUnitDefinition(unit.type).abilities.canRam === true,
     hasTreads: hasTreads(unit),
     canSecondMove: canUnitSecondMove(unit.type),
-    canCrossRidgelines: canUnitCrossRidgelines(unit.type),
   }
 }
 
@@ -283,7 +281,6 @@ function validateMovePlan(
     from: unit.position,
     to: command.to,
     movementAllowance: allowance.movementAllowance,
-    canCrossRidgelines: capabilities.canCrossRidgelines,
     movingRole: role,
     movingUnitType: unit.type,
   })

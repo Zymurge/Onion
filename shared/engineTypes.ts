@@ -33,7 +33,6 @@ export interface UnitAbilities {
   terrainRules?: Record<string, UnitTerrainRule>
   ramProfile?: RamProfile
   maxStacks: number
-  canCrossRidgelines?: boolean
   isArmor?: boolean
   immobile?: boolean
 }

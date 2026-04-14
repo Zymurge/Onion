@@ -1,8 +1,8 @@
 # Shared Rules Platform Refactor Spec
 
-**Status: In Progress (April 2026)**
+**Status: Complete (April 2026)**
 
-Status: Phase 3 complete
+Status: Phase 4 complete
 Date: 2026-04-13
 Branch: `feature/shared-rules-platform-refactor`
 
@@ -109,6 +109,20 @@ Minimum shape:
 
 That bundle should be stable enough to serialize later, even if it is still authored in TypeScript for now.
 
+Canonical boundary:
+
+1. `shared/staticRules.ts` is the current bundle-of-record
+2. `ONION_STATIC_RULES` is the export consumers should depend on when they need canonical static gameplay rules
+3. the bundle currently includes unit definitions and terrain rules only
+4. future serialization work should transform this bundle, not rebuild equivalent rules from engine modules
+
+Serialization contract:
+
+1. static bundle content may describe unit stats, terrain interactions, stack limits, target restrictions, and ram profiles
+2. static bundle content must not include live game state such as positions, statuses, spent movement, or phase progression
+3. pure shared calculators may depend on the bundle directly
+4. engine modules should adapt live state into calculator inputs and apply outputs, but not redefine static rules
+
 ### Shared Movement Rules API
 
 Add a pure rules-query layer that owns questions like:
@@ -197,6 +211,8 @@ Exit criteria:
 
 ### Phase 4: Schema-Ready Cleanup
 
+Status: Complete on 2026-04-13
+
 Deliverables:
 
 1. normalize any remaining rule shapes that still depend on engine-specific state objects
@@ -226,4 +242,4 @@ Recommended test order:
 - [x] Extract shared occupancy and stack rules out of `shared/movePlanner.ts`
 - [x] Update engine movement validation to use shared movement-rule queries
 - [x] Add a pure shared ramming calculator and migrate engine movement to it
-- [ ] Document the final canonical static rules bundle and schema-ready boundary
+- [x] Document the final canonical static rules bundle and schema-ready boundary

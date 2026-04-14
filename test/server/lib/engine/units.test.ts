@@ -255,7 +255,7 @@ describe('getUnitDefinition', () => {
 
   describe('LittlePigs (Infantry)', () => {
     it('can cross ridgelines', () => {
-      expect(getUnitDefinition('LittlePigs').abilities.canCrossRidgelines).toBe(true)
+	  expect(getUnitDefinition('LittlePigs').abilities.terrainRules?.ridgeline?.canCross).toBe(true)
     })
 
     it('has maxStacks of 3', () => {

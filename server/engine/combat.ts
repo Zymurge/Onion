@@ -13,11 +13,10 @@ import {
   createCombatCalculator,
   calculateOdds as sharedCalculateOdds,
   type CombatCalculatorInput,
-  type CombatStaticRules,
 } from '../../shared/combatCalculator.js'
+import { ONION_STATIC_RULES } from '../../shared/staticRules.js'
 import { isTargetAllowedByRules, resolveUnitTargetRules, resolveWeaponTargetRules } from '../../shared/targetRules.js'
 import { getReadyWeapons, getUnitDefense, getWeaponDefense, destroyWeapon } from './units.js'
-import { getAllUnitDefinitions } from './units.js'
 import type { GameUnit, OnionUnit, DefenderUnit, EngineGameState } from './units.js'
 
 /**
@@ -111,14 +110,7 @@ export interface CombatExecutionResult {
 
 type FireCommand = Extract<Command, { type: 'FIRE' }>
 
-const COMBAT_STATIC_RULES: CombatStaticRules = {
-  unitDefinitions: getAllUnitDefinitions(),
-  terrainRules: {
-    clear: { terrainType: 'clear' },
-    ridgeline: { terrainType: 'ridgeline', defenseBonus: 1 },
-    crater: { terrainType: 'crater' },
-  },
-}
+const COMBAT_STATIC_RULES = ONION_STATIC_RULES
 
 const combatCalculator = createCombatCalculator(COMBAT_STATIC_RULES)
 

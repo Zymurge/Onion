@@ -40,7 +40,6 @@ describe('movePlanner', () => {
 			from: { q: 1, r: 1 },
 			to: { q: 2, r: 1 },
 			movementAllowance: 1,
-			canCrossRidgelines: false,
 			movingRole: 'defender',
 			movingUnitType: 'Puss',
 		})
@@ -58,7 +57,6 @@ describe('movePlanner', () => {
 			from: { q: 1, r: 1 },
 			to: { q: 0, r: 2 },
 			movementAllowance: 1,
-			canCrossRidgelines: false,
 			movingRole: 'defender',
 			movingUnitType: 'Puss',
 		})
@@ -76,7 +74,6 @@ describe('movePlanner', () => {
 			from: { q: 1, r: 1 },
 			to: { q: 2, r: 1 },
 			movementAllowance: 2,
-			canCrossRidgelines: true,
 			movingRole: 'defender',
 			movingUnitType: 'LittlePigs',
 		})
@@ -94,7 +91,6 @@ describe('movePlanner', () => {
 			from: { q: 1, r: 1 },
 			to: { q: 2, r: 2 },
 			movementAllowance: 3,
-			canCrossRidgelines: true,
 			movingRole: 'defender',
 			movingUnitType: 'Puss',
 		})
@@ -115,7 +111,6 @@ describe('movePlanner', () => {
 			from: { q: 1, r: 1 },
 			to: { q: 3, r: 1 },
 			movementAllowance: 3,
-			canCrossRidgelines: false,
 			movingRole: 'defender',
 			movingUnitType: 'Puss',
 		})
@@ -136,7 +131,6 @@ describe('movePlanner', () => {
 			from: { q: 1, r: 1 },
 			to: { q: 2, r: 1 },
 			movementAllowance: 1,
-			canCrossRidgelines: false,
 			movingRole: 'defender',
 			movingUnitType: 'Puss',
 		})
@@ -157,7 +151,6 @@ describe('movePlanner', () => {
 			from: { q: 1, r: 1 },
 			to: { q: 2, r: 1 },
 			movementAllowance: 1,
-			canCrossRidgelines: false,
 			movingRole: 'defender',
 			movingUnitType: 'LittlePigs',
 		})
@@ -178,7 +171,6 @@ describe('movePlanner', () => {
 			from: { q: 1, r: 1 },
 			to: { q: 3, r: 1 },
 			movementAllowance: 3,
-			canCrossRidgelines: false,
 			movingRole: 'onion',
 			movingUnitType: 'TheOnion',
 		})
@@ -195,7 +187,6 @@ describe('movePlanner', () => {
 			map: clearMap,
 			from: { q: 1, r: 1 },
 			movementAllowance: 1,
-			canCrossRidgelines: false,
 			movingRole: 'defender',
 			movingUnitType: 'Puss',
 		})
@@ -214,7 +205,6 @@ describe('movePlanner', () => {
 			map: terrainMap,
 			from: { q: 1, r: 1 },
 			movementAllowance: 1,
-			canCrossRidgelines: false,
 			movingRole: 'defender',
 			movingUnitType: 'Puss',
 		})
@@ -231,7 +221,6 @@ describe('movePlanner', () => {
 			},
 			from: { q: 1, r: 1 },
 			movementAllowance: 3,
-			canCrossRidgelines: false,
 			movingRole: 'defender',
 			movingUnitType: 'Puss',
 		})
@@ -249,7 +238,6 @@ describe('movePlanner', () => {
 			},
 			from: { q: 1, r: 1 },
 			movementAllowance: 2,
-			canCrossRidgelines: false,
 			movingRole: 'defender',
 			movingUnitType: 'Puss',
 		})

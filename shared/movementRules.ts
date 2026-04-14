@@ -29,7 +29,7 @@ export function canUnitCrossRidgeline(unitType: string): boolean {
 		return false
 	}
 
-	return definition.abilities.terrainRules?.ridgeline?.canCross === true || definition.abilities.canCrossRidgelines === true
+	return definition.abilities.terrainRules?.ridgeline?.canCross === true
 }
 
 export function canUnitAccessTerrainCover(unitType: string, terrainType: TerrainType): boolean {

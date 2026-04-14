@@ -117,17 +117,6 @@ function movementAllowanceFor(state: any, unitId: string): number {
   return definition?.movement ?? 0
 }
 
-function canCrossRidgelines(state: any, unitId: string): boolean {
-  if (unitId === state.onion.id) {
-    return true
-  }
-
-  const unit = state.defenders[unitId]
-  if (!unit) return false
-  const definition = getUnitDefinition(unit.type)
-  return definition?.abilities.canCrossRidgelines === true
-}
-
 function buildMoveMapSnapshot(map: ScenarioMap, state: any, unitId: string): MoveMapSnapshot {
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
     ...(state.onion.id !== unitId
@@ -176,7 +165,6 @@ export function chooseReachableMoveToward(
     map: moveMap,
     from: unit.position,
     movementAllowance,
-    canCrossRidgelines: canCrossRidgelines(state, unitId),
     movingRole: unitId === state.onion.id ? 'onion' : 'defender',
     movingUnitType: unit.type,
     incomingSquads: unit.squads,

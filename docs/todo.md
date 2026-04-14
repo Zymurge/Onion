@@ -5,8 +5,8 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [ ] Shared rules platform consolidation
-  - [ ] Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema later.
+- [x] Shared rules platform consolidation
+  - [x] Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema later.
   - [x] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
   - [x] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
 
@@ -18,7 +18,6 @@ break down into features/tasks as needed.
 - [ ] JWT authentication (migrate to @fastify/jwt)
 - [ ] Game lobby for creation and joining (self-service matchmaking)
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
-- [ ] Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema later
 
 ## Features / Work Items
 
