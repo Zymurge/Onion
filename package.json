@@ -19,7 +19,7 @@
     "web:build": "pnpm --dir web build",
     "web:preview": "pnpm --dir web preview",
     "web:lint": "pnpm --dir web lint",
-    "build": "tsc",
+    "build": "tsc && node scripts/write-dist-package-json.mjs",
     "start:cli": "node dist/server/cli/index.js",
     "start": "node dist/server/index.js",
     "test": "vitest run",
