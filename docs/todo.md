@@ -5,6 +5,11 @@ break down into features/tasks as needed.
 
 ## In progress
 
+- [x] Shared rules platform consolidation
+  - [x] Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema later.
+  - [x] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
+  - [x] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
+
 ## Epics / Major Work
 
 - [ ] Improve error handling (UI and backend)
@@ -13,12 +18,15 @@ break down into features/tasks as needed.
 - [ ] JWT authentication (migrate to @fastify/jwt)
 - [ ] Game lobby for creation and joining (self-service matchmaking)
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
-- [ ] Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema later
 
 ## Features / Work Items
 
-- [ ] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
-- [ ] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
+- [ ] Consolidate shared pure tests under one directory and normalize aliases/import paths as part of that cleanup.
+- [ ] Normalize imports across all server code so shared and server modules use aliases consistently.
+- [ ] Improve debug folding so protocol entries preserve full detail instead of collapsing the fetched response payloads.
+- [ ] Add more robust server-side logging that includes event details for MOVE and FIRE outcomes.
+- [ ] Add event-driven toasts for inactive players so the non-active client can surface actions taken by the other side (for example: MOVE ram results, combat outcomes, unit destruction, and phase changes).
+  - [ ] Define which events should trigger passive toasts, how they are deduplicated, and how they should appear when the player is not the active actor.
 
 ## Done
 

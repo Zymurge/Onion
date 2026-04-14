@@ -1,28 +1,12 @@
 import type { TurnPhase } from './types/index.js'
 import { onionMovementAllowance } from './movementAllowance.js'
+import { getAllUnitDefinitions } from './unitDefinitions.js'
+import { canUnitCrossRidgeline } from './movementRules.js'
 
-type MovementProfile = {
-	movement: number
-	canCrossRidgelines?: boolean
-	secondMoveAllowance?: number
-	secondMove?: boolean
-	immobile?: boolean
-}
+const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
-const MOVEMENT_PROFILES: Record<string, MovementProfile> = {
-	TheOnion: { movement: 3, canCrossRidgelines: true },
-	BigBadWolf: { movement: 4, secondMoveAllowance: 3, secondMove: true },
-	Puss: { movement: 3 },
-	Witch: { movement: 2 },
-	LordFarquaad: { movement: 0, immobile: true },
-	Pinocchio: { movement: 2 },
-	Dragon: { movement: 5 },
-	LittlePigs: { movement: 1, canCrossRidgelines: true },
-	Castle: { movement: 0, immobile: true },
-}
-
-function getProfile(unitType: string): MovementProfile {
-	return MOVEMENT_PROFILES[unitType] ?? { movement: 0 }
+function getDefinition(unitType: string) {
+	return UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]
 }
 
 function movementSpentKey(phase: TurnPhase, unitId: string): string {
@@ -30,19 +14,23 @@ function movementSpentKey(phase: TurnPhase, unitId: string): string {
 }
 
 export function canUnitCrossRidgelines(unitType: string): boolean {
-	return getProfile(unitType).canCrossRidgelines === true
+	return canUnitCrossRidgeline(unitType)
+}
+
+export function getUnitRamCapacity(unitType: string): number {
+	return getDefinition(unitType)?.abilities.ramCapacity ?? 2
 }
 
 export function canUnitSecondMove(unitType: string): boolean {
-	return getProfile(unitType).secondMove === true
+	return getDefinition(unitType)?.abilities.secondMove === true
 }
 
 export function isUnitImmobile(unitType: string): boolean {
-	return getProfile(unitType).immobile === true
+	return getDefinition(unitType)?.abilities.immobile === true
 }
 
 export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, treads?: number): number {
-	const profile = getProfile(unitType)
+	const definition = getDefinition(unitType)
 
 	if (unitType === 'TheOnion') {
 		if (phase !== 'ONION_MOVE') {
@@ -53,14 +41,14 @@ export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, tre
 	}
 
 	if (phase === 'GEV_SECOND_MOVE') {
-		return canUnitSecondMove(unitType) ? profile.secondMoveAllowance ?? 0 : 0
+		return canUnitSecondMove(unitType) ? definition?.abilities.secondMoveAllowance ?? 0 : 0
 	}
 
 	if (phase !== 'DEFENDER_MOVE') {
 		return 0
 	}
 
-	return profile.movement
+	return definition?.movement ?? 0
 }
 
 type MovementSpentState = {

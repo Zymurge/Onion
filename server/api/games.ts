@@ -264,6 +264,65 @@ function buildCombatEvents(
   return events
 }
 
+function buildMoveEvents(
+  startSeq: number,
+  moveUnitId: string,
+  command: Extract<Command, { type: 'MOVE' }>,
+  result: ReturnType<typeof executeUnitMovement>,
+  state: any,
+): EventEnvelope[] {
+  const timestamp = new Date().toISOString()
+  let seq = startSeq
+  const onionUnitId = state.onion.id
+  const canonicalMoveUnitId = moveUnitId
+  const isOnionMove = canonicalMoveUnitId === onionUnitId
+  const events: EventEnvelope[] = [
+    {
+      seq: seq++,
+      type: isOnionMove ? 'ONION_MOVED' : 'UNIT_MOVED',
+      timestamp,
+      ...(isOnionMove ? { to: command.to } : { unitId: canonicalMoveUnitId, to: command.to }),
+    },
+  ]
+
+  const rammedUnitIds = result.rammedUnitIds ?? []
+  const destroyedUnitIds = result.destroyedUnits ?? []
+  if (rammedUnitIds.length > 0 || destroyedUnitIds.length > 0 || (result.treadDamage ?? 0) > 0) {
+    events.push({
+      seq: seq++,
+      type: 'MOVE_RESOLVED',
+      timestamp,
+      unitId: canonicalMoveUnitId,
+      rammedUnitIds,
+      destroyedUnitIds,
+      treadDamage: result.treadDamage ?? 0,
+    })
+  }
+
+  if (result.treadDamage !== undefined && result.treadDamage > 0) {
+    events.push({
+      seq: seq++,
+      type: 'ONION_TREADS_LOST',
+      timestamp,
+      amount: result.treadDamage,
+      remaining: state.onion.treads,
+    })
+  }
+
+  for (const destroyedId of destroyedUnitIds) {
+    events.push({
+      seq: seq++,
+      type: 'UNIT_STATUS_CHANGED',
+      timestamp,
+      unitId: destroyedId,
+      from: 'operational',
+      to: 'destroyed',
+    })
+  }
+
+  return events
+}
+
 function logSentEvents(gameId: number, actionType: string, events: EventEnvelope[]) {
   logger.debug(
     {
@@ -895,31 +954,8 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
         }
 
-        const timestamp = new Date().toISOString()
-        let nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
-        const eventType = command.unitId === 'onion' ? 'ONION_MOVED' : 'UNIT_MOVED'
-        newEvents = [{ seq: nextSeq++, type: eventType, timestamp, ...(command.unitId === 'onion' ? { to: command.to } : { unitId: command.unitId, to: command.to }) }]
-
-        if (result.treadDamage !== undefined && result.treadDamage > 0) {
-          newEvents.push({
-            seq: nextSeq++,
-            type: 'ONION_TREADS_LOST',
-            timestamp,
-            amount: result.treadDamage,
-            remaining: state.onion.treads,
-          })
-        }
-
-        for (const destroyedId of result.destroyedUnits ?? []) {
-          newEvents.push({
-            seq: nextSeq++,
-            type: 'UNIT_STATUS_CHANGED',
-            timestamp,
-            unitId: destroyedId,
-            from: 'operational',
-            to: 'destroyed',
-          })
-        }
+        const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
+        newEvents = buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state)
 
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner

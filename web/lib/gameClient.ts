@@ -23,6 +23,15 @@ export type CombatResolution = {
 	details: string[]
 }
 
+export type RamResolution = {
+	actionType: 'MOVE'
+	unitId: string
+	rammedUnitIds: string[]
+	destroyedUnitIds: string[]
+	treadDamage?: number
+	details: string[]
+}
+
 export type GameSnapshot = {
 	gameId: number
 	phase: TurnPhase
@@ -35,6 +44,7 @@ export type GameSnapshot = {
 	movementRemainingByUnit?: Record<string, number>
 	scenarioMap?: ScenarioMapSnapshot
 	combatResolution?: CombatResolution
+	ramResolution?: RamResolution
 }
 
 export type GameSessionContext = {

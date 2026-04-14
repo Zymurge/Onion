@@ -295,12 +295,14 @@ describe('http game client adapter contract', () => {
 				ok: true,
 				seq: 48,
 				events: [
-					{ seq: 48, type: 'UNIT_MOVED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'wolf-2', to: { q: 7, r: 6 } },
+					{ seq: 48, type: 'MOVE_RESOLVED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'onion-1', rammedUnitIds: ['d1'], destroyedUnitIds: ['d1'], treadDamage: 1 },
+					{ seq: 49, type: 'ONION_TREADS_LOST', timestamp: '2026-03-26T12:00:00.000Z', amount: 1, remaining: 44 },
+					{ seq: 50, type: 'UNIT_STATUS_CHANGED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'd1', from: 'operational', to: 'destroyed' },
 				],
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
 				movementRemainingByUnit: { 'wolf-2': 3 },
 				turnNumber: 8,
-				eventSeq: 48,
+				eventSeq: 50,
 			}))
 
 		const client = createHttpGameClient({
@@ -310,12 +312,20 @@ describe('http game client adapter contract', () => {
 		})
 
 		await client.getState(123)
-		await expect(client.submitAction(123, { type: 'MOVE', unitId: 'wolf-2', to: { q: 7, r: 6 } })).resolves.toEqual(
+		await expect(client.submitAction(123, { type: 'MOVE', unitId: 'onion', to: { q: 7, r: 6 } })).resolves.toEqual(
 			expect.objectContaining({
 				gameId: 123,
 				phase: 'DEFENDER_MOVE',
-				lastEventSeq: 48,
+				lastEventSeq: 50,
 				movementRemainingByUnit: { 'wolf-2': 3 },
+				ramResolution: {
+					actionType: 'MOVE',
+					unitId: 'onion-1',
+					rammedUnitIds: ['d1'],
+					destroyedUnitIds: ['d1'],
+					treadDamage: 1,
+					details: ['Rammed units: d1', 'Treads lost: 1 (remaining 44)', 'Destroyed unit: d1 operational → destroyed'],
+				},
 			}),
 		)
 
@@ -327,7 +337,7 @@ describe('http game client adapter contract', () => {
 					authorization: 'Bearer stub.token',
 					'content-type': 'application/json',
 				}),
-				body: JSON.stringify({ type: 'MOVE', unitId: 'wolf-2', to: { q: 7, r: 6 } }),
+				body: JSON.stringify({ type: 'MOVE', unitId: 'onion', to: { q: 7, r: 6 } }),
 			}),
 		)
 	})

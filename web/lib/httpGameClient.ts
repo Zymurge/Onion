@@ -12,6 +12,7 @@ import type { GameRequestTransport } from './gameSessionTypes'
 import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../shared/apiProtocol'
 import type { GameState, TurnPhase } from '../../shared/types/index'
 import { buildCombatResolution } from './combatResolution'
+import { buildRamResolution } from './moveResolution'
 
 type ActionSuccessResponse = {
 	ok: true
@@ -140,6 +141,7 @@ function mapActionSnapshot(
 		authoritativeState: response.state ?? fallback.authoritativeState,
 		movementRemainingByUnit: response.movementRemainingByUnit ?? fallback.movementRemainingByUnit,
 		combatResolution: buildCombatResolution(response.events),
+		ramResolution: buildRamResolution(response.events),
 	})
 }
 

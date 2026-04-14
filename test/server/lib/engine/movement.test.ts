@@ -397,7 +397,6 @@ describe('executeUnitMovement', () => {
         canRam: false,
         hasTreads: false,
         canSecondMove: false,
-        canCrossRidgelines: false,
       },
       ...overrides,
     }
@@ -428,7 +427,6 @@ describe('executeUnitMovement', () => {
         canRam: true,
         hasTreads: true,
         canSecondMove: false,
-        canCrossRidgelines: true,
       },
     })
 

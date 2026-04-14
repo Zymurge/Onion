@@ -1,126 +1,14 @@
 /**
  * Unit definitions and capabilities for the Onion game engine.
- *
- * Defines all unit types, their weapons, special abilities, and game mechanics.
  */
 
-import type { HexPos, UnitStatus, TurnPhase } from '../../shared/types/index.js'
-import type { TargetRules } from '../../shared/targetRules.js'
+import type { HexPos, UnitStatus, TurnPhase, Weapon, TargetRules } from '../../shared/types/index.js'
+import type { UnitDefinition, UnitType } from '../../shared/engineTypes.js'
+import { getAllUnitDefinitions as getSharedUnitDefinitions } from '../../shared/unitDefinitions.js'
 import logger from '../logger.js'
 import { onionMovementAllowance } from '../../shared/movementAllowance.js'
-
-/**
- * All possible unit types in the game.
- */
-export type UnitType =
-  | 'TheOnion'      // Super-unit with multiple weapon systems
-  | 'BigBadWolf'    // GEV - can move and fire in same turn
-  | 'Puss'          // Heavy Tank
-  | 'Witch'         // Missile Tank
-  | 'LordFarquaad'  // Howitzer - immobile artillery
-  | 'Pinocchio'     // Light Tank
-  | 'Dragon'        // Superheavy Tank
-  | 'LittlePigs'    // Infantry - can stack multiple squads
-  | 'Castle'        // Command Post - primary objective
-
-/**
- * Status that a weapon can have.
- */
-export type WeaponStatus = 'ready' | 'spent' | 'destroyed'
-
-/**
- * A weapon system that a unit can use to attack.
- */
-export interface Weapon {
-  /** Weapon identifier (e.g., 'main', 'secondary', 'ap', 'missile') */
-  id: string
-  /** Display name */
-  name: string
-  /** Attack strength */
-  attack: number
-  /** Range in hexes (0 for melee-only) */
-  range: number
-  /** Defense value when this weapon is targeted */
-  defense: number
-  /** Current status of this weapon */
-  status: WeaponStatus
-  /** Whether this weapon can be individually targeted (true for Onion subsystems) */
-  individuallyTargetable: boolean
-  /** Optional target restrictions for this weapon. */
-  targetRules?: TargetRules
-}
-
-/**
- * Special abilities that units can have.
- */
-export interface UnitTerrainRule {
-  /** Whether the unit can enter or cross this terrain feature. */
-  canCross?: boolean
-  /** Whether the unit can benefit from this terrain's defense cover. */
-  canAccessCover?: boolean
-  /** Whether the unit ignores underlying terrain while on this feature. */
-  ignoresUnderlyingTerrain?: boolean
-}
-
-/**
- * Structured outcome for ram resolution against a unit.
- */
-export interface RamProfile {
-  /** Result category when rammed. */
-  outcome: 'destroyed' | 'disabled' | 'tread-loss' | 'special'
-  /** Tread cost applied to the ramming unit when outcome is tread-loss. */
-  treadLoss?: 0 | 1 | 2 | 3
-  /** Inclusive die range for a disabled outcome. */
-  disableRollRange?: [number, number]
-  /** Freeform note for exceptional cases such as special attack resolution. */
-  specialNote?: string
-}
-
-/**
- * Special abilities that units can have.
- */
-export interface UnitAbilities {
-  /** Can move and fire in the same turn (GEV) */
-  secondMove?: boolean
-  /** Movement allowance for the GEV second-move phase (hexes) */
-  secondMoveAllowance?: number
-  /** Can move through enemy units and ram them */
-  canRam?: boolean
-  /** Per-terrain capability rules for movement and cover. */
-  terrainRules?: Record<string, UnitTerrainRule>
-  /** Structured ramming outcome for this unit when it is rammed. */
-  ramProfile?: RamProfile
-  /** Maximum stacks per hex (1 for most units, 3 for infantry) */
-  maxStacks: number
-  /** Can cross ridgelines (Onion) */
-  canCrossRidgelines?: boolean
-  /** Is an armored unit (affects ramming costs) */
-  isArmor?: boolean
-  /** Immobile once placed (artillery) - for code readability */
-  immobile?: boolean
-}
-
-/**
- * Complete unit definition combining weapons and abilities.
- */
-export interface UnitDefinition {
-  /** Display name */
-  name: string
-  /** Unit type identifier */
-  type: UnitType
-  /** Movement allowance in hexes */
-  movement: number
-  /** Base defense rating (for infantry: defense per squad) */
-  defense: number
-  /** Cost in victory points (for defender units) */
-  cost?: number
-  /** Special abilities */
-  abilities: UnitAbilities
-  /** Weapon systems */
-  weapons: Weapon[]
-  /** Optional target restrictions for this unit. */
-  targetRules?: TargetRules
-}
+export type { RamProfile, UnitAbilities, UnitTerrainRule, UnitDefinition, UnitType, WeaponStatus } from '../../shared/engineTypes.js'
+export type { Weapon } from '../../shared/types/index.js'
 
 /**
  * A game unit with current state.
@@ -166,7 +54,7 @@ export interface EngineGameState {
   onion: OnionUnit
   /** All defender units, keyed by unit ID */
   defenders: Record<string, DefenderUnit>
-  /** Number of rams the Onion has performed this turn (max 2) */
+  /** Number of rams the Onion has performed this turn */
   ramsThisTurn: number
   /** Movement already spent this turn, keyed by phase and unit ID */
   movementSpent?: Record<string, number>
@@ -197,7 +85,7 @@ export function getUnitDefinition(type: UnitType | string): UnitDefinition | und
  * @returns Map of unit type to definition
  */
 export function getAllUnitDefinitions(): Record<UnitType, UnitDefinition> {
-  return { ...UNIT_DEFINITIONS }
+  return getSharedUnitDefinitions()
 }
 
 export { onionMovementAllowance }
@@ -296,136 +184,4 @@ export function destroyWeapon(unit: GameUnit, weaponId: string): boolean {
 
 // ─── Unit Definitions ────────────────────────────────────────────────────────
 
-function makeWeapon(
-  id: string,
-  name: string,
-  attack: number,
-  range: number,
-  defense: number,
-  individuallyTargetable = false,
-  targetRules?: TargetRules
-): Weapon {
-  return { id, name, attack, range, defense, status: 'ready', individuallyTargetable, targetRules }
-}
-
-const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
-  Puss: {
-    name: 'Puss',
-    type: 'Puss',
-    movement: 3,
-    defense: 3,
-    cost: 1,
-    abilities: { maxStacks: 1, isArmor: true },
-    weapons: [makeWeapon('main', 'Main Gun', 4, 2, 3)],
-  },
-
-  BigBadWolf: {
-    name: 'Big Bad Wolf',
-    type: 'BigBadWolf',
-    movement: 4,
-    defense: 4,
-    cost: 1,
-    abilities: { maxStacks: 1, isArmor: true, secondMove: true, secondMoveAllowance: 3 },
-    weapons: [makeWeapon('main', 'Cannon', 2, 2, 4)],
-  },
-
-  Witch: {
-    name: 'Witch',
-    type: 'Witch',
-    movement: 2,
-    defense: 2,
-    cost: 1,
-    abilities: { maxStacks: 1, isArmor: true },
-    weapons: [makeWeapon('main', 'Missile Launcher', 3, 4, 2)],
-  },
-
-  LordFarquaad: {
-    name: 'Lord Farquaad',
-    type: 'LordFarquaad',
-    movement: 0,
-    defense: 0,
-    cost: 2,
-    abilities: { maxStacks: 1, immobile: true },
-    weapons: [makeWeapon('main', 'Howitzer', 6, 8, 0)],
-  },
-
-  Pinocchio: {
-    name: 'Pinocchio',
-    type: 'Pinocchio',
-    movement: 2,
-    defense: 3,
-    cost: 0.5,
-    abilities: { maxStacks: 1, isArmor: true },
-    weapons: [makeWeapon('main', 'Light Gun', 2, 2, 3)],
-  },
-
-  Dragon: {
-    name: 'Dragon',
-    type: 'Dragon',
-    movement: 5,
-    defense: 3,
-    cost: 2,
-    abilities: { maxStacks: 1, isArmor: true },
-    weapons: [
-      makeWeapon('main_1', 'Heavy Gun A', 6, 3, 3),
-      makeWeapon('main_2', 'Heavy Gun B', 6, 3, 3),
-    ],
-  },
-
-  LittlePigs: {
-    name: 'Little Pigs',
-    type: 'LittlePigs',
-    movement: 1,
-    defense: 1,     // per squad; getUnitDefense multiplies by unit.squads
-    cost: 1,        // per 3 squads
-    abilities: {
-      maxStacks: 3,
-      canCrossRidgelines: true,
-      terrainRules: {
-        ridgeline: { canCross: true, canAccessCover: true },
-      },
-    },
-    weapons: [makeWeapon('rifle', 'Rifle', 1, 1, 1)],
-  },
-
-  Castle: {
-    name: 'Castle',
-    type: 'Castle',
-    movement: 0,
-    defense: 0,
-    abilities: { maxStacks: 1 },
-    weapons: [],
-  },
-
-  TheOnion: {
-    name: 'The Onion',
-    type: 'TheOnion',
-    movement: 3,    // max MA (at 31–45 treads); onionMovementAllowance() gives actual MA
-    defense: 0,     // Onion has no unit-level defense; each subsystem has its own
-    abilities: {
-      maxStacks: 1,
-      canCrossRidgelines: true,
-      canRam: true,
-      terrainRules: {
-        ridgeline: { canCross: true },
-      },
-    },
-    weapons: [
-      makeWeapon('main', 'Main Battery', 4, 3, 4, true),
-      makeWeapon('secondary_1', 'Secondary Battery', 3, 2, 3, true),
-      makeWeapon('secondary_2', 'Secondary Battery', 3, 2, 3, true),
-      makeWeapon('secondary_3', 'Secondary Battery', 3, 2, 3, true),
-      makeWeapon('secondary_4', 'Secondary Battery', 3, 2, 3, true),
-      makeWeapon('ap_1', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
-      makeWeapon('ap_2', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
-      makeWeapon('ap_3', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
-      makeWeapon('ap_4', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
-      makeWeapon('ap_5', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
-      makeWeapon('ap_6', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
-      makeWeapon('ap_7', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
-      makeWeapon('ap_8', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] }),
-      makeWeapon('missile_1', 'Missile', 6, 5, 3, true),
-      makeWeapon('missile_2', 'Missile', 6, 5, 3, true),
-    ],
-  },
-}
+const UNIT_DEFINITIONS = getSharedUnitDefinitions()

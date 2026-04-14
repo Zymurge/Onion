@@ -162,7 +162,6 @@ export function createMovePlan(overrides: Partial<Record<string, unknown>> = {})
       canRam: true,
       hasTreads: true,
       canSecondMove: false,
-      canCrossRidgelines: true,
     },
     ...overrides,
   }

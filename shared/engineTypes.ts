@@ -22,20 +22,18 @@ export interface UnitTerrainRule {
 }
 
 export interface RamProfile {
-  outcome: 'destroyed' | 'disabled' | 'tread-loss' | 'special'
   treadLoss?: 0 | 1 | 2 | 3
-  disableRollRange?: [number, number]
-  specialNote?: string
+  destroyOnRollAtMost?: number
 }
 
 export interface UnitAbilities {
   secondMove?: boolean
   secondMoveAllowance?: number
   canRam?: boolean
+  ramCapacity?: number
   terrainRules?: Record<string, UnitTerrainRule>
   ramProfile?: RamProfile
   maxStacks: number
-  canCrossRidgelines?: boolean
   isArmor?: boolean
   immobile?: boolean
 }

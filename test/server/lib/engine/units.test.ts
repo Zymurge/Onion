@@ -16,6 +16,7 @@ import {
   canTargetWeapon,
   destroyWeapon,
 } from '#server/engine/units'
+import { getAllUnitDefinitions as getSharedUnitDefinitions } from '#shared/unitDefinitions'
 // ─── Logger Mocking ─────────────────────────────────────────────────────────
 vi.mock('#server/logger', () => ({
   default: {
@@ -254,7 +255,7 @@ describe('getUnitDefinition', () => {
 
   describe('LittlePigs (Infantry)', () => {
     it('can cross ridgelines', () => {
-      expect(getUnitDefinition('LittlePigs').abilities.canCrossRidgelines).toBe(true)
+	  expect(getUnitDefinition('LittlePigs').abilities.terrainRules?.ridgeline?.canCross).toBe(true)
     })
 
     it('has maxStacks of 3', () => {
@@ -375,6 +376,18 @@ describe('getAllUnitDefinitions', () => {
     for (const [key, def] of Object.entries(all)) {
       expect(def.type).toBe(key)
     }
+  })
+
+  it('mirrors the canonical shared definition source', () => {
+    expect(getAllUnitDefinitions()).toEqual(getSharedUnitDefinitions())
+  })
+
+  it('includes ram profiles in the shared definition source for rammed units', () => {
+    const shared = getSharedUnitDefinitions()
+
+    expect(shared.LittlePigs.abilities.ramProfile).toEqual({ treadLoss: 0, destroyOnRollAtMost: 4 })
+    expect(shared.Puss.abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
+    expect(shared.Dragon.abilities.ramProfile).toEqual({ treadLoss: 2, destroyOnRollAtMost: 4 })
   })
 })
 
