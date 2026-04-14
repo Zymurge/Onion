@@ -1,4 +1,11 @@
 import { getNeighbors, hexKey, type HexPos } from './hex.js'
+import {
+	canStopOnOccupiedHex,
+	canTraverseOccupiedHex,
+	getTerrainMoveCost,
+	type MoveOccupant,
+	type MoveRole,
+} from './movementRules.js'
 
 export type MoveMapSnapshot = {
 	width: number
@@ -22,9 +29,7 @@ export type ReachableMove = {
 
 type TerrainType = 'clear' | 'ridgeline' | 'crater'
 
-type MoveRole = 'onion' | 'defender'
-
-type Occupant = NonNullable<MoveMapSnapshot['occupiedHexes']>[number]
+type Occupant = MoveOccupant
 
 function terrainFromT(t: number): TerrainType {
 	if (t === 1) return 'ridgeline'
@@ -57,45 +62,6 @@ function getOccupiedLookup(map: MoveMapSnapshot): Map<string, Occupant[]> {
 	return lookup
 }
 
-function canTraverseOccupiedHex(movingRole: MoveRole, occupants: Occupant[]): boolean {
-	if (occupants.length === 0) {
-		return true
-	}
-
-	if (movingRole === 'onion') {
-		return occupants.some((occupant) => occupant.role === 'defender')
-	}
-
-	return occupants.every((occupant) => occupant.role === 'defender')
-}
-
-function canStopOnOccupiedHex(
-	movingRole: MoveRole,
-	movingUnitType: string,
-	occupants: Occupant[],
-	incomingSquads: number = 1
-): boolean {
-	if (occupants.length === 0) {
-		return true
-	}
-
-	if (movingRole === 'onion') {
-		return occupants.every((occupant) => occupant.role === 'defender')
-	}
-
-	const isLittlePigs = movingUnitType === 'LittlePigs'
-	if (!isLittlePigs) {
-		return false
-	}
-
-	if (!occupants.every((occupant) => occupant.role === 'defender' && occupant.unitType === 'LittlePigs')) {
-		return false
-	}
-
-	const destinationSquads = occupants.reduce((total, occupant) => total + (occupant.squads ?? 1), 0)
-	return incomingSquads + destinationSquads <= 3
-}
-
 function reconstructPath(prev: Map<string, HexPos | null>, from: HexPos, to: HexPos): HexPos[] {
 	const path: HexPos[] = []
 	let cursor: HexPos | null = to
@@ -112,7 +78,7 @@ function exploreReachableMoves(
 	map: MoveMapSnapshot,
 	from: HexPos,
 	movementAllowance: number,
-	canCrossRidgelines: boolean,
+	movingUnitType: string,
 	movingRole: MoveRole,
 ) {
 	const terrainLookup = getTerrainLookup(map)
@@ -135,7 +101,7 @@ function exploreReachableMoves(
 			if (!canTraverseOccupiedHex(movingRole, neighborOccupants)) continue
 
 			const terrain = terrainLookup.get(hexKey(neighbor)) ?? 'clear'
-			const stepCost = terrainCost(terrain, canCrossRidgelines)
+			const stepCost = getTerrainMoveCost(movingUnitType, terrain)
 			if (stepCost === null) continue
 
 			const newCost = cost + stepCost
@@ -190,12 +156,12 @@ export function findMovePath(input: {
 		if (
 			pos.q === input.to.q &&
 			pos.r === input.to.r &&
-			canStopOnOccupiedHex(
-				input.movingRole,
-				input.movingUnitType,
-				currentOccupants,
-				input.incomingSquads ?? 1
-			)
+			canStopOnOccupiedHex({
+				movingRole: input.movingRole,
+				movingUnitType: input.movingUnitType,
+				occupants: currentOccupants,
+				incomingSquads: input.incomingSquads ?? 1,
+			})
 		) {
 			return { found: true, path: reconstructPath(prev, input.from, input.to), cost }
 		}
@@ -206,7 +172,7 @@ export function findMovePath(input: {
 			if (!canTraverseOccupiedHex(input.movingRole, neighborOccupants)) continue
 
 			const terrain = terrainLookup.get(hexKey(neighbor)) ?? 'clear'
-			const stepCost = terrainCost(terrain, input.canCrossRidgelines)
+			const stepCost = getTerrainMoveCost(input.movingUnitType, terrain)
 			if (stepCost === null) continue
 
 			const newCost = cost + stepCost
@@ -233,7 +199,7 @@ export function listReachableMoves(input: {
 	movingUnitType: string
 	incomingSquads?: number
 }): ReachableMove[] {
-	const { dist, prev } = exploreReachableMoves(input.map, input.from, input.movementAllowance, input.canCrossRidgelines, input.movingRole)
+	const { dist, prev } = exploreReachableMoves(input.map, input.from, input.movementAllowance, input.movingUnitType, input.movingRole)
 	const occupiedLookup = getOccupiedLookup(input.map)
 
 	const moves: ReachableMove[] = []
@@ -243,7 +209,12 @@ export function listReachableMoves(input: {
 		const [q, r] = key.split(',').map(Number)
 		const to = { q, r }
 		const occupants = occupiedLookup.get(key) ?? []
-		if (!canStopOnOccupiedHex(input.movingRole, input.movingUnitType, occupants, input.incomingSquads ?? 1)) {
+		if (!canStopOnOccupiedHex({
+			movingRole: input.movingRole,
+			movingUnitType: input.movingUnitType,
+			occupants,
+			incomingSquads: input.incomingSquads ?? 1,
+		})) {
 			continue
 		}
 		moves.push({

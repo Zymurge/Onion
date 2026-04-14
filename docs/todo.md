@@ -5,6 +5,11 @@ break down into features/tasks as needed.
 
 ## In progress
 
+- [ ] Shared rules platform consolidation
+  - [ ] Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema later.
+  - [x] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
+  - [ ] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
+
 ## Epics / Major Work
 
 - [ ] Improve error handling (UI and backend)
@@ -17,7 +22,8 @@ break down into features/tasks as needed.
 
 ## Features / Work Items
 
-- [ ] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
+- [ ] Consolidate shared pure tests under one directory and normalize aliases/import paths as part of that cleanup.
+- [ ] Normalize imports across all server code so shared and server modules use aliases consistently.
 - [ ] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
 
 ## Done

@@ -78,7 +78,7 @@ describe('movePlanner', () => {
 			movementAllowance: 2,
 			canCrossRidgelines: true,
 			movingRole: 'defender',
-			movingUnitType: 'Puss',
+			movingUnitType: 'LittlePigs',
 		})
 
 		expect(result).toEqual({

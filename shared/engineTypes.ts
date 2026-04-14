@@ -22,10 +22,8 @@ export interface UnitTerrainRule {
 }
 
 export interface RamProfile {
-  outcome: 'destroyed' | 'disabled' | 'tread-loss' | 'special'
   treadLoss?: 0 | 1 | 2 | 3
-  disableRollRange?: [number, number]
-  specialNote?: string
+  destroyOnRollAtMost?: number
 }
 
 export interface UnitAbilities {

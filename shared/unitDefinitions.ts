@@ -20,7 +20,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movement: 3,
     defense: 3,
     cost: 1,
-    abilities: { maxStacks: 1, isArmor: true },
+    abilities: { maxStacks: 1, isArmor: true, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
     weapons: [makeWeapon('main', 'Main Gun', 4, 2, 3)],
   },
   BigBadWolf: {
@@ -29,7 +29,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movement: 4,
     defense: 4,
     cost: 1,
-    abilities: { maxStacks: 1, isArmor: true, secondMove: true, secondMoveAllowance: 3 },
+    abilities: { maxStacks: 1, isArmor: true, secondMove: true, secondMoveAllowance: 3, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
     weapons: [makeWeapon('main', 'Cannon', 2, 2, 4)],
   },
   Witch: {
@@ -38,7 +38,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movement: 2,
     defense: 2,
     cost: 1,
-    abilities: { maxStacks: 1, isArmor: true },
+    abilities: { maxStacks: 1, isArmor: true, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
     weapons: [makeWeapon('main', 'Missile Launcher', 3, 4, 2)],
   },
   LordFarquaad: {
@@ -47,7 +47,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movement: 0,
     defense: 0,
     cost: 2,
-    abilities: { maxStacks: 1, immobile: true },
+    abilities: { maxStacks: 1, immobile: true, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
     weapons: [makeWeapon('main', 'Howitzer', 6, 8, 0)],
   },
   Pinocchio: {
@@ -56,7 +56,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movement: 2,
     defense: 3,
     cost: 0.5,
-    abilities: { maxStacks: 1, isArmor: true },
+    abilities: { maxStacks: 1, isArmor: true, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
     weapons: [makeWeapon('main', 'Light Gun', 2, 2, 3)],
   },
   Dragon: {
@@ -65,7 +65,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movement: 5,
     defense: 3,
     cost: 2,
-    abilities: { maxStacks: 1, isArmor: true },
+    abilities: { maxStacks: 1, isArmor: true, ramProfile: { treadLoss: 2, destroyOnRollAtMost: 4 } },
     weapons: [
       makeWeapon('main_1', 'Heavy Gun A', 6, 3, 3),
       makeWeapon('main_2', 'Heavy Gun B', 6, 3, 3),
@@ -80,6 +80,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     abilities: {
       maxStacks: 3,
       canCrossRidgelines: true,
+      ramProfile: { treadLoss: 0, destroyOnRollAtMost: 4 },
       terrainRules: {
         ridgeline: { canCross: true, canAccessCover: true },
       },
@@ -91,7 +92,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     type: 'Castle',
     movement: 0,
     defense: 0,
-    abilities: { maxStacks: 1 },
+    abilities: { maxStacks: 1, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
     weapons: [],
   },
   TheOnion: {

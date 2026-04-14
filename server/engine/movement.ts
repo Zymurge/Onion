@@ -12,6 +12,7 @@ import type { GameMap } from './map.js'
 import { getUnitDefinition, isImmobile } from './units.js'
 import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from './units.js'
 import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner.js'
+import { getStopOnOccupiedHexFailure } from '../../shared/movementRules.js'
 import { canUnitCrossRidgelines, canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, spendUnitMovement } from '../../shared/unitMovement.js'
 
 /**
@@ -200,43 +201,51 @@ function validateDestinationStacking(
       unit.position.q === destination.q &&
       unit.position.r === destination.r,
   )
-
-  if (role === 'onion') {
-    if (defendersAtDestination.length > 0 && !capabilities.canRam) {
-      return { ok: false, code: 'HEX_OCCUPIED', error: 'Destination hex is occupied' }
-    }
-    return null
-  }
-
-  const onionOccupiesDestination =
-    state.onion.id !== movingUnit.id &&
+  const occupants = [
+    ...(state.onion.id !== movingUnit.id &&
     state.onion.status !== 'destroyed' &&
     state.onion.position.q === destination.q &&
     state.onion.position.r === destination.r
+      ? [{ q: destination.q, r: destination.r, role: 'onion' as const, unitType: state.onion.type, squads: 1 }]
+      : []),
+    ...defendersAtDestination.map((unit) => ({
+      q: unit.position.q,
+      r: unit.position.r,
+      role: 'defender' as const,
+      unitType: unit.type,
+      squads: unit.squads,
+    })),
+  ]
 
-  if (onionOccupiesDestination) {
-    return { ok: false, code: 'HEX_OCCUPIED', error: 'Destination hex is occupied by the Onion' }
-  }
-
-  if (movingUnit.type === 'LittlePigs') {
-    if (defendersAtDestination.some((unit) => unit.type !== 'LittlePigs')) {
-      return { ok: false, code: 'HEX_OCCUPIED', error: 'Little Pigs can only stack with other Little Pigs' }
-    }
-
-    const incomingSquads = movingUnit.squads ?? 1
-    const destinationSquads = defendersAtDestination.reduce((sum, unit) => sum + (unit.squads ?? 1), 0)
-    if (incomingSquads + destinationSquads > 3) {
-      return { ok: false, code: 'HEX_OCCUPIED', error: 'Little Pigs stack limit is 3 squads per hex' }
-    }
-
-    return null
-  }
-
-  if (defendersAtDestination.length > 0) {
+  if (role === 'onion' && occupants.length > 0 && !capabilities.canRam) {
     return { ok: false, code: 'HEX_OCCUPIED', error: 'Destination hex is occupied' }
   }
 
-  return null
+  const failure = getStopOnOccupiedHexFailure({
+    movingRole: role,
+    movingUnitType: movingUnit.type,
+    occupants,
+    incomingSquads: movingUnit.squads ?? 1,
+  })
+
+  if (failure === null) {
+    return null
+  }
+
+  if (failure === 'occupied-by-onion') {
+    return { ok: false, code: 'HEX_OCCUPIED', error: 'Destination hex is occupied by the Onion' }
+  }
+
+  if (failure === 'mixed-stack') {
+    return { ok: false, code: 'HEX_OCCUPIED', error: 'Little Pigs can only stack with other Little Pigs' }
+  }
+
+  if (failure === 'stack-limit') {
+    const maxStacks = getUnitDefinition(movingUnit.type).abilities.maxStacks
+    return { ok: false, code: 'HEX_OCCUPIED', error: `Little Pigs stack limit is ${maxStacks} squads per hex` }
+  }
+
+  return { ok: false, code: 'HEX_OCCUPIED', error: 'Destination hex is occupied' }
 }
 
 function validateMovePlan(
