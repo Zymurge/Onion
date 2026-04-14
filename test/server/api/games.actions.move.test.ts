@@ -226,7 +226,7 @@ describe('POST /games/:id/actions MOVE', () => {
     expect(body.winner).toBe('defender')
   })
 
-  it('emits ONION_TREADS_LOST and UNIT_STATUS_CHANGED events when a ram destroys a unit', async () => {
+  it('emits MOVE_RESOLVED, ONION_TREADS_LOST and UNIT_STATUS_CHANGED events when a ram destroys a unit', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
     const fiona = await register(app, 'fiona')
@@ -265,8 +265,14 @@ describe('POST /games/:id/actions MOVE', () => {
 
     const eventTypes = body.events.map((e: any) => e.type)
     expect(eventTypes[0]).toBe('ONION_MOVED')
+    expect(eventTypes[1]).toBe('MOVE_RESOLVED')
     expect(eventTypes).toContain('ONION_TREADS_LOST')
     expect(eventTypes).toContain('UNIT_STATUS_CHANGED')
+
+    const ramEvent = body.events.find((e: any) => e.type === 'MOVE_RESOLVED')
+    expect(ramEvent.rammedUnitIds).toEqual(['d1'])
+    expect(ramEvent.destroyedUnitIds).toEqual(['d1'])
+    expect(ramEvent.treadDamage).toBe(1)
 
     const treadEvent = body.events.find((e: any) => e.type === 'ONION_TREADS_LOST')
     expect(treadEvent.amount).toBe(1)
@@ -277,7 +283,7 @@ describe('POST /games/:id/actions MOVE', () => {
     expect(statusEvent.to).toBe('destroyed')
   })
 
-  it('emits only ONION_TREADS_LOST (no UNIT_STATUS_CHANGED) when ram does not destroy the unit', async () => {
+  it('emits MOVE_RESOLVED and ONION_TREADS_LOST (no UNIT_STATUS_CHANGED) when ram does not destroy the unit', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
     const fiona = await register(app, 'fiona')
@@ -316,8 +322,14 @@ describe('POST /games/:id/actions MOVE', () => {
 
     const eventTypes = body.events.map((e: any) => e.type)
     expect(eventTypes[0]).toBe('ONION_MOVED')
+    expect(eventTypes[1]).toBe('MOVE_RESOLVED')
     expect(eventTypes).toContain('ONION_TREADS_LOST')
     expect(eventTypes).not.toContain('UNIT_STATUS_CHANGED')
+
+    const ramEvent = body.events.find((e: any) => e.type === 'MOVE_RESOLVED')
+    expect(ramEvent.rammedUnitIds).toEqual(['d1'])
+    expect(ramEvent.destroyedUnitIds).toEqual([])
+    expect(ramEvent.treadDamage).toBe(1)
 
     const treadEvent = body.events.find((e: any) => e.type === 'ONION_TREADS_LOST')
     expect(treadEvent.amount).toBe(1)

@@ -1,10 +1,9 @@
 import type { TerrainType } from '../../shared/engineTypes.js'
-import { getAllUnitDefinitions } from '../../shared/unitDefinitions.js'
 import {
 	createCombatCalculator,
 	type CombatCalculatorInput,
-	type CombatStaticRules,
 	} from '../../shared/combatCalculator.js'
+import { ONION_STATIC_RULES } from '../../shared/staticRules.js'
 import {
 	isTargetAllowedByRules,
 	resolveUnitTargetRules,
@@ -38,14 +37,7 @@ type CombatPreviewInput = {
 	displayedScenarioMap: { width: number; height: number; cells?: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null
 }
 
-const combatRules: CombatStaticRules = {
-	unitDefinitions: getAllUnitDefinitions(),
-	terrainRules: {
-		clear: { terrainType: 'clear' },
-		ridgeline: { terrainType: 'ridgeline', defenseBonus: 1 },
-		crater: { terrainType: 'crater' },
-	},
-}
+const combatRules = ONION_STATIC_RULES
 
 const combatCalculator = createCombatCalculator(combatRules)
 

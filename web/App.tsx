@@ -4,6 +4,7 @@ import ReactJsonPrintImport from 'react-json-print'
 import { HexMapBoard } from './components/HexMapBoard'
 import { CombatConfirmationView } from './components/CombatConfirmationView'
 import { CombatResolutionToast } from './components/CombatResolutionToast'
+import { MoveResolutionToast } from './components/MoveResolutionToast'
 import {
   GameClientSeamError,
   type GameAction,
@@ -23,6 +24,7 @@ import { buildCombatTargetOptions } from './lib/combatPreview'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
 import { createHttpGameRequestTransport } from './lib/httpGameClient'
 import { createLiveEventSource } from './lib/liveEventSource'
+import { formatRamResolutionTitle } from './lib/moveResolution'
 import { useGameSession } from './lib/useGameSession'
 import {
   getApiProtocolTrafficSnapshot,
@@ -120,7 +122,7 @@ function ErrorOverlay({
   message: string
   onDismiss: () => void
   className?: string
-  placement?: 'corner' | 'map'
+  placement?: 'corner' | 'map' | 'app'
 }) {
   return (
     <div
@@ -374,6 +376,8 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
   const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? movesAllowed
+  const ramCapacity = 2
+  const ramsRemaining = Math.max(ramCapacity - (authoritativeState.ramsThisTurn ?? 0), 0)
 
   return {
     id: onion.id ?? 'onion-1',
@@ -384,7 +388,7 @@ function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): 
     treads: onion.treads,
     movesAllowed,
     movesRemaining,
-    rams: authoritativeState.ramsThisTurn ?? 0,
+    rams: ramsRemaining,
     weapons: formatWeaponSummary(onion.weapons),
     weaponDetails: onion.weapons ?? [],
     targetRules: onion.targetRules,
@@ -640,6 +644,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     const [actionError, setActionError] = useState<string | null>(null)
     const [, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
     const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
+    const [pendingRamResolution, setPendingRamResolution] = useState<GameSnapshot['ramResolution'] | null>(null)
     const [combatBaseSnapshot, setCombatBaseSnapshot] = useState<GameSnapshot | null>(null)
     const [connectedSession, setConnectedSession] = useState<SessionBinding | null>(null)
     const [connectError, setConnectError] = useState<string | null>(null)
@@ -757,12 +762,13 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         setCombatBaseSnapshot(previousSnapshot)
         setPendingCombatSnapshot(nextSnapshot)
         setPendingCombatResolution(nextSnapshot.combatResolution)
-        return
+      } else {
+        setCombatBaseSnapshot(null)
+        setPendingCombatSnapshot(null)
+        setPendingCombatResolution(null)
       }
 
-      setCombatBaseSnapshot(null)
-      setPendingCombatSnapshot(null)
-      setPendingCombatResolution(null)
+      setPendingRamResolution(nextSnapshot?.ramResolution ?? null)
       if (nextSnapshot !== null && !isCombatSnapshotPhase(nextSnapshot.phase)) {
         setSelectedCombatTargetId(null)
       }
@@ -796,6 +802,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     setCombatBaseSnapshot(null)
     setPendingCombatSnapshot(null)
     setPendingCombatResolution(null)
+    setPendingRamResolution(null)
 
     if (clearSelection) {
       setSelectedUnitIds([])
@@ -805,6 +812,10 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   function handleDismissCombatResolution() {
     clearPendingCombatResolution(true)
+  }
+
+  function handleDismissRamResolution() {
+    setPendingRamResolution(null)
   }
 
   function handleConfirmCombat() {
@@ -912,18 +923,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     setActionError(null)
-    try {
-      await activeSessionController.submitAction({ type: 'MOVE', unitId, to })
-      setSelectedUnitIds([])
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof GameClientSeamError
-          ? `GameClientSeamError: ${error.message}`
-          : error instanceof Error && error.message
-            ? `Error: ${error.message}`
-            : 'Error unknown'
-      setActionError(`Failed to submit action: ${errorMessage}`)
-    }
+    await commitClientAction({ type: 'MOVE', unitId, to })
+    setSelectedUnitIds([])
   }
 
   const authoritativeState = clientSnapshot?.authoritativeState ?? null
@@ -1106,6 +1107,13 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           resolution={pendingCombatResolution}
           modifiers={selectedCombatTarget.modifiers}
           onDismiss={handleDismissCombatResolution}
+        />
+      ) : null}
+      {pendingRamResolution ? (
+        <MoveResolutionToast
+          title={formatRamResolutionTitle(pendingRamResolution)}
+          resolution={pendingRamResolution}
+          onDismiss={handleDismissRamResolution}
         />
       ) : null}
       <header className="topbar panel">
@@ -1309,7 +1317,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                       <div className="summary-line">
                         <span>Treads <strong>{displayedOnion.treads}</strong></span>
                         <span>Moves <strong>{displayedOnion.movesRemaining}</strong></span>
-                        <span>Rams <strong>{displayedOnion.rams}</strong></span>
+                        <span>Rams remaining <strong>{displayedOnion.rams}</strong></span>
                       </div>
                       <div className="summary-line">
                         <span>Weapons <strong>{onionWeapons.operationalWeapons}</strong></span>
@@ -1513,7 +1521,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                       <dd>{selectedInspectorOnion.movesRemaining}</dd>
                     </div>
                     <div>
-                      <dt>Rams</dt>
+                      <dt>Rams remaining</dt>
                       <dd>{selectedInspectorOnion.rams}</dd>
                     </div>
                     <div>

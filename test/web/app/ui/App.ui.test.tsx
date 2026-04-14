@@ -277,6 +277,27 @@ describe('App UI', () => {
 		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
 	})
 
+	it('shows remaining ram capacity in the Onion rail', async () => {
+		const snapshot = {
+			...createOnionMoveSnapshot('onion-1', 4),
+			authoritativeState: {
+				...createOnionMoveSnapshot('onion-1', 4).authoritativeState,
+				ramsThisTurn: 1,
+			},
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		expect(onionCard.textContent).toContain('Rams remaining 1')
+		expect(screen.getByText((_, element) => element?.tagName === 'DT' && element?.textContent === 'Rams remaining')).not.toBeNull()
+	})
+
 	it('loads initial state under StrictMode', async () => {
 		const snapshot = createLoadedBattlefieldSnapshot()
 		const client = createGameClient({
@@ -363,6 +384,49 @@ describe('App UI', () => {
 		expect(jsonPrintText).toContain('(redacted)')
 		expect(jsonPrintText).toContain('player-1')
 		expect(jsonPrintText).toContain('username')
+	})
+
+	it('shows a ram resolution toast after a successful MOVE with ramming', async () => {
+		const user = userEvent.setup()
+		const snapshot = createOnionMoveSnapshot('onion-1', 4)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue({
+				...snapshot,
+				authoritativeState: {
+					...snapshot.authoritativeState,
+					defenders: {
+						...snapshot.authoritativeState.defenders,
+						'puss-1': {
+							...snapshot.authoritativeState.defenders['puss-1'],
+							status: 'operational',
+						},
+					},
+				},
+				ramResolution: {
+					actionType: 'MOVE',
+					unitId: 'onion-1',
+					rammedUnitIds: ['puss-1'],
+					destroyedUnitIds: [],
+					treadDamage: 1,
+					details: ['Rammed units: puss-1', 'Treads lost: 1 (remaining 32)'],
+				},
+			}),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByTestId('hex-unit-onion-1')
+		await user.click(screen.getByTestId('hex-unit-onion-1'))
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-2'))
+		})
+
+		expect(await screen.findByTestId('ram-resolution-toast')).not.toBeNull()
+		expect(screen.getByText(/Ram result/i)).not.toBeNull()
+		expect(screen.getByRole('heading', { name: /Ram resolved: target survived, Onion lost 1 tread/i })).not.toBeNull()
+		expect(screen.getByText(/Rammed units: puss-1/i)).not.toBeNull()
 	})
 
 	it('preserves debug popup position and size when toggled closed and reopened', async () => {

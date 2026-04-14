@@ -3,7 +3,7 @@ import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib
 import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
-import { canUnitCrossRidgelines, getUnitMovementAllowance } from '../../shared/unitMovement'
+import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import './HexMapBoard.css'
 
 type HexOccupant = BattlefieldUnit | BattlefieldOnionView
@@ -115,7 +115,6 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
         ? selectedOccupant.move
         : 0
     : 0
-  const selectedCanCrossRidgelines = selectedOccupant ? canUnitCrossRidgelines(selectedOccupant.type) : false
   const occupiedHexes = Array.from(occupantMap.entries())
     .flatMap(([key, occupants]) => {
       const [q, r] = key.split(',').map(Number)
@@ -136,7 +135,6 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
           map: { ...scenarioMap, occupiedHexes },
           from: { q: selectedOccupant.q, r: selectedOccupant.r },
           movementAllowance: selectedAllowance,
-          canCrossRidgelines: selectedCanCrossRidgelines,
           movingRole: selectedOccupant.id === onion.id ? 'onion' : 'defender',
           movingUnitType: selectedOccupant.type,
         }).map((move) => hexKey(move.to)),
