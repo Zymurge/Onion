@@ -15,7 +15,7 @@ import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner.js'
 import { getStopOnOccupiedHexFailure } from '../../shared/movementRules.js'
 import { calculateRamming as calculateSharedRamming } from '../../shared/rammingCalculator.js'
 import { canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, spendUnitMovement } from '../../shared/unitMovement.js'
-import { canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, getUnitRamCapacity, spendUnitMovement } from '../../shared/unitMovement.js'
+import { getUnitRamCapacity } from '../../shared/unitMovement.js'
 
 /**
  * Result of validating a movement command.

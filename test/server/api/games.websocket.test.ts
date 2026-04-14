@@ -53,6 +53,14 @@ describe('GET /games/:id/ws', () => {
 		await joinGame(app, gameId, fiona.token)
 		await app.ready()
 
+		const initialStateRes = await app.inject({
+			method: 'GET',
+			url: `/games/${gameId}`,
+			headers: { authorization: `Bearer ${shrek.token}` },
+		})
+		const initialStateBody = initialStateRes.json<{ state: { onion: { id?: string; position: { q: number; r: number } } } }>()
+		const onionUnitId = initialStateBody.state.onion.id ?? 'onion-1'
+
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
@@ -63,7 +71,7 @@ describe('GET /games/:id/ws', () => {
 		await snapshotMessagePromise
 
 		const moveTo = { q: 1, r: 10 }
-		const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo] })
+		const validatedPlan = createMovePlan({ unitId: onionUnitId, from: initialStateBody.state.onion.position, to: moveTo, path: [moveTo] })
 		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
 		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
 			state.onion.position = plan.to
@@ -71,7 +79,7 @@ describe('GET /games/:id/ws', () => {
 		}) as any)
 
 		const liveEventPromise = readWsMessage(ws)
-		await submitAction(app, gameId, shrek.token, { type: 'MOVE', unitId: 'onion', to: moveTo })
+		await submitAction(app, gameId, shrek.token, { type: 'MOVE', unitId: onionUnitId, to: moveTo })
 		const liveEventMessage = await liveEventPromise
 
 		expect(liveEventMessage.kind).toBe('EVENT')
