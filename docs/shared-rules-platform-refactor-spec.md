@@ -2,7 +2,7 @@
 
 **Status: In Progress (April 2026)**
 
-Status: Phase 2 complete
+Status: Phase 3 complete
 Date: 2026-04-13
 Branch: `feature/shared-rules-platform-refactor`
 
@@ -182,6 +182,8 @@ Exit criteria:
 
 ### Phase 3: Extract Shared Ramming Calculator
 
+Status: Complete on 2026-04-13
+
 Deliverables:
 
 1. create `shared/rammingCalculator.ts`
@@ -223,5 +225,5 @@ Recommended test order:
 - [x] Replace `MOVEMENT_PROFILES` with definition-derived movement queries
 - [x] Extract shared occupancy and stack rules out of `shared/movePlanner.ts`
 - [x] Update engine movement validation to use shared movement-rule queries
-- [ ] Add a pure shared ramming calculator and migrate engine movement to it
+- [x] Add a pure shared ramming calculator and migrate engine movement to it
 - [ ] Document the final canonical static rules bundle and schema-ready boundary

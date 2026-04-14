@@ -13,6 +13,7 @@ import { getUnitDefinition, isImmobile } from './units.js'
 import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from './units.js'
 import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner.js'
 import { getStopOnOccupiedHexFailure } from '../../shared/movementRules.js'
+import { calculateRamming as calculateSharedRamming } from '../../shared/rammingCalculator.js'
 import { canUnitCrossRidgelines, canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, spendUnitMovement } from '../../shared/unitMovement.js'
 
 /**
@@ -588,17 +589,7 @@ export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
   treadCost: number
   destroyed: boolean
 } {
-  const def = getUnitDefinition(rammedUnit.type)
-  let treadCost: number
-  if (rammedUnit.type === 'LittlePigs') {
-    treadCost = 0
-  } else if (def.abilities.isArmor && rammedUnit.type === 'Dragon') {
-    treadCost = 2
-  } else {
-    treadCost = 1
-  }
-  const d6 = roll ?? (Math.floor(Math.random() * 6) + 1)
-  return { treadCost, destroyed: d6 <= 4 }
+  return calculateSharedRamming(rammedUnit.type, roll)
 }
 
 /**
