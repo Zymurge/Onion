@@ -5,6 +5,8 @@ import { CombatResolutionToast } from './components/CombatResolutionToast'
 import { MoveResolutionToast } from './components/MoveResolutionToast'
 import { ErrorOverlay } from './components/ErrorOverlay'
 import { DraggableDebugPopup, type DebugPopupLayout } from './components/DraggableDebugPopup'
+import { ConnectField } from './components/ConnectField'
+import { CombatTargetList } from './components/CombatTargetList'
 import {
   GameClientSeamError,
   type GameAction,
@@ -219,10 +221,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
     previousSnapshotPhaseRef.current = nextSnapshotPhase
   }, [sessionState.snapshot])
-
-  function isCombatSnapshotPhase(phase: TurnPhase | null): boolean {
-    return phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
-  }
   const isControlledSession = activeSessionBinding !== null
   const activePhase = clientSnapshot?.phase ?? null
   const selectedSnapshotUnitId = clientSnapshot?.selectedUnitId ?? null
@@ -248,6 +246,85 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       ? activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
       : [...activeSelectedUnitIds]
 
+  const authoritativeState = clientSnapshot?.authoritativeState ?? null
+  const scenarioMapSnapshot = clientSnapshot === null ? null : buildScenarioMap(clientSnapshot)
+  const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
+  const displayedDefenders = authoritativeState === null ? [] : buildLiveDefenders({
+    authoritativeState,
+    scenarioMap: scenarioMapSnapshot,
+    movementRemainingByUnit: movementRemainingSnapshot,
+  } as GameSnapshot, activePhase, activeTurnActive)
+  const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
+  const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
+  const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
+  const selectedCombatAttackStrength = !isCombatPhase
+    ? 0
+    : activeCombatRole === 'onion'
+      ? (displayedOnion?.weaponDetails ?? [])
+        .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
+        .reduce((total, weapon) => total + weapon.attack, 0)
+      : displayedDefenders
+        .filter((unit) => activeSelectedUnitIds.includes(unit.id))
+        .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
+  const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
+  const selectedCombatAttackCount = selectedCombatAttackerIds.length
+  const selectedInspectorUnitId = activeSelectedUnitIds.find((selectionId) => !isWeaponSelectionId(selectionId)) ?? null
+  const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
+  const selectedInspectorDefender =
+    selectedInspectorOnion !== null || selectedInspectorUnitId === null
+      ? null
+      : displayedDefenders.find((unit) => unit.id === selectedInspectorUnitId) ?? null
+  const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
+    ? new Set<string>()
+    : buildCombatRangeHexKeys(
+      buildCombatRangeSources(activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion),
+      displayedScenarioMap,
+    )
+  const combatTargetOptions = buildCombatTargetOptions({
+    activeCombatRole,
+    combatRangeHexKeys,
+    displayedDefenders,
+    displayedOnion,
+    selectedUnitIds: activeSelectedUnitIds,
+    selectedAttackStrength: selectedCombatAttackStrength,
+    displayedScenarioMap,
+  })
+  const combatTargetIds = new Set(combatTargetOptions.map((target) => target.id))
+  const selectedCombatTargetIdForRender = selectedCombatTargetId !== null && combatTargetIds.has(selectedCombatTargetId) ? selectedCombatTargetId : null
+  const selectedCombatTarget = selectedCombatTargetIdForRender === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetIdForRender) ?? null
+
+  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const connectionStatus = sessionState.liveConnection
+  const connectionLabel = formatLiveConnectionStatus(connectionStatus)
+  const lastUpdatedAt = sessionState.lastUpdatedAt ?? lastRefreshAt
+
+  useSyncExternalStore(
+    (onStoreChange) => {
+      if (!debugOpen) {
+        return () => {}
+      }
+
+      return subscribeApiProtocolTraffic(() => {
+        onStoreChange()
+      })
+    },
+    () => (debugOpen ? getApiProtocolTrafficVersion() : 0),
+    () => 0,
+  )
+  const debugEntries = debugOpen
+    ? getApiProtocolTrafficSnapshot()
+      .slice()
+      .reverse()
+      .slice(0, 400)
+      .map((entry: ApiProtocolTrafficEntry) => sanitizeApiProtocolTrafficEntry(entry))
+    : []
+
+  function isCombatSnapshotPhase(phase: TurnPhase | null): boolean {
+    return phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
+  }
+
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeSessionController === null) {
       return
@@ -262,9 +339,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         setPendingCombatSnapshot(nextSnapshot)
         setPendingCombatResolution(nextSnapshot.combatResolution)
       } else {
-        setCombatBaseSnapshot(null)
-        setPendingCombatSnapshot(null)
-        setPendingCombatResolution(null)
+        clearPendingCombatResolution(false)
       }
 
       setPendingRamResolution(nextSnapshot?.ramResolution ?? null)
@@ -281,11 +356,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           : 'Error unknown'
       setActionError(`Failed to submit action: ${errorMessage}`)
       if (action.type === 'FIRE' && activeSessionController !== null) {
-        setPendingCombatSnapshot(null)
-        setPendingCombatResolution(null)
-        setCombatBaseSnapshot(null)
-        setSelectedUnitIds([])
-        setSelectedCombatTargetId(null)
+        clearPendingCombatResolution(true)
 
         try {
           await activeSessionController.refresh()
@@ -426,81 +497,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     setSelectedUnitIds([])
   }
 
-  const authoritativeState = clientSnapshot?.authoritativeState ?? null
-  const scenarioMapSnapshot = clientSnapshot === null ? null : buildScenarioMap(clientSnapshot)
-  const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
-  const displayedDefenders = authoritativeState === null ? [] : buildLiveDefenders({
-    authoritativeState,
-    scenarioMap: scenarioMapSnapshot,
-    movementRemainingByUnit: movementRemainingSnapshot,
-  } as GameSnapshot, activePhase, activeTurnActive)
-  const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
-  const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
-  const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
-  const selectedCombatAttackStrength = !isCombatPhase
-    ? 0
-    : activeCombatRole === 'onion'
-      ? (displayedOnion?.weaponDetails ?? [])
-        .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
-        .reduce((total, weapon) => total + weapon.attack, 0)
-      : displayedDefenders
-        .filter((unit) => activeSelectedUnitIds.includes(unit.id))
-        .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
-  const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
-  const selectedCombatAttackCount = selectedCombatAttackerIds.length
-  const selectedInspectorUnitId = activeSelectedUnitIds.find((selectionId) => !isWeaponSelectionId(selectionId)) ?? null
-  const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
-  const selectedInspectorDefender =
-    selectedInspectorOnion !== null || selectedInspectorUnitId === null
-      ? null
-      : displayedDefenders.find((unit) => unit.id === selectedInspectorUnitId) ?? null
-  const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
-    ? new Set<string>()
-    : buildCombatRangeHexKeys(
-      buildCombatRangeSources(activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion),
-      displayedScenarioMap,
-    )
-  const combatTargetOptions = buildCombatTargetOptions({
-    activeCombatRole,
-    combatRangeHexKeys,
-    displayedDefenders,
-    displayedOnion,
-    selectedUnitIds: activeSelectedUnitIds,
-    selectedAttackStrength: selectedCombatAttackStrength,
-    displayedScenarioMap,
-  })
-  const combatTargetIds = new Set(combatTargetOptions.map((target) => target.id))
-  const selectedCombatTargetIdForRender = selectedCombatTargetId !== null && combatTargetIds.has(selectedCombatTargetId) ? selectedCombatTargetId : null
-  const selectedCombatTarget = selectedCombatTargetIdForRender === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetIdForRender) ?? null
-
-  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-
-  const connectionStatus = sessionState.liveConnection
-  const connectionLabel = formatLiveConnectionStatus(connectionStatus)
-  const lastUpdatedAt = sessionState.lastUpdatedAt ?? lastRefreshAt
-
-  useSyncExternalStore(
-    (onStoreChange) => {
-      if (!debugOpen) {
-        return () => {}
-      }
-
-      return subscribeApiProtocolTraffic(() => {
-        onStoreChange()
-      })
-    },
-    () => (debugOpen ? getApiProtocolTrafficVersion() : 0),
-    () => 0,
-  )
-  const debugEntries = debugOpen
-    ? getApiProtocolTrafficSnapshot()
-      .slice()
-      .reverse()
-      .slice(0, 400)
-      .map((entry: ApiProtocolTrafficEntry) => sanitizeApiProtocolTrafficEntry(entry))
-    : []
-
   async function handleRefresh() {
     setIsRefreshing(true)
     if (activeSessionController !== null) {
@@ -531,39 +527,31 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             </div>
           </div>
           <form className="connect-form" onSubmit={handleConnect}>
-            <label className="connect-field">
-              <span className="stat-label">API base URL</span>
-              <input
-                value={connectDraft.apiBaseUrl}
-                onChange={(event) => setConnectDraft((draft) => ({ ...draft, apiBaseUrl: event.target.value }))}
-                placeholder="http://localhost:3000"
-              />
-            </label>
-            <label className="connect-field">
-              <span className="stat-label">Username</span>
-              <input
-                value={connectDraft.username}
-                onChange={(event) => setConnectDraft((draft) => ({ ...draft, username: event.target.value }))}
-                placeholder="player-1"
-              />
-            </label>
-            <label className="connect-field">
-              <span className="stat-label">Password</span>
-              <input
-                type="password"
-                value={connectDraft.password}
-                onChange={(event) => setConnectDraft((draft) => ({ ...draft, password: event.target.value }))}
-                placeholder="••••••••"
-              />
-            </label>
-            <label className="connect-field">
-              <span className="stat-label">Game ID</span>
-              <input
-                value={connectDraft.gameId}
-                onChange={(event) => setConnectDraft((draft) => ({ ...draft, gameId: event.target.value }))}
-                placeholder="123"
-              />
-            </label>
+            <ConnectField
+              label="API base URL"
+              value={connectDraft.apiBaseUrl}
+              placeholder="http://localhost:3000"
+              onChange={(value) => setConnectDraft((draft) => ({ ...draft, apiBaseUrl: value }))}
+            />
+            <ConnectField
+              label="Username"
+              value={connectDraft.username}
+              placeholder="player-1"
+              onChange={(value) => setConnectDraft((draft) => ({ ...draft, username: value }))}
+            />
+            <ConnectField
+              label="Password"
+              value={connectDraft.password}
+              placeholder="••••••••"
+              type="password"
+              onChange={(value) => setConnectDraft((draft) => ({ ...draft, password: value }))}
+            />
+            <ConnectField
+              label="Game ID"
+              value={connectDraft.gameId}
+              placeholder="123"
+              onChange={(value) => setConnectDraft((draft) => ({ ...draft, gameId: value }))}
+            />
             <button type="submit" className="primary-action">Load Game</button>
             <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
               <button
@@ -919,85 +907,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
         <aside className="panel rail rail-right">
           {/* Always show targeting list (combat UI) during defender combat phase; inspector only outside defender combat phase */}
-          {isCombatPhase && activeRole === activeCombatRole && selectedCombatAttackerIds.length > 0
-            ? (
-                <section className="section-block panel-subtle">
-                  <div className="card-head">
-                    <div>
-                      <p className="eyebrow">Combat</p>
-                      <h2 title="Pick a target from the list. The list only includes targets currently in the active attack range.">
-                        Valid Targets
-                      </h2>
-                    </div>
-                    <span className="mini-tag">{combatTargetOptions.length} in range</span>
-                  </div>
-                  {selectedCombatTarget !== null ? (
-                    <CombatConfirmationView
-                      title={`Confirm attack on ${selectedCombatTarget.label}`}
-                      attackStrength={selectedCombatAttackStrength}
-                      defenseStrength={selectedCombatTarget.defense}
-                      modifiers={selectedCombatTarget.modifiers}
-                      confirmLabel="Resolve combat"
-                      onConfirm={handleConfirmCombat}
-                      dataTestId="combat-confirmation-view"
-                    />
-                  ) : null}
-                  {combatTargetOptions.length > 0 ? (
-                    <div className="attacker-selection-list" data-testid="combat-target-list">
-                      {combatTargetOptions.map((target) => {
-                        const isSelected = selectedCombatTargetId === target.id
-                        const isTreadsTarget = target.id.endsWith(':treads')
-                        const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
-                        return (
-                          <button
-                            key={target.id}
-                            type="button"
-                            className={[
-                              'attacker-card-button',
-                              'slim-weapon-card',
-                              isSelected ? 'is-selected' : '',
-                              isGroupAttackOnTreads ? 'is-disabled' : '',
-                              `tone-${statusTone(target.status)}`,
-                            ].join(' ')}
-                            disabled={isGroupAttackOnTreads}
-                            title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
-                            aria-pressed={isSelected}
-                            aria-disabled={isGroupAttackOnTreads}
-                            data-selected={isSelected}
-                            data-testid={`combat-target-${target.id}`}
-                            onClick={(event) => {
-                              if (isGroupAttackOnTreads) {
-                                event.preventDefault()
-                                event.stopPropagation()
-                                return
-                              }
-
-                              event.stopPropagation()
-                              setSelectedCombatTargetId(target.id)
-                            }}
-                            onContextMenu={(event) => {
-                              event.preventDefault()
-                              event.stopPropagation()
-
-                              if (isGroupAttackOnTreads) {
-                                return
-                              }
-
-                              setSelectedCombatTargetId(target.id)
-                            }}
-                          >
-                            <div className="weapon-card-name">{target.label}</div>
-                            <div className="weapon-card-stats">{target.detail}</div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className="summary-line">No valid targets are currently in range.</p>
-                  )}
-                </section>
-              )
-            : selectedInspectorOnion !== null ? (
+          {selectedInspectorOnion !== null ? (
                 <section className="selection-panel panel-subtle">
                   <div className="selection-panel-header">
                     <div>
@@ -1032,6 +942,39 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                       <dd>{parseWeaponStats(selectedInspectorOnion.weapons ?? '').operationalMissiles}</dd>
                     </div>
                   </dl>
+                </section>
+              ) : isCombatPhase && activeRole === activeCombatRole && (activeRole === 'defender' || selectedInspectorDefender === null) ? (
+                <section className="section-block panel-subtle">
+                  <div className="card-head">
+                    <div>
+                      <p className="eyebrow">Combat</p>
+                      <h2 title="Pick a target from the list. The list only includes targets currently in the active attack range.">
+                        Valid Targets
+                      </h2>
+                    </div>
+                    <span className="mini-tag">{combatTargetOptions.length} in range</span>
+                  </div>
+                  {selectedCombatTarget !== null ? (
+                    <CombatConfirmationView
+                      title={`Confirm attack on ${selectedCombatTarget.label}`}
+                      attackStrength={selectedCombatAttackStrength}
+                      defenseStrength={selectedCombatTarget.defense}
+                      modifiers={selectedCombatTarget.modifiers}
+                      confirmLabel="Resolve combat"
+                      onConfirm={handleConfirmCombat}
+                      dataTestId="combat-confirmation-view"
+                    />
+                  ) : null}
+                  {combatTargetOptions.length > 0 ? (
+                    <CombatTargetList
+                      targets={combatTargetOptions}
+                      selectedTargetId={selectedCombatTargetId}
+                      selectedCombatAttackCount={selectedCombatAttackCount}
+                      onSelectTarget={(targetId) => setSelectedCombatTargetId(targetId)}
+                    />
+                  ) : (
+                    <p className="summary-line">No valid targets are currently in range.</p>
+                  )}
                 </section>
               ) : selectedInspectorDefender !== null ? (
                 <section className="selection-panel panel-subtle">
@@ -1070,91 +1013,25 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                   </dl>
                 </section>
               ) : isCombatPhase ? (
-            <section className="section-block panel-subtle">
-              <div className="card-head">
-                <div>
-                  <p className="eyebrow">Combat</p>
-                  <h2 title="Pick a target from the list. The list only includes targets currently in the active attack range.">
-                    Valid Targets
-                  </h2>
-                </div>
-                <span className="mini-tag">{combatTargetOptions.length} in range</span>
-              </div>
-              {selectedCombatTarget !== null ? (
-                <CombatConfirmationView
-                  title={`Confirm attack on ${selectedCombatTarget.label}`}
-                  attackStrength={selectedCombatAttackStrength}
-                  defenseStrength={selectedCombatTarget.defense}
-                  modifiers={selectedCombatTarget.modifiers}
-                  confirmLabel="Resolve combat"
-                  onConfirm={handleConfirmCombat}
-                  dataTestId="combat-confirmation-view"
-                />
-              ) : null}
-              {combatTargetOptions.length > 0 ? (
-                <div className="attacker-selection-list" data-testid="combat-target-list">
-                  {combatTargetOptions.map((target) => {
-                    const isSelected = selectedCombatTargetId === target.id
-                    const isTreadsTarget = target.id.endsWith(':treads')
-                    const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
-                    return (
-                      <button
-                        key={target.id}
-                        type="button"
-                        className={[
-                          'attacker-card-button',
-                          'slim-weapon-card',
-                          isSelected ? 'is-selected' : '',
-                          isGroupAttackOnTreads ? 'is-disabled' : '',
-                          `tone-${statusTone(target.status)}`,
-                        ].join(' ')}
-                        disabled={isGroupAttackOnTreads}
-                        title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
-                        aria-pressed={isSelected}
-                        aria-disabled={isGroupAttackOnTreads}
-                        data-selected={isSelected}
-                        data-testid={`combat-target-${target.id}`}
-                        onClick={(event) => {
-                          if (isGroupAttackOnTreads) {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            return
-                          }
-
-                          event.stopPropagation()
-                          setSelectedCombatTargetId(target.id)
-                        }}
-                        onContextMenu={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-
-                          if (isGroupAttackOnTreads) {
-                            return
-                          }
-
-                          setSelectedCombatTargetId(target.id)
-                        }}
-                      >
-                        <div className="weapon-card-name">{target.label}</div>
-                        <div className="weapon-card-stats">{target.detail}</div>
-                      </button>
-                    )
-                  })}
-                </div>
+                <section className="selection-panel panel-subtle">
+                  <div className="selection-panel-header">
+                    <div>
+                      <p className="eyebrow">Inspector</p>
+                    </div>
+                  </div>
+                  <div className="empty-state">Select a unit on the map or in the rail to inspect it here.</div>
+                </section>
               ) : (
-                <p className="summary-line">No valid targets are currently in range.</p>
-              )}
-            </section>
-          ) : (
-            <section className="selection-panel panel-subtle">
-              <div className="selection-panel-header">
-                <div>
-                  <p className="eyebrow">Inspector</p>
-                </div>
-              </div>
-              <div className="empty-state">Select a unit on the map or in the rail to inspect it here.</div>
-            </section>
-          )}
+                <section className="selection-panel panel-subtle">
+                  <div className="selection-panel-header">
+                    <div>
+                      <p className="eyebrow">Inspector</p>
+                    </div>
+                  </div>
+                  <div className="empty-state">Select a unit on the map or in the rail to inspect it here.</div>
+                </section>
+              )
+          }
         </aside>
       </main>
     </div>

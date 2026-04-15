@@ -785,7 +785,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('hex-cell-4-1').getAttribute('class')).not.toContain('hex-cell-combat-range')
 	})
 
-	it('clears the onion combat target rail and opens the inspector when the active player clicks an enemy unit', async () => {
+	it('keeps the onion combat target rail visible when the active player clicks an enemy unit', async () => {
 		const user = userEvent.setup()
 		const baseSnapshot = createConnectedBattlefieldSnapshot()
 		const snapshot = {
@@ -833,10 +833,8 @@ describe('App orchestration (injected game client)', () => {
 
 		await user.click(screen.getByTestId('hex-unit-puss-1'))
 
-		expect(screen.queryByTestId('combat-target-list')).toBeNull()
-		expect(screen.getByText(/Inspector/i)).not.toBeNull()
-		expect(screen.getByText(/Puss/i)).not.toBeNull()
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('combat-target-list')).not.toBeNull()
+		expect(screen.queryByText(/Inspector/i)).toBeNull()
 	})
 
 	it('renders a right-rail target list filtered to the active combat range', async () => {

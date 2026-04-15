@@ -1,0 +1,69 @@
+import { statusTone } from '../lib/battlefieldView'
+import type { CombatTargetOption } from '../lib/combatPreview'
+
+type CombatTargetListProps = {
+  targets: ReadonlyArray<CombatTargetOption>
+  selectedTargetId: string | null
+  selectedCombatAttackCount: number
+  onSelectTarget: (targetId: string) => void
+}
+
+export function CombatTargetList({
+  targets,
+  selectedTargetId,
+  selectedCombatAttackCount,
+  onSelectTarget,
+}: CombatTargetListProps) {
+  return (
+    <div className="attacker-selection-list" data-testid="combat-target-list">
+      {targets.map((target) => {
+        const isSelected = selectedTargetId === target.id
+        const isTreadsTarget = target.id.endsWith(':treads')
+        const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
+
+        return (
+          <button
+            key={target.id}
+            type="button"
+            className={[
+              'attacker-card-button',
+              'slim-weapon-card',
+              isSelected ? 'is-selected' : '',
+              isGroupAttackOnTreads ? 'is-disabled' : '',
+              `tone-${statusTone(target.status)}`,
+            ].join(' ')}
+            disabled={isGroupAttackOnTreads}
+            title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
+            aria-pressed={isSelected}
+            aria-disabled={isGroupAttackOnTreads}
+            data-selected={isSelected}
+            data-testid={`combat-target-${target.id}`}
+            onClick={(event) => {
+              if (isGroupAttackOnTreads) {
+                event.preventDefault()
+                event.stopPropagation()
+                return
+              }
+
+              event.stopPropagation()
+              onSelectTarget(target.id)
+            }}
+            onContextMenu={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+
+              if (isGroupAttackOnTreads) {
+                return
+              }
+
+              onSelectTarget(target.id)
+            }}
+          >
+            <div className="weapon-card-name">{target.label}</div>
+            <div className="weapon-card-stats">{target.detail}</div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
