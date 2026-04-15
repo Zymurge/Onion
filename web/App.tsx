@@ -1,23 +1,17 @@
-import { createPortal } from 'react-dom'
 import { useState, useEffect, useMemo, useRef, useSyncExternalStore, type FormEvent } from 'react'
-import ReactJsonPrintImport from 'react-json-print'
 import { HexMapBoard } from './components/HexMapBoard'
 import { CombatConfirmationView } from './components/CombatConfirmationView'
 import { CombatResolutionToast } from './components/CombatResolutionToast'
 import { MoveResolutionToast } from './components/MoveResolutionToast'
+import { ErrorOverlay } from './components/ErrorOverlay'
+import { DraggableDebugPopup, type DebugPopupLayout } from './components/DraggableDebugPopup'
 import {
   GameClientSeamError,
   type GameAction,
   type GameClient,
   type GameSnapshot,
 } from './lib/gameClient'
-import {
-  statusTone,
-  type BattlefieldOnionView,
-  type BattlefieldUnit,
-  type Mode,
-  type TerrainHex,
-} from './lib/battlefieldView'
+import { statusTone, type Mode } from './lib/battlefieldView'
 import { createGameSessionController } from './lib/gameSessionController'
 import { buildCombatRangeHexKeys } from './lib/combatRange'
 import { buildCombatTargetOptions } from './lib/combatPreview'
@@ -34,21 +28,30 @@ import {
   sanitizeApiProtocolTrafficEntry,
   subscribeApiProtocolTraffic,
 } from '../shared/apiProtocol'
-import { getUnitMovementAllowance, getUnitRamCapacity } from '../shared/unitMovement'
-import type { TargetRules, TurnPhase, UnitStatus, Weapon } from '../shared/types/index'
+import type { TurnPhase } from '../shared/types/index'
 import type {
   GameRequestTransport,
   GameSessionController,
   GameSessionViewState,
-  LiveConnectionStatus,
   LiveEventSource,
 } from './lib/gameSessionTypes'
+import {
+  buildCombatRangeSources,
+  buildCombatTargetActionId,
+  buildLiveDefenders,
+  buildLiveOnion,
+  buildScenarioMap,
+  buildWeaponSelectionId,
+  formatLiveConnectionStatus,
+  getPhaseAdvanceLabel,
+  getPhaseOwner,
+  isWeaponSelectionId,
+  parseAttackStats,
+  parseRangeValue,
+  parseWeaponStats,
+  stripWeaponSelectionId,
+} from './lib/appViewHelpers'
 import './App.css'
-
-const ReactJsonPrint =
-  typeof ReactJsonPrintImport === 'function'
-    ? ReactJsonPrintImport
-    : (ReactJsonPrintImport as { default?: typeof ReactJsonPrintImport }).default ?? ReactJsonPrintImport
 
 const turnPhaseLabels: Record<TurnPhase, string> = {
   ONION_MOVE: 'Onion Movement',
@@ -57,400 +60,6 @@ const turnPhaseLabels: Record<TurnPhase, string> = {
   DEFENDER_MOVE: 'Defender Movement',
   DEFENDER_COMBAT: 'Defender Combat',
   GEV_SECOND_MOVE: 'GEV Second Move',
-}
-
-function getPhaseOwner(phase: TurnPhase | null): 'onion' | 'defender' | null {
-  if (phase === null) {
-    return null
-  }
-
-  if (phase.startsWith('ONION_')) {
-    return 'onion'
-  }
-
-  if (phase.startsWith('DEFENDER_') || phase === 'GEV_SECOND_MOVE') {
-    return 'defender'
-  }
-
-  return null
-}
-
-function getPhaseAdvanceLabel(phase: TurnPhase | null, role: 'onion' | 'defender' | null): string | null {
-  if (phase === null || role === null) {
-    return null
-  }
-
-  switch (phase) {
-    case 'ONION_MOVE':
-      return role === 'onion' ? 'Start Combat' : null
-    case 'ONION_COMBAT':
-      return role === 'onion' ? 'End Turn' : null
-    case 'DEFENDER_MOVE':
-      return role === 'defender' ? 'Start Combat' : null
-    case 'DEFENDER_COMBAT':
-      return role === 'defender' ? 'Begin Secondary Move' : null
-    case 'GEV_SECOND_MOVE':
-      return role === 'defender' ? 'End Turn' : null
-    case 'DEFENDER_RECOVERY':
-      return null
-  }
-
-  return null
-}
-
-function formatLiveConnectionStatus(connectionStatus: LiveConnectionStatus) {
-  switch (connectionStatus) {
-    case 'connected':
-      return 'Connected'
-    case 'connecting':
-      return 'Connecting'
-    case 'reconnecting':
-      return 'Reconnecting'
-    case 'disconnected':
-      return 'Disconnected'
-    case 'idle':
-      return 'Idle'
-  }
-}
-
-function ErrorOverlay({
-  message,
-  onDismiss,
-  className,
-  placement = 'corner',
-}: {
-  message: string
-  onDismiss: () => void
-  className?: string
-  placement?: 'corner' | 'map' | 'app'
-}) {
-  return (
-    <div
-      className={['error-overlay', placement === 'app' ? 'error-overlay-app' : '', className].filter(Boolean).join(' ')}
-      role="alert"
-      aria-live="assertive"
-    >
-      <span className="error-overlay-message">{message}</span>
-      <button type="button" className="error-overlay-dismiss" onClick={onDismiss} aria-label="Dismiss error">
-        Dismiss
-      </button>
-    </div>
-  )
-}
-
-function parseWeaponStats(weaponString: string) {
-  const weapons = weaponString.split(',').map((w) => w.trim())
-  let operationalWeapons = 0
-  let operationalMissiles = 0
-
-  for (const weapon of weapons) {
-    if (weapon.includes('ready')) {
-      if (weapon.toLowerCase().includes('missile')) {
-        operationalMissiles++
-      } else {
-        operationalWeapons++
-      }
-    }
-  }
-
-  return { operationalWeapons, operationalMissiles }
-}
-
-function parseAttackStats(attackString: string) {
-  const parts = attackString.split('/')
-  const damage = parts[0].trim()
-  const range = parts[1]?.includes('rng') ? parts[1].trim().replace('rng', '').trim() : '0'
-  return { damage, range }
-}
-
-function formatWeaponSummary(weapons: ReadonlyArray<Weapon> | undefined) {
-  if (weapons === undefined || weapons.length === 0) {
-    return 'n/a'
-  }
-
-  return weapons.map((weapon) => `${weapon.id}: ${weapon.status}`).join(', ')
-}
-
-function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
-  if (weapons === undefined || weapons.length === 0) {
-    return '0 / rng 0'
-  }
-
-  const primaryWeapon = weapons.reduce((strongest, weapon) => {
-    if (weapon.attack > strongest.attack) {
-      return weapon
-    }
-
-    if (weapon.attack === strongest.attack && weapon.range > strongest.range) {
-      return weapon
-    }
-
-    return strongest
-  })
-
-  return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
-}
-
-function formatDebugEntrySummary(entry: ApiProtocolTrafficEntry) {
-  const time = new Date(entry.timestamp).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
-  const arrow = entry.direction === 'request' ? '→' : entry.direction === 'response' ? '←' : '!'
-  const parts = [`[${time}]`, `${arrow} ${entry.method} ${entry.path}`]
-
-  if (entry.status !== undefined) {
-    parts.push(`status ${entry.status}`)
-  }
-
-  if (entry.message !== undefined) {
-    parts.push(entry.message)
-  }
-
-  return parts.join(' ')
-}
-
-function getReadyWeaponRange(weapons: ReadonlyArray<Weapon> | undefined): number {
-  if (weapons === undefined || weapons.length === 0) {
-    return 0
-  }
-
-  return weapons
-    .filter((weapon) => weapon.status === 'ready')
-    .reduce((maxRange, weapon) => Math.max(maxRange, weapon.range), 0)
-}
-
-function parseRangeValue(rangeText: string): number {
-  const parsedRange = Number.parseInt(rangeText, 10)
-  return Number.isNaN(parsedRange) ? 0 : parsedRange
-}
-
-function getTerrainTypeAt(scenarioMap: { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
-  return scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t
-}
-
-
-// Defense for Little Pigs: squads + 1 if in forest (terrainType === 1)
-function getDisplayDefense(type: string, squads: number | undefined, terrainType: number | undefined): number {
-  if (type === 'LittlePigs') {
-    const stackSize = squads ?? 1
-    return stackSize + (terrainType === 1 ? 1 : 0)
-  }
-
-  switch (type) {
-    case 'BigBadWolf':
-      return 4
-    case 'Puss':
-      return 3
-    case 'Witch':
-      return 2
-    case 'LordFarquaad':
-      return 0
-    case 'Pinocchio':
-      return 3
-    case 'Dragon':
-      return 3
-    case 'Castle':
-      return 0
-    default:
-      return 0
-  }
-}
-
-function isWeaponSelectionId(selectionId: string) {
-  return selectionId.startsWith('weapon:')
-}
-
-function stripWeaponSelectionId(selectionId: string) {
-  return selectionId.replace(/^weapon:/, '')
-}
-
-function buildWeaponSelectionId(weaponId: string) {
-  return `weapon:${weaponId}`
-}
-
-function buildCombatTargetActionId(targetId: string, onionId: string | undefined): string {
-  if (targetId.startsWith('weapon:')) {
-    return stripWeaponSelectionId(targetId)
-  }
-
-  if (targetId.endsWith(':treads')) {
-    return onionId ?? targetId
-  }
-
-  return targetId
-}
-
-function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean, activePhase: TurnPhase | null): Mode[] {
-  if (status === 'destroyed' || status === 'disabled') {
-    return []
-  }
-
-  const hasReadyWeapon = (weapons ?? []).some((weapon) => weapon.status === 'ready')
-  if (activePhase === 'DEFENDER_COMBAT') {
-    return hasReadyWeapon ? ['fire', 'combined'] : []
-  }
-
-  if (activePhase === 'ONION_COMBAT') {
-    return []
-  }
-
-  if (!activeTurnActive) {
-    return []
-  }
-
-  return hasReadyWeapon ? ['fire', 'combined'] : []
-}
-
-function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldUnit[] {
-  const authoritativeState = snapshot.authoritativeState
-
-  if (authoritativeState === undefined) {
-    return []
-  }
-
-  const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
-  const defenderEntries = Object.entries(
-    authoritativeState.defenders as Record<
-      string,
-      {
-        id?: string
-        type: string
-        status: UnitStatus
-        position: { q: number; r: number }
-        weapons?: ReadonlyArray<Weapon>
-        squads?: number
-        targetRules?: TargetRules
-      }
-    >,
-  )
-
-  return defenderEntries
-    .map(([defenderId, defender], index) => {
-      const resolvedDefenderId = defender.id ?? defenderId
-      const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
-
-      return {
-        id: resolvedDefenderId,
-        type: defender.type,
-        status: defender.status,
-        q: defender.position.q,
-        r: defender.position.r,
-        move: activePhase === null ? 0 : snapshotMovementRemaining ?? 0,
-        weapons: formatWeaponSummary(defender.weapons),
-        attack: formatAttackSummary(defender.weapons),
-        weaponDetails: defender.weapons ?? [],
-        targetRules: defender.targetRules,
-        defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
-        squads: defender.squads,
-        actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive, activePhase),
-        rosterOrder: index,
-      }
-    })
-    .sort((left, right) => {
-      const destroyedDelta = Number(left.status === 'destroyed') - Number(right.status === 'destroyed')
-
-      if (destroyedDelta !== 0) {
-        return destroyedDelta
-      }
-
-      return left.rosterOrder - right.rosterOrder
-    })
-    .map(({ rosterOrder, ...unit }) => {
-      void rosterOrder
-
-      return unit
-    })
-}
-
-function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
-  const authoritativeState = snapshot.authoritativeState
-
-  if (authoritativeState === undefined) {
-    throw new Error('Missing authoritative state')
-  }
-
-  const onion = authoritativeState.onion
-  const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
-  const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
-  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? movesAllowed
-  const ramCapacity = getUnitRamCapacity(onion.type ?? 'TheOnion')
-  const ramsRemaining = Math.max(ramCapacity - (authoritativeState.ramsThisTurn ?? 0), 0)
-
-  return {
-    id: onion.id ?? 'onion-1',
-    type: onion.type ?? 'TheOnion',
-    q: onion.position.q,
-    r: onion.position.r,
-    status: onion.status ?? 'operational',
-    treads: onion.treads,
-    movesAllowed,
-    movesRemaining,
-    rams: ramsRemaining,
-    weapons: formatWeaponSummary(onion.weapons),
-    weaponDetails: onion.weapons ?? [],
-    targetRules: onion.targetRules,
-  }
-}
-
-function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
-  if (snapshot === null) {
-    return null
-  }
-
-  if (snapshot.scenarioMap === undefined || snapshot.scenarioMap === null) {
-    throw new Error('Loaded game snapshot is missing scenario map data')
-  }
-
-  if (!Array.isArray(snapshot.scenarioMap.cells)) {
-    throw new Error('Loaded game snapshot is missing scenario map cells')
-  }
-
-  return {
-    width: snapshot.scenarioMap.width,
-    height: snapshot.scenarioMap.height,
-    cells: snapshot.scenarioMap.cells,
-    hexes: snapshot.scenarioMap.hexes,
-  }
-}
-
-function buildCombatRangeSources(
-  phase: TurnPhase | null,
-  activeCombatRole: 'onion' | 'defender' | null,
-  activeSelectedUnitIds: ReadonlyArray<string>,
-  displayedDefenders: ReadonlyArray<BattlefieldUnit>,
-  displayedOnion: BattlefieldOnionView | null,
-) {
-  if (phase === null || activeCombatRole === null) {
-    return []
-  }
-
-  if (activeCombatRole === 'onion') {
-    if (displayedOnion === null) {
-      return []
-    }
-
-    const selectedWeaponIds = new Set(activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId))
-
-    return (displayedOnion.weaponDetails ?? [])
-      .filter((weapon) => weapon.status === 'ready' && selectedWeaponIds.has(weapon.id))
-      .map((weapon) => ({
-        q: displayedOnion.q,
-        r: displayedOnion.r,
-        range: weapon.range,
-      }))
-  }
-
-  return displayedDefenders
-    .filter((unit) => unit.status !== 'destroyed')
-    .filter((unit) => activeSelectedUnitIds.includes(unit.id))
-    .map((unit) => ({
-      q: unit.q,
-      r: unit.r,
-      range: getReadyWeaponRange(unit.weaponDetails),
-    }))
 }
 
 type AppProps = {
@@ -464,11 +73,6 @@ type AppProps = {
 type AuthResponse = {
   userId: string
   token: string
-}
-
-type DebugPopupLayout = {
-  position: { x: number; y: number }
-  size: { width: number; height: number }
 }
 
 type SessionBinding = {
@@ -527,111 +131,6 @@ function createRequestTransportFromGameClient(gameClient: GameClient): GameReque
       return gameClient.submitAction(gameId, action)
     },
   }
-}
-
-function DraggableDebugPopup({
-  layout,
-  onLayoutChange,
-  onClose,
-  lines,
-  onAdvancePhase,
-}: {
-  layout: DebugPopupLayout
-  onLayoutChange: (nextLayout: DebugPopupLayout) => void
-  onClose: () => void
-  lines: ReadonlyArray<ApiProtocolTrafficEntry>
-  onAdvancePhase: () => void
-}) {
-  const [dragging, setDragging] = useState(false)
-  const [resizing, setResizing] = useState(false)
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
-
-  function onMouseDown(e: React.MouseEvent) {
-    setDragging(true)
-    setOffset({ x: e.clientX - layout.position.x, y: e.clientY - layout.position.y })
-    document.body.style.userSelect = 'none'
-  }
-
-  function onResizeMouseDown(e: React.MouseEvent) {
-    e.preventDefault()
-    setResizing(true)
-    setResizeStart({ x: e.clientX, y: e.clientY, width: layout.size.width, height: layout.size.height })
-    document.body.style.userSelect = 'none'
-  }
-
-  function onMouseMove(e: MouseEvent) {
-    if (dragging) {
-      onLayoutChange({
-        position: { x: e.clientX - offset.x, y: e.clientY - offset.y },
-        size: layout.size,
-      })
-    }
-    if (resizing) {
-      const deltaX = e.clientX - resizeStart.x
-      const deltaY = e.clientY - resizeStart.y
-      const newWidth = Math.max(250, resizeStart.width + deltaX)
-      const newHeight = Math.max(200, resizeStart.height + deltaY)
-      onLayoutChange({
-        position: layout.position,
-        size: { width: newWidth, height: newHeight },
-      })
-    }
-  }
-
-  function onMouseUp() {
-    setDragging(false)
-    setResizing(false)
-    document.body.style.userSelect = ''
-  }
-
-  useEffect(() => {
-    if (dragging || resizing) {
-      window.addEventListener('mousemove', onMouseMove)
-      window.addEventListener('mouseup', onMouseUp)
-      return () => {
-        window.removeEventListener('mousemove', onMouseMove)
-        window.removeEventListener('mouseup', onMouseUp)
-      }
-    }
-  })
-
-  return createPortal(
-    <div
-      className="debug-popup"
-      style={{ left: layout.position.x, top: layout.position.y, width: layout.size.width, height: layout.size.height }}
-    >
-      <div className="debug-popup-header" onMouseDown={onMouseDown} style={{ cursor: 'move' }}>
-        <span>Debug Diagnostics</span>
-        <button className="debug-popup-close" onClick={onClose} title="Close debug window">×</button>
-      </div>
-      <div className="debug-popup-body">
-        {lines.length === 0 ? (
-          <div className="debug-line">No protocol traffic yet.</div>
-        ) : (
-          lines.map((entry) => (
-            <section key={entry.id} className="debug-entry">
-              <div className="debug-entry-summary">{formatDebugEntrySummary(entry)}</div>
-              <div className="debug-json-print">
-                <ReactJsonPrint dataObject={entry} depth={0} />
-              </div>
-            </section>
-          ))
-        )}
-      </div>
-      <div className="debug-popup-footer">
-        <button
-          className="debug-cycle-phase-btn"
-          onClick={onAdvancePhase}
-          title="Send END_PHASE to the backend"
-        >
-          Advance Phase
-        </button>
-      </div>
-      <div className="debug-popup-resize" onMouseDown={onResizeMouseDown} title="Drag to resize">⤡</div>
-    </div>,
-    document.body,
-  )
 }
 
 function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectionGate = false }: AppProps) {
