@@ -18,6 +18,7 @@ import { useGameSession } from './lib/useGameSession'
 import { useDebugDiagnostics } from './lib/useDebugDiagnostics'
 import { useBattlefieldInteractionState } from './lib/useBattlefieldInteractionState'
 import { useBattlefieldDisplayState } from './lib/useBattlefieldDisplayState'
+import { useInactiveEventStream } from './lib/useInactiveEventStream'
 import type {
   GameRequestTransport,
   GameSessionController,
@@ -88,6 +89,9 @@ function createRequestTransportFromGameClient(gameClient: GameClient): GameReque
     submitAction(gameId: number, action: GameAction) {
       return gameClient.submitAction(gameId, action)
     },
+    pollEvents(gameId: number, afterSeq: number) {
+      return gameClient.pollEvents(gameId, afterSeq)
+    },
   }
 }
 
@@ -107,11 +111,24 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const activeSessionBinding = useMemo<SessionBinding | null>(() => {
     if (providedRequestTransport !== null && gameId !== undefined) {
+      if (typeof window !== 'undefined') {
+        console.info('[app] using provided request transport', {
+          gameId,
+          hasLiveEventSource: liveEventSource !== undefined,
+        })
+      }
       return {
         gameId,
         requestTransport: providedRequestTransport,
         liveEventSource: liveEventSource ?? idleLiveEventSource,
       }
+    }
+
+    if (typeof window !== 'undefined') {
+      console.info('[app] using connected session binding', {
+        hasConnectedSession: connectedSession !== null,
+        connectedGameId: connectedSession?.gameId ?? null,
+      })
     }
 
     return connectedSession
@@ -139,6 +156,13 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const sessionRole = sessionState.session?.role ?? null
   const activeTurnOwner = getPhaseOwner(sessionPhase)
   const sessionTurnActive = sessionState.snapshot !== null && sessionRole !== null && activeTurnOwner === sessionRole
+
+  const inactiveEventStream = useInactiveEventStream({
+    activeGameId: activeSessionBinding?.gameId ?? null,
+    activeTurnActive: sessionTurnActive,
+    lastAppliedEventSeq: sessionState.lastAppliedEventSeq,
+    pollEvents: activeSessionBinding?.requestTransport.pollEvents,
+  })
 
   const interactionState = useBattlefieldInteractionState({
     activeSessionController,
@@ -410,6 +434,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           selectedCombatTargetId={selectedCombatTargetId}
           selectedInspectorDefender={selectedInspectorDefender}
           selectedInspectorOnion={selectedInspectorOnion}
+          inactiveEventStream={inactiveEventStream}
           combatTargetOptions={combatTargetOptions}
           onConfirmCombat={handleConfirmCombat}
           onSelectCombatTarget={setSelectedCombatTargetId}

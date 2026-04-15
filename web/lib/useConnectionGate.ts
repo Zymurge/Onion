@@ -34,6 +34,14 @@ export function useConnectionGate({ runtimeConfig, onConnectedSession }: UseConn
   async function submitConnectDraft(draft: ConnectDraft) {
     setConnectError(null)
 
+    if (typeof window !== 'undefined') {
+      console.info('[connection-gate] submit', {
+        apiBaseUrl: draft.apiBaseUrl,
+        username: draft.username,
+        gameId: draft.gameId,
+      })
+    }
+
     if (!draft.apiBaseUrl.trim() || !draft.username.trim() || !draft.password.trim() || !draft.gameId.trim()) {
       setConnectError('API base URL, username, password, and game ID are required.')
       return
@@ -62,6 +70,13 @@ export function useConnectionGate({ runtimeConfig, onConnectedSession }: UseConn
       }
 
       const baseUrl = draft.apiBaseUrl.trim()
+      if (typeof window !== 'undefined') {
+        console.info('[connection-gate] connected session created', {
+          gameId: parsedGameId,
+          baseUrl,
+          username: loginResult.data.userId,
+        })
+      }
       onConnectedSession({
         requestTransport: createHttpGameRequestTransport({
           baseUrl,
