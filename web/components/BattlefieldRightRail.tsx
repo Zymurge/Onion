@@ -1,7 +1,9 @@
 import { CombatConfirmationView } from './CombatConfirmationView'
 import { CombatTargetList } from './CombatTargetList'
+import { InactiveEventStream } from './InactiveEventStream'
 import { parseAttackStats, parseWeaponStats } from '../lib/appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
+import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
 
 type BattlefieldRightRailProps = {
@@ -15,6 +17,11 @@ type BattlefieldRightRailProps = {
   selectedCombatTargetId: string | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
+  inactiveEventStream: {
+    entries: ReadonlyArray<TimelineEvent>
+    clearEntries: () => void
+    isDismissed: boolean
+  }
   combatTargetOptions: ReadonlyArray<CombatTargetOption>
   onConfirmCombat: () => void
   onSelectCombatTarget: (targetId: string) => void
@@ -31,12 +38,19 @@ export function BattlefieldRightRail({
   selectedCombatTargetId,
   selectedInspectorDefender,
   selectedInspectorOnion,
+  inactiveEventStream,
   combatTargetOptions,
   onConfirmCombat,
   onSelectCombatTarget,
 }: BattlefieldRightRailProps) {
   return (
     <aside className="panel rail rail-right">
+      {!inactiveEventStream.isDismissed ? (
+        <InactiveEventStream
+          entries={inactiveEventStream.entries}
+          onDismiss={inactiveEventStream.clearEntries}
+        />
+      ) : null}
       {selectedInspectorOnion !== null ? (
         <section className="selection-panel panel-subtle">
           <div className="selection-panel-header">

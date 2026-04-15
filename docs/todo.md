@@ -5,10 +5,15 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [ ] Add event-driven toasts for inactive players so the non-active client can surface actions taken by the other side (for example: MOVE ram results, combat outcomes, unit destruction, and phase changes).
-  - [ ] Define which events should trigger passive toasts, how they are deduplicated, and how they should appear when the player is not the active actor.
-  - [ ] Implement event stream emmission for any new or modified events
-  - [ ] Render inactive player toasts
+
+- [ ] Add a reviewable "Opponent’s Results" stream for the non-active client to surface actions taken by the other side (combat attempts/results, unit destruction, ram outcomes, phase changes).
+  - [x] Define the event stream contract: show remote-visible outcomes from persisted events, not the local player's own pending action state.
+    - [x] Include combat attempts (even misses), `MOVE_RESOLVED` ram results, `UNIT_STATUS_CHANGED` for destroyed units, and `PHASE_CHANGED` for phase advances.
+    - [x] Deduplicate by event seq so reconnects, refreshes, and repeated live hints cannot show the same entry twice.
+    - [x] Keep the content compact and reviewable: append one entry per meaningful event, let the user dismiss the stream, and only show new events after dismissal.
+    - [x] Skip the active player's own result overlay, since that remains covered by the existing resolution UI.
+  - [ ] Implement event stream emission for any new or modified events (backend)
+  - [x] Render the "Opponent’s Results" UI as a compact, scrollable right-rail panel with one-line summaries per event.
 
 ## Epics / Major Work
 
