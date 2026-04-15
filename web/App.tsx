@@ -1,68 +1,39 @@
-import { useState, useEffect, useMemo, useRef, useSyncExternalStore, type FormEvent } from 'react'
+import { useState, useMemo } from 'react'
 import { HexMapBoard } from './components/HexMapBoard'
 import { CombatConfirmationView } from './components/CombatConfirmationView'
 import { CombatResolutionToast } from './components/CombatResolutionToast'
 import { MoveResolutionToast } from './components/MoveResolutionToast'
 import { ErrorOverlay } from './components/ErrorOverlay'
-import { DraggableDebugPopup, type DebugPopupLayout } from './components/DraggableDebugPopup'
-import { ConnectField } from './components/ConnectField'
+import { DraggableDebugPopup } from './components/DraggableDebugPopup'
+import { ConnectGate } from './components/ConnectGate'
 import { CombatTargetList } from './components/CombatTargetList'
 import {
-  GameClientSeamError,
   type GameAction,
   type GameClient,
-  type GameSnapshot,
 } from './lib/gameClient'
-import { statusTone, type Mode } from './lib/battlefieldView'
+import { statusTone } from './lib/battlefieldView'
 import { createGameSessionController } from './lib/gameSessionController'
-import { buildCombatRangeHexKeys } from './lib/combatRange'
-import { buildCombatTargetOptions } from './lib/combatPreview'
 import type { WebRuntimeConfig } from './lib/appBootstrap'
-import { createHttpGameRequestTransport } from './lib/httpGameClient'
-import { createLiveEventSource } from './lib/liveEventSource'
 import { formatRamResolutionTitle } from './lib/moveResolution'
 import { useGameSession } from './lib/useGameSession'
-import {
-  getApiProtocolTrafficSnapshot,
-  getApiProtocolTrafficVersion,
-  type ApiProtocolTrafficEntry,
-  requestJson,
-  sanitizeApiProtocolTrafficEntry,
-  subscribeApiProtocolTraffic,
-} from '../shared/apiProtocol'
-import type { TurnPhase } from '../shared/types/index'
+import { useDebugDiagnostics } from './lib/useDebugDiagnostics'
+import { useBattlefieldInteractionState } from './lib/useBattlefieldInteractionState'
+import { useBattlefieldDisplayState } from './lib/useBattlefieldDisplayState'
 import type {
   GameRequestTransport,
   GameSessionController,
   GameSessionViewState,
   LiveEventSource,
 } from './lib/gameSessionTypes'
+import type { SessionBinding } from './lib/sessionBinding'
 import {
-  buildCombatRangeSources,
   buildCombatTargetActionId,
-  buildLiveDefenders,
-  buildLiveOnion,
-  buildScenarioMap,
   buildWeaponSelectionId,
-  formatLiveConnectionStatus,
-  getPhaseAdvanceLabel,
   getPhaseOwner,
-  isWeaponSelectionId,
   parseAttackStats,
-  parseRangeValue,
   parseWeaponStats,
-  stripWeaponSelectionId,
 } from './lib/appViewHelpers'
 import './App.css'
-
-const turnPhaseLabels: Record<TurnPhase, string> = {
-  ONION_MOVE: 'Onion Movement',
-  ONION_COMBAT: 'Onion Combat',
-  DEFENDER_RECOVERY: 'Defender Recovery',
-  DEFENDER_MOVE: 'Defender Movement',
-  DEFENDER_COMBAT: 'Defender Combat',
-  GEV_SECOND_MOVE: 'GEV Second Move',
-}
 
 type AppProps = {
   gameClient?: GameClient
@@ -70,17 +41,6 @@ type AppProps = {
   liveEventSource?: LiveEventSource
   runtimeConfig?: WebRuntimeConfig
   showConnectionGate?: boolean
-}
-
-type AuthResponse = {
-  userId: string
-  token: string
-}
-
-type SessionBinding = {
-  gameId: number
-  requestTransport: GameRequestTransport
-  liveEventSource: LiveEventSource
 }
 
 const idleSessionState: GameSessionViewState = {
@@ -126,41 +86,20 @@ const idleSessionController: GameSessionController = {
 
 function createRequestTransportFromGameClient(gameClient: GameClient): GameRequestTransport {
   return {
-    getState(gameId) {
+    getState(gameId: number) {
       return gameClient.getState(gameId)
     },
-    submitAction(gameId, action) {
+    submitAction(gameId: number, action: GameAction) {
       return gameClient.submitAction(gameId, action)
     },
   }
 }
 
 function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectionGate = false }: AppProps) {
-    // Debug diagnostics popup state
-    const [debugOpen, setDebugOpen] = useState(false)
-    const [debugPopupLayout, setDebugPopupLayout] = useState<DebugPopupLayout>(() => ({
-      position: { x: window.innerWidth - 380, y: 90 },
-      size: { width: 340, height: 400 },
-    }))
-    const [actionError, setActionError] = useState<string | null>(null)
-    const [, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
-    const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
-    const [pendingRamResolution, setPendingRamResolution] = useState<GameSnapshot['ramResolution'] | null>(null)
-    const [combatBaseSnapshot, setCombatBaseSnapshot] = useState<GameSnapshot | null>(null)
-    const [connectedSession, setConnectedSession] = useState<SessionBinding | null>(null)
-    const [connectError, setConnectError] = useState<string | null>(null)
-    const [connectDraft, setConnectDraft] = useState({
-      apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
-      username: '',
-      password: '',
-      gameId: runtimeConfig?.gameId?.toString() ?? '',
-    })
-  const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
-  const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
+  const [connectedSession, setConnectedSession] = useState<SessionBinding | null>(null)
 
   const runtimeConnectionSeeded = showConnectionGate
   const liveRefreshQuietWindowMs = runtimeConfig?.liveRefreshQuietWindowMs ?? 500
-  const previousSnapshotPhaseRef = useRef<TurnPhase | null>(null)
 
   const providedRequestTransport = useMemo(() => {
     if (gameClient === undefined) {
@@ -200,196 +139,94 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     disposeOnUnmount: true,
   })
 
-  const clientSnapshot = combatBaseSnapshot ?? sessionState.snapshot
-  const clientSession = sessionState.session
-  const activeGameIdProp = activeSessionBinding?.gameId
+  const sessionPhase = sessionState.snapshot?.phase ?? null
+  const sessionRole = sessionState.session?.role ?? null
+  const activeTurnOwner = getPhaseOwner(sessionPhase)
+  const sessionTurnActive = sessionState.snapshot !== null && sessionRole !== null && activeTurnOwner === sessionRole
 
-  useEffect(() => {
-    const nextSnapshotPhase = sessionState.snapshot?.phase ?? null
-    const previousSnapshotPhase = previousSnapshotPhaseRef.current
+  const interactionState = useBattlefieldInteractionState({
+    activeSessionController,
+    activeTurnActive: sessionTurnActive,
+    clientSnapshot: sessionState.snapshot,
+    clientSnapshotPhase: sessionPhase,
+    isControlledSession: activeSessionBinding !== null,
+  })
 
-    if (
-      sessionState.snapshot === null
-      || (previousSnapshotPhase !== null && previousSnapshotPhase !== nextSnapshotPhase)
-      || !isCombatSnapshotPhase(nextSnapshotPhase)
-    ) {
-      setPendingCombatSnapshot(null)
-      setPendingCombatResolution(null)
-      setCombatBaseSnapshot(null)
-      setSelectedCombatTargetId(null)
-    }
+  const displayState = useBattlefieldDisplayState({
+    activeSessionBinding,
+    combatBaseSnapshot: interactionState.combatBaseSnapshot,
+    lastRefreshAt: interactionState.lastRefreshAt,
+    selectedCombatTargetId: interactionState.selectedCombatTargetId,
+    selectedUnitIds: interactionState.selectedUnitIds,
+    sessionState,
+  })
 
-    previousSnapshotPhaseRef.current = nextSnapshotPhase
-  }, [sessionState.snapshot])
-  const isControlledSession = activeSessionBinding !== null
-  const activePhase = clientSnapshot?.phase ?? null
-  const selectedSnapshotUnitId = clientSnapshot?.selectedUnitId ?? null
-  const activeSelectedUnitIds = selectedUnitIds ?? (selectedSnapshotUnitId ? [selectedSnapshotUnitId] : [])
-  const headerHasSnapshot = clientSnapshot !== null
-  const activeTurnNumber = clientSnapshot?.turnNumber ?? null
-  const activeScenarioName = clientSnapshot?.scenarioName ?? null
-  const activeRole = clientSession?.role ?? null
-  const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? null
-  const activePhaseOwner = getPhaseOwner(activePhase)
-  const activeTurnActive = headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
-  const phaseAdvanceLabel = getPhaseAdvanceLabel(activePhase, activeRole)
-  const shellPhase = activePhase ?? 'DEFENDER_MOVE'
-  const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
-  const activeMode: Mode = clientSnapshot?.mode ?? 'fire'
-  const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
-  const activeCombatRole = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
-  const isMovementPhase = activePhase === 'ONION_MOVE' || activePhase === 'DEFENDER_MOVE' || activePhase === 'GEV_SECOND_MOVE'
-  const displayedScenarioMap = buildScenarioMap(clientSnapshot)
-  const selectedCombatAttackerIds = !isCombatPhase
-    ? []
-    : activeCombatRole === 'onion'
-      ? activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
-      : [...activeSelectedUnitIds]
+  const {
+    actionError,
+    commitClientAction,
+    handleDeselectUnit,
+    handleDismissCombatResolution,
+    handleDismissRamResolution,
+    handleMoveUnit,
+    handleRefresh,
+    handleSelectUnit,
+    isRefreshing,
+    pendingCombatResolution,
+    pendingRamResolution,
+    selectedCombatTargetId,
+    setActionError,
+    setSelectedCombatTargetId,
+    setSelectedUnitIds,
+  } = interactionState
 
-  const authoritativeState = clientSnapshot?.authoritativeState ?? null
-  const scenarioMapSnapshot = clientSnapshot === null ? null : buildScenarioMap(clientSnapshot)
-  const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
-  const displayedDefenders = authoritativeState === null ? [] : buildLiveDefenders({
-    authoritativeState,
-    scenarioMap: scenarioMapSnapshot,
-    movementRemainingByUnit: movementRemainingSnapshot,
-  } as GameSnapshot, activePhase, activeTurnActive)
-  const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
-  const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
-  const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
-  const selectedCombatAttackStrength = !isCombatPhase
-    ? 0
-    : activeCombatRole === 'onion'
-      ? (displayedOnion?.weaponDetails ?? [])
-        .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
-        .reduce((total, weapon) => total + weapon.attack, 0)
-      : displayedDefenders
-        .filter((unit) => activeSelectedUnitIds.includes(unit.id))
-        .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
-  const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
-  const selectedCombatAttackCount = selectedCombatAttackerIds.length
-  const selectedInspectorUnitId = activeSelectedUnitIds.find((selectionId) => !isWeaponSelectionId(selectionId)) ?? null
-  const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
-  const selectedInspectorDefender =
-    selectedInspectorOnion !== null || selectedInspectorUnitId === null
-      ? null
-      : displayedDefenders.find((unit) => unit.id === selectedInspectorUnitId) ?? null
-  const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
-    ? new Set<string>()
-    : buildCombatRangeHexKeys(
-      buildCombatRangeSources(activePhase, activeCombatRole, activeSelectedUnitIds, displayedDefenders, displayedOnion),
-      displayedScenarioMap,
-    )
-  const combatTargetOptions = buildCombatTargetOptions({
+  const {
     activeCombatRole,
+    activeGameId,
+    activeMode,
+    activePhase,
+    activePhaseLabel,
+    activeRole,
+    activeScenarioName,
+    activeSelectedUnitIds,
+    activeTurnActive,
+    activeTurnNumber,
     combatRangeHexKeys,
+    combatTargetIds,
+    combatTargetOptions,
+    connectionLabel,
+    connectionStatus,
     displayedDefenders,
     displayedOnion,
-    selectedUnitIds: activeSelectedUnitIds,
-    selectedAttackStrength: selectedCombatAttackStrength,
     displayedScenarioMap,
-  })
-  const combatTargetIds = new Set(combatTargetOptions.map((target) => target.id))
-  const selectedCombatTargetIdForRender = selectedCombatTargetId !== null && combatTargetIds.has(selectedCombatTargetId) ? selectedCombatTargetId : null
-  const selectedCombatTarget = selectedCombatTargetIdForRender === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetIdForRender) ?? null
+    headerHasSnapshot,
+    isCombatPhase,
+    isMovementPhase,
+    lastUpdatedAt,
+    onionWeapons,
+    phaseAdvanceLabel,
+    readyWeaponDetails,
+    selectedCombatAttackerIds,
+    selectedCombatAttackCount,
+    selectedCombatAttackLabel,
+    selectedCombatAttackStrength,
+    selectedCombatTarget,
+    selectedInspectorDefender,
+    selectedInspectorOnion,
+    shellPhase,
+  } = displayState
 
-  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const isControlledSession = activeSessionBinding !== null
 
-  const connectionStatus = sessionState.liveConnection
-  const connectionLabel = formatLiveConnectionStatus(connectionStatus)
-  const lastUpdatedAt = sessionState.lastUpdatedAt ?? lastRefreshAt
-
-  useSyncExternalStore(
-    (onStoreChange) => {
-      if (!debugOpen) {
-        return () => {}
-      }
-
-      return subscribeApiProtocolTraffic(() => {
-        onStoreChange()
-      })
-    },
-    () => (debugOpen ? getApiProtocolTrafficVersion() : 0),
-    () => 0,
-  )
-  const debugEntries = debugOpen
-    ? getApiProtocolTrafficSnapshot()
-      .slice()
-      .reverse()
-      .slice(0, 400)
-      .map((entry: ApiProtocolTrafficEntry) => sanitizeApiProtocolTrafficEntry(entry))
-    : []
-
-  function isCombatSnapshotPhase(phase: TurnPhase | null): boolean {
-    return phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
-  }
-
-  async function commitClientAction(action: GameAction) {
-    if (!isControlledSession || activeSessionController === null) {
-      return
-    }
-
-    try {
-      const previousSnapshot = clientSnapshot
-      const nextSnapshot = await activeSessionController.submitAction(action)
-      setActionError(null) // clear any previous error
-      if (nextSnapshot?.combatResolution !== undefined) {
-        setCombatBaseSnapshot(previousSnapshot)
-        setPendingCombatSnapshot(nextSnapshot)
-        setPendingCombatResolution(nextSnapshot.combatResolution)
-      } else {
-        clearPendingCombatResolution(false)
-      }
-
-      setPendingRamResolution(nextSnapshot?.ramResolution ?? null)
-      if (nextSnapshot !== null && !isCombatSnapshotPhase(nextSnapshot.phase)) {
-        setSelectedCombatTargetId(null)
-      }
-    } catch (error: unknown) {
-      // Surface error to UI
-      const errorMessage =
-        error instanceof GameClientSeamError
-          ? `GameClientSeamError: ${error.message}`
-          : error instanceof Error && error.message
-          ? `Error: ${error.message}`
-          : 'Error unknown'
-      setActionError(`Failed to submit action: ${errorMessage}`)
-      if (action.type === 'FIRE' && activeSessionController !== null) {
-        clearPendingCombatResolution(true)
-
-        try {
-          await activeSessionController.refresh()
-        } catch {
-          // Keep the error banner; the user can retry or refresh manually.
-        }
-      }
-      // Do not update clientSnapshot on failure
-    }
-  }
-
-  function clearPendingCombatResolution(clearSelection: boolean) {
-    setCombatBaseSnapshot(null)
-    setPendingCombatSnapshot(null)
-    setPendingCombatResolution(null)
-    setPendingRamResolution(null)
-
-    if (clearSelection) {
-      setSelectedUnitIds([])
-      setSelectedCombatTargetId(null)
-    }
-  }
-
-  function handleDismissCombatResolution() {
-    clearPendingCombatResolution(true)
-  }
-
-  function handleDismissRamResolution() {
-    setPendingRamResolution(null)
-  }
+  const {
+    debugEntries,
+    debugOpen,
+    debugPopupLayout,
+    setDebugOpen,
+    setDebugPopupLayout,
+  } = useDebugDiagnostics()
 
   function handleConfirmCombat() {
-    if (selectedCombatTarget === null || selectedCombatAttackerIds.length === 0 || displayedOnion === null) {
+    if (selectedCombatTarget === null || selectedCombatAttackCount === 0 || displayedOnion === null) {
       return
     }
 
@@ -397,192 +234,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     void commitClientAction({ type: 'FIRE', attackers: selectedCombatAttackerIds, targetId })
   }
 
-  function handleConnect(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    void submitConnectDraft(connectDraft)
-  }
-
-  async function submitConnectDraft(draft: typeof connectDraft) {
-    setConnectError(null)
-
-    if (!draft.apiBaseUrl.trim() || !draft.username.trim() || !draft.password.trim() || !draft.gameId.trim()) {
-      setConnectError('API base URL, username, password, and game ID are required.')
-      return
-    }
-
-    const parsedGameId = Number(draft.gameId.trim())
-    if (!Number.isSafeInteger(parsedGameId) || parsedGameId <= 0) {
-      setConnectError('Game ID must be a positive integer.')
-      return
-    }
-
-    try {
-      const loginResult = await requestJson<AuthResponse>({
-        baseUrl: draft.apiBaseUrl.trim(),
-        path: 'auth/login',
-        method: 'POST',
-        body: {
-          username: draft.username.trim(),
-          password: draft.password,
-        },
-      })
-
-      if (!loginResult.ok) {
-        setConnectError(loginResult.message)
-        return
-      }
-
-      const baseUrl = connectDraft.apiBaseUrl.trim()
-      const requestTransport = createHttpGameRequestTransport({
-        baseUrl,
-        token: loginResult.data.token,
-      })
-      const nextLiveEventSource = createLiveEventSource({
-        baseUrl,
-        token: loginResult.data.token,
-      })
-
-      setConnectedSession({
-        requestTransport,
-        liveEventSource: nextLiveEventSource,
-        gameId: parsedGameId,
-      })
-    } catch {
-      setConnectError('Unable to connect to the backend.')
-    }
-  }
-
-  function handleSelectUnit(unitId: string, additive = false) {
-    if (displayedDefenders.some((unit) => unit.id === unitId && unit.status === 'destroyed')) {
-      return
-    }
-
-    clearPendingCombatResolution(false)
-
-    setSelectedUnitIds((currentSelection) => {
-      const baseSelection = currentSelection ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
-
-      if (!additive) {
-        return [unitId]
-      }
-
-      if (baseSelection.includes(unitId)) {
-        return baseSelection.filter((selectedId) => selectedId !== unitId)
-      }
-
-      return [...baseSelection, unitId]
-    })
-    setSelectedCombatTargetId(null)
-    setActionError(null)
-  }
-
-  function handleDeselectUnit() {
-    clearPendingCombatResolution(false)
-    setSelectedUnitIds([])
-    setSelectedCombatTargetId(null)
-    setActionError(null)
-  }
-
-  async function handleMoveUnit(unitId: string, to: { q: number; r: number }) {
-    if (!isControlledSession || activeSessionController === null) {
-      return
-    }
-
-    if (!activeTurnActive) {
-      return
-    }
-
-    setActionError(null)
-    await commitClientAction({ type: 'MOVE', unitId, to })
-    setSelectedUnitIds([])
-  }
-
-  async function handleRefresh() {
-    setIsRefreshing(true)
-    if (activeSessionController !== null) {
-      try {
-        await activeSessionController.refresh()
-        setLastRefreshAt(new Date())
-      } finally {
-        setIsRefreshing(false)
-      }
-      return
-    }
-
-    setTimeout(() => {
-      setLastRefreshAt(new Date())
-      setIsRefreshing(false)
-    }, 800)
-  }
-
   if (!isControlledSession && runtimeConnectionSeeded) {
-    return (
-      <div className="shell connect-shell">
-        {connectError ? <ErrorOverlay message={connectError} className="error-overlay-connect" onDismiss={() => setConnectError(null)} /> : null}
-        <section className="panel connect-panel">
-          <div className="card-head">
-            <div>
-              <p className="eyebrow">Connect</p>
-              <h1>Open a live game session</h1>
-            </div>
-          </div>
-          <form className="connect-form" onSubmit={handleConnect}>
-            <ConnectField
-              label="API base URL"
-              value={connectDraft.apiBaseUrl}
-              placeholder="http://localhost:3000"
-              onChange={(value) => setConnectDraft((draft) => ({ ...draft, apiBaseUrl: value }))}
-            />
-            <ConnectField
-              label="Username"
-              value={connectDraft.username}
-              placeholder="player-1"
-              onChange={(value) => setConnectDraft((draft) => ({ ...draft, username: value }))}
-            />
-            <ConnectField
-              label="Password"
-              value={connectDraft.password}
-              placeholder="••••••••"
-              type="password"
-              onChange={(value) => setConnectDraft((draft) => ({ ...draft, password: value }))}
-            />
-            <ConnectField
-              label="Game ID"
-              value={connectDraft.gameId}
-              placeholder="123"
-              onChange={(value) => setConnectDraft((draft) => ({ ...draft, gameId: value }))}
-            />
-            <button type="submit" className="primary-action">Load Game</button>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
-              <button
-                type="button"
-                style={{ minWidth: 36, fontWeight: 600, fontSize: 18, borderRadius: 8, padding: '4px 0' }}
-                aria-label="Login as test user 1"
-                onClick={() => {
-                  const nextDraft = { ...connectDraft, username: 'user1', password: 'user1P4ss' }
-                  setConnectDraft(nextDraft)
-                  void submitConnectDraft(nextDraft)
-                }}
-              >
-                1
-              </button>
-              <button
-                type="button"
-                style={{ minWidth: 36, fontWeight: 600, fontSize: 18, borderRadius: 8, padding: '4px 0' }}
-                aria-label="Login as test user 2"
-                onClick={() => {
-                  const nextDraft = { ...connectDraft, username: 'user2', password: 'user2P4ss' }
-                  setConnectDraft(nextDraft)
-                  void submitConnectDraft(nextDraft)
-                }}
-              >
-                2
-              </button>
-            </div>
-          </form>
-        </section>
-      </div>
-    )
+    return <ConnectGate runtimeConfig={runtimeConfig} onConnectedSession={setConnectedSession} />
   }
 
   return (
@@ -665,7 +318,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className={`debug-toggle-btn${debugOpen ? ' active' : ''}`}
               title="Toggle debug diagnostics"
               aria-label="Toggle debug diagnostics"
-              onClick={() => setDebugOpen((v) => !v)}
+              onClick={() => setDebugOpen((value: boolean) => !value)}
             >
               Debug
             </button>
