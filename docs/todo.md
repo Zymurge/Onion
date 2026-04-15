@@ -5,16 +5,6 @@ break down into features/tasks as needed.
 
 ## In progress
 
-
-- [ ] Add a reviewable "Opponent’s Results" stream for the non-active client to surface actions taken by the other side (combat attempts/results, unit destruction, ram outcomes, phase changes).
-  - [x] Define the event stream contract: show remote-visible outcomes from persisted events, not the local player's own pending action state.
-    - [x] Include combat attempts (even misses), `MOVE_RESOLVED` ram results, `UNIT_STATUS_CHANGED` for destroyed units, and `PHASE_CHANGED` for phase advances.
-    - [x] Deduplicate by event seq so reconnects, refreshes, and repeated live hints cannot show the same entry twice.
-    - [x] Keep the content compact and reviewable: append one entry per meaningful event, let the user dismiss the stream, and only show new events after dismissal.
-    - [x] Skip the active player's own result overlay, since that remains covered by the existing resolution UI.
-  - [ ] Implement event stream emission for any new or modified events (backend)
-  - [x] Render the "Opponent’s Results" UI as a compact, scrollable right-rail panel with one-line summaries per event.
-
 ## Epics / Major Work
 
 - [ ] Improve error handling (UI and backend)
@@ -95,3 +85,11 @@ break down into features/tasks as needed.
   - [x] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
 - [x] Add more robust server-side logging that includes event details for MOVE and FIRE outcomes.
 - [x] Decompose two large files into modules via the obvious responsibility boundaries in order to improve agent effectiveness: server/api/games.ts and web/App.tsx
+- [x] Add a reviewable "Opponent’s Results" stream for the non-active client to surface actions taken by the other side (combat attempts/results, unit destruction, ram outcomes, phase changes).
+  - [x] Define the event stream contract: show remote-visible outcomes from persisted events, not the local player's own pending action state.
+    - [x] Include combat attempts (even misses), `MOVE_RESOLVED` ram results, `UNIT_STATUS_CHANGED` for destroyed units, and `PHASE_CHANGED` for phase advances.
+    - [x] Deduplicate by event seq so reconnects, refreshes, and repeated live hints cannot show the same entry twice.
+    - [x] Keep the content compact and reviewable: append one entry per meaningful event, let the user dismiss the stream, and only show new events after dismissal.
+    - [x] Skip the active player's own result overlay, since that remains covered by the existing resolution UI.
+  - [x] Implement event stream emission for any new or modified events (backend)
+  - [x] Render the "Opponent’s Results" UI as a compact, scrollable right-rail panel with one-line summaries per event.
