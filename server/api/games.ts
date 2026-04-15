@@ -336,6 +336,23 @@ function logSentEvents(gameId: number, actionType: string, events: EventEnvelope
   )
 }
 
+function logActionOutcome(
+  gameId: number,
+  actionType: 'MOVE' | 'FIRE',
+  outcome: Record<string, unknown>,
+  events: EventEnvelope[],
+): void {
+  logger.info(
+    {
+      gameId,
+      actionType,
+      outcome,
+      events,
+    },
+    `${actionType} resolved`,
+  )
+}
+
 function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
@@ -971,6 +988,15 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
         logSentEvents(match.gameId, 'MOVE', newEvents)
+        logActionOutcome(match.gameId, 'MOVE', {
+          unitId: command.unitId,
+          from: validation.plan.from,
+          to: validation.plan.to,
+          cost: validation.plan.cost,
+          rammedUnitIds: result.rammedUnitIds ?? [],
+          destroyedUnits: result.destroyedUnits ?? [],
+          treadDamage: result.treadDamage ?? 0,
+        }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
         return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
@@ -1014,6 +1040,17 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
         logSentEvents(match.gameId, command.type, newEvents)
+        logActionOutcome(match.gameId, 'FIRE', {
+          attackers: command.attackers,
+          targetId: result.targetId,
+          roll: result.roll?.roll ?? null,
+          outcome: result.roll?.result ?? null,
+          odds: result.roll?.odds ?? null,
+          treadsLost: result.treadsLost ?? null,
+          destroyedWeaponId: result.destroyedWeaponId ?? null,
+          squadsLost: result.squadsLost ?? null,
+          statusChanges: result.statusChanges ?? [],
+        }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })

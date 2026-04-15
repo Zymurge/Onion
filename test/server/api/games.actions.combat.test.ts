@@ -1,10 +1,30 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from '#server/app'
 import { StaleMatchStateError } from '#server/db/adapter'
 import * as engineGame from '#server/engine/index'
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import { advanceToPhase, createGame, joinGame, register, submitAction } from './helpers.js'
+import logger from '#server/logger'
+
+let infoSpy: any
+let warnSpy: any
+let errorSpy: any
+let debugSpy: any
+
+beforeEach(() => {
+  infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
+  warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+  errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+  debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {})
+})
+
+afterEach(() => {
+  infoSpy.mockRestore()
+  warnSpy.mockRestore()
+  errorSpy.mockRestore()
+  debugSpy.mockRestore()
+})
 
 describe('POST /games/:id/actions combat API contract', () => {
   it('rejects legacy FIRE_* command variants', async () => {
@@ -204,6 +224,26 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.events[1].amount).toBe(2)
     expect(body.events[1].remaining).toBe(43)
     expect(body.state.onion.treads).toBe(43)
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actionType: 'FIRE',
+        outcome: expect.objectContaining({
+          attackers: ['wolf-1'],
+          targetId: 'onion',
+          roll: 6,
+          outcome: 'X',
+          odds: '1:1',
+          treadsLost: 2,
+          destroyedWeaponId: null,
+          squadsLost: null,
+        }),
+        events: expect.arrayContaining([
+          expect.objectContaining({ type: 'FIRE_RESOLVED' }),
+          expect.objectContaining({ type: 'ONION_TREADS_LOST' }),
+        ]),
+      }),
+      'FIRE resolved',
+    )
     validateSpy.mockRestore()
     executeSpy.mockRestore()
   })

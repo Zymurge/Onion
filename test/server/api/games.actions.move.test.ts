@@ -60,6 +60,24 @@ describe('POST /games/:id/actions MOVE', () => {
     expect(body.state.onion.position).toEqual(moveTo)
     expect(validateSpy).toHaveBeenCalled()
     expect(executeSpy).toHaveBeenCalled()
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gameId,
+        actionType: 'MOVE',
+        outcome: expect.objectContaining({
+          unitId: onionUnitId,
+          from: initialStateBody.state.onion.position,
+          to: moveTo,
+          rammedUnitIds: [],
+          destroyedUnits: [],
+          treadDamage: 0,
+        }),
+        events: expect.arrayContaining([
+          expect.objectContaining({ type: 'ONION_MOVED' }),
+        ]),
+      }),
+      'MOVE resolved',
+    )
     expect(debugSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         gameId,
