@@ -5,7 +5,10 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [ ] Decompose two large files into modules via the obvious responsibility boundaries in order to imporve agent effectiveness: server/api/games.ts and web/App.tsx
+- [ ] Add event-driven toasts for inactive players so the non-active client can surface actions taken by the other side (for example: MOVE ram results, combat outcomes, unit destruction, and phase changes).
+  - [ ] Define which events should trigger passive toasts, how they are deduplicated, and how they should appear when the player is not the active actor.
+  - [ ] Implement event stream emmission for any new or modified events
+  - [ ] Render inactive player toasts
 
 ## Epics / Major Work
 
@@ -19,8 +22,6 @@ break down into features/tasks as needed.
 ## Features / Work Items
 
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
-- [ ] Add event-driven toasts for inactive players so the non-active client can surface actions taken by the other side (for example: MOVE ram results, combat outcomes, unit destruction, and phase changes).
-  - [ ] Define which events should trigger passive toasts, how they are deduplicated, and how they should appear when the player is not the active actor.
 
 ## Done
 
@@ -88,3 +89,4 @@ break down into features/tasks as needed.
   - [x] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
   - [x] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
 - [x] Add more robust server-side logging that includes event details for MOVE and FIRE outcomes.
+- [x] Decompose two large files into modules via the obvious responsibility boundaries in order to improve agent effectiveness: server/api/games.ts and web/App.tsx
