@@ -69,6 +69,7 @@ export interface EventEnvelope {
   seq: number
   type: string
   timestamp: string
+  causeId?: string
   [key: string]: unknown
 }
 

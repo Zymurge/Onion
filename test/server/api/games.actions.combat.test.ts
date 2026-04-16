@@ -223,6 +223,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.events[1].type).toBe('ONION_TREADS_LOST')
     expect(body.events[1].amount).toBe(2)
     expect(body.events[1].remaining).toBe(43)
+    expect(body.events[0].causeId).toBeDefined()
+    expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
     expect(body.state.onion.treads).toBe(43)
     expect(infoSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -293,6 +295,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.events[1].type).toBe('ONION_BATTERY_DESTROYED')
     expect(body.events[1].weaponId).toBe('main')
     expect(body.events[1].weaponType).toBe('main')
+    expect(body.events[0].causeId).toBeDefined()
+    expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
     validateSpy.mockRestore()
     executeSpy.mockRestore()
   })

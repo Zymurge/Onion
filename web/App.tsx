@@ -428,6 +428,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           activeRole={activeRole}
           activeSelectedUnitCount={activeSelectedUnitIds.length}
           isCombatPhase={isCombatPhase}
+          showInactiveEventStream={!sessionTurnActive}
           selectedCombatAttackCount={selectedCombatAttackCount}
           selectedCombatAttackStrength={selectedCombatAttackStrength}
           selectedCombatTarget={selectedCombatTarget}

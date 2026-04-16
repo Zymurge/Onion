@@ -59,6 +59,8 @@ export type TimelineEvent = {
   summary: string
   timestamp: string
   tone?: 'normal' | 'alert'
+  details?: ReadonlyArray<string>
+  payload?: Readonly<Record<string, unknown>>
 }
 
 export type TerrainHex = {

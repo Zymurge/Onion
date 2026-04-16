@@ -85,6 +85,13 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     }
   }
 
+  function attachCauseId(events: EventEnvelope[], causeId: string): EventEnvelope[] {
+    return events.map((event) => ({
+      ...event,
+      causeId,
+    }))
+  }
+
   function removeLiveConnection(gameId: number, socket: WebSocket) {
     const sockets = liveConnections.get(gameId)
     if (!sockets) {
@@ -220,6 +227,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       logger.info({ gameId: match.gameId, role }, 'User joined game')
 
       // Emit PLAYER_JOINED event
+      const causeId = String(req.id)
       const seq = (match.events.at(-1)?.seq ?? 0) + 1
       const event = {
         seq,
@@ -228,8 +236,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         userId,
         role,
       }
-      await db.appendEvents(match.gameId, [event])
-      broadcastGameEvents(match.gameId, [event])
+      const taggedEvent = { ...event, causeId }
+      await db.appendEvents(match.gameId, [taggedEvent])
+      broadcastGameEvents(match.gameId, [taggedEvent])
       logger.debug({ gameId: match.gameId, event }, 'PLAYER_JOINED event appended')
 
       return reply.send({ gameId: match.gameId, role })
@@ -498,11 +507,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       let newEvents: EventEnvelope[]
       let currentState = match.state
       const expectedLastEventSeq = match.events.at(-1)?.seq ?? 0
+      const causeId = String(req.id)
 
       if (command.type === 'END_PHASE') {
         logger.info({ gameId: match.gameId, phase: match.phase }, 'Advancing phase')
         const result = advancePhaseWithEvents(match)
-        newEvents = result.newEvents
+        newEvents = attachCauseId(result.newEvents, causeId)
         currentState = result.state
         const winner = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
         await db.persistMatchProgress({
@@ -545,7 +555,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state)
+        newEvents = attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state), causeId)
 
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
@@ -598,7 +608,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = buildCombatEvents(seq, command, result, state)
+        newEvents = attachCauseId(buildCombatEvents(seq, command, result, state), causeId)
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
         await db.persistMatchProgress({

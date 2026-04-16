@@ -598,6 +598,240 @@ describe('App UI', () => {
 		expect(pollEvents).toHaveBeenCalledWith(123, 48)
 	})
 
+	it('surfaces a non-blocking error when inactive-event polling fails', async () => {
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockRejectedValue(new Error('network down'))
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.getByRole('alert')).not.toBeNull()
+		expect(screen.getByText(/unable to refresh inactive events/i)).not.toBeNull()
+		expect(pollEvents).toHaveBeenCalledWith(123, 0)
+	})
+
+	it('hides the inactive-event stream after the session becomes active again', async () => {
+		const user = userEvent.setup()
+		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
+		const liveEventSource = createLiveEventSourceStub()
+		const getState = vi
+			.fn()
+			.mockResolvedValueOnce({ snapshot: inactiveSnapshot, session: { role: 'defender' as const } })
+			.mockResolvedValue({ snapshot: activeSnapshot, session: { role: 'defender' as const } })
+		const client = createGameClient({
+			getState,
+			submitAction: vi.fn().mockResolvedValue(activeSnapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.getByText(/Waiting for remote actions\./i)).not.toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+
+		await waitFor(() => {
+			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+		})
+		expect(getState).toHaveBeenCalledWith(123)
+	})
+
+	it('clears stale inactive-event errors after polling is disabled and resumes cleanly', async () => {
+		const user = userEvent.setup()
+		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
+		const liveEventSource = createLiveEventSourceStub()
+		const getState = vi
+			.fn()
+			.mockResolvedValueOnce({ snapshot: inactiveSnapshot, session: { role: 'defender' as const } })
+			.mockResolvedValueOnce({ snapshot: activeSnapshot, session: { role: 'defender' as const } })
+			.mockResolvedValue({ snapshot: inactiveSnapshot, session: { role: 'defender' as const } })
+		const pollEvents = vi
+			.fn()
+			.mockRejectedValueOnce(new Error('network down'))
+			.mockResolvedValue([])
+		const client = createGameClient({
+			getState,
+			submitAction: vi.fn().mockResolvedValue(activeSnapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.getByRole('alert')).not.toBeNull()
+		expect(screen.getByText(/unable to refresh inactive events/i)).not.toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+
+		await waitFor(() => {
+			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+			expect(screen.queryByRole('alert')).toBeNull()
+		})
+
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.queryByRole('alert')).toBeNull()
+		expect(pollEvents).toHaveBeenCalledWith(123, 0)
+		expect(pollEvents).toHaveBeenCalledTimes(2)
+	})
+
+	it('renders structured inactive-event summaries when summary text is absent', async () => {
+		const user = userEvent.setup()
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockResolvedValue([
+			{
+				seq: 52,
+				type: 'PHASE_CHANGED',
+				timestamp: '2026-04-15T12:02:00.000Z',
+				from: 'ONION_MOVE',
+				to: 'DEFENDER_COMBAT',
+			},
+			{
+				seq: 53,
+				type: 'SESSION_CONNECTED',
+				timestamp: '2026-04-15T12:02:30.000Z',
+				summary: 'Defender connected to the session.',
+			},
+			{
+				seq: 54,
+				type: 'UNIT_MOVED',
+				timestamp: '2026-04-15T12:03:00.000Z',
+				unitId: 'wolf-2',
+				to: { q: 3, r: 4 },
+			},
+			{
+				seq: 55,
+				type: 'MOVE_RESOLVED',
+				timestamp: '2026-04-15T12:03:01.000Z',
+				unitId: 'wolf-2',
+				rammedUnitIds: ['pigs-1'],
+				destroyedUnitIds: ['pigs-1'],
+				treadDamage: 1,
+			},
+			{
+				seq: 56,
+				type: 'FIRE_RESOLVED',
+				timestamp: '2026-04-15T12:04:00.000Z',
+				attackers: ['wolf-2'],
+				targetId: 'pigs-1',
+				roll: 5,
+				outcome: 'X',
+				odds: '2:1',
+			},
+			{
+				seq: 57,
+				type: 'ONION_TREADS_LOST',
+				timestamp: '2026-04-15T12:04:01.000Z',
+				amount: 2,
+				remaining: 43,
+			},
+			{
+				seq: 58,
+				type: 'UNIT_STATUS_CHANGED',
+				timestamp: '2026-04-15T12:04:02.000Z',
+				unitId: 'pigs-1',
+				from: 'operational',
+				to: 'destroyed',
+			},
+		])
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByText(/ram attempt by wolf-2/i)).not.toBeNull()
+		expect(screen.getByText(/fire on pigs-1: result x/i)).not.toBeNull()
+		expect(screen.queryByText(/phase changed/i)).toBeNull()
+		expect(screen.queryByText(/defender connected to the session/i)).toBeNull()
+
+		const stream = screen.getByTestId('inactive-event-stream')
+		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(2)
+		const entries = Array.from(stream.querySelectorAll('.inactive-event-stream-entry'))
+		expect(entries[0].querySelector('details')).not.toBeNull()
+		expect(entries[1].querySelector('details')).not.toBeNull()
+		await user.click(entries[0].querySelector('summary') as HTMLElement)
+		expect(entries[0].textContent).toContain('wolf-2 moved to (3, 4)')
+		expect(entries[0].textContent).toContain('Rammed units: pigs-1')
+		expect(entries[0].textContent).toContain('Tread loss: 1')
+		await user.click(entries[1].querySelector('summary') as HTMLElement)
+		expect(entries[1].textContent).toContain('Attackers: wolf-2')
+		expect(entries[1].textContent).toContain('Outcome: X')
+		expect(entries[1].textContent).toContain('Treads lost: 2')
+		expect(entries[1].textContent).toContain('Unit pigs-1: operational → destroyed')
+	})
+
+	it('groups related inactive events by causeId across interleaved noise', async () => {
+		const user = userEvent.setup()
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockResolvedValue([
+			{
+				seq: 61,
+				type: 'UNIT_MOVED',
+				timestamp: '2026-04-15T12:03:00.000Z',
+				unitId: 'wolf-2',
+				to: { q: 3, r: 4 },
+				causeId: 'req-1',
+			},
+			{
+				seq: 62,
+				type: 'PHASE_CHANGED',
+				timestamp: '2026-04-15T12:03:00.500Z',
+				from: 'ONION_MOVE',
+				to: 'DEFENDER_COMBAT',
+				causeId: 'req-1',
+			},
+			{
+				seq: 63,
+				type: 'MOVE_RESOLVED',
+				timestamp: '2026-04-15T12:03:01.000Z',
+				unitId: 'wolf-2',
+				rammedUnitIds: ['pigs-1'],
+				destroyedUnitIds: ['pigs-1'],
+				treadDamage: 1,
+				causeId: 'req-1',
+			},
+			{
+				seq: 64,
+				type: 'ONION_TREADS_LOST',
+				timestamp: '2026-04-15T12:03:01.500Z',
+				amount: 1,
+				remaining: 44,
+				causeId: 'req-1',
+			},
+		])
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByText(/ram attempt by wolf-2/i)).not.toBeNull()
+		const stream = screen.getByTestId('inactive-event-stream')
+		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(1)
+		const entry = stream.querySelector('.inactive-event-stream-entry')
+		expect(entry?.querySelector('details')).not.toBeNull()
+		await user.click(entry?.querySelector('summary') as HTMLElement)
+		expect(entry?.textContent).toContain('Rammed units: pigs-1')
+		expect(entry?.textContent).toContain('Treads lost: 1')
+	})
+
 	it('preserves debug popup position and size when toggled closed and reopened', async () => {
 		const user = userEvent.setup()
 		render(<App />)
