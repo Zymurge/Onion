@@ -48,9 +48,20 @@ export function InactiveEventStream({ entries, errorMessage, isLoading, onDismis
 						<li
 							key={entry.seq}
 							className={`inactive-event-stream-entry tone-${entry.tone ?? 'normal'}`}
-							title={entry.details !== undefined && entry.details.length > 0 ? entry.details.join('\n') : undefined}
 						>
 							<p className="summary-line">{entry.summary}</p>
+							{entry.details !== undefined && entry.details.length > 0 ? (
+								<details className="inactive-event-stream-entry-details">
+									<summary className="inactive-event-stream-entry-details-toggle">Details</summary>
+									<ul className="inactive-event-stream-entry-details-list">
+										{entry.details.map((detail, index) => (
+											<li key={`${entry.seq}-${index}`} className="inactive-event-stream-entry-detail">
+												{detail}
+											</li>
+										))}
+									</ul>
+								</details>
+							) : null}
 						</li>
 					))
 				) : showLoading ? (

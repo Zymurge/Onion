@@ -644,7 +644,49 @@ describe('App UI', () => {
 		expect(getState).toHaveBeenCalledWith(123)
 	})
 
+	it('clears stale inactive-event errors after polling is disabled and resumes cleanly', async () => {
+		const user = userEvent.setup()
+		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
+		const liveEventSource = createLiveEventSourceStub()
+		const getState = vi
+			.fn()
+			.mockResolvedValueOnce({ snapshot: inactiveSnapshot, session: { role: 'defender' as const } })
+			.mockResolvedValueOnce({ snapshot: activeSnapshot, session: { role: 'defender' as const } })
+			.mockResolvedValue({ snapshot: inactiveSnapshot, session: { role: 'defender' as const } })
+		const pollEvents = vi
+			.fn()
+			.mockRejectedValueOnce(new Error('network down'))
+			.mockResolvedValue([])
+		const client = createGameClient({
+			getState,
+			submitAction: vi.fn().mockResolvedValue(activeSnapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.getByRole('alert')).not.toBeNull()
+		expect(screen.getByText(/unable to refresh inactive events/i)).not.toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+
+		await waitFor(() => {
+			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+			expect(screen.queryByRole('alert')).toBeNull()
+		})
+
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.queryByRole('alert')).toBeNull()
+		expect(pollEvents).toHaveBeenCalledWith(123, 0)
+		expect(pollEvents).toHaveBeenCalledTimes(2)
+	})
+
 	it('renders structured inactive-event summaries when summary text is absent', async () => {
+		const user = userEvent.setup()
 		const snapshot = createOnionMoveSnapshot(null, 4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
@@ -719,16 +761,21 @@ describe('App UI', () => {
 		const stream = screen.getByTestId('inactive-event-stream')
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(2)
 		const entries = Array.from(stream.querySelectorAll('.inactive-event-stream-entry'))
-		expect(entries[0].getAttribute('title')).toContain('wolf-2 moved to (3, 4)')
-		expect(entries[0].getAttribute('title')).toContain('Rammed units: pigs-1')
-		expect(entries[0].getAttribute('title')).toContain('Tread loss: 1')
-		expect(entries[1].getAttribute('title')).toContain('Attackers: wolf-2')
-		expect(entries[1].getAttribute('title')).toContain('Outcome: X')
-		expect(entries[1].getAttribute('title')).toContain('Treads lost: 2')
-		expect(entries[1].getAttribute('title')).toContain('Unit pigs-1: operational → destroyed')
+		expect(entries[0].querySelector('details')).not.toBeNull()
+		expect(entries[1].querySelector('details')).not.toBeNull()
+		await user.click(entries[0].querySelector('summary') as HTMLElement)
+		expect(entries[0].textContent).toContain('wolf-2 moved to (3, 4)')
+		expect(entries[0].textContent).toContain('Rammed units: pigs-1')
+		expect(entries[0].textContent).toContain('Tread loss: 1')
+		await user.click(entries[1].querySelector('summary') as HTMLElement)
+		expect(entries[1].textContent).toContain('Attackers: wolf-2')
+		expect(entries[1].textContent).toContain('Outcome: X')
+		expect(entries[1].textContent).toContain('Treads lost: 2')
+		expect(entries[1].textContent).toContain('Unit pigs-1: operational → destroyed')
 	})
 
 	it('groups related inactive events by causeId across interleaved noise', async () => {
+		const user = userEvent.setup()
 		const snapshot = createOnionMoveSnapshot(null, 4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
@@ -778,8 +825,11 @@ describe('App UI', () => {
 		expect(await screen.findByText(/ram attempt by wolf-2/i)).not.toBeNull()
 		const stream = screen.getByTestId('inactive-event-stream')
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(1)
-		expect(stream.querySelector('.inactive-event-stream-entry')?.getAttribute('title')).toContain('Rammed units: pigs-1')
-		expect(stream.querySelector('.inactive-event-stream-entry')?.getAttribute('title')).toContain('Treads lost: 1')
+		const entry = stream.querySelector('.inactive-event-stream-entry')
+		expect(entry?.querySelector('details')).not.toBeNull()
+		await user.click(entry?.querySelector('summary') as HTMLElement)
+		expect(entry?.textContent).toContain('Rammed units: pigs-1')
+		expect(entry?.textContent).toContain('Treads lost: 1')
 	})
 
 	it('preserves debug popup position and size when toggled closed and reopened', async () => {

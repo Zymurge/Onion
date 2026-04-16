@@ -426,6 +426,7 @@ export function useInactiveEventStream({
 			pollEvents === undefined
 		) {
 			setIsLoading(false)
+			setErrorMessage(null)
 			return
 		}
 

@@ -174,7 +174,7 @@ describe('GET /games/:id/events', () => {
     const res = await getEvents(app, gameId, shrek.token)
 
     expect(res.statusCode).toBe(200)
-    const { events } = res.json<{ events: { seq: number; type: string; userId: string; role: string }[] }>()
+    const { events } = res.json<{ events: { seq: number; type: string; userId: string; role: string; causeId?: string }[] }>()
     const joinEvent = events.find((event) => event.type === 'PLAYER_JOINED')
     expect(joinEvent).toBeDefined()
     expect(joinEvent?.userId).toBeDefined()

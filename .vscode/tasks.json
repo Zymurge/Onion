@@ -1,0 +1,11 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Create PR using GitHub Pull Request Extension",
+			"type": "shell",
+			"command": "echo 'PR creation requested via GitHub Pull Request Extension. Please use the extension UI to finalize.'",
+			"group": "build"
+		}
+	]
+}

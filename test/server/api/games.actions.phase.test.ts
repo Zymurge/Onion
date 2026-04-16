@@ -92,7 +92,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     await joinGame(app, gameId, fiona.token)
 
     const action = await endPhase(app, gameId, shrek.token)
-    const actionBody = action.json<{ eventSeq: number }>()
+    const actionBody = action.json<{ eventSeq: number; events: Array<{ seq: number; causeId?: string }> }>()
     const eventsRes = await getEvents(app, gameId, shrek.token)
     const events = eventsRes.json<{ events: Array<{ seq: number; type: string }> }>().events
 

@@ -1,4 +1,4 @@
-import type { GameState, TurnPhase } from '../../shared/types/index'
+import type { EventEnvelope, GameState, TurnPhase } from '../../shared/types/index'
 import type { GameRequestTransport } from './gameSessionTypes'
 
 export type ScenarioMapSnapshot = {
@@ -64,12 +64,8 @@ export type GameAction =
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 
-export type GameEvent = {
-	seq: number
-	type: string
+export type GameEvent = EventEnvelope & {
 	summary?: string
-	timestamp: string
-	[key: string]: unknown
 }
 
 export type GameClientError = {
