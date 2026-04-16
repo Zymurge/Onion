@@ -179,5 +179,6 @@ describe('GET /games/:id/events', () => {
     expect(joinEvent).toBeDefined()
     expect(joinEvent?.userId).toBeDefined()
     expect(['onion', 'defender']).toContain(joinEvent?.role)
+    expect(joinEvent?.causeId).toBeDefined()
   })
 })

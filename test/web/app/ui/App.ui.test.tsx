@@ -728,6 +728,60 @@ describe('App UI', () => {
 		expect(entries[1].getAttribute('title')).toContain('Unit pigs-1: operational → destroyed')
 	})
 
+	it('groups related inactive events by causeId across interleaved noise', async () => {
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockResolvedValue([
+			{
+				seq: 61,
+				type: 'UNIT_MOVED',
+				timestamp: '2026-04-15T12:03:00.000Z',
+				unitId: 'wolf-2',
+				to: { q: 3, r: 4 },
+				causeId: 'req-1',
+			},
+			{
+				seq: 62,
+				type: 'PHASE_CHANGED',
+				timestamp: '2026-04-15T12:03:00.500Z',
+				from: 'ONION_MOVE',
+				to: 'DEFENDER_COMBAT',
+				causeId: 'req-1',
+			},
+			{
+				seq: 63,
+				type: 'MOVE_RESOLVED',
+				timestamp: '2026-04-15T12:03:01.000Z',
+				unitId: 'wolf-2',
+				rammedUnitIds: ['pigs-1'],
+				destroyedUnitIds: ['pigs-1'],
+				treadDamage: 1,
+				causeId: 'req-1',
+			},
+			{
+				seq: 64,
+				type: 'ONION_TREADS_LOST',
+				timestamp: '2026-04-15T12:03:01.500Z',
+				amount: 1,
+				remaining: 44,
+				causeId: 'req-1',
+			},
+		])
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByText(/ram attempt by wolf-2/i)).not.toBeNull()
+		const stream = screen.getByTestId('inactive-event-stream')
+		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(1)
+		expect(stream.querySelector('.inactive-event-stream-entry')?.getAttribute('title')).toContain('Rammed units: pigs-1')
+		expect(stream.querySelector('.inactive-event-stream-entry')?.getAttribute('title')).toContain('Treads lost: 1')
+	})
+
 	it('preserves debug popup position and size when toggled closed and reopened', async () => {
 		const user = userEvent.setup()
 		render(<App />)

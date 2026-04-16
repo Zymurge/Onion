@@ -117,6 +117,11 @@ function isNoiseEvent(event: InactiveEventPayload): boolean {
 	return isNonEmptyString(event.summary) && /join|connect/i.test(event.summary)
 }
 
+function getEventCauseId(event: InactiveEventPayload): string | null {
+	const causeId = formatRawValue(event.causeId)
+	return causeId.length > 0 ? causeId : null
+}
+
 function buildEventDetails(event: InactiveEventPayload): string[] {
 	switch (event.type) {
 		case 'ONION_MOVED':
@@ -306,6 +311,31 @@ function buildTimelineEvents(events: ReadonlyArray<InactiveEventPayload>): Timel
 
 		if (isNoiseEvent(currentEvent)) {
 			index += 1
+			continue
+		}
+
+		const currentCauseId = getEventCauseId(currentEvent)
+		if (currentCauseId !== null) {
+			const relatedEvents: InactiveEventPayload[] = [currentEvent]
+			let nextIndex = index + 1
+
+			while (nextIndex < events.length) {
+				const nextEvent = events[nextIndex]
+				if (isNoiseEvent(nextEvent)) {
+					nextIndex += 1
+					continue
+				}
+
+				if (getEventCauseId(nextEvent) !== currentCauseId) {
+					break
+				}
+
+				relatedEvents.push(nextEvent)
+				nextIndex += 1
+			}
+
+			timelineEntries.push(buildTimelineEntry(relatedEvents))
+			index = nextIndex
 			continue
 		}
 

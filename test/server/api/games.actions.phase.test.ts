@@ -27,6 +27,8 @@ describe('POST /games/:id/actions END_PHASE', () => {
       to: 'ONION_COMBAT',
       turnNumber: 1,
     })
+    expect(body.events[0].causeId).toBeDefined()
+    expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
     expect(body.turnNumber).toBe(1)
     expect(body.eventSeq).toBe(body.seq)
     expect(body).toHaveProperty('state')
@@ -96,6 +98,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
 
     expect(events.some((event) => event.type === 'PHASE_CHANGED')).toBe(true)
     expect(events.at(-1)?.seq).toBe(actionBody.eventSeq)
+    expect(actionBody.events.every((event: any) => event.causeId === actionBody.events[0].causeId)).toBe(true)
   })
 
   it('returns 403 when submitting on opponent turn', async () => {

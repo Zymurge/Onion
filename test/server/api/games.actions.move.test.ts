@@ -302,6 +302,8 @@ describe('POST /games/:id/actions MOVE', () => {
     expect(eventTypes[1]).toBe('MOVE_RESOLVED')
     expect(eventTypes).toContain('ONION_TREADS_LOST')
     expect(eventTypes).toContain('UNIT_STATUS_CHANGED')
+    expect(body.events[0].causeId).toBeDefined()
+    expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
 
     const ramEvent = body.events.find((e: any) => e.type === 'MOVE_RESOLVED')
     expect(ramEvent.rammedUnitIds).toEqual(['d1'])
@@ -367,6 +369,8 @@ describe('POST /games/:id/actions MOVE', () => {
     expect(eventTypes[1]).toBe('MOVE_RESOLVED')
     expect(eventTypes).toContain('ONION_TREADS_LOST')
     expect(eventTypes).not.toContain('UNIT_STATUS_CHANGED')
+    expect(body.events[0].causeId).toBeDefined()
+    expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
 
     const ramEvent = body.events.find((e: any) => e.type === 'MOVE_RESOLVED')
     expect(ramEvent.rammedUnitIds).toEqual(['d1'])
