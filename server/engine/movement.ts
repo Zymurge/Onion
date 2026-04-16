@@ -177,6 +177,7 @@ function collectPathOccupants(
   for (const pos of path) {
     for (const unit of Object.values(state.defenders)) {
       if (unit.id === movingUnitId) continue
+      if (unit.status === 'destroyed') continue
       if (unit.position.q === pos.q && unit.position.r === pos.r) {
         occupants.push(unit)
       }
@@ -292,7 +293,8 @@ function validateMovePlan(
     }
   }
 
-  const rammedUnits = capabilities.canRam ? collectPathOccupants(state, pathResult.path, unit.id) : []
+  const attemptRam = command.attemptRam !== false
+  const rammedUnits = capabilities.canRam && attemptRam ? collectPathOccupants(state, pathResult.path, unit.id) : []
   const ramCapacityUsed = rammedUnits.length
   const ramCapacityLimit = getUnitRamCapacity(unit.type)
 
@@ -625,6 +627,7 @@ export function getRammedUnits(
   const result: string[] = []
   for (const pos of path) {
     for (const [id, unit] of Object.entries(state.defenders)) {
+      if (unit.status === 'destroyed') continue
       if (unit.position.q === pos.q && unit.position.r === pos.r) {
         result.push(id)
       }

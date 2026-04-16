@@ -1063,6 +1063,14 @@
   box-shadow: 0 10px 20px rgba(51, 43, 26, 0.08);
 }
 
+.combat-confirm-button-secondary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(240, 231, 210, 0.92));
+}
+
+.ram-confirmation-view {
+  margin-top: 0;
+}
+
 .combat-resolution-toast {
   position: fixed;
   right: 24px;

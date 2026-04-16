@@ -17,6 +17,7 @@ describe('buildCombatRangeHexKeys', () => {
     )
 
     expect(keys).toEqual(new Set([
+      '1,1',
       '0,1', '0,2',
       '1,0', '1,2',
       '2,0', '2,1',
@@ -29,6 +30,15 @@ describe('buildCombatRangeHexKeys', () => {
       { width: 2, height: 2, cells: [{ q: 0, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 0 }, { q: 1, r: 1 }] },
     )
 
-    expect(keys).toEqual(new Set(['0,1', '1,0', '1,1']))
+    expect(keys).toEqual(new Set(['0,0', '0,1', '1,0', '1,1']))
+  })
+
+  it('includes the source hex so same-hex targets remain valid', () => {
+    const keys = buildCombatRangeHexKeys(
+      [{ q: 1, r: 1, range: 1 }],
+      { width: 3, height: 3, cells: Array.from({ length: 3 }, (_, r) => Array.from({ length: 3 }, (_, q) => ({ q, r }))).flat() },
+    )
+
+    expect(keys).toContain('1,1')
   })
 })

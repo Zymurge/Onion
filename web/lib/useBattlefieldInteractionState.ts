@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
+import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
 import type { GameAction, GameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
 import type { TurnPhase } from '../../shared/types/index'
@@ -11,8 +13,95 @@ type UseBattlefieldInteractionStateOptions = {
   isControlledSession: boolean
 }
 
+type RamPrompt = {
+  unitId: string
+  to: { q: number; r: number }
+  targetLabel: string
+}
+
 function isCombatSnapshotPhase(phase: TurnPhase | null): boolean {
   return phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
+}
+
+function buildMoveMapSnapshot(snapshot: GameSnapshot, movingUnitId: string): MoveMapSnapshot | null {
+  const authoritativeState = snapshot.authoritativeState
+  const scenarioMap = snapshot.scenarioMap
+
+  if (authoritativeState === undefined || scenarioMap === undefined) {
+    return null
+  }
+
+  const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
+    ...(authoritativeState.onion.id !== movingUnitId && authoritativeState.onion.status !== 'destroyed'
+      ? [{ q: authoritativeState.onion.position.q, r: authoritativeState.onion.position.r, role: 'onion' as const, unitType: authoritativeState.onion.type ?? 'TheOnion', squads: 1 }]
+      : []),
+    ...Object.values(authoritativeState.defenders)
+      .filter((unit) => unit.id !== movingUnitId && unit.status !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.type, squads: unit.squads })),
+  ]
+
+  return {
+    width: scenarioMap.width,
+    height: scenarioMap.height,
+    cells: scenarioMap.cells,
+    hexes: scenarioMap.hexes,
+    occupiedHexes,
+  }
+}
+
+function buildRamPrompt(snapshot: GameSnapshot | null, unitId: string, to: { q: number; r: number }): RamPrompt | null {
+  if (snapshot === null || snapshot.authoritativeState === undefined || snapshot.scenarioMap === undefined) {
+    return null
+  }
+
+  if (snapshot.phase !== 'ONION_MOVE') {
+    return null
+  }
+
+  const onion = snapshot.authoritativeState.onion
+  if (unitId !== onion.id || onion.status !== 'operational') {
+    return null
+  }
+
+  const remainingRams = Math.max(getUnitRamCapacity(onion.type ?? 'TheOnion') - (snapshot.authoritativeState.ramsThisTurn ?? 0), 0)
+  if (remainingRams === 0) {
+    return null
+  }
+
+  const movementAllowance = snapshot.movementRemainingByUnit?.[unitId] ?? getUnitMovementAllowance(onion.type ?? 'TheOnion', snapshot.phase, onion.treads)
+  const moveMap = buildMoveMapSnapshot(snapshot, unitId)
+  if (moveMap === null) {
+    return null
+  }
+
+  const pathResult = findMovePath({
+    map: moveMap,
+    from: onion.position,
+    to,
+    movementAllowance,
+    movingRole: 'onion',
+    movingUnitType: onion.type ?? 'TheOnion',
+    incomingSquads: 1,
+  })
+
+  if (!pathResult.found) {
+    return null
+  }
+
+  const occupiedLookup = new Set(moveMap.occupiedHexes?.map((occupant) => `${occupant.q},${occupant.r}`) ?? [])
+  const rammedStep = pathResult.path.find((step) => occupiedLookup.has(`${step.q},${step.r}`))
+  if (rammedStep === undefined) {
+    return null
+  }
+
+  const targetDefender = Object.values(snapshot.authoritativeState.defenders).find((unit) => unit.position.q === rammedStep.q && unit.position.r === rammedStep.r && unit.status !== 'destroyed')
+  const targetLabel = targetDefender?.type ?? 'occupied hex'
+
+  return {
+    unitId,
+    to,
+    targetLabel,
+  }
 }
 
 export function useBattlefieldInteractionState({
@@ -28,6 +117,7 @@ export function useBattlefieldInteractionState({
   const [, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
   const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
   const [pendingRamResolution, setPendingRamResolution] = useState<GameSnapshot['ramResolution'] | null>(null)
+  const [pendingRamPrompt, setPendingRamPrompt] = useState<RamPrompt | null>(null)
   const [combatBaseSnapshot, setCombatBaseSnapshot] = useState<GameSnapshot | null>(null)
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -93,6 +183,7 @@ export function useBattlefieldInteractionState({
       setSelectedUnitIds([])
       setSelectedCombatTargetId(null)
     }
+    setPendingRamPrompt(null)
   }
 
   function handleDismissCombatResolution() {
@@ -101,6 +192,18 @@ export function useBattlefieldInteractionState({
 
   function handleDismissRamResolution() {
     setPendingRamResolution(null)
+  }
+
+  function handleResolveRamPrompt(attemptRam: boolean) {
+    if (pendingRamPrompt === null) {
+      return
+    }
+
+    const prompt = pendingRamPrompt
+    setPendingRamPrompt(null)
+
+    void commitClientAction({ type: 'MOVE', unitId: prompt.unitId, to: prompt.to, attemptRam })
+    setSelectedUnitIds([])
   }
 
   function handleSelectUnit(unitId: string, additive = false) {
@@ -116,6 +219,7 @@ export function useBattlefieldInteractionState({
     }
 
     clearPendingCombatResolution(false)
+    setPendingRamPrompt(null)
 
     setSelectedUnitIds((currentSelection) => {
       const baseSelection = currentSelection ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
@@ -138,6 +242,7 @@ export function useBattlefieldInteractionState({
     clearPendingCombatResolution(false)
     setSelectedUnitIds([])
     setSelectedCombatTargetId(null)
+    setPendingRamPrompt(null)
     setActionError(null)
   }
 
@@ -147,6 +252,12 @@ export function useBattlefieldInteractionState({
     }
 
     if (!activeTurnActive) {
+      return
+    }
+
+    const ramPrompt = buildRamPrompt(clientSnapshot, unitId, to)
+    if (ramPrompt !== null) {
+      setPendingRamPrompt(ramPrompt)
       return
     }
 
@@ -181,10 +292,12 @@ export function useBattlefieldInteractionState({
     handleDismissCombatResolution,
     handleDismissRamResolution,
     handleMoveUnit,
+    handleResolveRamPrompt,
     handleRefresh,
     handleSelectUnit,
     isRefreshing,
     lastRefreshAt,
+    pendingRamPrompt,
     pendingCombatResolution,
     pendingRamResolution,
     selectedCombatTargetId,

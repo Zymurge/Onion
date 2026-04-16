@@ -65,6 +65,8 @@ Primary backend endpoints used by the web client:
 - Left-click selects a unit; clicking empty map space deselects.
 - When an eligible unit is selected, its reachable hexes are shown with a subtle green overlay.
 - Right-clicking a reachable hex moves the selected unit and submits the move.
+- If an Onion move would traverse an occupied defender hex and rams remain, the UI asks whether to attempt the ram before submitting.
+- Declining that prompt submits the move without a ram attempt.
 - If the selected unit is not eligible to move, no move radius and no illegal-move bubble are shown.
 - The illegal-move bubble is shown only for eligible current-player units and uses the generic message `Illegal move`.
 - The bubble auto-dismisses after 3 seconds or on click.

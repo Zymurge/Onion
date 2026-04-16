@@ -342,6 +342,57 @@ describe('http game client adapter contract', () => {
 		)
 	})
 
+	it('serializes attemptRam when a move request includes it', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'onion',
+				phase: 'ONION_MOVE',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+				movementRemainingByUnit: { 'onion-1': 3 },
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				eventSeq: 47,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
+				ok: true,
+				seq: 48,
+				events: [],
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+				movementRemainingByUnit: { 'onion-1': 2 },
+				turnNumber: 8,
+				eventSeq: 48,
+			}))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			token: 'stub.token',
+		})
+
+		await client.getState(123)
+		await client.submitAction(123, { type: 'MOVE', unitId: 'onion', to: { q: 7, r: 6 }, attemptRam: false })
+
+		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
+			expect.objectContaining({
+				body: JSON.stringify({ type: 'MOVE', unitId: 'onion', to: { q: 7, r: 6 }, attemptRam: false }),
+			}),
+		)
+	})
+
 	it('sends FIRE actions and captures combat resolution details', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,

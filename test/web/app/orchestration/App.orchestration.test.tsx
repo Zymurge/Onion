@@ -351,6 +351,45 @@ describe('App orchestration (injected game client)', () => {
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 0, r: 2 } })
 	})
 
+	it('prompts before a ram-capable Onion move and can skip the ram', async () => {
+		const snapshot = createSnapshotWithTreads(45, 3)
+		snapshot.phase = 'ONION_MOVE'
+		snapshot.selectedUnitId = 'onion-1'
+		snapshot.scenarioName = 'Ram prompt scenario'
+		snapshot.turnNumber = 1
+		snapshot.lastEventSeq = 0
+		snapshot.authoritativeState.onion.position = { q: 0, r: 0 }
+		snapshot.authoritativeState.defenders = {
+			'd1': {
+				id: 'd1',
+				type: 'Puss',
+				position: { q: 0, r: 1 },
+				status: 'operational',
+				weapons: [],
+			},
+		}
+		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
+
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await userEvent.click(await screen.findByRole('button', { name: /onion-1/i }))
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-2'))
+		})
+
+		expect(await screen.findByTestId('ram-confirmation-view')).not.toBeNull()
+		expect(submitAction).not.toHaveBeenCalled()
+		await userEvent.click(screen.getByRole('button', { name: /attempt ram/i }))
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 0, r: 2 }, attemptRam: true })
+	})
+
 	it('selects a unit locally without submitting an action', async () => {
 		const user = userEvent.setup()
 		const snapshot = createConnectedBattlefieldSnapshot()

@@ -6,12 +6,19 @@ import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldVi
 import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
 
+type RamPrompt = {
+  unitId: string
+  to: { q: number; r: number }
+  targetLabel: string
+}
+
 type BattlefieldRightRailProps = {
   activeCombatRole: 'onion' | 'defender' | null
   activeRole: 'onion' | 'defender' | null
   activeSelectedUnitCount: number
   isCombatPhase: boolean
   showInactiveEventStream: boolean
+  pendingRamPrompt: RamPrompt | null
   selectedCombatAttackCount: number
   selectedCombatAttackStrength: number
   selectedCombatTarget: CombatTargetOption | null
@@ -28,6 +35,8 @@ type BattlefieldRightRailProps = {
   }
   combatTargetOptions: ReadonlyArray<CombatTargetOption>
   onConfirmCombat: () => void
+  onAttemptRam: () => void
+  onDeclineRam: () => void
   onSelectCombatTarget: (targetId: string) => void
 }
 
@@ -37,6 +46,7 @@ export function BattlefieldRightRail({
   activeSelectedUnitCount,
   isCombatPhase,
   showInactiveEventStream,
+  pendingRamPrompt,
   selectedCombatAttackCount,
   selectedCombatAttackStrength,
   selectedCombatTarget,
@@ -46,6 +56,8 @@ export function BattlefieldRightRail({
   inactiveEventStream,
   combatTargetOptions,
   onConfirmCombat,
+  onAttemptRam,
+  onDeclineRam,
   onSelectCombatTarget,
 }: BattlefieldRightRailProps) {
   return (
@@ -58,6 +70,42 @@ export function BattlefieldRightRail({
           onDismiss={inactiveEventStream.clearEntries}
           onDismissError={inactiveEventStream.clearErrorMessage}
         />
+      ) : null}
+      {pendingRamPrompt !== null ? (
+        <section className="section-block panel-subtle">
+          <div className="card-head">
+            <div>
+              <p className="eyebrow">Movement</p>
+              <h2>Attempt ram on {pendingRamPrompt.targetLabel}</h2>
+            </div>
+            <span className="mini-tag mini-tag-live">confirmation</span>
+          </div>
+          <div className="combat-confirmation-view ram-confirmation-view" data-testid="ram-confirmation-view">
+            <div className="combat-confirmation-stats">
+              <div className="combat-confirmation-stat">
+                <span className="stat-label-small">Target</span>
+                <strong>{pendingRamPrompt.targetLabel}</strong>
+              </div>
+              <div className="combat-confirmation-stat">
+                <span className="stat-label-small">Action</span>
+                <strong>Ram or bypass</strong>
+              </div>
+              <div className="combat-confirmation-stat">
+                <span className="stat-label-small">Destination</span>
+                <strong>{pendingRamPrompt.to.q}, {pendingRamPrompt.to.r}</strong>
+              </div>
+            </div>
+            <p className="summary-line">Choose whether to ram the occupied hex or continue the move without ramming.</p>
+            <div className="combat-confirmation-actions">
+              <button className="combat-confirm-button" type="button" onClick={onAttemptRam}>
+                Attempt ram
+              </button>
+              <button className="combat-confirm-button combat-confirm-button-secondary" type="button" onClick={onDeclineRam}>
+                Move without ram
+              </button>
+            </div>
+          </div>
+        </section>
       ) : null}
       {selectedInspectorOnion !== null ? (
         <section className="selection-panel panel-subtle">

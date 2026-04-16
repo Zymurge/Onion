@@ -188,9 +188,11 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     handleDismissCombatResolution,
     handleDismissRamResolution,
     handleMoveUnit,
+    handleResolveRamPrompt,
     handleRefresh,
     handleSelectUnit,
     isRefreshing,
+    pendingRamPrompt,
     pendingCombatResolution,
     pendingRamResolution,
     selectedCombatTargetId,
@@ -429,6 +431,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           activeSelectedUnitCount={activeSelectedUnitIds.length}
           isCombatPhase={isCombatPhase}
           showInactiveEventStream={!sessionTurnActive}
+          pendingRamPrompt={pendingRamPrompt}
           selectedCombatAttackCount={selectedCombatAttackCount}
           selectedCombatAttackStrength={selectedCombatAttackStrength}
           selectedCombatTarget={selectedCombatTarget}
@@ -438,6 +441,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           inactiveEventStream={inactiveEventStream}
           combatTargetOptions={combatTargetOptions}
           onConfirmCombat={handleConfirmCombat}
+          onAttemptRam={() => handleResolveRamPrompt(true)}
+          onDeclineRam={() => handleResolveRamPrompt(false)}
           onSelectCombatTarget={setSelectedCombatTargetId}
         />
       </main>

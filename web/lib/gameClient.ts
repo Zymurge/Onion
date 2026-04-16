@@ -59,7 +59,7 @@ export type GameStateEnvelope = {
 export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
-	| { type: 'MOVE'; unitId: string; to: { q: number; r: number } }
+	| { type: 'MOVE'; unitId: string; to: { q: number; r: number }; attemptRam?: boolean }
 	| { type: 'FIRE'; attackers: string[]; targetId: string }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
