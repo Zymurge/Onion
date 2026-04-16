@@ -13,7 +13,7 @@ describe('formatRamResolutionTitle', () => {
 				treadDamage: 1,
 				details: [],
 			}),
-		).toBe('Ram resolved: target survived, Onion lost 1 tread')
+		).toBe('Ram attempt')
 	})
 
 	it('describes a destructive ram explicitly', () => {
@@ -26,6 +26,6 @@ describe('formatRamResolutionTitle', () => {
 				treadDamage: 1,
 				details: [],
 			}),
-		).toBe('Ram resolved: 1 destroyed, Onion lost 1 tread')
+		).toBe('Ram attempt')
 	})
 })

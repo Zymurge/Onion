@@ -324,7 +324,7 @@ describe('http game client adapter contract', () => {
 					rammedUnitIds: ['d1'],
 					destroyedUnitIds: ['d1'],
 					treadDamage: 1,
-					details: ['Rammed units: d1', 'Treads lost: 1 (remaining 44)', 'Destroyed unit: d1 operational → destroyed'],
+						details: ['Target: d1', 'Result: destroyed', 'Treads lost: 1 (remaining 44)'],
 				},
 			}),
 		)

@@ -105,6 +105,28 @@ function formatDetailValue(value: unknown): string {
 	return String(value)
 }
 
+
+function isOnionTarget(targetId: unknown): boolean {
+	if (!isNonEmptyString(targetId)) {
+		return false
+	}
+
+	return targetId === 'onion' || /^(main|secondary_|ap_|missile_)/.test(targetId)
+}
+
+function formatOutcomeWord(value: unknown, targetId?: unknown): string {
+	switch (value) {
+		case 'NE':
+			return 'missed'
+		case 'D':
+			return isOnionTarget(targetId) ? 'no effect' : 'disabled'
+		case 'X':
+			return 'destroyed'
+		default:
+			return formatDetailValue(value)
+	}
+}
+
 function isNoiseEvent(event: InactiveEventPayload): boolean {
 	if (event.type === 'PHASE_CHANGED') {
 		return true
@@ -143,7 +165,7 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 				details.push(`Roll: ${formatDetailValue(event.roll)}`)
 			}
 			if (event.outcome !== undefined) {
-				details.push(`Outcome: ${formatDetailValue(event.outcome)}`)
+				details.push(`Outcome: ${formatOutcomeWord(event.outcome, event.targetId)}`)
 			}
 			if (event.odds !== undefined) {
 				details.push(`Odds: ${formatDetailValue(event.odds)}`)
@@ -152,18 +174,9 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 		}
 		case 'MOVE_RESOLVED': {
 			const details: string[] = []
-			if (formatRawValue(event.unitId).length > 0) {
-				details.push(`Mover: ${formatRawValue(event.unitId)}`)
-			}
-			if (Array.isArray(event.rammedUnitIds) && event.rammedUnitIds.length > 0) {
-				details.push(`Rammed units: ${formatValueList(event.rammedUnitIds)}`)
-			}
-			if (Array.isArray(event.destroyedUnitIds) && event.destroyedUnitIds.length > 0) {
-				details.push(`Destroyed units: ${formatValueList(event.destroyedUnitIds)}`)
-			}
-			if (typeof event.treadDamage === 'number' && event.treadDamage > 0) {
-				details.push(`Tread loss: ${event.treadDamage}`)
-			}
+			const ramTarget = Array.isArray(event.rammedUnitIds) && event.rammedUnitIds.length > 0 ? formatValueList(event.rammedUnitIds) : Array.isArray(event.destroyedUnitIds) && event.destroyedUnitIds.length > 0 ? formatValueList(event.destroyedUnitIds) : 'unknown'
+			details.push(`Target: ${ramTarget}`)
+			details.push(`Result: ${Array.isArray(event.destroyedUnitIds) && event.destroyedUnitIds.length > 0 ? 'destroyed' : 'survived'}`)
 			return details
 		}
 		case 'ONION_TREADS_LOST': {
@@ -197,9 +210,13 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 }
 
 function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
+	if (event.type === 'MOVE_RESOLVED') {
+		return 'Ram attempt'
+	}
+
 	if (event.type === 'FIRE_RESOLVED') {
-		const target = formatRawValue(event.targetId)
 		const fragments: string[] = []
+		const target = formatRawValue(event.targetId)
 		if (target.length > 0) {
 			fragments.push(`Fire on ${target}`)
 		} else {
@@ -207,7 +224,7 @@ function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: Readonl
 		}
 
 		if (event.outcome !== undefined) {
-			fragments.push(`result ${formatDetailValue(event.outcome)}`)
+			fragments.push(formatOutcomeWord(event.outcome, event.targetId))
 		}
 
 		return fragments.join(': ')
@@ -216,9 +233,9 @@ function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: Readonl
 	if (event.type === 'MOVE_RESOLVED' || MOVE_EVENT_TYPES.has(event.type)) {
 		const mover = formatRawValue(event.unitId)
 		const moveDetails = relatedEvents.flatMap((relatedEvent) => buildEventDetails(relatedEvent))
-		const ramDetails = moveDetails.filter((detail) => /rammed|destroyed|tread loss/i.test(detail))
+		const ramDetails = moveDetails.filter((detail) => /^(target|result):/i.test(detail))
 		if (ramDetails.length > 0) {
-			return mover.length > 0 ? `Ram attempt by ${mover}` : 'Ram attempt resolved'
+			return 'Ram attempt'
 		}
 
 		if (mover.length > 0) {
@@ -399,6 +416,7 @@ export function useInactiveEventStream({
 	const latestAppliedEventSeqRef = useRef<number | null>(lastAppliedEventSeq)
 	const queuedRefreshRef = useRef(false)
 	const lastGameIdRef = useRef<number | null>(null)
+	const previousActiveTurnActiveRef = useRef(activeTurnActive)
 
 	useEffect(() => {
 		latestAppliedEventSeqRef.current = lastAppliedEventSeq
@@ -417,6 +435,26 @@ export function useInactiveEventStream({
 			queuedRefreshRef.current = false
 		}
 	}, [activeGameId])
+
+	useEffect(() => {
+		if (
+			activeGameId !== null &&
+			lastGameIdRef.current === activeGameId &&
+			previousActiveTurnActiveRef.current === true &&
+			activeTurnActive === false
+		) {
+			setEntries([])
+			setIsDismissed(false)
+			setIsLoading(false)
+			setErrorMessage(null)
+			seenSeqsRef.current = new Set<number>()
+			loadedThroughSeqRef.current = lastAppliedEventSeq
+			inFlightAfterSeqRef.current = null
+			queuedRefreshRef.current = false
+		}
+
+		previousActiveTurnActiveRef.current = activeTurnActive
+	}, [activeGameId, activeTurnActive, lastAppliedEventSeq])
 
 	useEffect(() => {
 		if (

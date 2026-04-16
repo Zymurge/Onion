@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 import type { TimelineEvent } from '../lib/battlefieldView'
 
 type InactiveEventStreamProps = {
@@ -11,6 +13,7 @@ type InactiveEventStreamProps = {
 export function InactiveEventStream({ entries, errorMessage, isLoading, onDismiss, onDismissError }: InactiveEventStreamProps) {
 	const showLoading = isLoading && entries.length === 0
 	const showError = errorMessage !== null
+	const [expandedSeq, setExpandedSeq] = useState<number | null>(null)
 
 	return (
 		<section className="panel panel-subtle inactive-event-stream" role="status" aria-live="polite" data-testid="inactive-event-stream">
@@ -48,11 +51,15 @@ export function InactiveEventStream({ entries, errorMessage, isLoading, onDismis
 						<li
 							key={entry.seq}
 							className={`inactive-event-stream-entry tone-${entry.tone ?? 'normal'}`}
+							tabIndex={0}
+							onBlur={() => setExpandedSeq((current) => (current === entry.seq ? null : current))}
+							onFocus={() => setExpandedSeq(entry.seq)}
+							onMouseEnter={() => setExpandedSeq(entry.seq)}
+							onMouseLeave={() => setExpandedSeq((current) => (current === entry.seq ? null : current))}
 						>
 							<p className="summary-line">{entry.summary}</p>
-							{entry.details !== undefined && entry.details.length > 0 ? (
-								<details className="inactive-event-stream-entry-details">
-									<summary className="inactive-event-stream-entry-details-toggle">Details</summary>
+							{expandedSeq === entry.seq && entry.details !== undefined && entry.details.length > 0 ? (
+								<div className="inactive-event-stream-entry-details" aria-label="Event details">
 									<ul className="inactive-event-stream-entry-details-list">
 										{entry.details.map((detail, index) => (
 											<li key={`${entry.seq}-${index}`} className="inactive-event-stream-entry-detail">
@@ -60,7 +67,7 @@ export function InactiveEventStream({ entries, errorMessage, isLoading, onDismis
 											</li>
 										))}
 									</ul>
-								</details>
+								</div>
 							) : null}
 						</li>
 					))

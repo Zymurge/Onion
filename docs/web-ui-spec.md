@@ -85,11 +85,12 @@ Primary backend endpoints used by the web client:
 
 - The right rail must always display the inactive events stream during non-active phases, updating in real time from server events.
 - The stream is visually distinct, non-blocking, and accessible, with clear summaries and error overlays.
-- All event summaries are concise and derived defensively from event payload data, with additional details exposed through accessible DOM disclosure.
+- All event summaries are concise and derived defensively from event payload data, with additional details exposed on hover or keyboard focus.
 - The stream must handle both polling and WebSocket updates, with robust error and reconnection handling.
 - All errors (API, network, parsing) must be surfaced as dismissible overlays, not as blocking modals or content shifts.
 - The stream is ordered chronologically and filters out events already surfaced in the main action area, showing only those relevant to the inactive player or phase.
-- Users can scroll through the event stream, inspect additional details through disclosure controls, and dismiss error overlays.
+- Users can scroll through the event stream, inspect additional details by hovering or focusing an entry, and dismiss error overlays.
+- When the phase changes and the local player becomes inactive again, the stream opens empty and only future opponent actions appear.
 - Show a spinner or placeholder when loading, and a friendly message when no inactive events are present.
 - All event summaries and controls must be keyboard-navigable and screen-reader friendly.
 - The stream updates in real time as new events arrive, with smooth transitions and no jarring UI shifts.
