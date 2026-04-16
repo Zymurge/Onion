@@ -67,7 +67,7 @@ export type GameAction =
 export type GameEvent = {
 	seq: number
 	type: string
-	summary: string
+	summary?: string
 	timestamp: string
 }
 

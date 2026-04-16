@@ -66,7 +66,7 @@ export function useBattlefieldDisplayState({
     const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
     const activeMode: Mode = clientSnapshot?.mode ?? 'fire'
     const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
-    const activeCombatRole = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
+    const activeCombatRole: 'onion' | 'defender' | null = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
     const isMovementPhase = activePhase === 'ONION_MOVE' || activePhase === 'DEFENDER_MOVE' || activePhase === 'GEV_SECOND_MOVE'
     const displayedScenarioMap = buildScenarioMap(clientSnapshot)
     const selectedCombatAttackerIds = !isCombatPhase

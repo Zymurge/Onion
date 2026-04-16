@@ -8,6 +8,7 @@ import App from '../../../../web/App'
 import { createGameClient, type GameSnapshot } from '../../../../web/lib/gameClient'
 import { clearApiProtocolTraffic, requestJson } from '../../../../shared/apiProtocol'
 import type { GameState } from '../../../../shared/types/index'
+import type { LiveEventSource, LiveSessionSignal } from '../../../../web/lib/gameSessionTypes'
 
 type LoadedBattlefieldSnapshot = GameSnapshot & {
 	authoritativeState: GameState
@@ -157,6 +158,40 @@ function createOnionMoveSnapshot(selectedUnitId: string | null = null, onionMove
 			'onion-1': onionMovesRemaining,
 			'wolf-2': 4,
 			'puss-1': 3,
+		},
+	}
+}
+
+function createLiveEventSourceStub() {
+	const listeners = new Set<(signal: LiveSessionSignal) => void>()
+	let connectionStatus: 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected' = 'idle'
+
+	return {
+		subscribe(listener: (signal: LiveSessionSignal) => void) {
+			listeners.add(listener)
+			return () => {
+				listeners.delete(listener)
+			}
+		},
+		connect(gameId: number) {
+			connectionStatus = 'connected'
+			for (const listener of listeners) {
+				listener({ kind: 'connection', gameId, status: 'connected' })
+			}
+		},
+		disconnect(gameId: number) {
+			connectionStatus = 'disconnected'
+			for (const listener of listeners) {
+				listener({ kind: 'connection', gameId, status: 'disconnected' })
+			}
+		},
+		getConnectionState() {
+			return connectionStatus
+		},
+		emit(signal: LiveSessionSignal) {
+			for (const listener of listeners) {
+				listener(signal)
+			}
 		},
 	}
 }
@@ -428,6 +463,139 @@ describe('App UI', () => {
 		expect(screen.getByText(/Ram result/i)).not.toBeNull()
 		expect(screen.getByRole('heading', { name: /Ram resolved: target survived, Onion lost 1 tread/i })).not.toBeNull()
 		expect(screen.getByText(/Rammed units: puss-1/i)).not.toBeNull()
+	})
+
+	it('shows a dismissible inactive-event stream for remote combat events', async () => {
+		const user = userEvent.setup()
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockImplementation(async (_gameId: number, afterSeq: number) => {
+			if (afterSeq === 0) {
+				return [
+					{
+						seq: 48,
+						type: 'FIRE_RESOLVED',
+						summary: 'Wolf-2 fired at the Onion and missed.',
+						timestamp: '2026-04-15T12:00:00.000Z',
+					},
+				]
+			}
+
+			return [
+				{
+					seq: 49,
+					type: 'MOVE_RESOLVED',
+					summary: 'Puss-1 rammed the Onion and retreated.',
+					timestamp: '2026-04-15T12:01:00.000Z',
+				},
+			]
+		})
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		await screen.findByRole('button', { name: /toggle debug diagnostics/i })
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.getByText(/Wolf-2 fired at the Onion and missed\./i)).not.toBeNull()
+		expect(pollEvents).toHaveBeenCalledWith(123, 0)
+		expect(screen.getByTestId('inactive-event-stream').closest('.rail-right')).not.toBeNull()
+
+		act(() => {
+			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 48, eventType: 'FIRE_RESOLVED' })
+		})
+
+		await user.click(screen.getByRole('button', { name: /dismiss inactive event stream/i }))
+		expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+
+		act(() => {
+			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 49, eventType: 'MOVE_RESOLVED' })
+		})
+
+		expect(await screen.findByText(/Puss-1 rammed the Onion and retreated\./i)).not.toBeNull()
+		expect(screen.queryByText(/Wolf-2 fired at the Onion and missed\./i)).toBeNull()
+	})
+
+	it('loads historical inactive events on initial defender login', async () => {
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockResolvedValue([
+			{
+				seq: 48,
+				type: 'FIRE_RESOLVED',
+				summary: 'Wolf-2 fired at the Onion and missed.',
+				timestamp: '2026-04-15T12:00:00.000Z',
+			},
+		])
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.getByText(/Wolf-2 fired at the Onion and missed\./i)).not.toBeNull()
+		expect(pollEvents).toHaveBeenCalledWith(123, 0)
+	})
+
+	it('keeps dismissed inactive events hidden when later polls include older seqs again', async () => {
+		const user = userEvent.setup()
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockImplementation(async (_gameId: number, afterSeq: number) => {
+			if (afterSeq === 0) {
+				return [
+					{
+						seq: 48,
+						type: 'FIRE_RESOLVED',
+						summary: 'Wolf-2 fired at the Onion and missed.',
+						timestamp: '2026-04-15T12:00:00.000Z',
+					},
+				]
+			}
+
+			return [
+				{
+					seq: 48,
+					type: 'FIRE_RESOLVED',
+					summary: 'Wolf-2 fired at the Onion and missed.',
+					timestamp: '2026-04-15T12:00:00.000Z',
+				},
+				{
+					seq: 49,
+					type: 'MOVE_RESOLVED',
+					summary: 'Puss-1 rammed the Onion and retreated.',
+					timestamp: '2026-04-15T12:01:00.000Z',
+				},
+			]
+		})
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.getByText(/Wolf-2 fired at the Onion and missed\./i)).not.toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /dismiss inactive event stream/i }))
+		expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+
+		act(() => {
+			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 49, eventType: 'MOVE_RESOLVED' })
+		})
+
+		expect(await screen.findByText(/Puss-1 rammed the Onion and retreated\./i)).not.toBeNull()
+		expect(screen.queryByText(/Wolf-2 fired at the Onion and missed\./i)).toBeNull()
+		expect(pollEvents).toHaveBeenCalledWith(123, 0)
+		expect(pollEvents).toHaveBeenCalledWith(123, 48)
 	})
 
 	it('preserves debug popup position and size when toggled closed and reopened', async () => {

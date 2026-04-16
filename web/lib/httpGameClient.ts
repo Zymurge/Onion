@@ -302,7 +302,12 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 }
 
 export function createHttpGameRequestTransport(options: HttpGameClientOptions): GameRequestTransport {
-	return createHttpGameTransportRuntime(options).requestTransport
+	const { requestTransport, pollEvents } = createHttpGameTransportRuntime(options)
+
+	return {
+		...requestTransport,
+		pollEvents,
+	}
 }
 
 export function createHttpGameClient(options: HttpGameClientOptions): GameClient {
