@@ -25,41 +25,9 @@ function formatEventTitle(type: string) {
 			return type.replace(/_/g, ' ').toLowerCase()
 	}
 }
-
 function formatEventSummary(event: GameEvent) {
 	if (typeof event.summary === 'string' && event.summary.trim().length > 0) {
 		return event.summary
-	}
-
-	if (event.type === 'FIRE_RESOLVED') {
-		const attackers = Array.isArray(event.attackers) ? event.attackers.join(', ') : 'Unknown attackers'
-		const targetId = typeof event.targetId === 'string' ? event.targetId : 'unknown target'
-		const outcome = typeof event.outcome === 'string' ? event.outcome : 'resolved'
-		const roll = typeof event.roll === 'number' ? ` roll ${event.roll}` : ''
-		const odds = typeof event.odds === 'string' ? ` at ${event.odds}` : ''
-		return `${attackers} fired at ${targetId}${odds}${roll} (${outcome}).`
-	}
-
-	if (event.type === 'MOVE_RESOLVED') {
-		const unitId = typeof event.unitId === 'string' ? event.unitId : 'Unknown unit'
-		const rammed = Array.isArray(event.rammedUnitIds) && event.rammedUnitIds.length > 0 ? event.rammedUnitIds.join(', ') : 'no units'
-		const destroyed = Array.isArray(event.destroyedUnitIds) && event.destroyedUnitIds.length > 0 ? event.destroyedUnitIds.join(', ') : 'none'
-		const treadDamage = typeof event.treadDamage === 'number' ? event.treadDamage : 0
-		return `${unitId} rammed ${rammed}; destroyed ${destroyed}; tread damage ${treadDamage}.`
-	}
-
-	if (event.type === 'UNIT_STATUS_CHANGED') {
-		const unitId = typeof event.unitId === 'string' ? event.unitId : 'Unknown unit'
-		const from = typeof event.from === 'string' ? event.from : 'unknown'
-		const to = typeof event.to === 'string' ? event.to : 'unknown'
-		return `${unitId} changed status from ${from} to ${to}.`
-	}
-
-	if (event.type === 'PHASE_CHANGED') {
-		const from = typeof event.from === 'string' ? event.from : 'unknown'
-		const to = typeof event.to === 'string' ? event.to : 'unknown'
-		const turnNumber = typeof event.turnNumber === 'number' ? ` on turn ${event.turnNumber}` : ''
-		return `Phase changed from ${from} to ${to}${turnNumber}.`
 	}
 
 	return event.type.replace(/_/g, ' ').toLowerCase()
@@ -86,7 +54,13 @@ export function useInactiveEventStream({
 	const seenSeqsRef = useRef(new Set<number>())
 	const loadedThroughSeqRef = useRef<number | null>(null)
 	const inFlightAfterSeqRef = useRef<number | null>(null)
+	const latestAppliedEventSeqRef = useRef<number | null>(lastAppliedEventSeq)
+	const queuedRefreshRef = useRef(false)
 	const lastGameIdRef = useRef<number | null>(null)
+
+	useEffect(() => {
+		latestAppliedEventSeqRef.current = lastAppliedEventSeq
+	}, [lastAppliedEventSeq])
 
 	useEffect(() => {
 		if (lastGameIdRef.current !== activeGameId) {
@@ -96,6 +70,7 @@ export function useInactiveEventStream({
 			seenSeqsRef.current = new Set<number>()
 			loadedThroughSeqRef.current = null
 			inFlightAfterSeqRef.current = null
+			queuedRefreshRef.current = false
 		}
 	}, [activeGameId])
 
@@ -111,6 +86,7 @@ export function useInactiveEventStream({
 
 		const afterSeq = loadedThroughSeq ?? 0
 		if (inFlightAfterSeqRef.current === afterSeq) {
+			queuedRefreshRef.current = true
 			return
 		}
 
@@ -146,6 +122,20 @@ export function useInactiveEventStream({
 				if (inFlightAfterSeqRef.current === afterSeq) {
 					inFlightAfterSeqRef.current = null
 				}
+
+				if (
+					!cancelled &&
+					queuedRefreshRef.current &&
+					latestAppliedEventSeqRef.current !== null &&
+					loadedThroughSeqRef.current !== null &&
+					loadedThroughSeqRef.current < latestAppliedEventSeqRef.current
+				) {
+					queuedRefreshRef.current = false
+					void loadEvents()
+					return
+				}
+
+				queuedRefreshRef.current = false
 			}
 		}
 

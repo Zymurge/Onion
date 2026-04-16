@@ -187,11 +187,7 @@ export function BattlefieldLeftRail({
                           return
                         }
                         event.stopPropagation()
-                        if (activeCombatRole === 'defender') {
-                          onSelectDefenderCombatTarget()
-                        } else {
-                          onSelectUnit(unit.id, event.ctrlKey || event.metaKey)
-                        }
+                        onSelectDefenderCombatTarget()
                       }}
                     >
                       <div className="weapon-card-name">{unit.type}</div>
