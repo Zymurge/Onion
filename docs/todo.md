@@ -18,6 +18,7 @@ break down into features/tasks as needed.
 
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
 - [ ] Make client side logging verbosity level sensitive; move existing console logs to proper levels.
+- [ ] Create friendly names for all units and Onion weapons to be used for user facing messaging instead of ids.
 
 ## Done
 

@@ -69,6 +69,7 @@ export type GameEvent = {
 	type: string
 	summary?: string
 	timestamp: string
+	[key: string]: unknown
 }
 
 export type GameClientError = {

@@ -11,6 +11,7 @@ type BattlefieldRightRailProps = {
   activeRole: 'onion' | 'defender' | null
   activeSelectedUnitCount: number
   isCombatPhase: boolean
+  showInactiveEventStream: boolean
   selectedCombatAttackCount: number
   selectedCombatAttackStrength: number
   selectedCombatTarget: CombatTargetOption | null
@@ -19,8 +20,11 @@ type BattlefieldRightRailProps = {
   selectedInspectorOnion: BattlefieldOnionView | null
   inactiveEventStream: {
     entries: ReadonlyArray<TimelineEvent>
+    errorMessage: string | null
     clearEntries: () => void
+    isLoading: boolean
     isDismissed: boolean
+    clearErrorMessage: () => void
   }
   combatTargetOptions: ReadonlyArray<CombatTargetOption>
   onConfirmCombat: () => void
@@ -32,6 +36,7 @@ export function BattlefieldRightRail({
   activeRole,
   activeSelectedUnitCount,
   isCombatPhase,
+  showInactiveEventStream,
   selectedCombatAttackCount,
   selectedCombatAttackStrength,
   selectedCombatTarget,
@@ -45,10 +50,13 @@ export function BattlefieldRightRail({
 }: BattlefieldRightRailProps) {
   return (
     <aside className="panel rail rail-right">
-      {!inactiveEventStream.isDismissed ? (
+      {showInactiveEventStream && !inactiveEventStream.isDismissed ? (
         <InactiveEventStream
           entries={inactiveEventStream.entries}
+          errorMessage={inactiveEventStream.errorMessage}
+          isLoading={inactiveEventStream.isLoading}
           onDismiss={inactiveEventStream.clearEntries}
+          onDismissError={inactiveEventStream.clearErrorMessage}
         />
       ) : null}
       {selectedInspectorOnion !== null ? (
