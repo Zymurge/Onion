@@ -17,6 +17,7 @@ break down into features/tasks as needed.
 ## Features / Work Items
 
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
+- [ ] Make client side logging verbosity level sensitive; move existing console logs to proper levels.
 
 ## Done
 
