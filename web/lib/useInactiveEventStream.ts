@@ -11,20 +11,7 @@ type UseInactiveEventStreamOptions = {
 	pollEvents?: GameRequestTransport['pollEvents']
 }
 
-function formatEventTitle(type: string) {
-	switch (type) {
-		case 'FIRE_RESOLVED':
-			return 'Combat attempt'
-		case 'MOVE_RESOLVED':
-			return 'Ram resolved'
-		case 'UNIT_STATUS_CHANGED':
-			return 'Unit status changed'
-		case 'PHASE_CHANGED':
-			return 'Phase changed'
-		default:
-			return type.replace(/_/g, ' ').toLowerCase()
-	}
-}
+
 function formatEventSummary(event: GameEvent) {
 	if (typeof event.summary === 'string' && event.summary.trim().length > 0) {
 		return event.summary
@@ -75,7 +62,12 @@ export function useInactiveEventStream({
 	}, [activeGameId])
 
 	useEffect(() => {
-		if (lastAppliedEventSeq === null || activeTurnActive || activeGameId === null || pollEvents === undefined) {
+		if (
+			lastAppliedEventSeq === null ||
+			activeTurnActive ||
+			activeGameId === null ||
+			pollEvents === undefined
+		) {
 			return
 		}
 
@@ -94,10 +86,14 @@ export function useInactiveEventStream({
 		inFlightAfterSeqRef.current = afterSeq
 
 		async function loadEvents() {
+			// Guard pollEvents and arguments
+			if (pollEvents === undefined || activeGameId === null) {
+				return undefined
+			}
 			try {
-				const events = await pollEvents(activeGameId, afterSeq)
+				const events = await pollEvents(Number(activeGameId), Number(afterSeq))
 				if (cancelled) {
-					return
+					return undefined
 				}
 
 				const unseenEvents = events.filter((event) => !seenSeqsRef.current.has(event.seq))
@@ -115,7 +111,8 @@ export function useInactiveEventStream({
 				}
 
 				const maxReturnedSeq = events.reduce((maxSeq, event) => Math.max(maxSeq, event.seq), afterSeq)
-				loadedThroughSeqRef.current = Math.max(maxReturnedSeq, lastAppliedEventSeq)
+				// Default lastAppliedEventSeq to 0 if null
+				loadedThroughSeqRef.current = Math.max(maxReturnedSeq, lastAppliedEventSeq ?? 0)
 			} catch {
 				// Keep the existing stream in place; the next live hint can retry.
 			} finally {
@@ -132,7 +129,6 @@ export function useInactiveEventStream({
 				) {
 					queuedRefreshRef.current = false
 					void loadEvents()
-					return
 				}
 
 				queuedRefreshRef.current = false
