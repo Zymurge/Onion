@@ -93,9 +93,9 @@ describe('POST /games/:id/actions END_PHASE', () => {
     await joinGame(app, gameId, fiona.token)
 
     const action = await endPhase(app, gameId, shrek.token)
-    const actionBody = action.json<{ eventSeq: number; events: Array<{ seq: number; causeId?: string }> }>()
+    const actionBody = action.json<{ eventSeq: number; turnNumber: number; events: Array<{ seq: number; causeId?: string; turnNumber?: number }> }>()
     const eventsRes = await getEvents(app, gameId, shrek.token)
-    const events = eventsRes.json<{ events: Array<{ seq: number; type: string }> }>().events
+    const events = eventsRes.json<{ events: Array<{ seq: number; type: string; turnNumber?: number }> }>().events
 
     expect(events.some((event) => event.type === 'PHASE_CHANGED')).toBe(true)
     expect(events.at(-1)?.seq).toBe(actionBody.eventSeq)

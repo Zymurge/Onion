@@ -44,6 +44,7 @@ export interface DefenderUnit {
   weapons?: Weapon[]
   squads?: number
   targetRules?: TargetRules
+  friendlyName?: string
 }
 
 export interface GameUnitState {
@@ -68,7 +69,7 @@ export interface GameOnionState extends GameUnitState {
 
 export interface GameState {
   onion: GameOnionState
-  defenders: Record<string, GameUnitState & { squads?: number }>
+  defenders: Record<string, DefenderUnit>
   ramsThisTurn?: number
   movementSpent?: Record<string, number>
 }
