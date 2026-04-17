@@ -18,6 +18,8 @@ type BattlefieldRightRailProps = {
   activeSelectedUnitCount: number
   isCombatPhase: boolean
   showInactiveEventStream: boolean
+  isInteractionLocked: boolean
+  canDismissInactiveEventStream: boolean
   pendingRamPrompt: RamPrompt | null
   selectedCombatAttackCount: number
   selectedCombatAttackStrength: number
@@ -46,6 +48,8 @@ export function BattlefieldRightRail({
   activeSelectedUnitCount,
   isCombatPhase,
   showInactiveEventStream,
+  isInteractionLocked,
+  canDismissInactiveEventStream,
   pendingRamPrompt,
   selectedCombatAttackCount,
   selectedCombatAttackStrength,
@@ -62,11 +66,12 @@ export function BattlefieldRightRail({
 }: BattlefieldRightRailProps) {
   return (
     <aside className="panel rail rail-right">
-      {showInactiveEventStream && !inactiveEventStream.isDismissed ? (
+      {showInactiveEventStream ? (
         <InactiveEventStream
           entries={inactiveEventStream.entries}
           errorMessage={inactiveEventStream.errorMessage}
           isLoading={inactiveEventStream.isLoading}
+          canDismiss={canDismissInactiveEventStream}
           onDismiss={inactiveEventStream.clearEntries}
           onDismissError={inactiveEventStream.clearErrorMessage}
         />
@@ -97,10 +102,10 @@ export function BattlefieldRightRail({
             </div>
             <p className="summary-line">Choose whether to ram the occupied hex or continue the move without ramming.</p>
             <div className="combat-confirmation-actions">
-              <button className="combat-confirm-button" type="button" onClick={onAttemptRam}>
+              <button className="combat-confirm-button" type="button" disabled={isInteractionLocked} onClick={onAttemptRam}>
                 Attempt ram
               </button>
-              <button className="combat-confirm-button combat-confirm-button-secondary" type="button" onClick={onDeclineRam}>
+              <button className="combat-confirm-button combat-confirm-button-secondary" type="button" disabled={isInteractionLocked} onClick={onDeclineRam}>
                 Move without ram
               </button>
             </div>
@@ -162,6 +167,7 @@ export function BattlefieldRightRail({
               modifiers={selectedCombatTarget.modifiers}
               confirmLabel="Resolve combat"
               onConfirm={onConfirmCombat}
+              isDisabled={isInteractionLocked}
               dataTestId="combat-confirmation-view"
             />
           ) : null}
@@ -170,6 +176,7 @@ export function BattlefieldRightRail({
               targets={combatTargetOptions}
               selectedTargetId={selectedCombatTargetId}
               selectedCombatAttackCount={selectedCombatAttackCount}
+              isDisabled={isInteractionLocked}
               onSelectTarget={onSelectCombatTarget}
             />
           ) : (

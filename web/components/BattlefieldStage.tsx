@@ -17,6 +17,7 @@ type BattlefieldStageProps = {
   combatRangeHexKeys: ReadonlySet<string>
   combatTargetIds: ReadonlySet<string>
   canSubmitMove: boolean
+  isInteractionLocked: boolean
   viewerRole: 'onion' | 'defender' | null
   onDeselect: () => void
   onMoveUnit: (unitId: string, to: { q: number; r: number }) => void
@@ -35,6 +36,7 @@ export function BattlefieldStage({
   combatRangeHexKeys,
   combatTargetIds,
   canSubmitMove,
+  isInteractionLocked,
   viewerRole,
   onDeselect,
   onMoveUnit,
@@ -54,7 +56,8 @@ export function BattlefieldStage({
           selectedCombatTargetId={selectedCombatTargetId}
           combatRangeHexKeys={combatRangeHexKeys}
           combatTargetIds={combatTargetIds}
-          canSubmitMove={canSubmitMove && activeTurnActive}
+          canSubmitMove={canSubmitMove && activeTurnActive && !isInteractionLocked}
+          isInteractionLocked={isInteractionLocked}
           onSelectUnit={onSelectUnit}
           onSelectCombatTarget={onSelectCombatTarget}
           onDeselect={onDeselect}

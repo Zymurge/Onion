@@ -24,6 +24,7 @@ type HexMapBoardProps = {
   combatRangeHexKeys?: ReadonlySet<string>
   combatTargetIds?: ReadonlySet<string>
   canSubmitMove?: boolean
+  isInteractionLocked?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
   onSelectCombatTarget?: (targetId: string) => void
   onDeselect: () => void
@@ -60,7 +61,7 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, isInteractionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<string | null>(null)
@@ -346,10 +347,18 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                     cellOccupants.length > 0 ? 'hex-cell-occupied' : '',
                   ].join(' ')}
                   onClick={() => {
+                    if (isInteractionLocked) {
+                      return
+                    }
+
                     onDeselect()
                   }}
                   onContextMenu={(event) => {
                     event.preventDefault()
+
+                    if (isInteractionLocked) {
+                      return
+                    }
 
                     if (cellOccupants.some((occupant) => selectCombatTarget(occupant))) {
                       return
@@ -433,6 +442,11 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                         ].join(' ')}
                         transform={`translate(${offset.dx}, ${offset.dy})`}
                         onClick={(event) => {
+                          if (isInteractionLocked) {
+                            event.stopPropagation()
+                            return
+                          }
+
                           event.stopPropagation()
 
                           if (isCombatPhase && viewerRole !== activeCombatRole) {

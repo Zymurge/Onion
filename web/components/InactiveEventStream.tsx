@@ -6,27 +6,25 @@ type InactiveEventStreamProps = {
 	entries: ReadonlyArray<TimelineEvent>
 	errorMessage: string | null
 	isLoading: boolean
+	canDismiss: boolean
 	onDismiss: () => void
 	onDismissError: () => void
 }
 
-export function InactiveEventStream({ entries, errorMessage, isLoading, onDismiss, onDismissError }: InactiveEventStreamProps) {
+export function InactiveEventStream({ entries, errorMessage, isLoading, canDismiss, onDismiss, onDismissError }: InactiveEventStreamProps) {
 	const showLoading = isLoading && entries.length === 0
 	const showError = errorMessage !== null
 	const [expandedSeq, setExpandedSeq] = useState<number | null>(null)
 
 	return (
-		<section className="panel panel-subtle inactive-event-stream" role="status" aria-live="polite" data-testid="inactive-event-stream">
+		<section
+			className={`panel panel-subtle inactive-event-stream${canDismiss ? ' inactive-event-stream-acknowledgement-pending' : ''}`}
+			role="status"
+			aria-live="polite"
+			data-testid="inactive-event-stream"
+		>
 			<div className="inactive-event-stream-head">
 				<h3>Opponent’s Results</h3>
-				<button
-					className="inactive-event-stream-dismiss"
-					type="button"
-					onClick={onDismiss}
-					aria-label="Dismiss inactive event stream"
-				>
-					Dismiss
-				</button>
 			</div>
 
 			{showError ? (

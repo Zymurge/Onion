@@ -10,6 +10,7 @@ type BattlefieldLeftRailProps = {
   displayedOnion: BattlefieldOnionView | null
   isCombatPhase: boolean
   isMovementPhase: boolean
+  isInteractionLocked: boolean
   onionWeapons: {
     operationalWeapons: number
     operationalMissiles: number
@@ -28,6 +29,7 @@ export function BattlefieldLeftRail({
   displayedOnion,
   isCombatPhase,
   isMovementPhase,
+  isInteractionLocked,
   onionWeapons,
   readyWeaponDetails,
   selectedCombatAttackLabel,
@@ -65,9 +67,16 @@ export function BattlefieldLeftRail({
                       type="button"
                       className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}`}
                       aria-pressed={isSelected}
+                      disabled={isInteractionLocked}
                       data-selected={isSelected}
                       data-testid={`combat-weapon-${weapon.id}`}
                       onClick={(event) => {
+                        if (isInteractionLocked) {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          return
+                        }
+
                         event.stopPropagation()
                         onSelectUnit(selectionId, event.ctrlKey || event.metaKey)
                       }}
@@ -99,11 +108,17 @@ export function BattlefieldLeftRail({
                       `tone-${statusTone(unit.status)}`,
                     ].join(' ')}
                     aria-pressed={isSelected}
+                      disabled={isInteractionLocked}
                     data-selected={isSelected}
                     data-testid={`combat-unit-${unit.id}`}
-                    disabled={false}
                     title={isDestroyed ? 'Destroyed units cannot attack.' : !isActionable ? 'This unit is not eligible to attack.' : undefined}
                     onClick={(event) => {
+                        if (isInteractionLocked) {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          return
+                        }
+
                       event.stopPropagation()
                       onSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                     }}
@@ -129,9 +144,16 @@ export function BattlefieldLeftRail({
                 type="button"
                 className={`onion-card-button ${activeSelectedUnitIds.includes(displayedOnion.id) ? 'is-selected' : ''}`}
                 aria-pressed={activeSelectedUnitIds.includes(displayedOnion.id)}
+                disabled={isInteractionLocked}
                 data-selected={activeSelectedUnitIds.includes(displayedOnion.id)}
                 data-testid={`combat-unit-${displayedOnion.id}`}
                 onClick={(event) => {
+                  if (isInteractionLocked) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    return
+                  }
+
                   event.stopPropagation()
                   onSelectUnit(displayedOnion.id, event.ctrlKey || event.metaKey)
                 }}
@@ -178,10 +200,16 @@ export function BattlefieldLeftRail({
                         `tone-${statusTone(unit.status)}`,
                       ].join(' ')}
                       aria-pressed={isSelected}
+                      disabled={isInteractionLocked || isDestroyed}
                       data-selected={isSelected}
                       data-testid={`combat-unit-${unit.id}`}
-                      disabled={isDestroyed}
                       onClick={(event) => {
+                        if (isInteractionLocked) {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          return
+                        }
+
                         if (isDestroyed) {
                           event.stopPropagation()
                           return

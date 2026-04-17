@@ -7,10 +7,11 @@ type CombatConfirmationViewProps = {
   modifiers: string[]
   confirmLabel?: string
   onConfirm?: () => void
+  isDisabled?: boolean
   dataTestId?: string
 }
 
-export function CombatConfirmationView({ title, attackStrength, defenseStrength, modifiers, confirmLabel, onConfirm, dataTestId }: CombatConfirmationViewProps) {
+export function CombatConfirmationView({ title, attackStrength, defenseStrength, modifiers, confirmLabel, onConfirm, isDisabled = false, dataTestId }: CombatConfirmationViewProps) {
   const odds = calculateCombatOdds(attackStrength, defenseStrength)
 
   return (
@@ -55,7 +56,14 @@ export function CombatConfirmationView({ title, attackStrength, defenseStrength,
           <button
             className="combat-confirm-button"
             type="button"
+            disabled={isDisabled}
             onClick={(event) => {
+              if (isDisabled) {
+                event.preventDefault()
+                event.stopPropagation()
+                return
+              }
+
               event.stopPropagation()
               onConfirm()
             }}

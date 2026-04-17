@@ -11,6 +11,7 @@ type UseBattlefieldInteractionStateOptions = {
   clientSnapshot: GameSnapshot | null
   clientSnapshotPhase: TurnPhase | null
   isControlledSession: boolean
+  isInteractionLocked: boolean
 }
 
 type RamPrompt = {
@@ -110,6 +111,7 @@ export function useBattlefieldInteractionState({
   clientSnapshot,
   clientSnapshotPhase,
   isControlledSession,
+  isInteractionLocked,
 }: UseBattlefieldInteractionStateOptions) {
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
@@ -121,6 +123,17 @@ export function useBattlefieldInteractionState({
   const [combatBaseSnapshot, setCombatBaseSnapshot] = useState<GameSnapshot | null>(null)
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  function debugLog(event: string, details: Record<string, unknown>) {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    console.info(`[interaction-debug] ${event}`, {
+      ts: Date.now(),
+      ...details,
+    })
+  }
 
   useEffect(() => {
     if (
@@ -136,12 +149,35 @@ export function useBattlefieldInteractionState({
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeSessionController === null) {
+      debugLog('commitClientAction skipped', {
+        action,
+        isControlledSession,
+        hasController: activeSessionController !== null,
+        isInteractionLocked,
+        activeTurnActive,
+        clientSnapshotPhase,
+      })
       return
     }
+
+    debugLog('commitClientAction start', {
+      action,
+      isInteractionLocked,
+      activeTurnActive,
+      clientSnapshotPhase,
+      selectedUnitIds,
+      selectedCombatTargetId,
+    })
 
     try {
       const previousSnapshot = clientSnapshot
       const nextSnapshot = await activeSessionController.submitAction(action)
+      debugLog('commitClientAction success', {
+        action,
+        fromPhase: previousSnapshot?.phase ?? null,
+        toPhase: nextSnapshot?.phase ?? null,
+        nextEventSeq: nextSnapshot?.lastEventSeq ?? null,
+      })
       setActionError(null)
       if (nextSnapshot?.combatResolution !== undefined) {
         setCombatBaseSnapshot(previousSnapshot)
@@ -156,6 +192,11 @@ export function useBattlefieldInteractionState({
         setSelectedCombatTargetId(null)
       }
     } catch (error: unknown) {
+      debugLog('commitClientAction failure', {
+        action,
+        error,
+        clientSnapshotPhase,
+      })
       const errorMessage =
         error instanceof Error && error.message
           ? `Error: ${error.message}`
@@ -207,6 +248,10 @@ export function useBattlefieldInteractionState({
   }
 
   function handleSelectUnit(unitId: string, additive = false) {
+    if (isInteractionLocked) {
+      return
+    }
+
     const authoritativeState = clientSnapshot?.authoritativeState
     const destroyedUnit = authoritativeState === undefined
       ? false
@@ -239,6 +284,10 @@ export function useBattlefieldInteractionState({
   }
 
   function handleDeselectUnit() {
+    if (isInteractionLocked) {
+      return
+    }
+
     clearPendingCombatResolution(false)
     setSelectedUnitIds([])
     setSelectedCombatTargetId(null)
@@ -251,7 +300,7 @@ export function useBattlefieldInteractionState({
       return
     }
 
-    if (!activeTurnActive) {
+    if (!activeTurnActive || isInteractionLocked) {
       return
     }
 
@@ -267,11 +316,28 @@ export function useBattlefieldInteractionState({
   }
 
   async function handleRefresh() {
+    debugLog('handleRefresh start', {
+      activeTurnActive,
+      clientSnapshotPhase,
+      isInteractionLocked,
+      isRefreshing,
+    })
     setIsRefreshing(true)
     if (activeSessionController !== null) {
       try {
         await activeSessionController.refresh()
         setLastRefreshAt(new Date())
+        debugLog('handleRefresh success', {
+          activeTurnActive,
+          clientSnapshotPhase,
+        })
+      } catch (error) {
+        debugLog('handleRefresh failure', {
+          error,
+          activeTurnActive,
+          clientSnapshotPhase,
+        })
+        throw error
       } finally {
         setIsRefreshing(false)
       }
@@ -281,6 +347,10 @@ export function useBattlefieldInteractionState({
     setTimeout(() => {
       setLastRefreshAt(new Date())
       setIsRefreshing(false)
+      debugLog('handleRefresh fallback complete', {
+        activeTurnActive,
+        clientSnapshotPhase,
+      })
     }, 800)
   }
 

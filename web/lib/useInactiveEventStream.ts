@@ -437,22 +437,7 @@ export function useInactiveEventStream({
 	}, [activeGameId])
 
 	useEffect(() => {
-		if (
-			activeGameId !== null &&
-			lastGameIdRef.current === activeGameId &&
-			previousActiveTurnActiveRef.current === true &&
-			activeTurnActive === false
-		) {
-			setEntries([])
-			setIsDismissed(false)
-			setIsLoading(false)
-			setErrorMessage(null)
-			seenSeqsRef.current = new Set<number>()
-			loadedThroughSeqRef.current = lastAppliedEventSeq
-			inFlightAfterSeqRef.current = null
-			queuedRefreshRef.current = false
-		}
-
+		// Only reset state when switching to a new game, not on phase transitions
 		previousActiveTurnActiveRef.current = activeTurnActive
 	}, [activeGameId, activeTurnActive, lastAppliedEventSeq])
 

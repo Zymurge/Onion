@@ -46,6 +46,17 @@ export function createGameSessionController(options: GameSessionControllerOption
 	let phaseRefreshRetrySeq: number | null = null
 	let requestVersion = 0
 
+	function debugLog(event: string, details: Record<string, unknown>) {
+		if (typeof window === 'undefined') {
+			return
+		}
+
+		console.info(`[session-debug] ${event}`, {
+			ts: Date.now(),
+			...details,
+		})
+	}
+
 	function emit() {
 		for (const listener of listeners) {
 			listener(state)
@@ -112,6 +123,13 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 		clearRefreshTimer()
 		liveRefreshRequestedSeq = latestObservedEventSeq
+		debugLog('schedule live refresh', {
+			gameId: options.gameId,
+			requestedSeq: liveRefreshRequestedSeq,
+			currentSnapshotSeq,
+			latestObservedEventSeq,
+			phaseRefreshRetryPending,
+		})
 		liveRefreshTimer = setTimeout(() => {
 			liveRefreshTimer = null
 			void refreshLiveSnapshot()
@@ -169,7 +187,21 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 	async function getStateWithVersion() {
 		const version = ++requestVersion
+		debugLog('getState start', {
+			gameId: options.gameId,
+			version,
+			phase: state.snapshot?.phase ?? null,
+			lastEventSeq: state.snapshot?.lastEventSeq ?? null,
+			status: state.status,
+		})
 		const envelope = await options.requestTransport.getState(options.gameId)
+		debugLog('getState success', {
+			gameId: options.gameId,
+			version,
+			phase: envelope.snapshot?.phase ?? null,
+			lastEventSeq: envelope.snapshot?.lastEventSeq ?? null,
+			sessionRole: envelope.session?.role ?? null,
+		})
 		return { envelope, version }
 	}
 
@@ -192,6 +224,14 @@ export function createGameSessionController(options: GameSessionControllerOption
 		const previousSnapshotPhase = state.snapshot.phase
 		const triggeringEventType = latestObservedEventType
 		let acceptedSnapshot: GameSessionViewState['snapshot'] = null
+		debugLog('refreshLiveSnapshot start', {
+			gameId: options.gameId,
+			currentSnapshotSeq,
+			latestObservedEventSeq,
+			triggeringEventType,
+			previousSnapshotPhase,
+			phaseRefreshRetryPending,
+		})
 
 		setState({ status: 'refreshing' })
 
@@ -207,7 +247,18 @@ export function createGameSessionController(options: GameSessionControllerOption
 				true,
 			)
 			acceptedSnapshot = accepted ? envelope.snapshot : null
+			debugLog('refreshLiveSnapshot success', {
+				gameId: options.gameId,
+				accepted,
+				acceptedPhase: acceptedSnapshot?.phase ?? null,
+				acceptedSeq: acceptedSnapshot?.lastEventSeq ?? null,
+				version,
+			})
 		} catch (error) {
+			debugLog('refreshLiveSnapshot failure', {
+				gameId: options.gameId,
+				error,
+			})
 			setState({
 				status: 'error',
 				error: normalizeTransportError(error),
@@ -267,6 +318,16 @@ export function createGameSessionController(options: GameSessionControllerOption
 			return
 		}
 
+		debugLog('loadOrRefresh start', {
+			gameId: options.gameId,
+			reason,
+			status: state.status,
+			phase: state.snapshot?.phase ?? null,
+			lastEventSeq: state.snapshot?.lastEventSeq ?? null,
+			latestObservedEventSeq,
+			latestObservedEventType,
+		})
+
 		options.liveEventSource.connect(options.gameId)
 		setState({ status: state.snapshot === null ? 'loading' : 'refreshing', error: null })
 
@@ -284,10 +345,25 @@ export function createGameSessionController(options: GameSessionControllerOption
 				reason !== 'manual',
 			)
 
+			debugLog('loadOrRefresh success', {
+				gameId: options.gameId,
+				reason,
+				version,
+				applied,
+				phase: envelope.snapshot?.phase ?? null,
+				lastEventSeq: envelope.snapshot?.lastEventSeq ?? null,
+				minimumAcceptedSeq,
+			})
+
 			if (!applied && state.snapshot !== null) {
 				setState({ status: 'ready' })
 			}
 		} catch (error) {
+			debugLog('loadOrRefresh failure', {
+				gameId: options.gameId,
+				reason,
+				error,
+			})
 			setState({
 				status: 'error',
 				error: normalizeTransportError(error),
@@ -299,6 +375,13 @@ export function createGameSessionController(options: GameSessionControllerOption
 		if (disposed || signal.gameId !== options.gameId) {
 			return
 		}
+
+		debugLog('live signal', {
+			gameId: options.gameId,
+			signal,
+			phase: state.snapshot?.phase ?? null,
+			lastEventSeq: state.snapshot?.lastEventSeq ?? null,
+		})
 
 		if (signal.kind === 'connection') {
 			setState({ liveConnection: signal.status })
@@ -343,6 +426,13 @@ export function createGameSessionController(options: GameSessionControllerOption
 				return null
 			}
 
+			debugLog('submitAction start', {
+				gameId: options.gameId,
+				action,
+				phase: state.snapshot?.phase ?? null,
+				lastEventSeq: state.snapshot?.lastEventSeq ?? null,
+			})
+
 			options.liveEventSource.connect(options.gameId)
 			setState({ status: 'refreshing', error: null })
 
@@ -351,8 +441,21 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 			try {
 				const nextSnapshot = await options.requestTransport.submitAction(options.gameId, action)
+				debugLog('submitAction response', {
+					gameId: options.gameId,
+					action,
+					version,
+					phase: nextSnapshot?.snapshot?.phase ?? null,
+					lastEventSeq: nextSnapshot?.snapshot?.lastEventSeq ?? null,
+				})
 
 				if (!shouldAcceptSnapshot(nextSnapshot.lastEventSeq, null, version)) {
+					debugLog('submitAction stale response ignored', {
+						gameId: options.gameId,
+						action,
+						version,
+						responseSeq: nextSnapshot.lastEventSeq,
+					})
 					return null
 				}
 
@@ -375,6 +478,12 @@ export function createGameSessionController(options: GameSessionControllerOption
 				return nextSnapshot
 			} catch (error) {
 				const normalizedError = normalizeTransportError(error)
+				debugLog('submitAction failure', {
+					gameId: options.gameId,
+					action,
+					version,
+					error: normalizedError,
+				})
 				setState({
 					status: 'error',
 					error: normalizedError,
