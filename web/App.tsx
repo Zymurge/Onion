@@ -306,6 +306,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const inactiveEventStream = useInactiveEventStream({
     activeGameId: activeGameIdForGate,
     activeTurnActive: sessionTurnActive,
+    currentTurnNumber: sessionTurnNumber,
     lastAppliedEventSeq: sessionState.lastAppliedEventSeq,
     pollEvents: activeSessionBinding?.requestTransport.pollEvents,
   })

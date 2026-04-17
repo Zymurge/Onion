@@ -180,18 +180,22 @@ export function buildCombatEvents(
   startSeq: number,
   command: Extract<Command, { type: 'FIRE' }>,
   result: any,
-  state: any,
+  state: GameState,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
   const events: EventEnvelope[] = []
+  const attackerFriendlyNames = command.attackers.map((attackerId) => resolveCombatParticipantFriendlyName(state, attackerId))
+  const targetFriendlyName = resolveTargetFriendlyName(state, result.targetId)
 
   events.push({
     seq: seq++,
     type: 'FIRE_RESOLVED',
     timestamp,
     attackers: command.attackers,
+    attackerFriendlyNames,
     targetId: result.targetId,
+    targetFriendlyName,
     roll: result.roll?.roll,
     outcome: result.roll?.result,
     odds: result.roll?.odds,
@@ -213,6 +217,7 @@ export function buildCombatEvents(
       type: 'ONION_BATTERY_DESTROYED',
       timestamp,
       weaponId: result.destroyedWeaponId,
+      weaponFriendlyName: resolveWeaponFriendlyName(state, result.destroyedWeaponId),
       weaponType: getWeaponTypeFromId(result.destroyedWeaponId),
     })
   }
@@ -223,6 +228,7 @@ export function buildCombatEvents(
       type: 'UNIT_STATUS_CHANGED',
       timestamp,
       unitId: statusChange.unitId,
+      unitFriendlyName: resolveUnitFriendlyName(state, statusChange.unitId),
       from: statusChange.from,
       to: statusChange.to,
     })
@@ -246,18 +252,20 @@ export function buildMoveEvents(
   moveUnitId: string,
   command: Extract<Command, { type: 'MOVE' }>,
   result: any,
-  state: any,
+  state: GameState,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
   const onionUnitId = state.onion.id
   const canonicalMoveUnitId = moveUnitId
   const isOnionMove = canonicalMoveUnitId === onionUnitId
+  const moveUnitFriendlyName = resolveUnitFriendlyName(state, canonicalMoveUnitId)
   const events: EventEnvelope[] = [
     {
       seq: seq++,
       type: isOnionMove ? 'ONION_MOVED' : 'UNIT_MOVED',
       timestamp,
+      unitFriendlyName: moveUnitFriendlyName,
       ...(isOnionMove ? { to: command.to } : { unitId: canonicalMoveUnitId, to: command.to }),
     },
   ]
@@ -270,8 +278,11 @@ export function buildMoveEvents(
       type: 'MOVE_RESOLVED',
       timestamp,
       unitId: canonicalMoveUnitId,
+      unitFriendlyName: moveUnitFriendlyName,
       rammedUnitIds,
+      rammedUnitFriendlyNames: rammedUnitIds.map((unitId: string) => resolveUnitFriendlyName(state, unitId)),
       destroyedUnitIds,
+      destroyedUnitFriendlyNames: destroyedUnitIds.map((unitId: string) => resolveUnitFriendlyName(state, unitId)),
       treadDamage: result.treadDamage ?? 0,
     })
   }
@@ -292,12 +303,56 @@ export function buildMoveEvents(
       type: 'UNIT_STATUS_CHANGED',
       timestamp,
       unitId: destroyedId,
+      unitFriendlyName: resolveUnitFriendlyName(state, destroyedId),
       from: 'operational',
       to: 'destroyed',
     })
   }
 
   return events
+}
+
+function resolveUnitFriendlyName(state: GameState, unitId: string): string {
+  if (state.onion.id === unitId || unitId === 'onion') {
+    return state.onion.friendlyName ?? state.onion.id ?? state.onion.type ?? 'The Onion'
+  }
+
+  for (const defender of Object.values(state.defenders)) {
+    if (defender.id === unitId) {
+      return defender.friendlyName ?? defender.id ?? defender.type ?? unitId
+    }
+  }
+
+  return unitId
+}
+
+function resolveWeaponFriendlyName(state: GameState, weaponId: string): string {
+  const onionWeapon = state.onion.weapons?.find((weapon) => weapon.id === weaponId)
+  if (onionWeapon) {
+    return onionWeapon.friendlyName ?? onionWeapon.name ?? weaponId
+  }
+
+  for (const defender of Object.values(state.defenders)) {
+    const weapon = defender.weapons?.find((candidate) => candidate.id === weaponId)
+    if (weapon) {
+      return weapon.friendlyName ?? weapon.name ?? weaponId
+    }
+  }
+
+  return weaponId
+}
+
+function resolveCombatParticipantFriendlyName(state: GameState, attackerId: string): string {
+  const unitFriendlyName = resolveUnitFriendlyName(state, attackerId)
+  if (unitFriendlyName !== attackerId) {
+    return unitFriendlyName
+  }
+
+  return resolveWeaponFriendlyName(state, attackerId)
+}
+
+function resolveTargetFriendlyName(state: GameState, targetId: string): string {
+  return resolveUnitFriendlyName(state, targetId)
 }
 
 export function logSentEvents(gameId: number, actionType: string, events: EventEnvelope[]) {

@@ -368,7 +368,10 @@ describe('App UI', () => {
 					seq: 52,
 					type: 'FIRE_RESOLVED',
 					timestamp: '2026-04-15T12:02:00.000Z',
+					turnNumber: 11,
+					attackerFriendlyNames: ['Big Bad Wolf 2'],
 					outcome: 'NE',
+					targetFriendlyName: 'The Onion 1',
 					targetId: 'onion',
 				},
 			])
@@ -402,6 +405,7 @@ describe('App UI', () => {
 				seq: 52,
 				type: 'PHASE_CHANGED',
 				timestamp: '2026-04-15T12:02:00.000Z',
+					turnNumber: 11,
 				from: 'ONION_MOVE',
 				to: 'DEFENDER_COMBAT',
 			},
@@ -409,12 +413,15 @@ describe('App UI', () => {
 				seq: 53,
 				type: 'SESSION_CONNECTED',
 				timestamp: '2026-04-15T12:02:30.000Z',
+					turnNumber: 11,
 				summary: 'Defender connected to the session.',
 			},
 			{
 				seq: 54,
 				type: 'UNIT_MOVED',
 				timestamp: '2026-04-15T12:03:00.000Z',
+					turnNumber: 11,
+					unitFriendlyName: 'Big Bad Wolf 2',
 				unitId: 'wolf-2',
 				to: { q: 3, r: 4 },
 			},
@@ -422,16 +429,23 @@ describe('App UI', () => {
 				seq: 55,
 				type: 'MOVE_RESOLVED',
 				timestamp: '2026-04-15T12:03:01.000Z',
+					turnNumber: 11,
+					unitFriendlyName: 'Big Bad Wolf 2',
 				unitId: 'wolf-2',
 				rammedUnitIds: ['pigs-1'],
+					rammedUnitFriendlyNames: ['Little Pigs 1'],
 				destroyedUnitIds: ['pigs-1'],
+					destroyedUnitFriendlyNames: ['Little Pigs 1'],
 				treadDamage: 1,
 			},
 			{
 				seq: 56,
 				type: 'FIRE_RESOLVED',
 				timestamp: '2026-04-15T12:04:00.000Z',
+					turnNumber: 11,
+					attackerFriendlyNames: ['Big Bad Wolf 2'],
 				attackers: ['wolf-2'],
+					targetFriendlyName: 'Little Pigs 1',
 				targetId: 'pigs-1',
 				roll: 5,
 				outcome: 'X',
@@ -441,6 +455,7 @@ describe('App UI', () => {
 				seq: 57,
 				type: 'ONION_TREADS_LOST',
 				timestamp: '2026-04-15T12:04:01.000Z',
+					turnNumber: 11,
 				amount: 2,
 				remaining: 43,
 			},
@@ -448,6 +463,8 @@ describe('App UI', () => {
 				seq: 58,
 				type: 'UNIT_STATUS_CHANGED',
 				timestamp: '2026-04-15T12:04:02.000Z',
+					turnNumber: 11,
+					unitFriendlyName: 'Little Pigs 1',
 				unitId: 'pigs-1',
 				from: 'operational',
 				to: 'destroyed',
@@ -462,18 +479,18 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 
 		expect(await screen.findByText(/ram attempt/i)).not.toBeNull()
-		expect(screen.getByText(/fire on pigs-1: destroyed/i)).not.toBeNull()
+		expect(screen.getByText(/fire on little pigs 1: destroyed/i)).not.toBeNull()
 		expect(screen.queryByText(/^details$/i)).toBeNull()
 		const stream = screen.getByTestId('inactive-event-stream')
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(2)
 		const entries = Array.from(stream.querySelectorAll('.inactive-event-stream-entry'))
 		await user.hover(entries[0] as HTMLElement)
-		expect(entries[0].textContent).toContain('Target: pigs-1')
+		expect(entries[0].textContent).toContain('Target: Little Pigs 1')
 		expect(entries[0].textContent).toContain('Result: destroyed')
 		await user.hover(entries[1] as HTMLElement)
-		expect(entries[1].textContent).toContain('Attackers: wolf-2')
+		expect(entries[1].textContent).toContain('Attackers: Big Bad Wolf 2')
 		expect(entries[1].textContent).toContain('Outcome: destroyed')
-		expect(entries[1].textContent).toContain('Unit pigs-1: operational → destroyed')
+		expect(entries[1].textContent).toContain('Unit Little Pigs 1: operational → destroyed')
 	})
 
 	it('renders D against Onion weapons as no effect', async () => {
@@ -484,7 +501,10 @@ describe('App UI', () => {
 				seq: 72,
 				type: 'FIRE_RESOLVED',
 				timestamp: '2026-04-15T12:05:00.000Z',
+					turnNumber: 11,
+					attackerFriendlyNames: ['Big Bad Wolf 2'],
 				attackers: ['wolf-2'],
+					targetFriendlyName: 'Main Battery',
 				targetId: 'main',
 				roll: 4,
 				outcome: 'D',
@@ -499,7 +519,7 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 
-		expect(await screen.findByText(/fire on main: no effect/i)).not.toBeNull()
+		expect(await screen.findByText(/fire on main battery: no effect/i)).not.toBeNull()
 		expect(screen.queryByText(/disabled/i)).toBeNull()
 	})
 
@@ -512,12 +532,14 @@ describe('App UI', () => {
 				seq: 61,
 				type: 'SESSION_CONNECTED',
 				timestamp: '2026-04-15T12:03:00.000Z',
+					turnNumber: 11,
 				summary: 'Defender connected to the session.',
 			},
 			{
 				seq: 62,
 				type: 'PHASE_CHANGED',
 				timestamp: '2026-04-15T12:03:00.500Z',
+					turnNumber: 11,
 				from: 'ONION_MOVE',
 				to: 'DEFENDER_COMBAT',
 				causeId: 'req-1',
@@ -526,9 +548,13 @@ describe('App UI', () => {
 				seq: 63,
 				type: 'MOVE_RESOLVED',
 				timestamp: '2026-04-15T12:03:01.000Z',
+					turnNumber: 11,
+					unitFriendlyName: 'Big Bad Wolf 2',
 				unitId: 'wolf-2',
 				rammedUnitIds: ['pigs-1'],
+					rammedUnitFriendlyNames: ['Little Pigs 1'],
 				destroyedUnitIds: ['pigs-1'],
+					destroyedUnitFriendlyNames: ['Little Pigs 1'],
 				treadDamage: 1,
 				causeId: 'req-1',
 			},
@@ -536,6 +562,7 @@ describe('App UI', () => {
 				seq: 64,
 				type: 'ONION_TREADS_LOST',
 				timestamp: '2026-04-15T12:03:01.500Z',
+					turnNumber: 11,
 				amount: 1,
 				remaining: 44,
 				causeId: 'req-1',
@@ -554,7 +581,7 @@ describe('App UI', () => {
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(1)
 		const entry = stream.querySelector('.inactive-event-stream-entry')
 		await user.hover(entry as HTMLElement)
-		expect(entry?.textContent).toContain('Target: pigs-1')
+		expect(entry?.textContent).toContain('Target: Little Pigs 1')
 		expect(entry?.textContent).toContain('Result: destroyed')
 		expect(entry?.textContent).toContain('Treads lost: 1')
 	})
@@ -621,6 +648,7 @@ describe('App UI', () => {
 				seq: 72,
 				type: 'FIRE_RESOLVED',
 				timestamp: '2026-04-15T12:05:00.000Z',
+				turnNumber: 11,
 				attackers: ['wolf-2'],
 				targetId: 'onion',
 				roll: 4,
@@ -731,6 +759,7 @@ describe('App UI', () => {
 				seq: 62,
 				type: 'PHASE_CHANGED',
 				timestamp: '2026-04-15T12:03:00.500Z',
+				turnNumber: 11,
 				from: 'ONION_MOVE',
 				to: 'DEFENDER_COMBAT',
 				causeId: 'req-1',
@@ -739,9 +768,13 @@ describe('App UI', () => {
 				seq: 63,
 				type: 'MOVE_RESOLVED',
 				timestamp: '2026-04-15T12:03:01.000Z',
+				turnNumber: 11,
+				unitFriendlyName: 'Big Bad Wolf 2',
 				unitId: 'wolf-2',
 				rammedUnitIds: ['pigs-1'],
+				rammedUnitFriendlyNames: ['Little Pigs 1'],
 				destroyedUnitIds: ['pigs-1'],
+				destroyedUnitFriendlyNames: ['Little Pigs 1'],
 				treadDamage: 1,
 				causeId: 'req-1',
 			},
@@ -749,6 +782,7 @@ describe('App UI', () => {
 				seq: 64,
 				type: 'ONION_TREADS_LOST',
 				timestamp: '2026-04-15T12:03:01.500Z',
+				turnNumber: 11,
 				amount: 1,
 				remaining: 44,
 				causeId: 'req-1',
@@ -767,7 +801,7 @@ describe('App UI', () => {
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(1)
 		const entry = stream.querySelector('.inactive-event-stream-entry')
 		await user.hover(entry as HTMLElement)
-		expect(entry?.textContent).toContain('Target: pigs-1')
+		expect(entry?.textContent).toContain('Target: Little Pigs 1')
 		expect(entry?.textContent).toContain('Result: destroyed')
 		expect(entry?.textContent).toContain('Treads lost: 1')
 	})

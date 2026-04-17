@@ -7,12 +7,14 @@ import type { GameRequestTransport } from './gameSessionTypes'
 type UseInactiveEventStreamOptions = {
 	activeGameId: number | null
 	activeTurnActive: boolean
+	currentTurnNumber: number | null
 	lastAppliedEventSeq: number | null
 	pollEvents?: GameRequestTransport['pollEvents']
 }
 
 type InactiveEventPayload = GameEvent & {
 	attackers?: unknown
+	attackerFriendlyNames?: unknown
 	amount?: unknown
 	destroyedUnitIds?: unknown
 	from?: unknown
@@ -20,13 +22,18 @@ type InactiveEventPayload = GameEvent & {
 	outcome?: unknown
 	odds?: unknown
 	rammedUnitIds?: unknown
+	rammedUnitFriendlyNames?: unknown
 	remaining?: unknown
 	roll?: unknown
 	squadsLost?: unknown
 	targetId?: unknown
+	targetFriendlyName?: unknown
+	destroyedUnitFriendlyNames?: unknown
 	to?: unknown
 	unitId?: unknown
+	unitFriendlyName?: unknown
 	weaponId?: unknown
+	weaponFriendlyName?: unknown
 	weaponType?: unknown
 	treadDamage?: unknown
 }
@@ -58,6 +65,11 @@ function formatValueList(value: unknown): string {
 	}
 
 	return value.map((item) => formatDetailValue(item)).filter((item) => item.length > 0).join(', ')
+}
+
+function formatFriendlyName(value: unknown): string {
+	const raw = formatRawValue(value)
+	return raw.length > 0 ? raw : ''
 }
 
 function formatCoordinate(value: unknown): string {
@@ -147,19 +159,22 @@ function getEventCauseId(event: InactiveEventPayload): string | null {
 function buildEventDetails(event: InactiveEventPayload): string[] {
 	switch (event.type) {
 		case 'ONION_MOVED':
-			return [`The Onion moved to ${formatCoordinate(event.to)}`]
+			return [`${formatFriendlyName(event.unitFriendlyName) || 'The Onion'} moved to ${formatCoordinate(event.to)}`]
 		case 'UNIT_MOVED': {
-			const unitId = formatRawValue(event.unitId)
+			const unitName = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const destination = formatCoordinate(event.to)
-			return unitId.length > 0 ? [`${unitId} moved to ${destination}`] : [`Moved to ${destination}`]
+			return unitName.length > 0 ? [`${unitName} moved to ${destination}`] : [`Moved to ${destination}`]
 		}
 		case 'FIRE_RESOLVED': {
 			const details: string[] = []
-			if (Array.isArray(event.attackers) && event.attackers.length > 0) {
+			if (Array.isArray(event.attackerFriendlyNames) && event.attackerFriendlyNames.length > 0) {
+				details.push(`Attackers: ${formatValueList(event.attackerFriendlyNames)}`)
+			} else if (Array.isArray(event.attackers) && event.attackers.length > 0) {
 				details.push(`Attackers: ${formatValueList(event.attackers)}`)
 			}
-			if (formatRawValue(event.targetId).length > 0) {
-				details.push(`Target: ${formatRawValue(event.targetId)}`)
+			const targetName = formatFriendlyName(event.targetFriendlyName) || formatRawValue(event.targetId)
+			if (targetName.length > 0) {
+				details.push(`Target: ${targetName}`)
 			}
 			if (event.roll !== undefined) {
 				details.push(`Roll: ${formatDetailValue(event.roll)}`)
@@ -174,7 +189,17 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 		}
 		case 'MOVE_RESOLVED': {
 			const details: string[] = []
-			const ramTarget = Array.isArray(event.rammedUnitIds) && event.rammedUnitIds.length > 0 ? formatValueList(event.rammedUnitIds) : Array.isArray(event.destroyedUnitIds) && event.destroyedUnitIds.length > 0 ? formatValueList(event.destroyedUnitIds) : 'unknown'
+			const moveName = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
+			const ramTarget = Array.isArray(event.rammedUnitFriendlyNames) && event.rammedUnitFriendlyNames.length > 0
+				? formatValueList(event.rammedUnitFriendlyNames)
+				: Array.isArray(event.destroyedUnitFriendlyNames) && event.destroyedUnitFriendlyNames.length > 0
+					? formatValueList(event.destroyedUnitFriendlyNames)
+					: Array.isArray(event.rammedUnitIds) && event.rammedUnitIds.length > 0
+						? formatValueList(event.rammedUnitIds)
+						: Array.isArray(event.destroyedUnitIds) && event.destroyedUnitIds.length > 0
+							? formatValueList(event.destroyedUnitIds)
+							: 'unknown'
+			details.push(`Unit: ${moveName || 'Unknown'}`)
 			details.push(`Target: ${ramTarget}`)
 			details.push(`Result: ${Array.isArray(event.destroyedUnitIds) && event.destroyedUnitIds.length > 0 ? 'destroyed' : 'survived'}`)
 			return details
@@ -190,14 +215,14 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 			return details
 		}
 		case 'ONION_BATTERY_DESTROYED': {
-			const weaponType = humanizeIdentifier(event.weaponType)
-			return [weaponType.length > 0 ? `Battery destroyed: ${weaponType}` : 'Battery destroyed']
+			const weaponName = formatFriendlyName(event.weaponFriendlyName) || humanizeIdentifier(event.weaponType)
+			return [weaponName.length > 0 ? `Battery destroyed: ${weaponName}` : 'Battery destroyed']
 		}
 		case 'UNIT_STATUS_CHANGED': {
-			const unitId = formatRawValue(event.unitId)
+			const unitName = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const from = formatRawValue(event.from)
 			const to = formatRawValue(event.to)
-			return unitId.length > 0 && from.length > 0 && to.length > 0 ? [`Unit ${unitId}: ${from} → ${to}`] : ['Unit status changed']
+			return unitName.length > 0 && from.length > 0 && to.length > 0 ? [`Unit ${unitName}: ${from} → ${to}`] : ['Unit status changed']
 		}
 		case 'UNIT_SQUADS_LOST': {
 			const unitId = formatRawValue(event.unitId)
@@ -211,12 +236,12 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 
 function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
 	if (event.type === 'MOVE_RESOLVED') {
-		return 'Ram attempt'
+		return `Ram attempt${formatFriendlyName(event.unitFriendlyName) ? ` by ${formatFriendlyName(event.unitFriendlyName)}` : ''}`
 	}
 
 	if (event.type === 'FIRE_RESOLVED') {
 		const fragments: string[] = []
-		const target = formatRawValue(event.targetId)
+		const target = formatFriendlyName(event.targetFriendlyName) || formatRawValue(event.targetId)
 		if (target.length > 0) {
 			fragments.push(`Fire on ${target}`)
 		} else {
@@ -231,7 +256,7 @@ function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: Readonl
 	}
 
 	if (event.type === 'MOVE_RESOLVED' || MOVE_EVENT_TYPES.has(event.type)) {
-		const mover = formatRawValue(event.unitId)
+		const mover = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 		const moveDetails = relatedEvents.flatMap((relatedEvent) => buildEventDetails(relatedEvent))
 		const ramDetails = moveDetails.filter((detail) => /^(target|result):/i.test(detail))
 		if (ramDetails.length > 0) {
@@ -255,7 +280,7 @@ function formatEventSummary(event: InactiveEventPayload) {
 
 	switch (event.type) {
 		case 'UNIT_STATUS_CHANGED': {
-			const unitId = formatRawValue(event.unitId)
+				const unitId = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const from = formatRawValue(event.from)
 			const to = formatRawValue(event.to)
 			return unitId.length > 0 && from.length > 0 && to.length > 0 ? `Unit ${unitId}: ${from} → ${to}` : 'Unit status changed'
@@ -403,6 +428,7 @@ function toTimelineEvents(events: ReadonlyArray<GameEvent>): TimelineEvent[] {
 export function useInactiveEventStream({
 	activeGameId,
 	activeTurnActive,
+	currentTurnNumber,
 	lastAppliedEventSeq,
 	pollEvents,
 }: UseInactiveEventStreamOptions) {
@@ -416,6 +442,7 @@ export function useInactiveEventStream({
 	const latestAppliedEventSeqRef = useRef<number | null>(lastAppliedEventSeq)
 	const queuedRefreshRef = useRef(false)
 	const lastGameIdRef = useRef<number | null>(null)
+	const lastTurnNumberRef = useRef<number | null>(null)
 	const previousActiveTurnActiveRef = useRef(activeTurnActive)
 
 	useEffect(() => {
@@ -423,8 +450,9 @@ export function useInactiveEventStream({
 	}, [lastAppliedEventSeq])
 
 	useEffect(() => {
-		if (lastGameIdRef.current !== activeGameId) {
+		if (lastGameIdRef.current !== activeGameId || lastTurnNumberRef.current !== currentTurnNumber) {
 			lastGameIdRef.current = activeGameId
+			lastTurnNumberRef.current = currentTurnNumber
 			setEntries([])
 			setIsDismissed(false)
 			setIsLoading(false)
@@ -434,7 +462,7 @@ export function useInactiveEventStream({
 			inFlightAfterSeqRef.current = null
 			queuedRefreshRef.current = false
 		}
-	}, [activeGameId])
+	}, [activeGameId, currentTurnNumber])
 
 	useEffect(() => {
 		// Only reset state when switching to a new game, not on phase transitions
@@ -446,6 +474,7 @@ export function useInactiveEventStream({
 			lastAppliedEventSeq === null ||
 			activeTurnActive ||
 			activeGameId === null ||
+			currentTurnNumber === null ||
 			pollEvents === undefined
 		) {
 			setIsLoading(false)
@@ -482,13 +511,14 @@ export function useInactiveEventStream({
 				}
 
 				const unseenEvents = events.filter((event) => !seenSeqsRef.current.has(event.seq))
+				const currentTurnEvents = unseenEvents.filter((event) => event.turnNumber === currentTurnNumber)
 				for (const event of unseenEvents) {
 					seenSeqsRef.current.add(event.seq)
 				}
 
-				if (unseenEvents.length > 0) {
+				if (currentTurnEvents.length > 0) {
 					setEntries((currentEntries) => {
-						const nextEntries = currentEntries.concat(toTimelineEvents(unseenEvents))
+						const nextEntries = currentEntries.concat(toTimelineEvents(currentTurnEvents))
 						nextEntries.sort((left, right) => left.seq - right.seq)
 						return nextEntries
 					})
@@ -537,7 +567,7 @@ export function useInactiveEventStream({
 				inFlightAfterSeqRef.current = null
 			}
 		}
-	}, [activeGameId, activeTurnActive, lastAppliedEventSeq, pollEvents])
+	}, [activeGameId, activeTurnActive, currentTurnNumber, lastAppliedEventSeq, pollEvents])
 
 	function clearEntries() {
 		setEntries([])

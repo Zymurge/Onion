@@ -41,6 +41,7 @@ export interface UnitAbilities {
 export interface UnitDefinition {
   name: string
   type: UnitType
+  friendlyNameTemplate?: string
   movement: number
   defense: number
   cost?: number

@@ -382,6 +382,16 @@ describe('getAllUnitDefinitions', () => {
     expect(getAllUnitDefinitions()).toEqual(getSharedUnitDefinitions())
   })
 
+  it('exposes friendly-name templates for units and The Onion weapons', () => {
+    const shared = getSharedUnitDefinitions()
+
+    expect(shared.LittlePigs.friendlyNameTemplate).toBe('Little Pigs {{ordinal}}')
+    expect(shared.BigBadWolf.friendlyNameTemplate).toBe('Big Bad Wolf {{ordinal}}')
+    expect(shared.TheOnion.friendlyNameTemplate).toBe('The Onion {{ordinal}}')
+    expect((shared.TheOnion.weapons.find((weapon) => weapon.id === 'secondary_1') as any).friendlyNameTemplate).toBe('Secondary Battery {{ordinal}}')
+    expect((shared.TheOnion.weapons.find((weapon) => weapon.id === 'ap_1') as any).friendlyNameTemplate).toBe('AP Gun {{ordinal}}')
+  })
+
   it('includes ram profiles in the shared definition source for rammed units', () => {
     const shared = getSharedUnitDefinitions()
 

@@ -25,6 +25,8 @@ export interface HexPos {
 export interface Weapon {
   id: string
   name: string
+  friendlyNameTemplate?: string
+  friendlyName?: string
   attack: number
   range: number
   defense: number
@@ -44,23 +46,29 @@ export interface DefenderUnit {
   targetRules?: TargetRules
 }
 
-export interface GameState {
-  onion: {
-    id?: string
-    type?: string
-    position: HexPos
-    treads: number
-    missiles?: number
-    status?: UnitStatus
-    weapons?: Weapon[]
-    targetRules?: TargetRules
-    batteries?: {
-      main: number
-      secondary: number
-      ap: number
-    }
+export interface GameUnitState {
+  id?: string
+  type?: string
+  position: HexPos
+  status?: UnitStatus
+  weapons?: Weapon[]
+  targetRules?: TargetRules
+  friendlyName?: string
+}
+
+export interface GameOnionState extends GameUnitState {
+  treads: number
+  missiles?: number
+  batteries?: {
+    main: number
+    secondary: number
+    ap: number
   }
-  defenders: Record<string, DefenderUnit>
+}
+
+export interface GameState {
+  onion: GameOnionState
+  defenders: Record<string, GameUnitState & { squads?: number }>
   ramsThisTurn?: number
   movementSpent?: Record<string, number>
 }
@@ -70,6 +78,12 @@ export interface EventEnvelope {
   type: string
   timestamp: string
   causeId?: string
+  turnNumber?: number
+  friendlyName?: string
+  unitFriendlyName?: string
+  weaponFriendlyName?: string
+  attackerFriendlyNames?: string[]
+  targetFriendlyName?: string
   [key: string]: unknown
 }
 

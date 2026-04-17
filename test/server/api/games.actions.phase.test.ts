@@ -27,6 +27,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
       to: 'ONION_COMBAT',
       turnNumber: 1,
     })
+    expect(body.events.every((event: any) => event.turnNumber === body.turnNumber)).toBe(true)
     expect(body.events[0].causeId).toBeDefined()
     expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
     expect(body.turnNumber).toBe(1)
@@ -98,6 +99,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
 
     expect(events.some((event) => event.type === 'PHASE_CHANGED')).toBe(true)
     expect(events.at(-1)?.seq).toBe(actionBody.eventSeq)
+    expect(events.every((event) => event.turnNumber === actionBody.turnNumber)).toBe(true)
     expect(actionBody.events.every((event: any) => event.causeId === actionBody.events[0].causeId)).toBe(true)
   })
 
