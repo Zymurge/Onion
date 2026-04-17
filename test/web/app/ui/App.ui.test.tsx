@@ -351,7 +351,7 @@ describe('App UI', () => {
 		expect(screen.getByTestId('hex-unit-wolf-2')).not.toBeNull()
 	})
 
-	it('opens the inactive-event stream empty after the turn becomes inactive', async () => {
+	it('opens the inactive-event stream after the turn becomes inactive', async () => {
 		const user = userEvent.setup()
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
 		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
@@ -381,21 +381,16 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 
-		expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
-		expect(screen.getByText(/Waiting for remote actions\./i)).not.toBeNull()
+		await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'Defender Movement')
+		expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
 
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
 		expect(screen.getByTestId('inactive-event-stream').querySelectorAll('.inactive-event-stream-entry')).toHaveLength(1)
-		expect(screen.queryByText(/missed/i)).toBeNull()
+		expect(screen.queryByText(/missed/i)).not.toBeNull()
 		expect(screen.queryByText(/^details$/i)).toBeNull()
-
-		await user.click(screen.getByRole('button', { name: /refresh/i }))
-
-		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
-		expect(screen.queryByText(/missed/i)).toBeNull()
-		expect(screen.getByText(/Waiting for remote actions\./i)).not.toBeNull()
+		expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(true)
 	})
 
 	it('renders structured inactive-event summaries when summary text is absent', async () => {
@@ -577,12 +572,12 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 
 		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
-		expect(screen.getByRole('alert')).not.toBeNull()
+		expect(await screen.findByRole('alert')).not.toBeNull()
 		expect(screen.getByText(/unable to refresh inactive events/i)).not.toBeNull()
 		expect(pollEvents).toHaveBeenCalledWith(123, 0)
 	})
 
-	it('hides the inactive-event stream after the session becomes active again', async () => {
+	it('keeps the inactive-event stream visible until it is acknowledged after the session becomes active again', async () => {
 		const user = userEvent.setup()
 		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
@@ -600,14 +595,88 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 
 		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
-		expect(screen.getByText(/Waiting for remote actions\./i)).not.toBeNull()
 
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {
+			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
+			expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(false)
+		})
+		await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'Defender Movement')
+		expect(getState).toHaveBeenCalledWith(123)
+	})
+
+	it('keeps active controls locked until Begin Turn is acknowledged', async () => {
+		const user = userEvent.setup()
+		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
+		const liveEventSource = createLiveEventSourceStub()
+		const getState = vi
+			.fn()
+			.mockResolvedValueOnce({ snapshot: inactiveSnapshot, session: { role: 'defender' as const } })
+			.mockResolvedValueOnce({ snapshot: activeSnapshot, session: { role: 'defender' as const } })
+			.mockResolvedValue({ snapshot: activeSnapshot, session: { role: 'defender' as const } })
+		const pollEvents = vi.fn().mockResolvedValueOnce([
+			{
+				seq: 72,
+				type: 'FIRE_RESOLVED',
+				timestamp: '2026-04-15T12:05:00.000Z',
+				attackers: ['wolf-2'],
+				targetId: 'onion',
+				roll: 4,
+				outcome: 'X',
+				odds: '2:1',
+			},
+		]).mockResolvedValue([])
+		const submitAction = vi.fn().mockResolvedValue(activeSnapshot)
+		const client = createGameClient({
+			getState,
+			submitAction,
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(true)
+
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+
+		await waitFor(() => {
+			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
+			expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(false)
+		})
+		await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'Defender Movement')
+		const shell = document.querySelector('.shell') as HTMLElement
+		expect(shell.classList.contains('inactive-event-screen-locked')).toBe(true)
+		const beginTurnButton = screen.getByRole('button', { name: /begin turn/i })
+		expect(beginTurnButton.classList.contains('begin-turn-btn-ready')).toBe(true)
+		expect(screen.getByTestId('inactive-event-stream').classList.contains('inactive-event-stream-acknowledgement-pending')).toBe(true)
+		const startCombatButton = screen.getByRole('button', { name: /start combat/i })
+		expect(startCombatButton.hasAttribute('disabled')).toBe(true)
+
+		await user.click(startCombatButton)
+
+		expect(submitAction).not.toHaveBeenCalled()
+
+		await user.click(screen.getByRole('button', { name: /begin turn/i }))
+
+		await waitFor(() => {
 			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
 		})
-		expect(getState).toHaveBeenCalledWith(123)
+		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
+		expect(shell.classList.contains('inactive-event-screen-locked')).toBe(false)
+		expect(screen.getByRole('button', { name: /start combat/i }).hasAttribute('disabled')).toBe(false)
+
+		await user.click(screen.getByRole('button', { name: /start combat/i }))
+
+		expect(submitAction).toHaveBeenCalledTimes(1)
+
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-4-6'))
+		})
+
+		expect(submitAction).toHaveBeenCalledTimes(1)
 	})
 
 	it('clears stale inactive-event errors after polling is disabled and resumes cleanly', async () => {
@@ -633,22 +702,24 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 
 		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
-		expect(screen.getByRole('alert')).not.toBeNull()
+		expect(await screen.findByRole('alert')).not.toBeNull()
 		expect(screen.getByText(/unable to refresh inactive events/i)).not.toBeNull()
 
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {
-			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
 			expect(screen.queryByRole('alert')).toBeNull()
 		})
+		expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(false)
 
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
 		expect(screen.queryByRole('alert')).toBeNull()
 		expect(pollEvents).toHaveBeenCalledWith(123, 0)
-		expect(pollEvents).toHaveBeenCalledTimes(1)
+		// The event stream is only dismissed by explicit user action now, so pollEvents may be called more than once
+		expect(pollEvents).toHaveBeenCalledTimes(2)
 	})
 
 		it('groups related inactive events by causeId across interleaved noise', async () => {

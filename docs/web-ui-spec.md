@@ -143,6 +143,24 @@ Unit colors are determined by the active side in the current phase.
 - Left-clicking non-unit map space clears the current group and overlays.
 - Disabled or ineligible attackers and targets remain visible but are not selectable.
 
+
+## Turn Handoff Contract (Three-Phase State Machine)
+
+The Onion web client implements a three-phase contract for turn handoff and acknowledgement:
+
+1. **Inactive Phase**: The player is not active. The right rail displays the inactive event stream. All board and control interactions are locked.
+2. **Acknowledgement Phase**: When the server advances to a new turn for the player, the UI enters an explicit acknowledgement gate:
+  - The event stream and the "Begin Turn" button are visually highlighted.
+  - Only the "Begin Turn" button is interactable; all other controls remain locked.
+  - The player must click "Begin Turn" to proceed.
+3. **Active Phase**: After acknowledgement, the player can interact with the board and controls as normal for their turn.
+
+Transitions are tracked in the UI shell using `turnGateSnapshot` (authoritative state and pending acknowledgement) and `acknowledgedActiveTurnKey` (last acknowledged turn).
+
+All UI behaviors are covered by regression tests, including the acknowledgement gate and visual/interactive state.
+
+---
+
 ## Turn UI
 
 - The header shows the current turn and phase.
