@@ -13,6 +13,8 @@ break down into features/tasks as needed.
   - [ ] Update all code and scenario references: use `theSwamp` for internal type, and "The Swamp" for all user-facing copy.
   - [ ] Update UI: Swamp appears in right rail, inspector, event streams, and passive toasts; status and friendly name are always visible.
   - [ ] Update victory logic: implement partial victory (destroy The Swamp) and total victory (destroy The Swamp and escape Onion off map edge); defender wins if Onion is immobilized or destroyed before both objectives.
+  - [ ] Add victory condition display into Swamp inspector details
+  - [ ] Special handling for Swamp destruction to leave the unit in place on the map, switch to a destroyed image, and keep it selectable for inspection.
   - [ ] Add/expand regression tests for Swamp combat, ramming, event emission, and both victory states.
   - [ ] Update rules, scenario docs, and UI spec to reflect Swamp objective and new victory conditions.
   - [ ] Clarify and document which map edge(s) or zone(s) count as escape for total victory.

@@ -14,11 +14,13 @@ The Swamp (HQ) is a new, first-class defender unit type representing one or more
 - **Ram Profile:** Rammable (define tread loss and destroy-on-roll as for Castle)
 - **Selectable:** Yes (appears as a unit on the map, not just a background feature)
 - **Icon:** Custom swamp image preferred; fallback to placeholder if unavailable
+- **Destroyed State:** Remains on the map in a destroyed visual state instead of being removed, and stays inspectable after destruction
 
 ## Victory Objectives
 
 - Victory objectives are authored in the scenario and resolved independently.
 - Each objective has its own completion state and can be represented in the UI inspector.
+- The Swamp inspector content includes objective completion state and remains available even after destruction.
 - The game ends when all required objectives are complete.
 - For the Swamp scenario, the core objectives are:
 	- **Destroy The Swamp**
@@ -36,10 +38,11 @@ The Swamp (HQ) is a new, first-class defender unit type representing one or more
 ## UI/UX Requirements
 
 - The Swamp is rendered as a selectable unit on the map, with a unique icon
-- The right rail and inspector panels show The Swamp's status and friendly name
+- The right rail and inspector panels show The Swamp's status, objective details, and friendly name
 - Combat and ram results involving The Swamp are surfaced in passive toasts and event streams
 - Victory feedback distinguishes objective completion states and overall match end state
 - Rules and scenario copy consistently refer to the objective as "The Swamp"
+- Destroyed Swamp uses a destroyed image/state but remains selectable for inspection
 
 ## Implementation Notes
 
