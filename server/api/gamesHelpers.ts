@@ -4,10 +4,12 @@ import { join } from 'node:path'
 
 import type { MatchRecord } from '#server/db/adapter'
 import { checkVictoryConditions } from '#server/engine/phases'
+import { getUnitDefinition } from '#server/engine/units'
 import type { GameStateResponse } from '#shared/apiProtocol'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
+import { buildFriendlyName } from '#shared/unitDefinitions'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import type { EngineGameState } from '#server/engine/units'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
@@ -314,12 +316,31 @@ export function buildMoveEvents(
 
 function resolveUnitFriendlyName(state: GameState, unitId: string): string {
   if (state.onion.id === unitId || unitId === 'onion') {
-    return state.onion.friendlyName ?? state.onion.id ?? state.onion.type ?? 'The Onion'
+    const friendlyName = state.onion.friendlyName
+    if (friendlyName !== undefined && friendlyName.trim().length > 0) {
+      return friendlyName
+    }
+
+    const onionDefinition = state.onion.type ? getUnitDefinition(state.onion.type) : undefined
+    if (onionDefinition?.friendlyNameTemplate !== undefined) {
+      return buildFriendlyName(onionDefinition.friendlyNameTemplate, state.onion.id ?? 'onion-1')
+    }
+
+    return state.onion.id ?? state.onion.type ?? 'The Onion'
   }
 
   for (const defender of Object.values(state.defenders)) {
     if (defender.id === unitId) {
-      return defender.friendlyName ?? defender.id ?? defender.type ?? unitId
+      if (defender.friendlyName !== undefined && defender.friendlyName.trim().length > 0) {
+        return defender.friendlyName
+      }
+
+      const defenderDefinition = getUnitDefinition(defender.type)
+      if (defenderDefinition?.friendlyNameTemplate !== undefined) {
+        return buildFriendlyName(defenderDefinition.friendlyNameTemplate, defender.id ?? unitId)
+      }
+
+      return defender.id ?? defender.type ?? unitId
     }
   }
 
@@ -329,13 +350,41 @@ function resolveUnitFriendlyName(state: GameState, unitId: string): string {
 function resolveWeaponFriendlyName(state: GameState, weaponId: string): string {
   const onionWeapon = state.onion.weapons?.find((weapon) => weapon.id === weaponId)
   if (onionWeapon) {
-    return onionWeapon.friendlyName ?? onionWeapon.name ?? weaponId
+    if (onionWeapon.friendlyName !== undefined && onionWeapon.friendlyName.trim().length > 0) {
+      return onionWeapon.friendlyName
+    }
+
+    if (onionWeapon.friendlyNameTemplate !== undefined) {
+      return buildFriendlyName(onionWeapon.friendlyNameTemplate, weaponId)
+    }
+
+    const onionDefinition = state.onion.type ? getUnitDefinition(state.onion.type) : undefined
+    const definitionWeapon = onionDefinition?.weapons.find((weapon) => weapon.id === weaponId)
+    if (definitionWeapon?.friendlyNameTemplate !== undefined) {
+      return buildFriendlyName(definitionWeapon.friendlyNameTemplate, weaponId)
+    }
+
+    return onionWeapon.name ?? weaponId
   }
 
   for (const defender of Object.values(state.defenders)) {
     const weapon = defender.weapons?.find((candidate) => candidate.id === weaponId)
     if (weapon) {
-      return weapon.friendlyName ?? weapon.name ?? weaponId
+      if (weapon.friendlyName !== undefined && weapon.friendlyName.trim().length > 0) {
+        return weapon.friendlyName
+      }
+
+      if (weapon.friendlyNameTemplate !== undefined) {
+        return buildFriendlyName(weapon.friendlyNameTemplate, weaponId)
+      }
+
+      const defenderDefinition = getUnitDefinition(defender.type)
+      const definitionWeapon = defenderDefinition?.weapons.find((candidate) => candidate.id === weaponId)
+      if (definitionWeapon?.friendlyNameTemplate !== undefined) {
+        return buildFriendlyName(definitionWeapon.friendlyNameTemplate, weaponId)
+      }
+
+      return weapon.name ?? weaponId
     }
   }
 
@@ -352,7 +401,12 @@ function resolveCombatParticipantFriendlyName(state: GameState, attackerId: stri
 }
 
 function resolveTargetFriendlyName(state: GameState, targetId: string): string {
-  return resolveUnitFriendlyName(state, targetId)
+  const unitFriendlyName = resolveUnitFriendlyName(state, targetId)
+  if (unitFriendlyName !== targetId) {
+    return unitFriendlyName
+  }
+
+  return resolveWeaponFriendlyName(state, targetId)
 }
 
 export function logSentEvents(gameId: number, actionType: string, events: EventEnvelope[]) {

@@ -477,11 +477,11 @@ describe('App UI', () => {
 		})
 
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
-
-		expect(await screen.findByText(/ram attempt/i)).not.toBeNull()
-		expect(screen.getByText(/fire on little pigs 1: destroyed/i)).not.toBeNull()
-		expect(screen.queryByText(/^details$/i)).toBeNull()
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
 		const stream = screen.getByTestId('inactive-event-stream')
+		expect(stream.textContent).toContain('Ram attempt by Big Bad Wolf 2: destroyed')
+		expect(stream.textContent).toContain('Fire on Little Pigs 1: destroyed')
+		expect(screen.queryByText(/^details$/i)).toBeNull()
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(2)
 		const entries = Array.from(stream.querySelectorAll('.inactive-event-stream-entry'))
 		await user.hover(entries[0] as HTMLElement)
@@ -490,7 +490,51 @@ describe('App UI', () => {
 		await user.hover(entries[1] as HTMLElement)
 		expect(entries[1].textContent).toContain('Attackers: Big Bad Wolf 2')
 		expect(entries[1].textContent).toContain('Outcome: destroyed')
-		expect(entries[1].textContent).toContain('Unit Little Pigs 1: operational → destroyed')
+		expect(entries[1].textContent).toContain('Unit: Little Pigs 1: operational → destroyed')
+	})
+
+	it('renders actual combat outcomes for Little Pigs D results', async () => {
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockResolvedValue([
+			{
+				seq: 91,
+				type: 'FIRE_RESOLVED',
+				timestamp: '2026-04-15T12:06:00.000Z',
+				turnNumber: 11,
+				attackerFriendlyNames: ['Big Bad Wolf 2'],
+				attackers: ['wolf-2'],
+				targetFriendlyName: 'Little Pigs 1',
+				targetId: 'pigs-1',
+				roll: 3,
+				outcome: 'D',
+				odds: '1:1',
+			},
+			{
+				seq: 92,
+				type: 'UNIT_STATUS_CHANGED',
+				timestamp: '2026-04-15T12:06:00.100Z',
+				turnNumber: 11,
+				unitFriendlyName: 'Little Pigs 1',
+				unitId: 'pigs-1',
+				from: 'operational',
+				to: 'destroyed',
+			},
+		])
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		const user = userEvent.setup()
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+		const stream = screen.getByTestId('inactive-event-stream')
+		expect(stream.textContent).toContain('Fire on Little Pigs 1: destroyed')
+		const entry = stream.querySelector('.inactive-event-stream-entry')
+		expect(entry?.textContent).toContain('Outcome: destroyed')
+		expect(entry?.textContent).toContain('Unit: Little Pigs 1: operational → destroyed')
 	})
 
 	it('renders D against Onion weapons as no effect', async () => {

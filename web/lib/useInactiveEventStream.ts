@@ -126,19 +126,6 @@ function isOnionTarget(targetId: unknown): boolean {
 	return targetId === 'onion' || /^(main|secondary_|ap_|missile_)/.test(targetId)
 }
 
-function formatOutcomeWord(value: unknown, targetId?: unknown): string {
-	switch (value) {
-		case 'NE':
-			return 'missed'
-		case 'D':
-			return isOnionTarget(targetId) ? 'no effect' : 'disabled'
-		case 'X':
-			return 'destroyed'
-		default:
-			return formatDetailValue(value)
-	}
-}
-
 function isNoiseEvent(event: InactiveEventPayload): boolean {
 	if (event.type === 'PHASE_CHANGED') {
 		return true
@@ -156,7 +143,56 @@ function getEventCauseId(event: InactiveEventPayload): string | null {
 	return causeId.length > 0 ? causeId : null
 }
 
-function buildEventDetails(event: InactiveEventPayload): string[] {
+function hasDestroyedStatusChange(events: ReadonlyArray<InactiveEventPayload>): boolean {
+	return events.some((event) => event.type === 'UNIT_STATUS_CHANGED' && formatRawValue(event.to) === 'destroyed')
+}
+
+function getSquadsLost(events: ReadonlyArray<InactiveEventPayload>): number | null {
+	for (const event of events) {
+		if (event.type === 'UNIT_SQUADS_LOST' && typeof event.amount === 'number') {
+			return event.amount
+		}
+	}
+
+	return null
+}
+
+function resolveCombatOutcomeLabel(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
+	switch (event.outcome) {
+		case 'NE':
+			return 'missed'
+		case 'X':
+			return 'destroyed'
+		case 'D': {
+			if (hasDestroyedStatusChange(relatedEvents)) {
+				return 'destroyed'
+			}
+
+			const squadsLost = getSquadsLost(relatedEvents)
+			if (squadsLost !== null) {
+				return squadsLost === 1 ? '1 squad lost' : `${squadsLost} squads lost`
+			}
+
+			return isOnionTarget(event.targetId) ? 'no effect' : 'disabled'
+		}
+		default:
+			return formatDetailValue(event.outcome)
+	}
+}
+
+function resolveRamOutcomeLabel(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
+	if (hasDestroyedStatusChange(relatedEvents)) {
+		return 'destroyed'
+	}
+
+	if (Array.isArray(event.destroyedUnitIds) && event.destroyedUnitIds.length > 0) {
+		return 'destroyed'
+	}
+
+	return 'survived'
+}
+
+function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload> = [event]): string[] {
 	switch (event.type) {
 		case 'ONION_MOVED':
 			return [`${formatFriendlyName(event.unitFriendlyName) || 'The Onion'} moved to ${formatCoordinate(event.to)}`]
@@ -180,7 +216,7 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 				details.push(`Roll: ${formatDetailValue(event.roll)}`)
 			}
 			if (event.outcome !== undefined) {
-				details.push(`Outcome: ${formatOutcomeWord(event.outcome, event.targetId)}`)
+				details.push(`Outcome: ${resolveCombatOutcomeLabel(event, relatedEvents)}`)
 			}
 			if (event.odds !== undefined) {
 				details.push(`Odds: ${formatDetailValue(event.odds)}`)
@@ -201,7 +237,7 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 							: 'unknown'
 			details.push(`Unit: ${moveName || 'Unknown'}`)
 			details.push(`Target: ${ramTarget}`)
-			details.push(`Result: ${Array.isArray(event.destroyedUnitIds) && event.destroyedUnitIds.length > 0 ? 'destroyed' : 'survived'}`)
+			details.push(`Result: ${resolveRamOutcomeLabel(event, relatedEvents)}`)
 			return details
 		}
 		case 'ONION_TREADS_LOST': {
@@ -222,12 +258,12 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 			const unitName = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const from = formatRawValue(event.from)
 			const to = formatRawValue(event.to)
-			return unitName.length > 0 && from.length > 0 && to.length > 0 ? [`Unit ${unitName}: ${from} → ${to}`] : ['Unit status changed']
+			return unitName.length > 0 && from.length > 0 && to.length > 0 ? [`Unit: ${unitName}: ${from} → ${to}`] : ['Unit status changed']
 		}
 		case 'UNIT_SQUADS_LOST': {
-			const unitId = formatRawValue(event.unitId)
+			const unitName = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const amount = typeof event.amount === 'number' ? String(event.amount) : formatDetailValue(event.amount)
-			return unitId.length > 0 ? [`Squads lost for ${unitId}: ${amount}`] : [`Squads lost: ${amount}`]
+			return unitName.length > 0 ? [`Squads lost for ${unitName}: ${amount}`] : [`Squads lost: ${amount}`]
 		}
 		default:
 			return []
@@ -236,7 +272,9 @@ function buildEventDetails(event: InactiveEventPayload): string[] {
 
 function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
 	if (event.type === 'MOVE_RESOLVED') {
-		return `Ram attempt${formatFriendlyName(event.unitFriendlyName) ? ` by ${formatFriendlyName(event.unitFriendlyName)}` : ''}`
+		const mover = formatFriendlyName(event.unitFriendlyName)
+		const result = resolveRamOutcomeLabel(event, relatedEvents)
+		return `Ram attempt${mover ? ` by ${mover}` : ''}: ${result}`
 	}
 
 	if (event.type === 'FIRE_RESOLVED') {
@@ -249,7 +287,7 @@ function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: Readonl
 		}
 
 		if (event.outcome !== undefined) {
-			fragments.push(formatOutcomeWord(event.outcome, event.targetId))
+			fragments.push(resolveCombatOutcomeLabel(event, relatedEvents))
 		}
 
 		return fragments.join(': ')
@@ -280,16 +318,16 @@ function formatEventSummary(event: InactiveEventPayload) {
 
 	switch (event.type) {
 		case 'UNIT_STATUS_CHANGED': {
-				const unitId = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
+			const unitId = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const from = formatRawValue(event.from)
 			const to = formatRawValue(event.to)
-			return unitId.length > 0 && from.length > 0 && to.length > 0 ? `Unit ${unitId}: ${from} → ${to}` : 'Unit status changed'
+			return unitId.length > 0 && from.length > 0 && to.length > 0 ? `Unit: ${unitId}: ${from} → ${to}` : 'Unit status changed'
 		}
 		case 'MOVE_RESOLVED': {
-			const unitId = formatRawValue(event.unitId)
+			const unitName = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const fragments: string[] = []
-			if (unitId.length > 0) {
-				fragments.push(`Move resolved for ${unitId}`)
+			if (unitName.length > 0) {
+				fragments.push(`Move resolved for ${unitName}`)
 			} else {
 				fragments.push('Move resolved')
 			}
@@ -309,8 +347,8 @@ function formatEventSummary(event: InactiveEventPayload) {
 			return fragments.join(', ')
 		}
 		case 'FIRE_RESOLVED': {
-			const targetId = formatRawValue(event.targetId)
-			return targetId.length > 0 ? `Fire resolved on target ${targetId}` : 'Fire resolved'
+			const targetName = formatFriendlyName(event.targetFriendlyName) || formatRawValue(event.targetId)
+			return targetName.length > 0 ? `Fire resolved on target ${targetName}` : 'Fire resolved'
 		}
 		case 'ONION_TREADS_LOST': {
 			return typeof event.amount === 'number' ? `The Onion lost ${event.amount} treads` : 'The Onion lost treads'
@@ -326,7 +364,7 @@ function formatEventSummary(event: InactiveEventPayload) {
 
 function buildTimelineEntry(events: ReadonlyArray<InactiveEventPayload>): TimelineEvent {
 	const primaryEvent = events.find((event) => RESOLVED_EVENT_TYPES.has(event.type) || MOVE_EVENT_TYPES.has(event.type)) ?? events[0]
-	const details = events.flatMap((event) => buildEventDetails(event))
+	const details = events.flatMap((event) => buildEventDetails(event, events))
 	const summary = isNonEmptyString(primaryEvent.summary) ? primaryEvent.summary : buildPrimarySummary(primaryEvent, events)
 
 	return {
