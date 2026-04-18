@@ -60,7 +60,6 @@ export function BattlefieldStage({
           combatTargetIds={combatTargetIds}
           canSubmitMove={canSubmitMove && activeTurnActive && !isInteractionLocked}
           isSelectionLocked={isSelectionLocked}
-          isInteractionLocked={isInteractionLocked}
           onSelectUnit={onSelectUnit}
           onSelectCombatTarget={onSelectCombatTarget}
           onDeselect={onDeselect}

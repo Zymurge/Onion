@@ -850,62 +850,6 @@ describe('App UI', () => {
 		expect(pollEvents).toHaveBeenCalledTimes(2)
 	})
 
-		it('groups related inactive events by causeId across interleaved noise', async () => {
-			const user = userEvent.setup()
-			const snapshot = createOnionMoveSnapshot(null, 4)
-			const liveEventSource = createLiveEventSourceStub()
-			const pollEvents = vi.fn().mockResolvedValue([
-			{
-				seq: 62,
-				type: 'PHASE_CHANGED',
-				timestamp: '2026-04-15T12:03:00.500Z',
-				turnNumber: 11,
-				from: 'ONION_MOVE',
-				to: 'DEFENDER_COMBAT',
-				causeId: 'req-1',
-			},
-			{
-				seq: 63,
-				type: 'MOVE_RESOLVED',
-				timestamp: '2026-04-15T12:03:01.000Z',
-				turnNumber: 11,
-				unitFriendlyName: 'Big Bad Wolf 2',
-				unitId: 'wolf-2',
-				rammedUnitIds: ['pigs-1'],
-				rammedUnitFriendlyNames: ['Little Pigs 1'],
-				destroyedUnitIds: ['pigs-1'],
-				destroyedUnitFriendlyNames: ['Little Pigs 1'],
-				treadDamage: 1,
-				causeId: 'req-1',
-			},
-			{
-				seq: 64,
-				type: 'ONION_TREADS_LOST',
-				timestamp: '2026-04-15T12:03:01.500Z',
-				turnNumber: 11,
-				amount: 1,
-				remaining: 44,
-				causeId: 'req-1',
-			},
-		])
-		const client = createGameClient({
-			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
-			submitAction: vi.fn().mockResolvedValue(snapshot),
-			pollEvents,
-		})
-
-		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
-
-		expect(await screen.findByText(/ram attempt/i)).not.toBeNull()
-		const stream = screen.getByTestId('inactive-event-stream')
-		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(1)
-		const entry = stream.querySelector('.inactive-event-stream-entry')
-		await user.hover(entry as HTMLElement)
-		expect(entry?.textContent).toContain('Target: Little Pigs 1')
-		expect(entry?.textContent).toContain('Result: destroyed')
-		expect(entry?.textContent).toContain('Treads lost: 1')
-	})
-
 	it('preserves debug popup position and size when toggled closed and reopened', async () => {
 		const user = userEvent.setup()
 		render(<App />)

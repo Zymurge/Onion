@@ -7,11 +7,10 @@ type InactiveEventStreamProps = {
 	errorMessage: string | null
 	isLoading: boolean
 	canDismiss: boolean
-	onDismiss: () => void
 	onDismissError: () => void
 }
 
-export function InactiveEventStream({ entries, errorMessage, isLoading, canDismiss, onDismiss, onDismissError }: InactiveEventStreamProps) {
+export function InactiveEventStream({ entries, errorMessage, isLoading, canDismiss, onDismissError }: InactiveEventStreamProps) {
 	const showLoading = isLoading && entries.length === 0
 	const showError = errorMessage !== null
 	const [expandedSeq, setExpandedSeq] = useState<number | null>(null)

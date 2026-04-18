@@ -72,7 +72,6 @@ export function BattlefieldRightRail({
           errorMessage={inactiveEventStream.errorMessage}
           isLoading={inactiveEventStream.isLoading}
           canDismiss={canDismissInactiveEventStream}
-          onDismiss={inactiveEventStream.clearEntries}
           onDismissError={inactiveEventStream.clearErrorMessage}
         />
       ) : null}

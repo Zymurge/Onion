@@ -25,7 +25,6 @@ type HexMapBoardProps = {
   combatTargetIds?: ReadonlySet<string>
   canSubmitMove?: boolean
   isSelectionLocked?: boolean
-  isInteractionLocked?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
   onSelectCombatTarget?: (targetId: string) => void
   onDeselect: () => void
@@ -62,7 +61,7 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, isSelectionLocked = false, isInteractionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<string | null>(null)

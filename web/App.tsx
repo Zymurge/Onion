@@ -222,6 +222,11 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     sessionTurnActive: boolean
     loggedAtMs: number
   } | null>(null)
+  const previousTurnGateRef = useRef<{
+    activeGameId: number | null
+    sessionTurnActive: boolean
+    turnKnown: boolean
+  } | null>(null)
   const previousSessionReloadRef = useRef<{
     activeGameId: number | null
     lastAppliedEventSeq: number | null
@@ -303,6 +308,21 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     sessionRole !== null
       ? `${activeGameIdForGate}:${sessionTurnNumber}:${sessionRole}:${sessionPhase}`
       : null
+  const shouldPromptForAcknowledgement =
+    currentActiveTurnKey !== null &&
+    previousTurnGateRef.current?.turnKnown === true &&
+    previousTurnGateRef.current?.activeGameId === activeGameIdForGate &&
+    previousTurnGateRef.current.sessionTurnActive === false &&
+    sessionTurnActive
+
+  const pendingAcknowledgementTurnKey =
+    currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
+      ? turnGateSnapshot.pendingAcknowledgementTurnKey === currentActiveTurnKey
+        ? currentActiveTurnKey
+        : shouldPromptForAcknowledgement
+          ? currentActiveTurnKey
+          : null
+      : null
 
   const inactiveEventStream = useInactiveEventStream({
     activeGameId: activeGameIdForGate,
@@ -312,30 +332,18 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     pollEvents: activeSessionBinding?.requestTransport.pollEvents,
   })
 
-  let pendingAcknowledgementTurnKey = turnGateSnapshot.pendingAcknowledgementTurnKey
-  if (turnGateSnapshot.activeGameId !== activeGameIdForGate) {
-    pendingAcknowledgementTurnKey = null
-  } else if (
-    turnGateSnapshot.turnKnown &&
-    !turnGateSnapshot.sessionTurnActive &&
-    sessionTurnActive &&
-    currentActiveTurnKey !== null
-  ) {
-    pendingAcknowledgementTurnKey = currentActiveTurnKey
-  } else if (turnGateSnapshot.turnKnown && turnGateSnapshot.sessionTurnActive && !sessionTurnActive) {
-    pendingAcknowledgementTurnKey = null
-  }
-
-  if (
-    turnGateSnapshot.activeGameId !== activeGameIdForGate ||
-    turnGateSnapshot.pendingAcknowledgementTurnKey !== pendingAcknowledgementTurnKey ||
-    turnGateSnapshot.sessionTurnActive !== sessionTurnActive ||
-    turnGateSnapshot.turnKnown !== sessionTurnKnown
-  ) {
+  useEffect(() => {
     setTurnGateSnapshot((current) => {
+      const nextPendingAcknowledgementTurnKey =
+        currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
+          ? shouldPromptForAcknowledgement || current.pendingAcknowledgementTurnKey === currentActiveTurnKey
+            ? currentActiveTurnKey
+            : null
+          : null
+
       if (
         current.activeGameId === activeGameIdForGate &&
-        current.pendingAcknowledgementTurnKey === pendingAcknowledgementTurnKey &&
+        current.pendingAcknowledgementTurnKey === nextPendingAcknowledgementTurnKey &&
         current.sessionTurnActive === sessionTurnActive &&
         current.turnKnown === sessionTurnKnown
       ) {
@@ -344,12 +352,25 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
       return {
         activeGameId: activeGameIdForGate,
-        pendingAcknowledgementTurnKey,
+        pendingAcknowledgementTurnKey: nextPendingAcknowledgementTurnKey,
         sessionTurnActive,
         turnKnown: sessionTurnKnown,
       }
     })
-  }
+
+    previousTurnGateRef.current = {
+      activeGameId: activeGameIdForGate,
+      sessionTurnActive,
+      turnKnown: sessionTurnKnown,
+    }
+  }, [
+    acknowledgedActiveTurnKey,
+    activeGameIdForGate,
+    currentActiveTurnKey,
+    sessionTurnActive,
+    sessionTurnKnown,
+    shouldPromptForAcknowledgement,
+  ])
 
   const inactiveEventAcknowledgementPending =
     currentActiveTurnKey !== null &&
