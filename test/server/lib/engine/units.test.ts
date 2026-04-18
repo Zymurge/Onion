@@ -288,6 +288,28 @@ describe('getUnitDefinition', () => {
     })
   })
 
+  describe('Swamp (HQ)', () => {
+    it('has no weapons', () => {
+      expect((getUnitDefinition('Swamp') as any).weapons).toHaveLength(0)
+    })
+
+    it('has defense 0', () => {
+      expect(getUnitDefinition('Swamp').defense).toBe(0)
+    })
+
+    it('has movement 0', () => {
+      expect(getUnitDefinition('Swamp').movement).toBe(0)
+    })
+
+    it('is immobile', () => {
+      expect(getUnitDefinition('Swamp').abilities.immobile).toBe(true)
+    })
+
+    it('has a ramming profile', () => {
+      expect(getUnitDefinition('Swamp').abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
+    })
+  })
+
   describe('TheOnion (Mk III)', () => {
     it('has 15 weapons total (1 main + 4 secondary + 8 AP + 2 missiles)', () => {
       expect(getUnitDefinition('TheOnion').weapons).toHaveLength(15)
@@ -359,7 +381,7 @@ describe('getAllUnitDefinitions', () => {
   it('contains all 9 unit types', () => {
     const all = getAllUnitDefinitions()
     const keys = Object.keys(all)
-    expect(keys).toHaveLength(9)
+    expect(keys).toHaveLength(10)
     expect(keys).toContain('Puss')
     expect(keys).toContain('BigBadWolf')
     expect(keys).toContain('Witch')
@@ -368,6 +390,7 @@ describe('getAllUnitDefinitions', () => {
     expect(keys).toContain('Dragon')
     expect(keys).toContain('LittlePigs')
     expect(keys).toContain('Castle')
+    expect(keys).toContain('Swamp')
     expect(keys).toContain('TheOnion')
   })
 
@@ -380,6 +403,12 @@ describe('getAllUnitDefinitions', () => {
 
   it('mirrors the canonical shared definition source', () => {
     expect(getAllUnitDefinitions()).toEqual(getSharedUnitDefinitions())
+  })
+
+  it('exposes a friendly-name template for Swamp', () => {
+    const shared = getSharedUnitDefinitions() as any
+
+    expect(shared.Swamp.friendlyNameTemplate).toBe('The Swamp')
   })
 
   it('exposes friendly-name templates for units and The Onion weapons', () => {
@@ -398,6 +427,7 @@ describe('getAllUnitDefinitions', () => {
     expect(shared.LittlePigs.abilities.ramProfile).toEqual({ treadLoss: 0, destroyOnRollAtMost: 4 })
     expect(shared.Puss.abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
     expect(shared.Dragon.abilities.ramProfile).toEqual({ treadLoss: 2, destroyOnRollAtMost: 4 })
+    expect((shared as any).Swamp.abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
   })
 })
 

@@ -71,7 +71,7 @@ describe('checkVictoryConditions', () => {
     return {
       onion: makeOnion(),
       defenders: {
-        castle: makeUnit({ type: 'Castle', id: 'castle' }),
+        swamp: makeUnit({ type: 'Swamp' as any, id: 'swamp' }),
         puss: makeUnit({ type: 'Puss', id: 'puss' }),
       },
       ramsThisTurn: 0,
@@ -86,10 +86,10 @@ describe('checkVictoryConditions', () => {
     expect(checkVictoryConditions(state, 1, 10)).toBe(null)
   })
 
-  it('returns onion when Castle is destroyed', () => {
+  it('returns onion when Swamp is destroyed', () => {
     const state = makeState({
       defenders: {
-        castle: makeUnit({ type: 'Castle', id: 'castle', status: 'destroyed' }),
+        swamp: makeUnit({ type: 'Swamp' as any, id: 'swamp', status: 'destroyed' }),
         puss: makeUnit({ type: 'Puss', id: 'puss' }),
       },
     })
@@ -117,11 +117,11 @@ describe('checkVictoryConditions', () => {
     expect(checkVictoryConditions(state, 1, 10)).toBe('defender')
   })
 
-  it('prioritizes Castle destruction over Onion immobilization', () => {
+  it('prioritizes Swamp destruction over Onion immobilization', () => {
     const state = makeState({
       onion: makeOnion({ treads: 0 }),
       defenders: {
-        castle: makeUnit({ type: 'Castle', id: 'castle', status: 'destroyed' }),
+        swamp: makeUnit({ type: 'Swamp' as any, id: 'swamp', status: 'destroyed' }),
         puss: makeUnit({ type: 'Puss', id: 'puss' }),
       },
     })

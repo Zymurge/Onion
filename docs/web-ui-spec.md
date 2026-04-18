@@ -57,7 +57,8 @@ Primary backend endpoints used by the web client:
 - Range, reachability, selection, and combat overlays are derived from the same board geometry used by the renderer.
 - The Swamp (HQ) is rendered as a selectable, attackable, and rammable unit with a unique icon (custom swamp image preferred; fallback to placeholder if unavailable).
 - The Swamp appears in the right rail and inspector panels, and its status is surfaced in passive toasts and event streams.
-- Victory feedback distinguishes between partial and total victory (destroying The Swamp, then escaping the Onion off-map).
+- Victory objectives are scenario-defined, each objective can be shown individually in the inspector, and the match ends when all required objectives are complete. Inspector presentation is TBD.
+- Victory feedback distinguishes objective completion from overall match end state.
 - Zoom is supported through mouse wheel and a floating slider overlay in the lower-left corner.
 - Zoom preserves the current map center and scroll position.
 

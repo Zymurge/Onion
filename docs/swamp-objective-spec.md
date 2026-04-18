@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Swamp (HQ) is a new, first-class defender unit type representing the primary objective for the Onion scenario. It is a selectable, attackable, and rammable unit with no movement or weapons. The Swamp is always present in scenarios that require an objective, and its destruction and the Onion's escape are tracked as separate victory conditions.
+The Swamp (HQ) is a new, first-class defender unit type representing one or more scenario-defined victory objectives for the Onion scenario. It is a selectable, attackable, and rammable unit with no movement or weapons. Scenario authors define which objectives exist, the game marks each one individually when achieved, the inspector can surface their completion state, and the match ends when all required objectives are complete.
 
 ## Unit Definition
 
@@ -15,11 +15,16 @@ The Swamp (HQ) is a new, first-class defender unit type representing the primary
 - **Selectable:** Yes (appears as a unit on the map, not just a background feature)
 - **Icon:** Custom swamp image preferred; fallback to placeholder if unavailable
 
-## Victory Conditions
+## Victory Objectives
 
-- **Partial Victory:** The Onion destroys The Swamp (status: destroyed)
-- **Total Victory:** The Onion destroys The Swamp and then escapes off the map (specific edge/zone to be defined)
-- **Defender Victory:** The Onion is immobilized or destroyed before achieving both objectives
+- Victory objectives are authored in the scenario and resolved independently.
+- Each objective has its own completion state and can be represented in the UI inspector.
+- The game ends when all required objectives are complete.
+- For the Swamp scenario, the core objectives are:
+	- **Destroy The Swamp**
+	- **Escape the Onion off-map after The Swamp is destroyed**
+- A future UI design can decide how these objectives are grouped or displayed in the inspector.
+- If the Onion is immobilized or destroyed before all objectives are completed, the defender wins.
 
 ## Combat & Ramming
 
@@ -33,7 +38,7 @@ The Swamp (HQ) is a new, first-class defender unit type representing the primary
 - The Swamp is rendered as a selectable unit on the map, with a unique icon
 - The right rail and inspector panels show The Swamp's status and friendly name
 - Combat and ram results involving The Swamp are surfaced in passive toasts and event streams
-- Victory feedback distinguishes between partial and total victory
+- Victory feedback distinguishes objective completion states and overall match end state
 - Rules and scenario copy consistently refer to the objective as "The Swamp"
 
 ## Implementation Notes
@@ -41,6 +46,7 @@ The Swamp (HQ) is a new, first-class defender unit type representing the primary
 - Add Swamp to unit definitions and target rules
 - Update combat, ramming, and event emission logic to treat Swamp as a standard unit
 - Extend victory logic to support partial and total win states
+- Model victory as scenario-defined objectives that can be completed individually and then collectively end the match
 - Update UI to render The Swamp as a selectable unit with a unique icon
 - Update rules and scenario docs to reflect the new objective and victory conditions
 - Add regression tests for Swamp combat, ramming, and both victory states

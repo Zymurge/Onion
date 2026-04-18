@@ -114,9 +114,9 @@ export function checkVictoryConditions(
   turnNumber: number,
   maxTurns: number
 ): 'onion' | 'defender' | null {
-  // Onion wins by destroying the Castle
-  const castle = Object.values(state.defenders).find(unit => unit.type === 'Castle')
-  if (castle && castle.status === 'destroyed') {
+  // Onion wins by destroying the Swamp objective
+  const swamp = Object.values(state.defenders).find(unit => unit.type === 'Swamp')
+  if (swamp && swamp.status === 'destroyed') {
     return 'onion'
   }
 

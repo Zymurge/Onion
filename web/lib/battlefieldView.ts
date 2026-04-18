@@ -83,6 +83,8 @@ export function unitCode(unitType: string): string {
       return 'PU'
     case 'Witch':
       return 'WI'
+    case 'Swamp':
+      return 'SW'
     default:
       return '??'
   }

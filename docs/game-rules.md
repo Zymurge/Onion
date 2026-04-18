@@ -38,9 +38,15 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
 
 ### Victory Conditions
 
-- **Partial Victory:** The Onion destroys The Swamp (status: destroyed)
-- **Total Victory:** The Onion destroys The Swamp and then escapes off the map (specific edge/zone to be defined)
-- **Defender Victory:** The Onion is immobilized or destroyed before achieving both objectives
+Victory is scenario-driven. Each scenario can define one or more victory objectives, and each objective is completed independently. The match ends when all required objectives are complete.
+
+For the Swamp objective scenario:
+
+- **Objective 1:** Destroy The Swamp (status: destroyed)
+- **Objective 2:** Escape the Onion off the map after The Swamp is destroyed
+- **Defender Victory:** The Onion is immobilized or destroyed before completing all required objectives
+
+The UI may show objective completion state in the inspector, but that presentation is intentionally left open for now.
 
 ### Combat & Ramming
 
