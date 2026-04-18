@@ -1,12 +1,14 @@
 export type WebRuntimeEnv = {
 	VITE_ONION_API_URL?: string
 	VITE_ONION_LIVE_REFRESH_QUIET_WINDOW_MS?: string
+	VITE_ONION_LOG_LEVEL?: string
 }
 
 export type WebRuntimeConfig = {
 	apiBaseUrl: string | null
 	gameId: number | null
 	liveRefreshQuietWindowMs: number
+	clientLogLevel: 'debug' | 'info' | 'warn' | 'error'
 }
 
 function parseGameId(value: string | null | undefined): number | null {
@@ -42,6 +44,15 @@ function parsePositiveInteger(value: string | null | undefined): number | null {
 	return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
 }
 
+function parseLogLevel(value: string | null | undefined): 'debug' | 'info' | 'warn' | 'error' | null {
+	const normalized = value?.trim().toLowerCase()
+	if (normalized === 'debug' || normalized === 'info' || normalized === 'warn' || normalized === 'error') {
+		return normalized
+	}
+
+	return null
+}
+
 export function resolveWebRuntimeConfig(
 	env: WebRuntimeEnv,
 	search: string,
@@ -53,10 +64,14 @@ export function resolveWebRuntimeConfig(
 	const liveRefreshQuietWindowMs = parsePositiveInteger(query.get('liveRefreshQuietWindowMs'))
 		?? parsePositiveInteger(env.VITE_ONION_LIVE_REFRESH_QUIET_WINDOW_MS)
 		?? 2000
+	const clientLogLevel = parseLogLevel(query.get('logLevel'))
+		?? parseLogLevel(env.VITE_ONION_LOG_LEVEL)
+		?? 'info'
 
 	return {
 		apiBaseUrl: apiBaseUrl && apiBaseUrl.length > 0 ? apiBaseUrl : null,
 		gameId,
 		liveRefreshQuietWindowMs,
+		clientLogLevel,
 	}
 }

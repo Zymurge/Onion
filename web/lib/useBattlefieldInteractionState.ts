@@ -4,6 +4,7 @@ import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitM
 import type { GameAction, GameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
 import type { TurnPhase } from '../../shared/types/index'
+import logger from './logger'
 
 type UseBattlefieldInteractionStateOptions = {
   activeSessionController: GameSessionController | null
@@ -131,7 +132,7 @@ export function useBattlefieldInteractionState({
       return
     }
 
-    console.info(`[interaction-debug] ${event}`, {
+    logger.debug(`[interaction-debug] ${event}`, {
       ts: Date.now(),
       ...details,
     })
@@ -251,6 +252,11 @@ export function useBattlefieldInteractionState({
 
   function handleSelectUnit(unitId: string, additive = false) {
     if (isSelectionLocked) {
+      debugLog('handleSelectUnit blocked', {
+        unitId,
+        additive,
+        isSelectionLocked,
+      })
       return
     }
 
@@ -267,6 +273,13 @@ export function useBattlefieldInteractionState({
 
     clearPendingCombatResolution(false)
     setPendingRamPrompt(null)
+
+    debugLog('handleSelectUnit', {
+      unitId,
+      additive,
+      clientSnapshotPhase,
+      selectedUnitIds,
+    })
 
     setSelectedUnitIds((currentSelection) => {
       const baseSelection = currentSelection ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
@@ -287,10 +300,17 @@ export function useBattlefieldInteractionState({
 
   function handleDeselectUnit() {
     if (isSelectionLocked) {
+      debugLog('handleDeselectUnit blocked', {
+        isSelectionLocked,
+      })
       return
     }
 
     clearPendingCombatResolution(false)
+    debugLog('handleDeselectUnit', {
+      clientSnapshotPhase,
+      selectedUnitIds,
+    })
     setSelectedUnitIds([])
     setSelectedCombatTargetId(null)
     setPendingRamPrompt(null)
@@ -299,15 +319,32 @@ export function useBattlefieldInteractionState({
 
   async function handleMoveUnit(unitId: string, to: { q: number; r: number }) {
     if (!isControlledSession || activeSessionController === null) {
+      debugLog('handleMoveUnit skipped', {
+        unitId,
+        to,
+        isControlledSession,
+        hasController: activeSessionController !== null,
+      })
       return
     }
 
     if (!activeTurnActive || isInteractionLocked) {
+      debugLog('handleMoveUnit blocked', {
+        unitId,
+        to,
+        activeTurnActive,
+        isInteractionLocked,
+      })
       return
     }
 
     const ramPrompt = buildRamPrompt(clientSnapshot, unitId, to)
     if (ramPrompt !== null) {
+      debugLog('handleMoveUnit ram prompt', {
+        unitId,
+        to,
+        targetLabel: ramPrompt.targetLabel,
+      })
       setPendingRamPrompt(ramPrompt)
       return
     }

@@ -1,4 +1,5 @@
 import { GameClientSeamError } from './gameClient'
+import logger from './logger'
 import type {
 	GameSessionController,
 	GameSessionControllerOptions,
@@ -51,7 +52,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 			return
 		}
 
-		console.info(`[session-debug] ${event}`, {
+		logger.debug(`[session-debug] ${event}`, {
 			ts: Date.now(),
 			...details,
 		})
@@ -89,6 +90,11 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 	function updateObservedSignal(signal: LiveSessionSignal) {
 		if (signal.kind === 'event') {
+			debugLog('received live event signal', {
+				gameId: signal.gameId,
+				eventSeq: signal.eventSeq,
+				eventType: signal.eventType,
+			})
 			latestObservedEventSeq = latestObservedEventSeq === null ? signal.eventSeq : Math.max(latestObservedEventSeq, signal.eventSeq)
 			if (latestObservedEventSeq === signal.eventSeq) {
 				latestObservedEventType = signal.eventType
@@ -98,6 +104,10 @@ export function createGameSessionController(options: GameSessionControllerOption
 		}
 
 		if (signal.kind === 'snapshot' && signal.eventSeq !== null) {
+			debugLog('received live snapshot signal', {
+				gameId: signal.gameId,
+				eventSeq: signal.eventSeq,
+			})
 			latestObservedEventSeq = latestObservedEventSeq === null ? signal.eventSeq : Math.max(latestObservedEventSeq, signal.eventSeq)
 			if (latestObservedEventSeq === signal.eventSeq) {
 				latestObservedEventType = null

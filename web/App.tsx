@@ -30,6 +30,7 @@ import {
   buildCombatTargetActionId,
   getPhaseOwner,
 } from './lib/appViewHelpers'
+import logger from './lib/logger'
 import './App.css'
 
 type AppProps = {
@@ -87,14 +88,14 @@ function createRequestTransportFromGameClient(
   return {
     async getState(gameId: number) {
       const startedAt = Date.now()
-      console.info('[app-debug] transport getState start', {
+      logger.debug('[app-debug] transport getState start', {
         ts: startedAt,
         gameId,
       })
 
       try {
         const result = await gameClient.getState(gameId)
-        console.info('[app-debug] transport getState success', {
+        logger.debug('[app-debug] transport getState success', {
           durationMs: Date.now() - startedAt,
           ts: Date.now(),
           gameId,
@@ -104,7 +105,7 @@ function createRequestTransportFromGameClient(
         })
         return result
       } catch (error) {
-        console.info('[app-debug] transport getState failure', {
+        logger.warn('[app-debug] transport getState failure', {
           durationMs: Date.now() - startedAt,
           ts: Date.now(),
           gameId,
@@ -115,7 +116,7 @@ function createRequestTransportFromGameClient(
     },
     async submitAction(gameId: number, action: GameAction) {
       const startedAt = Date.now()
-      console.info('[app-debug] transport submitAction start', {
+      logger.debug('[app-debug] transport submitAction start', {
         ts: startedAt,
         action,
         gameId,
@@ -123,7 +124,7 @@ function createRequestTransportFromGameClient(
 
       try {
         const result = await gameClient.submitAction(gameId, action)
-        console.info('[app-debug] transport submitAction success', {
+        logger.debug('[app-debug] transport submitAction success', {
           ts: Date.now(),
           action,
           durationMs: Date.now() - startedAt,
@@ -134,7 +135,7 @@ function createRequestTransportFromGameClient(
         })
         return result
       } catch (error) {
-        console.info('[app-debug] transport submitAction failure', {
+        logger.warn('[app-debug] transport submitAction failure', {
           ts: Date.now(),
           action,
           durationMs: Date.now() - startedAt,
@@ -146,7 +147,7 @@ function createRequestTransportFromGameClient(
     },
     async pollEvents(gameId: number, afterSeq: number) {
       const startedAt = Date.now()
-      console.info('[app-debug] transport pollEvents start', {
+      logger.debug('[app-debug] transport pollEvents start', {
         ts: startedAt,
         afterSeq,
         gameId,
@@ -154,7 +155,7 @@ function createRequestTransportFromGameClient(
 
       try {
         const result = await gameClient.pollEvents(gameId, afterSeq)
-        console.info('[app-debug] transport pollEvents success', {
+        logger.debug('[app-debug] transport pollEvents success', {
           ts: Date.now(),
           afterSeq,
           durationMs: Date.now() - startedAt,
@@ -164,7 +165,7 @@ function createRequestTransportFromGameClient(
         })
         return result
       } catch (error) {
-        console.info('[app-debug] transport pollEvents failure', {
+        logger.warn('[app-debug] transport pollEvents failure', {
           ts: Date.now(),
           afterSeq,
           durationMs: Date.now() - startedAt,
@@ -246,7 +247,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const activeSessionBinding = useMemo<SessionBinding | null>(() => {
     if (providedRequestTransport !== null && gameId !== undefined) {
       if (typeof window !== 'undefined') {
-        console.info('[app] using provided request transport', {
+        logger.debug('[app] using provided request transport', {
           gameId,
           hasLiveEventSource: liveEventSource !== undefined,
         })
@@ -259,7 +260,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     if (typeof window !== 'undefined') {
-      console.info('[app] using connected session binding', {
+      logger.debug('[app] using connected session binding', {
         hasConnectedSession: connectedSession !== null,
         connectedGameId: connectedSession?.gameId ?? null,
       })
@@ -403,7 +404,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       return
     }
 
-    console.info('[app-debug] session reload', {
+    logger.debug('[app-debug] session reload', {
       ts: currentReloadState.loggedAtMs,
       deltaMs: previousReloadState === null ? null : currentReloadState.loggedAtMs - previousReloadState.loggedAtMs,
       previous: previousReloadState,
@@ -448,7 +449,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       return
     }
 
-    console.info('[app-debug] turn state transition', {
+    logger.debug('[app-debug] turn state transition', {
       ts: currentState.loggedAtMs,
       deltaMs: previousState === null ? null : currentState.loggedAtMs - previousState.loggedAtMs,
       previous: previousState,
@@ -566,7 +567,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       return
     }
 
-    console.info('[app-debug] turn state transition', {
+    logger.debug('[app-debug] turn state transition', {
       atMs: currentState.loggedAtMs,
       deltaMs: previousState === null ? null : currentState.loggedAtMs - previousState.loggedAtMs,
       previous: previousState,
@@ -676,7 +677,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className="phase-advance-btn"
               disabled={inactiveEventControlsLocked}
               onClick={() => {
-                console.info('[app-debug] phase advance clicked', {
+                logger.debug('[app-debug] phase advance clicked', {
                   ts: Date.now(),
                   activeGameId: activeSessionBinding?.gameId ?? null,
                   activeTurnOwner,
@@ -703,7 +704,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               type="button"
               className={`phase-advance-btn begin-turn-btn${sessionTurnActive ? ' begin-turn-btn-ready' : ' disabled'}`}
               onClick={() => {
-                console.info('[app-debug] begin turn clicked', {
+                logger.debug('[app-debug] begin turn clicked', {
                   ts: Date.now(),
                   activeGameId: activeSessionBinding?.gameId ?? null,
                   activeTurnOwner,
@@ -742,7 +743,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className="refresh-btn"
               title="Refresh game state"
               onClick={() => {
-                console.info('[app-debug] refresh clicked', {
+                logger.debug('[app-debug] refresh clicked', {
                   ts: Date.now(),
                   activeGameId: activeSessionBinding?.gameId ?? null,
                   sessionPhase,

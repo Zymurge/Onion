@@ -5,6 +5,9 @@ break down into features/tasks as needed.
 
 ## In progress
 
+- [x] Make client side logging verbosity level sensitive; move existing console logs to proper levels.
+  - [x] add new debug level instrumentation for common troubleshooting areas, such as event handling
+  
 ## Epics / Major Work
 
 - [ ] HQ / Command Post target resolution and victory handling
@@ -24,8 +27,6 @@ break down into features/tasks as needed.
 ## Features / Work Items
 
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
-- [ ] Make client side logging verbosity level sensitive; move existing console logs to proper levels.
-- [ ] Create friendly names for all units and Onion weapons to be used for user facing messaging instead of ids.
 
 ## Done
 
@@ -102,3 +103,4 @@ break down into features/tasks as needed.
     - [x] Skip the active player's own result overlay, since that remains covered by the existing resolution UI.
   - [x] Implement event stream emission for any new or modified events (backend)
   - [x] Render the "Opponent’s Results" UI as a compact, scrollable right-rail panel with one-line summaries per event.
+- [x] Create friendly names for all units and Onion weapons to be used for user facing messaging instead of ids.
