@@ -117,7 +117,7 @@ export function BattlefieldRightRail({
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>
-              <h2>{selectedInspectorOnion.type}</h2>
+              <h2>{selectedInspectorOnion.friendlyName ?? selectedInspectorOnion.type}</h2>
             </div>
             <span className="mini-tag">Selected</span>
           </div>
@@ -188,7 +188,7 @@ export function BattlefieldRightRail({
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>
-              <h2>{selectedInspectorDefender.type}</h2>
+              <h2>{selectedInspectorDefender.friendlyName ?? selectedInspectorDefender.type}</h2>
             </div>
             <span className="mini-tag">Selected</span>
           </div>

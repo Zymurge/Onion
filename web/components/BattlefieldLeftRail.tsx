@@ -1,5 +1,5 @@
 import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type Mode } from '../lib/battlefieldView'
-import { buildWeaponSelectionId, parseAttackStats } from '../lib/appViewHelpers'
+import { buildWeaponSelectionId, parseAttackStats, resolveBattlefieldWeaponName } from '../lib/appViewHelpers'
 import type { Weapon } from '../../shared/types/index'
 
 type BattlefieldLeftRailProps = {
@@ -81,7 +81,7 @@ export function BattlefieldLeftRail({
                         onSelectUnit(selectionId, event.ctrlKey || event.metaKey)
                       }}
                     >
-                      <div className="weapon-card-name">{weapon.name}</div>
+                      <div className="weapon-card-name">{resolveBattlefieldWeaponName(weapon)}</div>
                       <div className="weapon-card-stats">Attack: {weapon.attack} &nbsp;·&nbsp; Range: {weapon.range}</div>
                     </button>
                   )
@@ -123,7 +123,7 @@ export function BattlefieldLeftRail({
                       onSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                     }}
                   >
-                    <div className="weapon-card-name">{unit.type}</div>
+                    <div className="weapon-card-name">{unit.friendlyName ?? unit.type}</div>
                     <div className="weapon-card-stats">Attack: {attackStats.damage} &nbsp;·&nbsp; Range: {attackStats.range}</div>
                   </button>
                 )
@@ -158,7 +158,7 @@ export function BattlefieldLeftRail({
                   onSelectUnit(displayedOnion.id, event.ctrlKey || event.metaKey)
                 }}
               >
-                <h3>{displayedOnion.id}</h3>
+                <h3>{displayedOnion.friendlyName ?? displayedOnion.id}</h3>
                 <div className="unit-summary">
                   <div className="summary-line">
                     <span>Treads <strong>{displayedOnion.treads}</strong></span>
@@ -218,7 +218,7 @@ export function BattlefieldLeftRail({
                         onSelectDefenderCombatTarget()
                       }}
                     >
-                      <div className="weapon-card-name">{unit.type}</div>
+                      <div className="weapon-card-name">{unit.friendlyName ?? unit.type}</div>
                       <div className="weapon-card-stats">Damage: {attackStats.damage} &nbsp;·&nbsp; Range: {attackStats.range} &nbsp;·&nbsp; Move: {unit.move}</div>
                     </button>
                   )

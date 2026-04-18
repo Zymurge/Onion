@@ -33,6 +33,7 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 			onion: {
 				id: 'onion-1',
 				type: 'TheOnion',
+					friendlyName: 'The Onion 1',
 				position: { q: 0, r: 1 },
 				treads: 33,
 				status: 'operational',
@@ -57,6 +58,7 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
 					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
@@ -74,6 +76,7 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
+					friendlyName: 'Puss 1',
 					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
@@ -247,6 +250,48 @@ describe('App UI', () => {
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 	})
 
+	it('renders friendly names on the left and right rail cards', async () => {
+		const snapshot = createDefenderMoveSnapshotWithZeroMa()
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByRole('button', { name: /big bad wolf 2/i })).not.toBeNull()
+		expect(screen.getByRole('button', { name: /puss 1/i })).not.toBeNull()
+		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('Big Bad Wolf 2')
+	})
+
+	it('renders friendly names for onion weapon cards in combat', async () => {
+		const snapshot = createLoadedBattlefieldSnapshot()
+		snapshot.phase = 'ONION_COMBAT'
+		snapshot.selectedUnitId = 'weapon:main-1'
+		snapshot.authoritativeState.onion.weapons = [
+			{
+				id: 'main-1',
+				name: 'Main Battery',
+				friendlyName: 'Main Battery 1',
+				attack: 4,
+				range: 4,
+				defense: 4,
+				status: 'ready',
+				individuallyTargetable: true,
+			},
+		]
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByRole('button', { name: /main battery 1 attack: 4/i })).not.toBeNull()
+	})
+
 	it('keeps defender movement collapsed when the live snapshot reports zero allowance', async () => {
 		const snapshot = createDefenderMoveSnapshotWithStaleAllowance()
 		const client = createGameClient({
@@ -328,7 +373,7 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		const onionCard = await screen.findByRole('button', { name: /the onion 1/i })
 		expect(onionCard.textContent).toContain('Rams remaining 1')
 		expect(screen.getByText((_, element) => element?.tagName === 'DT' && element?.textContent === 'Rams remaining')).not.toBeNull()
 	})
@@ -479,7 +524,7 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 		const stream = screen.getByTestId('inactive-event-stream')
-		expect(stream.textContent).toContain('Ram attempt by Big Bad Wolf 2: destroyed')
+		expect(stream.textContent).toContain('Ram attempt')
 		expect(stream.textContent).toContain('Fire on Little Pigs 1: destroyed')
 		expect(screen.queryByText(/^details$/i)).toBeNull()
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(2)
@@ -489,6 +534,7 @@ describe('App UI', () => {
 		expect(entries[0].textContent).toContain('Result: destroyed')
 		await user.hover(entries[1] as HTMLElement)
 		expect(entries[1].textContent).toContain('Attackers: Big Bad Wolf 2')
+		expect(entries[1].textContent).toContain('Fire on Little Pigs 1: destroyed')
 		expect(entries[1].textContent).toContain('Outcome: destroyed')
 		expect(entries[1].textContent).toContain('Unit: Little Pigs 1: operational → destroyed')
 	})
@@ -533,6 +579,7 @@ describe('App UI', () => {
 		const stream = screen.getByTestId('inactive-event-stream')
 		expect(stream.textContent).toContain('Fire on Little Pigs 1: destroyed')
 		const entry = stream.querySelector('.inactive-event-stream-entry')
+		await user.hover(entry as HTMLElement)
 		expect(entry?.textContent).toContain('Outcome: destroyed')
 		expect(entry?.textContent).toContain('Unit: Little Pigs 1: operational → destroyed')
 	})
