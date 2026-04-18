@@ -8,6 +8,7 @@ The initial implementation will be based on the Mark III scenario, and the rules
 
 Onion is a hexagonal-grid tactical wargame where one player controls a single, massive super-tank called the **Onion**, and the other player controls a diverse force of conventional units (**Little Pigs**, **Big Bad Wolves**, **Puss**, etc.) defending a **Castle**.
 
+
 ## Units Mapping
 
 Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, Defense, Movement.
@@ -22,7 +23,33 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
 | Light Tank | **Pinocchio** | 2 / 2 | 2 | 0.5 | 3 |
 | Superheavy Tank | **Dragon** | 6(x2) / 3 | 5 | 2 | 3 |
 | Infantry | **Little Pigs** | 1 (per squad) / 1 | 1 (squad) | 1 (per 3) | 2 |
-| Command Post | **Castle** | 0 / 0 | 0 | N/A | 0 |
+| HQ | **The Swamp** | 0 / 0 | 0 | N/A | 0 |
+
+### The Swamp (HQ)
+
+- **Type:** Swamp
+- **Friendly Name:** The Swamp
+- **Movement:** 0 (Immobile)
+- **Weapons:** None
+- **Defense:** 0 (Any "X" result destroys it)
+- **Ram Profile:** Rammable (as for Castle)
+- **Selectable:** Yes (appears as a unit on the map, not just a background feature)
+- **Icon:** Custom swamp image preferred; fallback to placeholder if unavailable
+
+### Victory Conditions
+
+- **Partial Victory:** The Onion destroys The Swamp (status: destroyed)
+- **Total Victory:** The Onion destroys The Swamp and then escapes off the map (specific edge/zone to be defined)
+- **Defender Victory:** The Onion is immobilized or destroyed before achieving both objectives
+
+### Combat & Ramming
+
+- The Swamp can be targeted by any weapon or ram that can target defender units
+- Any "X" result destroys The Swamp (no disabled state)
+- Ramming follows standard rules for rammable objectives
+- All combat and ram events for The Swamp emit UNIT_STATUS_CHANGED and are surfaced in the event stream
+
+---
 
 ### Unit Special Abilities
 

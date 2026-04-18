@@ -5,17 +5,19 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [x] Make client side logging verbosity level sensitive; move existing console logs to proper levels.
-  - [x] add new debug level instrumentation for common troubleshooting areas, such as event handling
+- [ ] Swamp (HQ) objective and victory handling
+  - [ ] Define the Swamp as a new, first-class defender unit type (type: Swamp, friendly name: "The Swamp").
+  - [ ] Implement combat and ramming rules: Swamp is selectable, attackable, rammable, immobile, and has no weapons; any "X" result destroys it (no disabled state).
+  - [ ] Ensure Swamp can be targeted by all valid weapons and rams, and emits UNIT_STATUS_CHANGED events on destruction.
+  - [ ] Add a unique Swamp image/icon and render it as a selectable sprite on the map (fallback to placeholder if needed).
+  - [ ] Update all code and scenario references: use `theSwamp` for internal type, and "The Swamp" for all user-facing copy.
+  - [ ] Update UI: Swamp appears in right rail, inspector, event streams, and passive toasts; status and friendly name are always visible.
+  - [ ] Update victory logic: implement partial victory (destroy The Swamp) and total victory (destroy The Swamp and escape Onion off map edge); defender wins if Onion is immobilized or destroyed before both objectives.
+  - [ ] Add/expand regression tests for Swamp combat, ramming, event emission, and both victory states.
+  - [ ] Update rules, scenario docs, and UI spec to reflect Swamp objective and new victory conditions.
+  - [ ] Clarify and document which map edge(s) or zone(s) count as escape for total victory.
   
 ## Epics / Major Work
-
-- [ ] HQ / Command Post target resolution and victory handling
-  - [ ] Define the HQ target model and combat resolution rules for weapon, tread, and ram attacks.
-  - [ ] Clarify and implement which outcomes count as destruction versus no effect for HQ-specific attacks.
-  - [ ] Wire HQ destruction into victory detection, event emission, and end-of-game handling.
-  - [ ] Add UI/spec copy for HQ attack resolution and victory feedback.
-  - [ ] Add regression tests for HQ combat, ramming, and victory condition behavior.
 
 - [ ] Improve error handling (UI and backend)
   - [x] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
@@ -104,3 +106,5 @@ break down into features/tasks as needed.
   - [x] Implement event stream emission for any new or modified events (backend)
   - [x] Render the "Opponent’s Results" UI as a compact, scrollable right-rail panel with one-line summaries per event.
 - [x] Create friendly names for all units and Onion weapons to be used for user facing messaging instead of ids.
+- [x] Make client side logging verbosity level sensitive; move existing console logs to proper levels.
+  - [x] add new debug level instrumentation for common troubleshooting areas, such as event handling

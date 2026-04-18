@@ -48,12 +48,16 @@ Primary backend endpoints used by the web client:
 - When combat attacker selection is active, the right rail switches from inspection to targeting and confirmation.
 - Server-derived game state is never mutated in place; the UI reconciles from snapshots and events.
 
+
 ## Board Model
 
 - The battlefield board uses the same axial coordinate system as the rules engine.
 - The map may be a bounded axial region and is revealed through scrolling.
 - Board positions are addressed with axial `q`/`r` coordinates only.
 - Range, reachability, selection, and combat overlays are derived from the same board geometry used by the renderer.
+- The Swamp (HQ) is rendered as a selectable, attackable, and rammable unit with a unique icon (custom swamp image preferred; fallback to placeholder if unavailable).
+- The Swamp appears in the right rail and inspector panels, and its status is surfaced in passive toasts and event streams.
+- Victory feedback distinguishes between partial and total victory (destroying The Swamp, then escaping the Onion off-map).
 - Zoom is supported through mouse wheel and a floating slider overlay in the lower-left corner.
 - Zoom preserves the current map center and scroll position.
 
