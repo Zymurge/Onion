@@ -5,7 +5,17 @@ break down into features/tasks as needed.
 
 ## In progress
 
+- [x] Make client side logging verbosity level sensitive; move existing console logs to proper levels.
+  - [x] add new debug level instrumentation for common troubleshooting areas, such as event handling
+  
 ## Epics / Major Work
+
+- [ ] HQ / Command Post target resolution and victory handling
+  - [ ] Define the HQ target model and combat resolution rules for weapon, tread, and ram attacks.
+  - [ ] Clarify and implement which outcomes count as destruction versus no effect for HQ-specific attacks.
+  - [ ] Wire HQ destruction into victory detection, event emission, and end-of-game handling.
+  - [ ] Add UI/spec copy for HQ attack resolution and victory feedback.
+  - [ ] Add regression tests for HQ combat, ramming, and victory condition behavior.
 
 - [ ] Improve error handling (UI and backend)
   - [x] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
@@ -17,8 +27,6 @@ break down into features/tasks as needed.
 ## Features / Work Items
 
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
-- [ ] Make client side logging verbosity level sensitive; move existing console logs to proper levels.
-- [ ] Create friendly names for all units and Onion weapons to be used for user facing messaging instead of ids.
 
 ## Done
 
@@ -95,3 +103,4 @@ break down into features/tasks as needed.
     - [x] Skip the active player's own result overlay, since that remains covered by the existing resolution UI.
   - [x] Implement event stream emission for any new or modified events (backend)
   - [x] Render the "Opponent’s Results" UI as a compact, scrollable right-rail panel with one-line summaries per event.
+- [x] Create friendly names for all units and Onion weapons to be used for user facing messaging instead of ids.

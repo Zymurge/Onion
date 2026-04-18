@@ -18,6 +18,8 @@ export interface GameUnit {
   id: string
   /** Unit type */
   type: UnitType
+  /** Human-friendly name for display */
+  friendlyName?: string
   /** Current position */
   position: HexPos
   /** Current status */

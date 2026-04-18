@@ -11,6 +11,7 @@ describe('buildCombatTargetOptions', () => {
 				{
 					id: 'near-1',
 					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
 					status: 'operational',
 					q: 3,
 					r: 2,
@@ -34,7 +35,16 @@ describe('buildCombatTargetOptions', () => {
 				rams: 0,
 				weapons: 'main: ready',
 				weaponDetails: [
-					{ id: 'main-1', name: 'Main Battery', attack: 4, range: 4, defense: 4, status: 'ready', individuallyTargetable: true },
+					{
+						id: 'main-1',
+						name: 'Main Battery',
+						friendlyName: 'Main Battery 1',
+						attack: 4,
+						range: 4,
+						defense: 4,
+						status: 'ready',
+						individuallyTargetable: true,
+					},
 				],
 			},
 			selectedUnitIds: ['weapon:main-1'],
@@ -49,6 +59,7 @@ describe('buildCombatTargetOptions', () => {
 		expect(options).toHaveLength(1)
 		expect(options[0]).toMatchObject({
 			id: 'near-1',
+			label: 'Little Pigs 1',
 			defense: 3,
 			modifiers: expect.arrayContaining(['Ridgeline cover: +1 defense']),
 		})
@@ -207,6 +218,7 @@ describe('buildCombatTargetOptions', () => {
 				{
 					id: 'wolf-2',
 					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
 					status: 'operational',
 					q: 1,
 					r: 1,
@@ -232,6 +244,7 @@ describe('buildCombatTargetOptions', () => {
 					{
 						id: 'ap_1',
 						name: 'AP Gun',
+						friendlyName: 'AP Gun 1',
 						attack: 1,
 						range: 1,
 						defense: 1,

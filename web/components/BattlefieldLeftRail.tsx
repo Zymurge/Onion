@@ -1,5 +1,5 @@
 import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type Mode } from '../lib/battlefieldView'
-import { buildWeaponSelectionId, parseAttackStats } from '../lib/appViewHelpers'
+import { buildWeaponSelectionId, parseAttackStats, resolveBattlefieldWeaponName } from '../lib/appViewHelpers'
 import type { Weapon } from '../../shared/types/index'
 
 type BattlefieldLeftRailProps = {
@@ -10,13 +10,13 @@ type BattlefieldLeftRailProps = {
   displayedOnion: BattlefieldOnionView | null
   isCombatPhase: boolean
   isMovementPhase: boolean
+  isSelectionLocked: boolean
   onionWeapons: {
     operationalWeapons: number
     operationalMissiles: number
   }
   readyWeaponDetails: ReadonlyArray<Weapon>
   selectedCombatAttackLabel: string
-  onSelectDefenderCombatTarget: () => void
   onSelectUnit: (unitId: string, additive?: boolean) => void
 }
 
@@ -28,10 +28,10 @@ export function BattlefieldLeftRail({
   displayedOnion,
   isCombatPhase,
   isMovementPhase,
+  isSelectionLocked,
   onionWeapons,
   readyWeaponDetails,
   selectedCombatAttackLabel,
-  onSelectDefenderCombatTarget,
   onSelectUnit,
 }: BattlefieldLeftRailProps) {
   return (
@@ -65,14 +65,21 @@ export function BattlefieldLeftRail({
                       type="button"
                       className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}`}
                       aria-pressed={isSelected}
+                      disabled={isSelectionLocked}
                       data-selected={isSelected}
                       data-testid={`combat-weapon-${weapon.id}`}
                       onClick={(event) => {
+                        if (isSelectionLocked) {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          return
+                        }
+
                         event.stopPropagation()
                         onSelectUnit(selectionId, event.ctrlKey || event.metaKey)
                       }}
                     >
-                      <div className="weapon-card-name">{weapon.name}</div>
+                      <div className="weapon-card-name">{resolveBattlefieldWeaponName(weapon)}</div>
                       <div className="weapon-card-stats">Attack: {weapon.attack} &nbsp;·&nbsp; Range: {weapon.range}</div>
                     </button>
                   )
@@ -99,16 +106,22 @@ export function BattlefieldLeftRail({
                       `tone-${statusTone(unit.status)}`,
                     ].join(' ')}
                     aria-pressed={isSelected}
+                      disabled={isSelectionLocked}
                     data-selected={isSelected}
                     data-testid={`combat-unit-${unit.id}`}
-                    disabled={false}
                     title={isDestroyed ? 'Destroyed units cannot attack.' : !isActionable ? 'This unit is not eligible to attack.' : undefined}
                     onClick={(event) => {
+                        if (isSelectionLocked) {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          return
+                        }
+
                       event.stopPropagation()
                       onSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                     }}
                   >
-                    <div className="weapon-card-name">{unit.type}</div>
+                    <div className="weapon-card-name">{unit.friendlyName ?? unit.type}</div>
                     <div className="weapon-card-stats">Attack: {attackStats.damage} &nbsp;·&nbsp; Range: {attackStats.range}</div>
                   </button>
                 )
@@ -129,14 +142,21 @@ export function BattlefieldLeftRail({
                 type="button"
                 className={`onion-card-button ${activeSelectedUnitIds.includes(displayedOnion.id) ? 'is-selected' : ''}`}
                 aria-pressed={activeSelectedUnitIds.includes(displayedOnion.id)}
+                disabled={isSelectionLocked}
                 data-selected={activeSelectedUnitIds.includes(displayedOnion.id)}
                 data-testid={`combat-unit-${displayedOnion.id}`}
                 onClick={(event) => {
+                  if (isSelectionLocked) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    return
+                  }
+
                   event.stopPropagation()
                   onSelectUnit(displayedOnion.id, event.ctrlKey || event.metaKey)
                 }}
               >
-                <h3>{displayedOnion.id}</h3>
+                <h3>{displayedOnion.friendlyName ?? displayedOnion.id}</h3>
                 <div className="unit-summary">
                   <div className="summary-line">
                     <span>Treads <strong>{displayedOnion.treads}</strong></span>
@@ -178,19 +198,25 @@ export function BattlefieldLeftRail({
                         `tone-${statusTone(unit.status)}`,
                       ].join(' ')}
                       aria-pressed={isSelected}
+                      disabled={isSelectionLocked || isDestroyed}
                       data-selected={isSelected}
                       data-testid={`combat-unit-${unit.id}`}
-                      disabled={isDestroyed}
                       onClick={(event) => {
+                        if (isSelectionLocked) {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          return
+                        }
+
                         if (isDestroyed) {
                           event.stopPropagation()
                           return
                         }
                         event.stopPropagation()
-                        onSelectDefenderCombatTarget()
+                        onSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                       }}
                     >
-                      <div className="weapon-card-name">{unit.type}</div>
+                      <div className="weapon-card-name">{unit.friendlyName ?? unit.type}</div>
                       <div className="weapon-card-stats">Damage: {attackStats.damage} &nbsp;·&nbsp; Range: {attackStats.range} &nbsp;·&nbsp; Move: {unit.move}</div>
                     </button>
                   )

@@ -225,6 +225,9 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.events[1].remaining).toBe(43)
     expect(body.events[0].causeId).toBeDefined()
     expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
+      expect(body.events.every((event: any) => event.turnNumber === body.turnNumber)).toBe(true)
+      expect(body.events[0].attackerFriendlyNames).toEqual(['Big Bad Wolf 1'])
+      expect(body.events[0].targetFriendlyName).toBe('The Onion 1')
     expect(body.state.onion.treads).toBe(43)
     expect(infoSpy).toHaveBeenCalledWith(
       expect.objectContaining({

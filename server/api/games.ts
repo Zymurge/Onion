@@ -92,6 +92,13 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     }))
   }
 
+  function attachTurnNumber(events: EventEnvelope[], turnNumber: number): EventEnvelope[] {
+    return events.map((event) => ({
+      ...event,
+      turnNumber,
+    }))
+  }
+
   function removeLiveConnection(gameId: number, socket: WebSocket) {
     const sockets = liveConnections.get(gameId)
     if (!sockets) {
@@ -233,6 +240,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         seq,
         type: 'PLAYER_JOINED',
         timestamp: new Date().toISOString(),
+        turnNumber: match.turnNumber,
         userId,
         role,
       }
@@ -510,9 +518,20 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       const causeId = String(req.id)
 
       if (command.type === 'END_PHASE') {
-        logger.info({ gameId: match.gameId, phase: match.phase }, 'Advancing phase')
+        logger.info(
+          {
+            reqId: req.id,
+            userId,
+            gameId: match.gameId,
+            causeId,
+            phase: match.phase,
+            turnNumber: match.turnNumber,
+            expectedLastEventSeq,
+          },
+          'Advancing phase',
+        )
         const result = advancePhaseWithEvents(match)
-        newEvents = attachCauseId(result.newEvents, causeId)
+        newEvents = attachTurnNumber(attachCauseId(result.newEvents, causeId), result.turnNumber)
         currentState = result.state
         const winner = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
         await db.persistMatchProgress({
@@ -529,7 +548,21 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const eventSeq = newEvents.at(-1)?.seq ?? 0
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
         broadcastGameEvents(match.gameId, newEvents)
-        logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
+        logger.info(
+          {
+            reqId: req.id,
+            userId,
+            gameId: match.gameId,
+            causeId,
+            fromPhase: match.phase,
+            toPhase: result.phase,
+            turnNumber,
+            eventSeq,
+            eventCount: newEvents.length,
+            winner: winner ?? null,
+          },
+          'Phase advanced',
+        )
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq })
       } else if (command.type === 'MOVE') {
         logger.info({ gameId: match.gameId, unitId: command.unitId }, 'Processing MOVE command')
@@ -555,7 +588,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state), causeId)
+        newEvents = attachTurnNumber(attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state), causeId), match.turnNumber)
 
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
@@ -608,7 +641,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = attachCauseId(buildCombatEvents(seq, command, result, state), causeId)
+        newEvents = attachTurnNumber(attachCauseId(buildCombatEvents(seq, command, result, state), causeId), match.turnNumber)
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
         await db.persistMatchProgress({

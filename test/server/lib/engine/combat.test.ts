@@ -28,6 +28,7 @@ beforeEach(() => {
 import {
   calculateOdds,
   rollCombat,
+  resolveCombatOutcome,
   applyDamage,
   getValidTargets,
   validateCombatAction,
@@ -214,6 +215,49 @@ describe('rollCombat', () => {
 
   it('5:1 odds: roll 1 → X (always destroyed)', () => {
     expect(rollCombat(20, 4, 1).result).toBe('X')
+  })
+})
+
+// ─── resolveCombatOutcome ───────────────────────────────────────────────────
+
+describe('resolveCombatOutcome', () => {
+  it('resolves D against a normal defender as disabled', () => {
+    const target = makeDefender({ type: 'Puss' })
+
+    expect(resolveCombatOutcome(target, 'D', 4)).toMatchObject({
+      effect: 'disabled',
+      targetId: target.id,
+    })
+  })
+
+  it('resolves D against stacked Little Pigs as a squad loss', () => {
+    const target = makeDefender({ type: 'LittlePigs', squads: 3 })
+
+    expect(resolveCombatOutcome(target, 'D', 1)).toMatchObject({
+      effect: 'squad-loss',
+      targetId: target.id,
+      squadsLost: 1,
+    })
+  })
+
+  it('resolves X against Onion treads as tread loss', () => {
+    const onion = makeOnion({ treads: 45 })
+
+    expect(resolveCombatOutcome(onion, 'X', 4)).toMatchObject({
+      effect: 'tread-loss',
+      targetId: onion.id,
+      treadsLost: 4,
+    })
+  })
+
+  it('resolves X against an Onion weapon as weapon destroyed', () => {
+    const onion = makeOnion()
+
+    expect(resolveCombatOutcome(onion, 'X', 4, 'main')).toMatchObject({
+      effect: 'weapon-destroyed',
+      targetId: onion.id,
+      weaponId: 'main',
+    })
   })
 })
 

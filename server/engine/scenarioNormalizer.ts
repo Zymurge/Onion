@@ -2,6 +2,7 @@ import type { InitialState } from '#server/engine/scenarioSchema'
 import type { DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
 import { getUnitDefinition } from '#server/engine/units'
 import logger from '#server/logger'
+import { buildFriendlyName } from '#shared/unitDefinitions'
 
 /**
  * Normalize a scenario initialState into a valid EngineGameState.
@@ -22,10 +23,14 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
   } = {
     id: 'onion-1',
     type: initial.onion.type as any, // Cast for now; engine will check
+    friendlyName: buildFriendlyName(onionDefinition.friendlyNameTemplate ?? `${onionDefinition.name} {{ordinal}}`, 'onion-1'),
     position: initial.onion.position,
     treads: initial.onion.treads,
     status: (initial.onion.status ?? 'operational') as OnionUnit['status'],
-    weapons: onionDefinition.weapons.map((weapon) => ({ ...weapon })),
+    weapons: onionDefinition.weapons.map((weapon) => ({
+      ...weapon,
+      friendlyName: buildFriendlyName(weapon.friendlyNameTemplate ?? weapon.name, weapon.id),
+    })),
     missiles: initial.onion.missiles,
     batteries: { ...initial.onion.batteries },
   }
@@ -41,9 +46,13 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
     defenders[key] = {
       id: key,
       type: def.type as any,
+      friendlyName: buildFriendlyName(defenderDefinition.friendlyNameTemplate ?? `${defenderDefinition.name} {{ordinal}}`, key),
       position: def.position,
       status: (def.status ?? 'operational') as DefenderUnit['status'],
-      weapons: defenderDefinition.weapons.map((weapon) => ({ ...weapon })),
+      weapons: defenderDefinition.weapons.map((weapon) => ({
+        ...weapon,
+        friendlyName: buildFriendlyName(weapon.friendlyNameTemplate ?? weapon.name, weapon.id),
+      })),
       ...(def.squads !== undefined ? { squads: def.squads } : {}),
     }
   }

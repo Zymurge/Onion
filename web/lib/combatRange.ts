@@ -38,7 +38,7 @@ export function buildCombatRangeHexKeys(sources: ReadonlyArray<CombatRangeSource
 
   for (const source of sources) {
     const sourceHexKeys = new Set(
-      hexesWithinRange({ q: source.q, r: source.r }, source.range)
+      hexesWithinRange({ q: source.q, r: source.r }, source.range, 0)
         .filter((coord) => inBounds(boundsLookup, coord.q, coord.r))
         .map(hexKey),
     )

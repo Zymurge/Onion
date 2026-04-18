@@ -5,6 +5,7 @@ type CombatTargetListProps = {
   targets: ReadonlyArray<CombatTargetOption>
   selectedTargetId: string | null
   selectedCombatAttackCount: number
+  isDisabled?: boolean
   onSelectTarget: (targetId: string) => void
 }
 
@@ -12,6 +13,7 @@ export function CombatTargetList({
   targets,
   selectedTargetId,
   selectedCombatAttackCount,
+  isDisabled = false,
   onSelectTarget,
 }: CombatTargetListProps) {
   return (
@@ -29,16 +31,22 @@ export function CombatTargetList({
               'attacker-card-button',
               'slim-weapon-card',
               isSelected ? 'is-selected' : '',
-              isGroupAttackOnTreads ? 'is-disabled' : '',
+              isGroupAttackOnTreads || isDisabled ? 'is-disabled' : '',
               `tone-${statusTone(target.status)}`,
             ].join(' ')}
-            disabled={isGroupAttackOnTreads}
-            title={isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
+            disabled={isGroupAttackOnTreads || isDisabled}
+            title={isDisabled ? 'Controls are unavailable until the inactive event window is dismissed.' : isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
             aria-pressed={isSelected}
-            aria-disabled={isGroupAttackOnTreads}
+            aria-disabled={isGroupAttackOnTreads || isDisabled}
             data-selected={isSelected}
             data-testid={`combat-target-${target.id}`}
             onClick={(event) => {
+              if (isDisabled) {
+                event.preventDefault()
+                event.stopPropagation()
+                return
+              }
+
               if (isGroupAttackOnTreads) {
                 event.preventDefault()
                 event.stopPropagation()

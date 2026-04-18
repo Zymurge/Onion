@@ -72,6 +72,8 @@ export {
   getRammedUnits,
 } from '#server/engine/movement'
 
+export { resolveRammingOutcome } from '#shared/rammingCalculator'
+
 // Turn phases and victory conditions
 export type { PhaseActor } from '#server/engine/phases'
 

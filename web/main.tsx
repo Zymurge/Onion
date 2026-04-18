@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { resolveWebRuntimeConfig } from './lib/appBootstrap'
+import { getWebLoggerLevel, setWebLoggerLevel } from './lib/logger'
 
 const runtimeConfig = resolveWebRuntimeConfig(
   {
@@ -12,6 +13,12 @@ const runtimeConfig = resolveWebRuntimeConfig(
   window.location.search,
   window.location.pathname,
 )
+
+setWebLoggerLevel(runtimeConfig.clientLogLevel)
+Object.assign(window, {
+  setWebLoggerLevel,
+  getWebLoggerLevel,
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

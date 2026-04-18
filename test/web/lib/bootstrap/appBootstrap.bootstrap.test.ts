@@ -16,6 +16,7 @@ describe('appBootstrap bootstrap', () => {
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: 123,
 			liveRefreshQuietWindowMs: 2000,
+			clientLogLevel: 'info',
 		})
 	})
 
@@ -32,6 +33,7 @@ describe('appBootstrap bootstrap', () => {
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: 42,
 			liveRefreshQuietWindowMs: 2000,
+			clientLogLevel: 'info',
 		})
 	})
 
@@ -48,6 +50,7 @@ describe('appBootstrap bootstrap', () => {
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: 42,
 			liveRefreshQuietWindowMs: 2000,
+			clientLogLevel: 'info',
 		})
 	})
 
@@ -64,6 +67,7 @@ describe('appBootstrap bootstrap', () => {
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: null,
 			liveRefreshQuietWindowMs: 2000,
+			clientLogLevel: 'info',
 		})
 	})
 
@@ -80,6 +84,7 @@ describe('appBootstrap bootstrap', () => {
 			apiBaseUrl: null,
 			gameId: null,
 			liveRefreshQuietWindowMs: 2000,
+			clientLogLevel: 'info',
 		})
 	})
 
@@ -97,6 +102,25 @@ describe('appBootstrap bootstrap', () => {
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: null,
 			liveRefreshQuietWindowMs: 250,
+			clientLogLevel: 'info',
+		})
+	})
+
+	it('accepts an explicit client log level override', () => {
+		expect(
+			resolveWebRuntimeConfig(
+				{
+					VITE_ONION_API_URL: 'http://localhost:3000',
+					VITE_ONION_LOG_LEVEL: 'warn',
+				},
+				'?logLevel=debug',
+				'/',
+			),
+		).toEqual({
+			apiBaseUrl: 'http://localhost:3000',
+			gameId: null,
+			liveRefreshQuietWindowMs: 2000,
+			clientLogLevel: 'debug',
 		})
 	})
 })

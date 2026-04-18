@@ -4,10 +4,12 @@ import { join } from 'node:path'
 
 import type { MatchRecord } from '#server/db/adapter'
 import { checkVictoryConditions } from '#server/engine/phases'
+import { getUnitDefinition } from '#server/engine/units'
 import type { GameStateResponse } from '#shared/apiProtocol'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
+import { buildFriendlyName } from '#shared/unitDefinitions'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import type { EngineGameState } from '#server/engine/units'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
@@ -180,18 +182,22 @@ export function buildCombatEvents(
   startSeq: number,
   command: Extract<Command, { type: 'FIRE' }>,
   result: any,
-  state: any,
+  state: GameState,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
   const events: EventEnvelope[] = []
+  const attackerFriendlyNames = command.attackers.map((attackerId) => resolveCombatParticipantFriendlyName(state, attackerId))
+  const targetFriendlyName = resolveTargetFriendlyName(state, result.targetId)
 
   events.push({
     seq: seq++,
     type: 'FIRE_RESOLVED',
     timestamp,
     attackers: command.attackers,
+    attackerFriendlyNames,
     targetId: result.targetId,
+    targetFriendlyName,
     roll: result.roll?.roll,
     outcome: result.roll?.result,
     odds: result.roll?.odds,
@@ -213,6 +219,7 @@ export function buildCombatEvents(
       type: 'ONION_BATTERY_DESTROYED',
       timestamp,
       weaponId: result.destroyedWeaponId,
+      weaponFriendlyName: resolveWeaponFriendlyName(state, result.destroyedWeaponId),
       weaponType: getWeaponTypeFromId(result.destroyedWeaponId),
     })
   }
@@ -223,6 +230,7 @@ export function buildCombatEvents(
       type: 'UNIT_STATUS_CHANGED',
       timestamp,
       unitId: statusChange.unitId,
+      unitFriendlyName: resolveUnitFriendlyName(state, statusChange.unitId),
       from: statusChange.from,
       to: statusChange.to,
     })
@@ -246,32 +254,46 @@ export function buildMoveEvents(
   moveUnitId: string,
   command: Extract<Command, { type: 'MOVE' }>,
   result: any,
-  state: any,
+  state: GameState,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
   const onionUnitId = state.onion.id
   const canonicalMoveUnitId = moveUnitId
   const isOnionMove = canonicalMoveUnitId === onionUnitId
+  const moveUnitFriendlyName = resolveUnitFriendlyName(state, canonicalMoveUnitId)
   const events: EventEnvelope[] = [
     {
       seq: seq++,
       type: isOnionMove ? 'ONION_MOVED' : 'UNIT_MOVED',
       timestamp,
+      unitFriendlyName: moveUnitFriendlyName,
       ...(isOnionMove ? { to: command.to } : { unitId: canonicalMoveUnitId, to: command.to }),
     },
   ]
 
   const rammedUnitIds = result.rammedUnitIds ?? []
   const destroyedUnitIds = result.destroyedUnits ?? []
+  const rammedUnitResults = Array.isArray(result.rammedUnitResults) ? result.rammedUnitResults : []
   if (rammedUnitIds.length > 0 || destroyedUnitIds.length > 0 || (result.treadDamage ?? 0) > 0) {
     events.push({
       seq: seq++,
       type: 'MOVE_RESOLVED',
       timestamp,
       unitId: canonicalMoveUnitId,
+      unitFriendlyName: moveUnitFriendlyName,
       rammedUnitIds,
+      rammedUnitFriendlyNames: rammedUnitIds.map((unitId: string) => resolveUnitFriendlyName(state, unitId)),
+      rammedUnitResults: rammedUnitResults.map((ramResult: { unitId: string; unitType: string; outcome: { effect: string; roll: number; treadCost: number } }) => ({
+        unitId: ramResult.unitId,
+        unitFriendlyName: resolveUnitFriendlyName(state, ramResult.unitId),
+        unitType: ramResult.unitType,
+        effect: ramResult.outcome.effect,
+        roll: ramResult.outcome.roll,
+        treadCost: ramResult.outcome.treadCost,
+      })),
       destroyedUnitIds,
+      destroyedUnitFriendlyNames: destroyedUnitIds.map((unitId: string) => resolveUnitFriendlyName(state, unitId)),
       treadDamage: result.treadDamage ?? 0,
     })
   }
@@ -292,12 +314,108 @@ export function buildMoveEvents(
       type: 'UNIT_STATUS_CHANGED',
       timestamp,
       unitId: destroyedId,
+      unitFriendlyName: resolveUnitFriendlyName(state, destroyedId),
       from: 'operational',
       to: 'destroyed',
     })
   }
 
   return events
+}
+
+function resolveUnitFriendlyName(state: GameState, unitId: string): string {
+  if (state.onion.id === unitId || unitId === 'onion') {
+    const friendlyName = state.onion.friendlyName
+    if (friendlyName !== undefined && friendlyName.trim().length > 0) {
+      return friendlyName
+    }
+
+    const onionDefinition = state.onion.type ? getUnitDefinition(state.onion.type) : undefined
+    if (onionDefinition?.friendlyNameTemplate !== undefined) {
+      return buildFriendlyName(onionDefinition.friendlyNameTemplate, state.onion.id ?? 'onion-1')
+    }
+
+    return state.onion.id ?? state.onion.type ?? 'The Onion'
+  }
+
+  for (const defender of Object.values(state.defenders)) {
+    if (defender.id === unitId) {
+      if (defender.friendlyName !== undefined && defender.friendlyName.trim().length > 0) {
+        return defender.friendlyName
+      }
+
+      const defenderDefinition = getUnitDefinition(defender.type)
+      if (defenderDefinition?.friendlyNameTemplate !== undefined) {
+        return buildFriendlyName(defenderDefinition.friendlyNameTemplate, defender.id ?? unitId)
+      }
+
+      return defender.id ?? defender.type ?? unitId
+    }
+  }
+
+  return unitId
+}
+
+function resolveWeaponFriendlyName(state: GameState, weaponId: string): string {
+  const onionWeapon = state.onion.weapons?.find((weapon) => weapon.id === weaponId)
+  if (onionWeapon) {
+    if (onionWeapon.friendlyName !== undefined && onionWeapon.friendlyName.trim().length > 0) {
+      return onionWeapon.friendlyName
+    }
+
+    if (onionWeapon.friendlyNameTemplate !== undefined) {
+      return buildFriendlyName(onionWeapon.friendlyNameTemplate, weaponId)
+    }
+
+    const onionDefinition = state.onion.type ? getUnitDefinition(state.onion.type) : undefined
+    const definitionWeapon = onionDefinition?.weapons.find((weapon) => weapon.id === weaponId)
+    if (definitionWeapon?.friendlyNameTemplate !== undefined) {
+      return buildFriendlyName(definitionWeapon.friendlyNameTemplate, weaponId)
+    }
+
+    return onionWeapon.name ?? weaponId
+  }
+
+  for (const defender of Object.values(state.defenders)) {
+    const weapon = defender.weapons?.find((candidate) => candidate.id === weaponId)
+    if (weapon) {
+      if (weapon.friendlyName !== undefined && weapon.friendlyName.trim().length > 0) {
+        return weapon.friendlyName
+      }
+
+      if (weapon.friendlyNameTemplate !== undefined) {
+        return buildFriendlyName(weapon.friendlyNameTemplate, weaponId)
+      }
+
+      const defenderDefinition = getUnitDefinition(defender.type)
+      const definitionWeapon = defenderDefinition?.weapons.find((candidate) => candidate.id === weaponId)
+      if (definitionWeapon?.friendlyNameTemplate !== undefined) {
+        return buildFriendlyName(definitionWeapon.friendlyNameTemplate, weaponId)
+      }
+
+      return weapon.name ?? weaponId
+    }
+  }
+
+  return weaponId
+}
+
+function resolveCombatParticipantFriendlyName(state: GameState, attackerId: string): string {
+  const unitFriendlyName = resolveUnitFriendlyName(state, attackerId)
+  if (unitFriendlyName !== attackerId) {
+    return unitFriendlyName
+  }
+
+  return resolveWeaponFriendlyName(state, attackerId)
+}
+
+function resolveTargetFriendlyName(state: GameState, targetId: string): string {
+  const unitFriendlyName = resolveUnitFriendlyName(state, targetId)
+  if (unitFriendlyName !== targetId) {
+    return unitFriendlyName
+  }
+
+  return resolveWeaponFriendlyName(state, targetId)
 }
 
 export function logSentEvents(gameId: number, actionType: string, events: EventEnvelope[]) {

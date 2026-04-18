@@ -12,6 +12,7 @@ import {
 
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex, UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
+import { resolveBattlefieldUnitName, resolveBattlefieldWeaponName } from './appViewHelpers'
 
 type CombatRole = 'onion' | 'defender'
 
@@ -195,7 +196,7 @@ export function buildCombatTargetOptions({
 					q: unit.q,
 					r: unit.r,
 					status: unit.status,
-					label: unit.type,
+					label: resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName),
 					defense: result.defenseStrength,
 					modifiers: buildTargetModifiers(
 						result.modifiers,
@@ -223,11 +224,11 @@ export function buildCombatTargetOptions({
 				q: displayedOnion.q,
 				r: displayedOnion.r,
 				status: weapon.status as UnitStatus,
-				label: weapon.name,
+				label: resolveBattlefieldWeaponName(weapon),
 				defense: weapon.defense,
 				modifiers: buildTargetModifiers(result.modifiers, [
 					...(selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : []),
-					`Subsystem target: ${weapon.name}`,
+					`Subsystem target: ${resolveBattlefieldWeaponName(weapon)}`,
 				]),
 				detail: `Defense: ${weapon.defense}`,
 			}

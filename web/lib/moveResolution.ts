@@ -21,19 +21,7 @@ export type RamResolution = {
 }
 
 export function formatRamResolutionTitle(resolution: RamResolution): string {
-	if (resolution.destroyedUnitIds.length > 0 && resolution.treadDamage !== undefined && resolution.treadDamage > 0) {
-		return `Ram resolved: ${resolution.destroyedUnitIds.length} destroyed, Onion lost ${resolution.treadDamage} tread${resolution.treadDamage === 1 ? '' : 's'}`
-	}
-
-	if (resolution.destroyedUnitIds.length > 0) {
-		return `Ram resolved: ${resolution.destroyedUnitIds.length} destroyed`
-	}
-
-	if (resolution.treadDamage !== undefined && resolution.treadDamage > 0) {
-		return `Ram resolved: target survived, Onion lost ${resolution.treadDamage} tread${resolution.treadDamage === 1 ? '' : 's'}`
-	}
-
-	return 'Ram resolved'
+	return 'Ram attempt'
 }
 
 export function buildRamResolution(events: ReadonlyArray<MoveResolutionEvent>): RamResolution | undefined {
@@ -47,7 +35,17 @@ export function buildRamResolution(events: ReadonlyArray<MoveResolutionEvent>): 
 	const details: string[] = []
 
 	if (rammedUnitIds.length > 0) {
-		details.push(`Rammed units: ${rammedUnitIds.join(', ')}`)
+		details.push(`Target: ${rammedUnitIds.join(', ')}`)
+	} else if (destroyedUnitIds.length > 0) {
+		details.push(`Target: ${destroyedUnitIds.join(', ')}`)
+	} else {
+		details.push('Target: unknown')
+	}
+
+	if (destroyedUnitIds.length > 0) {
+		details.push('Result: destroyed')
+	} else {
+		details.push('Result: survived')
 	}
 
 	for (const event of events) {
@@ -55,11 +53,6 @@ export function buildRamResolution(events: ReadonlyArray<MoveResolutionEvent>): 
 			case 'ONION_TREADS_LOST':
 				if (typeof event.amount === 'number' && typeof event.remaining === 'number') {
 					details.push(`Treads lost: ${event.amount} (remaining ${event.remaining})`)
-				}
-				break
-			case 'UNIT_STATUS_CHANGED':
-				if (typeof event.unitId === 'string' && typeof event.from === 'string' && typeof event.to === 'string') {
-					details.push(`Destroyed unit: ${event.unitId} ${event.from} → ${event.to}`)
 				}
 				break
 		}

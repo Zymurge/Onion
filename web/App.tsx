@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CombatResolutionToast } from './components/CombatResolutionToast'
 import { MoveResolutionToast } from './components/MoveResolutionToast'
 import { ErrorOverlay } from './components/ErrorOverlay'
@@ -30,6 +30,7 @@ import {
   buildCombatTargetActionId,
   getPhaseOwner,
 } from './lib/appViewHelpers'
+import logger from './lib/logger'
 import './App.css'
 
 type AppProps = {
@@ -81,22 +82,156 @@ const idleSessionController: GameSessionController = {
   dispose() {},
 }
 
-function createRequestTransportFromGameClient(gameClient: GameClient): GameRequestTransport {
+function createRequestTransportFromGameClient(
+  gameClient: GameClient,
+): GameRequestTransport {
   return {
-    getState(gameId: number) {
-      return gameClient.getState(gameId)
+    async getState(gameId: number) {
+      const startedAt = Date.now()
+      logger.debug('[app-debug] transport getState start', {
+        ts: startedAt,
+        gameId,
+      })
+
+      try {
+        const result = await gameClient.getState(gameId)
+        logger.debug('[app-debug] transport getState success', {
+          durationMs: Date.now() - startedAt,
+          ts: Date.now(),
+          gameId,
+          phase: result.snapshot.phase,
+          lastEventSeq: result.snapshot.lastEventSeq,
+          sessionRole: result.session.role,
+        })
+        return result
+      } catch (error) {
+        logger.warn('[app-debug] transport getState failure', {
+          durationMs: Date.now() - startedAt,
+          ts: Date.now(),
+          gameId,
+          error,
+        })
+        throw error
+      }
     },
-    submitAction(gameId: number, action: GameAction) {
-      return gameClient.submitAction(gameId, action)
+    async submitAction(gameId: number, action: GameAction) {
+      const startedAt = Date.now()
+      logger.debug('[app-debug] transport submitAction start', {
+        ts: startedAt,
+        action,
+        gameId,
+      })
+
+      try {
+        const result = await gameClient.submitAction(gameId, action)
+        logger.debug('[app-debug] transport submitAction success', {
+          ts: Date.now(),
+          action,
+          durationMs: Date.now() - startedAt,
+          gameId,
+          phase: result.phase,
+          lastEventSeq: result.lastEventSeq,
+          sessionRole: null,
+        })
+        return result
+      } catch (error) {
+        logger.warn('[app-debug] transport submitAction failure', {
+          ts: Date.now(),
+          action,
+          durationMs: Date.now() - startedAt,
+          gameId,
+          error,
+        })
+        throw error
+      }
     },
-    pollEvents(gameId: number, afterSeq: number) {
-      return gameClient.pollEvents(gameId, afterSeq)
+    async pollEvents(gameId: number, afterSeq: number) {
+      const startedAt = Date.now()
+      logger.debug('[app-debug] transport pollEvents start', {
+        ts: startedAt,
+        afterSeq,
+        gameId,
+      })
+
+      try {
+        const result = await gameClient.pollEvents(gameId, afterSeq)
+        logger.debug('[app-debug] transport pollEvents success', {
+          ts: Date.now(),
+          afterSeq,
+          durationMs: Date.now() - startedAt,
+          gameId,
+          eventCount: result.length,
+          lastSeq: result.length > 0 ? result[result.length - 1]?.seq ?? null : null,
+        })
+        return result
+      } catch (error) {
+        logger.warn('[app-debug] transport pollEvents failure', {
+          ts: Date.now(),
+          afterSeq,
+          durationMs: Date.now() - startedAt,
+          gameId,
+          error,
+        })
+        throw error
+      }
     },
   }
 }
 
+/**
+ * Main Onion Web UI shell.
+ *
+ * Implements the three-phase turn handoff contract:
+ *
+ *   1. Inactive phase: Player is not active; event stream is visible and controls are locked.
+ *   2. Acknowledgement phase: Player becomes active, but must acknowledge the new turn ("Begin Turn").
+ *      - The event stream and Begin Turn button are visually highlighted.
+ *      - Only the Begin Turn button is interactable; all other controls remain locked.
+ *   3. Active phase: After acknowledgement, player can interact with the board and controls.
+ *
+ * State is tracked via:
+ *   - `turnGateSnapshot`: Tracks the authoritative game/turn/phase and whether acknowledgement is pending.
+ *   - `acknowledgedActiveTurnKey`: Records the last acknowledged turn key.
+ *   - `inactiveEventAcknowledgementPending`: True if the UI is waiting for the user to acknowledge the new turn.
+ *
+ * See also: docs/web-ui-spec.md (Turn Handoff Contract)
+ */
 function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectionGate = false }: AppProps) {
   const [connectedSession, setConnectedSession] = useState<SessionBinding | null>(null)
+  const [acknowledgedActiveTurnKey, setAcknowledgedActiveTurnKey] = useState<string | null>(null)
+  const [turnGateSnapshot, setTurnGateSnapshot] = useState<{
+    activeGameId: number | null
+    pendingAcknowledgementTurnKey: string | null
+    sessionTurnActive: boolean
+    turnKnown: boolean
+  }>({
+    activeGameId: null,
+    pendingAcknowledgementTurnKey: null,
+    sessionTurnActive: false,
+    turnKnown: false,
+  })
+  const previousDebugStateRef = useRef<{
+    activeGameId: number | null
+    activeTurnOwner: 'onion' | 'defender' | null
+    inactiveEventControlsLocked: boolean
+    inactiveEventScreenLocked: boolean
+    inactiveEventWindowVisible: boolean
+    phaseAdvanceLabel: string | null
+    sessionPhase: string | null
+    sessionRole: 'onion' | 'defender' | null
+    sessionTurnActive: boolean
+    loggedAtMs: number
+  } | null>(null)
+  const previousSessionReloadRef = useRef<{
+    activeGameId: number | null
+    lastAppliedEventSeq: number | null
+    lastAppliedEventType: string | null
+    liveConnection: string | null
+    sessionPhase: string | null
+    sessionRole: 'onion' | 'defender' | null
+    sessionTurnActive: boolean
+    loggedAtMs: number
+  } | null>(null)
 
   const runtimeConnectionSeeded = showConnectionGate
   const liveRefreshQuietWindowMs = runtimeConfig?.liveRefreshQuietWindowMs ?? 500
@@ -112,7 +247,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const activeSessionBinding = useMemo<SessionBinding | null>(() => {
     if (providedRequestTransport !== null && gameId !== undefined) {
       if (typeof window !== 'undefined') {
-        console.info('[app] using provided request transport', {
+        logger.debug('[app] using provided request transport', {
           gameId,
           hasLiveEventSource: liveEventSource !== undefined,
         })
@@ -125,7 +260,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     if (typeof window !== 'undefined') {
-      console.info('[app] using connected session binding', {
+      logger.debug('[app] using connected session binding', {
         hasConnectedSession: connectedSession !== null,
         connectedGameId: connectedSession?.gameId ?? null,
       })
@@ -154,15 +289,76 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const sessionPhase = sessionState.snapshot?.phase ?? null
   const sessionRole = sessionState.session?.role ?? null
+  const sessionTurnNumber = sessionState.snapshot?.turnNumber ?? null
+  const sessionTurnKnown = sessionState.snapshot !== null && sessionRole !== null
   const activeTurnOwner = getPhaseOwner(sessionPhase)
   const sessionTurnActive = sessionState.snapshot !== null && sessionRole !== null && activeTurnOwner === sessionRole
+  const activeGameIdForGate = activeSessionBinding?.gameId ?? null
+  const currentActiveTurnKey =
+    sessionTurnKnown &&
+    sessionTurnActive &&
+    activeGameIdForGate !== null &&
+    sessionTurnNumber !== null &&
+    sessionPhase !== null &&
+    sessionRole !== null
+      ? `${activeGameIdForGate}:${sessionTurnNumber}:${sessionRole}:${sessionPhase}`
+      : null
 
   const inactiveEventStream = useInactiveEventStream({
-    activeGameId: activeSessionBinding?.gameId ?? null,
+    activeGameId: activeGameIdForGate,
     activeTurnActive: sessionTurnActive,
+    currentTurnNumber: sessionTurnNumber,
     lastAppliedEventSeq: sessionState.lastAppliedEventSeq,
     pollEvents: activeSessionBinding?.requestTransport.pollEvents,
   })
+
+  let pendingAcknowledgementTurnKey = turnGateSnapshot.pendingAcknowledgementTurnKey
+  if (turnGateSnapshot.activeGameId !== activeGameIdForGate) {
+    pendingAcknowledgementTurnKey = null
+  } else if (
+    turnGateSnapshot.turnKnown &&
+    !turnGateSnapshot.sessionTurnActive &&
+    sessionTurnActive &&
+    currentActiveTurnKey !== null
+  ) {
+    pendingAcknowledgementTurnKey = currentActiveTurnKey
+  } else if (turnGateSnapshot.turnKnown && turnGateSnapshot.sessionTurnActive && !sessionTurnActive) {
+    pendingAcknowledgementTurnKey = null
+  }
+
+  if (
+    turnGateSnapshot.activeGameId !== activeGameIdForGate ||
+    turnGateSnapshot.pendingAcknowledgementTurnKey !== pendingAcknowledgementTurnKey ||
+    turnGateSnapshot.sessionTurnActive !== sessionTurnActive ||
+    turnGateSnapshot.turnKnown !== sessionTurnKnown
+  ) {
+    setTurnGateSnapshot((current) => {
+      if (
+        current.activeGameId === activeGameIdForGate &&
+        current.pendingAcknowledgementTurnKey === pendingAcknowledgementTurnKey &&
+        current.sessionTurnActive === sessionTurnActive &&
+        current.turnKnown === sessionTurnKnown
+      ) {
+        return current
+      }
+
+      return {
+        activeGameId: activeGameIdForGate,
+        pendingAcknowledgementTurnKey,
+        sessionTurnActive,
+        turnKnown: sessionTurnKnown,
+      }
+    })
+  }
+
+  const inactiveEventAcknowledgementPending =
+    currentActiveTurnKey !== null &&
+    pendingAcknowledgementTurnKey === currentActiveTurnKey &&
+    acknowledgedActiveTurnKey !== currentActiveTurnKey
+
+  const inactiveEventWindowVisible = sessionTurnKnown && (!sessionTurnActive || inactiveEventAcknowledgementPending)
+  const inactiveEventControlsLocked = inactiveEventWindowVisible
+  const inactiveEventScreenLocked = inactiveEventAcknowledgementPending
 
   const interactionState = useBattlefieldInteractionState({
     activeSessionController,
@@ -170,6 +366,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     clientSnapshot: sessionState.snapshot,
     clientSnapshotPhase: sessionPhase,
     isControlledSession: activeSessionBinding !== null,
+    isInteractionLocked: inactiveEventControlsLocked,
+    isSelectionLocked: inactiveEventScreenLocked,
   })
 
   const displayState = useBattlefieldDisplayState({
@@ -181,6 +379,112 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     sessionState,
   })
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const now = Date.now()
+    const currentReloadState = {
+      activeGameId: activeSessionBinding?.gameId ?? null,
+      lastAppliedEventSeq: sessionState.lastAppliedEventSeq,
+      lastAppliedEventType: sessionState.lastAppliedEventType,
+      liveConnection: sessionState.liveConnection,
+      loggedAtMs: now,
+      sessionPhase,
+      sessionRole,
+      sessionTurnActive,
+    }
+    const previousReloadState = previousSessionReloadRef.current
+    const hasChanged =
+      previousReloadState === null ||
+      Object.entries(currentReloadState).some(([key, value]) => previousReloadState[key as keyof typeof previousReloadState] !== value)
+
+    if (!hasChanged) {
+      return
+    }
+
+    logger.debug('[app-debug] session reload', {
+      ts: currentReloadState.loggedAtMs,
+      deltaMs: previousReloadState === null ? null : currentReloadState.loggedAtMs - previousReloadState.loggedAtMs,
+      previous: previousReloadState,
+      current: currentReloadState,
+    })
+
+    previousSessionReloadRef.current = currentReloadState
+  }, [
+    activeSessionBinding?.gameId,
+    sessionPhase,
+    sessionRole,
+    sessionState.lastAppliedEventSeq,
+    sessionState.lastAppliedEventType,
+    sessionState.liveConnection,
+    sessionTurnActive,
+  ])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const now = Date.now()
+    const currentState = {
+      activeGameId: activeSessionBinding?.gameId ?? null,
+      activeTurnOwner,
+      inactiveEventControlsLocked,
+      inactiveEventScreenLocked,
+      inactiveEventWindowVisible,
+      phaseAdvanceLabel: displayState.phaseAdvanceLabel,
+      sessionPhase,
+      sessionRole,
+      sessionTurnActive,
+      loggedAtMs: now,
+    }
+    const previousState = previousDebugStateRef.current
+    const hasChanged =
+      previousState === null ||
+      Object.entries(currentState).some(([key, value]) => previousState[key as keyof typeof previousState] !== value)
+
+    if (!hasChanged) {
+      return
+    }
+
+    logger.debug('[app-debug] turn state transition', {
+      ts: currentState.loggedAtMs,
+      deltaMs: previousState === null ? null : currentState.loggedAtMs - previousState.loggedAtMs,
+      previous: previousState,
+      current: {
+        activeGameId: currentState.activeGameId,
+        activeTurnOwner: currentState.activeTurnOwner,
+        inactiveEntryCount: inactiveEventStream.entries.length,
+        inactiveDismissed: inactiveEventStream.isDismissed,
+        inactiveEventControlsLocked: currentState.inactiveEventControlsLocked,
+        inactiveEventScreenLocked: currentState.inactiveEventScreenLocked,
+        inactiveEventWindowVisible: currentState.inactiveEventWindowVisible,
+        lastAppliedEventSeq: sessionState.lastAppliedEventSeq,
+        phaseAdvanceLabel: currentState.phaseAdvanceLabel,
+        sessionPhase: currentState.sessionPhase,
+        sessionRole: currentState.sessionRole,
+        sessionTurnActive: currentState.sessionTurnActive,
+      },
+    })
+
+    previousDebugStateRef.current = currentState
+  }, [
+    activeSessionBinding?.gameId,
+    activeTurnOwner,
+    displayState.phaseAdvanceLabel,
+    inactiveEventControlsLocked,
+    inactiveEventScreenLocked,
+    inactiveEventStream.entries.length,
+    inactiveEventStream.isDismissed,
+    inactiveEventWindowVisible,
+    sessionPhase,
+    sessionRole,
+    sessionState.lastAppliedEventSeq,
+    sessionTurnActive,
+  ])
+
   const {
     actionError,
     commitClientAction,
@@ -188,15 +492,16 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     handleDismissCombatResolution,
     handleDismissRamResolution,
     handleMoveUnit,
+    handleResolveRamPrompt,
     handleRefresh,
     handleSelectUnit,
     isRefreshing,
+    pendingRamPrompt,
     pendingCombatResolution,
     pendingRamResolution,
     selectedCombatTargetId,
     setActionError,
     setSelectedCombatTargetId,
-    setSelectedUnitIds,
   } = interactionState
 
   const {
@@ -235,6 +540,69 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     shellPhase,
   } = displayState
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const now = Date.now()
+    const currentState = {
+      activeGameId: activeSessionBinding?.gameId ?? null,
+      activeTurnOwner,
+      inactiveEventControlsLocked,
+      inactiveEventScreenLocked,
+      inactiveEventWindowVisible,
+      phaseAdvanceLabel,
+      sessionPhase,
+      sessionRole,
+      sessionTurnActive,
+      loggedAtMs: now,
+    }
+    const previousState = previousDebugStateRef.current
+    const hasChanged =
+      previousState === null ||
+      Object.entries(currentState).some(([key, value]) => previousState[key as keyof typeof previousState] !== value)
+
+    if (!hasChanged) {
+      return
+    }
+
+    logger.debug('[app-debug] turn state transition', {
+      atMs: currentState.loggedAtMs,
+      deltaMs: previousState === null ? null : currentState.loggedAtMs - previousState.loggedAtMs,
+      previous: previousState,
+      current: {
+        activeGameId: currentState.activeGameId,
+        activeTurnOwner: currentState.activeTurnOwner,
+        inactiveEntryCount: inactiveEventStream.entries.length,
+        inactiveDismissed: inactiveEventStream.isDismissed,
+        inactiveEventControlsLocked: currentState.inactiveEventControlsLocked,
+        inactiveEventScreenLocked: currentState.inactiveEventScreenLocked,
+        inactiveEventWindowVisible: currentState.inactiveEventWindowVisible,
+        lastAppliedEventSeq: sessionState.lastAppliedEventSeq,
+        phaseAdvanceLabel: currentState.phaseAdvanceLabel,
+        sessionPhase: currentState.sessionPhase,
+        sessionRole: currentState.sessionRole,
+        sessionTurnActive: currentState.sessionTurnActive,
+      },
+    })
+
+    previousDebugStateRef.current = currentState
+  }, [
+    activeSessionBinding?.gameId,
+    activeTurnOwner,
+    inactiveEventControlsLocked,
+    inactiveEventScreenLocked,
+    inactiveEventStream.entries.length,
+    inactiveEventStream.isDismissed,
+    inactiveEventWindowVisible,
+    phaseAdvanceLabel,
+    sessionPhase,
+    sessionRole,
+    sessionState.lastAppliedEventSeq,
+    sessionTurnActive,
+  ])
+
   const isControlledSession = activeSessionBinding !== null
 
   const {
@@ -246,6 +614,10 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   } = useDebugDiagnostics()
 
   function handleConfirmCombat() {
+    if (inactiveEventControlsLocked) {
+      return
+    }
+
     if (selectedCombatTarget === null || selectedCombatAttackCount === 0 || displayedOnion === null) {
       return
     }
@@ -259,7 +631,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   }
 
   return (
-    <div className="shell" data-phase={shellPhase}>
+    <div className={`shell${inactiveEventScreenLocked ? ' inactive-event-screen-locked' : ''}`} data-phase={shellPhase}>
       {actionError ? <ErrorOverlay message={actionError} placement="app" onDismiss={() => setActionError(null)} /> : null}
       {pendingCombatResolution && selectedCombatTarget !== null ? (
         <CombatResolutionToast
@@ -303,13 +675,57 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             <button
               type="button"
               className="phase-advance-btn"
+              disabled={inactiveEventControlsLocked}
               onClick={() => {
+                logger.debug('[app-debug] phase advance clicked', {
+                  ts: Date.now(),
+                  activeGameId: activeSessionBinding?.gameId ?? null,
+                  activeTurnOwner,
+                  inactiveEventControlsLocked,
+                  inactiveEventScreenLocked,
+                  inactiveEventWindowVisible,
+                  phaseAdvanceLabel,
+                  sessionPhase,
+                  sessionRole,
+                  sessionTurnActive,
+                })
+                if (inactiveEventControlsLocked) {
+                  return
+                }
                 void commitClientAction({ type: 'end-phase' })
               }}
             >
               {phaseAdvanceLabel}
             </button>
           ) : null}
+          {/* Show Begin Turn button when inactive event stream is visible and can be dismissed */}
+          {inactiveEventWindowVisible && (
+            <button
+              type="button"
+              className={`phase-advance-btn begin-turn-btn${sessionTurnActive ? ' begin-turn-btn-ready' : ' disabled'}`}
+              onClick={() => {
+                logger.debug('[app-debug] begin turn clicked', {
+                  ts: Date.now(),
+                  activeGameId: activeSessionBinding?.gameId ?? null,
+                  activeTurnOwner,
+                  inactiveEntryCount: inactiveEventStream.entries.length,
+                  inactiveDismissed: inactiveEventStream.isDismissed,
+                  inactiveEventControlsLocked,
+                  inactiveEventScreenLocked,
+                  inactiveEventWindowVisible,
+                  sessionPhase,
+                  sessionRole,
+                  sessionTurnActive,
+                })
+                inactiveEventStream.clearEntries()
+                setAcknowledgedActiveTurnKey(currentActiveTurnKey)
+              }}
+              aria-label="Begin turn"
+              disabled={!sessionTurnActive}
+            >
+              Begin Turn
+            </button>
+          )}
         </div>
         <div className="header-utility-controls">
           <div className="utility-group-vert">
@@ -327,6 +743,15 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className="refresh-btn"
               title="Refresh game state"
               onClick={() => {
+                logger.debug('[app-debug] refresh clicked', {
+                  ts: Date.now(),
+                  activeGameId: activeSessionBinding?.gameId ?? null,
+                  sessionPhase,
+                  sessionRole,
+                  sessionTurnActive,
+                  inactiveEventWindowVisible,
+                  inactiveEventControlsLocked,
+                })
                 void handleRefresh()
               }}
               aria-label="Refresh"
@@ -381,13 +806,10 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           displayedOnion={displayedOnion}
           isCombatPhase={isCombatPhase}
           isMovementPhase={isMovementPhase}
+          isSelectionLocked={inactiveEventScreenLocked}
           onionWeapons={onionWeapons}
           readyWeaponDetails={readyWeaponDetails}
           selectedCombatAttackLabel={selectedCombatAttackLabel}
-          onSelectDefenderCombatTarget={() => {
-            setSelectedUnitIds([])
-            setSelectedCombatTargetId('onion')
-          }}
           onSelectUnit={handleSelectUnit}
         />
 
@@ -402,6 +824,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             selectedUnitIds={activeSelectedUnitIds}
             combatRangeHexKeys={combatRangeHexKeys}
             combatTargetIds={combatTargetIds}
+            isSelectionLocked={inactiveEventScreenLocked}
+            isInteractionLocked={inactiveEventControlsLocked}
             canSubmitMove={
               activePhase === 'ONION_MOVE' ||
               activePhase === 'DEFENDER_MOVE' ||
@@ -428,7 +852,10 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           activeRole={activeRole}
           activeSelectedUnitCount={activeSelectedUnitIds.length}
           isCombatPhase={isCombatPhase}
-          showInactiveEventStream={!sessionTurnActive}
+          showInactiveEventStream={inactiveEventWindowVisible}
+          isInteractionLocked={inactiveEventControlsLocked}
+          canDismissInactiveEventStream={sessionTurnActive}
+          pendingRamPrompt={pendingRamPrompt}
           selectedCombatAttackCount={selectedCombatAttackCount}
           selectedCombatAttackStrength={selectedCombatAttackStrength}
           selectedCombatTarget={selectedCombatTarget}
@@ -438,6 +865,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           inactiveEventStream={inactiveEventStream}
           combatTargetOptions={combatTargetOptions}
           onConfirmCombat={handleConfirmCombat}
+          onAttemptRam={() => handleResolveRamPrompt(true)}
+          onDeclineRam={() => handleResolveRamPrompt(false)}
           onSelectCombatTarget={setSelectedCombatTargetId}
         />
       </main>

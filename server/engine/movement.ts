@@ -13,8 +13,9 @@ import { getUnitDefinition, isImmobile } from '#server/engine/units'
 import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
 import { findMovePath, type MoveMapSnapshot } from '#shared/movePlanner'
 import { getStopOnOccupiedHexFailure } from '#shared/movementRules'
-import { calculateRamming as calculateSharedRamming } from '#shared/rammingCalculator'
+import { calculateRamming as calculateSharedRamming, resolveRammingOutcome } from '#shared/rammingCalculator'
 import { canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, getUnitRamCapacity, spendUnitMovement } from '#shared/unitMovement'
+import type { RammingOutcome } from '#shared/rammingCalculator'
 
 /**
  * Result of validating a movement command.
@@ -86,6 +87,12 @@ export interface MovementResult {
   treadDamage?: number
   /** Units destroyed by ramming */
   destroyedUnits?: string[]
+  /** Semantic outcomes for each rammed unit */
+  rammedUnitResults?: Array<{
+    unitId: string
+    unitType: string
+    outcome: RammingOutcome
+  }>
   /** Error message if failed */
   error?: string
 }
@@ -177,6 +184,7 @@ function collectPathOccupants(
   for (const pos of path) {
     for (const unit of Object.values(state.defenders)) {
       if (unit.id === movingUnitId) continue
+      if (unit.status === 'destroyed') continue
       if (unit.position.q === pos.q && unit.position.r === pos.r) {
         occupants.push(unit)
       }
@@ -292,7 +300,8 @@ function validateMovePlan(
     }
   }
 
-  const rammedUnits = capabilities.canRam ? collectPathOccupants(state, pathResult.path, unit.id) : []
+  const attemptRam = command.attemptRam !== false
+  const rammedUnits = capabilities.canRam && attemptRam ? collectPathOccupants(state, pathResult.path, unit.id) : []
   const ramCapacityUsed = rammedUnits.length
   const ramCapacityLimit = getUnitRamCapacity(unit.type)
 
@@ -359,13 +368,19 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
   spendUnitMovement(state, state.currentPhase, unit.id, plan.cost)
 
   const destroyedUnits: string[] = []
+  const rammedUnitResults: NonNullable<MovementResult['rammedUnitResults']> = []
   if (plan.capabilities.canRam && plan.ramCapacityUsed > 0) {
     state.ramsThisTurn += plan.ramCapacityUsed
     for (const rammedUnitId of plan.rammedUnitIds) {
       const rammedUnit = state.defenders[rammedUnitId]
       if (!rammedUnit) continue
-      const outcome = calculateRamming(rammedUnit)
-      if (outcome.destroyed) {
+      const outcome = resolveRammingOutcome(rammedUnit.type)
+      rammedUnitResults.push({
+        unitId: rammedUnitId,
+        unitType: rammedUnit.type,
+        outcome,
+      })
+      if (outcome.effect === 'destroyed') {
         rammedUnit.status = 'destroyed'
         destroyedUnits.push(rammedUnitId)
       }
@@ -384,6 +399,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
     ramCapacityUsed: plan.ramCapacityUsed,
     treadDamage,
     destroyedUnits,
+    rammedUnitResults,
   }
 }
 
@@ -625,6 +641,7 @@ export function getRammedUnits(
   const result: string[] = []
   for (const pos of path) {
     for (const [id, unit] of Object.entries(state.defenders)) {
+      if (unit.status === 'destroyed') continue
       if (unit.position.q === pos.q && unit.position.r === pos.r) {
         result.push(id)
       }

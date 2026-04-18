@@ -214,6 +214,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 						type: 'MOVE',
 						unitId: action.unitId,
 						to: action.to,
+						...(action.attemptRam === undefined ? {} : { attemptRam: action.attemptRam }),
 					},
 					fetchImpl,
 				})

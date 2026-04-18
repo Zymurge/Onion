@@ -4,6 +4,40 @@ import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView'
 import type { GameSnapshot } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
+import { buildFriendlyName, getAllUnitDefinitions } from '../../shared/unitDefinitions'
+
+const UNIT_DEFINITIONS = getAllUnitDefinitions()
+
+function getUnitFriendlyNameTemplate(unitType: string): string | undefined {
+  return UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.friendlyNameTemplate
+}
+
+export function resolveBattlefieldUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
+  const explicitFriendlyName = friendlyName?.trim()
+  if (explicitFriendlyName !== undefined && explicitFriendlyName.length > 0) {
+    return explicitFriendlyName
+  }
+
+  const template = getUnitFriendlyNameTemplate(unitType)
+  if (template !== undefined && unitId !== undefined) {
+    return buildFriendlyName(template, unitId)
+  }
+
+  return unitId ?? unitType
+}
+
+export function resolveBattlefieldWeaponName(weapon: Weapon): string {
+  const explicitFriendlyName = weapon.friendlyName?.trim()
+  if (explicitFriendlyName !== undefined && explicitFriendlyName.length > 0) {
+    return explicitFriendlyName
+  }
+
+  if (weapon.friendlyNameTemplate !== undefined) {
+    return buildFriendlyName(weapon.friendlyNameTemplate, weapon.id)
+  }
+
+  return weapon.name
+}
 
 export function getPhaseOwner(phase: TurnPhase | null): 'onion' | 'defender' | null {
   if (phase === null) {
@@ -254,6 +288,7 @@ export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhas
       return {
         id: resolvedDefenderId,
         type: defender.type,
+        friendlyName: resolveBattlefieldUnitName(defender.type, resolvedDefenderId, defender.friendlyName),
         status: defender.status,
         q: defender.position.q,
         r: defender.position.r,
@@ -301,6 +336,7 @@ export function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | 
   return {
     id: onion.id ?? 'onion-1',
     type: onion.type ?? 'TheOnion',
+    friendlyName: resolveBattlefieldUnitName(onion.type ?? 'TheOnion', onion.id ?? 'onion-1', onion.friendlyName),
     q: onion.position.q,
     r: onion.position.r,
     status: onion.status ?? 'operational',

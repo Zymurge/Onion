@@ -25,6 +25,7 @@ export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
 export type BattlefieldUnit = {
   id: string
   type: string
+  friendlyName?: string
   status: UnitStatus
   q: number
   r: number
@@ -41,6 +42,7 @@ export type BattlefieldUnit = {
 export type BattlefieldOnionView = {
   id: string
   type: string
+  friendlyName?: string
   q: number
   r: number
   status: string

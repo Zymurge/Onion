@@ -219,6 +219,15 @@ describe('getRammedUnits', () => {
     expect(result).toContain('d1')
     expect(result).toContain('d2')
   })
+
+  it('ignores destroyed defenders on the path', () => {
+    const liveDefender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const destroyedDefender = makeDefender({ id: 'd2', position: { q: 1, r: 0 }, status: 'destroyed' })
+    const state = makeState({ defenders: { d1: liveDefender, d2: destroyedDefender } })
+    const path = [{ q: 1, r: 0 }]
+
+    expect(getRammedUnits(CLEAR_MAP, state, path)).toEqual(['d1'])
+  })
 })
 
 // ─── validateUnitMovement ────────────────────────────────────────────────────
@@ -343,6 +352,41 @@ describe('validateUnitMovement', () => {
     })
   })
 
+  it('allows an Onion move to skip ramming when attemptRam is false', () => {
+    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const state = makeState({ ramsThisTurn: 1, defenders: { d1: defender } })
+
+    const result = validateUnitMovement(CLEAR_MAP, state, {
+      type: 'MOVE',
+      unitId: 'onion',
+      to: { q: 1, r: 0 },
+      attemptRam: false,
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      throw new Error(`Expected validated plan, got ${result.code}`)
+    }
+    expect(result.plan.rammedUnitIds).toEqual([])
+    expect(result.plan.ramCapacityUsed).toBe(0)
+    expect(result.plan.treadCost).toBe(0)
+  })
+
+  it('ignores destroyed defenders when counting rams on the path', () => {
+    const liveDefender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const destroyedDefender = makeDefender({ id: 'd2', position: { q: 1, r: 0 }, status: 'destroyed' })
+    const state = makeState({ ramsThisTurn: 1, defenders: { d1: liveDefender, d2: destroyedDefender } })
+
+    const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 1, r: 0 } })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      throw new Error(`Expected validated plan, got ${result.code}`)
+    }
+    expect(result.plan.rammedUnitIds).toEqual(['d1'])
+    expect(result.plan.ramCapacityUsed).toBe(1)
+  })
+
   it('returns HEX_OCCUPIED when a defender tries to end movement in an occupied hex', () => {
     const mover = makeDefender({ id: 'd1', type: 'Puss', position: { q: 0, r: 0 } })
     const occupier = makeDefender({ id: 'd2', type: 'BigBadWolf', position: { q: 1, r: 0 } })
@@ -439,5 +483,17 @@ describe('executeUnitMovement', () => {
     expect(result.rammedUnitIds).toEqual(['d1'])
     expect(result.ramCapacityUsed).toBe(1)
     expect(result.treadDamage).toBe(1)
+    expect(result.rammedUnitResults).toHaveLength(1)
+    expect(result.rammedUnitResults?.[0]).toEqual(
+      expect.objectContaining({
+        unitId: 'd1',
+        unitType: 'Puss',
+        outcome: expect.objectContaining({
+          treadCost: 1,
+          roll: expect.any(Number),
+          effect: expect.stringMatching(/^(destroyed|survived)$/),
+        }),
+      }),
+    )
   })
 })
