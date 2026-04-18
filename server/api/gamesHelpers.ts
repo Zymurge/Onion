@@ -274,6 +274,7 @@ export function buildMoveEvents(
 
   const rammedUnitIds = result.rammedUnitIds ?? []
   const destroyedUnitIds = result.destroyedUnits ?? []
+  const rammedUnitResults = Array.isArray(result.rammedUnitResults) ? result.rammedUnitResults : []
   if (rammedUnitIds.length > 0 || destroyedUnitIds.length > 0 || (result.treadDamage ?? 0) > 0) {
     events.push({
       seq: seq++,
@@ -283,6 +284,14 @@ export function buildMoveEvents(
       unitFriendlyName: moveUnitFriendlyName,
       rammedUnitIds,
       rammedUnitFriendlyNames: rammedUnitIds.map((unitId: string) => resolveUnitFriendlyName(state, unitId)),
+      rammedUnitResults: rammedUnitResults.map((ramResult: { unitId: string; unitType: string; outcome: { effect: string; roll: number; treadCost: number } }) => ({
+        unitId: ramResult.unitId,
+        unitFriendlyName: resolveUnitFriendlyName(state, ramResult.unitId),
+        unitType: ramResult.unitType,
+        effect: ramResult.outcome.effect,
+        roll: ramResult.outcome.roll,
+        treadCost: ramResult.outcome.treadCost,
+      })),
       destroyedUnitIds,
       destroyedUnitFriendlyNames: destroyedUnitIds.map((unitId: string) => resolveUnitFriendlyName(state, unitId)),
       treadDamage: result.treadDamage ?? 0,

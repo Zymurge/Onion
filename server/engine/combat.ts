@@ -108,6 +108,24 @@ export interface CombatExecutionResult {
   error?: string
 }
 
+export type CombatOutcomeEffect =
+  | 'no-effect'
+  | 'disabled'
+  | 'destroyed'
+  | 'squad-loss'
+  | 'tread-loss'
+  | 'weapon-destroyed'
+
+export interface CombatOutcomeResolution {
+  targetId: string
+  effect: CombatOutcomeEffect
+  result: CombatResult
+  squadsLost?: number
+  treadsLost?: number
+  weaponId?: string
+  weaponDestroyed?: string
+}
+
 type FireCommand = Extract<Command, { type: 'FIRE' }>
 
 const COMBAT_STATIC_RULES = ONION_STATIC_RULES
@@ -270,6 +288,47 @@ function toLegacyResult(result: CombatExecutionResult): CombatResultDetails {
       ...(result.squadsLost !== undefined ? { squadsLost: result.squadsLost } : {}),
     },
   }
+}
+
+export function resolveCombatOutcome(
+  target: GameUnit,
+  result: CombatResult,
+  attackStrength: number,
+  weaponId?: string,
+): CombatOutcomeResolution {
+  if (target.type === 'TheOnion') {
+    if (result !== 'X') {
+      return { targetId: target.id, effect: 'no-effect', result }
+    }
+
+    if (weaponId !== undefined) {
+      return { targetId: target.id, effect: 'weapon-destroyed', result, weaponId, weaponDestroyed: weaponId }
+    }
+
+    return { targetId: target.id, effect: 'tread-loss', result, treadsLost: attackStrength }
+  }
+
+  if (target.type === 'LittlePigs') {
+    if (result === 'NE') {
+      return { targetId: target.id, effect: 'no-effect', result }
+    }
+
+    if (result === 'D') {
+      return { targetId: target.id, effect: 'squad-loss', result, squadsLost: 1 }
+    }
+
+    return { targetId: target.id, effect: 'destroyed', result }
+  }
+
+  if (result === 'NE') {
+    return { targetId: target.id, effect: 'no-effect', result }
+  }
+
+  if (result === 'D') {
+    return { targetId: target.id, effect: 'disabled', result }
+  }
+
+  return { targetId: target.id, effect: 'destroyed', result }
 }
 
 export function validateCombatAction(
@@ -624,43 +683,42 @@ export function applyDamage(
   unitDestroyed?: boolean
   squadsLost?: number
 } {
-  if (target.type === 'TheOnion') {
-    const onion = target as OnionUnit
-    if (result !== 'X') return {}
-    if (weaponId) {
-      destroyWeapon(onion, weaponId)
-      return { weaponDestroyed: weaponId }
-    }
-    // Tread attack: X → lose treads equal to attack strength
-    const lost = attackStrength
-    onion.treads = Math.max(0, onion.treads - lost)
-    return { treads: lost }
-  }
+  const outcome = resolveCombatOutcome(target, result, attackStrength, weaponId)
 
-  // Defender unit
-  if (result === 'NE') return {}
-
-  if (target.type === 'LittlePigs') {
-    if (result === 'X') {
+  switch (outcome.effect) {
+    case 'no-effect':
+      return {}
+    case 'disabled':
+      target.status = 'disabled'
+      return {}
+    case 'destroyed':
       target.status = 'destroyed'
       return { unitDestroyed: true }
+    case 'squad-loss': {
+      const pigs = target as DefenderUnit & { squads?: number }
+      const squads = (pigs.squads ?? 1) - (outcome.squadsLost ?? 0)
+      pigs.squads = squads
+      if (squads <= 0) {
+        pigs.status = 'destroyed'
+        return { squadsLost: outcome.squadsLost, unitDestroyed: true }
+      }
+      return { squadsLost: outcome.squadsLost }
     }
-    // D: remove one squad
-    const squads = (target.squads ?? 1) - 1
-    target.squads = squads
-    if (squads <= 0) {
-      target.status = 'destroyed'
+    case 'tread-loss': {
+      const onion = target as OnionUnit
+      const lost = outcome.treadsLost ?? attackStrength
+      onion.treads = Math.max(0, onion.treads - lost)
+      return { treads: lost }
     }
-    return { squadsLost: 1 }
+    case 'weapon-destroyed': {
+      const onion = target as OnionUnit
+      if (outcome.weaponDestroyed !== undefined) {
+        destroyWeapon(onion, outcome.weaponDestroyed)
+        return { weaponDestroyed: outcome.weaponDestroyed }
+      }
+      return {}
+    }
   }
-
-  if (result === 'D') {
-    target.status = 'disabled'
-    return {}
-  }
-  // X
-  target.status = 'destroyed'
-  return { unitDestroyed: true }
 }
 
 /**

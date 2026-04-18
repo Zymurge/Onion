@@ -188,6 +188,13 @@ All UI behaviors are covered by regression tests, including the acknowledgement 
 - Integration tests focus on UI and API wiring.
 - Connected game-screen tests must prove that the defender roster, selected-unit inspector, and hex-board bounds come from authoritative game state and scenario map data.
 
+## Combat Event Display
+
+- The inactive event stream renders resolved combat outcomes, not raw CRT letters.
+- Combat summaries and detail lines should use the target-specific semantic result produced by the engine.
+- UI copy should prefer friendly names for units and weapons whenever the event payload provides them.
+- When a follow-up event changes the final state, the stream should reflect the final resolved effect rather than the intermediate table letter.
+
 ## Open Issues / Future State
 
 1. Spectator mode is needed for this track, or post-1.0.

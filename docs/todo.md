@@ -7,6 +7,13 @@ break down into features/tasks as needed.
 
 ## Epics / Major Work
 
+- [ ] HQ / Command Post target resolution and victory handling
+  - [ ] Define the HQ target model and combat resolution rules for weapon, tread, and ram attacks.
+  - [ ] Clarify and implement which outcomes count as destruction versus no effect for HQ-specific attacks.
+  - [ ] Wire HQ destruction into victory detection, event emission, and end-of-game handling.
+  - [ ] Add UI/spec copy for HQ attack resolution and victory feedback.
+  - [ ] Add regression tests for HQ combat, ramming, and victory condition behavior.
+
 - [ ] Improve error handling (UI and backend)
   - [x] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
   - [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.

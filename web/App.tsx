@@ -98,9 +98,9 @@ function createRequestTransportFromGameClient(
           durationMs: Date.now() - startedAt,
           ts: Date.now(),
           gameId,
-          phase: result.snapshot?.phase ?? null,
-          lastAppliedEventSeq: result.lastAppliedEventSeq ?? null,
-          sessionRole: result.session?.role ?? null,
+          phase: result.snapshot.phase,
+          lastEventSeq: result.snapshot.lastEventSeq,
+          sessionRole: result.session.role,
         })
         return result
       } catch (error) {
@@ -128,9 +128,9 @@ function createRequestTransportFromGameClient(
           action,
           durationMs: Date.now() - startedAt,
           gameId,
-          phase: result?.snapshot?.phase ?? null,
-          lastAppliedEventSeq: result?.lastAppliedEventSeq ?? null,
-          sessionRole: result?.session?.role ?? null,
+          phase: result.phase,
+          lastEventSeq: result.lastEventSeq,
+          sessionRole: null,
         })
         return result
       } catch (error) {

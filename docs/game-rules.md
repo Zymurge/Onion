@@ -80,6 +80,14 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
 - **Multi-attacker FIRE**: Multiple units can combine their attack strength against a single target (unless attacking Treads).
 - **CRT Tables & Odds**: Ratios rounded down in favor of the defender.
 
+Combat resolution is modeled as a three-step pipeline:
+
+1. **Roll resolution** converts the attack odds and die roll into a CRT letter (`NE`, `D`, or `X`).
+2. **Target resolution** converts that letter into a semantic combat result using the target type and attack context.
+3. **Result handling** applies the semantic effect to game state and emits the corresponding event data.
+
+This separation keeps the CRT table authoritative while still allowing target-specific behavior. For example, a `D` against a normal defender resolves to `disabled`, while the same letter can resolve differently for stacked infantry or special Onion subsystems when the target rules require it.
+
   | Roll | 1:2 | 1:1 | 2:1 | 3:1 | 4:1 |
   | :--- | :--- | :--- | :--- | :--- | :--- |
   | 1 | NE | NE | NE | D | D |
@@ -89,8 +97,8 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
   | 5 | D | X | X | X | X |
   | 6 | X | X | X | X | X |
 
-  - **1:3 or less**: Always NE regardless of roll.
-  - **5:1 or more**: Always X (Destroyed) regardless of roll.
+- **1:3 or less**: Always NE regardless of roll.
+- **5:1 or more**: Always X (Destroyed) regardless of roll.
 - **Infantry Stacks**: Each squad in a stack can attack individually or combine with others.
 
 ### 3. The Onion (Super-Unit) Damage
@@ -111,6 +119,10 @@ The Onion does not follow the standard CRT for destruction. Attackers must targe
   - **Secondary Battery**: Defense 3.
   - **AP (Anti-Personnel)**: Defense 1.
   - **Missiles**: Defense 3.
+
+For Onion subsystems, only an **"X" (Destroyed)** result has an effect. A "D" (Disabled) result is **No Effect (NE)**. The exact effect of an "X" depends on the subsystem: treads lose tread points equal to the attacker’s strength, while a targeted weapon system is destroyed.
+
+The same resolution pipeline also applies to subsystems and ramming: the roll produces the CRT letter, target rules interpret that letter for the specific target type, and the result handler applies the correct state change.
 
 ## Turn Structure
 

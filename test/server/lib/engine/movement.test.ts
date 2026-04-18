@@ -483,5 +483,17 @@ describe('executeUnitMovement', () => {
     expect(result.rammedUnitIds).toEqual(['d1'])
     expect(result.ramCapacityUsed).toBe(1)
     expect(result.treadDamage).toBe(1)
+    expect(result.rammedUnitResults).toHaveLength(1)
+    expect(result.rammedUnitResults?.[0]).toEqual(
+      expect.objectContaining({
+        unitId: 'd1',
+        unitType: 'Puss',
+        outcome: expect.objectContaining({
+          treadCost: 1,
+          roll: expect.any(Number),
+          effect: expect.stringMatching(/^(destroyed|survived)$/),
+        }),
+      }),
+    )
   })
 })
