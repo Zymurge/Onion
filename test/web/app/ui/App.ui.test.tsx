@@ -714,6 +714,15 @@ describe('App UI', () => {
 
 		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
 
+		const onionRailButton = screen.getByTestId('combat-unit-onion-1')
+		await user.click(onionRailButton)
+		expect(onionRailButton.getAttribute('data-selected')).toBe('true')
+		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('The Onion 1')
+
+		const onionMapUnit = screen.getByTestId('hex-unit-onion-1')
+		await user.click(onionMapUnit)
+		expect(onionMapUnit.getAttribute('data-selected')).toBe('true')
+
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {

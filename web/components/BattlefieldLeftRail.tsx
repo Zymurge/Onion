@@ -10,14 +10,13 @@ type BattlefieldLeftRailProps = {
   displayedOnion: BattlefieldOnionView | null
   isCombatPhase: boolean
   isMovementPhase: boolean
-  isInteractionLocked: boolean
+  isSelectionLocked: boolean
   onionWeapons: {
     operationalWeapons: number
     operationalMissiles: number
   }
   readyWeaponDetails: ReadonlyArray<Weapon>
   selectedCombatAttackLabel: string
-  onSelectDefenderCombatTarget: () => void
   onSelectUnit: (unitId: string, additive?: boolean) => void
 }
 
@@ -29,11 +28,10 @@ export function BattlefieldLeftRail({
   displayedOnion,
   isCombatPhase,
   isMovementPhase,
-  isInteractionLocked,
+  isSelectionLocked,
   onionWeapons,
   readyWeaponDetails,
   selectedCombatAttackLabel,
-  onSelectDefenderCombatTarget,
   onSelectUnit,
 }: BattlefieldLeftRailProps) {
   return (
@@ -67,11 +65,11 @@ export function BattlefieldLeftRail({
                       type="button"
                       className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}`}
                       aria-pressed={isSelected}
-                      disabled={isInteractionLocked}
+                      disabled={isSelectionLocked}
                       data-selected={isSelected}
                       data-testid={`combat-weapon-${weapon.id}`}
                       onClick={(event) => {
-                        if (isInteractionLocked) {
+                        if (isSelectionLocked) {
                           event.preventDefault()
                           event.stopPropagation()
                           return
@@ -108,12 +106,12 @@ export function BattlefieldLeftRail({
                       `tone-${statusTone(unit.status)}`,
                     ].join(' ')}
                     aria-pressed={isSelected}
-                      disabled={isInteractionLocked}
+                      disabled={isSelectionLocked}
                     data-selected={isSelected}
                     data-testid={`combat-unit-${unit.id}`}
                     title={isDestroyed ? 'Destroyed units cannot attack.' : !isActionable ? 'This unit is not eligible to attack.' : undefined}
                     onClick={(event) => {
-                        if (isInteractionLocked) {
+                        if (isSelectionLocked) {
                           event.preventDefault()
                           event.stopPropagation()
                           return
@@ -144,11 +142,11 @@ export function BattlefieldLeftRail({
                 type="button"
                 className={`onion-card-button ${activeSelectedUnitIds.includes(displayedOnion.id) ? 'is-selected' : ''}`}
                 aria-pressed={activeSelectedUnitIds.includes(displayedOnion.id)}
-                disabled={isInteractionLocked}
+                disabled={isSelectionLocked}
                 data-selected={activeSelectedUnitIds.includes(displayedOnion.id)}
                 data-testid={`combat-unit-${displayedOnion.id}`}
                 onClick={(event) => {
-                  if (isInteractionLocked) {
+                  if (isSelectionLocked) {
                     event.preventDefault()
                     event.stopPropagation()
                     return
@@ -200,11 +198,11 @@ export function BattlefieldLeftRail({
                         `tone-${statusTone(unit.status)}`,
                       ].join(' ')}
                       aria-pressed={isSelected}
-                      disabled={isInteractionLocked || isDestroyed}
+                      disabled={isSelectionLocked || isDestroyed}
                       data-selected={isSelected}
                       data-testid={`combat-unit-${unit.id}`}
                       onClick={(event) => {
-                        if (isInteractionLocked) {
+                        if (isSelectionLocked) {
                           event.preventDefault()
                           event.stopPropagation()
                           return
@@ -215,7 +213,7 @@ export function BattlefieldLeftRail({
                           return
                         }
                         event.stopPropagation()
-                        onSelectDefenderCombatTarget()
+                        onSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                       }}
                     >
                       <div className="weapon-card-name">{unit.friendlyName ?? unit.type}</div>

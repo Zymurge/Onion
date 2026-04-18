@@ -508,7 +508,7 @@ describe('HexMapBoard', () => {
 		expect(onSelectUnit).toHaveBeenCalledWith('onion-1', false)
 	})
 
-	it('selects a defender target directly from the map during Onion combat', () => {
+	it('inspects a defender from the map during Onion combat without selecting a combat target', () => {
 		const onSelectCombatTarget = vi.fn()
 		const onSelectUnit = vi.fn()
 
@@ -529,8 +529,8 @@ describe('HexMapBoard', () => {
 		)
 
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'))
-		expect(onSelectCombatTarget).toHaveBeenCalledWith('puss-1')
-		expect(onSelectUnit).not.toHaveBeenCalled()
+		expect(onSelectUnit).toHaveBeenCalledWith('puss-1', false)
+		expect(onSelectCombatTarget).not.toHaveBeenCalled()
 	})
 
 	it('selects a defender target from a right-click during Onion combat', () => {
@@ -556,7 +556,7 @@ describe('HexMapBoard', () => {
 		expect(onSelectCombatTarget).toHaveBeenCalledWith('puss-1')
 	})
 
-	it('maps defender combat clicks on the Onion to the treads target id', () => {
+	it('selects the Onion treads as a combat target from a right-click during defender combat', () => {
 		const onSelectCombatTarget = vi.fn()
 
 		render(
@@ -576,7 +576,7 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
+		fireEvent.contextMenu(screen.getByTestId('hex-unit-onion-1'))
 		expect(onSelectCombatTarget).toHaveBeenCalledWith('onion-1:treads')
 		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-cell-0-0').getAttribute('class')).toContain('hex-cell-selected')
@@ -685,10 +685,10 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-cell-selected')
 
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
-		expect(onSelectUnit).not.toHaveBeenCalled()
+		expect(onSelectUnit).toHaveBeenCalledWith('puss-1', true)
 
 		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
-		expect(onSelectUnit).not.toHaveBeenCalled()
+		expect(onSelectUnit).toHaveBeenCalledWith('onion-1', false)
 	})
 
 	it('removes a unit from a ctrl-clicked selection group while preserving the rest', () => {
@@ -711,7 +711,7 @@ describe('HexMapBoard', () => {
 		expect(onSelectUnit).toHaveBeenCalledWith('puss-1', true)
 	})
 
-	it('does not allow Onion combat board clicks to alter the attacker group', () => {
+	it('allows Onion combat board clicks to inspect units without changing combat targeting', () => {
 		const onSelectUnit = vi.fn()
 
 		render(
@@ -729,9 +729,9 @@ describe('HexMapBoard', () => {
 		)
 
 		fireEvent.click(screen.getByTestId('hex-unit-onion-1'), { ctrlKey: true })
-		expect(onSelectUnit).not.toHaveBeenCalled()
+		expect(onSelectUnit).toHaveBeenCalledWith('onion-1', true)
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
-		expect(onSelectUnit).not.toHaveBeenCalled()
+		expect(onSelectUnit).toHaveBeenCalledWith('puss-1', true)
 		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 	})

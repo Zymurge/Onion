@@ -366,6 +366,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     clientSnapshotPhase: sessionPhase,
     isControlledSession: activeSessionBinding !== null,
     isInteractionLocked: inactiveEventControlsLocked,
+    isSelectionLocked: inactiveEventScreenLocked,
   })
 
   const displayState = useBattlefieldDisplayState({
@@ -500,7 +501,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     selectedCombatTargetId,
     setActionError,
     setSelectedCombatTargetId,
-    setSelectedUnitIds,
   } = interactionState
 
   const {
@@ -805,14 +805,10 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           displayedOnion={displayedOnion}
           isCombatPhase={isCombatPhase}
           isMovementPhase={isMovementPhase}
-          isInteractionLocked={inactiveEventControlsLocked}
+          isSelectionLocked={inactiveEventScreenLocked}
           onionWeapons={onionWeapons}
           readyWeaponDetails={readyWeaponDetails}
           selectedCombatAttackLabel={selectedCombatAttackLabel}
-          onSelectDefenderCombatTarget={() => {
-            setSelectedUnitIds([])
-            setSelectedCombatTargetId('onion')
-          }}
           onSelectUnit={handleSelectUnit}
         />
 
@@ -827,6 +823,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             selectedUnitIds={activeSelectedUnitIds}
             combatRangeHexKeys={combatRangeHexKeys}
             combatTargetIds={combatTargetIds}
+            isSelectionLocked={inactiveEventScreenLocked}
             isInteractionLocked={inactiveEventControlsLocked}
             canSubmitMove={
               activePhase === 'ONION_MOVE' ||

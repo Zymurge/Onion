@@ -12,6 +12,7 @@ type UseBattlefieldInteractionStateOptions = {
   clientSnapshotPhase: TurnPhase | null
   isControlledSession: boolean
   isInteractionLocked: boolean
+  isSelectionLocked: boolean
 }
 
 type RamPrompt = {
@@ -112,6 +113,7 @@ export function useBattlefieldInteractionState({
   clientSnapshotPhase,
   isControlledSession,
   isInteractionLocked,
+  isSelectionLocked,
 }: UseBattlefieldInteractionStateOptions) {
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
@@ -248,7 +250,7 @@ export function useBattlefieldInteractionState({
   }
 
   function handleSelectUnit(unitId: string, additive = false) {
-    if (isInteractionLocked) {
+    if (isSelectionLocked) {
       return
     }
 
@@ -284,7 +286,7 @@ export function useBattlefieldInteractionState({
   }
 
   function handleDeselectUnit() {
-    if (isInteractionLocked) {
+    if (isSelectionLocked) {
       return
     }
 

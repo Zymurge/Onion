@@ -24,6 +24,7 @@ type HexMapBoardProps = {
   combatRangeHexKeys?: ReadonlySet<string>
   combatTargetIds?: ReadonlySet<string>
   canSubmitMove?: boolean
+  isSelectionLocked?: boolean
   isInteractionLocked?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
   onSelectCombatTarget?: (targetId: string) => void
@@ -61,7 +62,7 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, isInteractionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, isSelectionLocked = false, isInteractionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const [moveError, setMoveError] = useState<string | null>(null)
@@ -347,7 +348,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                     cellOccupants.length > 0 ? 'hex-cell-occupied' : '',
                   ].join(' ')}
                   onClick={() => {
-                    if (isInteractionLocked) {
+                    if (isSelectionLocked) {
                       return
                     }
 
@@ -356,7 +357,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                   onContextMenu={(event) => {
                     event.preventDefault()
 
-                    if (isInteractionLocked) {
+                    if (isSelectionLocked) {
                       return
                     }
 
@@ -442,34 +443,13 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                         ].join(' ')}
                         transform={`translate(${offset.dx}, ${offset.dy})`}
                         onClick={(event) => {
-                          if (isInteractionLocked) {
+                          if (isSelectionLocked) {
                             event.stopPropagation()
                             return
                           }
 
                           event.stopPropagation()
 
-                          if (isCombatPhase && viewerRole !== activeCombatRole) {
-                            onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
-                            return
-                          }
-
-                          if (selectCombatTarget(occupant)) {
-                            return
-                          }
-
-                          const occupantIsActiveCombatSide = activeCombatRole === 'onion' ? isOccupantOnion : activeCombatRole === 'defender' ? !isOccupantOnion : false
-
-                          if (isCombatPhase && !occupantIsActiveCombatSide) {
-                            onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
-                            return
-                          }
-
-                          if (activeCombatRole === 'onion') {
-                            return
-                          }
-
-                          // Always update inspector for any non-combat unit click, even if not eligible for action
                           onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
                         }}
                       >
