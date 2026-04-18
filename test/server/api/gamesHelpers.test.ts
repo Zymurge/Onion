@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCombatEvents } from '#server/api/gamesHelpers'
+import { buildCombatEvents, buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gamesHelpers'
+import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
 
 describe('buildCombatEvents', () => {
@@ -91,5 +92,113 @@ describe('buildCombatEvents', () => {
       attackerFriendlyNames: ['Little Pigs 1'],
       targetFriendlyName: 'AP Gun 1',
     })
+  })
+})
+
+describe('buildVictoryObjectiveStates', () => {
+  it('marks each scenario-defined objective independently', () => {
+    const scenarioSnapshot = {
+      victoryConditions: {
+        objectives: [
+          { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
+          { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+        ],
+      },
+    }
+
+    const scenarioMap = materializeScenarioMap({
+      width: 3,
+      height: 3,
+      cells: [{ q: 0, r: 0 }],
+      hexes: [],
+    })
+
+    const state: GameState = {
+      onion: {
+        id: 'onion-1',
+        type: 'TheOnion',
+        position: { q: 10, r: 10 },
+        status: 'operational',
+        weapons: [],
+        treads: 45,
+        batteries: { main: 1, secondary: 4, ap: 8 },
+      },
+      defenders: {
+        swamp: {
+          id: 'swamp',
+          type: 'Swamp',
+          position: { q: 0, r: 0 },
+          status: 'destroyed',
+          weapons: [],
+        },
+      },
+    }
+
+    const objectives = buildVictoryObjectiveStates(scenarioSnapshot as any, scenarioMap, state)
+
+    expect(objectives).toEqual([
+      {
+        id: 'destroy-swamp',
+        label: 'Destroy The Swamp',
+        kind: 'destroy-unit',
+        required: true,
+        unitType: 'Swamp',
+        completed: true,
+      },
+      {
+        id: 'escape-off-map',
+        label: 'Escape off map',
+        kind: 'escape-map',
+        required: true,
+        completed: true,
+      },
+    ])
+  })
+
+  it('does not declare a winner until all required objectives are complete', () => {
+    const scenarioMap = materializeScenarioMap({
+      width: 3,
+      height: 3,
+      cells: [{ q: 0, r: 0 }],
+      hexes: [],
+    })
+
+    const match = {
+      scenarioSnapshot: {
+        map: scenarioMap,
+        victoryConditions: {
+          objectives: [
+            { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
+            { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+          ],
+        },
+      },
+      players: { onion: 'onion-user', defender: 'defender-user' },
+      winner: null,
+      events: [],
+    }
+
+    const state: GameState = {
+      onion: {
+        id: 'onion-1',
+        type: 'TheOnion',
+        position: { q: 0, r: 0 },
+        status: 'operational',
+        weapons: [],
+        treads: 45,
+        batteries: { main: 1, secondary: 4, ap: 8 },
+      },
+      defenders: {
+        swamp: {
+          id: 'swamp',
+          type: 'Swamp',
+          position: { q: 0, r: 0 },
+          status: 'destroyed',
+          weapons: [],
+        },
+      },
+    }
+
+    expect(computeWinnerUserId(match as any, state, 'ONION_MOVE', 1)).toBeNull()
   })
 })

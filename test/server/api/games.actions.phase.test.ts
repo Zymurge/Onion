@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildApp } from '#server/app'
 import { StaleMatchStateError } from '#server/db/adapter'
 import * as engineGameInternal from '#server/engine/game'
+import { materializeScenarioMap } from '#shared/scenarioMap'
 import { createGame, endPhase, getEvents, joinGame, register } from './helpers.js'
 
 describe('POST /games/:id/actions END_PHASE', () => {
@@ -225,7 +226,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
         gameId,
         scenarioId: 'swamp-siege-01',
         scenarioSnapshot: {
-          map: { width: 22, height: 14, hexes: [] },
+          map: materializeScenarioMap({ radius: 10, hexes: [] }),
           victoryConditions: { maxTurns: 20 },
         },
         players: { onion: onionId, defender: defenderId },

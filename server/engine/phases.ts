@@ -114,12 +114,6 @@ export function checkVictoryConditions(
   turnNumber: number,
   maxTurns: number
 ): 'onion' | 'defender' | null {
-  // Onion wins by destroying the Swamp objective
-  const swamp = Object.values(state.defenders).find(unit => unit.type === 'Swamp')
-  if (swamp && swamp.status === 'destroyed') {
-    return 'onion'
-  }
-
   // Defender wins by immobilizing the Onion (treads = 0) or destroying it
   if (state.onion.treads <= 0 || state.onion.status === 'destroyed') {
     return 'defender'

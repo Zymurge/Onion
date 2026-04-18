@@ -86,14 +86,14 @@ describe('checkVictoryConditions', () => {
     expect(checkVictoryConditions(state, 1, 10)).toBe(null)
   })
 
-  it('returns onion when Swamp is destroyed', () => {
+  it('returns null when Swamp is destroyed but Onion can still move', () => {
     const state = makeState({
       defenders: {
         swamp: makeUnit({ type: 'Swamp' as any, id: 'swamp', status: 'destroyed' }),
         puss: makeUnit({ type: 'Puss', id: 'puss' }),
       },
     })
-    expect(checkVictoryConditions(state, 1, 10)).toBe('onion')
+    expect(checkVictoryConditions(state, 1, 10)).toBe(null)
   })
 
   it('returns defender when Onion treads are 0', () => {
@@ -117,16 +117,6 @@ describe('checkVictoryConditions', () => {
     expect(checkVictoryConditions(state, 1, 10)).toBe('defender')
   })
 
-  it('prioritizes Swamp destruction over Onion immobilization', () => {
-    const state = makeState({
-      onion: makeOnion({ treads: 0 }),
-      defenders: {
-        swamp: makeUnit({ type: 'Swamp' as any, id: 'swamp', status: 'destroyed' }),
-        puss: makeUnit({ type: 'Puss', id: 'puss' }),
-      },
-    })
-    expect(checkVictoryConditions(state, 1, 10)).toBe('onion')
-  })
 })
 
 describe('advancePhase', () => {

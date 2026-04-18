@@ -359,7 +359,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     executeSpy.mockRestore()
   })
 
-  it('persists winner when Onion destroys the Castle via combat', async () => {
+  it('does not persist a winner when Onion destroys a non-objective defender via combat', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
     const fiona = await register(app, 'fiona')
@@ -404,7 +404,6 @@ describe('POST /games/:id/actions combat API contract', () => {
       headers: { authorization: `Bearer ${shrek.token}` },
     })
     const body = stateRes.json()
-    expect(body.winner).not.toBeNull()
-    expect(body.winner).toBe('onion')
+    expect(body.winner).toBeNull()
   })
 })

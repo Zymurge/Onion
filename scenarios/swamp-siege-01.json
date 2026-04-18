@@ -2,7 +2,7 @@
   "id": "swamp-siege-01",
   "name": "swamp-siege-01",
   "displayName": "The Siege of Shrek's Swamp",
-  "description": "The Onion must cross the ridgeline and destroy the Castle while defenders hold the line.",
+  "description": "The Onion must destroy The Swamp and escape off-map while defenders hold the line.",
   "map": {
     "radius": 7,
     "hexes": [
@@ -30,6 +30,7 @@
       "status": "operational"
     },
     "defenders": {
+      "swamp-1": { "type": "Swamp", "position": { "q": 7, "r": 5 }, "status": "operational" },
       "wolf-1":  { "type": "BigBadWolf", "position": { "q": 5,  "r": 6 }, "status": "operational" },
       "wolf-2":  { "type": "BigBadWolf", "position": { "q": 6,  "r": 6 }, "status": "operational" },
       "puss-1":  { "type": "Puss",       "position": { "q": 6,  "r": 4 }, "status": "operational" },
@@ -39,13 +40,28 @@
     }
   },
   "victoryConditions": {
+    "objectives": [
+      {
+        "id": "destroy-swamp-1",
+        "label": "Destroy The Swamp",
+        "kind": "destroy-unit",
+        "unitId": "swamp-1",
+        "required": true
+      },
+      {
+        "id": "escape-off-map",
+        "label": "Escape the Onion off-map",
+        "kind": "escape-map",
+        "required": true
+      }
+    ],
     "onion": {
       "targetHex": { "q": 7, "r": 5 },
-      "description": "Onion wins by moving onto or attacking the Castle hex."
+      "description": "Legacy target hex retained for compatibility; the objective set drives victory."
     },
     "defender": {
       "condition": "onionImmobilized",
-      "description": "Defender wins when the Onion's tread points reach 0 (MA 0). A stationary Onion cannot reach the Castle."
+      "description": "Defender wins when the Onion's tread points reach 0 (MA 0). A stationary Onion cannot complete the objective set."
     },
     "maxTurns": 20
   }
