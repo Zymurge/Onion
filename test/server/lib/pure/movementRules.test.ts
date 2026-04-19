@@ -1,3 +1,46 @@
+describe('getStopOnOccupiedHexFailure', () => {
+	it('returns null for empty hex', () => {
+		expect(getStopOnOccupiedHexFailure({
+			movingRole: 'defender',
+			movingUnitType: 'Puss',
+			occupants: [],
+		})).toBeNull()
+	})
+
+	it('returns occupied for non-stackable units', () => {
+		expect(getStopOnOccupiedHexFailure({
+			movingRole: 'defender',
+			movingUnitType: 'Puss',
+			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'Puss' }],
+		})).toBe('occupied')
+	})
+
+	it('returns stack-limit for Little Pigs over limit', () => {
+		expect(getStopOnOccupiedHexFailure({
+			movingRole: 'defender',
+			movingUnitType: 'LittlePigs',
+			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs', squads: 2 }],
+			incomingSquads: 2,
+		})).toBe('stack-limit')
+	})
+
+	it('returns null for Little Pigs stacking within limit', () => {
+		expect(getStopOnOccupiedHexFailure({
+			movingRole: 'defender',
+			movingUnitType: 'LittlePigs',
+			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs', squads: 1 }],
+			incomingSquads: 2,
+		})).toBeNull()
+	})
+
+	it('returns occupied-by-onion if Onion is present', () => {
+		expect(getStopOnOccupiedHexFailure({
+			movingRole: 'defender',
+			movingUnitType: 'Puss',
+			occupants: [{ q: 0, r: 0, role: 'onion', unitType: 'TheOnion' }],
+		})).toBe('occupied-by-onion')
+	})
+})
 import { describe, expect, it } from 'vitest'
 
 import {
