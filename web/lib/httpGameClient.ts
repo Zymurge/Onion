@@ -22,6 +22,9 @@ type ActionSuccessResponse = {
 	movementRemainingByUnit: Record<string, number>
 	turnNumber: number
 	eventSeq: number
+	winner?: GameStateResponse['winner']
+	victoryObjectives?: GameStateResponse['victoryObjectives']
+	escapeHexes?: GameStateResponse['escapeHexes']
 }
 
 type HttpGameClientOptions = {
@@ -111,12 +114,15 @@ function mapServerSnapshot(
 		snapshot: mergeSnapshot(fallback, {
 			gameId: response.gameId ?? gameId,
 			phase: normalizePhase(response.phase),
+			winner: response.winner ?? fallback.winner,
 			scenarioName: response.scenarioName ?? fallback.scenarioName,
 			turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
 			lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : fallback.lastEventSeq,
 			authoritativeState: response.state ?? fallback.authoritativeState,
 			movementRemainingByUnit: response.movementRemainingByUnit ?? fallback.movementRemainingByUnit,
 			scenarioMap,
+			victoryObjectives: response.victoryObjectives ?? fallback.victoryObjectives,
+			escapeHexes: response.escapeHexes ?? fallback.escapeHexes,
 		}),
 		session: {
 			role: response.role,
@@ -130,18 +136,22 @@ function mapActionSnapshot(
 	gameId: number,
 ): GameSnapshot {
 	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
-	const phaseChange = [...response.events].reverse().find((event) => event.type === 'PHASE_CHANGED')
+	const responseEvents = Array.isArray(response.events) ? response.events : []
+	const phaseChange = [...responseEvents].reverse().find((event) => event.type === 'PHASE_CHANGED')
 	const nextPhase = typeof phaseChange?.to === 'string' ? normalizePhase(phaseChange.to) : fallback.phase
 
 	return mergeSnapshot(fallback, {
 		gameId,
 		phase: nextPhase,
+		winner: response.winner ?? fallback.winner,
 		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
 		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : fallback.lastEventSeq,
 		authoritativeState: response.state ?? fallback.authoritativeState,
 		movementRemainingByUnit: response.movementRemainingByUnit ?? fallback.movementRemainingByUnit,
-		combatResolution: buildCombatResolution(response.events),
-		ramResolution: buildRamResolution(response.events),
+		victoryObjectives: response.victoryObjectives ?? fallback.victoryObjectives,
+		escapeHexes: response.escapeHexes ?? fallback.escapeHexes,
+		combatResolution: buildCombatResolution(responseEvents),
+		ramResolution: buildRamResolution(responseEvents),
 	})
 }
 

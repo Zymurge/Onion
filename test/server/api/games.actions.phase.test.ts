@@ -34,6 +34,11 @@ describe('POST /games/:id/actions END_PHASE', () => {
     expect(body.turnNumber).toBe(1)
     expect(body.eventSeq).toBe(body.seq)
     expect(body).toHaveProperty('state')
+    expect(body.escapeHexes).toEqual([
+      { q: 0, r: 9 },
+      { q: 0, r: 10 },
+      { q: 0, r: 11 },
+    ])
   })
 
   it('advances phase from ONION_MOVE to ONION_COMBAT', async () => {

@@ -16,6 +16,7 @@ type BattlefieldStageProps = {
   selectedUnitIds: string[]
   combatRangeHexKeys: ReadonlySet<string>
   combatTargetIds: ReadonlySet<string>
+  escapeHexes: Array<{ q: number; r: number }>
   canSubmitMove: boolean
   isSelectionLocked: boolean
   isInteractionLocked: boolean
@@ -36,6 +37,7 @@ export function BattlefieldStage({
   selectedUnitIds,
   combatRangeHexKeys,
   combatTargetIds,
+  escapeHexes,
   canSubmitMove,
   isSelectionLocked,
   isInteractionLocked,
@@ -58,6 +60,7 @@ export function BattlefieldStage({
           selectedCombatTargetId={selectedCombatTargetId}
           combatRangeHexKeys={combatRangeHexKeys}
           combatTargetIds={combatTargetIds}
+          escapeHexes={escapeHexes}
           canSubmitMove={canSubmitMove && activeTurnActive && !isInteractionLocked}
           isSelectionLocked={isSelectionLocked}
           onSelectUnit={onSelectUnit}

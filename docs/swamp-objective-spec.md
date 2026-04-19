@@ -23,8 +23,8 @@ The Swamp (HQ) is a new, first-class defender unit type representing one or more
 - The Swamp inspector content includes objective completion state and remains available even after destruction.
 - The game ends when all required objectives are complete.
 - For the Swamp scenario, the core objectives are:
-	- **Destroy The Swamp**
-	- **Escape the Onion off-map after The Swamp is destroyed**
+  - **Destroy The Swamp**
+  - **Escape the Onion off-map after The Swamp is destroyed**
 - A future UI design can decide how these objectives are grouped or displayed in the inspector.
 - If the Onion is immobilized or destroyed before all objectives are completed, the defender wins.
 
@@ -56,8 +56,11 @@ The Swamp (HQ) is a new, first-class defender unit type representing one or more
 
 ---
 
-# Open Questions
+## Open Questions
 
 - What map edge(s) or zone(s) count as escape for total victory?
+  - Defined in the scenario
 - Should The Swamp have any special terrain or stacking rules?
+  - Treat the Swamp as a defender unit that cannot be stacked. It can be placed on different terrain types and it would inherit those rules accordingly.
 - Is a custom swamp icon available, or should a placeholder be used initially?
+  - will need to create both intact and destroyed swamp icons

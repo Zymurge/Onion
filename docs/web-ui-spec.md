@@ -49,7 +49,6 @@ Primary backend endpoints used by the web client:
 - When combat attacker selection is active, the right rail switches from inspection to targeting and confirmation.
 - Server-derived game state is never mutated in place; the UI reconciles from snapshots and events.
 
-
 ## Board Model
 
 - The battlefield board uses the same axial coordinate system as the rules engine.

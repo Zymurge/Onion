@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../../../web/App'
 import { createGameClient, type GameSnapshot } from '../../../../web/lib/gameClient'
 import { clearApiProtocolTraffic, requestJson } from '../../../../shared/apiProtocol'
+import type { VictoryObjectiveState } from '../../../../shared/apiProtocol'
 import type { GameState } from '../../../../shared/types/index'
 import type { LiveEventSource, LiveSessionSignal } from '../../../../web/lib/gameSessionTypes'
 
@@ -222,6 +223,24 @@ describe('App UI', () => {
 		expect(screen.queryByTestId('hex-unit-wolf-2')).toBeNull()
 	})
 
+	it('shows a game over toast when the loaded snapshot has a winner', async () => {
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			winner: 'onion' as const,
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByTestId('game-over-toast')).not.toBeNull()
+		expect(screen.getByRole('heading', { name: /victory for the onion/i })).not.toBeNull()
+		expect(screen.getByRole('button', { name: /dismiss/i })).not.toBeNull()
+	})
+
 	it('keeps selection state on the rail and map in sync when loaded', async () => {
 		const user = userEvent.setup()
 		const snapshot = createLoadedBattlefieldSnapshot()
@@ -263,6 +282,108 @@ describe('App UI', () => {
 		expect(await screen.findByRole('button', { name: /big bad wolf 2/i })).not.toBeNull()
 		expect(screen.getByRole('button', { name: /puss 1/i })).not.toBeNull()
 		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('Big Bad Wolf 2')
+	})
+
+	it('keeps a destroyed swamp on the map and shows victory objectives in the inspector', async () => {
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			phase: 'DEFENDER_COMBAT' as const,
+			selectedUnitId: null,
+			authoritativeState: {
+				...createLoadedBattlefieldSnapshot().authoritativeState,
+				defenders: {
+					'swamp-1': {
+						id: 'swamp-1',
+						type: 'Swamp',
+						friendlyName: 'The Swamp',
+						position: { q: 0, r: 1 },
+						status: 'destroyed' as const,
+						weapons: [
+							{
+								id: 'swamp-bastion',
+								name: 'Swamp Bastion',
+								attack: 0,
+								range: 0,
+								defense: 0,
+								status: 'destroyed' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+			},
+			victoryObjectives: [
+				{
+					id: 'destroy-swamp',
+					label: 'Destroy The Swamp',
+					kind: 'destroy-unit',
+					required: true,
+					completed: true,
+					unitId: 'swamp-1',
+					unitType: 'Swamp',
+				},
+				{
+					id: 'escape-onion',
+					label: 'Escape the Onion off-map after The Swamp is destroyed',
+					kind: 'escape-map',
+					required: true,
+					completed: false,
+				},
+			] satisfies VictoryObjectiveState[],
+			escapeHexes: [{ q: 5, r: 5 }],
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const swampUnit = await screen.findByTestId('hex-unit-swamp-1')
+		fireEvent.click(swampUnit)
+		expect(swampUnit.getAttribute('class')).toContain('tone-destroyed')
+		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('The Swamp')
+		expect(screen.getByText('Victory objectives')).not.toBeNull()
+		expect(screen.getByText('Destroy The Swamp')).not.toBeNull()
+		expect(screen.getByText('Escape the Onion off-map after The Swamp is destroyed')).not.toBeNull()
+		expect(screen.getByText('Escape hexes')).not.toBeNull()
+		expect(screen.getByText('5, 5')).not.toBeNull()
+	})
+
+	it('keeps escape hexes on the map', async () => {
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			victoryObjectives: [
+				{
+					id: 'destroy-swamp',
+					label: 'Destroy The Swamp',
+					kind: 'destroy-unit',
+					required: true,
+					completed: false,
+					unitId: 'swamp-1',
+					unitType: 'Swamp',
+				},
+				{
+					id: 'escape-onion',
+					label: 'Escape the Onion off-map after The Swamp is destroyed',
+					kind: 'escape-map',
+					required: true,
+					completed: false,
+				},
+			] satisfies VictoryObjectiveState[],
+			escapeHexes: [{ q: 5, r: 5 }],
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const escapeCell = await screen.findByTestId('hex-cell-5-5')
+		expect(escapeCell.getAttribute('class')).toContain('hex-cell-escape')
 	})
 
 	it('renders friendly names for onion weapon cards in combat', async () => {

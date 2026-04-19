@@ -8,7 +8,6 @@ The initial implementation will be based on the Mark III scenario, and the rules
 
 Onion is a hexagonal-grid tactical wargame where one player controls a single, massive super-tank called the **Onion**, and the other player controls a diverse force of conventional units (**Little Pigs**, **Big Bad Wolves**, **Puss**, etc.) defending a **Castle**.
 
-
 ## Units Mapping
 
 Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, Defense, Movement.
@@ -38,7 +37,12 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
 
 ### Victory Conditions
 
-Victory is scenario-driven. Each scenario can define one or more victory objectives, and each objective is completed independently. The match ends when all required objectives are complete.
+Victory is scenario-driven. Each scenario can define one or more victory objectives under `victoryConditions.objectives`, and each objective is completed independently. The match ends when all required objectives are complete.
+
+Currently supported objective kinds:
+
+- `destroy-unit`: Destroy a specific unit (`unitId`) or any unit of a given type (`unitType`).
+- `escape-map`: Move the Onion off the map after the prerequisite objective sequence is satisfied.
 
 For the Swamp objective scenario:
 
@@ -178,9 +182,3 @@ The same resolution pipeline also applies to subsystems and ramming: the roll pr
 | `destroyed` | Permanently removed | No further transitions |
 
 A unit disabled on turn N is recovered and operational by turn N+1's `DEFENDER_MOVE`.
-
-## Victory Conditions
-
-- **Onion Player**: Wins by destroying the **Castle** (Command Post). The Castle has Defense 0 — any successful attack result destroys it immediately.
-- **Defender**: Wins by **immobilizing the Onion** before it destroys the Castle. The Onion is considered immobilized (and the Defender wins) when its tread points are reduced to **0 (MA 0)**. A stationary Onion cannot reach the Castle and poses no further threat.
-  - Note: A fully armed but immobile Onion is still a Defender win — weapons alone cannot win the game for the Onion player.

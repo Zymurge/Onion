@@ -90,7 +90,7 @@ export function unitCode(unitType: string): string {
   }
 }
 
-export function statusTone(status: UnitStatus): string {
+export function statusTone(status: UnitStatus | string): string {
   switch (status) {
     case 'operational':
       return 'ready'

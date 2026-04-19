@@ -99,6 +99,9 @@ describe('buildVictoryObjectiveStates', () => {
   it('marks each scenario-defined objective independently', () => {
     const scenarioSnapshot = {
       victoryConditions: {
+        onion: {
+          escapeHexes: [{ q: 2, r: 2 }],
+        },
         objectives: [
           { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
           { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
@@ -117,7 +120,7 @@ describe('buildVictoryObjectiveStates', () => {
       onion: {
         id: 'onion-1',
         type: 'TheOnion',
-        position: { q: 10, r: 10 },
+        position: { q: 2, r: 2 },
         status: 'operational',
         weapons: [],
         treads: 45,
@@ -167,6 +170,9 @@ describe('buildVictoryObjectiveStates', () => {
       scenarioSnapshot: {
         map: scenarioMap,
         victoryConditions: {
+          onion: {
+            escapeHexes: [{ q: 0, r: 0 }],
+          },
           objectives: [
             { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
             { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
@@ -182,7 +188,7 @@ describe('buildVictoryObjectiveStates', () => {
       onion: {
         id: 'onion-1',
         type: 'TheOnion',
-        position: { q: 0, r: 0 },
+        position: { q: 1, r: 1 },
         status: 'operational',
         weapons: [],
         treads: 45,

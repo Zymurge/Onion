@@ -265,7 +265,10 @@ export function useBattlefieldInteractionState({
       ? false
       : unitId === authoritativeState.onion.id
         ? authoritativeState.onion.status === 'destroyed'
-        : authoritativeState.defenders[unitId]?.status === 'destroyed'
+        : (() => {
+          const defender = authoritativeState.defenders[unitId]
+          return defender?.status === 'destroyed' && defender.type !== 'Swamp'
+        })()
 
     if (destroyedUnit) {
       return

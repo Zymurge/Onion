@@ -265,6 +265,10 @@ function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyA
 			const amount = typeof event.amount === 'number' ? String(event.amount) : formatDetailValue(event.amount)
 			return unitName.length > 0 ? [`Squads lost for ${unitName}: ${amount}`] : [`Squads lost: ${amount}`]
 		}
+		case 'GAME_OVER': {
+			const winner = formatRawValue((event as { winner?: unknown }).winner)
+			return winner.length > 0 ? [`Game over: ${winner} won`] : ['Game over']
+		}
 		default:
 			return []
 	}
@@ -291,6 +295,11 @@ function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: Readonl
 		}
 
 		return fragments.join(': ')
+	}
+
+	if (event.type === 'GAME_OVER') {
+		const winner = formatRawValue((event as { winner?: unknown }).winner)
+		return winner.length > 0 ? `Game over: ${winner} wins` : 'Game over'
 	}
 
 	if (event.type === 'MOVE_RESOLVED' || MOVE_EVENT_TYPES.has(event.type)) {
@@ -372,7 +381,7 @@ function buildTimelineEntry(events: ReadonlyArray<InactiveEventPayload>): Timeli
 		type: primaryEvent.type,
 		summary,
 		timestamp: primaryEvent.timestamp,
-		tone: primaryEvent.type === 'UNIT_STATUS_CHANGED' ? 'alert' : 'normal',
+		tone: primaryEvent.type === 'UNIT_STATUS_CHANGED' || primaryEvent.type === 'GAME_OVER' ? 'alert' : 'normal',
 		details,
 		payload: primaryEvent,
 	}

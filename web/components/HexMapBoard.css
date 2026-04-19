@@ -51,6 +51,29 @@
   stroke-width: 2.5;
   filter: grayscale(0.85) brightness(0.85) opacity(0.7);
 }
+.hex-unit-rect-swamp {
+  fill: rgba(255, 255, 255, 0.08) !important;
+  stroke: rgba(79, 69, 52, 0.34) !important;
+  stroke-width: 1.5;
+  filter: none;
+}
+
+.hex-unit-rect-swamp-destroyed {
+  fill: rgba(255, 255, 255, 0.04) !important;
+  stroke: rgba(79, 69, 52, 0.24) !important;
+  stroke-width: 1.5;
+  filter: grayscale(0.06) brightness(0.98);
+}
+
+.hex-unit-stack-swamp .hex-unit-rect,
+.hex-unit-stack-swamp .hex-unit-disabled-indicator {
+  filter: none;
+}
+
+.tone-neutral {
+  opacity: 1;
+}
+
 .hex-unit-stack-disabled .hex-unit-rect,
 .hex-unit-rect-disabled {
   filter: grayscale(0.85) brightness(0.85) opacity(0.7);
@@ -237,6 +260,35 @@
   fill: rgba(255, 167, 38, 0.24);
   stroke: #ff9800;
   stroke-width: 2;
+}
+
+.hex-cell-escape > .hex-shape {
+  fill: transparent;
+  stroke: rgba(97, 113, 72, 0.9);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 4;
+}
+
+.hex-shape-escape-overlay {
+  pointer-events: none;
+  mix-blend-mode: normal;
+  opacity: 1;
+}
+
+.hex-shape-escape-ring {
+  pointer-events: none;
+  fill: none;
+  stroke: rgba(114, 126, 83, 0.88);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 1px rgba(72, 86, 49, 0.14));
+  opacity: 0.88;
+}
+
+.hex-cell-escape:hover > .hex-shape {
+  filter: brightness(1.02) saturate(1.06);
 }
 
 .hex-cell-move-ready > .hex-shape {

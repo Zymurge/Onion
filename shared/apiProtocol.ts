@@ -35,6 +35,11 @@ export type VictoryObjectiveState = {
 	unitType?: string
 }
 
+export type VictoryEscapeHex = {
+	q: number
+	r: number
+}
+
 export type ApiProtocolTrafficDirection = 'request' | 'response' | 'error'
 
 export type ApiProtocolTrafficEntry = {
@@ -231,6 +236,7 @@ export type GameStateResponse = {
 	state: GameState
 	movementRemainingByUnit: Record<string, number>
 	victoryObjectives?: VictoryObjectiveState[]
+	escapeHexes?: VictoryEscapeHex[]
 	/**
 	 * Canonical scenario map snapshot. Must always be present and valid.
 	 */
