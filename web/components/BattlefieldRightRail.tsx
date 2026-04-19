@@ -232,9 +232,9 @@ export function BattlefieldRightRail({
               <div className="card-head">
                 <div>
                   <p className="eyebrow">Victory</p>
-                  <h3>Victory objectives</h3>
+                  <h3>Victory Conditions</h3>
                 </div>
-                <span className="mini-tag">{victoryObjectives.filter((objective) => objective.completed).length}/{victoryObjectives.length} complete</span>
+                <span className="mini-tag">{victoryObjectives.filter((objective) => objective.completed).length}/{victoryObjectives.length} objectives</span>
               </div>
               <div className="inspector-objective-list">
                 {victoryObjectives.map((objective) => (
@@ -247,6 +247,20 @@ export function BattlefieldRightRail({
                     </div>
                   </div>
                 ))}
+              </div>
+              <div className="inspector-victory-summary">
+                <div className="summary-line"><strong>Onion (Attacker) Victory:</strong></div>
+                <ul className="victory-list">
+                  <li>All defending units destroyed: <em>Complete Onion victory</em></li>
+                  <li>Swamp destroyed and Onion escapes: <em>Onion victory</em></li>
+                  <li>Swamp and Onion both destroyed: <em>Marginal Onion victory</em></li>
+                </ul>
+                <div className="summary-line"><strong>Defender Victory:</strong></div>
+                <ul className="victory-list">
+                  <li>Swamp survives, Onion destroyed, 30+ attack strength survive: <em>Complete defense victory</em></li>
+                  <li>Swamp survives, Onion destroyed: <em>Defense victory</em></li>
+                  <li>Swamp survives, Onion escapes: <em>Marginal defense victory</em></li>
+                </ul>
               </div>
               {escapeHexes.length > 0 ? (
                 <div className="inspector-escape-footer">

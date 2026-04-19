@@ -37,21 +37,39 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
 
 ### Victory Conditions
 
-Victory is scenario-driven. Each scenario can define one or more victory objectives under `victoryConditions.objectives`, and each objective is completed independently. The match ends when all required objectives are complete.
+Victory is scenario-driven, but the following conditions are modeled after the original Ogre rules and adapted for Onion/Swamp:
 
-Currently supported objective kinds:
+#### Onion (Attacker) Victory Conditions
+
+- **Complete Onion Victory:** All defending units are destroyed.
+- **Onion Victory:** The Swamp (Command Post) is destroyed and the Onion escapes from the south end of the map.
+- **Marginal Onion Victory:** The Swamp is destroyed and the Onion is destroyed or immobilized before escaping.
+
+#### Defender Victory Conditions
+
+- **Complete Defense Victory:** The Swamp survives, the Onion is destroyed, and at least 30 points of attack strength survive.
+- **Defense Victory:** The Swamp survives and the Onion is destroyed (regardless of surviving attack strength).
+- **Marginal Defense Victory:** The Swamp survives, but the Onion escapes.
+
+#### Additional Notes
+
+- Escape hexes are inactive during Onion turn 1 and become active starting on Onion turn 2.
+- The match ends as soon as a victory condition is met.
+- The UI and inspector should display both Onion and Defender victory conditions, and indicate which have been achieved or are still possible.
+
+Currently supported objective kinds (for scenario authoring):
 
 - `destroy-unit`: Destroy a specific unit (`unitId`) or any unit of a given type (`unitType`).
 - `escape-map`: Move the Onion off the map after the prerequisite objective sequence is satisfied.
 
-For the Swamp objective scenario:
+For the Swamp objective scenario, the core objectives are:
 
 - **Objective 1:** Destroy The Swamp (status: destroyed)
 - **Objective 2:** Escape the Onion off the map after The Swamp is destroyed
-- Escape hexes are inactive during Onion turn 1 and become active starting on Onion turn 2.
-- **Defender Victory:** The Onion is immobilized or destroyed before completing all required objectives
 
-The UI may show objective completion state in the inspector, but that presentation is intentionally left open for now.
+Defender victory is possible if the Onion is immobilized or destroyed before completing all required objectives, or if the Swamp survives and the Onion is destroyed.
+
+The UI may show objective completion state in the inspector, and should surface both Onion and Defender victory paths.
 
 ### Combat & Ramming
 
