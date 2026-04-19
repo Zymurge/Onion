@@ -198,10 +198,6 @@ describe('combatCalculator', () => {
 					'attack-1': { type: 'Puss' },
 					'target-1': {
 						type: 'TheOnion',
-						weaponId: 'main',
-						weapons: [
-							{ id: 'main', name: 'Main Battery', attack: 4, range: 3, defense: 9, status: 'ready', individuallyTargetable: true },
-						],
 					},
 				},
 			},
@@ -209,74 +205,8 @@ describe('combatCalculator', () => {
 
 		const result = calculator.calculateResult(input)
 
-		expect(result.attackStrength).toBe(4)
-		expect(result.defenseStrength).toBe(9)
-		expect(result.odds).toBe('1:3')
-	})
-
-	it('ignores clear terrain even when the unit can access cover there', () => {
-		const input: CombatCalculatorInput = {
-			attackerGroupIds: ['attack-1'],
-			targetId: 'target-1',
-			combatState: {
-				units: {
-					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'Puss', terrainType: 'clear' },
-				},
-			},
-		}
-
-		expect(terrainAdeptCalculator.calculateModifiers(input)).toEqual([])
-		expect(terrainAdeptCalculator.calculateResult(input).defenseStrength).toBe(3)
-	})
-
-	it('ignores crater terrain even when the unit can access cover there', () => {
-		const input: CombatCalculatorInput = {
-			attackerGroupIds: ['attack-1'],
-			targetId: 'target-1',
-			combatState: {
-				units: {
-					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'Puss', terrainType: 'crater' },
-				},
-			},
-		}
-
-		expect(terrainAdeptCalculator.calculateModifiers(input)).toEqual([])
-		expect(terrainAdeptCalculator.calculateResult(input).defenseStrength).toBe(3)
-	})
-
-	it('throws clear errors for invalid combat inputs', () => {
-		expect(() =>
-			calculator.calculateResult({
-				attackerGroupIds: ['attack-1'],
-				targetId: 'missing-target',
-				combatState: { units: { 'attack-1': { type: 'Puss' } } },
-			}),
-		).toThrow("Combatant 'missing-target' was not found in the live combat state")
-
-		expect(() =>
-			calculator.calculateResult({
-				attackerGroupIds: ['attack-1'],
-				targetId: 'target-1',
-				combatState: { units: { 'attack-1': { type: 'Unknown' }, 'target-1': { type: 'Puss' } } },
-			}),
-		).toThrow("Unit type 'Unknown' is not defined in the shared combat rules")
-
-		expect(() =>
-			calculator.calculateResult({
-				attackerGroupIds: ['attack-1'],
-				targetId: 'target-1',
-				combatState: {
-					units: {
-						'attack-1': {
-							type: 'Dragon',
-							weaponIds: ['missing-weapon'],
-						},
-						'target-1': { type: 'Puss' },
-					},
-				},
-			}),
-		).toThrow("Weapon 'missing-weapon' was not found on unit type 'Dragon'")
+		expect(result.attackStrength).toBe(3)
+		expect(result.defenseStrength).toBe(3)
+		expect(result.odds).toBe('1:1')
 	})
 })

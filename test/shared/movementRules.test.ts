@@ -1,3 +1,23 @@
+import { describe, expect, it } from 'vitest'
+
+import {
+	canStopOnOccupiedHex,
+	canTraverseOccupiedHex,
+	getTerrainMoveCost,
+	type MoveOccupant,
+} from '#shared/movementRules'
+
+function occupant(overrides: Partial<MoveOccupant> = {}): MoveOccupant {
+	return {
+		q: 0,
+		r: 0,
+		role: 'defender',
+		unitType: 'Puss',
+		squads: 1,
+		...overrides,
+	}
+}
+
 describe('getStopOnOccupiedHexFailure', () => {
 	it('returns null for empty hex', () => {
 		expect(getStopOnOccupiedHexFailure({
@@ -41,25 +61,6 @@ describe('getStopOnOccupiedHexFailure', () => {
 		})).toBe('occupied-by-onion')
 	})
 })
-import { describe, expect, it } from 'vitest'
-
-import {
-	canStopOnOccupiedHex,
-	canTraverseOccupiedHex,
-	getTerrainMoveCost,
-	type MoveOccupant,
-} from '#shared/movementRules'
-
-function occupant(overrides: Partial<MoveOccupant> = {}): MoveOccupant {
-	return {
-		q: 0,
-		r: 0,
-		role: 'defender',
-		unitType: 'Puss',
-		squads: 1,
-		...overrides,
-	}
-}
 
 describe('movementRules', () => {
 	it('derives ridgeline movement cost from shared terrain rules', () => {
