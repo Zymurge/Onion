@@ -4,6 +4,7 @@ import {
 	canStopOnOccupiedHex,
 	canTraverseOccupiedHex,
 	getTerrainMoveCost,
+	getStopOnOccupiedHexFailure,
 	type MoveOccupant,
 } from '#shared/movementRules'
 

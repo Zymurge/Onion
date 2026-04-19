@@ -55,7 +55,7 @@ describe('movePlanner error and edge cases', () => {
 	})
 
 	describe('terrain/pathfinding', () => {
-		it('returns not found for blocked by impassable terrain', () => {
+		it('still finds an alternate path around impassable terrain', () => {
 			const map = {
 				...baseMap,
 				hexes: [{ q: 1, r: 1, t: 2 }], // crater in the middle
@@ -68,7 +68,8 @@ describe('movePlanner error and edge cases', () => {
 				movingRole: 'defender',
 				movingUnitType: 'Puss',
 			})
-			expect(result.found).toBe(false)
+			expect(result.found).toBe(true)
+			expect(result.cost).toBeGreaterThan(0)
 		})
 
 		it('allows path through impassable terrain if another path exists', () => {
@@ -87,9 +88,11 @@ describe('movePlanner error and edge cases', () => {
 			expect(result.found).toBe(true)
 		})
 
-		it('returns not found for ridgeline if unit cannot cross', () => {
+		it('returns not found for ridgeline if it is the only route and the unit cannot cross', () => {
 			const map = {
-				...baseMap,
+				width: 3,
+				height: 1,
+				cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }],
 				hexes: [{ q: 1, r: 0, t: 1 }], // ridgeline
 			}
 			const result = findMovePath({
