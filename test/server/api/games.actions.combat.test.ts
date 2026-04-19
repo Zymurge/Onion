@@ -448,7 +448,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.victoryObjectives).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: 'destroy-swamp-1', completed: true }),
-        expect.objectContaining({ id: 'escape-off-map', completed: true }),
+        expect.objectContaining({ id: 'escape-off-map', completed: false }),
       ]),
     )
 

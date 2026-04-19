@@ -39,7 +39,6 @@
     "defender": {
       "condition": "onionImmobilized",
       "description": "Defender wins when the Onion has no tread movement remaining."
-    },
-    "maxTurns": 20
+    }
   }
 }

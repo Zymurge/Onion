@@ -22,6 +22,7 @@ The Swamp (HQ) is a new, first-class defender unit type representing one or more
 - Each objective has its own completion state and can be represented in the UI inspector.
 - The Swamp inspector content includes objective completion state and remains available even after destruction.
 - The game ends when all required objectives are complete.
+- Escape hex objectives are inactive during Onion turn 1 and become active starting on Onion turn 2.
 - For the Swamp scenario, the core objectives are:
   - **Destroy The Swamp**
   - **Escape the Onion off-map after The Swamp is destroyed**
@@ -38,6 +39,7 @@ The Swamp (HQ) is a new, first-class defender unit type representing one or more
 ## UI/UX Requirements
 
 - The Swamp is rendered as a selectable unit on the map, with a unique icon
+- The Swamp sits on top of authored terrain; the underlying terrain remains visible in the board rendering
 - The right rail and inspector panels show The Swamp's status, objective details, and friendly name
 - Combat and ram results involving The Swamp are surfaced in passive toasts and event streams
 - Victory feedback distinguishes objective completion states and overall match end state

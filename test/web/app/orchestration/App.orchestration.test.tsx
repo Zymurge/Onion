@@ -954,7 +954,6 @@ describe('App orchestration (injected game client)', () => {
 		await user.click(screen.getByTestId('combat-weapon-main-1'))
 
 		const targetRail = screen.getByTestId('combat-target-list')
-			await user.click(screen.getByTestId('combat-weapon-main-1'))
 		expect(targetRail.textContent).not.toContain('far-1')
 		expect(targetRail.textContent).toContain('Puss')
 		expect(targetRail.textContent).toContain('Defense: 3')

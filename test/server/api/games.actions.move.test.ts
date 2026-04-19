@@ -179,7 +179,7 @@ describe('POST /games/:id/actions MOVE', () => {
         },
         players: { onion: onionId, defender: defenderId },
         phase: 'ONION_MOVE' as const,
-        turnNumber: 1,
+        turnNumber: 2,
         winner: null,
         state: {
           onion: { position: { q: 0, r: 10 }, treads: 45, missiles: 2, batteries: { main: 1, secondary: 4, ap: 8 } },
@@ -277,7 +277,7 @@ describe('POST /games/:id/actions MOVE', () => {
         },
         players: { onion: onionId, defender: defenderId },
         phase: 'ONION_MOVE' as const,
-        turnNumber: 1,
+        turnNumber: 2,
         winner: null,
         state: {
           onion: { position: { q: 0, r: 10 }, treads: 45, missiles: 2, batteries: { main: 1, secondary: 4, ap: 8 } },

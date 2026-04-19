@@ -598,7 +598,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         // Return updated state and events
         const turnNumber = result.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? 0
-        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState)
+        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.info(
@@ -656,7 +656,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         })
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
-        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState)
+        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
         logSentEvents(match.gameId, 'MOVE', newEvents)
         logActionOutcome(match.gameId, 'MOVE', {
           unitId: command.unitId,
@@ -709,7 +709,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         })
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
-        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState)
+        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
         logSentEvents(match.gameId, command.type, newEvents)
         logActionOutcome(match.gameId, 'FIRE', {
           attackers: command.attackers,

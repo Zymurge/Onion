@@ -137,7 +137,7 @@ describe('buildVictoryObjectiveStates', () => {
       },
     }
 
-    const objectives = buildVictoryObjectiveStates(scenarioSnapshot as any, scenarioMap, state)
+    const objectives = buildVictoryObjectiveStates(scenarioSnapshot as any, scenarioMap, state, 2)
 
     expect(objectives).toEqual([
       {
@@ -154,6 +154,68 @@ describe('buildVictoryObjectiveStates', () => {
         kind: 'escape-map',
         required: true,
         completed: true,
+      },
+    ])
+  })
+
+  it('keeps escape objectives inactive on turn 1', () => {
+    const scenarioSnapshot = {
+      victoryConditions: {
+        onion: {
+          escapeHexes: [{ q: 2, r: 2 }],
+        },
+        objectives: [
+          { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
+          { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+        ],
+      },
+    }
+
+    const scenarioMap = materializeScenarioMap({
+      width: 3,
+      height: 3,
+      cells: [{ q: 0, r: 0 }],
+      hexes: [],
+    })
+
+    const state: GameState = {
+      onion: {
+        id: 'onion-1',
+        type: 'TheOnion',
+        position: { q: 2, r: 2 },
+        status: 'operational',
+        weapons: [],
+        treads: 45,
+        batteries: { main: 1, secondary: 4, ap: 8 },
+      },
+      defenders: {
+        swamp: {
+          id: 'swamp',
+          type: 'Swamp',
+          position: { q: 0, r: 0 },
+          status: 'destroyed',
+          weapons: [],
+        },
+      },
+    }
+
+    const objectives = buildVictoryObjectiveStates(scenarioSnapshot as any, scenarioMap, state, 1)
+
+    expect(objectives).toEqual([
+      {
+        id: 'destroy-swamp',
+        label: 'Destroy The Swamp',
+        kind: 'destroy-unit',
+        required: true,
+        unitType: 'Swamp',
+        completed: true,
+      },
+      {
+        id: 'escape-off-map',
+        label: 'Escape off map',
+        kind: 'escape-map',
+        required: true,
+        completed: false,
       },
     ])
   })
@@ -206,5 +268,55 @@ describe('buildVictoryObjectiveStates', () => {
     }
 
     expect(computeWinnerUserId(match as any, state, 'ONION_MOVE', 1)).toBeNull()
+  })
+
+  it('declares defender victory when the Onion is immobilized before completing objectives', () => {
+    const scenarioMap = materializeScenarioMap({
+      width: 3,
+      height: 3,
+      cells: [{ q: 0, r: 0 }],
+      hexes: [],
+    })
+
+    const match = {
+      scenarioSnapshot: {
+        map: scenarioMap,
+        victoryConditions: {
+          onion: {
+            escapeHexes: [{ q: 0, r: 0 }],
+          },
+          objectives: [
+            { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
+            { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+          ],
+        },
+      },
+      players: { onion: 'onion-user', defender: 'defender-user' },
+      winner: null,
+      events: [],
+    }
+
+    const state: GameState = {
+      onion: {
+        id: 'onion-1',
+        type: 'TheOnion',
+        position: { q: 1, r: 1 },
+        status: 'operational',
+        weapons: [],
+        treads: 0,
+        batteries: { main: 1, secondary: 4, ap: 8 },
+      },
+      defenders: {
+        swamp: {
+          id: 'swamp',
+          type: 'Swamp',
+          position: { q: 0, r: 0 },
+          status: 'operational',
+          weapons: [],
+        },
+      },
+    }
+
+    expect(computeWinnerUserId(match as any, state, 'ONION_MOVE', 1)).toBe('defender-user')
   })
 })

@@ -330,10 +330,15 @@ describe('HexMapBoard', () => {
 		expect(swampUnit.querySelector('rect')?.getAttribute('height')).toBe('48')
 	})
 
-	it('renders the swamp hex as regular terrain behind the unit', () => {
+	it('renders the swamp hex terrain behind the unit', () => {
+		const swampTerrainScenarioMap = {
+			...scenarioMap,
+			hexes: [{ q: 1, r: 1, t: 1 } as TerrainHex],
+		}
+
 		render(
 			<HexMapBoard
-				scenarioMap={scenarioMap}
+				scenarioMap={swampTerrainScenarioMap}
 				defenders={[
 					{
 						...defenders[0],
@@ -358,11 +363,11 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-terrain-default')
-		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).not.toContain('hex-terrain-3')
+		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-terrain-1')
+		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).not.toContain('hex-terrain-default')
 	})
 
-	it('outlines escape hexes in red', () => {
+	it('outlines escape hexes', () => {
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}

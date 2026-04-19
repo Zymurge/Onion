@@ -180,13 +180,17 @@ export function buildMovementRemainingByUnit(state: GameState, phase: TurnPhase)
   return movementRemainingByUnit
 }
 
-export function getScenarioMaxTurns(scenarioSnapshot: ScenarioSnapshot | undefined): number {
-  const maxTurns = scenarioSnapshot?.victoryConditions?.maxTurns
-  return typeof maxTurns === 'number' && Number.isFinite(maxTurns) && maxTurns > 0 ? maxTurns : 20
-}
-
-function isOnionEscaped(scenarioMap: ScenarioMapSnapshot, state: GameState, escapeHexes?: Array<{ q: number; r: number }>): boolean {
+function isOnionEscaped(
+  scenarioMap: ScenarioMapSnapshot,
+  state: GameState,
+  turnNumber: number,
+  escapeHexes?: Array<{ q: number; r: number }>,
+): boolean {
   if (escapeHexes !== undefined && escapeHexes.length > 0) {
+    if (turnNumber <= 1) {
+      return false
+    }
+
     return escapeHexes.some((hex) => hexKey(hex) === hexKey(state.onion.position))
   }
 
@@ -197,6 +201,7 @@ function isObjectiveCompleted(
   scenarioSnapshot: ScenarioSnapshot | undefined,
   scenarioMap: ScenarioMapSnapshot,
   state: GameState,
+  turnNumber: number,
   objective: VictoryObjective,
 ): boolean {
   if (objective.kind === 'destroy-unit') {
@@ -212,7 +217,7 @@ function isObjectiveCompleted(
   }
 
   return objective.kind === 'escape-map'
-    ? isOnionEscaped(scenarioMap, state, scenarioSnapshot?.victoryConditions?.onion?.escapeHexes)
+    ? isOnionEscaped(scenarioMap, state, turnNumber, scenarioSnapshot?.victoryConditions?.onion?.escapeHexes)
     : false
 }
 
@@ -220,12 +225,13 @@ export function buildVictoryObjectiveStates(
   scenarioSnapshot: ScenarioSnapshot | undefined,
   scenarioMap: ScenarioMapSnapshot,
   state: GameState,
+  turnNumber = 1,
 ): VictoryObjectiveState[] {
   const objectives = scenarioSnapshot?.victoryConditions?.objectives ?? []
   return objectives.map((objective) => ({
     ...objective,
     required: objective.required ?? true,
-    completed: isObjectiveCompleted(scenarioSnapshot, scenarioMap, state, objective),
+    completed: isObjectiveCompleted(scenarioSnapshot, scenarioMap, state, turnNumber, objective),
   }))
 }
 
@@ -244,7 +250,7 @@ export function computeWinnerUserId(
 
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
-  const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state)
+  const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber)
   const requiredObjectives = victoryObjectives.filter((objective) => objective.required)
 
   if (requiredObjectives.length > 0) {
@@ -259,7 +265,7 @@ export function computeWinnerUserId(
     return null
   }
 
-  const winningRole = checkVictoryConditions(engineState, turnNumber, getScenarioMaxTurns(scenarioSnapshot))
+  const winningRole = checkVictoryConditions(engineState)
   if (!winningRole) return null
   return match.players[winningRole]
 }
@@ -567,7 +573,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     players: match.players,
     state: match.state,
     movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
-    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state),
+    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber),
     escapeHexes,
     scenarioMap,
     eventSeq: match.events.at(-1)?.seq ?? 0,

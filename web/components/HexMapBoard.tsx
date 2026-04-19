@@ -323,8 +323,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
               const polygonPoints = pointsToString(hexCorners(center, HEX_SIZE - 1))
               const terrainType = terrain.get(hexKey(coord))
               const cellOccupants = occupantMap.get(hexKey(coord)) ?? []
-              const hasSwampOccupant = cellOccupants.some((occupant) => occupant.type === 'Swamp')
-              const renderedTerrainType = hasSwampOccupant ? 0 : terrainType
+              const renderedTerrainType = terrainType
               const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
               const isSelected = cellOccupants.some((occupant) => selectedUnitSet.has(occupant.id))
               const isCombatTargetSelected = selectedCombatTargetId !== undefined && selectedCombatTargetId !== null && cellOccupants.some((occupant) => {

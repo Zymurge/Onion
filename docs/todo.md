@@ -4,20 +4,6 @@ This document tracks major upcoming work and epics. Add new items as they arise;
 break down into features/tasks as needed.
 
 ## In progress
-
-- [ ] Swamp (HQ) objective and victory handling
-  - [x] Define the Swamp as a new, first-class defender unit type (type: Swamp, friendly name: "The Swamp").
-  - [x] Implement combat and ramming rules: Swamp is selectable, attackable, rammable, immobile, and has no weapons; any "X" result destroys it (no disabled state).
-  - [x] Ensure Swamp can be targeted by all valid weapons and rams, and emits UNIT_STATUS_CHANGED events on destruction.
-  - [x] Add a unique Swamp image/icon and render it as a selectable sprite on the map (fallback to placeholder if needed).
-  - [x] Update all code and scenario references: use Swamp internally and "The Swamp" for all user-facing copy.
-  - [x] Update UI: Swamp appears in right rail, inspector, event streams, and passive toasts; status and friendly name are always visible.
-  - [x] Update victory logic: implement partial victory (destroy The Swamp) and total victory (destroy The Swamp and escape Onion off map edge); defender wins if Onion is immobilized or destroyed before both objectives.
-  - [x] Add victory condition display into Swamp inspector details
-  - [x] Special handling for Swamp destruction to leave the unit in place on the map, switch to a destroyed image, and keep it selectable for inspection.
-  - [x] Add/expand regression tests for Swamp combat, ramming, event emission, and both victory states.
-  - [x] Update rules, scenario docs, and UI spec to reflect Swamp objective and new victory conditions.
-  - [x] Clarify and document which map edge(s) or zone(s) count as escape for total victory.
   
 ## Epics / Major Work
 
@@ -110,3 +96,17 @@ break down into features/tasks as needed.
 - [x] Create friendly names for all units and Onion weapons to be used for user facing messaging instead of ids.
 - [x] Make client side logging verbosity level sensitive; move existing console logs to proper levels.
   - [x] add new debug level instrumentation for common troubleshooting areas, such as event handling
+- [x] Swamp (HQ) objective and victory handling
+  - [x] Define the Swamp as a new, first-class defender unit type (type: Swamp, friendly name: "The Swamp").
+  - [x] Implement combat and ramming rules: Swamp is selectable, attackable, rammable, immobile, and has no weapons; any "X" result destroys it (no disabled state).
+  - [x] Ensure Swamp can be targeted by all valid weapons and rams, and emits UNIT_STATUS_CHANGED events on destruction.
+  - [x] Add a unique Swamp image/icon and render it as a selectable sprite on the map (fallback to placeholder if needed).
+  - [x] Update all code and scenario references: use Swamp internally and "The Swamp" for all user-facing copy.
+  - [x] Update UI: Swamp appears in right rail, inspector, event streams, and passive toasts; status and friendly name are always visible.
+  - [x] Update victory logic: implement partial victory (destroy The Swamp) and total victory (destroy The Swamp and escape Onion off map edge); defender wins if Onion is immobilized or destroyed before both objectives.
+  - [x] Add victory condition display into Swamp inspector details
+  - [x] Special handling for Swamp destruction to leave the unit in place on the map, switch to a destroyed image, and keep it selectable for inspection.
+  - [x] Add/expand regression tests for Swamp combat, ramming, event emission, and both victory states.
+  - [x] Update rules, scenario docs, and UI spec to reflect Swamp objective and new victory conditions.
+  - [x] Clarify and document which map edge(s) or zone(s) count as escape for total victory.
+  

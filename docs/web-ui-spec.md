@@ -56,9 +56,11 @@ Primary backend endpoints used by the web client:
 - Board positions are addressed with axial `q`/`r` coordinates only.
 - Range, reachability, selection, and combat overlays are derived from the same board geometry used by the renderer.
 - The Swamp (HQ) is rendered as a selectable, attackable, and rammable unit with a unique icon (custom swamp image preferred; fallback to placeholder if unavailable).
+- The Swamp renders on top of the authored terrain for its hex rather than replacing it with clear terrain
 - The Swamp remains on the map when destroyed, switches to a destroyed visual state, and stays selectable for inspection.
 - The Swamp appears in the right rail and inspector panels, and its status, objective details, and completion state are surfaced in passive toasts and event streams.
 - Victory objectives are scenario-defined, each objective can be shown individually in the inspector, and the match ends when all required objectives are complete. Inspector presentation is TBD.
+- Escape hex objectives do not become active until Onion turn 2
 - Victory feedback distinguishes objective completion from overall match end state.
 - Zoom is supported through mouse wheel and a floating slider overlay in the lower-left corner.
 - Zoom preserves the current map center and scroll position.

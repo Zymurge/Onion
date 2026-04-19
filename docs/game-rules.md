@@ -48,6 +48,7 @@ For the Swamp objective scenario:
 
 - **Objective 1:** Destroy The Swamp (status: destroyed)
 - **Objective 2:** Escape the Onion off the map after The Swamp is destroyed
+- Escape hexes are inactive during Onion turn 1 and become active starting on Onion turn 2.
 - **Defender Victory:** The Onion is immobilized or destroyed before completing all required objectives
 
 The UI may show objective completion state in the inspector, but that presentation is intentionally left open for now.
