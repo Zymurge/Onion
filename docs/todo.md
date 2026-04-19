@@ -5,11 +5,12 @@ break down into features/tasks as needed.
 
 ## In progress
   
-## Epics / Major Work
-
 - [ ] Improve error handling (UI and backend)
   - [x] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
   - [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
+
+## Epics / Major Work
+
 - [ ] JWT authentication (migrate to @fastify/jwt)
 - [ ] Game lobby for creation and joining (self-service matchmaking)
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions

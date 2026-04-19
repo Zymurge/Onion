@@ -27,6 +27,7 @@ const terrainAdeptRules = {
 			abilities: {
 				...getAllUnitDefinitions().Puss.abilities,
 				terrainRules: {
+					ridgeline: { canAccessCover: true },
 					clear: { canAccessCover: true },
 					crater: { canAccessCover: true },
 				},
@@ -172,6 +173,7 @@ describe('combatCalculator', () => {
 				units: {
 					'attack-1': {
 						type: 'Dragon',
+						weaponIds: ['main_1', 'main_2'],
 						weapons: [
 							{ id: 'main_1', name: 'A', attack: 1, range: 3, defense: 3, status: 'ready', individuallyTargetable: false },
 							{ id: 'main_2', name: 'B', attack: 2, range: 3, defense: 3, status: 'ready', individuallyTargetable: false },
@@ -198,6 +200,11 @@ describe('combatCalculator', () => {
 					'attack-1': { type: 'Puss' },
 					'target-1': {
 						type: 'TheOnion',
+						weaponId: 'secondary_1',
+						weapons: [
+							{ id: 'main', name: 'Main Battery', attack: 4, range: 3, defense: 6, status: 'ready', individuallyTargetable: true },
+							{ id: 'secondary_1', name: 'Secondary Battery 1', attack: 3, range: 2, defense: 4, status: 'ready', individuallyTargetable: true },
+						],
 					},
 				},
 			},
@@ -205,8 +212,33 @@ describe('combatCalculator', () => {
 
 		const result = calculator.calculateResult(input)
 
-		expect(result.attackStrength).toBe(3)
-		expect(result.defenseStrength).toBe(3)
+		expect(result.attackStrength).toBe(4)
+		expect(result.defenseStrength).toBe(4)
 		expect(result.odds).toBe('1:1')
+	})
+
+	it('uses terrain-eligible live combat state when calculating ridgeline cover', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': { type: 'Puss', terrainType: 'ridgeline' },
+				},
+			},
+		}
+
+		expect(terrainAdeptCalculator.calculateModifiers(input)).toEqual([
+			{
+				kind: 'terrain',
+				scope: 'defense',
+				label: 'Ridgeline cover: +1 defense',
+				value: 1,
+				appliesTo: 'target-1',
+			},
+		])
+		expect(terrainAdeptCalculator.calculateResult(input).attackStrength).toBe(4)
+		expect(terrainAdeptCalculator.calculateResult(input).defenseStrength).toBe(4)
 	})
 })
