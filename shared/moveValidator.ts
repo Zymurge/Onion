@@ -12,6 +12,7 @@ import {
 	getUnitRamCapacity,
 	isUnitImmobile,
 } from './unitMovement.js'
+import type { UnitStatus } from './types/index.js'
 
 export type MoveValidationCode =
 	| 'WRONG_PHASE'
@@ -61,13 +62,27 @@ export interface MoveValidationState extends GameState {
 	ramsThisTurn?: number
 }
 
-type ResolvedUnit =
-	| { unit: MoveValidationState['onion']; role: 'onion' }
-	| { unit: MoveValidationState['defenders'][string]; role: 'defender' }
+type ResolvedUnit = {
+	unit: {
+		id?: string
+		type: string
+		position: HexPos
+		status: UnitStatus
+		squads?: number
+	}
+	role: 'onion' | 'defender'
+}
 
 function resolveUnit(state: MoveValidationState, unitId: string): ResolvedUnit | null {
 	if (state.onion.id === unitId) {
-		return { unit: state.onion, role: 'onion' }
+		return {
+			unit: {
+				...state.onion,
+				type: state.onion.type ?? 'TheOnion',
+				status: state.onion.status ?? 'operational',
+			},
+			role: 'onion',
+		}
 	}
 
 	const defenderEntry = state.defenders[unitId] ?? Object.values(state.defenders).find((unit) => unit.id === unitId)
@@ -178,14 +193,17 @@ export function validateMove(
 	}
 
 	const { unit, role } = resolved
+	const unitType = unit.type
+	const unitId = unit.id ?? command.unitId
+	const incomingSquads = unit.squads ?? 1
 	if (unit.status !== 'operational') {
 		return { valid: false, code: 'UNIT_NOT_OPERATIONAL', error: getMoveFailureMessage('UNIT_NOT_OPERATIONAL') }
 	}
-	if (isUnitImmobile(unit.type)) {
+	if (isUnitImmobile(unitType)) {
 		return { valid: false, code: 'UNIT_IMMOBILE', error: getMoveFailureMessage('UNIT_IMMOBILE') }
 	}
 
-	const capabilities = getCapabilities(unit.type)
+	const capabilities = getCapabilities(unitType)
 
 	if (role === 'onion') {
 		if (state.currentPhase !== 'ONION_MOVE') {
@@ -200,10 +218,10 @@ export function validateMove(
 	}
 
 	const movementAllowance = getRemainingUnitMovementAllowance(
-		unit.type,
+		unitType,
 		state.currentPhase,
 		state,
-		unit.id ?? command.unitId,
+		unitId,
 		capabilities.hasTreads ? state.onion.treads : undefined,
 	)
 
@@ -214,9 +232,9 @@ export function validateMove(
 	const occupants = getOccupantsAt(state, command.to, command.unitId)
 	const stopFailure = getStopOnOccupiedHexFailure({
 		movingRole: role,
-		movingUnitType: unit.type,
+		movingUnitType: unitType,
 		occupants,
-		incomingSquads: unit.squads ?? 1,
+		incomingSquads,
 	})
 
 	if (stopFailure) {
@@ -229,7 +247,7 @@ export function validateMove(
 	}
 
 	const destinationTerrain = getTerrainAt(map, command.to)
-	if (getTerrainMoveCost(unit.type, destinationTerrain) === null) {
+	if (getTerrainMoveCost(unitType, destinationTerrain) === null) {
 		return {
 			valid: false,
 			code: 'NO_PATH',
@@ -244,8 +262,8 @@ export function validateMove(
 		to: command.to,
 		movementAllowance,
 		movingRole: role,
-		movingUnitType: unit.type,
-		incomingSquads: unit.squads,
+		movingUnitType: unitType,
+		incomingSquads,
 	})
 
 	if (!pathResult.found) {
@@ -255,7 +273,7 @@ export function validateMove(
 	const attemptRam = command.attemptRam !== false
 	const rammedUnits = capabilities.canRam && attemptRam ? collectRammedUnits(state, pathResult.path, command.unitId) : []
 	const ramCapacityUsed = rammedUnits.length
-	const ramCapacityLimit = getUnitRamCapacity(unit.type)
+	const ramCapacityLimit = getUnitRamCapacity(unitType)
 
 	if (capabilities.canRam && (state.ramsThisTurn ?? 0) + ramCapacityUsed > ramCapacityLimit) {
 		return {
@@ -271,7 +289,7 @@ export function validateMove(
 
 	return {
 		valid: true,
-		unitId: unit.id ?? command.unitId,
+		unitId,
 		from: unit.position,
 		to: command.to,
 		path: pathResult.path,

@@ -83,7 +83,7 @@ describe('checkVictoryConditions', () => {
 
   it('returns null when game continues', () => {
     const state = makeState()
-    expect(checkVictoryConditions(state, 1, 10)).toBe(null)
+    expect(checkVictoryConditions(state)).toBe(null)
   })
 
   it('returns null when Swamp is destroyed but Onion can still move', () => {
@@ -93,28 +93,28 @@ describe('checkVictoryConditions', () => {
         puss: makeUnit({ type: 'Puss', id: 'puss' }),
       },
     })
-    expect(checkVictoryConditions(state, 1, 10)).toBe(null)
+    expect(checkVictoryConditions(state)).toBe(null)
   })
 
   it('returns defender when Onion treads are 0', () => {
     const state = makeState({
       onion: makeOnion({ treads: 0 }),
     })
-    expect(checkVictoryConditions(state, 1, 10)).toBe('defender')
+    expect(checkVictoryConditions(state)).toBe('defender')
   })
 
   it('returns defender when Onion is destroyed', () => {
     const state = makeState({
       onion: makeOnion({ status: 'destroyed' }),
     })
-    expect(checkVictoryConditions(state, 1, 10)).toBe('defender')
+    expect(checkVictoryConditions(state)).toBe('defender')
   })
 
   it('returns defender when Onion treads are negative', () => {
     const state = makeState({
       onion: makeOnion({ treads: -5 }),
     })
-    expect(checkVictoryConditions(state, 1, 10)).toBe('defender')
+    expect(checkVictoryConditions(state)).toBe('defender')
   })
 
 })
