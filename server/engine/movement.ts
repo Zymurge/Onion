@@ -53,17 +53,8 @@ export type MovementValidation =
   | { ok: true; plan: MovementPlan }
   | { ok: false; code: MovementValidationCode; error: string }
 
-interface LegacyMovementValidation {
-  valid: boolean
-  error?: string
-  path?: HexPos[]
-  cost?: number
-  rammedUnits?: string[]
-}
-
 interface ResolvedUnit {
   unit: GameUnit
-  role: PlayerRole
 }
 
 /**
@@ -98,12 +89,12 @@ function hasTreads(unit: GameUnit): unit is OnionUnit {
 
 function resolveUnit(state: EngineGameState, unitId: string): ResolvedUnit | null {
   if (state.onion.id === unitId) {
-    return { unit: state.onion, role: 'onion' }
+    return { unit: state.onion }
   }
 
   const defender = state.defenders[unitId]
   if (defender) {
-    return { unit: defender, role: 'defender' }
+    return { unit: defender }
   }
 
   return null
@@ -208,79 +199,17 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
   }
 }
 
-function toLegacyValidation(result: MovementValidation): LegacyMovementValidation {
-  if (!result.ok) {
-    return { valid: false, error: result.error }
-  }
-
-  return {
-    valid: true,
-    path: result.plan.path,
-    cost: result.plan.cost,
-    rammedUnits: result.plan.rammedUnitIds,
-  }
-}
-
-/**
- * Validate an Onion movement command.
- * @param map - The game map
- * @param state - Current game state
- * @param command - Movement command to validate
- * @returns Validation result
- */
-
-export function validateOnionMovement(
-  map: GameMap,
-  state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE' }>
-): LegacyMovementValidation {
-  logger.debug({ position: state.onion.position, command }, '[validateOnionMovement] called')
-  if (command.unitId !== state.onion.id) {
-    return { valid: false, error: 'Not an Onion move command' }
-  }
-
-  return toLegacyValidation(validateMovePlan(map, state, command))
-}
-
-/**
- * Validate a defender unit movement command.
- * @param map - The game map
- * @param state - Current game state
- * @param unitId - ID of unit to move
- * @param command - Movement command to validate
- * @returns Validation result
- */
-
 export function validateUnitMovement(
   map: GameMap,
   state: EngineGameState,
   command: Extract<Command, { type: 'MOVE' }>
 ): MovementValidation
-
 export function validateUnitMovement(
   map: GameMap,
   state: EngineGameState,
-  unitId: string,
   command: Extract<Command, { type: 'MOVE' }>
-): LegacyMovementValidation
-
-export function validateUnitMovement(
-  map: GameMap,
-  state: EngineGameState,
-  unitIdOrCommand: string | Extract<Command, { type: 'MOVE' }>,
-  commandMaybe?: Extract<Command, { type: 'MOVE' }>
-): MovementValidation | LegacyMovementValidation {
-  const command = typeof unitIdOrCommand === 'string' ? commandMaybe : unitIdOrCommand
-  if (!command) {
-    return { valid: false, error: 'Missing move command' }
-  }
-
-  const result = validateMovePlan(map, state, command)
-  if (typeof unitIdOrCommand === 'string') {
-    return toLegacyValidation(result)
-  }
-
-  return result
+): MovementValidation {
+  return validateMovePlan(map, state, command)
 }
 
 /**
@@ -323,34 +252,11 @@ export function executeUnitMovement(
   state: EngineGameState,
   plan: MovementPlan
 ): MovementResult
-
 export function executeUnitMovement(
-  map: GameMap,
   state: EngineGameState,
-  unitId: string,
-  command: Extract<Command, { type: 'MOVE' }>
-): MovementResult
-
-export function executeUnitMovement(
-  mapOrState: GameMap | EngineGameState,
-  stateOrPlan: EngineGameState | MovementPlan,
-  unitId?: string,
-  command?: Extract<Command, { type: 'MOVE' }>
+  plan: MovementPlan
 ): MovementResult {
-  if ('width' in mapOrState) {
-    if (!unitId || !command) {
-      return { success: false, error: 'Missing move execution inputs' }
-    }
-
-    const validation = validateMovePlan(mapOrState, stateOrPlan as EngineGameState, command)
-    if (!validation.ok) {
-      return { success: false, error: validation.error }
-    }
-
-    return executeMovePlan(stateOrPlan as EngineGameState, validation.plan)
-  }
-
-  return executeMovePlan(mapOrState, stateOrPlan as MovementPlan)
+  return executeMovePlan(state, plan)
 }
 
 /**

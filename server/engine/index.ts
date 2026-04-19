@@ -61,7 +61,6 @@ export type {
 } from '#server/engine/movement'
 
 export {
-  validateOnionMovement,
   validateUnitMovement,
   executeOnionMovement,
   executeUnitMovement,
