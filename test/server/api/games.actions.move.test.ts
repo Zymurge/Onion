@@ -179,7 +179,7 @@ describe('POST /games/:id/actions MOVE', () => {
         },
         players: { onion: onionId, defender: defenderId },
         phase: 'ONION_MOVE' as const,
-        turnNumber: 1,
+        turnNumber: 2,
         winner: null,
         state: {
           onion: { position: { q: 0, r: 10 }, treads: 45, missiles: 2, batteries: { main: 1, secondary: 4, ap: 8 } },
@@ -250,6 +250,73 @@ describe('POST /games/:id/actions MOVE', () => {
     const body = stateRes.json()
     expect(body.winner).not.toBeNull()
     expect(body.winner).toBe('defender')
+  })
+
+  it('returns onion victory and GAME_OVER when the Onion moves onto an escape hex', async () => {
+    const onionId = '11111111-1111-4111-8111-111111111111'
+    const defenderId = '22222222-2222-4222-8222-222222222222'
+    const gameId = 444444444
+    const moveTo = { q: 2, r: 9 }
+    const mockDb = {
+      createUser: async () => ({ userId: onionId }),
+      findUserByUsername: async () => null,
+      createMatch: async () => ({ gameId }),
+      findMatch: async () => ({
+        gameId,
+        scenarioId: 'swamp-siege-01',
+        scenarioSnapshot: {
+          map: materializeScenarioMap({ radius: 10, hexes: [] }),
+          victoryConditions: {
+            objectives: [
+                { id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
+              { id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', required: true },
+            ],
+            onion: { escapeHexes: [moveTo] },
+            maxTurns: 20,
+          },
+        },
+        players: { onion: onionId, defender: defenderId },
+        phase: 'ONION_MOVE' as const,
+        turnNumber: 2,
+        winner: null,
+        state: {
+          onion: { position: { q: 0, r: 10 }, treads: 45, missiles: 2, batteries: { main: 1, secondary: 4, ap: 8 } },
+          defenders: {
+            'swamp-1': { id: 'swamp-1', type: 'Swamp', position: { q: 7, r: 5 }, status: 'destroyed' },
+          },
+          ramsThisTurn: 0,
+        },
+        events: [],
+      }),
+      listMatchesByUserId: async () => [],
+      updateMatchPlayers: async () => {},
+      updateMatchState: async () => {},
+      persistMatchProgress: async () => {},
+      appendEvents: async () => {},
+      getEvents: async () => [],
+    }
+    const app = buildApp(mockDb as any)
+    const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: createMovePlan({ unitId: 'onion', from: { q: 0, r: 10 }, to: moveTo, path: [moveTo] }) } as any)
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any) => {
+      state.onion.position = moveTo
+      return { success: true, newPosition: moveTo }
+    }) as any)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer stub.${onionId}` },
+      payload: { type: 'MOVE', unitId: 'onion', to: moveTo },
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.ok).toBe(true)
+    expect(body.winner).toBe('onion')
+    expect(body.events.map((event: any) => event.type)).toContain('GAME_OVER')
+
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
   })
 
   it('emits MOVE_RESOLVED, ONION_TREADS_LOST and UNIT_STATUS_CHANGED events when a ram destroys a unit', async () => {

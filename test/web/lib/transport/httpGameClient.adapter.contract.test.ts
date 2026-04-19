@@ -138,6 +138,7 @@ describe('http game client adapter contract', () => {
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
 				},
+				escapeHexes: [{ q: 9, r: 5 }],
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
@@ -176,6 +177,7 @@ describe('http game client adapter contract', () => {
 			selectedUnitId: 'wolf-2',
 			mode: 'combined',
 			scenarioName: "The Siege of Shrek's Swamp",
+			escapeHexes: [{ q: 9, r: 5 }],
 			scenarioMap: {
 				width: 15,
 				height: 22,
@@ -187,6 +189,88 @@ describe('http game client adapter contract', () => {
 		})
 
 		expect(fetchImpl).toHaveBeenCalledTimes(2)
+	})
+
+	it('maps action winner into the returned snapshot after escape victory', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				ok: true,
+				seq: 49,
+				events: [
+					{ seq: 49, type: 'ONION_MOVED', timestamp: '2026-03-26T12:00:00.000Z' },
+					{ seq: 50, type: 'GAME_OVER', timestamp: '2026-03-26T12:00:00.000Z', winner: 'onion' },
+				],
+				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {} },
+				movementRemainingByUnit: { 'onion-1': 0 },
+				turnNumber: 8,
+				eventSeq: 50,
+				winner: 'onion',
+				escapeHexes: [{ q: 9, r: 5 }],
+			}))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+		})
+
+		await expect(client.submitAction(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 9, r: 5 } })).resolves.toMatchObject({
+			winner: 'onion',
+			lastEventSeq: 50,
+			escapeHexes: [{ q: 9, r: 5 }],
+		})
+	})
+
+	it('maps action victory objectives into the current snapshot after Swamp destruction', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'ONION_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 3,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+				movementRemainingByUnit: { 'onion-1': 0 },
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				victoryObjectives: [
+					{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true, completed: true },
+					{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', required: true, completed: false },
+				],
+				escapeHexes: [{ q: 0, r: 9 }],
+				events: [{ seq: 14, type: 'FIRE_RESOLVED', timestamp: '2026-03-26T12:00:00.000Z' }],
+				eventSeq: 14,
+			}))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+		})
+
+		const snapshot = await client.submitAction(123, { type: 'FIRE', attackers: ['main'], targetId: 'swamp-1' })
+
+		expect(snapshot.victoryObjectives).toEqual([
+			{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true, completed: true },
+			{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', required: true, completed: false },
+		])
+		expect(fetchImpl).toHaveBeenCalledTimes(1)
 	})
 
 	it('sends end phase actions to the backend', async () => {
@@ -224,6 +308,7 @@ describe('http game client adapter contract', () => {
 				movementRemainingByUnit: { 'onion-1': 0 },
 				turnNumber: 2,
 				eventSeq: 13,
+				escapeHexes: [{ q: 9, r: 5 }],
 			}))
 
 		const client = createHttpGameClient({
@@ -241,6 +326,7 @@ describe('http game client adapter contract', () => {
 			selectedUnitId: null,
 			mode: 'fire',
 			scenarioName: "The Siege of Shrek's Swamp",
+			escapeHexes: [{ q: 9, r: 5 }],
 			scenarioMap: {
 				width: 15,
 				height: 22,

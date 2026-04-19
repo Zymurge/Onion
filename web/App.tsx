@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CombatResolutionToast } from './components/CombatResolutionToast'
 import { MoveResolutionToast } from './components/MoveResolutionToast'
+import { GameOverToast } from './components/GameOverToast'
 import { ErrorOverlay } from './components/ErrorOverlay'
 import { DraggableDebugPopup } from './components/DraggableDebugPopup'
 import { ConnectGate } from './components/ConnectGate'
@@ -210,6 +211,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     sessionTurnActive: false,
     turnKnown: false,
   })
+  const [dismissedGameOverToastKey, setDismissedGameOverToastKey] = useState<string | null>(null)
   const previousDebugStateRef = useRef<{
     activeGameId: number | null
     activeTurnOwner: 'onion' | 'defender' | null
@@ -295,6 +297,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const sessionPhase = sessionState.snapshot?.phase ?? null
   const sessionRole = sessionState.session?.role ?? null
   const sessionTurnNumber = sessionState.snapshot?.turnNumber ?? null
+  const sessionWinner = sessionState.snapshot?.winner ?? null
+  const sessionWinnerToastKey = sessionState.snapshot ? `${sessionState.snapshot.gameId}:${sessionState.snapshot.lastEventSeq}` : null
   const sessionTurnKnown = sessionState.snapshot !== null && sessionRole !== null
   const activeTurnOwner = getPhaseOwner(sessionPhase)
   const sessionTurnActive = sessionState.snapshot !== null && sessionRole !== null && activeTurnOwner === sessionRole
@@ -558,6 +562,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     selectedCombatTarget,
     selectedInspectorDefender,
     selectedInspectorOnion,
+    escapeHexes,
+    victoryObjectives,
     shellPhase,
   } = displayState
 
@@ -625,6 +631,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   ])
 
   const isControlledSession = activeSessionBinding !== null
+  const shouldShowGameOverToast = sessionWinner !== null && sessionWinnerToastKey !== null && dismissedGameOverToastKey !== sessionWinnerToastKey
 
   const {
     debugEntries,
@@ -645,6 +652,14 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
     const targetId = buildCombatTargetActionId(selectedCombatTarget.id, displayedOnion.id)
     void commitClientAction({ type: 'FIRE', attackers: selectedCombatAttackerIds, targetId })
+  }
+
+  function handleDismissGameOverToast() {
+    if (sessionWinnerToastKey === null) {
+      return
+    }
+
+    setDismissedGameOverToastKey(sessionWinnerToastKey)
   }
 
   if (!isControlledSession && runtimeConnectionSeeded) {
@@ -669,6 +684,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onDismiss={handleDismissRamResolution}
         />
       ) : null}
+      {shouldShowGameOverToast ? <GameOverToast winner={sessionWinner} onDismiss={handleDismissGameOverToast} /> : null}
       <header className="topbar panel">
         <div
           className={`role-badge ${
@@ -845,6 +861,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             selectedUnitIds={activeSelectedUnitIds}
             combatRangeHexKeys={combatRangeHexKeys}
             combatTargetIds={combatTargetIds}
+            escapeHexes={escapeHexes}
             isSelectionLocked={inactiveEventScreenLocked}
             isInteractionLocked={inactiveEventControlsLocked}
             canSubmitMove={
@@ -883,6 +900,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           selectedCombatTargetId={selectedCombatTargetId}
           selectedInspectorDefender={selectedInspectorDefender}
           selectedInspectorOnion={selectedInspectorOnion}
+          escapeHexes={escapeHexes}
+          victoryObjectives={victoryObjectives}
           inactiveEventStream={inactiveEventStream}
           combatTargetOptions={combatTargetOptions}
           onConfirmCombat={handleConfirmCombat}

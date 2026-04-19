@@ -83,12 +83,14 @@ export function unitCode(unitType: string): string {
       return 'PU'
     case 'Witch':
       return 'WI'
+    case 'Swamp':
+      return 'SW'
     default:
       return '??'
   }
 }
 
-export function statusTone(status: UnitStatus): string {
+export function statusTone(status: UnitStatus | string): string {
   switch (status) {
     case 'operational':
       return 'ready'

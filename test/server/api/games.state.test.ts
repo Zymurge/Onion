@@ -24,6 +24,8 @@ describe('GET /games/:id', () => {
     expect(body.winner).toBeNull()
     expect(body).toHaveProperty('state')
     expect(body).toHaveProperty('movementRemainingByUnit')
+    expect(body).toHaveProperty('victoryObjectives')
+    expect(body).toHaveProperty('escapeHexes')
     expect(body).toHaveProperty('scenarioMap')
     expect(body.scenarioMap.width).toBeGreaterThan(0)
     expect(body.scenarioMap.height).toBeGreaterThan(0)
@@ -72,6 +74,13 @@ describe('GET /games/:id', () => {
     expect(body.state.onion).toBeDefined()
     expect(body.state.onion.position).toBeDefined()
     expect(body.state.defenders).toBeDefined()
+    expect(body.victoryObjectives).toBeDefined()
+    expect(body.victoryObjectives).toHaveLength(2)
+    expect(body.escapeHexes).toEqual([
+      { q: 0, r: 9 },
+      { q: 0, r: 10 },
+      { q: 0, r: 11 },
+    ])
     expect(body.scenarioMap).toBeDefined()
     expect(body.scenarioMap.hexes).toBeDefined()
     expect(Object.keys(body.state.defenders).length).toBeGreaterThanOrEqual(1)

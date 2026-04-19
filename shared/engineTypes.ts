@@ -11,6 +11,7 @@ export type UnitType =
   | 'Pinocchio'
   | 'Dragon'
   | 'LittlePigs'
+  | 'Swamp'
   | 'Castle'
 
 export type WeaponStatus = 'ready' | 'spent' | 'destroyed'

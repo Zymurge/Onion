@@ -5,7 +5,8 @@ import { join } from 'node:path'
 import type { MatchRecord } from '#server/db/adapter'
 import { checkVictoryConditions } from '#server/engine/phases'
 import { getUnitDefinition } from '#server/engine/units'
-import type { GameStateResponse } from '#shared/apiProtocol'
+import type { GameStateResponse, VictoryEscapeHex, VictoryObjectiveState } from '#shared/apiProtocol'
+import { hexKey } from '#shared/hex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
@@ -18,17 +19,46 @@ const SCENARIOS_DIR = resolveScenariosDir()
 const GAME_ID_RE = /^\d+$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+export type VictoryObjective =
+  | {
+    id: string
+    label: string
+    required?: boolean
+    kind: 'destroy-unit'
+    unitId: string
+    unitType?: never
+  }
+  | {
+    id: string
+    label: string
+    required?: boolean
+    kind: 'destroy-unit'
+    unitType: string
+    unitId?: never
+  }
+  | {
+    id: string
+    label: string
+    required?: boolean
+    kind: 'escape-map'
+  }
+
 export type ScenarioSnapshot = {
   name?: string
   displayName?: string
   victoryConditions?: {
     maxTurns?: number
+    objectives?: VictoryObjective[]
     onion?: {
-      targetHex?: { q: number; r: number }
+      escapeHexes?: Array<{ q: number; r: number }>
     }
   }
   map?: AuthoredScenarioMap
   initialState?: unknown
+}
+
+export function getScenarioEscapeHexes(scenarioSnapshot: ScenarioSnapshot | undefined): VictoryEscapeHex[] {
+  return scenarioSnapshot?.victoryConditions?.onion?.escapeHexes ?? []
 }
 
 export type ScenarioMapSnapshot = ExplicitScenarioMap
@@ -77,15 +107,17 @@ export function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined)
   const translatedVictoryConditions = initial.victoryConditions && typeof initial.victoryConditions === 'object'
     ? (() => {
       const victoryConditions = initial.victoryConditions as {
-        onion?: { targetHex?: { q: number; r: number } }
+        onion?: {
+          escapeHexes?: Array<{ q: number; r: number }>
+        }
       }
 
-      return victoryConditions.onion?.targetHex
+      return victoryConditions.onion
         ? {
           ...victoryConditions,
           onion: {
             ...victoryConditions.onion,
-            targetHex: translateScenarioCoord(victoryConditions.onion.targetHex, radius),
+            escapeHexes: victoryConditions.onion.escapeHexes?.map((hex) => translateScenarioCoord(hex, radius)),
           },
         }
         : victoryConditions
@@ -109,9 +141,11 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
     })),
   ]
 
-  const targetHex = scenarioSnapshot.victoryConditions?.onion?.targetHex
-  if (targetHex !== undefined) {
-    positions.push({ label: 'victory target', position: targetHex })
+  const escapeHexes = scenarioSnapshot.victoryConditions?.onion?.escapeHexes
+  if (escapeHexes !== undefined) {
+    escapeHexes.forEach((position, index) => {
+      positions.push({ label: `victory escape hex ${index + 1}`, position })
+    })
   }
 
   assertScenarioPositionsInMap(scenarioMap, positions)
@@ -146,9 +180,59 @@ export function buildMovementRemainingByUnit(state: GameState, phase: TurnPhase)
   return movementRemainingByUnit
 }
 
-export function getScenarioMaxTurns(scenarioSnapshot: ScenarioSnapshot | undefined): number {
-  const maxTurns = scenarioSnapshot?.victoryConditions?.maxTurns
-  return typeof maxTurns === 'number' && Number.isFinite(maxTurns) && maxTurns > 0 ? maxTurns : 20
+function isOnionEscaped(
+  scenarioMap: ScenarioMapSnapshot,
+  state: GameState,
+  turnNumber: number,
+  escapeHexes?: Array<{ q: number; r: number }>,
+): boolean {
+  if (escapeHexes !== undefined && escapeHexes.length > 0) {
+    if (turnNumber <= 1) {
+      return false
+    }
+
+    return escapeHexes.some((hex) => hexKey(hex) === hexKey(state.onion.position))
+  }
+
+  return !scenarioMap.cells.some((cell) => hexKey(cell) === hexKey(state.onion.position))
+}
+
+function isObjectiveCompleted(
+  scenarioSnapshot: ScenarioSnapshot | undefined,
+  scenarioMap: ScenarioMapSnapshot,
+  state: GameState,
+  turnNumber: number,
+  objective: VictoryObjective,
+): boolean {
+  if (objective.kind === 'destroy-unit') {
+    if (objective.unitId !== undefined) {
+      return state.defenders[objective.unitId]?.status === 'destroyed'
+    }
+
+    if (objective.unitType !== undefined) {
+      return Object.values(state.defenders).some((defender) => defender.type === objective.unitType && defender.status === 'destroyed')
+    }
+
+    return false
+  }
+
+  return objective.kind === 'escape-map'
+    ? isOnionEscaped(scenarioMap, state, turnNumber, scenarioSnapshot?.victoryConditions?.onion?.escapeHexes)
+    : false
+}
+
+export function buildVictoryObjectiveStates(
+  scenarioSnapshot: ScenarioSnapshot | undefined,
+  scenarioMap: ScenarioMapSnapshot,
+  state: GameState,
+  turnNumber = 1,
+): VictoryObjectiveState[] {
+  const objectives = scenarioSnapshot?.victoryConditions?.objectives ?? []
+  return objectives.map((objective) => ({
+    ...objective,
+    required: objective.required ?? true,
+    completed: isObjectiveCompleted(scenarioSnapshot, scenarioMap, state, turnNumber, objective),
+  }))
 }
 
 export function computeWinnerUserId(
@@ -165,7 +249,23 @@ export function computeWinnerUserId(
   } as EngineGameState
 
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
-  const winningRole = checkVictoryConditions(engineState, turnNumber, getScenarioMaxTurns(scenarioSnapshot))
+  const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+  const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber)
+  const requiredObjectives = victoryObjectives.filter((objective) => objective.required)
+
+  if (requiredObjectives.length > 0) {
+    if (requiredObjectives.every((objective) => objective.completed)) {
+      return match.players.onion
+    }
+
+    if (engineState.onion.treads <= 0 || engineState.onion.status === 'destroyed') {
+      return match.players.defender
+    }
+
+    return null
+  }
+
+  const winningRole = checkVictoryConditions(engineState)
   if (!winningRole) return null
   return match.players[winningRole]
 }
@@ -451,6 +551,7 @@ export function logActionOutcome(
 export function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+  const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
   const role: GameStateResponse['role'] = match.players.onion === userId ? 'onion' : 'defender'
   const winner: GameStateResponse['winner'] =
     match.winner === null
@@ -472,6 +573,8 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     players: match.players,
     state: match.state,
     movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
+    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber),
+    escapeHexes,
     scenarioMap,
     eventSeq: match.events.at(-1)?.seq ?? 0,
   }

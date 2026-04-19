@@ -50,7 +50,7 @@ We use an **Axial Coordinate System** (q, r) where:
   "id": "swamp-siege-01",
   "name": "swamp-siege-01",
   "displayName": "The Siege of Shrek's Swamp",
-  "description": "The Onion must reach the Castle while defenders hold the ridgeline.",
+  "description": "The Onion must destroy the Swamp and then escape the map.",
   "map": {
     "radius": 7,
     "hexes": [
@@ -73,36 +73,55 @@ We use an **Axial Coordinate System** (q, r) where:
       "status": "operational"
     },
     "defenders": {
-      "wolf-1": { "type": "BigBadWolf", "position": { "q": 5, "r": 5 }, "status": "operational" },
-      "puss-1": { "type": "Puss", "position": { "q": 6, "r": 5 }, "status": "operational" },
-      "pigs-1": { "type": "LittlePigs", "position": { "q": 10, "r": 5 }, "squads": 3, "status": "operational" }
+      "swamp-1": { "type": "Swamp", "position": { "q": 5, "r": 5 }, "status": "operational" }
     }
   },
-  # 6. Normalization Rules
-
-  At game start, the engine will normalize the scenario's initialState as follows:
-
-  1. **Onion Type:** If `onion.type` is missing, default to `"TheOnion"` (or the engine's default Onion type).
-  2. **Unit Status:** If `status` is missing for onion or defenders, default to `"operational"`.
-  3. **Unit IDs:** Ignore any `id` fields in the scenario; assign unique IDs at game start for onion and each defender.
-  4. **Weapons:** Always auto-populate `weapons` for onion and defenders from engine definitions at game start.
-  5. **Defenders Format:** Scenario must provide `defenders` as a Record keyed by id; keys may be arbitrary and will be replaced by generated IDs at game start.
-  6. **Game State Fields:** `ramsThisTurn`, `currentPhase`, and `turn` are not part of the scenario and are set by the engine.
   "victoryConditions": {
-    "onion": {
-      "targetHex": { "q": 12, "r": 5 },
-      "description": "Onion wins by moving onto or attacking the Castle hex."
-    },
-    "defender": {
-      "condition": "onionImmobilized",
-      "description": "Defender wins when the Onion's tread points reach 0 (MA 0). A stationary Onion cannot reach the Castle."
-    },
-    "maxTurns": 20
+    "maxTurns": 20,
+    "objectives": [
+      {
+        "id": "destroy-swamp",
+        "label": "Destroy The Swamp",
+        "kind": "destroy-unit",
+        "unitType": "Swamp",
+        "required": true
+      },
+      {
+        "id": "escape-map",
+        "label": "Escape to a scenario-defined edge hex after The Swamp is destroyed",
+        "kind": "escape-map",
+        "required": true
+      }
+    ]
   }
 }
 ```
 
-## 3. Unit and Weapon Population
+## 3. Victory Conditions
+
+Victory conditions are authored in the scenario under `victoryConditions`. The engine materializes them into runtime objective state, but the scenario file remains the source of truth.
+
+### Fields
+
+- `maxTurns`: Optional turn limit for the scenario. If omitted, the engine uses its default maximum turn count.
+- `objectives`: Ordered list of scenario objectives. Each objective is evaluated independently and exposed to the API/UI as its own completion state.
+- `onion.escapeHexes`: Array of explicit escape hexes. The Onion completes the `escape-map` objective by reaching any listed hex after the prerequisite objective sequence is satisfied.
+
+### Currently Supported Objective Types
+
+- `destroy-unit`: Completes when the named unit is destroyed. Use either `unitId` for a specific authored unit or `unitType` for any unit of that type.
+- `escape-map`: Completes when the Onion leaves the map after the prerequisite objective sequence has been satisfied.
+
+### Authoring Rules
+
+1. Prefer `objectives` for new scenarios. Do not mix unrelated victory systems in the same file unless you are intentionally supporting a legacy scenario.
+2. Mark each objective with a stable `id` and a player-facing `label`.
+3. Set `required` to `true` for objectives that must be complete for the Onion to win. Omitted `required` defaults to required in the current engine contract.
+4. Use `unitId` when the scenario contains one specific named objective unit, such as The Swamp.
+5. Use `unitType` when any unit of that type should satisfy the objective.
+6. Add new objective kinds only when the engine and API contract have been updated to support them end to end.
+
+## 4. Unit and Weapon Population
 
 Scenario JSON only declares the starting unit types, positions, and stack sizes. The engine populates the full weapon lists, weapon stats, and any target-rule metadata from the shared unit definitions at normalization time.
 
@@ -110,7 +129,7 @@ Scenario JSON only declares the starting unit types, positions, and stack sizes.
 2. If a weapon or unit has special targeting restrictions, define them on the shared unit definition in the engine source of truth.
 3. Scenario `initialState` should remain focused on initial placement, stack sizes, and status fields that vary per scenario.
 
-## 4. Map Encoding Convention
+## 5. Map Encoding Convention
 
 Authored scenarios may declare a hex map by `radius` instead of enumerating every cell. In that authoring mode, the backend/shared scenario pipeline converts the authored positions into runtime axial coordinates and materializes the map as an explicit `cells` array centered at `(radius, radius)`, which keeps the generated board geometry consistent and non-negative.
 
@@ -120,7 +139,7 @@ The runtime/API map shape still uses explicit `cells`; `radius` is only an autho
 
 Only non-clear hexes need to appear in the `hexes` array. Any hex coordinate not listed is assumed to be terrain type `0` (Clear). This keeps scenario files compact.
 
-## 5. Unit Status State Machine
+## 6. Unit Status State Machine
 
 Defender units cycle through three states. The engine is responsible for advancing state automatically at the start of each Defender turn.
 
@@ -128,7 +147,7 @@ Defender units cycle through three states. The engine is responsible for advanci
 - `disabled`: Unit was hit with a "D" result this turn. It cannot move or fire. At the start of the **next** Defender turn, the engine transitions it to `recovering`.
 - `recovering`: Unit was disabled last turn. It returns to `operational` at the **start of the Recovery Phase** this turn and may act normally.
 
-## 6. Zod Implementation Notes
+## 7. Zod Implementation Notes
 
 We will define the following TS interfaces:
 

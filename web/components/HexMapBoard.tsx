@@ -1,10 +1,13 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
-import { unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
+import { statusTone, unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import './HexMapBoard.css'
+
+import swampDestroyedSprite from '../assets/The Swamp - destroyed.png'
+import swampIntactSprite from '../assets/The Swamp - intact.png'
 
 type HexOccupant = BattlefieldUnit | BattlefieldOnionView
 
@@ -23,6 +26,7 @@ type HexMapBoardProps = {
   selectedCombatTargetId?: string | null
   combatRangeHexKeys?: ReadonlySet<string>
   combatTargetIds?: ReadonlySet<string>
+  escapeHexes?: Array<{ q: number; r: number }>
   canSubmitMove?: boolean
   isSelectionLocked?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
@@ -61,9 +65,20 @@ function getStackOffset(index: number, total: number): { dx: number; dy: number 
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+function shouldRenderDefender(defender: BattlefieldUnit) {
+  return defender.status !== 'destroyed' || defender.type === 'Swamp'
+}
+
+function getSwampSpriteHref(status: string) {
+  return status === 'destroyed' ? swampDestroyedSprite : swampIntactSprite
+}
+
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, escapeHexes, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+  void viewerRole
+
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
+  const escapePatternId = useId().replaceAll(':', '')
   const [moveError, setMoveError] = useState<string | null>(null)
   const [zoomPercent, setZoomPercent] = useState(100)
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
@@ -98,7 +113,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
 
   occupantMap.set(hexKey(onion), [onion])
   for (const defender of defenders) {
-    if (defender.status === 'destroyed') continue
+    if (!shouldRenderDefender(defender)) continue
     const key = hexKey(defender)
     const occupants = occupantMap.get(key) ?? []
     occupants.push(defender)
@@ -120,7 +135,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
     .flatMap(([key, occupants]) => {
       const [q, r] = key.split(',').map(Number)
       return occupants
-        .filter((occupant) => occupant.id !== selectedPrimaryUnitId && occupant.status !== 'destroyed')
+        .filter((occupant) => occupant.id !== selectedPrimaryUnitId && (occupant.status !== 'destroyed' || occupant.type === 'Swamp'))
         .map((occupant) => ({
           q,
           r,
@@ -156,6 +171,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
   }, [moveError])
 
   const renderedCells = scenarioMap.cells
+  const escapeHexSet = new Set((escapeHexes ?? []).map((hex) => hexKey(hex)))
   const bounds = boardPixelSize(renderedCells, HEX_SIZE, MAP_PADDING)
   const scaledBounds = {
     width: bounds.width * zoomLevel,
@@ -295,12 +311,19 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
           role="img"
           aria-label="Swamp Siege hex map"
         >
+          <defs>
+            <pattern id={escapePatternId} width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="18" height="18" fill="rgba(155, 148, 112, 0.18)" />
+              <path d="M 0 0 L 0 18" stroke="rgba(62, 84, 43, 0.88)" strokeWidth="12" strokeLinecap="square" />
+            </pattern>
+          </defs>
           <g transform={`translate(${MAP_PADDING}, ${MAP_PADDING})`}>
             {renderedCells.map((coord) => {
               const center = axialToPixel(coord, HEX_SIZE)
               const polygonPoints = pointsToString(hexCorners(center, HEX_SIZE - 1))
               const terrainType = terrain.get(hexKey(coord))
               const cellOccupants = occupantMap.get(hexKey(coord)) ?? []
+              const renderedTerrainType = terrainType
               const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
               const isSelected = cellOccupants.some((occupant) => selectedUnitSet.has(occupant.id))
               const isCombatTargetSelected = selectedCombatTargetId !== undefined && selectedCombatTargetId !== null && cellOccupants.some((occupant) => {
@@ -312,6 +335,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                   ))
               })
               const isCombatRange = combatRangeHexKeys?.has(hexKey(coord)) ?? false
+              const isEscapeHex = escapeHexSet.has(hexKey(coord))
               const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
                 if (!playerRole || !isMovementPhase || occupant.status !== 'operational') {
                   return false
@@ -328,7 +352,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                 return occupant.move > 0 || (phase !== null && getUnitMovementAllowance(occupant.type, phase) > 0)
               })
               const isReachable = canSubmitMove && reachableHexKeys.has(hexKey(coord))
-              const terrainImg = terrainType === 1 ? '/terrain/ridges.svg' : terrainType === 2 ? '/terrain/craters.svg' : '/terrain/default.svg'
+              const terrainImg = renderedTerrainType === 1 ? '/terrain/ridges.svg' : renderedTerrainType === 2 ? '/terrain/craters.svg' : '/terrain/default.svg'
               const imgSize = HEX_SIZE * 2
 
               return (
@@ -337,10 +361,11 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                   data-testid={`hex-cell-${coord.q}-${coord.r}`}
                   className={[
                     'hex-cell',
-                    terrainType ? `hex-terrain-${terrainType}` : 'hex-terrain-default',
+                      renderedTerrainType ? `hex-terrain-${renderedTerrainType}` : 'hex-terrain-default',
                     isSelected ? 'hex-cell-selected' : '',
                     isCombatTargetSelected ? 'hex-cell-selected' : '',
                     isCombatRange ? 'hex-cell-combat-range' : '',
+                    isEscapeHex ? 'hex-cell-escape' : '',
                     isMoveReady ? 'hex-cell-move-ready' : '',
                     isReachable ? 'hex-cell-reachable' : '',
                     isOnion ? 'hex-cell-onion' : '',
@@ -387,10 +412,27 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                     preserveAspectRatio="xMidYMid slice"
                   />
                   <polygon className="hex-shape" points={polygonPoints} fill="none" />
+                  {isEscapeHex ? (
+                    <polygon
+                      className="hex-shape hex-shape-escape-overlay"
+                      points={polygonPoints}
+                      style={{ fill: `url(#${escapePatternId})`, fillOpacity: 0.5, opacity: 0.5 }}
+                      pointerEvents="none"
+                    />
+                  ) : null}
+                  {isEscapeHex ? (
+                    <polygon
+                      className="hex-shape hex-shape-escape-ring"
+                      points={polygonPoints}
+                      fill="none"
+                      pointerEvents="none"
+                    />
+                  ) : null}
                   {cellOccupants.map((occupant, index) => {
                     const isOccupantOnion = occupant.id === onion.id
                     const isOccupantSelected = selectedUnitSet.has(occupant.id)
                     const offset = getStackOffset(index, cellOccupants.length)
+                    const isSwamp = occupant.type === 'Swamp'
 
                     const isDestroyed = occupant.status === 'destroyed'
                     const isDisabled = occupant.status === 'disabled'
@@ -421,13 +463,24 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                             : ''
                     const movementEligibilityClass = !isMovementPhase
                       ? ''
-                      : isDestroyed || isDisabled
+                      : isSwamp
+                        ? isDestroyed ? 'hex-unit-rect-swamp-destroyed' : 'hex-unit-rect-swamp'
+                        : isDestroyed || isDisabled
                         ? 'hex-unit-rect-move-disabled'
                         : isMovementPhaseActiveSide
                           ? moveHasRemaining
                             ? 'hex-unit-rect-move-eligible'
                             : 'hex-unit-rect-move-ineligible'
                           : 'hex-unit-rect-move-inspectable'
+                    const swampRectClass = isSwamp
+                      ? isDestroyed || isDisabled
+                        ? 'hex-unit-rect-swamp-destroyed'
+                        : 'hex-unit-rect-swamp'
+                      : ''
+                    const unitRectX = isSwamp ? center.x - 24 : center.x - 16
+                    const unitRectY = isSwamp ? center.y - 24 : center.y - 11
+                    const unitRectWidth = isSwamp ? 48 : 32
+                    const unitRectHeight = isSwamp ? 48 : 22
                     return (
                       <g
                         key={occupant.id}
@@ -436,9 +489,11 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                         className={[
                           'hex-unit-stack',
                           isOccupantOnion ? 'hex-unit-stack-onion' : 'hex-unit-stack-defender',
+                          isSwamp ? 'hex-unit-stack-swamp' : '',
                           isOccupantSelected ? 'hex-unit-stack-selected' : '',
                           isMovementPhase && movementEligibilityClass === 'hex-unit-rect-move-eligible' ? 'hex-unit-stack-move-ready' : '',
                           isDisabled ? 'hex-unit-stack-disabled' : '',
+                          isSwamp ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral') : `tone-${statusTone(occupant.status)}`,
                         ].join(' ')}
                         transform={`translate(${offset.dx}, ${offset.dy})`}
                         onClick={(event) => {
@@ -455,21 +510,33 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                         <rect
                           className={[
                             'hex-unit-rect',
-                            isOccupantOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
+                            isSwamp ? swampRectClass : isOccupantOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
                             isOccupantSelected ? 'hex-unit-rect-selected' : '',
-                            movementEligibilityClass,
+                            isSwamp ? '' : movementEligibilityClass,
                             isDisabled ? 'hex-unit-rect-disabled' : '',
-                            combatEligibilityClass,
+                            isSwamp ? '' : combatEligibilityClass,
                           ].join(' ')}
-                          x={center.x - 16}
-                          y={center.y - 11}
-                          width={32}
-                          height={22}
-                          rx={2}
+                          x={unitRectX}
+                          y={unitRectY}
+                          width={unitRectWidth}
+                          height={unitRectHeight}
+                          rx={isSwamp ? 4 : 2}
                         />
-                        <text className="hex-unit-marker" x={center.x} y={center.y + 4} textAnchor="middle">
-                          {unitCode(occupant.type)}
-                        </text>
+                        {occupant.type === 'Swamp' ? null : (
+                          <text className="hex-unit-marker" x={center.x} y={center.y + 4} textAnchor="middle">
+                            {unitCode(occupant.type)}
+                          </text>
+                        )}
+                        {occupant.type === 'Swamp' ? (
+                          <image
+                            href={getSwampSpriteHref(occupant.status)}
+                            x={center.x - 19}
+                            y={center.y - 19}
+                            width={38}
+                            height={38}
+                            preserveAspectRatio="xMidYMid meet"
+                          />
+                        ) : null}
                         {isDisabled && (
                           <g className="hex-unit-disabled-indicator">
                             <rect

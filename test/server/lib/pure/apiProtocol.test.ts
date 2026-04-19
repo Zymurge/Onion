@@ -31,6 +31,7 @@ describe('apiProtocol traffic logging', () => {
 				defenders: {},
 			},
 			movementRemainingByUnit: {},
+			escapeHexes: [{ q: 7, r: 5 }],
 			scenarioMap: {
 				width: 2,
 				height: 2,

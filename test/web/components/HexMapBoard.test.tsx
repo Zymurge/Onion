@@ -259,6 +259,136 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-unit-puss-disabled').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-disabled')
 	})
 
+	it('keeps a destroyed swamp visible and selectable on the map', () => {
+		const destroyedSwamp: BattlefieldUnit = {
+			...defenders[0],
+			id: 'swamp-1',
+			type: 'Swamp',
+			friendlyName: 'The Swamp',
+			status: 'destroyed',
+			q: 1,
+			r: 1,
+			move: 0,
+			weapons: 'n/a',
+			attack: '0 / rng 0',
+			actionableModes: [],
+		}
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[destroyedSwamp, defenders[1]]}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["swamp-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-swamp-1')).not.toBeNull()
+		expect(screen.getByTestId('hex-unit-swamp-1').getAttribute('class')).toContain('tone-destroyed')
+		expect(screen.getByTestId('hex-unit-swamp-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-swamp-1').querySelector('image')?.getAttribute('href')).toContain('destroyed')
+	})
+
+	it('uses the intact swamp sprite for an operational swamp', () => {
+		const intactSwamp: BattlefieldUnit = {
+			...defenders[0],
+			id: 'swamp-1',
+			type: 'Swamp',
+			friendlyName: 'The Swamp',
+			status: 'operational',
+			q: 1,
+			r: 1,
+			move: 0,
+			weapons: 'n/a',
+			attack: '0 / rng 0',
+			actionableModes: [],
+		}
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[intactSwamp]}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const swampUnit = screen.getByTestId('hex-unit-swamp-1')
+		expect(swampUnit.querySelector('image')?.getAttribute('href')).toContain('intact')
+		expect(swampUnit.querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-swamp')
+		expect(swampUnit.querySelector('rect')?.getAttribute('class')).not.toContain('hex-unit-rect-move-eligible')
+		expect(swampUnit.querySelector('rect')?.getAttribute('class')).not.toContain('hex-unit-rect-combat-eligible')
+		expect(swampUnit.querySelector('rect')?.getAttribute('width')).toBe('48')
+		expect(swampUnit.querySelector('rect')?.getAttribute('height')).toBe('48')
+	})
+
+	it('renders the swamp hex terrain behind the unit', () => {
+		const swampTerrainScenarioMap = {
+			...scenarioMap,
+			hexes: [{ q: 1, r: 1, t: 1 } as TerrainHex],
+		}
+
+		render(
+			<HexMapBoard
+				scenarioMap={swampTerrainScenarioMap}
+				defenders={[
+					{
+						...defenders[0],
+						id: 'swamp-1',
+						type: 'Swamp',
+						friendlyName: 'The Swamp',
+						status: 'operational',
+						q: 1,
+						r: 1,
+						move: 0,
+						weapons: 'n/a',
+						attack: '0 / rng 0',
+						actionableModes: [],
+					},
+				]}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-terrain-1')
+		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).not.toContain('hex-terrain-default')
+	})
+
+	it('outlines escape hexes', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				escapeHexes={[{ q: 2, r: 1 }, { q: 4, r: 4 }]}
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).toContain('hex-cell-escape')
+		expect(screen.getByTestId('hex-cell-4-4').getAttribute('class')).toContain('hex-cell-escape')
+		expect(screen.getByTestId('hex-cell-2-1').querySelector('.hex-shape-escape-overlay')).not.toBeNull()
+		expect(screen.getByTestId('hex-cell-4-4').querySelector('.hex-shape-escape-overlay')).not.toBeNull()
+		expect(screen.getByTestId('hex-cell-0-0').getAttribute('class')).not.toContain('hex-cell-escape')
+	})
+
 	it('renders combat range overlays when provided', () => {
 		render(
 			<HexMapBoard

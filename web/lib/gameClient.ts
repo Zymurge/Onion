@@ -1,4 +1,5 @@
 import type { EventEnvelope, GameState, TurnPhase } from '../../shared/types/index'
+import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
 import type { GameRequestTransport } from './gameSessionTypes'
 
 export type ScenarioMapSnapshot = {
@@ -37,12 +38,15 @@ export type GameSnapshot = {
 	phase: TurnPhase
 	selectedUnitId: string | null
 	mode: ActionMode
+	winner?: 'onion' | 'defender' | null
 	scenarioName?: string
 	turnNumber?: number
 	lastEventSeq: number
 	authoritativeState?: GameState
 	movementRemainingByUnit?: Record<string, number>
 	scenarioMap?: ScenarioMapSnapshot
+	victoryObjectives?: VictoryObjectiveState[]
+	escapeHexes?: VictoryEscapeHex[]
 	combatResolution?: CombatResolution
 	ramResolution?: RamResolution
 }

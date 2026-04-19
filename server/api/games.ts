@@ -16,12 +16,14 @@ import {
   assertScenarioStateFitsMap,
   buildCombatEvents,
   buildEngineState,
+  buildVictoryObjectiveStates,
   buildGameStateResponse,
   buildMoveEvents,
   computeWinnerUserId,
   buildMovementRemainingByUnit,
   extractUserId,
   extractUserIdFromAuth,
+  getScenarioEscapeHexes,
   getScenarioMapSnapshot,
   logActionOutcome,
   logSentEvents,
@@ -51,6 +53,51 @@ const INITIAL_STATE: GameState = {
     batteries: { main: 1, secondary: 4, ap: 8 },
   },
   defenders: {},
+}
+
+function resolveWinnerRole(
+  match: { players: { onion: string | null; defender: string | null } },
+  winnerUserId: string | null,
+  state: GameState,
+): PlayerRole | null {
+  if (winnerUserId === null) {
+    return null
+  }
+
+  if (winnerUserId === match.players.onion) {
+    return 'onion'
+  }
+
+  if (winnerUserId === match.players.defender) {
+    return 'defender'
+  }
+
+  if (state.onion.treads <= 0 || state.onion.status === 'destroyed') {
+    return 'defender'
+  }
+
+  return 'onion'
+}
+
+function appendGameOverEvent(events: EventEnvelope[], winner: PlayerRole | null, turnNumber: number, causeId: string): EventEnvelope[] {
+  if (winner === null) {
+    return events
+  }
+
+  const seq = (events.at(-1)?.seq ?? 0) + 1
+  const summary = winner === 'onion' ? 'Game over: the Onion escaped' : 'Game over: the defenders prevailed'
+  return [
+    ...events,
+    {
+      seq,
+      type: 'GAME_OVER',
+      timestamp: new Date().toISOString(),
+      turnNumber,
+      winner,
+      summary,
+      causeId,
+    },
+  ]
 }
 
 /**
@@ -516,6 +563,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       let currentState = match.state
       const expectedLastEventSeq = match.events.at(-1)?.seq ?? 0
       const causeId = String(req.id)
+      const escapeHexes = getScenarioEscapeHexes(match.scenarioSnapshot as ScenarioSnapshot)
+      const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+      const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
 
       if (command.type === 'END_PHASE') {
         logger.info(
@@ -533,19 +583,22 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const result = advancePhaseWithEvents(match)
         newEvents = attachTurnNumber(attachCauseId(result.newEvents, causeId), result.turnNumber)
         currentState = result.state
-        const winner = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
+        const winnerUserId = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
+        const winner = resolveWinnerRole(match, winnerUserId, result.state)
+        newEvents = appendGameOverEvent(newEvents, winner, result.turnNumber, causeId)
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
           phase: result.phase,
           turnNumber: result.turnNumber,
-          winner,
+          winner: winnerUserId,
           state: result.state,
           events: newEvents,
         })
         // Return updated state and events
         const turnNumber = result.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? 0
+        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.info(
@@ -563,11 +616,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           },
           'Phase advanced',
         )
-        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq })
+        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq, escapeHexes, victoryObjectives, winner })
       } else if (command.type === 'MOVE') {
         logger.info({ gameId: match.gameId, unitId: command.unitId }, 'Processing MOVE command')
-        const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
-        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
         const validation = validateUnitMovement(map, state, command)
@@ -591,18 +642,21 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         newEvents = attachTurnNumber(attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state), causeId), match.turnNumber)
 
         currentState = state
-        const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
+        const winnerUserId = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
+        const winner = resolveWinnerRole(match, winnerUserId, state)
+        newEvents = appendGameOverEvent(newEvents, winner, match.turnNumber, causeId)
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
           phase: match.phase,
           turnNumber: match.turnNumber,
-          winner,
+          winner: winnerUserId,
           state,
           events: newEvents,
         })
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
+        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
         logSentEvents(match.gameId, 'MOVE', newEvents)
         logActionOutcome(match.gameId, 'MOVE', {
           unitId: command.unitId,
@@ -615,11 +669,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
-        return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
+        return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq, escapeHexes, victoryObjectives, winner })
       } else if (command.type === 'FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
-        const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
-        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
         const validation = validateCombatAction(map, state, command)
@@ -643,18 +695,21 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
         newEvents = attachTurnNumber(attachCauseId(buildCombatEvents(seq, command, result, state), causeId), match.turnNumber)
         currentState = state
-        const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
+        const winnerUserId = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
+        const winner = resolveWinnerRole(match, winnerUserId, state)
+        newEvents = appendGameOverEvent(newEvents, winner, match.turnNumber, causeId)
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
           phase: match.phase,
           turnNumber: match.turnNumber,
-          winner,
+          winner: winnerUserId,
           state,
           events: newEvents,
         })
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
+        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
         logSentEvents(match.gameId, command.type, newEvents)
         logActionOutcome(match.gameId, 'FIRE', {
           attackers: command.attackers,
@@ -669,7 +724,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
-        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
+        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq, escapeHexes, victoryObjectives, winner })
       }
     } catch (err) {
       if (err instanceof StaleMatchStateError) {

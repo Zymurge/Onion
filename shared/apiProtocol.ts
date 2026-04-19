@@ -23,6 +23,23 @@ export type ApiFailure = {
 
 export type ApiResult<T> = ApiSuccess<T> | ApiFailure
 
+export type VictoryObjectiveKind = 'destroy-unit' | 'escape-map'
+
+export type VictoryObjectiveState = {
+	id: string
+	label: string
+	kind: VictoryObjectiveKind
+	required: boolean
+	completed: boolean
+	unitId?: string
+	unitType?: string
+}
+
+export type VictoryEscapeHex = {
+	q: number
+	r: number
+}
+
 export type ApiProtocolTrafficDirection = 'request' | 'response' | 'error'
 
 export type ApiProtocolTrafficEntry = {
@@ -218,6 +235,8 @@ export type GameStateResponse = {
 	}
 	state: GameState
 	movementRemainingByUnit: Record<string, number>
+	victoryObjectives?: VictoryObjectiveState[]
+	escapeHexes?: VictoryEscapeHex[]
 	/**
 	 * Canonical scenario map snapshot. Must always be present and valid.
 	 */

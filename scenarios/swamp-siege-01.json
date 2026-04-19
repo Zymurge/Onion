@@ -2,7 +2,7 @@
   "id": "swamp-siege-01",
   "name": "swamp-siege-01",
   "displayName": "The Siege of Shrek's Swamp",
-  "description": "The Onion must cross the ridgeline and destroy the Castle while defenders hold the line.",
+  "description": "The Onion must destroy The Swamp and escape off-map starting on Onion turn 2 while defenders hold the line.",
   "map": {
     "radius": 7,
     "hexes": [
@@ -12,8 +12,7 @@
       { "q": 4, "r": 1, "t": 1 },
       { "q": 5, "r": 2, "t": 1 },
       { "q": 3, "r": 8, "t": 2 },
-      { "q": 4, "r": 8, "t": 2 },
-      { "q": 7, "r": 5, "t": 3 }
+      { "q": 4, "r": 8, "t": 2 }
     ]
   },
   "initialState": {
@@ -30,6 +29,7 @@
       "status": "operational"
     },
     "defenders": {
+      "swamp-1": { "type": "Swamp", "position": { "q": 7, "r": 5 }, "status": "operational" },
       "wolf-1":  { "type": "BigBadWolf", "position": { "q": 5,  "r": 6 }, "status": "operational" },
       "wolf-2":  { "type": "BigBadWolf", "position": { "q": 6,  "r": 6 }, "status": "operational" },
       "puss-1":  { "type": "Puss",       "position": { "q": 6,  "r": 4 }, "status": "operational" },
@@ -39,14 +39,32 @@
     }
   },
   "victoryConditions": {
+    "objectives": [
+      {
+        "id": "destroy-swamp-1",
+        "label": "Destroy The Swamp",
+        "kind": "destroy-unit",
+        "unitId": "swamp-1",
+        "required": true
+      },
+      {
+        "id": "escape-off-map",
+        "label": "Escape to the swamp edge hex",
+        "kind": "escape-map",
+        "required": true
+      }
+    ],
     "onion": {
-      "targetHex": { "q": 7, "r": 5 },
-      "description": "Onion wins by moving onto or attacking the Castle hex."
+      "escapeHexes": [
+        { "q": 2, "r": 9 },
+        { "q": 3, "r": 10 },
+        { "q": 4, "r": 11 }
+      ],
+      "description": "The Onion may escape by entering any scenario-defined escape hex after The Swamp is destroyed and once the escape hexes are active on Onion turn 2."
     },
     "defender": {
       "condition": "onionImmobilized",
-      "description": "Defender wins when the Onion's tread points reach 0 (MA 0). A stationary Onion cannot reach the Castle."
-    },
-    "maxTurns": 20
+      "description": "Defender wins when the Onion's tread points reach 0 (MA 0). A stationary Onion cannot complete the objective set."
+    }
   }
 }

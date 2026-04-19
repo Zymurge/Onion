@@ -303,7 +303,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		const onionCard = await screen.findByRole('button', { name: /the onion 1/i })
 		expect(onionCard.textContent).toContain('Moves 2')
 	})
 
@@ -319,7 +319,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		const onionCard = await screen.findByRole('button', { name: /the onion 1/i })
 		expect(onionCard.textContent).toContain('Moves 1')
 	})
 
@@ -341,13 +341,13 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		const onionCard = await screen.findByRole('button', { name: /the onion 1/i })
 		expect(onionCard.textContent).toContain('Moves 2')
 		await userEvent.click(onionCard)
 		await act(async () => {
 			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-2'))
 		})
-		await screen.findByRole('button', { name: /onion-1/i })
+		await screen.findByRole('button', { name: /the onion 1/i })
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 0, r: 2 } })
 	})
 
@@ -379,7 +379,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await userEvent.click(await screen.findByRole('button', { name: /onion-1/i }))
+		await userEvent.click(await screen.findByRole('button', { name: /the onion 1/i }))
 		await act(async () => {
 			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-2'))
 		})
@@ -851,7 +851,7 @@ describe('App orchestration (injected game client)', () => {
 					...baseSnapshot.authoritativeState.defenders,
 					'puss-1': {
 						...baseSnapshot.authoritativeState.defenders['puss-1'],
-						position: { q: 2, r: 2 },
+						position: { q: 2, r: 1 },
 					},
 				},
 			},
@@ -868,11 +868,11 @@ describe('App orchestration (injected game client)', () => {
 
 		await screen.findByTestId('combat-weapon-main-1')
 		await user.click(screen.getByTestId('combat-weapon-main-1'))
-		expect(screen.getByTestId('combat-target-list')).not.toBeNull()
+		expect(screen.getByRole('heading', { name: /valid targets/i })).not.toBeNull()
 
 		await user.click(screen.getByTestId('hex-unit-puss-1'))
 
-		expect(screen.getByTestId('combat-target-list')).not.toBeNull()
+		expect(screen.getByRole('heading', { name: /valid targets/i })).not.toBeNull()
 		expect(screen.queryByText(/Inspector/i)).toBeNull()
 	})
 
@@ -954,7 +954,6 @@ describe('App orchestration (injected game client)', () => {
 		await user.click(screen.getByTestId('combat-weapon-main-1'))
 
 		const targetRail = screen.getByTestId('combat-target-list')
-		expect(screen.getByTestId('combat-target-near-1')).not.toBeNull()
 		expect(targetRail.textContent).not.toContain('far-1')
 		expect(targetRail.textContent).toContain('Puss')
 		expect(targetRail.textContent).toContain('Defense: 3')
@@ -1115,7 +1114,7 @@ describe('App orchestration (injected game client)', () => {
 
 		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
 		expect(screen.getByText(/Inspector/i)).not.toBeNull()
-		expect(screen.getByText(/TheOnion/i)).not.toBeNull()
+		expect(screen.getByText(/The Onion 1/i)).not.toBeNull()
 	})
 
 	it('selects a combat target from the rail on right click', async () => {

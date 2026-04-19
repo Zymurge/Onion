@@ -105,21 +105,11 @@ export function advancePhase(state: EngineGameState): void {
 /**
  * Check if the game has ended and determine the winner.
  * @param state - Current game state
- * @param turnNumber - Current turn number
- * @param maxTurns - Maximum allowed turns
  * @returns Winner ('onion', 'defender', or null if game continues)
  */
 export function checkVictoryConditions(
   state: EngineGameState,
-  turnNumber: number,
-  maxTurns: number
 ): 'onion' | 'defender' | null {
-  // Onion wins by destroying the Castle
-  const castle = Object.values(state.defenders).find(unit => unit.type === 'Castle')
-  if (castle && castle.status === 'destroyed') {
-    return 'onion'
-  }
-
   // Defender wins by immobilizing the Onion (treads = 0) or destroying it
   if (state.onion.treads <= 0 || state.onion.status === 'destroyed') {
     return 'defender'
@@ -127,5 +117,4 @@ export function checkVictoryConditions(
 
   // Game continues
   return null
-  logger.debug({ state, turnNumber, maxTurns }, 'checkVictoryConditions called')
 }

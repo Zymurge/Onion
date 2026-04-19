@@ -5,6 +5,7 @@ import { parseAttackStats, parseWeaponStats } from '../lib/appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
+import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
 
 type RamPrompt = {
   unitId: string
@@ -27,6 +28,8 @@ type BattlefieldRightRailProps = {
   selectedCombatTargetId: string | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
+  victoryObjectives: ReadonlyArray<VictoryObjectiveState>
+  escapeHexes: ReadonlyArray<VictoryEscapeHex>
   inactiveEventStream: {
     entries: ReadonlyArray<TimelineEvent>
     errorMessage: string | null
@@ -57,6 +60,8 @@ export function BattlefieldRightRail({
   selectedCombatTargetId,
   selectedInspectorDefender,
   selectedInspectorOnion,
+  victoryObjectives,
+  escapeHexes,
   inactiveEventStream,
   combatTargetOptions,
   onConfirmCombat,
@@ -64,6 +69,11 @@ export function BattlefieldRightRail({
   onDeclineRam,
   onSelectCombatTarget,
 }: BattlefieldRightRailProps) {
+  const shouldShowCombatPanel =
+    isCombatPhase &&
+    activeRole === activeCombatRole &&
+    (activeRole === 'onion' || (activeRole === 'defender' ? selectedInspectorDefender?.type !== 'Swamp' : selectedInspectorDefender === null))
+
   return (
     <aside className="panel rail rail-right">
       {showInactiveEventStream ? (
@@ -147,7 +157,7 @@ export function BattlefieldRightRail({
             </div>
           </dl>
         </section>
-      ) : isCombatPhase && activeRole === activeCombatRole && (activeRole === 'defender' || selectedInspectorDefender === null) ? (
+      ) : shouldShowCombatPanel ? (
         <section className="section-block panel-subtle">
           <div className="card-head">
             <div>
@@ -217,6 +227,38 @@ export function BattlefieldRightRail({
               <dd>{activeSelectedUnitCount}</dd>
             </div>
           </dl>
+          {selectedInspectorDefender.type === 'Swamp' && victoryObjectives.length > 0 ? (
+            <div className="section-block">
+              <div className="card-head">
+                <div>
+                  <p className="eyebrow">Victory</p>
+                  <h3>Victory objectives</h3>
+                </div>
+                <span className="mini-tag">{victoryObjectives.filter((objective) => objective.completed).length}/{victoryObjectives.length} complete</span>
+              </div>
+              <div className="inspector-objective-list">
+                {victoryObjectives.map((objective) => (
+                  <div className={`inspector-objective-item${objective.completed ? ' is-complete' : ''}`} key={objective.id}>
+                    <div className="summary-line">
+                      <strong>{objective.label}</strong>
+                    </div>
+                    <div className="summary-line">
+                      {objective.required ? 'Required' : 'Optional'} {objective.completed ? 'complete' : 'incomplete'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {escapeHexes.length > 0 ? (
+                <div className="inspector-escape-footer">
+                  <span className="inspector-escape-footer-label">Escape hexes</span>
+                  <span className="inspector-escape-footer-list">
+                    {escapeHexes.map((hex) => `${hex.q}, ${hex.r}`).join(' · ')}
+                  </span>
+                  <span className="mini-tag">{escapeHexes.length}</span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </section>
       ) : isCombatPhase ? (
         <section className="selection-panel panel-subtle">
