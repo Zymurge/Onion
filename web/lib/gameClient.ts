@@ -16,7 +16,9 @@ export type ActionMode = 'fire' | 'combined' | 'end-phase'
 export type CombatResolution = {
 	actionType: 'FIRE'
 	attackers: string[]
+	attackerFriendlyNames?: string[]
 	targetId: string
+	targetFriendlyName?: string
 	outcome: 'NE' | 'D' | 'X'
 	outcomeLabel: 'Hit' | 'Miss'
 	roll?: number

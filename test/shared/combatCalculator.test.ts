@@ -56,12 +56,14 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'Puss' },
+					'attack-1': { type: 'Puss', friendlyName: 'Big Bad Wolf 1' },
+					'target-1': { type: 'Puss', friendlyName: 'Little Pigs 1' },
 				},
 			},
 		}
 
+		expect(input.combatState.units['attack-1'].friendlyName).toBe('Big Bad Wolf 1')
+		expect(input.combatState.units['target-1'].friendlyName).toBe('Little Pigs 1')
 		expect(calculator.calculateOdds(input)).toBe('1:1')
 		expect(calculator.calculateResult(input).attackStrength).toBe(4)
 	})
@@ -72,9 +74,9 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
-					'attack-2': { type: 'Puss' },
-					'target-1': { type: 'LittlePigs', squads: 2, terrainType: 'ridgeline' },
+					'attack-1': { type: 'Puss', friendlyName: 'Big Bad Wolf 1' },
+					'attack-2': { type: 'Puss', friendlyName: 'Big Bad Wolf 2' },
+					'target-1': { type: 'LittlePigs', friendlyName: 'Little Pigs 1', squads: 2, terrainType: 'ridgeline' },
 				},
 			},
 		}
@@ -92,8 +94,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'LittlePigs', squads: 3, terrainType: 'ridgeline' },
+					'attack-1': { type: 'Puss', friendlyName: 'Big Bad Wolf 1' },
+					'target-1': { type: 'LittlePigs', friendlyName: 'Little Pigs 1', squads: 3, terrainType: 'ridgeline' },
 				},
 			},
 		}
@@ -109,6 +111,7 @@ describe('combatCalculator', () => {
 				appliesTo: 'target-1',
 			},
 		])
+		expect(input.combatState.units['target-1'].friendlyName).toBe('Little Pigs 1')
 	})
 
 	it('does not grant ridgeline cover to units without the terrain ability', () => {
@@ -133,8 +136,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'TheOnion', weaponId: 'secondary_1' },
+					'attack-1': { type: 'Puss', friendlyName: 'Big Bad Wolf 1' },
+					'target-1': { type: 'TheOnion', friendlyName: 'The Onion 1', weaponId: 'secondary_1' },
 				},
 			},
 		}

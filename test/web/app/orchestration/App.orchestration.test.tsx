@@ -503,12 +503,14 @@ describe('App orchestration (injected game client)', () => {
 			combatResolution: {
 				actionType: 'FIRE' as const,
 				attackers: ['wolf-2'],
+				attackerFriendlyNames: ['Big Bad Wolf 2'],
 				targetId: 'onion-1',
+				targetFriendlyName: 'The Onion 1',
 				outcome: 'X' as const,
 				outcomeLabel: 'Hit' as const,
 				roll: 6,
 				odds: '2:1',
-				details: ['Treads lost: 3 (remaining 30)'],
+				details: ['Squads lost: Little Pigs 1: -1'],
 			},
 		}
 		const session = { role: 'defender' as const }
@@ -527,7 +529,9 @@ describe('App orchestration (injected game client)', () => {
 		await user.click(screen.getByTestId('combat-target-onion-1:treads'))
 		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
 
-		expect(await screen.findByTestId('combat-resolution-toast')).not.toBeNull()
+		const toast = await screen.findByTestId('combat-resolution-toast')
+		expect(toast).not.toBeNull()
+		expect(toast.textContent).toContain('Little Pigs 1')
 
 		await user.click(screen.getByTestId('hex-cell-0-0'))
 		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
