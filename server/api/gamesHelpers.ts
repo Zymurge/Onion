@@ -342,6 +342,7 @@ export function buildCombatEvents(
       type: 'UNIT_SQUADS_LOST',
       timestamp,
       unitId: result.targetId,
+      unitFriendlyName: resolveUnitFriendlyName(state, result.targetId),
       amount: result.squadsLost,
     })
   }
