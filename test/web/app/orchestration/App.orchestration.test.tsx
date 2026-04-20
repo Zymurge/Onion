@@ -570,6 +570,33 @@ describe('App orchestration (injected game client)', () => {
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'wolf-2', to: { q: 4, r: 6 } })
 	})
 
+	it('keeps rejected move reasons local to the board', async () => {
+		const snapshot = createConnectedBattlefieldSnapshot({
+			phase: 'DEFENDER_MOVE',
+			selectedUnitId: 'wolf-2',
+		})
+		const session = { role: 'defender' as const }
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await screen.findByTestId('hex-unit-wolf-2')
+
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-4-4'))
+		})
+
+		expect(submitAction).not.toHaveBeenCalled()
+		expect(screen.queryByRole('alert')).toBeNull()
+		expect(screen.getByText(/destination hex is occupied/i)).not.toBeNull()
+	})
+
 	it('does not submit a move when the player is inactive', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot({
 			phase: 'DEFENDER_MOVE',

@@ -909,7 +909,7 @@ describe('HexMapBoard', () => {
 		expect(screen.queryByText(/illegal move/i)).toBeNull()
 	})
 
-	it('shows an out-of-range bubble when the user right-clicks an invalid hex with an eligible unit', () => {
+	it('shows the occupied-hex move reason when the user right-clicks an invalid destination with an eligible unit', () => {
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}
@@ -922,12 +922,12 @@ describe('HexMapBoard', () => {
 				onMoveUnit={vi.fn()}
 			/>,
 		)
-		fireEvent.contextMenu(screen.getByTestId('hex-cell-2-4'))
-		const toast = screen.getByText(/illegal move/i)
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-1-2'))
+		const toast = screen.getByText(/destination hex is occupied/i)
 		expect(toast).not.toBeNull()
 		expect(toast.parentElement?.classList.contains('hex-map-toast-overlay')).toBe(true)
 		fireEvent.click(document.body)
-		expect(screen.queryByText(/illegal move/i)).toBeNull()
+		expect(screen.queryByText(/destination hex is occupied/i)).toBeNull()
 	})
 
 	it('does not show an error bubble when the selected unit is ineligible (e.g., disabled)', () => {

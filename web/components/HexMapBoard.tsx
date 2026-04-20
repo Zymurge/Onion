@@ -4,6 +4,7 @@ import { statusTone, unitCode, type BattlefieldOnionView, type BattlefieldUnit, 
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
+import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
 import './HexMapBoard.css'
 
 import swampDestroyedSprite from '../assets/The Swamp - destroyed.png'
@@ -71,6 +72,51 @@ function shouldRenderDefender(defender: BattlefieldUnit) {
 
 function getSwampSpriteHref(status: string) {
   return status === 'destroyed' ? swampDestroyedSprite : swampIntactSprite
+}
+
+function buildMoveValidationState(
+  phase: string | null,
+  onion: BattlefieldOnionView,
+  defenders: BattlefieldUnit[],
+  selectedOccupant: HexOccupant,
+  selectedAllowance: number,
+): MoveValidationState | null {
+  if (phase !== 'ONION_MOVE' && phase !== 'DEFENDER_MOVE' && phase !== 'GEV_SECOND_MOVE') {
+    return null
+  }
+
+  const movementSpent: Record<string, number> = {}
+  const baseAllowance = selectedOccupant.id === onion.id
+    ? getUnitMovementAllowance(onion.type, phase, onion.treads)
+    : getUnitMovementAllowance(selectedOccupant.type, phase)
+  const spent = Math.max(baseAllowance - selectedAllowance, 0)
+
+  if (spent > 0) {
+    movementSpent[`${phase}:${selectedOccupant.id}`] = spent
+  }
+
+  return {
+    onion: {
+      id: onion.id,
+      type: onion.type,
+      position: { q: onion.q, r: onion.r },
+      status: onion.status,
+      treads: onion.treads,
+    },
+    defenders: Object.fromEntries(
+      defenders.map((defender) => [defender.id, {
+        id: defender.id,
+        type: defender.type,
+        position: { q: defender.q, r: defender.r },
+        status: defender.status,
+        squads: defender.squads,
+      }]),
+    ),
+    ramsThisTurn: 0,
+    currentPhase: phase,
+    turn: 0,
+    movementSpent,
+  }
 }
 
 export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, escapeHexes, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
@@ -156,6 +202,23 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
         }).map((move) => hexKey(move.to)),
       )
     : new Set<string>()
+
+  function validateMoveTarget(to: { q: number; r: number }) {
+    if (!selectedOccupant || !phase) {
+      return null
+    }
+
+    const validationState = buildMoveValidationState(phase, onion, defenders, selectedOccupant, selectedAllowance)
+    if (validationState === null) {
+      return null
+    }
+
+    return validateMove(
+      { ...scenarioMap, occupiedHexes },
+      validationState,
+      { type: 'MOVE', unitId: selectedOccupant.id, to },
+    )
+  }
 
   useEffect(() => {
     if (!moveError) return undefined
@@ -396,8 +459,14 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                       onMoveUnit(selectedOccupant.id, coord)
                       return
                     }
+                    const validation = validateMoveTarget(coord)
+                    if (validation?.valid) {
+                      onMoveUnit(selectedOccupant.id, coord)
+                      return
+                    }
                     if (canSubmitMove && selectedIsEligible) {
-                      setMoveError('Illegal move')
+                      const message = validation?.error ?? 'Illegal move'
+                      setMoveError(message)
                     }
                   }}
                 >
