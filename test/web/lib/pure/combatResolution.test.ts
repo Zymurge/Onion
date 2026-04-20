@@ -55,7 +55,7 @@ describe('buildCombatResolution', () => {
 			roll: 6,
 			odds: '2:1',
 			details: [
-				'Squads lost: Little Pigs 1 -1',
+				'Squads lost: Little Pigs 1: -1',
 				'Status: Little Pigs 1 operational → disabled',
 				'Destroyed weapon: Main Battery',
 				'Treads lost: 3 (remaining 30)',

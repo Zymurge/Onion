@@ -510,7 +510,7 @@ describe('App orchestration (injected game client)', () => {
 				outcomeLabel: 'Hit' as const,
 				roll: 6,
 				odds: '2:1',
-				details: ['Squads lost: Little Pigs 1 -1'],
+				details: ['Squads lost: Little Pigs 1: -1'],
 			},
 		}
 		const session = { role: 'defender' as const }

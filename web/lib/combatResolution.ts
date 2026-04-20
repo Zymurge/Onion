@@ -79,7 +79,7 @@ export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEven
 				if (typeof event.amount === 'number') {
 					const unitName = getPreferredLabel(event, 'unitFriendlyName', 'unitId')
 					if (unitName !== null) {
-						details.push(`Squads lost: ${unitName} -${event.amount}`)
+						details.push(`Squads lost: ${unitName}: -${event.amount}`)
 					}
 				}
 				break
