@@ -15,10 +15,22 @@ function getOutcomeLabel(outcome: unknown): 'Hit' | 'Miss' {
 	return outcome === 'NE' ? 'Miss' : 'Hit'
 }
 
+function getPreferredLabel(event: CombatResolutionEvent, friendlyNameKey: string, idKey: string): string | null {
+	const friendlyName = event[friendlyNameKey]
+	if (typeof friendlyName === 'string' && friendlyName.length > 0) {
+		return friendlyName
+	}
+
+	const id = event[idKey]
+	return typeof id === 'string' && id.length > 0 ? id : null
+}
+
 export type CombatResolution = {
 	actionType: 'FIRE'
 	attackers: string[]
+	attackerFriendlyNames?: string[]
 	targetId: string
+	targetFriendlyName?: string
 	outcome: 'NE' | 'D' | 'X'
 	outcomeLabel: 'Hit' | 'Miss'
 	roll?: number
@@ -33,6 +45,7 @@ export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEven
 	}
 
 	const attackers = getStringArray(combatEvent.attackers ?? combatEvent.unitIds)
+	const attackerFriendlyNames = getStringArray(combatEvent.attackerFriendlyNames)
 	const targetId = typeof combatEvent.targetId === 'string' ? combatEvent.targetId : 'unknown'
 	const outcome = combatEvent.outcome === 'D' || combatEvent.outcome === 'X' || combatEvent.outcome === 'NE'
 		? combatEvent.outcome
@@ -47,18 +60,27 @@ export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEven
 				}
 				break
 			case 'ONION_BATTERY_DESTROYED':
-				if (typeof event.weaponId === 'string') {
-					details.push(`Destroyed weapon: ${event.weaponId}`)
+				{
+					const weaponName = getPreferredLabel(event, 'weaponFriendlyName', 'weaponId')
+					if (weaponName !== null) {
+						details.push(`Destroyed weapon: ${weaponName}`)
+					}
 				}
 				break
 			case 'UNIT_STATUS_CHANGED':
-				if (typeof event.unitId === 'string' && typeof event.from === 'string' && typeof event.to === 'string') {
-					details.push(`Status: ${event.unitId} ${event.from} → ${event.to}`)
+				if (typeof event.from === 'string' && typeof event.to === 'string') {
+					const unitName = getPreferredLabel(event, 'unitFriendlyName', 'unitId')
+					if (unitName !== null) {
+						details.push(`Status: ${unitName} ${event.from} → ${event.to}`)
+					}
 				}
 				break
 			case 'UNIT_SQUADS_LOST':
-				if (typeof event.unitId === 'string' && typeof event.amount === 'number') {
-					details.push(`Squads lost: ${event.unitId} -${event.amount}`)
+				if (typeof event.amount === 'number') {
+					const unitName = getPreferredLabel(event, 'unitFriendlyName', 'unitId')
+					if (unitName !== null) {
+						details.push(`Squads lost: ${unitName} -${event.amount}`)
+					}
 				}
 				break
 		}
@@ -67,7 +89,9 @@ export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEven
 	return {
 		actionType: 'FIRE',
 		attackers,
+		attackerFriendlyNames: attackerFriendlyNames.length > 0 ? attackerFriendlyNames : undefined,
 		targetId,
+		targetFriendlyName: typeof combatEvent.targetFriendlyName === 'string' ? combatEvent.targetFriendlyName : undefined,
 		outcome,
 		outcomeLabel: getOutcomeLabel(outcome),
 		roll: getNumber(combatEvent.roll),

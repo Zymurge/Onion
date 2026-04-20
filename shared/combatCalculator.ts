@@ -50,6 +50,7 @@ export type CombatModifier = {
  */
 export type CombatCombatantState = {
 	type: string
+	friendlyName?: string
 	squads?: number
 	terrainType?: TerrainType
 	weapons?: ReadonlyArray<Weapon>

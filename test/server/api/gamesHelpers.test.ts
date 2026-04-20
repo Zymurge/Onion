@@ -93,6 +93,47 @@ describe('buildCombatEvents', () => {
       targetFriendlyName: 'AP Gun 1',
     })
   })
+
+  it('includes unitFriendlyName on UNIT_SQUADS_LOST events', () => {
+    const state: GameState = {
+      onion: {
+        id: 'onion-1',
+        type: 'TheOnion',
+        position: { q: 0, r: 0 },
+        status: 'operational',
+        weapons: [],
+        treads: 45,
+        batteries: { main: 1, secondary: 4, ap: 8 },
+      },
+      defenders: {
+        'pigs-1': {
+          id: 'pigs-1',
+          type: 'LittlePigs',
+          position: { q: 1, r: 1 },
+          status: 'operational',
+          weapons: [],
+        },
+      },
+    }
+
+    const events = buildCombatEvents(
+      30,
+      { type: 'FIRE', attackers: ['onion-1'], targetId: 'pigs-1' },
+      {
+        targetId: 'pigs-1',
+        roll: { roll: 3, result: 'D', odds: '1:1' },
+        squadsLost: 1,
+      },
+      state,
+    )
+
+    expect(events[1]).toMatchObject({
+      type: 'UNIT_SQUADS_LOST',
+      unitId: 'pigs-1',
+      unitFriendlyName: 'Little Pigs 1',
+      amount: 1,
+    })
+  })
 })
 
 describe('buildVictoryObjectiveStates', () => {
