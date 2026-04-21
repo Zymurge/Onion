@@ -72,7 +72,7 @@ export function BattlefieldRightRail({
   const shouldShowCombatPanel =
     isCombatPhase &&
     activeRole === activeCombatRole &&
-    (activeRole === 'onion' || (activeRole === 'defender' ? selectedInspectorDefender?.type !== 'Swamp' : selectedInspectorDefender === null))
+    selectedInspectorDefender === null
 
   return (
     <aside className="panel rail rail-right">

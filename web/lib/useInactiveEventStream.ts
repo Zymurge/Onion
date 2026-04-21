@@ -192,6 +192,40 @@ function resolveRamOutcomeLabel(event: InactiveEventPayload, relatedEvents: Read
 	return 'survived'
 }
 
+function resolveRamTargetLabel(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
+	const resolvedEvent = relatedEvents.find((relatedEvent) => relatedEvent.type === 'MOVE_RESOLVED') ?? event
+
+	if (isNonEmptyString(resolvedEvent.rammedUnitFriendlyName)) {
+		return resolvedEvent.rammedUnitFriendlyName
+	}
+
+	if (Array.isArray(resolvedEvent.rammedUnitFriendlyNames) && resolvedEvent.rammedUnitFriendlyNames.length > 0) {
+		return formatValueList(resolvedEvent.rammedUnitFriendlyNames)
+	}
+
+	if (Array.isArray(resolvedEvent.destroyedUnitFriendlyNames) && resolvedEvent.destroyedUnitFriendlyNames.length > 0) {
+		return formatValueList(resolvedEvent.destroyedUnitFriendlyNames)
+	}
+
+	if (Array.isArray(resolvedEvent.rammedUnitIds) && resolvedEvent.rammedUnitIds.length > 0) {
+		return formatValueList(resolvedEvent.rammedUnitIds)
+	}
+
+	if (Array.isArray(resolvedEvent.destroyedUnitIds) && resolvedEvent.destroyedUnitIds.length > 0) {
+		return formatValueList(resolvedEvent.destroyedUnitIds)
+	}
+
+	if (isNonEmptyString(resolvedEvent.unitFriendlyName)) {
+		return resolvedEvent.unitFriendlyName
+	}
+
+	if (isNonEmptyString(resolvedEvent.unitId)) {
+		return resolvedEvent.unitId
+	}
+
+	return 'unknown'
+}
+
 function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload> = [event]): string[] {
 	switch (event.type) {
 		case 'ONION_MOVED':
@@ -276,9 +310,9 @@ function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyA
 
 function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
 	if (event.type === 'MOVE_RESOLVED') {
-		const mover = formatFriendlyName(event.unitFriendlyName)
+		const rammedUnit = resolveRamTargetLabel(event, relatedEvents)
 		const result = resolveRamOutcomeLabel(event, relatedEvents)
-		return `Ram attempt${mover ? ` by ${mover}` : ''}: ${result}`
+		return `Ram on ${rammedUnit} - ${result}`
 	}
 
 	if (event.type === 'FIRE_RESOLVED') {
@@ -304,10 +338,12 @@ function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: Readonl
 
 	if (event.type === 'MOVE_RESOLVED' || MOVE_EVENT_TYPES.has(event.type)) {
 		const mover = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
+		const rammedUnit = resolveRamTargetLabel(event, relatedEvents)
 		const moveDetails = relatedEvents.flatMap((relatedEvent) => buildEventDetails(relatedEvent))
 		const ramDetails = moveDetails.filter((detail) => /^(target|result):/i.test(detail))
 		if (ramDetails.length > 0) {
-			return 'Ram attempt'
+			const resolvedEvent = relatedEvents.find((relatedEvent) => relatedEvent.type === 'MOVE_RESOLVED') ?? event
+			return `Ram on ${rammedUnit} - ${resolveRamOutcomeLabel(resolvedEvent, relatedEvents)}`
 		}
 
 		if (mover.length > 0) {

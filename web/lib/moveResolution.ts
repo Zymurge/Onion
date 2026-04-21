@@ -14,56 +14,110 @@ function getNumber(value: unknown): number | undefined {
 export type RamResolution = {
 	actionType: 'MOVE'
 	unitId: string
-	rammedUnitIds: string[]
-	destroyedUnitIds: string[]
+	rammedUnitId: string
+	rammedUnitFriendlyName: string
+	destroyedUnitId: string
 	treadDamage?: number
 	details: string[]
 }
 
 export function formatRamResolutionTitle(resolution: RamResolution): string {
-	return 'Ram attempt'
+	const result = resolution.destroyedUnitId ? 'destroyed' : 'survived'
+	return `Ram on ${resolution.rammedUnitFriendlyName}: ${result}`
 }
 
-export function buildRamResolution(events: ReadonlyArray<MoveResolutionEvent>): RamResolution | undefined {
+function buildRamResolutionItem(options: {
+	moveUnitId: string
+	unitId: string
+	unitFriendlyName: string
+	destroyed: boolean
+	roll?: number
+	treadDamage?: number
+}): RamResolution {
+	const details = [`Target: ${options.unitFriendlyName}`, `Result: ${options.destroyed ? 'destroyed' : 'survived'}`]
+
+	if (options.roll !== undefined) {
+		details.push(`Roll: ${options.roll}`)
+	}
+
+	if (options.treadDamage !== undefined) {
+		details.push(`Tread loss: ${options.treadDamage}`)
+	}
+
+	return {
+		actionType: 'MOVE',
+		unitId: options.moveUnitId,
+		rammedUnitId: options.unitId,
+		rammedUnitFriendlyName: options.unitFriendlyName,
+		destroyedUnitId: options.destroyed ? options.unitId : '',
+		treadDamage: options.treadDamage,
+		details,
+	}
+}
+
+export function buildRamResolution(events: ReadonlyArray<MoveResolutionEvent>): RamResolution[] | undefined {
 	const moveEvent = events.find((event) => event.type === 'MOVE_RESOLVED')
 	if (moveEvent === undefined) {
 		return undefined
 	}
 
+	const moveUnitId = typeof moveEvent.unitId === 'string' ? moveEvent.unitId : 'unknown'
+	const rammedUnitResults = Array.isArray(moveEvent.rammedUnitResults) ? moveEvent.rammedUnitResults : []
 	const rammedUnitIds = getStringArray(moveEvent.rammedUnitIds)
-	const destroyedUnitIds = getStringArray(moveEvent.destroyedUnitIds)
-	const details: string[] = []
+	const rammedUnitFriendlyNames = getStringArray(moveEvent.rammedUnitFriendlyNames)
+	const destroyedUnitIds = new Set(getStringArray(moveEvent.destroyedUnitIds))
+	const destroyedUnitFriendlyNames = getStringArray(moveEvent.destroyedUnitFriendlyNames)
 
-	if (rammedUnitIds.length > 0) {
-		details.push(`Target: ${rammedUnitIds.join(', ')}`)
-	} else if (destroyedUnitIds.length > 0) {
-		details.push(`Target: ${destroyedUnitIds.join(', ')}`)
-	} else {
-		details.push('Target: unknown')
+	if (rammedUnitResults.length > 0) {
+		return rammedUnitResults.map((ramResult, index) => {
+			const typedRamResult = ramResult as {
+				unitId?: unknown
+				unitFriendlyName?: unknown
+				outcome?: { effect?: unknown; roll?: unknown; treadCost?: unknown }
+			}
+			const unitId = typeof typedRamResult.unitId === 'string' ? typedRamResult.unitId : `rammed-${index}`
+			const unitFriendlyName = typeof typedRamResult.unitFriendlyName === 'string' && typedRamResult.unitFriendlyName.trim().length > 0
+				? typedRamResult.unitFriendlyName
+				: unitId
+			const effect = typeof typedRamResult.outcome?.effect === 'string' ? typedRamResult.outcome.effect : undefined
+			const roll = getNumber(typedRamResult.outcome?.roll)
+			const treadDamage = getNumber(typedRamResult.outcome?.treadCost)
+
+			return buildRamResolutionItem({
+				moveUnitId,
+				unitId,
+				unitFriendlyName,
+				destroyed: effect === 'destroyed',
+				roll,
+				treadDamage,
+			})
+		})
 	}
 
-	if (destroyedUnitIds.length > 0) {
-		details.push('Result: destroyed')
-	} else {
-		details.push('Result: survived')
+	const targetUnitIds = rammedUnitIds.length > 0 ? rammedUnitIds : getStringArray(moveEvent.destroyedUnitIds)
+	const targetNames = rammedUnitIds.length > 0 ? rammedUnitFriendlyNames : destroyedUnitFriendlyNames
+	const singleTreadDamage = targetUnitIds.length === 1 ? getNumber(moveEvent.treadDamage) : undefined
+
+	if (targetUnitIds.length === 0) {
+		return [buildRamResolutionItem({
+			moveUnitId,
+			unitId: 'unknown',
+			unitFriendlyName: 'unknown',
+			destroyed: false,
+			treadDamage: singleTreadDamage,
+		})]
 	}
 
-	for (const event of events) {
-		switch (event.type) {
-			case 'ONION_TREADS_LOST':
-				if (typeof event.amount === 'number' && typeof event.remaining === 'number') {
-					details.push(`Treads lost: ${event.amount} (remaining ${event.remaining})`)
-				}
-				break
-		}
-	}
+	return targetUnitIds.map((unitId, index) => {
+		const unitFriendlyName = targetNames[index] ?? unitId
+		const destroyed = destroyedUnitIds.has(unitId)
 
-	return {
-		actionType: 'MOVE',
-		unitId: typeof moveEvent.unitId === 'string' ? moveEvent.unitId : 'unknown',
-		rammedUnitIds,
-		destroyedUnitIds,
-		treadDamage: getNumber(moveEvent.treadDamage),
-		details,
-	}
+		return buildRamResolutionItem({
+			moveUnitId,
+			unitId,
+			unitFriendlyName,
+			destroyed,
+			treadDamage: targetUnitIds.length === 1 ? singleTreadDamage : undefined,
+		})
+	})
 }

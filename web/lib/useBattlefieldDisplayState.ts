@@ -102,7 +102,9 @@ export function useBattlefieldDisplayState({
     const selectedInspectorUnitId = activeSelectedUnitIds.find((selectionId) => !isWeaponSelectionId(selectionId)) ?? null
     const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
     const selectedInspectorDefender =
-      selectedInspectorOnion !== null || selectedInspectorUnitId === null
+      selectedInspectorOnion !== null ||
+      selectedInspectorUnitId === null ||
+      (isCombatPhase && activeCombatRole === 'defender')
         ? null
         : displayedDefenders.find((unit) => unit.id === selectedInspectorUnitId) ?? null
     const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null

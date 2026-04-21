@@ -287,7 +287,7 @@ describe('App UI', () => {
 	it('keeps a destroyed swamp on the map and shows victory objectives in the inspector', async () => {
 		const snapshot = {
 			...createLoadedBattlefieldSnapshot(),
-			phase: 'DEFENDER_COMBAT' as const,
+			phase: 'DEFENDER_MOVE' as const,
 			selectedUnitId: null,
 			authoritativeState: {
 				...createLoadedBattlefieldSnapshot().authoritativeState,
@@ -344,7 +344,7 @@ describe('App UI', () => {
 		fireEvent.click(swampUnit)
 		expect(swampUnit.getAttribute('class')).toContain('tone-destroyed')
 		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('The Swamp')
-		expect(screen.getByText('Victory objectives')).not.toBeNull()
+		expect(screen.getByText('Victory Conditions')).not.toBeNull()
 		expect(screen.getByText('Destroy The Swamp')).not.toBeNull()
 		expect(screen.getByText('Escape the Onion off-map after The Swamp is destroyed')).not.toBeNull()
 		expect(screen.getByText('Escape hexes')).not.toBeNull()
@@ -411,6 +411,24 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		expect(await screen.findByRole('button', { name: /main battery 1 attack: 4/i })).not.toBeNull()
+	})
+
+	it('shows the defender inspector when the Onion clicks a defender during Onion combat', async () => {
+		const user = userEvent.setup()
+		const snapshot = createLoadedBattlefieldSnapshot()
+		snapshot.phase = 'ONION_COMBAT'
+		snapshot.selectedUnitId = 'weapon:main-1'
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await user.click(await screen.findByTestId('hex-unit-puss-1'))
+		expect(screen.getByRole('heading', { name: /Puss 1/i })).not.toBeNull()
+		expect(screen.queryByText(/Valid Targets/i)).toBeNull()
 	})
 
 	it('keeps defender movement collapsed when the live snapshot reports zero allowance', async () => {
@@ -645,7 +663,8 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 		const stream = screen.getByTestId('inactive-event-stream')
-		expect(stream.textContent).toContain('Ram attempt')
+		const ramEntry = stream.querySelector('.inactive-event-stream-entry')
+		expect(ramEntry?.querySelector('.summary-line')?.textContent).toBe('Ram on Little Pigs 1 - destroyed')
 		expect(stream.textContent).toContain('Fire on Little Pigs 1: destroyed')
 		expect(screen.queryByText(/^details$/i)).toBeNull()
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(2)
@@ -658,6 +677,51 @@ describe('App UI', () => {
 		expect(entries[1].textContent).toContain('Fire on Little Pigs 1: destroyed')
 		expect(entries[1].textContent).toContain('Outcome: destroyed')
 		expect(entries[1].textContent).toContain('Unit: Little Pigs 1: operational → destroyed')
+	})
+
+	it('renders the surviving ram summary in the inactive event stream', async () => {
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockResolvedValue([
+			{
+				seq: 101,
+				type: 'MOVE_RESOLVED',
+				timestamp: '2026-04-15T12:07:00.000Z',
+				turnNumber: 11,
+				unitFriendlyName: 'Big Bad Wolf 2',
+				unitId: 'wolf-2',
+				rammedUnitIds: ['pigs-2'],
+				rammedUnitFriendlyNames: ['Little Pigs 2'],
+				destroyedUnitIds: [],
+				destroyedUnitFriendlyNames: [],
+				treadDamage: 1,
+				causeId: 'req-2',
+			},
+			{
+				seq: 102,
+				type: 'ONION_TREADS_LOST',
+				timestamp: '2026-04-15T12:07:00.100Z',
+				turnNumber: 11,
+				amount: 1,
+				remaining: 44,
+				causeId: 'req-2',
+			},
+		])
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		const user = userEvent.setup()
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+		const stream = screen.getByTestId('inactive-event-stream')
+		const ramEntry = stream.querySelector('.inactive-event-stream-entry')
+		expect(ramEntry?.querySelector('.summary-line')?.textContent).toBe('Ram on Little Pigs 2 - survived')
+		await user.hover(ramEntry as HTMLElement)
+		expect(ramEntry?.textContent).toContain('Result: survived')
+		expect(ramEntry?.textContent).toContain('Treads lost: 1')
 	})
 
 	it('renders actual combat outcomes for Little Pigs D results', async () => {
@@ -788,7 +852,7 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 
-		expect(await screen.findByText(/ram attempt/i)).not.toBeNull()
+		expect(await screen.findByText(/ram on little pigs 1 - destroyed/i)).not.toBeNull()
 		const stream = screen.getByTestId('inactive-event-stream')
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(1)
 		const entry = stream.querySelector('.inactive-event-stream-entry')

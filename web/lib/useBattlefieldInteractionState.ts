@@ -190,7 +190,7 @@ export function useBattlefieldInteractionState({
         clearPendingCombatResolution(false)
       }
 
-      setPendingRamResolution(nextSnapshot?.ramResolution ?? null)
+      setPendingRamResolution(nextSnapshot?.ramResolution?.length ? nextSnapshot.ramResolution : null)
       if (nextSnapshot !== null && !isCombatSnapshotPhase(nextSnapshot.phase)) {
         setSelectedCombatTargetId(null)
       }
@@ -234,8 +234,15 @@ export function useBattlefieldInteractionState({
     clearPendingCombatResolution(true)
   }
 
-  function handleDismissRamResolution() {
-    setPendingRamResolution(null)
+  function handleDismissRamResolution(resolutionIndex: number) {
+    setPendingRamResolution((current) => {
+      if (current === null || current === undefined || current.length === 0) {
+        return null
+      }
+
+      const remaining = current.filter((_, index) => index !== resolutionIndex)
+      return remaining.length > 0 ? remaining : null
+    })
   }
 
   function handleResolveRamPrompt(attemptRam: boolean) {

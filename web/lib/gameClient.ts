@@ -1,6 +1,9 @@
 import type { EventEnvelope, GameState, TurnPhase } from '../../shared/types/index'
 import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
 import type { GameRequestTransport } from './gameSessionTypes'
+import type { RamResolution } from './moveResolution'
+
+export type { RamResolution } from './moveResolution'
 
 export type ScenarioMapSnapshot = {
 	width: number
@@ -26,15 +29,6 @@ export type CombatResolution = {
 	details: string[]
 }
 
-export type RamResolution = {
-	actionType: 'MOVE'
-	unitId: string
-	rammedUnitIds: string[]
-	destroyedUnitIds: string[]
-	treadDamage?: number
-	details: string[]
-}
-
 export type GameSnapshot = {
 	gameId: number
 	phase: TurnPhase
@@ -50,7 +44,7 @@ export type GameSnapshot = {
 	victoryObjectives?: VictoryObjectiveState[]
 	escapeHexes?: VictoryEscapeHex[]
 	combatResolution?: CombatResolution
-	ramResolution?: RamResolution
+	ramResolution?: RamResolution[]
 }
 
 export type GameSessionContext = {

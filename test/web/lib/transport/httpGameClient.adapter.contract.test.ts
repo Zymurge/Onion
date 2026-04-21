@@ -381,7 +381,7 @@ describe('http game client adapter contract', () => {
 				ok: true,
 				seq: 48,
 				events: [
-					{ seq: 48, type: 'MOVE_RESOLVED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'onion-1', rammedUnitIds: ['d1'], destroyedUnitIds: ['d1'], treadDamage: 1 },
+					{ seq: 48, type: 'MOVE_RESOLVED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'onion-1', rammedUnitIds: ['d1'], rammedUnitFriendlyNames: ['The Swamp'], destroyedUnitIds: ['d1'], destroyedUnitFriendlyNames: ['The Swamp'], rammedUnitResults: [{ unitId: 'd1', unitFriendlyName: 'The Swamp', unitType: 'Swamp', outcome: { effect: 'destroyed', roll: 2, treadCost: 1 } }], treadDamage: 1 },
 					{ seq: 49, type: 'ONION_TREADS_LOST', timestamp: '2026-03-26T12:00:00.000Z', amount: 1, remaining: 44 },
 					{ seq: 50, type: 'UNIT_STATUS_CHANGED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'd1', from: 'operational', to: 'destroyed' },
 				],
@@ -404,14 +404,17 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_MOVE',
 				lastEventSeq: 50,
 				movementRemainingByUnit: { 'wolf-2': 3 },
-				ramResolution: {
-					actionType: 'MOVE',
-					unitId: 'onion-1',
-					rammedUnitIds: ['d1'],
-					destroyedUnitIds: ['d1'],
-					treadDamage: 1,
-						details: ['Target: d1', 'Result: destroyed', 'Treads lost: 1 (remaining 44)'],
-				},
+				ramResolution: [
+					{
+						actionType: 'MOVE',
+						unitId: 'onion-1',
+						rammedUnitId: 'd1',
+						rammedUnitFriendlyName: 'The Swamp',
+						destroyedUnitId: 'd1',
+						treadDamage: 1,
+						details: ['Target: The Swamp', 'Result: destroyed', 'Roll: 2', 'Tread loss: 1'],
+					},
+				],
 			}),
 		)
 

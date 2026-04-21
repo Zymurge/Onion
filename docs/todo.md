@@ -4,10 +4,6 @@ This document tracks major upcoming work and epics. Add new items as they arise;
 break down into features/tasks as needed.
 
 ## In progress
-  
-- [ ] Improve error handling (UI and backend)
-  - [x] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
-  - [ ] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
 
 ## Epics / Major Work
 
@@ -110,4 +106,6 @@ break down into features/tasks as needed.
   - [x] Add/expand regression tests for Swamp combat, ramming, event emission, and both victory states.
   - [x] Update rules, scenario docs, and UI spec to reflect Swamp objective and new victory conditions.
   - [x] Clarify and document which map edge(s) or zone(s) count as escape for total victory.
-  
+- [x] Improve error handling (UI and backend)
+  - [x] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
+  - [x] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.

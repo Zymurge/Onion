@@ -677,13 +677,14 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onDismiss={handleDismissCombatResolution}
         />
       ) : null}
-      {pendingRamResolution ? (
+      {pendingRamResolution?.map((resolution, index) => (
         <MoveResolutionToast
-          title={formatRamResolutionTitle(pendingRamResolution)}
-          resolution={pendingRamResolution}
-          onDismiss={handleDismissRamResolution}
+          key={`${resolution.unitId}:${resolution.rammedUnitId}:${index}`}
+          title={formatRamResolutionTitle(resolution)}
+          resolution={resolution}
+          onDismiss={() => handleDismissRamResolution(index)}
         />
-      ) : null}
+      ))}
       {shouldShowGameOverToast ? <GameOverToast winner={sessionWinner} onDismiss={handleDismissGameOverToast} /> : null}
       <header className="topbar panel">
         <div

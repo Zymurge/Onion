@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -390,6 +390,77 @@ describe('App orchestration (injected game client)', () => {
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 0, r: 2 }, attemptRam: true })
 	})
 
+	it('renders one ram toast per resolved target', async () => {
+		const user = userEvent.setup()
+		const snapshot = createSnapshotWithTreads(45, 3)
+		snapshot.phase = 'ONION_MOVE'
+		snapshot.selectedUnitId = 'onion-1'
+		snapshot.scenarioName = 'Ram toast scenario'
+		snapshot.turnNumber = 1
+		snapshot.lastEventSeq = 0
+		snapshot.authoritativeState.onion.position = { q: 0, r: 0 }
+		snapshot.authoritativeState.defenders = {
+			'd1': {
+				id: 'd1',
+				type: 'Puss',
+				position: { q: 0, r: 1 },
+				status: 'operational',
+				weapons: [],
+			},
+			'd2': {
+				id: 'd2',
+				type: 'BigBadWolf',
+				position: { q: 1, r: 1 },
+				status: 'operational',
+				weapons: [],
+			},
+		}
+		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
+
+		const ramSnapshot = {
+			...snapshot,
+			ramResolution: [
+				{
+					actionType: 'MOVE' as const,
+					unitId: 'onion-1',
+					rammedUnitId: 'd1',
+					rammedUnitFriendlyName: 'Puss 1',
+					destroyedUnitId: 'd1',
+					treadDamage: 1,
+					details: ['Target: Puss 1', 'Result: destroyed'],
+				},
+				{
+					actionType: 'MOVE' as const,
+					unitId: 'onion-1',
+					rammedUnitId: 'd2',
+					rammedUnitFriendlyName: 'Big Bad Wolf 2',
+					destroyedUnitId: '',
+					treadDamage: 1,
+					details: ['Target: Big Bad Wolf 2', 'Result: survived'],
+				},
+			],
+		}
+
+		const submitAction = vi.fn().mockResolvedValue(ramSnapshot)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await user.click(await screen.findByRole('button', { name: /the onion 1/i }))
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-1'))
+		})
+		await user.click(await screen.findByRole('button', { name: /attempt ram/i }))
+
+		expect(await screen.findAllByTestId('ram-resolution-toast')).toHaveLength(2)
+		expect(screen.getByText('Ram on Puss 1: destroyed')).not.toBeNull()
+		expect(screen.getByText('Ram on Big Bad Wolf 2: survived')).not.toBeNull()
+	})
+
 	it('selects a unit locally without submitting an action', async () => {
 		const user = userEvent.setup()
 		const snapshot = createConnectedBattlefieldSnapshot()
@@ -483,7 +554,8 @@ describe('App orchestration (injected game client)', () => {
 
 		const attacker = await screen.findByTestId('combat-unit-wolf-2')
 		await user.click(attacker)
-		await user.click(screen.getByTestId('combat-target-onion-1:treads'))
+		const targetList = await screen.findByTestId('combat-target-list')
+		await user.click(within(targetList).getAllByRole('button')[0])
 		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
 
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1' })
@@ -526,7 +598,7 @@ describe('App orchestration (injected game client)', () => {
 
 		await screen.findByTestId('combat-unit-wolf-2')
 		await user.click(screen.getByTestId('combat-unit-wolf-2'))
-		await user.click(screen.getByTestId('combat-target-onion-1:treads'))
+		await user.click(within(await screen.findByTestId('combat-target-list')).getAllByRole('button')[0])
 		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
 
 		const toast = await screen.findByTestId('combat-resolution-toast')
@@ -537,7 +609,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
 
 		await user.click(screen.getByTestId('combat-unit-wolf-2'))
-		await user.click(screen.getByTestId('combat-target-onion-1:treads'))
+		await user.click(within(await screen.findByTestId('combat-target-list')).getAllByRole('button')[0])
 
 		expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Confirm attack on Treads')
 		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
@@ -1183,7 +1255,7 @@ describe('App orchestration (injected game client)', () => {
 		await screen.findByTestId('combat-unit-wolf-2')
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
 
-		const treadsTarget = await screen.findByTestId('combat-target-onion-1:treads')
+		const treadsTarget = within(await screen.findByTestId('combat-target-list')).getAllByRole('button')[0]
 		const treadsButton = treadsTarget as HTMLButtonElement
 		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 8')
 		expect(treadsButton.disabled).toBe(true)

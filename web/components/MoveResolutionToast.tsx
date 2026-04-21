@@ -30,8 +30,8 @@ export function MoveResolutionToast({ title, resolution, onDismiss }: MoveResolu
 
 			<div className="combat-resolution-stats">
 				<div className="combat-resolution-stat">
-					<span className="stat-label-small">Rammed</span>
-					<strong>{resolution.rammedUnitIds.length}</strong>
+					<span className="stat-label-small">Target</span>
+					<strong>{resolution.rammedUnitFriendlyName}</strong>
 				</div>
 				{resolution.treadDamage !== undefined ? (
 					<div className="combat-resolution-stat">
@@ -41,7 +41,7 @@ export function MoveResolutionToast({ title, resolution, onDismiss }: MoveResolu
 				) : null}
 				<div className="combat-resolution-stat">
 					<span className="stat-label-small">Destroyed</span>
-					<strong>{resolution.destroyedUnitIds.length}</strong>
+					<strong>{resolution.destroyedUnitId ? 'Yes' : 'No'}</strong>
 				</div>
 			</div>
 
