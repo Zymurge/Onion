@@ -5,11 +5,12 @@ break down into features/tasks as needed.
 
 ## In progress
 
+- [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
+
 ## Epics / Major Work
 
 - [ ] JWT authentication (migrate to @fastify/jwt)
 - [ ] Game lobby for creation and joining (self-service matchmaking)
-- [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
 
 ## Features / Work Items
 
