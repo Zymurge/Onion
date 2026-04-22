@@ -274,20 +274,6 @@ describe('getUnitDefinition', () => {
     })
   })
 
-  describe('Castle (Command Post)', () => {
-    it('has no weapons', () => {
-      expect(getUnitDefinition('Castle').weapons).toHaveLength(0)
-    })
-
-    it('has defense 0', () => {
-      expect(getUnitDefinition('Castle').defense).toBe(0)
-    })
-
-    it('has movement 0', () => {
-      expect(getUnitDefinition('Castle').movement).toBe(0)
-    })
-  })
-
   describe('Swamp (HQ)', () => {
     it('has no weapons', () => {
       expect((getUnitDefinition('Swamp') as any).weapons).toHaveLength(0)
@@ -381,7 +367,7 @@ describe('getAllUnitDefinitions', () => {
   it('contains all 9 unit types', () => {
     const all = getAllUnitDefinitions()
     const keys = Object.keys(all)
-    expect(keys).toHaveLength(10)
+    expect(keys).toHaveLength(9)
     expect(keys).toContain('Puss')
     expect(keys).toContain('BigBadWolf')
     expect(keys).toContain('Witch')
@@ -389,7 +375,6 @@ describe('getAllUnitDefinitions', () => {
     expect(keys).toContain('Pinocchio')
     expect(keys).toContain('Dragon')
     expect(keys).toContain('LittlePigs')
-    expect(keys).toContain('Castle')
     expect(keys).toContain('Swamp')
     expect(keys).toContain('TheOnion')
   })
@@ -491,8 +476,8 @@ describe('isImmobile', () => {
     expect(isImmobile(makeUnit({ type: 'Puss' }))).toBe(false)
   })
 
-  it('returns false for Castle', () => {
-    expect(isImmobile(makeUnit({ type: 'Castle', weapons: [] }))).toBe(false)
+  it('returns false for BigBadWolf', () => {
+    expect(isImmobile(makeUnit({ type: 'BigBadWolf' }))).toBe(false)
   })
 })
 
@@ -507,8 +492,8 @@ describe('getUnitDefense', () => {
     expect(getUnitDefense(makeUnit({ type: 'Puss' }), true)).toBe(3)
   })
 
-  it('returns defense 0 for Castle', () => {
-    expect(getUnitDefense(makeUnit({ type: 'Castle', weapons: [] }), false)).toBe(0)
+  it('returns defense 0 for Swamp', () => {
+    expect(getUnitDefense(makeUnit({ type: 'Swamp' }), false)).toBe(0)
   })
 
   it('returns defense 0 for LordFarquaad', () => {
@@ -600,7 +585,7 @@ describe('getReadyWeapons', () => {
   })
 
   it('returns empty array for unit with no weapons', () => {
-    const unit = makeUnit({ type: 'Castle', weapons: [] })
+    const unit = makeUnit({ type: 'Swamp', weapons: [] })
     expect(getReadyWeapons(unit)).toHaveLength(0)
   })
 })

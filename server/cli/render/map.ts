@@ -32,7 +32,7 @@ function unitCode(unitType: string): string {
       return 'DR'
     case 'LittlePigs':
       return 'LP'
-    case 'Castle':
+    case 'Swamp':
       return 'CP'
     default:
       return '??'

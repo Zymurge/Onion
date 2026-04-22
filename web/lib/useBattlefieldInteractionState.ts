@@ -3,6 +3,7 @@ import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
 import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
 import type { GameAction, GameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
+import { isWeaponSelectionId } from './appViewHelpers'
 import type { TurnPhase } from '../../shared/types/index'
 import logger from './logger'
 
@@ -278,6 +279,23 @@ export function useBattlefieldInteractionState({
         })()
 
     if (destroyedUnit) {
+      return
+    }
+
+    const baseSelection = selectedUnitIds ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
+    const preserveCombatSelection =
+      clientSnapshotPhase === 'ONION_COMBAT' &&
+      !additive &&
+      unitId !== authoritativeState?.onion.id &&
+      authoritativeState?.defenders[unitId] !== undefined &&
+      baseSelection.some(isWeaponSelectionId)
+
+    if (preserveCombatSelection) {
+      debugLog('handleSelectUnit preserved combat selection', {
+        unitId,
+        clientSnapshotPhase,
+        selectedUnitIds,
+      })
       return
     }
 

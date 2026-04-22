@@ -6,7 +6,7 @@ The initial implementation will be based on the Mark III scenario, and the rules
 
 ## Overview
 
-Onion is a hexagonal-grid tactical wargame where one player controls a single, massive super-tank called the **Onion**, and the other player controls a diverse force of conventional units (**Little Pigs**, **Big Bad Wolves**, **Puss**, etc.) defending a **Castle**.
+Onion is a hexagonal-grid tactical wargame where one player controls a single, massive super-tank called the **Onion**, and the other player controls a diverse force of conventional units (**Little Pigs**, **Big Bad Wolves**, **Puss**, etc.) defending **The Swamp**.
 
 ## Units Mapping
 
@@ -22,7 +22,7 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
 | Light Tank | **Pinocchio** | 2 / 2 | 2 | 0.5 | 3 |
 | Superheavy Tank | **Dragon** | 6(x2) / 3 | 5 | 2 | 3 |
 | Infantry | **Little Pigs** | 1 (per squad) / 1 | 1 (squad) | 1 (per 3) | 2 |
-| Command Post | **Castle** | 0 / 0 | 0 | N/A | 0 |
+| Command Post | **The Swamp** | 0 / 0 | 0 | N/A | 0 |
 
 ### Unit Special Abilities
 
@@ -30,11 +30,11 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
 - **Little Pigs (Infantry)**: Can stack up to 3 squads per hex. Their defense is the sum of squads. They are the only units that can benefit from certain terrain cover. Attacks of "D" on a stack reduce it by 1 squad; "X" destroys the entire stack.
 - **Lord Farquaad (Howitzer)**: Immobile once placed.
 - **Dragon (Superheavy)**: A powerful conventional unit with two 6-strength attacks.
-- **Castle (Command Post)**: The primary objective. Defense 0. Any "X" result against it wins the game for the Onion.
+- **The Swamp (Command Post)**: The primary objective. Defense 0. Any "X" result against it wins the game for the Onion.
 - **The Onion (Super-Unit)**:
   - **Main Battery (×1)**: Attack 4 / Range 3 / Defense 4.
   - **Secondary Battery (×4)**: Attack 3 / Range 2 / Defense 3.
-  - **AP — Anti-Personnel (×8)**: Attack 1 / Range 1 / Defense 1. Effective only against Infantry and the Castle.
+  - **AP — Anti-Personnel (×8)**: Attack 1 / Range 1 / Defense 1. Effective only against Infantry.
   - **Missiles (×2)**: Attack 6 / Range 5 / Defense 3. Single-use, exterior-mounted (individually targetable before launch). Only **one** missile may be launched per turn.
   - **Tread Calculation**: Mk III starts with **45 Tread Points**.
     - 31-45 Treads: **MA 3** | 16-30 Treads: **MA 2** | 1-15 Treads: **MA 1** | 0 Treads: **MA 0**
@@ -47,7 +47,7 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
 - Unit target rules live on the unit definition when a unit can only be attacked by certain weapon types or weapon-defined target classes.
 - Target rules should use explicit unit and weapon identifiers, not abstract combat classes, so special cases remain easy to read and extend.
 - Scenario files do not author target rules directly; they reference unit types and the engine populates weapon and target-rule data from the shared unit definitions.
-- For the current Onion AP weapons, the source of truth is the Onion unit definition: AP weapons may target only Little Pigs and the Castle.
+- For the current Onion AP weapons, the source of truth is the Onion unit definition: AP weapons may target only Little Pigs.
 
 ## Core Mechanics
 
@@ -136,6 +136,6 @@ A unit disabled on turn N is recovered and operational by turn N+1's `DEFENDER_M
 
 ## Victory Conditions
 
-- **Onion Player**: Wins by destroying the **Castle** (Command Post). The Castle has Defense 0 — any successful attack result destroys it immediately.
-- **Defender**: Wins by **immobilizing the Onion** before it destroys the Castle. The Onion is considered immobilized (and the Defender wins) when its tread points are reduced to **0 (MA 0)**. A stationary Onion cannot reach the Castle and poses no further threat.
+- **Onion Player**: Wins by destroying the **Swamp** (Command Post). The Swamp has Defense 0 — any successful attack result destroys it immediately.
+- **Defender**: Wins by **immobilizing the Onion** before it destroys the Swamp. The Onion is considered immobilized (and the Defender wins) when its tread points are reduced to **0 (MA 0)**. A stationary Onion cannot reach the Swamp and poses no further threat.
   - Note: A fully armed but immobile Onion is still a Defender win — weapons alone cannot win the game for the Onion player.

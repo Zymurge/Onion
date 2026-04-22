@@ -79,6 +79,7 @@ export interface EventEnvelope {
   type: string
   timestamp: string
   causeId?: string
+  phase?: TurnPhase
   turnNumber?: number
   friendlyName?: string
   unitFriendlyName?: string

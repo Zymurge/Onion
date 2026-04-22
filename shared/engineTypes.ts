@@ -12,7 +12,6 @@ export type UnitType =
   | 'Dragon'
   | 'LittlePigs'
   | 'Swamp'
-  | 'Castle'
 
 export type WeaponStatus = 'ready' | 'spent' | 'destroyed'
 

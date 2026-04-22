@@ -58,6 +58,7 @@ describe('POST /games/:id/actions MOVE', () => {
     const body = res.json()
     expect(body.ok).toBe(true)
     expect(body.state.onion.position).toEqual(moveTo)
+    expect(body.events[0].phase).toBe('ONION_MOVE')
     expect(validateSpy).toHaveBeenCalled()
     expect(executeSpy).toHaveBeenCalled()
     expect(infoSpy).toHaveBeenCalledWith(

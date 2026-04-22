@@ -11,8 +11,20 @@ function getNumber(value: unknown): number | undefined {
 	return typeof value === 'number' ? value : undefined
 }
 
-function getOutcomeLabel(outcome: unknown): 'Hit' | 'Miss' {
-	return outcome === 'NE' ? 'Miss' : 'Hit'
+function hasTreadLoss(events: ReadonlyArray<CombatResolutionEvent>): boolean {
+	return events.some((event) => event.type === 'ONION_TREADS_LOST')
+}
+
+function getOutcomeLabel(outcome: unknown, events: ReadonlyArray<CombatResolutionEvent>): 'Hit' | 'Miss' {
+	if (outcome === 'NE') {
+		return 'Miss'
+	}
+
+	if (outcome === 'D' && hasTreadLoss(events)) {
+		return 'Miss'
+	}
+
+	return 'Hit'
 }
 
 function getPreferredLabel(event: CombatResolutionEvent, friendlyNameKey: string, idKey: string): string | null {
@@ -93,7 +105,7 @@ export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEven
 		targetId,
 		targetFriendlyName: typeof combatEvent.targetFriendlyName === 'string' ? combatEvent.targetFriendlyName : undefined,
 		outcome,
-		outcomeLabel: getOutcomeLabel(outcome),
+		outcomeLabel: getOutcomeLabel(outcome, events),
 		roll: getNumber(combatEvent.roll),
 		odds: typeof combatEvent.odds === 'string' ? combatEvent.odds : undefined,
 		details,

@@ -65,7 +65,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 	})
 
-	it('filters AP targets to infantry and Castle only', () => {
+	it('filters AP targets to infantry only', () => {
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',
 			combatRangeHexKeys: new Set(['1,0', '1,1', '2,1']),
@@ -95,18 +95,6 @@ describe('buildCombatTargetOptions', () => {
 					squads: 2,
 					actionableModes: ['fire'],
 				},
-				{
-					id: 'castle-1',
-					type: 'Castle',
-					status: 'operational',
-					q: 2,
-					r: 1,
-					move: 0,
-					weapons: '',
-					attack: '0 / rng 0',
-					defense: 0,
-					actionableModes: ['fire'],
-				},
 			],
 			displayedOnion: {
 				id: 'onion-1',
@@ -140,7 +128,61 @@ describe('buildCombatTargetOptions', () => {
 			},
 		})
 
-		expect(options.map((option) => option.id)).toEqual(['pigs-1', 'castle-1'])
+		expect(options.map((option) => option.id)).toEqual(['pigs-1'])
+	})
+
+	it('keeps Swamp targetable for non-AP Onion weapons', () => {
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['1,0', '1,1', '2,1']),
+			displayedDefenders: [
+				{
+					id: 'swamp-1',
+					type: 'Swamp',
+					friendlyName: 'The Swamp',
+					status: 'operational',
+					q: 1,
+					r: 1,
+					move: 0,
+					weapons: '',
+					attack: '0 / rng 0',
+					defense: 0,
+					actionableModes: ['fire'],
+				},
+			],
+			displayedOnion: {
+				id: 'onion-1',
+				type: 'TheOnion',
+				q: 0,
+				r: 0,
+				status: 'operational',
+				treads: 33,
+				movesAllowed: 0,
+				movesRemaining: 0,
+				rams: 0,
+				weapons: 'main: ready',
+				weaponDetails: [
+					{
+						id: 'main-1',
+						name: 'Main Battery',
+						attack: 4,
+						range: 3,
+						defense: 4,
+						status: 'ready',
+						individuallyTargetable: true,
+					},
+				],
+			},
+			selectedUnitIds: ['weapon:main-1'],
+			selectedAttackStrength: 4,
+			displayedScenarioMap: {
+				width: 8,
+				height: 8,
+				hexes: [],
+			},
+		})
+
+		expect(options.map((option) => option.id)).toEqual(['swamp-1'])
 	})
 
 	it('honors target-unit restrictions in the target selector', () => {
@@ -162,18 +204,6 @@ describe('buildCombatTargetOptions', () => {
 					targetRules: { allowedAttackerUnitTypes: ['BigBadWolf'] },
 					actionableModes: ['fire'],
 				},
-				{
-					id: 'castle-1',
-					type: 'Castle',
-					status: 'operational',
-					q: 2,
-					r: 1,
-					move: 0,
-					weapons: '',
-					attack: '0 / rng 0',
-					defense: 0,
-					actionableModes: ['fire'],
-				},
 			],
 			displayedOnion: {
 				id: 'onion-1',
@@ -190,11 +220,13 @@ describe('buildCombatTargetOptions', () => {
 					{
 						id: 'ap_1',
 						name: 'AP Gun',
+						friendlyName: 'AP Gun 1',
 						attack: 1,
 						range: 1,
 						defense: 1,
 						status: 'ready',
 						individuallyTargetable: true,
+						targetRules: { allowedTargetUnitTypes: ['LittlePigs'] },
 					},
 				],
 			},
@@ -207,7 +239,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 		})
 
-		expect(options.map((option) => option.id)).toEqual(['castle-1'])
+		expect(options.map((option) => option.id)).toEqual([])
 	})
 
 	it('still offers defender combat targets on the Onion', () => {
@@ -250,7 +282,7 @@ describe('buildCombatTargetOptions', () => {
 						defense: 1,
 						status: 'ready',
 						individuallyTargetable: true,
-						targetRules: { allowedTargetUnitTypes: ['LittlePigs', 'Castle'] },
+						targetRules: { allowedTargetUnitTypes: ['LittlePigs'] },
 					},
 				],
 			},

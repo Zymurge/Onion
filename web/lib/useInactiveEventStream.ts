@@ -123,7 +123,7 @@ function isOnionTarget(targetId: unknown): boolean {
 		return false
 	}
 
-	return targetId === 'onion' || /^(main|secondary_|ap_|missile_)/.test(targetId)
+	return /^onion(?:-\d+)?$/i.test(targetId) || targetId.endsWith(':treads') || /^(main|secondary_|ap_|missile_)/.test(targetId)
 }
 
 function isNoiseEvent(event: InactiveEventPayload): boolean {
@@ -157,6 +157,10 @@ function getSquadsLost(events: ReadonlyArray<InactiveEventPayload>): number | nu
 	return null
 }
 
+function hasOnionTreadLoss(events: ReadonlyArray<InactiveEventPayload>): boolean {
+	return events.some((event) => event.type === 'ONION_TREADS_LOST')
+}
+
 function resolveCombatOutcomeLabel(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
 	switch (event.outcome) {
 		case 'NE':
@@ -173,7 +177,11 @@ function resolveCombatOutcomeLabel(event: InactiveEventPayload, relatedEvents: R
 				return squadsLost === 1 ? '1 squad lost' : `${squadsLost} squads lost`
 			}
 
-			return isOnionTarget(event.targetId) ? 'no effect' : 'disabled'
+			if (isOnionTarget(event.targetId)) {
+				return hasOnionTreadLoss(relatedEvents) ? 'missed' : 'no effect'
+			}
+
+			return 'disabled'
 		}
 		default:
 			return formatDetailValue(event.outcome)
@@ -504,6 +512,20 @@ function buildTimelineEvents(events: ReadonlyArray<InactiveEventPayload>): Timel
 	return timelineEntries
 }
 
+function trimInactiveWindowEvents(events: ReadonlyArray<InactiveEventPayload>): ReadonlyArray<InactiveEventPayload> {
+	const defenderHandoffIndex = events.findIndex((event) => event.type === 'PHASE_CHANGED' && event.to === 'DEFENDER_MOVE')
+	if (defenderHandoffIndex !== -1) {
+		return events.slice(defenderHandoffIndex + 1)
+	}
+
+	const phaseChangeIndex = events.findIndex((event) => event.type === 'PHASE_CHANGED')
+	if (phaseChangeIndex === -1) {
+		return events
+	}
+
+	return events.slice(phaseChangeIndex + 1)
+}
+
 function toTimelineEvents(events: ReadonlyArray<GameEvent>): TimelineEvent[] {
 	return buildTimelineEvents(events as ReadonlyArray<InactiveEventPayload>)
 }
@@ -525,7 +547,6 @@ export function useInactiveEventStream({
 	const latestAppliedEventSeqRef = useRef<number | null>(lastAppliedEventSeq)
 	const queuedRefreshRef = useRef(false)
 	const lastGameIdRef = useRef<number | null>(null)
-	const lastTurnNumberRef = useRef<number | null>(null)
 	const previousActiveTurnActiveRef = useRef(activeTurnActive)
 
 	useEffect(() => {
@@ -533,9 +554,8 @@ export function useInactiveEventStream({
 	}, [lastAppliedEventSeq])
 
 	useEffect(() => {
-		if (lastGameIdRef.current !== activeGameId || lastTurnNumberRef.current !== currentTurnNumber) {
+		if (lastGameIdRef.current !== activeGameId) {
 			lastGameIdRef.current = activeGameId
-			lastTurnNumberRef.current = currentTurnNumber
 			setEntries([])
 			setIsDismissed(false)
 			setIsLoading(false)
@@ -545,12 +565,22 @@ export function useInactiveEventStream({
 			inFlightAfterSeqRef.current = null
 			queuedRefreshRef.current = false
 		}
-	}, [activeGameId, currentTurnNumber])
+	}, [activeGameId])
 
 	useEffect(() => {
-		// Only reset state when switching to a new game, not on phase transitions
+		if (previousActiveTurnActiveRef.current === true && activeTurnActive === false) {
+			setEntries([])
+			setIsDismissed(false)
+			setIsLoading(false)
+			setErrorMessage(null)
+			seenSeqsRef.current = new Set<number>()
+			loadedThroughSeqRef.current = null
+			inFlightAfterSeqRef.current = null
+			queuedRefreshRef.current = false
+		}
+
 		previousActiveTurnActiveRef.current = activeTurnActive
-	}, [activeGameId, activeTurnActive, lastAppliedEventSeq])
+	}, [activeTurnActive])
 
 	useEffect(() => {
 		if (
@@ -595,13 +625,14 @@ export function useInactiveEventStream({
 
 				const unseenEvents = events.filter((event) => !seenSeqsRef.current.has(event.seq))
 				const currentTurnEvents = unseenEvents.filter((event) => event.turnNumber === currentTurnNumber)
+				const visibleEvents = activeTurnActive ? currentTurnEvents : trimInactiveWindowEvents(currentTurnEvents)
 				for (const event of unseenEvents) {
 					seenSeqsRef.current.add(event.seq)
 				}
 
-				if (currentTurnEvents.length > 0) {
+				if (visibleEvents.length > 0) {
 					setEntries((currentEntries) => {
-						const nextEntries = currentEntries.concat(toTimelineEvents(currentTurnEvents))
+						const nextEntries = currentEntries.concat(toTimelineEvents(visibleEvents))
 						nextEntries.sort((left, right) => left.seq - right.seq)
 						return nextEntries
 					})

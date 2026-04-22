@@ -427,8 +427,8 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		await user.click(await screen.findByTestId('hex-unit-puss-1'))
-		expect(screen.getByRole('heading', { name: /Puss 1/i })).not.toBeNull()
-		expect(screen.queryByText(/Valid Targets/i)).toBeNull()
+		expect(screen.getByRole('heading', { name: /Valid Targets/i })).not.toBeNull()
+		expect(screen.queryByText(/Inspector/i)).toBeNull()
 	})
 
 	it('keeps defender movement collapsed when the live snapshot reports zero allowance', async () => {
@@ -553,6 +553,7 @@ describe('App UI', () => {
 					type: 'FIRE_RESOLVED',
 					timestamp: '2026-04-15T12:02:00.000Z',
 					turnNumber: 11,
+					phase: 'ONION_COMBAT',
 					attackerFriendlyNames: ['Big Bad Wolf 2'],
 					outcome: 'NE',
 					targetFriendlyName: 'The Onion 1',
@@ -605,6 +606,7 @@ describe('App UI', () => {
 				type: 'UNIT_MOVED',
 				timestamp: '2026-04-15T12:03:00.000Z',
 					turnNumber: 11,
+					phase: 'ONION_MOVE',
 					unitFriendlyName: 'Big Bad Wolf 2',
 				unitId: 'wolf-2',
 				to: { q: 3, r: 4 },
@@ -614,6 +616,7 @@ describe('App UI', () => {
 				type: 'MOVE_RESOLVED',
 				timestamp: '2026-04-15T12:03:01.000Z',
 					turnNumber: 11,
+					phase: 'ONION_MOVE',
 					unitFriendlyName: 'Big Bad Wolf 2',
 				unitId: 'wolf-2',
 				rammedUnitIds: ['pigs-1'],
@@ -627,6 +630,8 @@ describe('App UI', () => {
 				type: 'FIRE_RESOLVED',
 				timestamp: '2026-04-15T12:04:00.000Z',
 					turnNumber: 11,
+					phase: 'ONION_COMBAT',
+					phase: 'ONION_COMBAT',
 					attackerFriendlyNames: ['Big Bad Wolf 2'],
 				attackers: ['wolf-2'],
 					targetFriendlyName: 'Little Pigs 1',
@@ -640,6 +645,7 @@ describe('App UI', () => {
 				type: 'ONION_TREADS_LOST',
 				timestamp: '2026-04-15T12:04:01.000Z',
 					turnNumber: 11,
+					phase: 'ONION_COMBAT',
 				amount: 2,
 				remaining: 43,
 			},
@@ -648,6 +654,7 @@ describe('App UI', () => {
 				type: 'UNIT_STATUS_CHANGED',
 				timestamp: '2026-04-15T12:04:02.000Z',
 					turnNumber: 11,
+					phase: 'ONION_COMBAT',
 					unitFriendlyName: 'Little Pigs 1',
 				unitId: 'pigs-1',
 				from: 'operational',
@@ -688,6 +695,7 @@ describe('App UI', () => {
 				type: 'MOVE_RESOLVED',
 				timestamp: '2026-04-15T12:07:00.000Z',
 				turnNumber: 11,
+					phase: 'ONION_MOVE',
 				unitFriendlyName: 'Big Bad Wolf 2',
 				unitId: 'wolf-2',
 				rammedUnitIds: ['pigs-2'],
@@ -702,6 +710,7 @@ describe('App UI', () => {
 				type: 'ONION_TREADS_LOST',
 				timestamp: '2026-04-15T12:07:00.100Z',
 				turnNumber: 11,
+					phase: 'ONION_MOVE',
 				amount: 1,
 				remaining: 44,
 				causeId: 'req-2',
@@ -724,6 +733,69 @@ describe('App UI', () => {
 		expect(ramEntry?.textContent).toContain('Treads lost: 1')
 	})
 
+	it('starts the Onion inactive stream at the defender handoff instead of the Onion move phase', async () => {
+		const user = userEvent.setup()
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockResolvedValue([
+			{
+				seq: 59,
+				type: 'PHASE_CHANGED',
+				timestamp: '2026-04-15T12:02:59.000Z',
+				turnNumber: 11,
+				from: 'DEFENDER_COMBAT',
+				to: 'ONION_MOVE',
+				causeId: 'req-0',
+			},
+			{
+				seq: 60,
+				type: 'ONION_MOVED',
+				timestamp: '2026-04-15T12:03:00.000Z',
+				turnNumber: 11,
+				unitFriendlyName: 'The Onion',
+				unitId: 'onion-1',
+				to: { q: 0, r: 1 },
+			},
+			{
+				seq: 61,
+				type: 'PHASE_CHANGED',
+				timestamp: '2026-04-15T12:03:00.100Z',
+				turnNumber: 11,
+				from: 'ONION_COMBAT',
+				to: 'DEFENDER_MOVE',
+				causeId: 'req-1',
+			},
+			{
+				seq: 62,
+				type: 'MOVE_RESOLVED',
+				timestamp: '2026-04-15T12:03:01.000Z',
+				turnNumber: 11,
+					phase: 'ONION_MOVE',
+				unitFriendlyName: 'Big Bad Wolf 2',
+				unitId: 'wolf-2',
+				rammedUnitIds: ['pigs-1'],
+				rammedUnitFriendlyNames: ['Little Pigs 1'],
+				destroyedUnitIds: ['pigs-1'],
+				destroyedUnitFriendlyNames: ['Little Pigs 1'],
+				treadDamage: 1,
+				causeId: 'req-1',
+			},
+		])
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+		const stream = screen.getByTestId('inactive-event-stream')
+		expect(stream.textContent).not.toContain('The Onion moved to')
+		expect(await screen.findByText(/ram on little pigs 1 - destroyed/i)).not.toBeNull()
+		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(1)
+	})
+
 	it('renders actual combat outcomes for Little Pigs D results', async () => {
 		const snapshot = createOnionMoveSnapshot(null, 4)
 		const liveEventSource = createLiveEventSourceStub()
@@ -733,6 +805,8 @@ describe('App UI', () => {
 				type: 'FIRE_RESOLVED',
 				timestamp: '2026-04-15T12:06:00.000Z',
 				turnNumber: 11,
+				phase: 'ONION_MOVE',
+				causeId: 'req-3',
 				attackerFriendlyNames: ['Big Bad Wolf 2'],
 				attackers: ['wolf-2'],
 				targetFriendlyName: 'Little Pigs 1',
@@ -746,6 +820,8 @@ describe('App UI', () => {
 				type: 'UNIT_STATUS_CHANGED',
 				timestamp: '2026-04-15T12:06:00.100Z',
 				turnNumber: 11,
+				phase: 'ONION_MOVE',
+				causeId: 'req-3',
 				unitFriendlyName: 'Little Pigs 1',
 				unitId: 'pigs-1',
 				from: 'operational',
@@ -762,7 +838,9 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 		const stream = screen.getByTestId('inactive-event-stream')
-		expect(stream.textContent).toContain('Fire on Little Pigs 1: destroyed')
+		await waitFor(() => {
+			expect(stream.textContent).toContain('Fire on Little Pigs 1: destroyed')
+		})
 		const entry = stream.querySelector('.inactive-event-stream-entry')
 		await user.hover(entry as HTMLElement)
 		expect(entry?.textContent).toContain('Outcome: destroyed')
@@ -793,10 +871,182 @@ describe('App UI', () => {
 			pollEvents,
 		})
 
+		const user = userEvent.setup()
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
-		expect(await screen.findByText(/fire on main battery: no effect/i)).not.toBeNull()
+		const stream = await screen.findByTestId('inactive-event-stream')
+		await waitFor(() => {
+			expect(stream.textContent).toContain('Fire on Main Battery: no effect')
+		})
 		expect(screen.queryByText(/disabled/i)).toBeNull()
+	})
+
+	it('renders D against Onion treads as missed in the inactive stream', async () => {
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockResolvedValue([
+			{
+				seq: 73,
+				type: 'FIRE_RESOLVED',
+				timestamp: '2026-04-15T12:05:30.000Z',
+				turnNumber: 11,
+				attackerFriendlyNames: ['Big Bad Wolf 2'],
+				attackers: ['wolf-2'],
+				targetFriendlyName: 'The Onion 1',
+				targetId: 'onion-1',
+				roll: 4,
+				outcome: 'D',
+				odds: '2:1',
+			},
+			{
+				seq: 74,
+				type: 'ONION_TREADS_LOST',
+				timestamp: '2026-04-15T12:05:30.100Z',
+				turnNumber: 11,
+				amount: 1,
+				remaining: 44,
+			},
+		])
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		const user = userEvent.setup()
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+
+		const stream = await screen.findByTestId('inactive-event-stream')
+		await waitFor(() => {
+			expect(stream.textContent).toContain('Fire on The Onion 1: missed')
+		})
+		expect(screen.queryByText(/disabled/i)).toBeNull()
+	})
+
+	it('renders D against Onion treads targets with the treads suffix as missed in the inactive stream', async () => {
+		const snapshot = createOnionMoveSnapshot(null, 4)
+		const liveEventSource = createLiveEventSourceStub()
+		const pollEvents = vi.fn().mockResolvedValue([
+			{
+				seq: 95,
+				type: 'FIRE_RESOLVED',
+				timestamp: '2026-04-15T12:06:30.000Z',
+				turnNumber: 11,
+				phase: 'ONION_MOVE',
+				attackerFriendlyNames: ['Big Bad Wolf 2'],
+				attackers: ['wolf-2'],
+				targetFriendlyName: 'The Onion 1',
+				targetId: 'onion-1:treads',
+				roll: 4,
+				outcome: 'D',
+				odds: '2:1',
+			},
+			{
+				seq: 96,
+				type: 'ONION_TREADS_LOST',
+				timestamp: '2026-04-15T12:06:30.100Z',
+				turnNumber: 11,
+				phase: 'ONION_MOVE',
+				amount: 1,
+				remaining: 44,
+			},
+		])
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents,
+		})
+
+		const user = userEvent.setup()
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+
+		const stream = await screen.findByTestId('inactive-event-stream')
+		await waitFor(() => {
+			expect(stream.textContent).toContain('Fire on The Onion 1: missed')
+		})
+		expect(screen.queryByText(/disabled/i)).toBeNull()
+	})
+
+	it('shows Swamp as a valid target on the swamp siege map when a missile is selected', async () => {
+		const user = userEvent.setup()
+		const snapshot: LoadedBattlefieldSnapshot = {
+			gameId: 123,
+			phase: 'ONION_COMBAT',
+			selectedUnitId: 'weapon:missile_1',
+			mode: 'fire',
+			scenarioName: 'The Siege of Shrek\'s Swamp',
+			turnNumber: 8,
+			lastEventSeq: 47,
+			authoritativeState: {
+				onion: {
+					id: 'onion-1',
+					type: 'TheOnion',
+					friendlyName: 'The Onion 1',
+					position: { q: 3, r: 10 },
+					treads: 45,
+					status: 'operational',
+					weapons: [
+						{
+							id: 'missile_1',
+							name: 'Missile',
+							attack: 6,
+							range: 5,
+							defense: 3,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+					],
+					batteries: {
+						main: 1,
+						secondary: 4,
+						ap: 8,
+					},
+				},
+				defenders: {
+					'swamp-1': {
+						id: 'swamp-1',
+						type: 'Swamp',
+						friendlyName: 'The Swamp',
+						position: { q: 7, r: 5 },
+						status: 'operational' as const,
+						weapons: [],
+					},
+				},
+				ramsThisTurn: 0,
+			},
+			movementRemainingByUnit: {
+				'onion-1': 0,
+			},
+			scenarioMap: {
+				width: 15,
+				height: 22,
+				cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+				hexes: [
+					{ q: 1, r: 0, t: 1 },
+					{ q: 2, r: 0, t: 1 },
+					{ q: 3, r: 1, t: 1 },
+					{ q: 4, r: 1, t: 1 },
+					{ q: 5, r: 2, t: 1 },
+					{ q: 3, r: 8, t: 2 },
+					{ q: 4, r: 8, t: 2 },
+				],
+			},
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await user.click(await screen.findByTestId('combat-weapon-missile_1'))
+		const targetList = await screen.findByTestId('combat-target-list')
+		expect(targetList.textContent).toContain('The Swamp')
+		expect(screen.getByTestId('combat-target-swamp-1')).not.toBeNull()
 	})
 
 	it('groups related inactive events by causeId across interleaved noise', async () => {
@@ -809,7 +1059,7 @@ describe('App UI', () => {
 				type: 'SESSION_CONNECTED',
 				timestamp: '2026-04-15T12:03:00.000Z',
 					turnNumber: 11,
-				summary: 'Defender connected to the session.',
+					phase: 'ONION_MOVE',
 			},
 			{
 				seq: 62,

@@ -39,6 +39,38 @@ function includesTargetRuleValue(values: ReadonlyArray<string> | undefined, valu
 	return values.includes(value)
 }
 
+function mergeTargetRuleValues(
+	primary: ReadonlyArray<string> | undefined,
+	secondary: ReadonlyArray<string> | undefined,
+): ReadonlyArray<string> | undefined {
+	if (primary === undefined) {
+		return secondary
+	}
+
+	if (secondary === undefined) {
+		return primary
+	}
+
+	return [...new Set([...primary, ...secondary])]
+}
+
+function mergeTargetRules(primary: TargetRules | undefined, secondary: TargetRules | undefined): TargetRules | undefined {
+	if (primary === undefined) {
+		return secondary
+	}
+
+	if (secondary === undefined) {
+		return primary
+	}
+
+	return {
+		allowedTargetUnitTypes: mergeTargetRuleValues(primary.allowedTargetUnitTypes, secondary.allowedTargetUnitTypes),
+		allowedTargetWeaponIds: mergeTargetRuleValues(primary.allowedTargetWeaponIds, secondary.allowedTargetWeaponIds),
+		allowedAttackerUnitTypes: mergeTargetRuleValues(primary.allowedAttackerUnitTypes, secondary.allowedAttackerUnitTypes),
+		allowedAttackerWeaponIds: mergeTargetRuleValues(primary.allowedAttackerWeaponIds, secondary.allowedAttackerWeaponIds),
+	}
+}
+
 export function isTargetAllowedByRules(actor: TargetRuleActor, target: TargetRuleTarget): boolean {
 	if (!includesTargetRuleValue(actor.targetRules?.allowedTargetUnitTypes, target.unitType)) {
 		return false
@@ -64,16 +96,15 @@ export function resolveWeaponTargetRules(
 	weaponId: string,
 	liveTargetRules?: TargetRules,
 ): TargetRules | undefined {
-	if (liveTargetRules !== undefined) {
-		return liveTargetRules
-	}
-
-	return unitDefinition?.weapons?.find((weapon) => weapon.id === weaponId)?.targetRules
+	return mergeTargetRules(
+		unitDefinition?.weapons?.find((weapon) => weapon.id === weaponId)?.targetRules,
+		liveTargetRules,
+	)
 }
 
 export function resolveUnitTargetRules(
 	unitDefinition: TargetRuleUnitDefinition | undefined,
 	liveTargetRules?: TargetRules,
 ): TargetRules | undefined {
-	return liveTargetRules ?? unitDefinition?.targetRules
+	return mergeTargetRules(unitDefinition?.targetRules, liveTargetRules)
 }

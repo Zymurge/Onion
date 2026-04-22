@@ -369,30 +369,30 @@ describe('POST /games/:id/actions combat API contract', () => {
 
     const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
       ok: true,
-      plan: { actionType: 'FIRE', attackerIds: ['main'], target: { kind: 'defender', id: 'castle' }, attackStrength: 8, defense: 2 },
+      plan: { actionType: 'FIRE', attackerIds: ['main'], target: { kind: 'defender', id: 'puss-1' }, attackStrength: 8, defense: 2 },
     } as any)
     const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation((state) => {
-      // Simulate castle being destroyed — Onion wins
-      if (state.defenders['castle']) {
-        state.defenders['castle'].status = 'destroyed'
+      // Simulate a non-objective defender being destroyed — Onion does not win yet
+      if (state.defenders['puss-1']) {
+        state.defenders['puss-1'].status = 'destroyed'
       } else {
-        // inject a castle into state so checkVictoryConditions can find it
-        state.defenders['castle'] = { type: 'Castle', position: { q: 5, r: 5 }, status: 'destroyed' } as any
+        // inject a non-objective defender into state so checkVictoryConditions can find it
+        state.defenders['puss-1'] = { type: 'Puss', position: { q: 5, r: 5 }, status: 'destroyed' } as any
       }
       return {
         success: true,
         actionType: 'FIRE',
         attackerIds: ['main'],
-        targetId: 'castle',
+        targetId: 'puss-1',
         roll: { roll: 6, result: 'X', odds: '3:1' },
-        statusChanges: [{ unitId: 'castle', from: 'operational', to: 'destroyed' }],
+        statusChanges: [{ unitId: 'puss-1', from: 'operational', to: 'destroyed' }],
       }
     })
 
     await submitAction(app, gameId, shrek.token, {
       type: 'FIRE',
       attackers: ['main'],
-      targetId: 'castle',
+      targetId: 'puss-1',
     })
 
     const stateRes = await app.inject({

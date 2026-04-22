@@ -85,6 +85,7 @@ describe('GET /games/:id/ws', () => {
 		expect(liveEventMessage.kind).toBe('EVENT')
 		expect(liveEventMessage.event.type).toBe('ONION_MOVED')
 		expect(liveEventMessage.event.to).toEqual(moveTo)
+		expect(liveEventMessage.event.phase).toBe('ONION_MOVE')
 
 		validateSpy.mockRestore()
 		executeSpy.mockRestore()
@@ -138,6 +139,7 @@ describe('GET /games/:id/ws', () => {
 
 		expect(liveEventMessage.kind).toBe('EVENT')
 		expect(liveEventMessage.event.type).toBe('FIRE_RESOLVED')
+		expect(liveEventMessage.event.phase).toBe('DEFENDER_COMBAT')
 		expect(liveEventMessage.event.attackers).toEqual(['wolf-1'])
 		expect(liveEventMessage.event.targetId).toBe('onion')
 
@@ -174,6 +176,7 @@ describe('GET /games/:id/ws', () => {
 
 		expect(phaseEventMessage.kind).toBe('EVENT')
 		expect(phaseEventMessage.event.type).toBe('PHASE_CHANGED')
+		expect(phaseEventMessage.event.phase).toBe('ONION_MOVE')
 
 		ws.terminate()
 	})

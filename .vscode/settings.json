@@ -21,7 +21,8 @@
         "git -C /home/zymurge/Dev/onion": true,
         "printf": true,
         "docker compose": true,
-        "git merge": true
+        "git merge": true,
+        "npx vitest": true
     },
     "github.copilot.chat.cli.forkSessions.enabled": true,
     "npm.scriptRunner": "pnpm"

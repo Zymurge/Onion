@@ -27,8 +27,10 @@ describe('POST /games/:id/actions END_PHASE', () => {
       from: 'ONION_MOVE',
       to: 'ONION_COMBAT',
       turnNumber: 1,
+      phase: 'ONION_MOVE',
     })
     expect(body.events.every((event: any) => event.turnNumber === body.turnNumber)).toBe(true)
+    expect(body.events.every((event: any) => event.phase === 'ONION_MOVE' || event.phase === 'ONION_COMBAT')).toBe(true)
     expect(body.events[0].causeId).toBeDefined()
     expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
     expect(body.turnNumber).toBe(1)
@@ -101,11 +103,13 @@ describe('POST /games/:id/actions END_PHASE', () => {
     const action = await endPhase(app, gameId, shrek.token)
     const actionBody = action.json<{ eventSeq: number; turnNumber: number; events: Array<{ seq: number; causeId?: string; turnNumber?: number }> }>()
     const eventsRes = await getEvents(app, gameId, shrek.token)
-    const events = eventsRes.json<{ events: Array<{ seq: number; type: string; turnNumber?: number }> }>().events
+    const events = eventsRes.json<{ events: Array<{ seq: number; type: string; turnNumber?: number; phase?: string }> }>().events
 
-    expect(events.some((event) => event.type === 'PHASE_CHANGED')).toBe(true)
+    const phaseEvents = events.filter((event) => event.type === 'PHASE_CHANGED')
+    expect(phaseEvents.length).toBeGreaterThan(0)
     expect(events.at(-1)?.seq).toBe(actionBody.eventSeq)
     expect(events.every((event) => event.turnNumber === actionBody.turnNumber)).toBe(true)
+    expect(phaseEvents.every((event) => event.phase === 'ONION_MOVE' || event.phase === 'ONION_COMBAT')).toBe(true)
     expect(actionBody.events.every((event: any) => event.causeId === actionBody.events[0].causeId)).toBe(true)
   })
 

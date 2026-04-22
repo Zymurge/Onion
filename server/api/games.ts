@@ -3,7 +3,7 @@ import logger from '#server/logger'
 import type { WebSocket } from 'ws'
 import { z } from 'zod'
 
-import type { PlayerRole, Command, EventEnvelope, GameState } from '#shared/types/index'
+import type { PlayerRole, Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
 import type { DbAdapter } from '#server/db/adapter'
 import { StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
@@ -139,9 +139,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     }))
   }
 
-  function attachTurnNumber(events: EventEnvelope[], turnNumber: number): EventEnvelope[] {
+  function attachTurnMetadata(events: EventEnvelope[], turnNumber: number, phase: TurnPhase): EventEnvelope[] {
     return events.map((event) => ({
       ...event,
+      phase,
       turnNumber,
     }))
   }
@@ -581,7 +582,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           'Advancing phase',
         )
         const result = advancePhaseWithEvents(match)
-        newEvents = attachTurnNumber(attachCauseId(result.newEvents, causeId), result.turnNumber)
+        newEvents = attachTurnMetadata(attachCauseId(result.newEvents, causeId), result.turnNumber, match.phase)
         currentState = result.state
         const winnerUserId = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
         const winner = resolveWinnerRole(match, winnerUserId, result.state)
@@ -639,7 +640,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = attachTurnNumber(attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state), causeId), match.turnNumber)
+        newEvents = attachTurnMetadata(attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state), causeId), match.turnNumber, match.phase)
 
         currentState = state
         const winnerUserId = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
@@ -693,7 +694,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = attachTurnNumber(attachCauseId(buildCombatEvents(seq, command, result, state), causeId), match.turnNumber)
+        newEvents = attachTurnMetadata(attachCauseId(buildCombatEvents(seq, command, result, state), causeId), match.turnNumber, match.phase)
         currentState = state
         const winnerUserId = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
         const winner = resolveWinnerRole(match, winnerUserId, state)

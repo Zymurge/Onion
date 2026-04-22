@@ -11,7 +11,7 @@ The Swamp (HQ) is a new, first-class defender unit type representing one or more
 - **Movement:** 0 (Immobile)
 - **Weapons:** None
 - **Defense:** 0 (Any "X" result destroys it)
-- **Ram Profile:** Rammable (define tread loss and destroy-on-roll as for Castle)
+- **Ram Profile:** Rammable
 - **Selectable:** Yes (appears as a unit on the map, not just a background feature)
 - **Icon:** Custom swamp image preferred; fallback to placeholder if unavailable
 - **Destroyed State:** Remains on the map in a destroyed visual state instead of being removed, and stays inspectable after destruction

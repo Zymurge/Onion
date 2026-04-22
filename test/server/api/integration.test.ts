@@ -119,6 +119,7 @@ async function runEndPhase(
   const body = endRes.json()
   expect(body.ok).toBe(true)
   expect(body.events[0].type).toBe('PHASE_CHANGED')
+  expect(body.events[0].phase).toBe(expectedFrom)
 
   applyActionToExpectedState(ctx.expectedState, { type: 'END_PHASE' }, body)
 

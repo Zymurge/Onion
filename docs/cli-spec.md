@@ -191,7 +191,7 @@ Guidelines:
 - Pinocchio: `PI`
 - Dragon: `DR`
 - Little Pigs: `LP`
-- Castle: `CP`
+- Swamp: `CP`
 
 Destroyed units should be omitted from the map and shown in event history instead.
 

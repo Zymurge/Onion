@@ -205,7 +205,7 @@ export function getDisplayDefense(type: string, squads: number | undefined, terr
       return 3
     case 'Dragon':
       return 3
-    case 'Castle':
+    case 'Swamp':
       return 0
     default:
       return 0

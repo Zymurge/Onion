@@ -198,7 +198,7 @@ To avoid proprietary issues and add a fun, thematic twist, we'll rename elements
 - **Pinocchio**: Light Tank.
 - **Dragon**: Superheavy Tank.
 - **Little Pigs**: Infantry squads.
-- **Castle**: Command Post.
+- **The Swamp**: Command Post.
 
 ## Next Steps (Phase 1)
 

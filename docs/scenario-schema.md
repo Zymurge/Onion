@@ -41,7 +41,7 @@ We use an **Axial Coordinate System** (q, r) where:
 - `0`: Clear
 - `1`: Ridgeline
 - `2`: Crater
-- `3`: Castle (Objective)
+- `3`: The Swamp (Objective)
 
 ## 2. JSON Structure Example
 
