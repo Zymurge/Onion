@@ -40,8 +40,8 @@ describe('getStopOnOccupiedHexFailure', () => {
 		expect(getStopOnOccupiedHexFailure({
 			movingRole: 'defender',
 			movingUnitType: 'LittlePigs',
-			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs', squads: 2 }],
-			incomingSquads: 2,
+			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs', squads: 3 }],
+			incomingSquads: 3,
 		})).toBe('stack-limit')
 	})
 
@@ -49,7 +49,7 @@ describe('getStopOnOccupiedHexFailure', () => {
 		expect(getStopOnOccupiedHexFailure({
 			movingRole: 'defender',
 			movingUnitType: 'LittlePigs',
-			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs', squads: 1 }],
+			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs', squads: 3 }],
 			incomingSquads: 2,
 		})).toBeNull()
 	})
@@ -90,7 +90,7 @@ describe('movementRules', () => {
 			canStopOnOccupiedHex({
 				movingRole: 'defender',
 				movingUnitType: 'LittlePigs',
-				occupants: [occupant({ unitType: 'LittlePigs', squads: 1 })],
+				occupants: [occupant({ unitType: 'LittlePigs', squads: 3 })],
 				incomingSquads: 2,
 			}),
 		).toBe(true)
@@ -99,8 +99,8 @@ describe('movementRules', () => {
 			canStopOnOccupiedHex({
 				movingRole: 'defender',
 				movingUnitType: 'LittlePigs',
-				occupants: [occupant({ unitType: 'LittlePigs', squads: 2 })],
-				incomingSquads: 2,
+				occupants: [occupant({ unitType: 'LittlePigs', squads: 3 })],
+				incomingSquads: 3,
 			}),
 		).toBe(false)
 	})

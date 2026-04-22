@@ -73,6 +73,7 @@ export type CombatValidationCode =
   | 'TARGET_OUT_OF_RANGE'
   | 'NO_ATTACKERS'
   | 'MULTI_ATTACK_TREAD_TARGET'
+  | 'ATTACKER_ALREADY_ACTED'
   | 'DUPLICATE_ATTACKER'
 
 export type CombatTarget =
@@ -131,6 +132,20 @@ type FireCommand = Extract<Command, { type: 'FIRE' }>
 const COMBAT_STATIC_RULES = ONION_STATIC_RULES
 
 const combatCalculator = createCombatCalculator(COMBAT_STATIC_RULES)
+
+function combatSpentKey(turn: number, phase: string, unitId: string): string {
+  return `${turn}:${phase}:${unitId}`
+}
+
+function getCombatSpent(state: EngineGameState, unitId: string): number {
+  return state.combatSpent?.[combatSpentKey(state.turn, state.currentPhase, unitId)] ?? 0
+}
+
+function spendCombatAction(state: EngineGameState, unitId: string): void {
+  state.combatSpent ??= {}
+  const key = combatSpentKey(state.turn, state.currentPhase, unitId)
+  state.combatSpent[key] = (state.combatSpent[key] ?? 0) + 1
+}
 
 function getTerrainTypeAt(map: GameMap, position: { q: number; r: number }) {
   return map.hexes[`${position.q},${position.r}`]?.terrain
@@ -348,6 +363,11 @@ export function validateCombatAction(
   }
 
   if (state.currentPhase === 'ONION_COMBAT') {
+    const onionCombatKey = state.onion.id ?? 'onion'
+    if (getCombatSpent(state, onionCombatKey) > 0) {
+      return { ok: false, code: 'ATTACKER_ALREADY_ACTED', error: 'The Onion has already acted this phase' }
+    }
+
     const target = state.defenders[command.targetId]
     if (!target) {
       return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
@@ -471,6 +491,9 @@ export function validateCombatAction(
     if (unit.status !== 'operational') {
       return { ok: false, code: 'ATTACKER_NOT_OPERATIONAL', error: `Attacker '${attackerId}' is not operational` }
     }
+    if (getCombatSpent(state, attackerId) > 0) {
+      return { ok: false, code: 'ATTACKER_ALREADY_ACTED', error: `Attacker '${attackerId}' has already acted this phase` }
+    }
 
     const readyWeapons = getReadyWeapons(unit)
     if (readyWeapons.length === 0) {
@@ -570,6 +593,8 @@ export function executeCombatAction(
       }
     }
 
+    spendCombatAction(state, state.onion.id ?? 'onion')
+
     const statusChanges = defender.status !== previousStatus
       ? [{ unitId: defender.id, from: previousStatus, to: defender.status }]
       : undefined
@@ -612,6 +637,7 @@ export function executeCombatAction(
         }
       }
     }
+    spendCombatAction(state, attackerId)
   }
 
   return {

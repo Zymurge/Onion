@@ -446,6 +446,10 @@ function resolveUnitFriendlyName(state: GameState, unitId: string): string {
       }
 
       const defenderDefinition = getUnitDefinition(defender.type)
+      if (defender.type === 'LittlePigs' && (defender.squads ?? 1) > 1) {
+        return `${defenderDefinition?.name ?? 'Little Pigs'} group`
+      }
+
       if (defenderDefinition?.friendlyNameTemplate !== undefined) {
         return buildFriendlyName(defenderDefinition.friendlyNameTemplate, defender.id ?? unitId)
       }

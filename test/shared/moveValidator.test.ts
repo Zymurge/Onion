@@ -93,7 +93,7 @@ describe('moveValidator', () => {
           position: { q: 0, r: 0 },
           status: 'operational',
           weapons: [],
-          squads: 2,
+            squads: 3,
         },
         'pigs-2': {
           id: 'pigs-2',
@@ -101,7 +101,7 @@ describe('moveValidator', () => {
           position: { q: 1, r: 0 },
           status: 'operational',
           weapons: [],
-          squads: 2,
+            squads: 3,
         },
       },
     })

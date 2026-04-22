@@ -400,18 +400,18 @@ describe('validateUnitMovement', () => {
     })
   })
 
-  it('allows Little Pigs to stack up to 3 squads in one hex', () => {
-    const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 1, position: { q: 0, r: 0 } })
-    const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 2, position: { q: 1, r: 0 } })
+  it('allows Little Pigs to stack up to 5 squads in one hex', () => {
+    const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
+    const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 1, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: pigsA, p2: pigsB } })
 
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'p1', to: { q: 1, r: 0 } })
     expect(result.ok).toBe(true)
   })
 
-  it('returns HEX_OCCUPIED when Little Pigs stack would exceed 3 squads', () => {
-    const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 2, position: { q: 1, r: 0 } })
+  it('returns HEX_OCCUPIED when Little Pigs stack would exceed 5 squads', () => {
+    const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 3, position: { q: 0, r: 0 } })
+    const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 1, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: pigsA, p2: pigsB } })
 
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'p1', to: { q: 1, r: 0 } })

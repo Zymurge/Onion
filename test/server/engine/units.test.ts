@@ -258,8 +258,8 @@ describe('getUnitDefinition', () => {
 	  expect(getUnitDefinition('LittlePigs').abilities.terrainRules?.ridgeline?.canCross).toBe(true)
     })
 
-    it('has maxStacks of 3', () => {
-      expect(getUnitDefinition('LittlePigs').abilities.maxStacks).toBe(3)
+      it('has maxStacks of 5', () => {
+        expect(getUnitDefinition('LittlePigs').abilities.maxStacks).toBe(5)
     })
 
     it('has movement 1', () => {

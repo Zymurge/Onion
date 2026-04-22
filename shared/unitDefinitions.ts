@@ -104,7 +104,7 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     defense: 1,
     cost: 1,
     abilities: {
-      maxStacks: 3,
+      maxStacks: 5,
       ramProfile: { treadLoss: 0, destroyOnRollAtMost: 4 },
       terrainRules: {
         ridgeline: { canCross: true, canAccessCover: true },

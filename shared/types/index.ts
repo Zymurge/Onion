@@ -72,6 +72,7 @@ export interface GameState {
   defenders: Record<string, DefenderUnit>
   ramsThisTurn?: number
   movementSpent?: Record<string, number>
+  combatSpent?: Record<string, number>
 }
 
 export interface EventEnvelope {

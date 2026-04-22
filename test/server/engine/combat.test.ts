@@ -466,6 +466,40 @@ describe('validateCombatAction', () => {
     expect(result.plan.target.id).toBe('onion')
     expect(result.plan.defense).toBe(result.plan.attackStrength)
   })
+
+  it('rejects a second combat action from a unit that already acted in the same phase', () => {
+    const d1 = makeDefender({
+      id: 'd1',
+      position: { q: 1, r: 0 },
+      weapons: [makeWeapon(), makeWeapon({ id: 'secondary', attack: 2, range: 2 })],
+    })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1 } })
+
+    const first = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['d1'],
+      targetId: 'onion',
+    })
+
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+
+    const firstResult = executeCombatAction(state, first.plan, 6)
+    expect(firstResult.success).toBe(true)
+
+    const second = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['d1'],
+      targetId: 'onion',
+    })
+
+    expect(second).toEqual({
+      ok: false,
+      code: 'ATTACKER_ALREADY_ACTED',
+      error: expect.any(String),
+    })
+    expect(state.combatSpent).toMatchObject({ [`1:DEFENDER_COMBAT:d1`]: 1 })
+  })
 })
 
 // legacy helper suites removed

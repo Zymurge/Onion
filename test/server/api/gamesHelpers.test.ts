@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCombatEvents, buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gamesHelpers'
+import { buildCombatEvents, buildMoveEvents, buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gamesHelpers'
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
 
@@ -91,6 +91,97 @@ describe('buildCombatEvents', () => {
       type: 'FIRE_RESOLVED',
       attackerFriendlyNames: ['Little Pigs 1'],
       targetFriendlyName: 'AP Gun 1',
+    })
+  })
+
+  it('uses group wording for stacked Little Pigs move events when no stack name is declared', () => {
+    const state: GameState = {
+      onion: {
+        id: 'onion-1',
+        type: 'TheOnion',
+        position: { q: 0, r: 0 },
+        status: 'operational',
+        weapons: [],
+        treads: 45,
+        batteries: { main: 1, secondary: 4, ap: 8 },
+      },
+      defenders: {
+        'pigs-1': {
+          id: 'pigs-1',
+          type: 'LittlePigs',
+          position: { q: 1, r: 1 },
+          status: 'operational',
+          weapons: [],
+          squads: 3,
+        },
+      },
+    }
+
+    const events = buildMoveEvents(
+      40,
+      'pigs-1',
+      { type: 'MOVE', unitId: 'pigs-1', to: { q: 2, r: 2 } },
+      {
+        success: true,
+        rammedUnitIds: [],
+        destroyedUnits: [],
+        treadDamage: 0,
+      },
+      state,
+    )
+
+    expect(events[0]).toMatchObject({
+      type: 'UNIT_MOVED',
+      unitFriendlyName: 'Little Pigs group',
+      unitId: 'pigs-1',
+    })
+  })
+
+  it('uses group wording for stacked Little Pigs combat events when no stack name is declared', () => {
+    const state: GameState = {
+      onion: {
+        id: 'onion-1',
+        type: 'TheOnion',
+        position: { q: 0, r: 0 },
+        status: 'operational',
+        weapons: [
+          { id: 'main', name: 'Main Gun', attack: 4, range: 3, defense: 4, status: 'ready', individuallyTargetable: true },
+        ],
+        treads: 45,
+        batteries: { main: 1, secondary: 4, ap: 8 },
+      },
+      defenders: {
+        'pigs-1': {
+          id: 'pigs-1',
+          type: 'LittlePigs',
+          position: { q: 1, r: 1 },
+          status: 'operational',
+          weapons: [],
+          squads: 3,
+        },
+      },
+    }
+
+    const events = buildCombatEvents(
+      50,
+      { type: 'FIRE', attackers: ['main'], targetId: 'pigs-1' },
+      {
+        targetId: 'pigs-1',
+        roll: { roll: 6, result: 'X', odds: '1:1' },
+        statusChanges: [{ unitId: 'pigs-1', from: 'operational', to: 'destroyed' }],
+      },
+      state,
+    )
+
+    expect(events[0]).toMatchObject({
+      type: 'FIRE_RESOLVED',
+      targetFriendlyName: 'Little Pigs group',
+    })
+    expect(events[1]).toMatchObject({
+      type: 'UNIT_STATUS_CHANGED',
+      unitFriendlyName: 'Little Pigs group',
+      from: 'operational',
+      to: 'destroyed',
     })
   })
 
