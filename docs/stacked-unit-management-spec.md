@@ -97,43 +97,94 @@
 
 ### Backend Logic
 
-- [ ] **Update movement logic to enforce per-type stack limits**  
-  *Definition of Done:* Movement phase enforces the infantry-only stack limit of 5; illegal moves are blocked and logged.
+- [x] **Phase 1: Movement and stack-state foundation**
+  - Purpose: Keep all move-phase stacking behavior grounded in the existing per-unit state model so legality, merging, and remaining movement do not require a separate stack entity.
+  - Scope: `Update movement logic to enforce per-type stack limits`, `Implement stack formation at end of movement`, and `Implement per-unit movement remaining after merges`.
+  - Definition of Done:
+    - Movement phase enforces the infantry-only stack limit of 5.
+    - Illegal overstack moves are blocked and logged.
+    - Units sharing a hex at the end of the move phase are treated as a stack.
+    - Transient in-phase groups are not persisted as separate entities.
+    - Only units with remaining movement can continue acting after a merge.
+    - Game state and downstream UI-facing data still identify each unit by its own ID.
+  - Test-first order: add or update focused movement and stack-state tests before implementation, then make them pass with the smallest movement/state change.
 
-- [ ] **Implement stack formation at end of movement**  
-  *Definition of Done:* Units sharing a hex at end of move phase are treated as a stack; transient in-phase groups are not persisted as separate entities.
+- [x] **Phase 2: Action validation and combat resolution**
+  - Purpose: Make stacked units legal combat participants while ensuring no unit can be committed twice in the same phase.
+  - Scope: `Update combat logic for stack attacks and group defense` and `Validate single action per unit per phase`.
+  - Definition of Done:
+    - Arbitrary subgroups from a stack can be selected for attack planning.
+    - A selected unit only counts as committed once the attack is actually submitted.
+    - Uncommitted units remain available for later planning in the same phase.
+    - Stack targets are always resolved as whole targets.
+    - Damage against stacked targets is applied by reducing individual units inside the stack.
+    - No unit can move or attack more than once per phase.
+    - Combat and ramming validation are covered by tests for both committed and rejected paths.
+  - Test-first order: extend combat and phase-guard tests first, confirm they fail against the current engine, then implement the shared action-availability checks and combat resolution changes.
 
-- [ ] **Implement per-unit movement remaining after merges**  
-  *Definition of Done:* Only units with remaining movement can move after a merge; game state and UI reflect this.
-
-- [ ] **Update combat logic for stack attacks and group defense**  
-  *Definition of Done:* Arbitrary subgroups from a stack can attack, all stack targets are resolved as whole stacks, and ramming/combat validation is covered by tests.
-
-- [ ] **Validate single action per unit per phase**  
-  *Definition of Done:* No unit can move or attack more than once per phase; enforced in backend and covered by tests.
-
-- [ ] **Include stack names in event payloads and logs**  
-  *Definition of Done:* All relevant events and logs reference stack names for clarity, and active-player-only views use the finalized stack name.
+- [x] **Phase 3: Event payloads, logs, and stack-name projection**
+  - Purpose: Keep backend event output readable by projecting finalized stack names from live unit state instead of introducing a separate stack object.
+  - Scope: `Include stack names in event payloads and logs`.
+  - Definition of Done:
+    - All player-facing backend events and logs identify stacks consistently.
+    - Finalized stack names are emitted after end-of-move consolidation.
+    - Inactive views can fall back to generic "group" wording when a final name has not yet been declared.
+    - Stack names remain stable for the lifetime of the stack.
+    - Name generation stays tied to the underlying unit IDs and move-phase consolidation, not to a separate mutable stack entity.
+  - Test-first order: add event/log projection tests first, then implement the naming emission path and keep it read-only from the point of view of combat and movement rules.
 
 ### UI/UX
 
-- [ ] **Display stack count and unique stack name on hexes**  
-  *Definition of Done:* UI shows stack badge and name on stacked hexes; verified in all relevant UI states.
+The six original UI/UX tasks are consolidated into four development-ready tasks below. Each task is scoped so a sub-agent can implement it independently, with the shared expectation that the UI mirrors the finalized backend stack behavior and never invents a separate stack entity.
 
-- [ ] **Show unit selection list for stack actions**  
-  *Definition of Done:* On stack selection, UI lists all units with toggles (default: all); units that have acted are excluded.
+- [ ] **Stack presentation and naming across map and dialogs**  
+  *Purpose:* Show stacked units as a single readable UI concept everywhere the player can inspect, target, or review outcomes.  
+  *Scope:* Map hex badges, stack count overlays, inspection panels, combat/ramming dialogs, and player-facing action logs.  
+  *Acceptance Criteria:*  
+  - Every stacked hex displays both a unit count and a stable stack name once the stack has been finalized at end of movement.  
+  - Inspection and action dialogs use the same stack name that appears on the map.  
+  - When a final stack name has not yet been assigned, the UI uses the generic unit-type + "group" wording instead of an invented placeholder.  
+  - The displayed stack label remains stable for the lifetime of that stack and does not change between adjacent UI surfaces.  
+  - The UI does not expose a separate mutable stack entity; labels are derived from existing unit state and backend projection data.  
+  *Implementation Notes:* Reuse the existing unit/stack projection helpers and the same wording in all visible surfaces so the active player and inactive viewers do not see different identities for the same stack.  
+  *Test-first order:* add or update map, dialog, and message rendering tests before changing the display logic.
 
-- [ ] **Prompt for group size or allow multi-select for actions**  
-  *Definition of Done:* UI allows user to select any eligible subset for move/combat; default is all; selection is intuitive and tested.
+- [ ] **Stack selection and action input for move/combat**  
+  *Purpose:* Let the player choose which units in a stack are participating in a move or combat action without introducing a special stack editor.  
+  *Scope:* Selection panels, unit toggles, keyboard/mouse interaction, and move/combat action submission.  
+  *Acceptance Criteria:*  
+  - Selecting a stack opens a unit list with one toggle per eligible unit in that hex.  
+  - The default state selects all eligible units.  
+  - Units that have already moved or attacked in the current phase are hidden or disabled, not silently re-selected.  
+  - The player can choose any legal subset for the current action and submit it without needing to perform multiple separate UI flows.  
+  - The interaction pattern matches the existing left-rail combat selector where practical, so the stack flow feels like a direct extension of current multi-select behavior.  
+  - Illegal selections cannot be submitted, and the UI explains why the action is unavailable.  
+  *Implementation Notes:* Keep the selection model additive and reversible during planning so a player can adjust the unit set before committing.  
+  *Test-first order:* add or update selection and eligibility tests before wiring the action submission path.
 
-- [ ] **Show stack name in all dialogs/messages**  
-  *Definition of Done:* Stack name appears in inspection, combat, and ramming dialogs/messages for the active player; verified in UI and logs.
+- [ ] **Split-attack preview and temporary group rendering**  
+  *Purpose:* Make stacked combat understandable while the player is planning multiple attacks from the same stack.  
+  *Scope:* Combat planning previews, temporary group labels, and post-commit cleanup of preview state.  
+  *Acceptance Criteria:*  
+  - The UI can show temporary subgroups from the same stack while combat is being planned.  
+  - Temporary subgroup labels are visible only to the active player who is making the attack assignment.  
+  - Inactive viewers continue to see the finalized stack label or the generic group wording until the combat state is committed.  
+  - Multiple temporary groups may originate from the same hex and may target the same or different enemies, matching the backend combat model.  
+  - Once the attack is committed or canceled, the UI returns to the finalized stack view with no leftover preview state.  
+  *Implementation Notes:* Treat the preview as a transient presentation layer over the existing stack state rather than a persisted object.  
+  *Test-first order:* add focused combat-planning UI tests for the preview state, then implement the rendering and cleanup logic.
 
-- [ ] **Show temporary groupings during split attacks**  
-  *Definition of Done:* During combat, UI displays temporary attack groups only for the active player while planning; once committed, the UI returns to the finalized stack view.
-
-- [ ] **Provide clear feedback for illegal stacking**  
-  *Definition of Done:* UI/tooltips explain stacking violations; illegal actions are blocked and user is informed.
+- [ ] **Illegal stacking feedback and blocked actions**  
+  *Purpose:* Prevent invalid stack creation or movement from feeling ambiguous to the player.  
+  *Scope:* Movement blocking, validation messaging, tooltips, and map-level feedback for overstack and mixed-stack attempts.  
+  *Acceptance Criteria:*  
+  - Attempting to move into a hex that would exceed the stack limit is blocked before the action commits.  
+  - The UI explains the failure with a specific message, such as stack limit exceeded or illegal mixed stack, rather than a generic failure.  
+  - The blocking feedback is shown close to the action source, such as the map interaction, selection panel, or message banner, so the player can correct the move immediately.  
+  - A blocked illegal move does not partially apply state or leave the selection UI in a committed state.  
+  - The wording used in UI feedback stays aligned with the shared validator and backend error messages.  
+  *Implementation Notes:* Prefer shared validation messaging so the UI can surface the same reason the engine rejected the move.  
+  *Test-first order:* add or update illegal-move and tooltip tests before wiring the feedback path.
 
 ### Testing
 

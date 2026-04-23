@@ -26,6 +26,33 @@ export function resolveBattlefieldUnitName(unitType: string, unitId: string | un
   return unitId ?? unitType
 }
 
+function stripOrdinalSuffix(name: string): string {
+  return name.replace(/\s+\d+$/, '')
+}
+
+export function getBattlefieldStackSize(unit: { squads?: number }): number {
+  return Math.max(unit.squads ?? 1, 1)
+}
+
+export function resolveBattlefieldStackLabel(
+  unitType: string,
+  unitId: string | undefined,
+  friendlyName?: string,
+  stackSize = 1,
+): string {
+  const unitName = resolveBattlefieldUnitName(unitType, unitId, friendlyName)
+
+  if (/\sgroup$/i.test(unitName)) {
+    return unitName
+  }
+
+  if (stackSize > 1) {
+    return `${stripOrdinalSuffix(unitName)} group`
+  }
+
+  return unitName
+}
+
 export function resolveBattlefieldWeaponName(weapon: Weapon): string {
   const explicitFriendlyName = weapon.friendlyName?.trim()
   if (explicitFriendlyName !== undefined && explicitFriendlyName.length > 0) {
@@ -275,6 +302,7 @@ export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhas
         position: { q: number; r: number }
         weapons?: ReadonlyArray<Weapon>
         squads?: number
+        friendlyName?: string
         targetRules?: TargetRules
       }
     >,
@@ -284,11 +312,12 @@ export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhas
     .map(([defenderId, defender], index) => {
       const resolvedDefenderId = defender.id ?? defenderId
       const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
+      const stackSize = getBattlefieldStackSize(defender)
 
       return {
         id: resolvedDefenderId,
         type: defender.type,
-        friendlyName: resolveBattlefieldUnitName(defender.type, resolvedDefenderId, defender.friendlyName),
+        friendlyName: resolveBattlefieldStackLabel(defender.type, resolvedDefenderId, defender.friendlyName, stackSize),
         status: defender.status,
         q: defender.position.q,
         r: defender.position.r,
