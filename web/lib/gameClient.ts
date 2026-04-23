@@ -51,6 +51,12 @@ export type GameSessionContext = {
 	role: 'onion' | 'defender'
 }
 
+export type StackActionSelection = {
+	anchorUnitId: string
+	availableUnitIds: string[]
+	selectedUnitIds: string[]
+}
+
 export type GameStateEnvelope = {
 	snapshot: GameSnapshot
 	session: GameSessionContext
@@ -60,7 +66,9 @@ export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
 	| { type: 'MOVE'; unitId: string; to: { q: number; r: number }; attemptRam?: boolean }
+	| { type: 'MOVE_STACK'; selection: StackActionSelection; to: { q: number; r: number }; attemptRam?: boolean }
 	| { type: 'FIRE'; attackers: string[]; targetId: string }
+	| { type: 'FIRE_STACK'; attackers: string[]; targetId: string; selection: StackActionSelection }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 

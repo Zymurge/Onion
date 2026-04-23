@@ -11,6 +11,7 @@ import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenario
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
 import { buildFriendlyName } from '#shared/unitDefinitions'
+import { resolveStackLabel } from '#shared/stackNaming'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import type { EngineGameState } from '#server/engine/units'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
@@ -441,14 +442,15 @@ function resolveUnitFriendlyName(state: GameState, unitId: string): string {
 
   for (const defender of Object.values(state.defenders)) {
     if (defender.id === unitId) {
+      if (defender.type === 'LittlePigs' && (defender.squads ?? 1) > 1) {
+        return resolveStackLabel(defender.type, defender.id, defender.friendlyName, defender.squads)
+      }
+
       if (defender.friendlyName !== undefined && defender.friendlyName.trim().length > 0) {
         return defender.friendlyName
       }
 
       const defenderDefinition = getUnitDefinition(defender.type)
-      if (defender.type === 'LittlePigs' && (defender.squads ?? 1) > 1) {
-        return `${defenderDefinition?.name ?? 'Little Pigs'} group`
-      }
 
       if (defenderDefinition?.friendlyNameTemplate !== undefined) {
         return buildFriendlyName(defenderDefinition.friendlyNameTemplate, defender.id ?? unitId)

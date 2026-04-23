@@ -16,6 +16,7 @@ type RamPrompt = {
 type BattlefieldRightRailProps = {
   activeCombatRole: 'onion' | 'defender' | null
   activeRole: 'onion' | 'defender' | null
+  activeSelectedUnitIds: string[]
   activeSelectedUnitCount: number
   isCombatPhase: boolean
   showInactiveEventStream: boolean
@@ -26,8 +27,11 @@ type BattlefieldRightRailProps = {
   selectedCombatAttackStrength: number
   selectedCombatTarget: CombatTargetOption | null
   selectedCombatTargetId: string | null
+  displayedDefenders: ReadonlyArray<BattlefieldUnit>
+  displayedOnion: BattlefieldOnionView | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
+  selectedStackUnitIds: string[]
   victoryObjectives: ReadonlyArray<VictoryObjectiveState>
   escapeHexes: ReadonlyArray<VictoryEscapeHex>
   inactiveEventStream: {
@@ -43,11 +47,14 @@ type BattlefieldRightRailProps = {
   onAttemptRam: () => void
   onDeclineRam: () => void
   onSelectCombatTarget: (targetId: string) => void
+  onSelectUnit: (unitId: string, additive?: boolean) => void
+  onDeselect: () => void
 }
 
 export function BattlefieldRightRail({
   activeCombatRole,
   activeRole,
+  activeSelectedUnitIds,
   activeSelectedUnitCount,
   isCombatPhase,
   showInactiveEventStream,
@@ -58,8 +65,11 @@ export function BattlefieldRightRail({
   selectedCombatAttackStrength,
   selectedCombatTarget,
   selectedCombatTargetId,
+  displayedDefenders,
+  displayedOnion,
   selectedInspectorDefender,
   selectedInspectorOnion,
+  selectedStackUnitIds,
   victoryObjectives,
   escapeHexes,
   inactiveEventStream,
@@ -68,7 +78,75 @@ export function BattlefieldRightRail({
   onAttemptRam,
   onDeclineRam,
   onSelectCombatTarget,
+  onSelectUnit,
+  onDeselect,
 }: BattlefieldRightRailProps) {
+  const inspectedStackUnitIds = selectedInspectorDefender === null
+    ? []
+    : displayedDefenders
+      .filter((unit) => unit.status !== 'destroyed' && unit.type === selectedInspectorDefender.type && unit.q === selectedInspectorDefender.q && unit.r === selectedInspectorDefender.r)
+      .map((unit) => unit.id)
+  const stackPanelUnitIds = selectedStackUnitIds.length > 1 ? selectedStackUnitIds : inspectedStackUnitIds
+
+  const selectedStackMembers = stackPanelUnitIds
+    .map((unitId) => (
+      displayedOnion !== null && displayedOnion.id === unitId
+        ? displayedOnion
+        : displayedDefenders.find((unit) => unit.id === unitId) ?? null
+    ))
+    .filter((unit): unit is BattlefieldOnionView | BattlefieldUnit => unit !== null)
+  const selectedStackSelectionCount = stackPanelUnitIds.filter((unitId) => activeSelectedUnitIds.includes(unitId)).length
+
+  const stackSelectionPanel = selectedStackMembers.length > 1 && !(isCombatPhase && activeCombatRole === 'defender') ? (
+    <section className="selection-panel panel-subtle">
+      <div className="selection-panel-header">
+        <div>
+          <p className="eyebrow">Stack</p>
+          <h2>Choose units</h2>
+        </div>
+        <span className="mini-tag">{selectedStackSelectionCount}/{selectedStackMembers.length}</span>
+      </div>
+      <div className="attacker-selection-list stack-selection-list">
+        {selectedStackMembers.map((unit) => {
+          const isSelected = activeSelectedUnitIds.includes(unit.id)
+          return (
+            <button
+              key={unit.id}
+              type="button"
+              className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}`}
+              aria-pressed={isSelected}
+              disabled={isInteractionLocked}
+              data-selected={isSelected}
+              data-testid={`stack-member-${unit.id}`}
+              onClick={() => onSelectUnit(unit.id, true)}
+            >
+              <div className="weapon-card-name">{unit.friendlyName ?? unit.type}</div>
+              <div className="weapon-card-stats">Toggle in stack</div>
+            </button>
+          )
+        })}
+      </div>
+      <div className="combat-confirmation-actions">
+        <button
+          type="button"
+          className="combat-confirm-button"
+          disabled={isInteractionLocked}
+          onClick={() => onSelectUnit(selectedStackMembers[0].id, false)}
+        >
+          Select all
+        </button>
+        <button
+          type="button"
+          className="combat-confirm-button combat-confirm-button-secondary"
+          disabled={isInteractionLocked}
+          onClick={onDeselect}
+        >
+          Clear
+        </button>
+      </div>
+    </section>
+  ) : null
+
   const shouldShowCombatPanel =
     isCombatPhase &&
     activeRole === activeCombatRole &&
@@ -123,6 +201,7 @@ export function BattlefieldRightRail({
       ) : null}
       {selectedInspectorOnion !== null ? (
         <section className="selection-panel panel-subtle">
+          {stackSelectionPanel}
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>
@@ -168,6 +247,7 @@ export function BattlefieldRightRail({
             </div>
             <span className="mini-tag">{combatTargetOptions.length} in range</span>
           </div>
+          {stackSelectionPanel}
           {selectedCombatTarget !== null ? (
             <CombatConfirmationView
               title={`Confirm attack on ${selectedCombatTarget.label}`}
@@ -194,6 +274,7 @@ export function BattlefieldRightRail({
         </section>
       ) : selectedInspectorDefender !== null ? (
         <section className="selection-panel panel-subtle">
+          {stackSelectionPanel}
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>

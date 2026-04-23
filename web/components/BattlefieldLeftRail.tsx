@@ -1,5 +1,14 @@
 import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type Mode } from '../lib/battlefieldView'
-import { buildWeaponSelectionId, parseAttackStats, resolveBattlefieldWeaponName } from '../lib/appViewHelpers'
+import {
+  buildStackMemberSelectionId,
+  buildWeaponSelectionId,
+  countSelectedBattlefieldStackMembers,
+  getBattlefieldStackSize,
+  parseAttackStats,
+  resolveBattlefieldStackLabel,
+  resolveBattlefieldWeaponName,
+  resolveSelectionOwnerUnitId,
+} from '../lib/appViewHelpers'
 import type { Weapon } from '../../shared/types/index'
 
 type BattlefieldLeftRailProps = {
@@ -20,6 +29,100 @@ type BattlefieldLeftRailProps = {
   onSelectUnit: (unitId: string, additive?: boolean) => void
 }
 
+type DefenderCombatGroupMember = {
+  selectionId: string
+  testId: string
+  label: string
+}
+
+type DefenderCombatGroup = {
+  anchorUnit: BattlefieldUnit
+  attackStrength: number
+  isActionable: boolean
+  isDestroyed: boolean
+  label: string
+  members: DefenderCombatGroupMember[]
+  range: number
+  selectedCount: number
+}
+
+function buildDefenderCombatGroups(
+  displayedDefenders: ReadonlyArray<BattlefieldUnit>,
+  activeMode: Mode,
+  activeSelectedUnitIds: string[],
+): DefenderCombatGroup[] {
+  const groupedUnits = new Map<string, BattlefieldUnit[]>()
+
+  for (const unit of displayedDefenders) {
+    const groupKey = `${unit.type}:${unit.q}:${unit.r}`
+    const existingGroup = groupedUnits.get(groupKey) ?? []
+    existingGroup.push(unit)
+    groupedUnits.set(groupKey, existingGroup)
+  }
+
+  return [...groupedUnits.values()].map((units) => {
+    const anchorUnit = units[0]
+    const isActionable = anchorUnit.actionableModes.includes(activeMode)
+    const isDestroyed = anchorUnit.status === 'destroyed'
+    const baseAttackStats = parseAttackStats(anchorUnit.attack)
+    const stackSize = units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
+    const label = resolveBattlefieldStackLabel(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName, stackSize)
+    const members = units.length > 1
+      ? units.map((unit) => ({
+        selectionId: unit.id,
+        testId: `combat-stack-member-${unit.id}`,
+        label: unit.friendlyName ?? unit.type,
+      }))
+      : stackSize > 1
+        ? Array.from({ length: stackSize }, (_, index) => ({
+          selectionId: buildStackMemberSelectionId(anchorUnit.id, index + 1),
+          testId: `combat-stack-member-${anchorUnit.id}-${index + 1}`,
+          label: `Little Pig ${index + 1}`,
+        }))
+        : []
+    const selectedCount = countSelectedBattlefieldStackMembers(
+      {
+        defenders: {
+          [anchorUnit.id]: {
+            id: anchorUnit.id,
+            type: anchorUnit.type,
+            position: { q: anchorUnit.q, r: anchorUnit.r },
+            status: anchorUnit.status,
+            squads: anchorUnit.squads,
+          },
+          ...Object.fromEntries(
+            units.slice(1).map((unit) => [
+              unit.id,
+              {
+                id: unit.id,
+                type: unit.type,
+                position: { q: unit.q, r: unit.r },
+                status: unit.status,
+                squads: unit.squads,
+              },
+            ]),
+          ),
+        },
+      },
+      anchorUnit.id,
+      activeSelectedUnitIds,
+    )
+
+    return {
+      anchorUnit,
+      attackStrength: units.length > 1
+        ? units.reduce((total, unit) => total + parseAttackStats(unit.attack).damage, 0)
+        : baseAttackStats.damage * stackSize,
+      isActionable,
+      isDestroyed,
+      label,
+      members,
+      range: baseAttackStats.range,
+      selectedCount,
+    }
+  })
+}
+
 export function BattlefieldLeftRail({
   activeCombatRole,
   activeMode,
@@ -34,6 +137,10 @@ export function BattlefieldLeftRail({
   selectedCombatAttackLabel,
   onSelectUnit,
 }: BattlefieldLeftRailProps) {
+  const defenderCombatGroups = activeCombatRole === 'defender' && isCombatPhase
+    ? buildDefenderCombatGroups(displayedDefenders, activeMode, activeSelectedUnitIds)
+    : []
+
   return (
     <aside className="panel rail rail-left">
       {isCombatPhase ? (
@@ -87,43 +194,81 @@ export function BattlefieldLeftRail({
               ) : (
                 <p className="summary-line">No ready weapons available.</p>
               )
-            ) : displayedDefenders.length > 0 ? (
-              displayedDefenders.map((unit) => {
-                const isSelected = activeSelectedUnitIds.includes(unit.id)
-                const isActionable = unit.actionableModes.includes(activeMode)
-                const attackStats = parseAttackStats(unit.attack)
-                const isDestroyed = unit.status === 'destroyed'
-                const isDisabled = isDestroyed || !isActionable
+            ) : defenderCombatGroups.length > 0 ? (
+              defenderCombatGroups.map((group) => {
+                const isSelected = group.selectedCount > 0
+                const isDisabled = group.isDestroyed || !group.isActionable
+                const isExpanded = group.members.length > 1 && group.selectedCount > 0
                 return (
-                  <button
-                    key={unit.id}
-                    type="button"
-                    className={[
-                      'attacker-card-button',
-                      isSelected ? 'is-selected' : '',
-                      isActionable ? 'is-actionable' : '',
-                      isDisabled ? 'is-disabled' : '',
-                      `tone-${statusTone(unit.status)}`,
-                    ].join(' ')}
-                    aria-pressed={isSelected}
+                  <div
+                    key={group.anchorUnit.id}
+                    className={`combat-stack-group${isExpanded ? ' is-expanded' : ''}`}
+                    data-expanded={isExpanded}
+                    data-testid={`combat-stack-group-${group.anchorUnit.id}`}
+                  >
+                    <button
+                      type="button"
+                      className={[
+                        'attacker-card-button',
+                        isSelected ? 'is-selected' : '',
+                        group.isActionable ? 'is-actionable' : '',
+                        isDisabled ? 'is-disabled' : '',
+                        `tone-${statusTone(group.anchorUnit.status)}`,
+                      ].join(' ')}
+                      aria-pressed={isSelected}
                       disabled={isSelectionLocked}
-                    data-selected={isSelected}
-                    data-testid={`combat-unit-${unit.id}`}
-                    title={isDestroyed ? 'Destroyed units cannot attack.' : !isActionable ? 'This unit is not eligible to attack.' : undefined}
-                    onClick={(event) => {
+                      data-selected={isSelected}
+                      data-testid={`combat-unit-${group.anchorUnit.id}`}
+                      title={group.isDestroyed ? 'Destroyed units cannot attack.' : !group.isActionable ? 'This unit is not eligible to attack.' : undefined}
+                      onClick={(event) => {
                         if (isSelectionLocked) {
                           event.preventDefault()
                           event.stopPropagation()
                           return
                         }
 
-                      event.stopPropagation()
-                      onSelectUnit(unit.id, event.ctrlKey || event.metaKey)
-                    }}
-                  >
-                    <div className="weapon-card-name">{unit.friendlyName ?? unit.type}</div>
-                    <div className="weapon-card-stats">Attack: {attackStats.damage} &nbsp;·&nbsp; Range: {attackStats.range}</div>
-                  </button>
+                        event.stopPropagation()
+                        onSelectUnit(group.anchorUnit.id, event.ctrlKey || event.metaKey)
+                      }}
+                    >
+                      <div className="combat-stack-card-head">
+                        <div className="weapon-card-name">{group.label}</div>
+                        {group.members.length > 1 ? <span className="mini-tag">{group.selectedCount}/{group.members.length}</span> : null}
+                      </div>
+                      <div className="weapon-card-stats">Attack: {group.attackStrength} &nbsp;·&nbsp; Range: {group.range}</div>
+                    </button>
+                    {isExpanded ? (
+                      <div className="combat-stack-member-list">
+                        {group.members.map((member) => {
+                          const isMemberSelected = activeSelectedUnitIds.includes(member.selectionId)
+                          return (
+                            <button
+                              key={member.selectionId}
+                              type="button"
+                              className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}`}
+                              aria-pressed={isMemberSelected}
+                              disabled={isSelectionLocked}
+                              data-selected={isMemberSelected}
+                              data-testid={member.testId}
+                              onClick={(event) => {
+                                if (isSelectionLocked) {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  return
+                                }
+
+                                event.stopPropagation()
+                                onSelectUnit(member.selectionId, true)
+                              }}
+                            >
+                              <div className="weapon-card-name">{member.label}</div>
+                              <div className="weapon-card-stats">Toggle in attack group</div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
                 )
               })
             ) : (

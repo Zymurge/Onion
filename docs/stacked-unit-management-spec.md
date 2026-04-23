@@ -122,6 +122,21 @@
     - Combat and ramming validation are covered by tests for both committed and rejected paths.
   - Test-first order: extend combat and phase-guard tests first, confirm they fail against the current engine, then implement the shared action-availability checks and combat resolution changes.
 
+- [ ] **Phase 2b: Stack-name assignment and lifecycle management**
+  - Purpose: Implement the section 1b stack naming rules as durable game behavior so finalized stack names and member names come from authoritative state instead of UI-only fallback wording.
+  - Scope: `Assign finalized stack names at end of movement`, `Carry names forward across stack splits and merges`, `Keep a monotonic stack-name counter for the life of the game`, and `Expose canonical member names plus finalized stack names to downstream projection helpers and left-rail selection surfaces`.
+  - Definition of Done:
+    - Each stackable unit retains its own canonical friendly name; the UI does not invent per-member placeholder names during stack selection.
+    - Each finalized stack receives a unique stack name that is distinct from the underlying unit IDs.
+    - If a partial stack moves away, the remaining units keep the original stack name.
+    - If units move onto an existing named stack, the resulting stack uses the existing stack name for that hex.
+    - Name assignment and reconciliation happen at end-of-move consolidation, not during transient in-phase grouping.
+    - Stack names are never recycled; the next generated name always advances from the prior high-water mark for that game.
+    - Backend state or projection data provides enough information for map, inspector, combat, and event-log surfaces to show finalized stack names and canonical member names consistently.
+    - Left-rail stack/member pickers preserve the underlying unit identity while displaying canonical member names and the finalized stack name; they do not collapse members into synthetic `1..N` placeholders.
+    - Generic `unit type + group` wording is used only when a finalized stack name has not yet been assigned.
+  - Test-first order: add engine and projection tests for initial naming, split carry-forward, merge carry-forward, non-recycling counters, and member-name exposure before implementing the naming state and projection updates.
+
 - [x] **Phase 3: Event payloads, logs, and stack-name projection**
   - Purpose: Keep backend event output readable by projecting finalized stack names from live unit state instead of introducing a separate stack object.
   - Scope: `Include stack names in event payloads and logs`.
@@ -137,7 +152,7 @@
 
 The six original UI/UX tasks are consolidated into four development-ready tasks below. Each task is scoped so a sub-agent can implement it independently, with the shared expectation that the UI mirrors the finalized backend stack behavior and never invents a separate stack entity.
 
-- [ ] **Stack presentation and naming across map and dialogs**  
+- [x] **Stack presentation and naming across map and dialogs**  
   *Purpose:* Show stacked units as a single readable UI concept everywhere the player can inspect, target, or review outcomes.  
   *Scope:* Map hex badges, stack count overlays, inspection panels, combat/ramming dialogs, and player-facing action logs.  
   *Acceptance Criteria:*  
@@ -158,6 +173,7 @@ The six original UI/UX tasks are consolidated into four development-ready tasks 
   - Units that have already moved or attacked in the current phase are hidden or disabled, not silently re-selected.  
   - The player can choose any legal subset for the current action and submit it without needing to perform multiple separate UI flows.  
   - The interaction pattern matches the existing left-rail combat selector where practical, so the stack flow feels like a direct extension of current multi-select behavior.  
+  - Once the naming lifecycle step is complete, selection rows use canonical member names and preserve the underlying unit identity instead of showing placeholder subgroup numbering.  
   - Illegal selections cannot be submitted, and the UI explains why the action is unavailable.  
   *Implementation Notes:* Keep the selection model additive and reversible during planning so a player can adjust the unit set before committing.  
   *Test-first order:* add or update selection and eligibility tests before wiring the action submission path.
@@ -185,6 +201,8 @@ The six original UI/UX tasks are consolidated into four development-ready tasks 
   - The wording used in UI feedback stays aligned with the shared validator and backend error messages.  
   *Implementation Notes:* Prefer shared validation messaging so the UI can surface the same reason the engine rejected the move.  
   *Test-first order:* add or update illegal-move and tooltip tests before wiring the feedback path.
+
+- [ ] Fix: Left rail defenders list during defender turn shows all groups as attack 1. That attack used in combar is also fixed at 1. Should be the combined attack of the stack.
 
 ### Testing
 

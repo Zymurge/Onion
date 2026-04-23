@@ -2,33 +2,16 @@ import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitM
 import type { TargetRules, TurnPhase, UnitStatus, Weapon } from '../../shared/types/index'
 import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView'
-import type { GameSnapshot } from './gameClient'
+import type { GameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
-import { buildFriendlyName, getAllUnitDefinitions } from '../../shared/unitDefinitions'
-
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
-
-function getUnitFriendlyNameTemplate(unitType: string): string | undefined {
-  return UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.friendlyNameTemplate
-}
+import { buildFriendlyName } from '../../shared/unitDefinitions'
+import { resolveStackLabel, resolveStackUnitName } from '../../shared/stackNaming'
 
 export function resolveBattlefieldUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
-  const explicitFriendlyName = friendlyName?.trim()
-  if (explicitFriendlyName !== undefined && explicitFriendlyName.length > 0) {
-    return explicitFriendlyName
-  }
-
-  const template = getUnitFriendlyNameTemplate(unitType)
-  if (template !== undefined && unitId !== undefined) {
-    return buildFriendlyName(template, unitId)
-  }
-
-  return unitId ?? unitType
+  return resolveStackUnitName(unitType, unitId, friendlyName)
 }
 
-function stripOrdinalSuffix(name: string): string {
-  return name.replace(/\s+\d+$/, '')
-}
+const STACK_MEMBER_SELECTION_PREFIX = 'stack-member:'
 
 export function getBattlefieldStackSize(unit: { squads?: number }): number {
   return Math.max(unit.squads ?? 1, 1)
@@ -40,17 +23,134 @@ export function resolveBattlefieldStackLabel(
   friendlyName?: string,
   stackSize = 1,
 ): string {
-  const unitName = resolveBattlefieldUnitName(unitType, unitId, friendlyName)
+  return resolveStackLabel(unitType, unitId, friendlyName, stackSize)
+}
 
-  if (/\sgroup$/i.test(unitName)) {
-    return unitName
+type StackSourceUnit = {
+  id: string
+  type: string
+  position: { q: number; r: number }
+  status: string
+  squads?: number
+}
+
+type StackSourceState = {
+  onion?: StackSourceUnit | null
+  defenders?: Record<string, StackSourceUnit>
+}
+
+export function resolveBattlefieldStackMemberIds(state: StackSourceState | null | undefined, unitId: string): string[] {
+  if (state === null || state === undefined) {
+    return [unitId]
   }
 
-  if (stackSize > 1) {
-    return `${stripOrdinalSuffix(unitName)} group`
+  if (state.onion !== undefined && state.onion !== null && state.onion.id === unitId) {
+    return [state.onion.id]
   }
 
-  return unitName
+  const selectedUnit = state.defenders?.[unitId]
+  if (selectedUnit === undefined) {
+    return [unitId]
+  }
+
+  const matchingUnits = Object.values(state.defenders ?? {}).filter((unit) => {
+    if (unit.status === 'destroyed') {
+      return false
+    }
+
+    return unit.type === selectedUnit.type && unit.position.q === selectedUnit.position.q && unit.position.r === selectedUnit.position.r
+  })
+
+  return matchingUnits.length > 0 ? matchingUnits.map((unit) => unit.id) : [unitId]
+}
+
+export function buildStackMemberSelectionId(unitId: string, memberIndex: number): string {
+  return `${STACK_MEMBER_SELECTION_PREFIX}${unitId}:${memberIndex}`
+}
+
+export function isStackMemberSelectionId(selectionId: string): boolean {
+  return selectionId.startsWith(STACK_MEMBER_SELECTION_PREFIX)
+}
+
+export function parseStackMemberSelectionId(selectionId: string): { unitId: string; memberIndex: number } | null {
+  const match = /^stack-member:([^:]+):(\d+)$/.exec(selectionId)
+  if (match === null) {
+    return null
+  }
+
+  return {
+    unitId: match[1],
+    memberIndex: Number.parseInt(match[2], 10),
+  }
+}
+
+export function resolveSelectionOwnerUnitId(selectionId: string): string {
+  return parseStackMemberSelectionId(selectionId)?.unitId ?? selectionId
+}
+
+function buildVirtualStackMemberSelectionIds(state: StackSourceState | null | undefined, unitId: string): string[] {
+  const selectedUnit = state?.defenders?.[unitId]
+  if (selectedUnit === undefined) {
+    return []
+  }
+
+  const stackSize = getBattlefieldStackSize(selectedUnit)
+  if (stackSize <= 1) {
+    return []
+  }
+
+  return Array.from({ length: stackSize }, (_, index) => buildStackMemberSelectionId(unitId, index + 1))
+}
+
+export function resolveBattlefieldStackSelectionIds(state: StackSourceState | null | undefined, unitId: string): string[] {
+  const stackedUnitIds = resolveBattlefieldStackMemberIds(state, unitId)
+  if (stackedUnitIds.length > 1) {
+    return stackedUnitIds
+  }
+
+  const virtualSelectionIds = buildVirtualStackMemberSelectionIds(state, unitId)
+  return virtualSelectionIds.length > 0 ? virtualSelectionIds : stackedUnitIds
+}
+
+export function countSelectedBattlefieldStackMembers(
+  state: StackSourceState | null | undefined,
+  unitId: string,
+  selectedUnitIds: ReadonlyArray<string>,
+): number {
+  const stackedUnitIds = resolveBattlefieldStackMemberIds(state, unitId)
+  if (stackedUnitIds.length > 1) {
+    return stackedUnitIds.filter((memberId) => selectedUnitIds.includes(memberId)).length
+  }
+
+  const virtualSelectionIds = buildVirtualStackMemberSelectionIds(state, unitId)
+  if (virtualSelectionIds.length > 0) {
+    return virtualSelectionIds.filter((selectionId) => selectedUnitIds.includes(selectionId)).length
+  }
+
+  return selectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unitId) ? 1 : 0
+}
+
+export function buildClientStackSelection(
+  state: StackSourceState | null | undefined,
+  anchorUnitId: string | null,
+  selectedUnitIds: string[],
+): StackActionSelection | null {
+  if (anchorUnitId === null) {
+    return null
+  }
+
+  const availableUnitIds = resolveBattlefieldStackSelectionIds(state, anchorUnitId)
+  if (availableUnitIds.length <= 1) {
+    return null
+  }
+
+  const filteredSelectedUnitIds = selectedUnitIds.filter((unitId) => availableUnitIds.includes(unitId))
+
+  return {
+    anchorUnitId,
+    availableUnitIds,
+    selectedUnitIds: filteredSelectedUnitIds.length > 0 ? filteredSelectedUnitIds : availableUnitIds,
+  }
 }
 
 export function resolveBattlefieldWeaponName(weapon: Weapon): string {
@@ -429,7 +529,7 @@ export function buildCombatRangeSources(
 
   return displayedDefenders
     .filter((unit) => unit.status !== 'destroyed')
-    .filter((unit) => activeSelectedUnitIds.includes(unit.id))
+    .filter((unit) => activeSelectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unit.id))
     .map((unit) => ({
       q: unit.q,
       r: unit.r,

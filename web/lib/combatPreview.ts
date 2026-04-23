@@ -12,7 +12,7 @@ import {
 
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex, UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
-import { resolveBattlefieldUnitName, resolveBattlefieldWeaponName } from './appViewHelpers'
+import { resolveBattlefieldUnitName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId } from './appViewHelpers'
 
 type CombatRole = 'onion' | 'defender'
 
@@ -122,7 +122,7 @@ function buildCombatCalculatorInputForWeaponTarget(
 	const units: CombatCalculatorInput['combatState']['units'] = {}
 
 	for (const attackerId of selectedAttackerIds) {
-		const attacker = displayedDefenders.find((unit) => unit.id === attackerId)
+		const attacker = displayedDefenders.find((unit) => unit.id === resolveSelectionOwnerUnitId(attackerId))
 		if (attacker !== undefined) {
 			units[attackerId] = { type: attacker.type }
 		}

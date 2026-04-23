@@ -3,7 +3,7 @@ import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
 import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
 import type { GameAction, GameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
-import { isWeaponSelectionId } from './appViewHelpers'
+import { buildClientStackSelection, isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
 import type { TurnPhase } from '../../shared/types/index'
 import logger from './logger'
 
@@ -108,6 +108,10 @@ function buildRamPrompt(snapshot: GameSnapshot | null, unitId: string, to: { q: 
   }
 }
 
+function buildSelectedBoardUnitIds(selectedUnitIds: string[] | null, defaultSelection: string[]): string[] {
+  return (selectedUnitIds ?? defaultSelection).filter((selectionId) => !isWeaponSelectionId(selectionId))
+}
+
 export function useBattlefieldInteractionState({
   activeSessionController,
   activeTurnActive,
@@ -118,6 +122,7 @@ export function useBattlefieldInteractionState({
   isSelectionLocked,
 }: UseBattlefieldInteractionStateOptions) {
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
+  const [hasExplicitSelection, setHasExplicitSelection] = useState(false)
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
@@ -226,6 +231,7 @@ export function useBattlefieldInteractionState({
 
     if (clearSelection) {
       setSelectedUnitIds([])
+      setHasExplicitSelection(true)
       setSelectedCombatTargetId(null)
     }
     setPendingRamPrompt(null)
@@ -254,8 +260,19 @@ export function useBattlefieldInteractionState({
     const prompt = pendingRamPrompt
     setPendingRamPrompt(null)
 
-    void commitClientAction({ type: 'MOVE', unitId: prompt.unitId, to: prompt.to, attemptRam })
+    const defaultSelection = clientSnapshot?.selectedUnitId
+      ? resolveBattlefieldStackSelectionIds(clientSnapshot.authoritativeState ?? null, clientSnapshot.selectedUnitId)
+      : []
+    const selectedBoardUnitIds = buildSelectedBoardUnitIds(selectedUnitIds, defaultSelection)
+    const stackSelection = buildClientStackSelection(clientSnapshot?.authoritativeState ?? null, prompt.unitId, selectedBoardUnitIds)
+
+    void commitClientAction(
+      stackSelection === null
+        ? { type: 'MOVE', unitId: prompt.unitId, to: prompt.to, attemptRam }
+        : { type: 'MOVE_STACK', selection: stackSelection, to: prompt.to, attemptRam },
+    )
     setSelectedUnitIds([])
+    setHasExplicitSelection(true)
   }
 
   function handleSelectUnit(unitId: string, additive = false) {
@@ -269,12 +286,13 @@ export function useBattlefieldInteractionState({
     }
 
     const authoritativeState = clientSnapshot?.authoritativeState
+    const selectionOwnerUnitId = resolveSelectionOwnerUnitId(unitId)
     const destroyedUnit = authoritativeState === undefined
       ? false
-      : unitId === authoritativeState.onion.id
+      : selectionOwnerUnitId === authoritativeState.onion.id
         ? authoritativeState.onion.status === 'destroyed'
         : (() => {
-          const defender = authoritativeState.defenders[unitId]
+          const defender = authoritativeState.defenders[selectionOwnerUnitId]
           return defender?.status === 'destroyed' && defender.type !== 'Swamp'
         })()
 
@@ -282,12 +300,15 @@ export function useBattlefieldInteractionState({
       return
     }
 
-    const baseSelection = selectedUnitIds ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
+    const defaultSelection = clientSnapshot?.selectedUnitId
+      ? resolveBattlefieldStackSelectionIds(clientSnapshot.authoritativeState ?? null, clientSnapshot.selectedUnitId)
+      : []
+    const baseSelection = selectedUnitIds ?? defaultSelection
     const preserveCombatSelection =
       clientSnapshotPhase === 'ONION_COMBAT' &&
       !additive &&
-      unitId !== authoritativeState?.onion.id &&
-      authoritativeState?.defenders[unitId] !== undefined &&
+      selectionOwnerUnitId !== authoritativeState?.onion.id &&
+      authoritativeState?.defenders[selectionOwnerUnitId] !== undefined &&
       baseSelection.some(isWeaponSelectionId)
 
     if (preserveCombatSelection) {
@@ -310,12 +331,15 @@ export function useBattlefieldInteractionState({
     })
 
     setSelectedUnitIds((currentSelection) => {
-      const baseSelection = currentSelection ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
+      const baseSelection = currentSelection ?? defaultSelection
 
       if (!additive) {
-        return [unitId]
+        const stackMemberIds = resolveBattlefieldStackSelectionIds(clientSnapshot?.authoritativeState ?? null, selectionOwnerUnitId)
+        setHasExplicitSelection(true)
+        return stackMemberIds
       }
 
+      setHasExplicitSelection(true)
       if (baseSelection.includes(unitId)) {
         return baseSelection.filter((selectedId) => selectedId !== unitId)
       }
@@ -340,6 +364,7 @@ export function useBattlefieldInteractionState({
       selectedUnitIds,
     })
     setSelectedUnitIds([])
+    setHasExplicitSelection(true)
     setSelectedCombatTargetId(null)
     setPendingRamPrompt(null)
     setActionError(null)
@@ -378,8 +403,18 @@ export function useBattlefieldInteractionState({
     }
 
     setActionError(null)
-    await commitClientAction({ type: 'MOVE', unitId, to })
+    const defaultSelection = clientSnapshot?.selectedUnitId
+      ? resolveBattlefieldStackSelectionIds(clientSnapshot.authoritativeState ?? null, clientSnapshot.selectedUnitId)
+      : []
+    const selectedBoardUnitIds = buildSelectedBoardUnitIds(selectedUnitIds, defaultSelection)
+    const stackSelection = buildClientStackSelection(clientSnapshot?.authoritativeState ?? null, unitId, selectedBoardUnitIds)
+    await commitClientAction(
+      stackSelection === null
+        ? { type: 'MOVE', unitId, to }
+        : { type: 'MOVE_STACK', selection: stackSelection, to },
+    )
     setSelectedUnitIds([])
+    setHasExplicitSelection(true)
   }
 
   async function handleRefresh() {
@@ -437,6 +472,7 @@ export function useBattlefieldInteractionState({
     pendingRamPrompt,
     pendingCombatResolution,
     pendingRamResolution,
+    hasExplicitSelection,
     selectedCombatTargetId,
     selectedUnitIds,
     setActionError,

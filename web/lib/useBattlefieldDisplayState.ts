@@ -5,6 +5,7 @@ import {
   buildLiveDefenders,
   buildLiveOnion,
   buildScenarioMap,
+  countSelectedBattlefieldStackMembers,
   formatLiveConnectionStatus,
   getPhaseAdvanceLabel,
   getPhaseOwner,
@@ -12,6 +13,9 @@ import {
   parseAttackStats,
   parseRangeValue,
   parseWeaponStats,
+  resolveBattlefieldStackMemberIds,
+  resolveBattlefieldStackSelectionIds,
+  resolveSelectionOwnerUnitId,
   stripWeaponSelectionId,
 } from './appViewHelpers'
 import { buildCombatRangeHexKeys } from './combatRange'
@@ -26,6 +30,7 @@ type UseBattlefieldDisplayStateOptions = {
   lastRefreshAt: Date | null
   selectedCombatTargetId: string | null
   selectedUnitIds: string[] | null
+  hasExplicitSelection: boolean
   sessionState: GameSessionViewState
   activeSessionBinding: SessionBinding | null
 }
@@ -44,6 +49,7 @@ export function useBattlefieldDisplayState({
   lastRefreshAt,
   selectedCombatTargetId,
   selectedUnitIds,
+  hasExplicitSelection,
   sessionState,
   activeSessionBinding,
 }: UseBattlefieldDisplayStateOptions) {
@@ -52,8 +58,21 @@ export function useBattlefieldDisplayState({
     const clientSession = sessionState.session
     const activeGameIdProp = activeSessionBinding?.gameId
     const activePhase = clientSnapshot?.phase ?? null
+    const authoritativeState = clientSnapshot?.authoritativeState ?? null
     const selectedSnapshotUnitId = clientSnapshot?.selectedUnitId ?? null
-    const activeSelectedUnitIds = selectedUnitIds ?? (selectedSnapshotUnitId ? [selectedSnapshotUnitId] : [])
+    const defaultSelectedUnitIds = selectedSnapshotUnitId === null
+      ? []
+      : resolveBattlefieldStackSelectionIds(authoritativeState, selectedSnapshotUnitId)
+    const selectedBoardUnitId = !hasExplicitSelection
+      ? selectedSnapshotUnitId
+      : (() => {
+        const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
+        return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
+      })()
+    const selectedStackUnitIds = selectedBoardUnitId === null ? [] : resolveBattlefieldStackMemberIds(authoritativeState, selectedBoardUnitId)
+    const activeSelectedUnitIds = !hasExplicitSelection
+      ? defaultSelectedUnitIds
+      : (selectedUnitIds ?? [])
     const headerHasSnapshot = clientSnapshot !== null
     const activeTurnNumber = clientSnapshot?.turnNumber ?? null
     const activeScenarioName = clientSnapshot?.scenarioName ?? null
@@ -77,7 +96,6 @@ export function useBattlefieldDisplayState({
         ? activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
         : [...activeSelectedUnitIds]
 
-    const authoritativeState = clientSnapshot?.authoritativeState ?? null
     const scenarioMapSnapshot = clientSnapshot === null ? null : buildScenarioMap(clientSnapshot)
     const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
     const displayedDefenders = authoritativeState === null ? [] : buildLiveDefenders({
@@ -95,11 +113,16 @@ export function useBattlefieldDisplayState({
           .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
           .reduce((total, weapon) => total + weapon.attack, 0)
         : displayedDefenders
-          .filter((unit) => activeSelectedUnitIds.includes(unit.id))
-          .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
+          .reduce(
+            (total, unit) => total + (parseRangeValue(parseAttackStats(unit.attack).damage) * countSelectedBattlefieldStackMembers(authoritativeState, unit.id, activeSelectedUnitIds)),
+            0,
+          )
     const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
     const selectedCombatAttackCount = selectedCombatAttackerIds.length
-    const selectedInspectorUnitId = activeSelectedUnitIds.find((selectionId) => !isWeaponSelectionId(selectionId)) ?? null
+    const selectedInspectorUnitId = (() => {
+      const selectionId = activeSelectedUnitIds.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
+      return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
+    })()
     const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
     const selectedInspectorDefender =
       selectedInspectorOnion !== null ||
@@ -168,12 +191,14 @@ export function useBattlefieldDisplayState({
       selectedInspectorDefender,
       selectedInspectorOnion,
       selectedInspectorUnitId,
+      selectedStackUnitIds,
       shellPhase,
     }
   }, [
     activeSessionBinding,
     combatBaseSnapshot,
     lastRefreshAt,
+    hasExplicitSelection,
     selectedCombatTargetId,
     selectedUnitIds,
     sessionState,

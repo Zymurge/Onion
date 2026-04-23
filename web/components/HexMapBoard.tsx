@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
-import { getBattlefieldStackSize } from '../lib/appViewHelpers'
+import { getBattlefieldStackSize, resolveSelectionOwnerUnitId } from '../lib/appViewHelpers'
 import { statusTone, unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
@@ -158,7 +158,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
         continue
       }
 
-      selectedIds.add(selectionId)
+      selectedIds.add(resolveSelectionOwnerUnitId(selectionId))
     }
 
     return selectedIds
@@ -166,7 +166,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
   const selectedPrimaryUnitId = useMemo(() => {
     const directSelection = selectedUnitIds.find((selectionId) => !selectionId.startsWith('weapon:'))
     if (directSelection !== undefined) {
-      return directSelection
+      return resolveSelectionOwnerUnitId(directSelection)
     }
 
     return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onion.id : ''

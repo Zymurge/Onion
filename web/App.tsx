@@ -28,6 +28,7 @@ import type {
 } from './lib/gameSessionTypes'
 import type { SessionBinding } from './lib/sessionBinding'
 import {
+  buildClientStackSelection,
   buildCombatTargetActionId,
   getPhaseOwner,
 } from './lib/appViewHelpers'
@@ -398,6 +399,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const displayState = useBattlefieldDisplayState({
     activeSessionBinding,
     combatBaseSnapshot: interactionState.combatBaseSnapshot,
+    hasExplicitSelection: interactionState.hasExplicitSelection,
     lastRefreshAt: interactionState.lastRefreshAt,
     selectedCombatTargetId: interactionState.selectedCombatTargetId,
     selectedUnitIds: interactionState.selectedUnitIds,
@@ -540,6 +542,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     activeSelectedUnitIds,
     activeTurnActive,
     activeTurnNumber,
+    clientSnapshot,
     combatRangeHexKeys,
     combatTargetIds,
     combatTargetOptions,
@@ -562,6 +565,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     selectedCombatTarget,
     selectedInspectorDefender,
     selectedInspectorOnion,
+    selectedInspectorUnitId,
+    selectedStackUnitIds,
     escapeHexes,
     victoryObjectives,
     shellPhase,
@@ -651,7 +656,16 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     const targetId = buildCombatTargetActionId(selectedCombatTarget.id, displayedOnion.id)
-    void commitClientAction({ type: 'FIRE', attackers: selectedCombatAttackerIds, targetId })
+    const selectedBoardUnitIds = activeSelectedUnitIds.filter((selectionId) => !selectionId.startsWith('weapon:'))
+    const stackSelection = activeCombatRole === 'defender'
+      ? buildClientStackSelection(clientSnapshot?.authoritativeState ?? null, selectedInspectorUnitId, selectedBoardUnitIds)
+      : null
+
+    void commitClientAction(
+      stackSelection === null
+        ? { type: 'FIRE', attackers: selectedCombatAttackerIds, targetId }
+        : { type: 'FIRE_STACK', attackers: selectedCombatAttackerIds, targetId, selection: stackSelection },
+    )
   }
 
   function handleDismissGameOverToast() {
@@ -889,6 +903,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         <BattlefieldRightRail
           activeCombatRole={activeCombatRole}
           activeRole={activeRole}
+          activeSelectedUnitIds={activeSelectedUnitIds}
           activeSelectedUnitCount={activeSelectedUnitIds.length}
           isCombatPhase={isCombatPhase}
           showInactiveEventStream={inactiveEventWindowVisible}
@@ -899,8 +914,11 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           selectedCombatAttackStrength={selectedCombatAttackStrength}
           selectedCombatTarget={selectedCombatTarget}
           selectedCombatTargetId={selectedCombatTargetId}
+          displayedDefenders={displayedDefenders}
+          displayedOnion={displayedOnion}
           selectedInspectorDefender={selectedInspectorDefender}
           selectedInspectorOnion={selectedInspectorOnion}
+          selectedStackUnitIds={selectedStackUnitIds}
           escapeHexes={escapeHexes}
           victoryObjectives={victoryObjectives}
           inactiveEventStream={inactiveEventStream}
@@ -909,6 +927,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onAttemptRam={() => handleResolveRamPrompt(true)}
           onDeclineRam={() => handleResolveRamPrompt(false)}
           onSelectCombatTarget={setSelectedCombatTargetId}
+          onSelectUnit={handleSelectUnit}
+          onDeselect={handleDeselectUnit}
         />
       </main>
     </div>
