@@ -94,7 +94,7 @@ describe('buildCombatEvents', () => {
     })
   })
 
-  it('uses group wording for stacked Little Pigs move events when no stack name is declared', () => {
+  it('uses the declared stack name for stacked Little Pigs move events', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
@@ -115,6 +115,10 @@ describe('buildCombatEvents', () => {
           squads: 3,
         },
       },
+      stackNaming: {
+        groupsInUse: [{ groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
+        usedGroupNames: ['Little Pigs group 1'],
+      },
     }
 
     const events = buildMoveEvents(
@@ -132,12 +136,12 @@ describe('buildCombatEvents', () => {
 
     expect(events[0]).toMatchObject({
       type: 'UNIT_MOVED',
-      unitFriendlyName: 'Little Pigs group',
+      unitFriendlyName: 'Little Pigs group 1',
       unitId: 'pigs-1',
     })
   })
 
-  it('uses group wording for stacked Little Pigs combat events when no stack name is declared', () => {
+  it('uses the declared stack name for stacked Little Pigs combat events', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
@@ -160,6 +164,10 @@ describe('buildCombatEvents', () => {
           squads: 3,
         },
       },
+      stackNaming: {
+        groupsInUse: [{ groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 7', unitType: 'LittlePigs' }],
+        usedGroupNames: ['Little Pigs group 7'],
+      },
     }
 
     const events = buildCombatEvents(
@@ -175,13 +183,59 @@ describe('buildCombatEvents', () => {
 
     expect(events[0]).toMatchObject({
       type: 'FIRE_RESOLVED',
-      targetFriendlyName: 'Little Pigs group',
+      targetFriendlyName: 'Little Pigs group 7',
     })
     expect(events[1]).toMatchObject({
       type: 'UNIT_STATUS_CHANGED',
-      unitFriendlyName: 'Little Pigs group',
+      unitFriendlyName: 'Little Pigs group 7',
       from: 'operational',
       to: 'destroyed',
+    })
+  })
+
+  it('uses the persisted stack name when one is available', () => {
+    const state: GameState = {
+      onion: {
+        id: 'onion-1',
+        type: 'TheOnion',
+        position: { q: 0, r: 0 },
+        status: 'operational',
+        weapons: [
+          { id: 'main', name: 'Main Gun', attack: 4, range: 3, defense: 4, status: 'ready', individuallyTargetable: true },
+        ],
+        treads: 45,
+        batteries: { main: 1, secondary: 4, ap: 8 },
+      },
+      defenders: {
+        'pigs-1': {
+          id: 'pigs-1',
+          type: 'LittlePigs',
+          position: { q: 1, r: 1 },
+          status: 'operational',
+          weapons: [],
+          squads: 3,
+        },
+      },
+      stackNaming: {
+        groupsInUse: [{ groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 7', unitType: 'LittlePigs' }],
+        usedGroupNames: ['Little Pigs group 7'],
+      },
+    }
+
+    const events = buildCombatEvents(
+      51,
+      { type: 'FIRE', attackers: ['main'], targetId: 'pigs-1' },
+      {
+        targetId: 'pigs-1',
+        roll: { roll: 6, result: 'X', odds: '1:1' },
+        statusChanges: [{ unitId: 'pigs-1', from: 'operational', to: 'destroyed' }],
+      },
+      state,
+    )
+
+    expect(events[0]).toMatchObject({
+      type: 'FIRE_RESOLVED',
+      targetFriendlyName: 'Little Pigs group 7',
     })
   })
 

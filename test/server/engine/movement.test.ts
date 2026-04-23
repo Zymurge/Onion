@@ -496,4 +496,82 @@ describe('executeUnitMovement', () => {
       }),
     )
   })
+
+  it('preserves and advances stack names when a stacked Little Pigs unit moves away', () => {
+    const movingPig = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
+    const remainingPig = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: movingPig, p2: remainingPig } }) as EngineGameState & {
+      stackNaming?: {
+        groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
+        usedGroupNames: string[]
+      }
+    }
+
+    state.stackNaming = {
+      groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
+      usedGroupNames: ['Little Pigs group'],
+    }
+
+    const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))
+
+    expect(result.success).toBe(true)
+    expect(state.defenders.p1.position).toEqual({ q: 1, r: 0 })
+    expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.groupsInUse).toEqual([
+      { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      { groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+    ])
+    expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.usedGroupNames).toEqual([
+      'Little Pigs group 1',
+      'Little Pigs group 2',
+    ])
+  })
+
+  it('retires a stacked group when the last unit in it is destroyed', () => {
+    const doomedPig = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 1, position: { q: 1, r: 0 }, status: 'destroyed' })
+    const state = makeState({ currentPhase: 'ONION_MOVE', defenders: { p1: doomedPig } }) as EngineGameState & {
+      stackNaming?: {
+        groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
+        usedGroupNames: string[]
+      }
+    }
+
+    state.stackNaming = {
+      groupsInUse: [{ groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
+      usedGroupNames: ['Little Pigs group 1'],
+    }
+
+    const result = executeUnitMovement(state, makePlan({ unitId: 'onion', from: { q: 0, r: 0 }, to: { q: 2, r: 0 } }))
+
+    expect(result.success).toBe(true)
+    expect(state.stackNaming?.groupsInUse).toEqual([])
+    expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1'])
+  })
+
+  it('keeps the older group name when two Little Pigs end on the same hex', () => {
+    const olderPig = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
+    const newerPig = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 2, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: olderPig, p2: newerPig } }) as EngineGameState & {
+      stackNaming?: {
+        groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
+        usedGroupNames: string[]
+      }
+    }
+
+    state.stackNaming = {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupKey: 'LittlePigs:2,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+    }
+
+    const result = executeUnitMovement(state, makePlan({ unitId: 'p2', from: { q: 2, r: 0 }, to: { q: 0, r: 0 } }))
+
+    expect(result.success).toBe(true)
+    expect(state.defenders.p2.position).toEqual({ q: 0, r: 0 })
+    expect(state.stackNaming?.groupsInUse).toEqual([
+      { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+    ])
+    expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+  })
 })
