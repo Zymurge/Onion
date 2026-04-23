@@ -6,6 +6,7 @@ break down into features/tasks as needed.
 ## In progress
 
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
+  - [x] Render Little Pigs stack size directly inside the marker and keep yellow/inactive marker text dark for readability.
 
 ## Epics / Major Work
 

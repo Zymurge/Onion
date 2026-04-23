@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
+import { getBattlefieldStackSize } from '../lib/appViewHelpers'
 import { statusTone, unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
@@ -72,6 +73,20 @@ function shouldRenderDefender(defender: BattlefieldUnit) {
 
 function getSwampSpriteHref(status: string) {
   return status === 'destroyed' ? swampDestroyedSprite : swampIntactSprite
+}
+
+function getUnitMarkerText(occupant: HexOccupant): string | null {
+  if (occupant.type === 'Swamp') {
+    return null
+  }
+
+  const stackSize = getBattlefieldStackSize(occupant)
+
+  if (occupant.type === 'LittlePigs' && stackSize > 1) {
+    return `${unitCode(occupant.type)} ${stackSize}`
+  }
+
+  return unitCode(occupant.type)
 }
 
 function buildMoveValidationState(
@@ -502,7 +517,6 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                     const isOccupantSelected = selectedUnitSet.has(occupant.id)
                     const offset = getStackOffset(index, cellOccupants.length)
                     const isSwamp = occupant.type === 'Swamp'
-
                     const isDestroyed = occupant.status === 'destroyed'
                     const isDisabled = occupant.status === 'disabled'
                     const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
@@ -550,6 +564,10 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                     const unitRectY = isSwamp ? center.y - 24 : center.y - 11
                     const unitRectWidth = isSwamp ? 48 : 32
                     const unitRectHeight = isSwamp ? 48 : 22
+                    const markerText = getUnitMarkerText(occupant)
+                    const markerToneClass = (!isSwamp && (movementEligibilityClass === 'hex-unit-rect-move-inspectable' || combatEligibilityClass === 'hex-unit-rect-combat-inspectable'))
+                      ? 'tone-dim'
+                      : ''
                     return (
                       <g
                         key={occupant.id}
@@ -591,11 +609,16 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                           height={unitRectHeight}
                           rx={isSwamp ? 4 : 2}
                         />
-                        {occupant.type === 'Swamp' ? null : (
-                          <text className="hex-unit-marker" x={center.x} y={center.y + 4} textAnchor="middle">
-                            {unitCode(occupant.type)}
+                        {markerText !== null ? (
+                          <text
+                            className={['hex-unit-marker', markerToneClass].join(' ')}
+                            x={center.x}
+                            y={center.y + 4}
+                            textAnchor="middle"
+                          >
+                            {markerText}
                           </text>
-                        )}
+                        ) : null}
                         {occupant.type === 'Swamp' ? (
                           <image
                             href={getSwampSpriteHref(occupant.status)}
