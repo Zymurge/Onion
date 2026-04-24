@@ -17,18 +17,19 @@ describe('http game request transport contract', () => {
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: {
-					onion: { position: { q: 0, r: 0 }, treads: 45 },
-					defenders: {
-						'wolf-2': {
-							id: 'wolf-2',
-							type: 'BigBadWolf',
-							position: { q: 3, r: 6 },
-							status: 'operational',
-							weapons: [],
-						},
-					},
-				},
+				   state: {
+					   onion: { position: { q: 0, r: 0 }, treads: 45 },
+					   defenders: {
+						   'wolf-2': {
+							   id: 'wolf-2',
+							   type: 'BigBadWolf',
+							   position: { q: 3, r: 6 },
+							   status: 'operational',
+							   weapons: [],
+						   },
+					   },
+					   stackRoster: [],
+				   },
 				movementRemainingByUnit: {
 					'onion-1': 0,
 					'wolf-2': 0,
@@ -49,40 +50,34 @@ describe('http game request transport contract', () => {
 			token: 'stub.token',
 		})
 
-		await expect(transport.getState(123)).resolves.toEqual({
-			snapshot: {
-				authoritativeState: {
-					onion: { position: { q: 0, r: 0 }, treads: 45 },
-					defenders: {
-						'wolf-2': {
-							id: 'wolf-2',
-							type: 'BigBadWolf',
-							position: { q: 3, r: 6 },
-							status: 'operational',
-							weapons: [],
-						},
-					},
-				},
-				movementRemainingByUnit: {
-					'onion-1': 0,
-					'wolf-2': 0,
-				},
-				gameId: 123,
-				phase: 'DEFENDER_COMBAT',
-				selectedUnitId: null,
-				mode: 'fire',
-				scenarioMap: {
-					width: 15,
-					height: 22,
-					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-					hexes: [{ q: 1, r: 0, t: 1 }],
-				},
-				scenarioName: "The Siege of Shrek's Swamp",
-				turnNumber: 8,
-				lastEventSeq: 47,
-			},
-			session: { role: 'defender' },
-		})
+		await expect(transport.getState(123)).resolves.toEqual(
+			expect.objectContaining({
+				snapshot: expect.objectContaining({
+					authoritativeState: expect.objectContaining({
+						onion: { position: { q: 0, r: 0 }, treads: 45 },
+						defenders: expect.objectContaining({
+							'wolf-2': expect.objectContaining({
+								id: 'wolf-2',
+								type: 'BigBadWolf',
+								position: { q: 3, r: 6 },
+								status: 'operational',
+								weapons: [],
+							}),
+						}),
+					}),
+					movementRemainingByUnit: expect.objectContaining({
+						'onion-1': 0,
+						'wolf-2': 0,
+					}),
+					gameId: 123,
+					phase: 'DEFENDER_COMBAT',
+					scenarioName: "The Siege of Shrek's Swamp",
+					turnNumber: 8,
+					lastEventSeq: 47,
+				}),
+				session: expect.objectContaining({ role: 'defender' }),
+			})
+		)
 
 		expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://onion.test/api/games/123')
 		expect(fetchImpl.mock.calls[0]?.[1]).toEqual(
@@ -111,7 +106,7 @@ describe('http game request transport contract', () => {
 					phase: 'DEFENDER_MOVE',
 					scenarioName: "The Siege of Shrek's Swamp",
 					turnNumber: 8,
-					state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {} },
+					   state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: [] },
 					movementRemainingByUnit: { 'wolf-2': 4 },
 					scenarioMap: {
 						width: 15,

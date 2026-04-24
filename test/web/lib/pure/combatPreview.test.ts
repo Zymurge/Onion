@@ -18,7 +18,7 @@ describe('buildCombatTargetOptions', () => {
 					move: 0,
 					weapons: 'main: ready',
 					attack: '1 / rng 1',
-					defense: 3,
+					defense: 2,
 					squads: 2,
 					actionableModes: ['fire'],
 				},

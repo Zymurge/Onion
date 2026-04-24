@@ -12,7 +12,7 @@ import {
 
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex, UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
-import { resolveBattlefieldUnitName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId } from './appViewHelpers'
+import { getDisplayDefense, getTerrainValueAt, resolveBattlefieldUnitName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId } from './appViewHelpers'
 
 type CombatRole = 'onion' | 'defender'
 
@@ -189,6 +189,8 @@ export function buildCombatTargetOptions({
 				const result = combatCalculator.calculateResult(
 					buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, unit, displayedScenarioMap),
 				)
+				const terrainType = getTerrainValueAt(displayedScenarioMap, unit.q, unit.r)
+				const defense = getDisplayDefense(unit.type, unit.squads, terrainType)
 
 				return {
 					id: unit.id,
@@ -197,12 +199,12 @@ export function buildCombatTargetOptions({
 					r: unit.r,
 					status: unit.status,
 					label: resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName),
-					defense: result.defenseStrength,
+					defense,
 					modifiers: buildTargetModifiers(
 						result.modifiers,
 						selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 					),
-					detail: `Defense: ${result.defenseStrength}`,
+					detail: `Defense: ${defense}`,
 				}
 			})
 	}

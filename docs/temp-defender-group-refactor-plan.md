@@ -1,6 +1,6 @@
 # Defender/Group Normalization Refactor Plan
 
-**Status:** Phase 5 complete
+**Status:** Phase 6 complete
 **Date:** 2026-04-24
 **Branch:** `feature/stacking` follow-on refactor branch
 
@@ -351,16 +351,22 @@ Phase 5 completion note:
 
 ### Phase 6. Refactor UI to consume shared grouped projections
 
-- [ ] Replace direct raw defender clustering in the left rail and map overlays.
-- [ ] Consume shared grouped projections for selection, stack counts, and member lists.
-- [ ] Keep stable unit ids for selection and action submission.
-- [ ] Preserve the finalized stack naming flows already in flight.
+- [x] Replace direct raw defender clustering in the left rail and map overlays.
+- [x] Consume shared grouped projections for selection, stack counts, and member lists.
+- [x] Keep stable unit ids for selection and action submission.
+- [x] Preserve the finalized stack naming flows already in flight.
 
 Definition of Done:
 
 - UI grouping does not depend on ad hoc `type + position` clustering for canonical stack identity
 - left rail, map, and inspector surfaces all derive stack membership from the shared helper
 - unit selection still submits individual unit ids while displaying stack-level labels and member lists consistently
+
+Phase 6 completion note:
+
+- Web stack member resolution now uses explicit canonical `stackRoster.groupsById[*].unitIds` membership instead of co-location heuristics.
+- Stack selection and selected-member counting now consume the same helper output, keeping rail/selection behavior aligned.
+- Stable individual unit ids remain the selection/action identity, with stack grouping now sourced from shared canonical membership.
 
 ### Phase 7. Scenario migration and cleanup
 

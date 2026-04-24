@@ -1216,8 +1216,9 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
 
 		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
-		expect(screen.getByText(/Inspector/i)).not.toBeNull()
-		expect(screen.getByText(/The Onion 1/i)).not.toBeNull()
+		const inspectorPanel = document.querySelector('.selection-panel-header')
+		expect(inspectorPanel?.textContent).toContain('Inspector')
+		expect(inspectorPanel?.textContent).toContain('The Onion 1')
 	})
 
 	it('selects a combat target from the rail on right click', async () => {

@@ -6,7 +6,7 @@ import type { GameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
 import { buildFriendlyName } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot, resolveStackUnitName } from '../../shared/stackNaming'
+import { resolveStackLabel, resolveStackLabelFromSnapshot, resolveStackUnitName } from '../../shared/stackNaming'
 
 export function resolveBattlefieldUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
   return resolveStackUnitName(unitType, unitId, friendlyName)
@@ -44,6 +44,11 @@ type StackSourceUnit = {
 type StackSourceState = {
   onion?: StackSourceUnit | null
   defenders?: Record<string, StackSourceUnit>
+  stackRoster?: {
+    groupsById?: Record<string, {
+      unitIds?: string[]
+    }>
+  }
 }
 
 export function resolveBattlefieldStackMemberIds(state: StackSourceState | null | undefined, unitId: string): string[] {
@@ -57,6 +62,21 @@ export function resolveBattlefieldStackMemberIds(state: StackSourceState | null 
 
   const selectedUnit = state.defenders?.[unitId]
   if (selectedUnit === undefined) {
+    return [unitId]
+  }
+
+  const rosterGroups = Object.values(state.stackRoster?.groupsById ?? {})
+  for (const group of rosterGroups) {
+    const unitIds = group.unitIds ?? []
+    if (!unitIds.includes(unitId)) {
+      continue
+    }
+
+    const activeMemberIds = unitIds.filter((memberId) => state.defenders?.[memberId]?.status !== 'destroyed')
+    if (activeMemberIds.length > 0) {
+      return activeMemberIds
+    }
+
     return [unitId]
   }
 
@@ -316,7 +336,7 @@ export function parseRangeValue(rangeText: string): number {
   return Number.isNaN(parsedRange) ? 0 : parsedRange
 }
 
-export function getTerrainTypeAt(scenarioMap: { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
+export function getTerrainValueAt(scenarioMap: { width: number; height: number; cells?: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
   return scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t
 }
 
@@ -419,7 +439,6 @@ export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhas
     .map(([defenderId, defender], index) => {
       const resolvedDefenderId = defender.id ?? defenderId
       const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
-      const stackSize = getBattlefieldStackSize(defender)
 
       return {
         id: resolvedDefenderId,
@@ -433,7 +452,7 @@ export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhas
         attack: formatAttackSummary(defender.weapons),
         weaponDetails: defender.weapons ?? [],
         targetRules: defender.targetRules,
-        defense: getDisplayDefense(defender.type, defender.squads, getTerrainTypeAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
+        defense: getDisplayDefense(defender.type, defender.squads, getTerrainValueAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
         squads: defender.squads,
         actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive, activePhase),
         rosterOrder: index,

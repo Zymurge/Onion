@@ -10,7 +10,7 @@ type MoveMapSnapshot = {
 	occupiedHexes?: Array<{
 		q: number
 		r: number
-		role: string
+		role: 'onion' | 'defender'
 		unitType: string
 		squads?: number
 	}>
@@ -128,7 +128,7 @@ describe('movePlanner error and edge cases', () => {
 			const map = {
 				...baseMap,
 				occupiedHexes: [{ q: 1, r: 1, role: 'defender', unitType: 'Puss' }],
-			}
+			} as MoveMapSnapshot
 			const result = findMovePath({
 				map,
 				from: { q: 0, r: 0 },
@@ -144,7 +144,7 @@ describe('movePlanner error and edge cases', () => {
 			const map = {
 				...baseMap,
 				occupiedHexes: [{ q: 1, r: 1, role: 'defender', unitType: 'LittlePigs', squads: 1 }],
-			}
+			} as MoveMapSnapshot
 			const result = findMovePath({
 				map,
 				from: { q: 0, r: 0 },
@@ -167,7 +167,7 @@ describe('movePlanner error and edge cases', () => {
 					{ q: 1, r: 1, role: 'defender', unitType: 'LittlePigs' },
 					{ q: 1, r: 1, role: 'defender', unitType: 'LittlePigs' },
 				],
-			}
+			} as MoveMapSnapshot
 			const result = findMovePath({
 				map,
 				from: { q: 0, r: 0 },
@@ -184,7 +184,7 @@ describe('movePlanner error and edge cases', () => {
 			const map = {
 				...baseMap,
 				occupiedHexes: [{ q: 1, r: 1, role: 'onion', unitType: 'TheOnion' }],
-			}
+			} as MoveMapSnapshot
 			const result = findMovePath({
 				map,
 				from: { q: 0, r: 0 },
@@ -200,7 +200,7 @@ describe('movePlanner error and edge cases', () => {
 			const map = {
 				...baseMap,
 				occupiedHexes: [{ q: 1, r: 0, role: 'defender', unitType: 'Puss' }],
-			}
+			} as MoveMapSnapshot
 			const result = findMovePath({
 				map,
 				from: { q: 0, r: 0 },

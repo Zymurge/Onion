@@ -289,7 +289,7 @@ describe('applyDamage', () => {
     it('D result destroys the targeted Little Pigs unit', () => {
       const pigs = makeDefender({ type: 'LittlePigs', squads: 3 })
       const result = applyDamage(pigs, 'D', 1)
-      expect(result.squadsLost).toBeUndefined()
+      expect(result.unitDestroyed).toBeTruthy()
       expect(pigs.status).toBe('destroyed')
     })
 
