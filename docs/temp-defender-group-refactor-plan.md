@@ -1,6 +1,6 @@
 # Defender/Group Normalization Refactor Plan
 
-**Status:** Temporary planning doc
+**Status:** Phase 0 complete
 **Date:** 2026-04-24
 **Branch:** `feature/stacking` follow-on refactor branch
 
@@ -9,6 +9,8 @@
 Refactor the defender portion of runtime state so stacked infantry no longer depend on aggregated `squads` records as the canonical live model.
 
 This plan captures the agreed direction from the current stacking discussion and turns it into concrete implementation tasks with definition-of-done criteria.
+
+Phase 0 is complete when this document is treated as the temporary source of truth for authored defender input, canonical runtime state, and API/UI projections during the normalization refactor. Any older stack-contract language that contradicts this document is superseded until those docs are migrated.
 
 ## Decisions Locked In
 
@@ -28,6 +30,10 @@ Keep authored scenarios concise.
 - Scenarios may continue to declare infantry as grouped authored records with counts.
 - The scenario normalization layer expands those authored groups into individual runtime defenders plus group metadata at game creation.
 - This keeps authored scenarios manageable while still giving runtime logic stable per-unit identity.
+
+Locked authored-input rule:
+
+- authored grouped infantry is an input convenience only and must never survive unchanged into canonical runtime state.
 
 ### 3. Helper ownership boundary
 
@@ -60,6 +66,40 @@ Authored scenarios may define defender entries in two forms:
 - authored stackable group entries with a count and initial group metadata
 
 The authored format is for input ergonomics only.
+
+Recommended authored shape:
+
+```ts
+type AuthoredInitialState = {
+  onion: AuthoredOnionState
+  defenders: Record<string, AuthoredDefenderEntry>
+}
+
+type AuthoredDefenderEntry = AuthoredUnitEntry | AuthoredStackGroupEntry
+
+type AuthoredUnitEntry = {
+  kind?: 'unit'
+  type: string
+  position: HexPos
+  status?: UnitStatus
+}
+
+type AuthoredStackGroupEntry = {
+  kind: 'stack-group'
+  unitType: 'LittlePigs'
+  position: HexPos
+  count: number
+  groupName?: string
+  status?: UnitStatus
+}
+```
+
+Authored-input rules:
+
+- authored grouped infantry may only be used for stack-eligible defender types
+- authored non-stackable defenders must use unit entries
+- authored group keys are scenario-local authoring ids, not runtime member ids
+- if `groupName` is omitted, normalization assigns the initial runtime stack name using the canonical naming rules
 
 ### Layer 2. Scenario normalization
 
@@ -101,6 +141,7 @@ type StackRosterState = {
 }
 
 type StackGroupState = {
+  groupId: string
   groupName: string
   unitType: string
   position: HexPos
@@ -112,7 +153,16 @@ Canonical rule:
 
 - `defenders` owns live unit state.
 - `stackRoster.groupsById` owns group identity and membership.
-- expanded `group.units` arrays are projections derived from `defenders` and `unitIds`.
+- any expanded member detail is derived later from `defenders` and `unitIds`; it is not canonical runtime state.
+
+Canonical runtime rules:
+
+- every stackable defender member has its own stable `id`, `friendlyName`, move/combat accounting, and lifecycle
+- `defenders` must never contain aggregate live records such as `LittlePigs` with `squads: 3`
+- `stackRoster` must never contain non-stackable defenders
+- `stackRoster.groupsById[*].unitIds` is the canonical group-membership record
+- if a stackable defender is not currently grouped with any peer, it still exists in `defenders`; whether singleton stack groups are persisted is a helper/runtime policy decision, not a transport requirement
+- `group.units` is transport/UI projection data only and must be rebuilt from canonical state when emitted
 
 ### Layer 4. Shared defender/group helper
 
@@ -124,7 +174,7 @@ Responsibilities:
 2. Parse canonical defenders plus group membership.
 3. Validate membership consistency.
 4. Provide `getGroupUnits`, `getUnitGroup`, `mergeGroups`, `splitGroup`, `retireGroup`, and projection helpers.
-5. Build API transport views including expanded `group.units` arrays.
+5. Build grouped/member-detail projections from canonical `defenders` plus `unitIds` after transport.
 6. Build UI-facing grouped views for rails, selection, and inspection.
 
 Non-goal for first pass:
@@ -137,20 +187,55 @@ Transport contract:
 
 - `defenders` contains all individual defender units only.
 - `stackRoster` contains stackable groups only.
-- each group transport payload may include an expanded `units` array derived from `unitIds`.
+- each group transport payload canonically carries member references through `unitIds` only.
+- expanded member detail is helper-derived view data and is not part of the transport contract.
+
+Recommended transport shape:
+
+```ts
+type TransportGameState = {
+  onion: OnionState
+  defenders: Record<string, DefenderUnitState>
+  stackRoster: {
+    groupsById: Record<string, {
+      groupName: string
+      unitType: string
+      position: HexPos
+      unitIds: string[]
+    }>
+  }
+}
+```
+
+Transport rules:
+
+- `defenders` is the only transport location for individual live defender records
+- `stackRoster` is the only transport location for group metadata
+- `stackRoster.groupsById[*].unitIds` is the canonical transport reference list for group membership
+- any grouped member-detail expansion must be derived after transport by the shared helper from `defenders` plus `unitIds`
+- no member may appear in a group projection unless it also exists in `defenders`
+- non-stackable defenders must never appear in `stackRoster`
+- group projections must be deterministic for test purposes
 
 UI contract:
 
 - map/rail/selection surfaces consume derived grouped views from the shared helper.
 - the UI should not infer or rebuild stack membership directly from raw defender positions.
 
+UI projection rules:
+
+- UI grouped views are derived from canonical defenders plus `stackRoster`, not from raw occupancy clustering
+- action submission always uses stable individual unit ids
+- stack labels and member lists come from the same shared projection helper so map, rails, dialogs, and inspector surfaces do not diverge
+- the UI may consume a union-like grouped projection, but that projection is not persisted as canonical game state
+
 ## Phased Tasks
 
 ### Phase 0. Freeze the target contract
 
-- [ ] Write and approve the normalized defender/group runtime contract.
-- [ ] Write and approve the authored scenario input shape for grouped infantry.
-- [ ] Write and approve the projection rules for API and UI.
+- [x] Write and approve the normalized defender/group runtime contract.
+- [x] Write and approve the authored scenario input shape for grouped infantry.
+- [x] Write and approve the projection rules for API and UI.
 
 Definition of Done:
 
@@ -158,12 +243,17 @@ Definition of Done:
 - `defenders`, `stackRoster`, and derived `group.units` ownership are explicit
 - the team agrees that grouped infantry in authored scenarios expand during normalization
 
+Phase 0 completion note:
+
+- This document now serves as that single temporary contract source.
+- Older stack-contract sections in `docs/api-contract.md` and `docs/stacked-unit-management-spec.md` are superseded where they conflict with this document and should be migrated in later phases.
+
 ### Phase 1. Add red contract tests for normalization and projections
 
-- [ ] Add scenario normalizer tests for authored grouped infantry expansion.
-- [ ] Add shared helper tests for canonical defenders plus group membership parsing.
-- [ ] Add API contract tests proving `defenders` and `stackRoster` roles are non-overlapping.
-- [ ] Add UI/helper projection tests proving grouped views come from shared helper output rather than raw defender clustering.
+- [x] Add scenario normalizer tests for authored grouped infantry expansion.
+- [x] Add shared helper tests for canonical defenders plus group membership parsing.
+- [x] Add API contract tests proving `defenders` and `stackRoster` roles are non-overlapping.
+- [x] Add UI/helper projection tests proving grouped views come from shared helper output rather than raw defender clustering.
 
 Definition of Done:
 
@@ -173,6 +263,10 @@ Definition of Done:
   - all individual units are represented in `defenders` only
   - groups expose complete member arrays derived from individual defenders
 - tests cover non-stackable defenders and ensure they never appear in `stackRoster`
+
+Phase 1 completion note:
+
+- The Phase 1 contract tests are intentionally red against the current runtime implementation and form the baseline for Phase 2+ changes.
 
 ### Phase 2. Extend authored scenario schema and normalization
 

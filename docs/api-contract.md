@@ -159,6 +159,11 @@ Full current game state. Suitable for initial render and reconnect.
 }
 ```
 
+Temporary refactor note:
+
+- The defender/group normalization refactor is currently governed by `docs/temp-defender-group-refactor-plan.md`.
+- If this section conflicts with that plan, the temporary refactor plan takes precedence until the API contract is migrated to the new canonical model.
+
 Planned `GameState` stack roster shape:
 
 ```json

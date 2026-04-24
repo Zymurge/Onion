@@ -234,4 +234,20 @@ describe('stack roster', () => {
 			},
 		})
 	})
+
+	it('parses canonical group membership from unitIds-only records', () => {
+		const unitIdsOnlyRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		} as unknown as StackRosterState
+
+		expect(() => buildStackRosterIndex(unitIdsOnlyRoster)).not.toThrow()
+		expect(buildStackRosterIndex(unitIdsOnlyRoster).groupsById['LittlePigs:4,4']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
+	})
 })

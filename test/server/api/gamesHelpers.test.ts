@@ -585,4 +585,116 @@ describe('buildVictoryObjectiveStates', () => {
       expect.arrayContaining([expect.objectContaining({ squads: expect.anything() })]),
     )
   })
+
+  it('keeps stack groups as metadata-only references with unitIds and no embedded unit detail copies', () => {
+    const response = buildGameStateResponse(
+      {
+        gameId: 2,
+        scenarioId: 'scenario-2',
+        scenarioSnapshot: { name: 'Scenario 2', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        players: { onion: 'onion-1', defender: 'defender-1' },
+        phase: 'DEFENDER_MOVE',
+        turnNumber: 1,
+        winner: null,
+        state: {
+          onion: {
+            id: 'onion-1',
+            type: 'TheOnion',
+            position: { q: 0, r: 0 },
+            status: 'operational',
+            treads: 45,
+            batteries: { main: 1, secondary: 1, ap: 1 },
+            weapons: [],
+          },
+          defenders: {
+            'pigs-1': {
+              id: 'pigs-1',
+              type: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              status: 'operational',
+              friendlyName: 'Little Pigs 1',
+              weapons: [],
+            },
+            'pigs-2': {
+              id: 'pigs-2',
+              type: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              status: 'operational',
+              friendlyName: 'Little Pigs 2',
+              weapons: [],
+            },
+          },
+          stackRoster: {
+            groupsById: {
+              'LittlePigs:4,4': {
+                groupName: 'Little Pigs group 1',
+                unitType: 'LittlePigs',
+                position: { q: 4, r: 4 },
+                unitIds: ['pigs-1', 'pigs-2'],
+                units: [
+                  { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+                  { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
+                ],
+              },
+            },
+          },
+        },
+        events: [],
+      },
+      'defender-1',
+    )
+
+    const group = response.state.stackRoster?.groupsById['LittlePigs:4,4'] as unknown as { unitIds?: string[]; units?: unknown[] }
+    expect(group.unitIds).toEqual(['pigs-1', 'pigs-2'])
+    expect(group.units).toBeUndefined()
+  })
+
+  it('does not allow non-stackable defenders to be represented as stack groups in the response contract', () => {
+    const response = buildGameStateResponse(
+      {
+        gameId: 3,
+        scenarioId: 'scenario-3',
+        scenarioSnapshot: { name: 'Scenario 3', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        players: { onion: 'onion-1', defender: 'defender-1' },
+        phase: 'DEFENDER_MOVE',
+        turnNumber: 1,
+        winner: null,
+        state: {
+          onion: {
+            id: 'onion-1',
+            type: 'TheOnion',
+            position: { q: 0, r: 0 },
+            status: 'operational',
+            treads: 45,
+            batteries: { main: 1, secondary: 1, ap: 1 },
+            weapons: [],
+          },
+          defenders: {
+            'wolf-1': {
+              id: 'wolf-1',
+              type: 'BigBadWolf',
+              position: { q: 6, r: 6 },
+              status: 'operational',
+              friendlyName: 'Big Bad Wolf 1',
+              weapons: [],
+            },
+          },
+          stackRoster: {
+            groupsById: {
+              'BigBadWolf:6,6': {
+                groupName: 'Big Bad Wolf 1',
+                unitType: 'BigBadWolf',
+                position: { q: 6, r: 6 },
+                unitIds: ['wolf-1'],
+              },
+            },
+          },
+        },
+        events: [],
+      },
+      'defender-1',
+    )
+
+    expect(response.state.stackRoster?.groupsById['BigBadWolf:6,6']).toBeUndefined()
+  })
 })

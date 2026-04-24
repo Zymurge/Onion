@@ -109,4 +109,37 @@ describe('normalizeInitialStateToGameState', () => {
       expect.stringContaining('unknown defender type')
     )
   })
+
+  it('expands authored Little Pigs stack groups into individual defenders with group membership metadata', () => {
+    const groupedInitialState = {
+      onion: validInitialState.onion,
+      defenders: {
+        'pigs-group-1': {
+          kind: 'stack-group',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 7 },
+          count: 3,
+          status: 'operational',
+          groupName: 'Little Pigs group 1',
+        },
+        'wolf-1': { type: 'BigBadWolf', position: { q: 5, r: 6 }, status: 'operational' },
+      },
+    }
+
+    const parsed = InitialStateSchema.parse(groupedInitialState as unknown as object)
+    const gameState = normalizeInitialStateToGameState(parsed)
+
+    const littlePigs = Object.entries(gameState.defenders).filter(([, unit]) => unit.type === 'LittlePigs')
+    expect(littlePigs).toHaveLength(3)
+    expect(littlePigs.every(([, unit]) => unit.position.q === 4 && unit.position.r === 7)).toBe(true)
+    expect(littlePigs.every(([, unit]) => !('squads' in unit))).toBe(true)
+
+    const stackRoster = (gameState as unknown as { stackRoster?: { groupsById?: Record<string, { unitType: string; unitIds: string[] }> } }).stackRoster
+    expect(stackRoster?.groupsById).toBeDefined()
+
+    const pigGroups = Object.values(stackRoster?.groupsById ?? {}).filter((group) => group.unitType === 'LittlePigs')
+    expect(pigGroups).toHaveLength(1)
+    expect(pigGroups[0]?.unitIds).toHaveLength(3)
+    expect((pigGroups[0]?.unitIds ?? []).every((unitId) => gameState.defenders[unitId] !== undefined)).toBe(true)
+  })
 })

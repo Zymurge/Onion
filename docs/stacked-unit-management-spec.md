@@ -74,6 +74,11 @@
 
 ## 1c. Proposed Stack-Roster Contract
 
+Temporary refactor note:
+
+- The in-flight defender/group normalization refactor is currently governed by `docs/temp-defender-group-refactor-plan.md`.
+- Where this section still describes the older roster-first model, the temporary refactor plan supersedes it until this spec is migrated.
+
 The game state should carry one bundled stack-roster element so the engine, API, and UI can pass stack state around without reconstructing it from loose unit records.
 
 Recommended shape:
