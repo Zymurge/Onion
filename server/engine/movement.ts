@@ -15,6 +15,7 @@ import { spendUnitMovement } from '#shared/unitMovement'
 import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
+import { refreshStackNamingSnapshot } from '#shared/stackNaming'
 
 /**
  * Result of validating a movement command.
@@ -187,6 +188,8 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
   if (treadDamage > 0 && hasTreads(unit)) {
     unit.treads = Math.max(0, unit.treads - treadDamage)
   }
+
+  state.stackNaming = refreshStackNamingSnapshot(state.stackNaming, Object.values(state.defenders))
 
   return {
     success: true,

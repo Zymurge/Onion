@@ -3,6 +3,7 @@ import type { DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/un
 import { getUnitDefinition } from '#server/engine/units'
 import logger from '#server/logger'
 import { buildFriendlyName } from '#shared/unitDefinitions'
+import { refreshStackNamingSnapshot } from '#shared/stackNaming'
 
 /**
  * Normalize a scenario initialState into a valid EngineGameState.
@@ -60,6 +61,7 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
   return {
     onion,
     defenders,
+    stackNaming: refreshStackNamingSnapshot(undefined, Object.values(defenders)),
     ramsThisTurn: 0,
     currentPhase: 'ONION_MOVE',
     turn: 1,

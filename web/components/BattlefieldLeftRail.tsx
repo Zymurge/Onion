@@ -6,9 +6,12 @@ import {
   getBattlefieldStackSize,
   parseAttackStats,
   resolveBattlefieldStackLabel,
+  resolveBattlefieldUnitName,
   resolveBattlefieldWeaponName,
   resolveSelectionOwnerUnitId,
 } from '../lib/appViewHelpers'
+import type { StackNamingSnapshot } from '../../shared/stackNaming'
+import { buildStackRosterIndex, type StackRosterState } from '../../shared/stackRoster'
 import type { Weapon } from '../../shared/types/index'
 
 type BattlefieldLeftRailProps = {
@@ -26,6 +29,8 @@ type BattlefieldLeftRailProps = {
   }
   readyWeaponDetails: ReadonlyArray<Weapon>
   selectedCombatAttackLabel: string
+  stackNaming?: StackNamingSnapshot
+  stackRoster?: StackRosterState
   onSelectUnit: (unitId: string, additive?: boolean) => void
 }
 
@@ -46,11 +51,32 @@ type DefenderCombatGroup = {
   selectedCount: number
 }
 
+function findRosterGroupForCombatUnits(
+  rosterIndex: ReturnType<typeof buildStackRosterIndex> | null,
+  units: ReadonlyArray<BattlefieldUnit>,
+): ReturnType<typeof buildStackRosterIndex>['groupsById'][string] | null {
+  if (rosterIndex === null) {
+    return null
+  }
+
+  const unitIds = new Set(units.map((unit) => unit.id))
+  for (const group of Object.values(rosterIndex.groupsById)) {
+    if (group.unitIds.every((unitId) => unitIds.has(unitId))) {
+      return group
+    }
+  }
+
+  return null
+}
+
 function buildDefenderCombatGroups(
   displayedDefenders: ReadonlyArray<BattlefieldUnit>,
   activeMode: Mode,
   activeSelectedUnitIds: string[],
+  stackNaming: StackNamingSnapshot | undefined,
+  stackRoster: StackRosterState | undefined,
 ): DefenderCombatGroup[] {
+  const rosterIndex = stackRoster !== undefined ? buildStackRosterIndex(stackRoster) : null
   const groupedUnits = new Map<string, BattlefieldUnit[]>()
 
   for (const unit of displayedDefenders) {
@@ -60,24 +86,41 @@ function buildDefenderCombatGroups(
     groupedUnits.set(groupKey, existingGroup)
   }
 
-  return [...groupedUnits.values()].map((units) => {
-    const anchorUnit = units[0]
+  return [...groupedUnits.entries()].map(([groupKey, units]) => {
+    const rosterGroup = findRosterGroupForCombatUnits(rosterIndex, units)
+    const anchorUnit = rosterGroup !== null
+      ? units.find((unit) => rosterGroup.unitIds.includes(unit.id)) ?? units[0]
+      : units[0]
     const isActionable = anchorUnit.actionableModes.includes(activeMode)
     const isDestroyed = anchorUnit.status === 'destroyed'
     const baseAttackStats = parseAttackStats(anchorUnit.attack)
-    const stackSize = units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
-    const label = resolveBattlefieldStackLabel(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName, stackSize)
-    const members = units.length > 1
-      ? units.map((unit) => ({
+    const stackSize = rosterGroup !== null ? rosterGroup.units.length : units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
+    const label = resolveBattlefieldStackLabel(
+      anchorUnit.type,
+      anchorUnit.id,
+      anchorUnit.friendlyName,
+      stackSize,
+      rosterGroup?.groupKey ?? `${anchorUnit.type}:${anchorUnit.q},${anchorUnit.r}`,
+      stackNaming,
+    )
+    const rosterMembers = rosterGroup?.units ?? null
+    const members = rosterMembers !== null && rosterMembers.length > 1
+      ? rosterMembers.map((unit) => ({
         selectionId: unit.id,
         testId: `combat-stack-member-${unit.id}`,
-        label: unit.friendlyName ?? unit.type,
+        label: unit.friendlyName,
+      }))
+      : units.length > 1
+        ? units.map((unit) => ({
+          selectionId: unit.id,
+          testId: `combat-stack-member-${unit.id}`,
+          label: resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName),
       }))
       : stackSize > 1
         ? Array.from({ length: stackSize }, (_, index) => ({
           selectionId: buildStackMemberSelectionId(anchorUnit.id, index + 1),
           testId: `combat-stack-member-${anchorUnit.id}-${index + 1}`,
-          label: `Little Pig ${index + 1}`,
+          label: resolveBattlefieldUnitName(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName),
         }))
         : []
     const selectedCount = countSelectedBattlefieldStackMembers(
@@ -135,10 +178,12 @@ export function BattlefieldLeftRail({
   onionWeapons,
   readyWeaponDetails,
   selectedCombatAttackLabel,
+  stackNaming,
+  stackRoster,
   onSelectUnit,
 }: BattlefieldLeftRailProps) {
   const defenderCombatGroups = activeCombatRole === 'defender' && isCombatPhase
-    ? buildDefenderCombatGroups(displayedDefenders, activeMode, activeSelectedUnitIds)
+    ? buildDefenderCombatGroups(displayedDefenders, activeMode, activeSelectedUnitIds, stackNaming, stackRoster)
     : []
 
   return (

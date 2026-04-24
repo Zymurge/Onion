@@ -1,3 +1,5 @@
+import type { StackNamingSnapshot } from '../stackNaming.js'
+
 export type TurnPhase =
   | 'ONION_MOVE'
   | 'ONION_COMBAT'
@@ -36,6 +38,25 @@ export interface Weapon {
   targetRules?: TargetRules
 }
 
+export interface StackRosterUnitState {
+  id: string
+  status: UnitStatus
+  friendlyName: string
+  weapons?: Weapon[]
+  targetRules?: TargetRules
+}
+
+export interface StackRosterGroupState {
+  groupName: string
+  unitType: string
+  position: HexPos
+  units: StackRosterUnitState[]
+}
+
+export interface StackRosterState {
+  groupsById: Record<string, StackRosterGroupState>
+}
+
 export interface DefenderUnit {
   id?: string
   type: string
@@ -70,6 +91,8 @@ export interface GameOnionState extends GameUnitState {
 export interface GameState {
   onion: GameOnionState
   defenders: Record<string, DefenderUnit>
+  stackRoster?: StackRosterState
+  stackNaming?: StackNamingSnapshot
   ramsThisTurn?: number
   movementSpent?: Record<string, number>
   combatSpent?: Record<string, number>

@@ -1,7 +1,21 @@
 import { buildStackGroupKey } from './stackNaming.js'
+import { getAllUnitDefinitions } from './unitDefinitions.js'
 import type { HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from './types/index.js'
 
 export { buildStackGroupKey } from './stackNaming.js'
+
+const UNIT_DEFINITIONS = getAllUnitDefinitions()
+
+type StackRosterSourceUnit = {
+	id: string
+	type: string
+	position: HexPos
+	status: StackRosterUnitState['status']
+	friendlyName?: string
+	squads?: number
+	weapons?: StackRosterUnitState['weapons']
+	targetRules?: StackRosterUnitState['targetRules']
+}
 
 export type StackRosterValidationIssue = {
 	code:
@@ -35,6 +49,86 @@ export type StackRosterIndex = {
 	unitsById: Record<string, StackRosterUnitView>
 	getGroupUnits(groupId: string): StackRosterUnitView[]
 	getUnitGroup(unitId: string): StackRosterGroupView | null
+}
+
+type StackRosterGroupBuilder = {
+	groupId: string
+	groupName: string
+	unitType: string
+	position: HexPos
+	units: Array<Omit<StackRosterUnitState, 'squads'>>
+}
+
+function isStackRosterGroupState(candidate: unknown): candidate is StackRosterGroupState {
+	if (candidate === null || typeof candidate !== 'object') {
+		return false
+	}
+
+	const group = candidate as StackRosterGroupState
+	return typeof group.groupName === 'string'
+		&& typeof group.unitType === 'string'
+		&& typeof group.position === 'object'
+		&& group.position !== null
+		&& Array.isArray(group.units)
+}
+
+function normalizeStackRosterGroup(groupId: string, candidate: unknown): StackRosterGroupState {
+	if (!isStackRosterGroupState(candidate)) {
+		throw new Error(`Invalid stack roster group shape for ${groupId}`)
+	}
+
+	return candidate
+}
+
+function isStackRosterUnitType(unitType: string): boolean {
+	return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+}
+
+function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterGroupBuilder[] {
+	const groupedUnits = new Map<string, StackRosterGroupBuilder>()
+
+	for (const unit of units) {
+		if (!isStackRosterUnitType(unit.type)) {
+			continue
+		}
+
+		const groupId = buildStackGroupKey(unit.type, unit.position)
+		const existingGroup = groupedUnits.get(groupId)
+		const nextUnits = existingGroup?.units ?? []
+		groupedUnits.set(groupId, {
+			groupId,
+			groupName: existingGroup?.groupName ?? unit.friendlyName ?? unit.type,
+			unitType: unit.type,
+			position: unit.position,
+			units: [
+				...nextUnits,
+				{
+					id: unit.id,
+					status: unit.status,
+					friendlyName: unit.friendlyName ?? unit.id,
+					weapons: unit.weapons,
+					targetRules: unit.targetRules,
+				},
+			],
+		})
+	}
+
+	return [...groupedUnits.values()]
+}
+
+export function buildStackRosterFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterState {
+	const groupsById: Record<string, StackRosterGroupState> = {}
+
+	for (const group of buildRosterGroupsFromUnits(units)) {
+		groupsById[group.groupId] = {
+			groupName: group.groupName,
+			unitType: group.unitType,
+			position: group.position,
+			units: group.units,
+		}
+	}
+
+	return { groupsById }
 }
 
 function isValidPosition(position: HexPos): boolean {
@@ -84,14 +178,19 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 	const unitsById: Record<string, StackRosterUnitView> = {}
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
-		const groupKey = buildStackGroupKey(group.unitType, group.position)
-		const units = group.units.map((unit) => {
+		const normalizedGroup = normalizeStackRosterGroup(groupId, group)
+		if (normalizedGroup.units.some((unit) => unit === null || typeof unit !== 'object' || typeof unit.id !== 'string' || typeof unit.status !== 'string')) {
+			throw new Error(`Invalid stack roster unit shape for ${groupId}`)
+		}
+
+		const groupKey = buildStackGroupKey(normalizedGroup.unitType, normalizedGroup.position)
+		const units = normalizedGroup.units.map((unit) => {
 			const unitView: StackRosterUnitView = {
 				...unit,
 				groupId,
 				groupKey,
-				unitType: group.unitType,
-				position: group.position,
+				unitType: normalizedGroup.unitType,
+				position: normalizedGroup.position,
 			}
 
 			unitsById[unit.id] = unitView
@@ -99,7 +198,7 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 		})
 
 		groupsById[groupId] = {
-			...group,
+			...normalizedGroup,
 			groupId,
 			groupKey,
 			unitIds: units.map((unit) => unit.id),

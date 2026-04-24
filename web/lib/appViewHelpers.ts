@@ -5,7 +5,8 @@ import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './
 import type { GameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
 import { buildFriendlyName } from '../../shared/unitDefinitions'
-import { resolveStackLabel, resolveStackUnitName } from '../../shared/stackNaming'
+import type { StackNamingSnapshot } from '../../shared/stackNaming'
+import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot, resolveStackUnitName } from '../../shared/stackNaming'
 
 export function resolveBattlefieldUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
   return resolveStackUnitName(unitType, unitId, friendlyName)
@@ -22,7 +23,13 @@ export function resolveBattlefieldStackLabel(
   unitId: string | undefined,
   friendlyName?: string,
   stackSize = 1,
+  groupKey?: string,
+  stackNaming?: StackNamingSnapshot,
 ): string {
+  if (groupKey !== undefined) {
+    return resolveStackLabelFromSnapshot(stackNaming, groupKey, unitType, unitId, friendlyName, stackSize)
+  }
+
   return resolveStackLabel(unitType, unitId, friendlyName, stackSize)
 }
 
@@ -417,7 +424,7 @@ export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhas
       return {
         id: resolvedDefenderId,
         type: defender.type,
-        friendlyName: resolveBattlefieldStackLabel(defender.type, resolvedDefenderId, defender.friendlyName, stackSize),
+      friendlyName: resolveBattlefieldUnitName(defender.type, resolvedDefenderId, defender.friendlyName),
         status: defender.status,
         q: defender.position.q,
         r: defender.position.r,

@@ -2,6 +2,7 @@
 		const littlePigsStack: BattlefieldUnit = {
 			id: 'pigs-1',
 			type: 'LittlePigs',
+			friendlyName: 'Little Pigs 1',
 			status: 'operational',
 			q: 2,
 			r: 2,
@@ -17,7 +18,7 @@
 				scenarioMap={scenarioMap}
 				defenders={[littlePigsStack]}
 				onion={onion}
-				phase="DEFENDER_MOVE"
+				phase="DEFENDER_COMBAT"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
 				onDeselect={vi.fn()}
@@ -25,7 +26,7 @@
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('LP 4')
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs 1')
 		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()
 	})
@@ -255,8 +256,8 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('LP')
-		expect(screen.getByTestId('hex-unit-pigs-2').textContent).toContain('LP')
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs 1')
+		expect(screen.getByTestId('hex-unit-pigs-2').textContent).toContain('Little Pigs 2')
 		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()
 	})

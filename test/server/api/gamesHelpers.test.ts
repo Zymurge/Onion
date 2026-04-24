@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { buildCombatEvents, buildMoveEvents, buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gamesHelpers'
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
+import { buildGameStateResponse } from '#server/api/gamesHelpers'
 
 describe('buildCombatEvents', () => {
   it('derives friendly names from unit definitions when live state omits them', () => {
@@ -504,5 +505,84 @@ describe('buildVictoryObjectiveStates', () => {
     }
 
     expect(computeWinnerUserId(match as any, state, 'ONION_MOVE', 1)).toBe('defender-user')
+  })
+
+  it('serializes stackRoster in the game state response', () => {
+    const response = buildGameStateResponse(
+      {
+        gameId: 1,
+        scenarioId: 'scenario-1',
+        scenarioSnapshot: { name: 'Scenario 1', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        players: { onion: 'onion-1', defender: 'defender-1' },
+        phase: 'DEFENDER_MOVE',
+        turnNumber: 1,
+        winner: null,
+        state: {
+          onion: {
+            id: 'onion-1',
+            type: 'TheOnion',
+            position: { q: 0, r: 0 },
+            status: 'operational',
+            treads: 45,
+            batteries: { main: 1, secondary: 1, ap: 1 },
+            weapons: [],
+          },
+          defenders: {
+            'pigs-1': {
+              id: 'pigs-1',
+              type: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              status: 'operational',
+              squads: 2,
+              friendlyName: 'Little Pigs 1',
+              weapons: [],
+            },
+            'pigs-2': {
+              id: 'pigs-2',
+              type: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              status: 'operational',
+              squads: 2,
+              friendlyName: 'Little Pigs 2',
+              weapons: [],
+            },
+          },
+          stackRoster: {
+            groupsById: {
+              'LittlePigs:4,4': {
+                groupName: 'Little Pigs group 1',
+                unitType: 'LittlePigs',
+                position: { q: 4, r: 4 },
+                units: [
+                  { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+                  { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
+                ],
+              },
+            },
+          },
+        },
+        events: [],
+      },
+      'defender-1',
+    )
+
+    expect(response.state.stackRoster).toMatchObject({
+      groupsById: {
+        'LittlePigs:4,4': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 4 },
+          units: [
+            { id: 'pigs-1', friendlyName: 'Little Pigs 1', status: 'operational' },
+            { id: 'pigs-2', friendlyName: 'Little Pigs 2', status: 'operational' },
+          ],
+        },
+      },
+    })
+
+    expect(response.state.stackRoster?.groupsById['LittlePigs:4,4']?.units).toHaveLength(2)
+    expect(response.state.stackRoster?.groupsById['LittlePigs:4,4']?.units).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ squads: expect.anything() })]),
+    )
   })
 })

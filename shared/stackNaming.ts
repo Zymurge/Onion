@@ -13,6 +13,15 @@ export type StackNamingSnapshot = {
 
 export type StackNamingSeed = Partial<StackNamingSnapshot>
 
+export type StackNamingSourceUnit = {
+	id: string
+	type: string
+	position: { q: number; r: number }
+	status: string
+	squads?: number
+	friendlyName?: string
+}
+
 const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
 function getUnitFriendlyNameTemplate(unitType: string): string | undefined {
@@ -23,14 +32,13 @@ function stripOrdinalSuffix(name: string): string {
 	return name.replace(/\s+\d+$/, '')
 }
 
+export function buildStackGroupKey(unitType: string, position: { q: number; r: number }): string {
+	return `${unitType}:${position.q},${position.r}`
+}
+
 function createUniqueName(baseName: string, usedNames: Set<string>): string {
 	const trimmedBaseName = baseName.trim()
-	if (!usedNames.has(trimmedBaseName)) {
-		usedNames.add(trimmedBaseName)
-		return trimmedBaseName
-	}
-
-	let suffix = 2
+	let suffix = 1
 	let candidate = `${trimmedBaseName} ${suffix}`
 	while (usedNames.has(candidate)) {
 		suffix += 1
@@ -39,6 +47,16 @@ function createUniqueName(baseName: string, usedNames: Set<string>): string {
 
 	usedNames.add(candidate)
 	return candidate
+}
+
+function normalizeGroupName(groupName: string): string {
+	const trimmedGroupName = groupName.trim()
+	const groupMatch = /^(.*\sgroup)(?:\s+(\d+))?$/i.exec(trimmedGroupName)
+	if (groupMatch === null) {
+		return trimmedGroupName
+	}
+
+	return groupMatch[2] === undefined ? `${trimmedGroupName} 1` : trimmedGroupName
 }
 
 export function resolveStackUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
@@ -74,13 +92,32 @@ export function resolveStackLabel(
 	return unitName
 }
 
+export function resolveStackLabelFromSnapshot(
+	seed: StackNamingSnapshot | undefined,
+	groupKey: string,
+	unitType: string,
+	unitId?: string,
+	friendlyName?: string,
+	stackSize = 1,
+): string {
+	return createStackNamingEngine(seed).resolveGroupName(groupKey, unitType, unitId, friendlyName, stackSize)
+}
+
 export class StackNamingEngine {
 	private readonly usedGroupNames: Set<string>
 	private readonly groupsInUse: Map<string, StackNamingGroupRecord>
 
 	constructor(seed?: StackNamingSeed) {
-		this.usedGroupNames = new Set(seed?.usedGroupNames ?? [])
-		this.groupsInUse = new Map((seed?.groupsInUse ?? []).map((record) => [record.groupKey, record]))
+		this.usedGroupNames = new Set((seed?.usedGroupNames ?? []).map(normalizeGroupName))
+		this.groupsInUse = new Map(
+			(seed?.groupsInUse ?? []).map((record) => [
+				record.groupKey,
+				{
+					...record,
+					groupName: normalizeGroupName(record.groupName),
+				},
+			]),
+		)
 	}
 
 	resolveUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
@@ -121,6 +158,32 @@ export class StackNamingEngine {
 			usedGroupNames: [...this.usedGroupNames],
 		}
 	}
+}
+
+export function refreshStackNamingSnapshot(
+	seed: StackNamingSnapshot | undefined,
+	units: ReadonlyArray<StackNamingSourceUnit>,
+): StackNamingSnapshot {
+	const engine = createStackNamingEngine(seed)
+	const activeGroupKeys: string[] = []
+
+	for (const unit of units) {
+		if (unit.status === 'destroyed') {
+			continue
+		}
+
+		const stackSize = Math.max(unit.squads ?? 1, 1)
+		if (stackSize <= 1) {
+			continue
+		}
+
+		const groupKey = buildStackGroupKey(unit.type, unit.position)
+		activeGroupKeys.push(groupKey)
+		engine.resolveGroupName(groupKey, unit.type, unit.id, unit.friendlyName, stackSize)
+	}
+
+	engine.clearMissingGroups(activeGroupKeys)
+	return engine.snapshot()
 }
 
 export function createStackNamingEngine(seed?: StackNamingSeed): StackNamingEngine {

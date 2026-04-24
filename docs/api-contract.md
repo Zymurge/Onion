@@ -159,6 +159,43 @@ Full current game state. Suitable for initial render and reconnect.
 }
 ```
 
+Planned `GameState` stack roster shape:
+
+```json
+{
+  "stackRoster": {
+    "groupsById": {
+      "stack-1": {
+        "groupName": "Little Pigs group 1",
+        "unitType": "LittlePigs",
+        "position": { "q": 4, "r": 4 },
+        "units": [
+          {
+            "id": "pigs-1",
+            "status": "operational",
+            "friendlyName": "Little Pigs 1"
+          },
+          {
+            "id": "pigs-2",
+            "status": "operational",
+            "friendlyName": "Little Pigs 2"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+Notes:
+
+- `groupsById` is the canonical stack/group metadata map. The record key is the group id.
+- The roster wrapper is always present in game state, even when `groupsById` is empty.
+- `groupKey`, `unitIds`, and member ordinals are helper-derived and do not need to be persisted.
+- `group.units` enumerates every unit in the group and is a convenience projection for UI and action selection. It must stay consistent with the helper-derived view.
+- `friendlyName` on a unit is stable and does not change when the unit changes groups.
+- `groupName` is the only stack-level display label used by rails, combat UI, and event text.
+
 **Notes:**
 
 - `scenarioMap` is always required and must include a non-empty `cells` array. There is no fallback or compatibility logic for missing geometry.

@@ -8,7 +8,7 @@ break down into features/tasks as needed.
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
   - [x] Render Little Pigs stack size directly inside the marker and keep yellow/inactive marker text dark for readability.
   - [x] Extract the shared stack naming engine into a standalone module that can track used group names and active groups.
-  - [ ] Implement the section 1b stack-name lifecycle rules as a standalone step: assign unique finalized stack names at end of movement, carry names forward correctly across splits and merges, never recycle stack names, and expose canonical member names plus finalized stack names to UI/messages and left-rail selection rows so member identity is preserved there.
+  - [ ] Implement the section 1b/1c stack-roster lifecycle rules as a standalone step: bundle groups and units into a dedicated state element, keep the persisted roster minimal, assign unique finalized stack names at end of movement, carry names forward correctly across splits and merges, never recycle stack names, and expose canonical member names plus finalized stack names to UI/messages and left-rail selection rows so member identity is preserved there.
 
 ## Epics / Major Work
 

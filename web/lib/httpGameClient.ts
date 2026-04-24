@@ -13,6 +13,7 @@ import { requestJson, type ApiFailure, type EventsResponse, type GameStateRespon
 import type { GameState, TurnPhase } from '../../shared/types/index'
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
+import { buildStackRosterIndex } from '../../shared/stackRoster'
 
 type ActionSuccessResponse = {
 	ok: true
@@ -91,6 +92,15 @@ function requireScenarioMap(response: GameStateResponse) {
 	return response.scenarioMap
 }
 
+function requireStackRoster(response: GameStateResponse) {
+	if (response.state.stackRoster === undefined || response.state.stackRoster === null) {
+		throw new GameClientSeamError('transport', 'Missing stack roster in game state response')
+	}
+
+	buildStackRosterIndex(response.state.stackRoster)
+	return response.state.stackRoster
+}
+
 function buildError(result: ApiFailure): GameClientSeamError {
 	if (result.status === 404) {
 		return new GameClientSeamError('not-found', result.message)
@@ -110,6 +120,7 @@ function mapServerSnapshot(
 ): GameStateEnvelope {
 	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
 	const scenarioMap = requireScenarioMap(response)
+	const stackRoster = requireStackRoster(response)
 	return {
 		snapshot: mergeSnapshot(fallback, {
 			gameId: response.gameId ?? gameId,

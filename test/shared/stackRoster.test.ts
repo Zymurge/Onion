@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildStackGroupKey, buildStackRosterIndex, validateStackRoster } from '#shared/stackRoster'
-import type { StackRosterState } from '#shared/stackRoster'
+import { buildStackGroupKey, buildStackRosterFromUnits, buildStackRosterIndex, validateStackRoster } from '#shared/stackRoster'
+import type { StackRosterState } from '#shared/types/index'
 
 describe('stack roster', () => {
 	it('flags structural contract violations', () => {
@@ -62,7 +62,7 @@ describe('stack roster', () => {
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					units: [
-						{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 1 },
+						{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
 						{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
 					],
 				},
@@ -133,5 +133,105 @@ describe('stack roster', () => {
 		expect(rosterIndex.unitsById).toEqual({})
 		expect(rosterIndex.getGroupUnits('missing')).toEqual([])
 		expect(rosterIndex.getUnitGroup('missing')).toBeNull()
+	})
+
+	it('builds roster groups for stackable co-located unit clusters only', () => {
+		expect(buildStackRosterFromUnits([
+			{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1', squads: 1 },
+			{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2', squads: 1 },
+			{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 7 }, status: 'operational', friendlyName: 'Big Bad Wolf 1', squads: 1 },
+		])).toEqual({
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					units: [
+						{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined },
+						{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined },
+					],
+				},
+			},
+		})
+	})
+
+	it('ignores non-stackable units when building stack roster groups', () => {
+		const roster = buildStackRosterFromUnits([
+			{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 7 }, status: 'operational', friendlyName: 'Big Bad Wolf 1' },
+			{ id: 'puss-1', type: 'Puss', position: { q: 3, r: 5 }, status: 'operational', friendlyName: 'Puss 1' },
+		])
+
+		expect(roster).toEqual({ groupsById: {} })
+	})
+
+	it('preserves explicit grouped units without squashing them back into squads', () => {
+		const roster = buildStackRosterFromUnits([
+			{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+			{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+		])
+
+		expect(roster).toEqual({
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					units: [
+						{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined },
+						{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined },
+					],
+				},
+			},
+		})
+		expect(roster.groupsById['LittlePigs:4,4']?.units).toHaveLength(2)
+		expect(roster.groupsById['LittlePigs:4,4']?.units.every((unit) => Object.hasOwn(unit, 'squads') === false)).toBe(true)
+	})
+
+	it('throws when a roster group has the wrong json shape', () => {
+		expect(() => buildStackRosterIndex({
+			groupsById: {
+				bad: {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					units: null as unknown as never,
+				},
+			},
+		})).toThrow('Invalid stack roster group shape for bad')
+	})
+
+	it('throws when a roster unit entry has the wrong json shape', () => {
+		expect(() => buildStackRosterIndex({
+			groupsById: {
+				bad: {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					units: [{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' }, null as unknown as never],
+				},
+			},
+		})).toThrow('Invalid stack roster unit shape for bad')
+	})
+
+	it('derives the minimal roster contract from defender units', () => {
+		const roster = buildStackRosterFromUnits([
+			{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+			{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+			{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 7 }, status: 'destroyed', friendlyName: 'Big Bad Wolf 1' },
+		])
+
+		expect(roster).toEqual({
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					units: [
+						{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined },
+						{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined },
+					],
+				},
+			},
+		})
 	})
 })

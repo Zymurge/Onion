@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { StrictMode } from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -318,6 +318,8 @@ describe('App UI', () => {
 		expect(await screen.findByTestId('combat-stack-group-puss-1')).not.toBeNull()
 		expect(await screen.findByTestId('combat-stack-member-puss-1')).not.toBeNull()
 		expect(await screen.findByTestId('combat-stack-member-puss-2')).not.toBeNull()
+		expect(screen.getByTestId('combat-stack-member-puss-1').textContent).toContain('Puss 1')
+		expect(screen.getByTestId('combat-stack-member-puss-2').textContent).toContain('Puss 2')
 		expect(screen.queryByTestId('stack-member-puss-1')).toBeNull()
 		await waitFor(() => {
 			expect(screen.getByTestId('combat-stack-member-puss-1').getAttribute('data-selected')).toBe('true')
@@ -331,6 +333,153 @@ describe('App UI', () => {
 		expect(screen.getByTestId('hex-unit-puss-2').getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('combat-stack-member-puss-1').getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+	})
+
+	it('renders distinct canonical member names for each Little Pigs combat group when roster data is present', async () => {
+		const user = userEvent.setup()
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			phase: 'DEFENDER_COMBAT' as const,
+			selectedUnitId: 'pigs-1',
+			authoritativeState: {
+				...createLoadedBattlefieldSnapshot().authoritativeState,
+				onion: {
+					...createLoadedBattlefieldSnapshot().authoritativeState.onion,
+					position: { q: 5, r: 4 },
+				},
+				defenders: {
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 1',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 2,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-2': {
+						id: 'pigs-2',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 2',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 2,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-3': {
+						id: 'pigs-3',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 3',
+						position: { q: 6, r: 6 },
+						status: 'operational' as const,
+						squads: 2,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-4': {
+						id: 'pigs-4',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 4',
+						position: { q: 6, r: 6 },
+						status: 'operational' as const,
+						squads: 2,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+				stackRoster: {
+					groupsById: {
+						'group-1': {
+							groupName: 'Little Pigs group 1',
+							unitType: 'LittlePigs',
+							position: { q: 4, r: 4 },
+							units: [
+								{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 1 },
+								{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 1 },
+							],
+						},
+						'group-2': {
+							groupName: 'Little Pigs group 2',
+							unitType: 'LittlePigs',
+							position: { q: 6, r: 6 },
+							units: [
+								{ id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 1 },
+								{ id: 'pigs-4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 1 },
+							],
+						},
+					},
+				},
+			},
+			movementRemainingByUnit: {
+				...createLoadedBattlefieldSnapshot().movementRemainingByUnit,
+				'pigs-1': 3,
+				'pigs-2': 3,
+				'pigs-3': 3,
+				'pigs-4': 3,
+			},
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const firstGroup = await screen.findByTestId('combat-unit-pigs-1')
+		const secondGroup = await screen.findByTestId('combat-unit-pigs-3')
+		expect(within(firstGroup).getByText('Little Pigs group 1')).not.toBeNull()
+		expect(secondGroup).not.toBeNull()
+
+		await user.click(firstGroup)
+		await waitFor(() => {
+			expect(screen.getByTestId('combat-stack-member-pigs-1').textContent).toContain('Little Pigs 1')
+			expect(screen.getByTestId('combat-stack-member-pigs-2').textContent).toContain('Little Pigs 2')
+		})
+
+		await user.click(secondGroup)
+		await waitFor(() => {
+			expect(screen.getByTestId('combat-stack-member-pigs-3').textContent).toContain('Little Pigs 3')
+			expect(screen.getByTestId('combat-stack-member-pigs-4').textContent).toContain('Little Pigs 4')
+		})
 	})
 
 	it('expands a Little Pigs combat group in the left rail and tracks subgroup attack strength', async () => {
@@ -381,7 +530,7 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const groupButton = await screen.findByTestId('combat-unit-pigs-1')
-		expect(groupButton.textContent).toContain('Little Pigs group')
+		expect(within(groupButton).getByText('Little Pigs group 1')).not.toBeNull()
 
 		await user.click(groupButton)
 		await waitFor(() => {
@@ -533,6 +682,141 @@ describe('App UI', () => {
 		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('Big Bad Wolf 2')
 	})
 
+	it('renders distinct canonical Little Pigs unit names in move phase when roster data is present', async () => {
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			phase: 'DEFENDER_MOVE' as const,
+			selectedUnitId: 'pigs-1',
+			authoritativeState: {
+				...createLoadedBattlefieldSnapshot().authoritativeState,
+				defenders: {
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 1',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 2,
+						move: 3,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-2': {
+						id: 'pigs-2',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 2',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 2,
+						move: 3,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-3': {
+						id: 'pigs-3',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 3',
+						position: { q: 6, r: 6 },
+						status: 'operational' as const,
+						squads: 2,
+						move: 3,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-4': {
+						id: 'pigs-4',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 4',
+						position: { q: 6, r: 6 },
+						status: 'operational' as const,
+						squads: 2,
+						move: 3,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+				stackRoster: {
+					groupsById: {
+						'group-1': {
+							groupName: 'Little Pigs group 1',
+							unitType: 'LittlePigs',
+							position: { q: 4, r: 4 },
+							units: [
+								{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 1 },
+								{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 1 },
+							],
+						},
+						'group-2': {
+							groupName: 'Little Pigs group 2',
+							unitType: 'LittlePigs',
+							position: { q: 6, r: 6 },
+							units: [
+								{ id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 1 },
+								{ id: 'pigs-4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 1 },
+							],
+						},
+					},
+				},
+			},
+			movementRemainingByUnit: {
+				...createLoadedBattlefieldSnapshot().movementRemainingByUnit,
+				'pigs-1': 3,
+				'pigs-2': 3,
+				'pigs-3': 3,
+				'pigs-4': 3,
+			},
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByTestId('combat-unit-pigs-1')).not.toBeNull()
+		expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs 1')
+		expect(screen.getByTestId('combat-unit-pigs-3').textContent).toContain('Little Pigs 3')
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs 1')
+		expect(screen.getByTestId('hex-unit-pigs-3').textContent).toContain('Little Pigs 3')
+	})
+
 	it('shows Little Pigs stack info in the inspector and on the map', async () => {
 		const snapshot = {
 			...createLoadedBattlefieldSnapshot(),
@@ -576,10 +860,10 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		expect(await screen.findByTestId('hex-unit-pigs-1')).not.toBeNull()
-		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('LP 4')
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs 1')
 		expect(screen.queryByTestId('hex-stack-label-4-4')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-4-4')).toBeNull()
-		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('Little Pigs group')
+		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('Little Pigs 1')
 		expect(screen.getByText('Stack')).not.toBeNull()
 	})
 

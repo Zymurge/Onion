@@ -80,13 +80,7 @@ function getUnitMarkerText(occupant: HexOccupant): string | null {
     return null
   }
 
-  const stackSize = getBattlefieldStackSize(occupant)
-
-  if (occupant.type === 'LittlePigs' && stackSize > 1) {
-    return `${unitCode(occupant.type)} ${stackSize}`
-  }
-
-  return unitCode(occupant.type)
+  return occupant.friendlyName ?? unitCode(occupant.type)
 }
 
 function buildMoveValidationState(

@@ -3,6 +3,7 @@
  */
 
 import type { HexPos, UnitStatus, TurnPhase, Weapon, TargetRules } from '#shared/types/index'
+import type { StackNamingSnapshot } from '#shared/stackNaming'
 import type { UnitDefinition, UnitType } from '#shared/engineTypes'
 import { getAllUnitDefinitions as getSharedUnitDefinitions } from '#shared/unitDefinitions'
 import logger from '#server/logger'
@@ -56,6 +57,8 @@ export interface EngineGameState {
   onion: OnionUnit
   /** All defender units, keyed by unit ID */
   defenders: Record<string, DefenderUnit>
+  /** Persisted stack-name lifecycle state */
+  stackNaming?: StackNamingSnapshot
   /** Number of rams the Onion has performed this turn */
   ramsThisTurn: number
   /** Movement already spent this turn, keyed by phase and unit ID */

@@ -862,6 +862,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onionWeapons={onionWeapons}
           readyWeaponDetails={readyWeaponDetails}
           selectedCombatAttackLabel={selectedCombatAttackLabel}
+          stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
+          stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
           onSelectUnit={handleSelectUnit}
         />
 
