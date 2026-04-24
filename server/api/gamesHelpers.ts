@@ -13,7 +13,6 @@ import type { Command, EventEnvelope, GameState, TurnPhase } from '#shared/types
 import { buildFriendlyName } from '#shared/unitDefinitions'
 import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot, refreshStackNamingSnapshot } from '#shared/stackNaming'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
-import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import type { EngineGameState } from '#server/engine/units'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
@@ -155,20 +154,6 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 }
 
 export function buildEngineState(match: MatchRecord): EngineGameState {
-  const stackRoster = buildStackRosterFromUnits(
-    Object.values(match.state.defenders)
-      .filter((unit) => typeof unit.id === 'string')
-      .map((unit) => ({
-        id: unit.id as string,
-        type: unit.type,
-        position: unit.position,
-        status: unit.status,
-        friendlyName: unit.friendlyName,
-        squads: unit.squads,
-        weapons: unit.weapons,
-        targetRules: unit.targetRules,
-      })),
-  )
   const stackNaming = refreshStackNamingSnapshot(
     match.state.stackNaming,
     Object.values(match.state.defenders)
@@ -184,7 +169,7 @@ export function buildEngineState(match: MatchRecord): EngineGameState {
   )
   return {
     ...structuredClone(match.state),
-    stackRoster,
+    stackRoster: structuredClone(match.state.stackRoster) ?? { groupsById: {} },
     stackNaming,
     ramsThisTurn: match.state.ramsThisTurn ?? 0,
     currentPhase: match.phase,
@@ -607,20 +592,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
           ? 'defender'
           : null
 
-  const stackRosterSource = match.state.stackRoster ?? buildStackRosterFromUnits(
-    Object.values(match.state.defenders)
-      .filter((unit) => typeof unit.id === 'string')
-      .map((unit) => ({
-        id: unit.id as string,
-        type: unit.type,
-        position: unit.position,
-        status: unit.status,
-        friendlyName: unit.friendlyName,
-        squads: unit.squads,
-        weapons: unit.weapons,
-        targetRules: unit.targetRules,
-      })),
-  )
+  const stackRosterSource = match.state.stackRoster ?? { groupsById: {} }
 
   const stackRosterGroupsById = Object.fromEntries(
     Object.entries(stackRosterSource.groupsById ?? {}).flatMap(([groupId, group]) => {
@@ -646,6 +618,13 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     }),
   )
 
+  const defenders = Object.fromEntries(
+    Object.entries(match.state.defenders).map(([defenderId, defender]) => {
+      const { squads: _squads, ...defenderWithoutSquads } = defender
+      return [defenderId, defenderWithoutSquads]
+    }),
+  )
+
   return {
     gameId: match.gameId,
     scenarioId: match.scenarioId,
@@ -657,6 +636,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     players: match.players,
     state: {
       ...match.state,
+      defenders,
       stackRoster: { groupsById: stackRosterGroupsById },
     },
     movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),

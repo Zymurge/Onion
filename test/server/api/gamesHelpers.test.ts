@@ -691,4 +691,101 @@ describe('buildVictoryObjectiveStates', () => {
 
     expect(response.state.stackRoster?.groupsById['BigBadWolf:6,6']).toBeUndefined()
   })
+
+  it('does not derive stackRoster from defender co-location when canonical stackRoster is absent', () => {
+    const response = buildGameStateResponse(
+      {
+        gameId: 4,
+        scenarioId: 'scenario-4',
+        scenarioSnapshot: { name: 'Scenario 4', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        players: { onion: 'onion-1', defender: 'defender-1' },
+        phase: 'DEFENDER_MOVE',
+        turnNumber: 1,
+        winner: null,
+        state: {
+          onion: {
+            id: 'onion-1',
+            type: 'TheOnion',
+            position: { q: 0, r: 0 },
+            status: 'operational',
+            treads: 45,
+            batteries: { main: 1, secondary: 1, ap: 1 },
+            weapons: [],
+          },
+          defenders: {
+            'pigs-1': {
+              id: 'pigs-1',
+              type: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              status: 'operational',
+              friendlyName: 'Little Pigs 1',
+              weapons: [],
+            },
+            'pigs-2': {
+              id: 'pigs-2',
+              type: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              status: 'operational',
+              friendlyName: 'Little Pigs 2',
+              weapons: [],
+            },
+          },
+        },
+        events: [],
+      } as any,
+      'defender-1',
+    )
+
+    expect(response.state.stackRoster).toEqual({ groupsById: {} })
+  })
+
+  it('omits legacy squads from defenders in API transport state', () => {
+    const response = buildGameStateResponse(
+      {
+        gameId: 5,
+        scenarioId: 'scenario-5',
+        scenarioSnapshot: { name: 'Scenario 5', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        players: { onion: 'onion-1', defender: 'defender-1' },
+        phase: 'DEFENDER_MOVE',
+        turnNumber: 1,
+        winner: null,
+        state: {
+          onion: {
+            id: 'onion-1',
+            type: 'TheOnion',
+            position: { q: 0, r: 0 },
+            status: 'operational',
+            treads: 45,
+            batteries: { main: 1, secondary: 1, ap: 1 },
+            weapons: [],
+          },
+          defenders: {
+            'pigs-1': {
+              id: 'pigs-1',
+              type: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              status: 'operational',
+              squads: 3,
+              friendlyName: 'Little Pigs 1',
+              weapons: [],
+            },
+          },
+          stackRoster: {
+            groupsById: {
+              'LittlePigs:4,4': {
+                groupName: 'Little Pigs group 1',
+                unitType: 'LittlePigs',
+                position: { q: 4, r: 4 },
+                unitIds: ['pigs-1'],
+              },
+            },
+          },
+        },
+        events: [],
+      },
+      'defender-1',
+    )
+
+    expect((response.state.defenders['pigs-1'] as { squads?: number }).squads).toBeUndefined()
+  })
 })

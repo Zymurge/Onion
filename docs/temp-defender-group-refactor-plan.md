@@ -1,6 +1,6 @@
 # Defender/Group Normalization Refactor Plan
 
-**Status:** Phase 4 complete
+**Status:** Phase 5 complete
 **Date:** 2026-04-24
 **Branch:** `feature/stacking` follow-on refactor branch
 
@@ -331,16 +331,23 @@ Phase 4 completion note:
 
 ### Phase 5. Refactor API transport to project from canonical state
 
-- [ ] Update API response builders to stop rebuilding stack state from raw defenders.
-- [ ] Project transport `stackRoster.groupsById[*].units` from canonical defenders plus `unitIds`.
-- [ ] Ensure `defenders` in API responses contain individual units only.
-- [ ] Ensure non-stackable units never appear in `stackRoster`.
+- [x] Update API response builders to stop rebuilding stack state from raw defenders.
+- [x] Project transport `stackRoster.groupsById[*].units` from canonical defenders plus `unitIds`.
+- [x] Ensure `defenders` in API responses contain individual units only.
+- [x] Ensure non-stackable units never appear in `stackRoster`.
 
 Definition of Done:
 
 - API snapshots satisfy the agreed transport contract
 - `buildGameStateResponse` and related builders treat canonical state as source of truth
 - transport tests prove that grouped infantry appear once in `defenders` as individual units and once in `stackRoster` as group metadata plus expanded members
+
+Phase 5 completion note:
+
+- API builders now treat persisted canonical `stackRoster` as the source of truth and no longer synthesize group state from defender co-location.
+- API transport now omits legacy `squads` from defender payloads so defender records are strictly per-unit state.
+- API transport stack groups remain metadata-only (`unitIds`) and continue filtering out non-stackable unit types.
+- Added API tests proving no stack derivation fallback when canonical `stackRoster` is absent and no `squads` leakage in defender transport.
 
 ### Phase 6. Refactor UI to consume shared grouped projections
 
