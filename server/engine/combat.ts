@@ -113,7 +113,6 @@ export type CombatOutcomeEffect =
   | 'no-effect'
   | 'disabled'
   | 'destroyed'
-  | 'squad-loss'
   | 'tread-loss'
   | 'weapon-destroyed'
 
@@ -121,7 +120,6 @@ export interface CombatOutcomeResolution {
   targetId: string
   effect: CombatOutcomeEffect
   result: CombatResult
-  squadsLost?: number
   treadsLost?: number
   weaponId?: string
   weaponDestroyed?: string
@@ -326,10 +324,6 @@ export function resolveCombatOutcome(
   if (target.type === 'LittlePigs') {
     if (result === 'NE') {
       return { targetId: target.id, effect: 'no-effect', result }
-    }
-
-    if (result === 'D') {
-      return { targetId: target.id, effect: 'squad-loss', result, squadsLost: 1 }
     }
 
     return { targetId: target.id, effect: 'destroyed', result }
@@ -606,7 +600,6 @@ export function executeCombatAction(
       targetId: defender.id,
       roll: combatRoll,
       statusChanges,
-      squadsLost: damage.squadsLost,
     }
   }
 
@@ -707,7 +700,6 @@ export function applyDamage(
   treads?: number
   weaponDestroyed?: string
   unitDestroyed?: boolean
-  squadsLost?: number
 } {
   const outcome = resolveCombatOutcome(target, result, attackStrength, weaponId)
 
@@ -720,16 +712,6 @@ export function applyDamage(
     case 'destroyed':
       target.status = 'destroyed'
       return { unitDestroyed: true }
-    case 'squad-loss': {
-      const pigs = target as DefenderUnit & { squads?: number }
-      const squads = (pigs.squads ?? 1) - (outcome.squadsLost ?? 0)
-      pigs.squads = squads
-      if (squads <= 0) {
-        pigs.status = 'destroyed'
-        return { squadsLost: outcome.squadsLost, unitDestroyed: true }
-      }
-      return { squadsLost: outcome.squadsLost }
-    }
     case 'tread-loss': {
       const onion = target as OnionUnit
       const lost = outcome.treadsLost ?? attackStrength

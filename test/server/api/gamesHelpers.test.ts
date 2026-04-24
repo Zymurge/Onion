@@ -572,18 +572,12 @@ describe('buildVictoryObjectiveStates', () => {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
-          units: [
-            { id: 'pigs-1', friendlyName: 'Little Pigs 1', status: 'operational' },
-            { id: 'pigs-2', friendlyName: 'Little Pigs 2', status: 'operational' },
-          ],
+          unitIds: ['pigs-1', 'pigs-2'],
         },
       },
     })
 
-    expect(response.state.stackRoster?.groupsById['LittlePigs:4,4']?.units).toHaveLength(2)
-    expect(response.state.stackRoster?.groupsById['LittlePigs:4,4']?.units).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ squads: expect.anything() })]),
-    )
+    expect(response.state.stackRoster?.groupsById['LittlePigs:4,4']?.units).toBeUndefined()
   })
 
   it('keeps stack groups as metadata-only references with unitIds and no embedded unit detail copies', () => {

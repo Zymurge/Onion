@@ -31,7 +31,21 @@ export const DefenderSchema = z.object({
   squads: z.number().optional(),
 })
 
-export const DefendersRecordSchema = z.record(z.string(), DefenderSchema)
+export const DefenderStackGroupSchema = z.object({
+  kind: z.literal('stack-group'),
+  unitType: z.string(),
+  position: HexPosSchema,
+  count: z.number().int().positive(),
+  groupName: z.string().optional(),
+  status: z.string().optional(),
+})
+
+export const DefenderEntrySchema = z.union([
+  DefenderSchema,
+  DefenderStackGroupSchema,
+])
+
+export const DefendersRecordSchema = z.record(z.string(), DefenderEntrySchema)
 
 export const InitialStateSchema = z.object({
   onion: OnionSchema,

@@ -400,7 +400,7 @@ describe('validateUnitMovement', () => {
     })
   })
 
-  it('allows Little Pigs to stack up to 5 squads in one hex', () => {
+  it('allows Little Pigs to stack when member count stays within limit', () => {
     const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
     const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 1, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: pigsA, p2: pigsB } })
@@ -409,10 +409,14 @@ describe('validateUnitMovement', () => {
     expect(result.ok).toBe(true)
   })
 
-  it('returns HEX_OCCUPIED when Little Pigs stack would exceed 5 squads', () => {
+  it('returns HEX_OCCUPIED when Little Pigs member count would exceed stack limit', () => {
     const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 3, position: { q: 0, r: 0 } })
     const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 1, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: pigsA, p2: pigsB } })
+    const pigsC = makeDefender({ id: 'p3', type: 'LittlePigs', squads: 8, position: { q: 1, r: 0 } })
+    const pigsD = makeDefender({ id: 'p4', type: 'LittlePigs', squads: 1, position: { q: 1, r: 0 } })
+    const pigsE = makeDefender({ id: 'p5', type: 'LittlePigs', squads: 4, position: { q: 1, r: 0 } })
+    const pigsF = makeDefender({ id: 'p6', type: 'LittlePigs', squads: 2, position: { q: 1, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: pigsA, p2: pigsB, p3: pigsC, p4: pigsD, p5: pigsE, p6: pigsF } })
 
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'p1', to: { q: 1, r: 0 } })
     expect(result).toEqual({

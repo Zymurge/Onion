@@ -40,8 +40,14 @@ describe('getStopOnOccupiedHexFailure', () => {
 		expect(getStopOnOccupiedHexFailure({
 			movingRole: 'defender',
 			movingUnitType: 'LittlePigs',
-			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs', squads: 3 }],
-			incomingSquads: 3,
+			occupants: [
+				{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs' },
+				{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs' },
+				{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs' },
+				{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs' },
+				{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs' },
+			],
+			incomingMembers: 1,
 		})).toBe('stack-limit')
 	})
 
@@ -49,8 +55,21 @@ describe('getStopOnOccupiedHexFailure', () => {
 		expect(getStopOnOccupiedHexFailure({
 			movingRole: 'defender',
 			movingUnitType: 'LittlePigs',
-			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs', squads: 3 }],
-			incomingSquads: 2,
+			occupants: [
+				{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs' },
+				{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs' },
+				{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs' },
+			],
+			incomingMembers: 1,
+		})).toBeNull()
+	})
+
+	it('ignores legacy squads values when counting stack members', () => {
+		expect(getStopOnOccupiedHexFailure({
+			movingRole: 'defender',
+			movingUnitType: 'LittlePigs',
+			occupants: [{ q: 0, r: 0, role: 'defender', unitType: 'LittlePigs', squads: 99 }],
+			incomingMembers: 1,
 		})).toBeNull()
 	})
 
@@ -90,8 +109,12 @@ describe('movementRules', () => {
 			canStopOnOccupiedHex({
 				movingRole: 'defender',
 				movingUnitType: 'LittlePigs',
-				occupants: [occupant({ unitType: 'LittlePigs', squads: 3 })],
-				incomingSquads: 2,
+				occupants: [
+					occupant({ unitType: 'LittlePigs' }),
+					occupant({ unitType: 'LittlePigs' }),
+					occupant({ unitType: 'LittlePigs' }),
+				],
+				incomingMembers: 1,
 			}),
 		).toBe(true)
 
@@ -99,8 +122,14 @@ describe('movementRules', () => {
 			canStopOnOccupiedHex({
 				movingRole: 'defender',
 				movingUnitType: 'LittlePigs',
-				occupants: [occupant({ unitType: 'LittlePigs', squads: 3 })],
-				incomingSquads: 3,
+				occupants: [
+					occupant({ unitType: 'LittlePigs' }),
+					occupant({ unitType: 'LittlePigs' }),
+					occupant({ unitType: 'LittlePigs' }),
+					occupant({ unitType: 'LittlePigs' }),
+					occupant({ unitType: 'LittlePigs' }),
+				],
+				incomingMembers: 1,
 			}),
 		).toBe(false)
 	})

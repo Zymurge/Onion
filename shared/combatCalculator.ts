@@ -213,8 +213,7 @@ function resolveDefenseStrength(staticRules: CombatStaticRules, liveState: Comba
 	}
 
 	if (definition.type === 'LittlePigs') {
-		const squads = target.squads ?? 1
-		return definition.defense * squads + getTerrainDefenseBonus(staticRules, target)
+		return definition.defense + getTerrainDefenseBonus(staticRules, target)
 	}
 
 	return definition.defense + getTerrainDefenseBonus(staticRules, target)

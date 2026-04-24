@@ -47,10 +47,12 @@ export interface StackRosterUnitState {
 }
 
 export interface StackRosterGroupState {
+  groupId?: string
   groupName: string
   unitType: string
   position: HexPos
-  units: StackRosterUnitState[]
+  unitIds?: string[]
+  units?: StackRosterUnitState[]
 }
 
 export interface StackRosterState {

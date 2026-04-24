@@ -84,8 +84,8 @@ describe('combatCalculator', () => {
 		const result = calculator.calculateResult(input)
 
 		expect(result.attackStrength).toBe(8)
-		expect(result.defenseStrength).toBe(3)
-		expect(result.odds).toBe('2:1')
+		expect(result.defenseStrength).toBe(2)
+		expect(result.odds).toBe('4:1')
 	})
 
 	it('returns the ridgeline defense modifier for eligible target units', () => {

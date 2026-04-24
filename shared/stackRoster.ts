@@ -1,6 +1,6 @@
 import { buildStackGroupKey } from './stackNaming.js'
 import { getAllUnitDefinitions } from './unitDefinitions.js'
-import type { HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from './types/index.js'
+import type { DefenderUnit, HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from './types/index.js'
 
 export { buildStackGroupKey } from './stackNaming.js'
 
@@ -28,6 +28,26 @@ export type StackRosterValidationIssue = {
 	message: string
 	groupId: string
 	unitId?: string
+}
+
+export type StackRosterConsistencyIssue = {
+	code:
+		| 'GROUP_MEMBER_NOT_FOUND'
+		| 'GROUP_MEMBER_TYPE_MISMATCH'
+		| 'GROUP_MEMBER_POSITION_MISMATCH'
+		| 'MEMBER_IN_MULTIPLE_GROUPS'
+		| 'NON_STACKABLE_GROUP'
+	message: string
+	groupId: string
+	unitId?: string
+}
+
+export type SplitStackRosterGroupInput = {
+	groupId: string
+	newGroupId: string
+	newGroupName: string
+	movedUnitIds: string[]
+	newPosition?: HexPos
 }
 
 export type StackRosterUnitView = StackRosterUnitState & {
@@ -65,11 +85,13 @@ function isStackRosterGroupState(candidate: unknown): candidate is StackRosterGr
 	}
 
 	const group = candidate as StackRosterGroupState
+	const hasUnits = Array.isArray(group.units)
+	const hasUnitIds = Array.isArray(group.unitIds)
 	return typeof group.groupName === 'string'
 		&& typeof group.unitType === 'string'
 		&& typeof group.position === 'object'
 		&& group.position !== null
-		&& Array.isArray(group.units)
+		&& (hasUnits || hasUnitIds)
 }
 
 function normalizeStackRosterGroup(groupId: string, candidate: unknown): StackRosterGroupState {
@@ -82,6 +104,14 @@ function normalizeStackRosterGroup(groupId: string, candidate: unknown): StackRo
 
 function isStackRosterUnitType(unitType: string): boolean {
 	return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+}
+
+function resolveGroupUnitIds(group: StackRosterGroupState): string[] {
+	if (Array.isArray(group.unitIds)) {
+		return [...group.unitIds]
+	}
+
+	return (group.units ?? []).map((unit) => unit.id)
 }
 
 function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterGroupBuilder[] {
@@ -152,20 +182,24 @@ export function validateStackRoster(stackRoster: StackRosterState | undefined): 
 			issues.push({ code: 'INVALID_POSITION', message: `Group ${groupId} must have a valid position`, groupId })
 		}
 
-		if (group.units.length === 0) {
+		const groupUnitIds = Array.isArray(group.unitIds)
+			? group.unitIds
+			: (group.units ?? []).map((unit) => unit.id)
+
+		if (groupUnitIds.length === 0) {
 			issues.push({ code: 'EMPTY_GROUP', message: `Group ${groupId} must contain at least one unit`, groupId })
 			continue
 		}
 
-		for (const unit of group.units) {
-			if (unit.id.trim().length === 0) {
-				issues.push({ code: 'EMPTY_UNIT_ID', message: `Group ${groupId} contains a unit with an empty id`, groupId, unitId: unit.id })
+		for (const unitId of groupUnitIds) {
+			if (unitId.trim().length === 0) {
+				issues.push({ code: 'EMPTY_UNIT_ID', message: `Group ${groupId} contains a unit with an empty id`, groupId, unitId })
 			}
 
-			if (seenUnitIds.has(unit.id)) {
-				issues.push({ code: 'DUPLICATE_UNIT_ID', message: `Unit id ${unit.id} appears more than once in the roster`, groupId, unitId: unit.id })
+			if (seenUnitIds.has(unitId)) {
+				issues.push({ code: 'DUPLICATE_UNIT_ID', message: `Unit id ${unitId} appears more than once in the roster`, groupId, unitId })
 			} else {
-				seenUnitIds.add(unit.id)
+				seenUnitIds.add(unitId)
 			}
 		}
 	}
@@ -179,12 +213,13 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		const normalizedGroup = normalizeStackRosterGroup(groupId, group)
-		if (normalizedGroup.units.some((unit) => unit === null || typeof unit !== 'object' || typeof unit.id !== 'string' || typeof unit.status !== 'string')) {
+		const normalizedUnits = normalizedGroup.units ?? []
+		if (normalizedUnits.some((unit) => unit === null || typeof unit !== 'object' || typeof unit.id !== 'string' || typeof unit.status !== 'string')) {
 			throw new Error(`Invalid stack roster unit shape for ${groupId}`)
 		}
 
 		const groupKey = buildStackGroupKey(normalizedGroup.unitType, normalizedGroup.position)
-		const units = normalizedGroup.units.map((unit) => {
+		const units = normalizedUnits.map((unit) => {
 			const unitView: StackRosterUnitView = {
 				...unit,
 				groupId,
@@ -201,7 +236,7 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 			...normalizedGroup,
 			groupId,
 			groupKey,
-			unitIds: units.map((unit) => unit.id),
+			unitIds: normalizedGroup.unitIds ?? units.map((unit) => unit.id),
 			units,
 		}
 	}
@@ -221,4 +256,192 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 			return groupsById[unit.groupId] ?? null
 		},
 	}
+}
+
+export function validateStackRosterConsistency(
+	defenders: Record<string, DefenderUnit> | undefined,
+	stackRoster: StackRosterState | undefined,
+): StackRosterConsistencyIssue[] {
+	const issues: StackRosterConsistencyIssue[] = []
+	const seenMemberIds = new Map<string, string>()
+
+	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
+		if (!isStackRosterUnitType(group.unitType)) {
+			issues.push({
+				code: 'NON_STACKABLE_GROUP',
+				message: `Group ${groupId} has non-stackable unit type ${group.unitType}`,
+				groupId,
+			})
+		}
+
+		for (const unitId of resolveGroupUnitIds(group)) {
+			const priorGroupId = seenMemberIds.get(unitId)
+			if (priorGroupId !== undefined && priorGroupId !== groupId) {
+				issues.push({
+					code: 'MEMBER_IN_MULTIPLE_GROUPS',
+					message: `Unit ${unitId} appears in both ${priorGroupId} and ${groupId}`,
+					groupId,
+					unitId,
+				})
+			} else {
+				seenMemberIds.set(unitId, groupId)
+			}
+
+			const defender = defenders?.[unitId]
+			if (defender === undefined) {
+				issues.push({
+					code: 'GROUP_MEMBER_NOT_FOUND',
+					message: `Group ${groupId} references missing defender ${unitId}`,
+					groupId,
+					unitId,
+				})
+				continue
+			}
+
+			if (defender.type !== group.unitType) {
+				issues.push({
+					code: 'GROUP_MEMBER_TYPE_MISMATCH',
+					message: `Group ${groupId} expects ${group.unitType} but ${unitId} is ${defender.type}`,
+					groupId,
+					unitId,
+				})
+			}
+
+			if (defender.position.q !== group.position.q || defender.position.r !== group.position.r) {
+				issues.push({
+					code: 'GROUP_MEMBER_POSITION_MISMATCH',
+					message: `Group ${groupId} position does not match defender ${unitId}`,
+					groupId,
+					unitId,
+				})
+			}
+		}
+	}
+
+	return issues
+}
+
+export function expandStackRosterGroups(
+	defenders: Record<string, DefenderUnit> | undefined,
+	stackRoster: StackRosterState | undefined,
+): StackRosterState {
+	const groupsById = Object.fromEntries(
+		Object.entries(stackRoster?.groupsById ?? {}).map(([groupId, group]) => {
+			const unitIds = resolveGroupUnitIds(group).filter((unitId) => defenders?.[unitId] !== undefined)
+			const units = unitIds.map((unitId) => {
+				const defender = defenders?.[unitId] as DefenderUnit
+				return {
+					id: unitId,
+					status: defender.status,
+					friendlyName: defender.friendlyName ?? unitId,
+					weapons: defender.weapons,
+					targetRules: defender.targetRules,
+				}
+			})
+
+			return [
+				groupId,
+				{
+					groupId,
+					groupName: group.groupName,
+					unitType: group.unitType,
+					position: group.position,
+					unitIds,
+					units,
+				},
+			]
+		}),
+	)
+
+	return { groupsById }
+}
+
+export function retireStackRosterGroup(stackRoster: StackRosterState | undefined, groupId: string): StackRosterState {
+	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	delete groupsById[groupId]
+	return { groupsById }
+}
+
+export function mergeStackRosterGroups(
+	stackRoster: StackRosterState | undefined,
+	targetGroupId: string,
+	sourceGroupIds: string[],
+): StackRosterState {
+	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	const targetGroup = groupsById[targetGroupId]
+	if (targetGroup === undefined) {
+		throw new Error(`Cannot merge into missing target group ${targetGroupId}`)
+	}
+
+	const mergedUnitIds = [...resolveGroupUnitIds(targetGroup)]
+	const seenIds = new Set(mergedUnitIds)
+
+	for (const sourceGroupId of sourceGroupIds) {
+		const sourceGroup = groupsById[sourceGroupId]
+		if (sourceGroup === undefined) {
+			continue
+		}
+
+		for (const unitId of resolveGroupUnitIds(sourceGroup)) {
+			if (!seenIds.has(unitId)) {
+				seenIds.add(unitId)
+				mergedUnitIds.push(unitId)
+			}
+		}
+
+		delete groupsById[sourceGroupId]
+	}
+
+	groupsById[targetGroupId] = {
+		...targetGroup,
+		unitIds: mergedUnitIds,
+		units: undefined,
+	}
+
+	return { groupsById }
+}
+
+export function splitStackRosterGroup(
+	stackRoster: StackRosterState | undefined,
+	input: SplitStackRosterGroupInput,
+): StackRosterState {
+	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	const sourceGroup = groupsById[input.groupId]
+	if (sourceGroup === undefined) {
+		throw new Error(`Cannot split missing group ${input.groupId}`)
+	}
+
+	const movedIdSet = new Set(input.movedUnitIds)
+	if (movedIdSet.size === 0) {
+		throw new Error('Cannot split group without moved members')
+	}
+
+	const sourceUnitIds = resolveGroupUnitIds(sourceGroup)
+	for (const movedUnitId of movedIdSet) {
+		if (!sourceUnitIds.includes(movedUnitId)) {
+			throw new Error(`Cannot split missing group member ${movedUnitId}`)
+		}
+	}
+
+	const remainingUnitIds = sourceUnitIds.filter((unitId) => !movedIdSet.has(unitId))
+	if (remainingUnitIds.length === 0) {
+		delete groupsById[input.groupId]
+	} else {
+		groupsById[input.groupId] = {
+			...sourceGroup,
+			unitIds: remainingUnitIds,
+			units: undefined,
+		}
+	}
+
+	groupsById[input.newGroupId] = {
+		groupId: input.newGroupId,
+		groupName: input.newGroupName,
+		unitType: sourceGroup.unitType,
+		position: input.newPosition ?? sourceGroup.position,
+		unitIds: sourceUnitIds.filter((unitId) => movedIdSet.has(unitId)),
+		units: undefined,
+	}
+
+	return { groupsById }
 }

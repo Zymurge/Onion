@@ -1,6 +1,6 @@
 # Defender/Group Normalization Refactor Plan
 
-**Status:** Phase 0 complete
+**Status:** Phase 4 complete
 **Date:** 2026-04-24
 **Branch:** `feature/stacking` follow-on refactor branch
 
@@ -270,10 +270,10 @@ Phase 1 completion note:
 
 ### Phase 2. Extend authored scenario schema and normalization
 
-- [ ] Extend the scenario schema to represent authored grouped infantry input cleanly.
-- [ ] Update scenario normalizer to expand authored infantry groups into individual defenders.
-- [ ] Seed initial stack group metadata and stack naming during normalization.
-- [ ] Keep authored non-stackable defenders unchanged.
+- [x] Extend the scenario schema to represent authored grouped infantry input cleanly.
+- [x] Update scenario normalizer to expand authored infantry groups into individual defenders.
+- [x] Seed initial stack group metadata and stack naming during normalization.
+- [x] Keep authored non-stackable defenders unchanged.
 
 Definition of Done:
 
@@ -282,12 +282,18 @@ Definition of Done:
 - normalized runtime state contains initial stack group metadata with stable member ids
 - no normalized defender record uses `squads` as a canonical live-membership shortcut
 
+Phase 2 completion note:
+
+- Scenario schema now accepts authored defender entries as either unit records or `kind: 'stack-group'` records.
+- Scenario normalization now expands authored `stack-group` entries into per-unit defenders and seeds initial `stackRoster` metadata keyed by stack group with stable `unitIds`.
+- Normalization initializes `stackNaming` from the same generated groups and leaves authored non-stackable unit entries as regular per-unit defenders.
+
 ### Phase 3. Introduce the canonical defender/group helper
 
-- [ ] Create or reshape the shared helper around canonical defenders plus groups.
-- [ ] Implement consistency validation between `defenders` and `stackRoster.groupsById`.
-- [ ] Implement derived expansion helpers for transport `group.units` arrays.
-- [ ] Implement group mutation helpers for merge, split, retire, and lookup.
+- [x] Create or reshape the shared helper around canonical defenders plus groups.
+- [x] Implement consistency validation between `defenders` and `stackRoster.groupsById`.
+- [x] Implement derived expansion helpers for transport `group.units` arrays.
+- [x] Implement group mutation helpers for merge, split, retire, and lookup.
 
 Definition of Done:
 
@@ -295,12 +301,19 @@ Definition of Done:
 - helper tests cover lookup, validation, merge, split, and projection behavior
 - projection helpers are deterministic and stable for testing
 
+Phase 3 completion note:
+
+- The shared stack roster helper now includes canonical defender/group consistency validation against unit existence, type/position alignment, duplicate membership, and non-stackable group misuse.
+- Deterministic projection helpers now expand group metadata (`unitIds`) into derived member detail arrays from canonical defenders.
+- Group mutation helpers now support merge, split, and retire operations while preserving canonical `unitIds` membership.
+- Helper tests now cover lookup/index behavior, consistency validation, deterministic projection expansion, and merge/split/retire flows.
+
 ### Phase 4. Convert movement and combat to the normalized model
 
-- [ ] Replace squads-based stack-limit logic with membership-count and group-membership logic.
-- [ ] Replace squads-based combat targeting/defense logic with explicit stacked unit handling.
-- [ ] Keep per-unit movement and combat spending tied to individual unit ids.
-- [ ] Ensure merge/split behavior updates canonical group membership consistently.
+- [x] Replace squads-based stack-limit logic with membership-count and group-membership logic.
+- [x] Replace squads-based combat targeting/defense logic with explicit stacked unit handling.
+- [x] Keep per-unit movement and combat spending tied to individual unit ids.
+- [x] Ensure merge/split behavior updates canonical group membership consistently.
 
 Definition of Done:
 
@@ -308,6 +321,13 @@ Definition of Done:
 - stack legality is validated using explicit group members or individual defender counts
 - combat can resolve losses against grouped infantry by removing or updating individual unit members deterministically
 - focused movement and combat tests pass against the normalized model
+
+Phase 4 completion note:
+
+- Movement stack-stop legality now evaluates Little Pigs stack limits by individual member count rather than legacy `squads` magnitudes.
+- Move validation/planning now treats incoming stack contribution as one moving member per unit action and keeps per-unit movement accounting unchanged.
+- Shared combat defense resolution now treats Little Pigs as per-unit defenders (no squads multiplier).
+- Combat outcome/damage resolution now applies deterministic per-unit Little Pigs lifecycle updates (targeted member destroyed on `D`/`X`, no squad-loss attrition path).
 
 ### Phase 5. Refactor API transport to project from canonical state
 

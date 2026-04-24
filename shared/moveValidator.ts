@@ -107,7 +107,6 @@ function getOccupantsAt(state: MoveValidationState, destination: HexPos, movingU
 			r: destination.r,
 			role: 'onion',
 			unitType: state.onion.type ?? 'TheOnion',
-			squads: 1,
 		})
 	}
 
@@ -121,7 +120,6 @@ function getOccupantsAt(state: MoveValidationState, destination: HexPos, movingU
 			r: defender.position.r,
 			role: 'defender',
 			unitType: defender.type,
-			squads: defender.squads,
 		})
 	}
 
@@ -195,7 +193,7 @@ export function validateMove(
 	const { unit, role } = resolved
 	const unitType = unit.type
 	const unitId = unit.id ?? command.unitId
-	const incomingSquads = unit.squads ?? 1
+	const incomingMembers = 1
 	if (unit.status !== 'operational') {
 		return { valid: false, code: 'UNIT_NOT_OPERATIONAL', error: getMoveFailureMessage('UNIT_NOT_OPERATIONAL') }
 	}
@@ -234,7 +232,7 @@ export function validateMove(
 		movingRole: role,
 		movingUnitType: unitType,
 		occupants,
-		incomingSquads,
+		incomingMembers,
 	})
 
 	if (stopFailure) {
@@ -263,7 +261,7 @@ export function validateMove(
 		movementAllowance,
 		movingRole: role,
 		movingUnitType: unitType,
-		incomingSquads,
+		incomingMembers,
 	})
 
 	if (!pathResult.found) {

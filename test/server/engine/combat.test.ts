@@ -230,13 +230,12 @@ describe('resolveCombatOutcome', () => {
     })
   })
 
-  it('resolves D against stacked Little Pigs as a squad loss', () => {
+  it('resolves D against Little Pigs as unit destruction in per-unit model', () => {
     const target = makeDefender({ type: 'LittlePigs', squads: 3 })
 
     expect(resolveCombatOutcome(target, 'D', 1)).toMatchObject({
-      effect: 'squad-loss',
+      effect: 'destroyed',
       targetId: target.id,
-      squadsLost: 1,
     })
   })
 
@@ -287,15 +286,14 @@ describe('applyDamage', () => {
   })
 
   describe('LittlePigs infantry', () => {
-    it('D result on multi-squad removes one squad', () => {
+    it('D result destroys the targeted Little Pigs unit', () => {
       const pigs = makeDefender({ type: 'LittlePigs', squads: 3 })
       const result = applyDamage(pigs, 'D', 1)
-      expect(result.squadsLost).toBe(1)
-      expect(pigs.squads).toBe(2)
-      expect(pigs.status).toBe('operational')
+      expect(result.squadsLost).toBeUndefined()
+      expect(pigs.status).toBe('destroyed')
     })
 
-    it('D result on last squad destroys the unit', () => {
+    it('D result destroys Little Pigs even when squads is 1', () => {
       const pigs = makeDefender({ type: 'LittlePigs', squads: 1 })
       applyDamage(pigs, 'D', 1)
       expect(pigs.status).toBe('destroyed')

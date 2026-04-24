@@ -607,6 +607,45 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
           ? 'defender'
           : null
 
+  const stackRosterSource = match.state.stackRoster ?? buildStackRosterFromUnits(
+    Object.values(match.state.defenders)
+      .filter((unit) => typeof unit.id === 'string')
+      .map((unit) => ({
+        id: unit.id as string,
+        type: unit.type,
+        position: unit.position,
+        status: unit.status,
+        friendlyName: unit.friendlyName,
+        squads: unit.squads,
+        weapons: unit.weapons,
+        targetRules: unit.targetRules,
+      })),
+  )
+
+  const stackRosterGroupsById = Object.fromEntries(
+    Object.entries(stackRosterSource.groupsById ?? {}).flatMap(([groupId, group]) => {
+      const maxStacks = getUnitDefinition(group.unitType)?.abilities.maxStacks ?? 1
+      if (maxStacks <= 1) {
+        return []
+      }
+
+      const unitIds = group.unitIds ?? (group.units ?? []).map((unit) => unit.id)
+      if (unitIds.length === 0) {
+        return []
+      }
+
+      return [[
+        groupId,
+        {
+          groupName: group.groupName,
+          unitType: group.unitType,
+          position: group.position,
+          unitIds,
+        },
+      ]]
+    }),
+  )
+
   return {
     gameId: match.gameId,
     scenarioId: match.scenarioId,
@@ -618,20 +657,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     players: match.players,
     state: {
       ...match.state,
-      stackRoster: match.state.stackRoster ?? buildStackRosterFromUnits(
-        Object.values(match.state.defenders)
-          .filter((unit) => typeof unit.id === 'string')
-          .map((unit) => ({
-            id: unit.id as string,
-            type: unit.type,
-            position: unit.position,
-            status: unit.status,
-            friendlyName: unit.friendlyName,
-            squads: unit.squads,
-            weapons: unit.weapons,
-            targetRules: unit.targetRules,
-          })),
-      ),
+      stackRoster: { groupsById: stackRosterGroupsById },
     },
     movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
     victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber),

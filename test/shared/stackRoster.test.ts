@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildStackGroupKey, buildStackRosterFromUnits, buildStackRosterIndex, validateStackRoster } from '#shared/stackRoster'
+import {
+	buildStackGroupKey,
+	buildStackRosterFromUnits,
+	buildStackRosterIndex,
+	expandStackRosterGroups,
+	mergeStackRosterGroups,
+	retireStackRosterGroup,
+	splitStackRosterGroup,
+	validateStackRoster,
+	validateStackRosterConsistency,
+} from '#shared/stackRoster'
 import type { StackRosterState } from '#shared/types/index'
 
 describe('stack roster', () => {
@@ -184,7 +194,7 @@ describe('stack roster', () => {
 			},
 		})
 		expect(roster.groupsById['LittlePigs:4,4']?.units).toHaveLength(2)
-		expect(roster.groupsById['LittlePigs:4,4']?.units.every((unit) => Object.hasOwn(unit, 'squads') === false)).toBe(true)
+		expect(roster.groupsById['LittlePigs:4,4']?.units?.every((unit) => Object.hasOwn(unit, 'squads') === false)).toBe(true)
 	})
 
 	it('throws when a roster group has the wrong json shape', () => {
@@ -249,5 +259,114 @@ describe('stack roster', () => {
 
 		expect(() => buildStackRosterIndex(unitIdsOnlyRoster)).not.toThrow()
 		expect(buildStackRosterIndex(unitIdsOnlyRoster).groupsById['LittlePigs:4,4']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
+	})
+
+	it('validates canonical consistency between defenders and group membership', () => {
+		const issues = validateStackRosterConsistency(
+			{
+				'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+				'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 4, r: 5 }, status: 'operational' },
+			},
+			{
+				groupsById: {
+					'a': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-1', 'missing-1', 'wolf-1'],
+					},
+					'b': {
+						groupName: 'Wolf group 1',
+						unitType: 'BigBadWolf',
+						position: { q: 4, r: 5 },
+						unitIds: ['wolf-1'],
+					},
+				},
+			},
+		)
+
+		expect(issues).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ code: 'GROUP_MEMBER_NOT_FOUND', groupId: 'a', unitId: 'missing-1' }),
+				expect.objectContaining({ code: 'GROUP_MEMBER_TYPE_MISMATCH', groupId: 'a', unitId: 'wolf-1' }),
+				expect.objectContaining({ code: 'GROUP_MEMBER_POSITION_MISMATCH', groupId: 'a', unitId: 'wolf-1' }),
+				expect.objectContaining({ code: 'MEMBER_IN_MULTIPLE_GROUPS', groupId: 'b', unitId: 'wolf-1' }),
+				expect.objectContaining({ code: 'NON_STACKABLE_GROUP', groupId: 'b' }),
+			]),
+		)
+	})
+
+	it('projects deterministic expanded unit detail from canonical defenders plus unitIds', () => {
+		const projected = expandStackRosterGroups(
+			{
+				'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+				'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'disabled', friendlyName: 'Little Pigs 2' },
+			},
+			{
+				groupsById: {
+					'g-1': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-2', 'missing-1', 'pigs-1'],
+					},
+				},
+			},
+		)
+
+		expect(projected.groupsById['g-1']).toEqual({
+			groupId: 'g-1',
+			groupName: 'Little Pigs group 1',
+			unitType: 'LittlePigs',
+			position: { q: 4, r: 4 },
+			unitIds: ['pigs-2', 'pigs-1'],
+			units: [
+				{ id: 'pigs-2', status: 'disabled', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined },
+				{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined },
+			],
+		})
+	})
+
+	it('merges, splits, and retires groups using canonical unitIds membership', () => {
+		const initialRoster: StackRosterState = {
+			groupsById: {
+				'g-a': {
+					groupName: 'Little Pigs group A',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+				'g-b': {
+					groupName: 'Little Pigs group B',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-3'],
+				},
+			},
+		}
+
+		const merged = mergeStackRosterGroups(initialRoster, 'g-a', ['g-b'])
+		expect(merged.groupsById['g-a']?.unitIds).toEqual(['pigs-1', 'pigs-2', 'pigs-3'])
+		expect(merged.groupsById['g-b']).toBeUndefined()
+
+		const split = splitStackRosterGroup(merged, {
+			groupId: 'g-a',
+			newGroupId: 'g-c',
+			newGroupName: 'Little Pigs group C',
+			movedUnitIds: ['pigs-2'],
+			newPosition: { q: 5, r: 4 },
+		})
+
+		expect(split.groupsById['g-a']?.unitIds).toEqual(['pigs-1', 'pigs-3'])
+		expect(split.groupsById['g-c']).toMatchObject({
+			groupName: 'Little Pigs group C',
+			unitType: 'LittlePigs',
+			position: { q: 5, r: 4 },
+			unitIds: ['pigs-2'],
+		})
+
+		const retired = retireStackRosterGroup(split, 'g-c')
+		expect(retired.groupsById['g-c']).toBeUndefined()
+		expect(retired.groupsById['g-a']?.unitIds).toEqual(['pigs-1', 'pigs-3'])
 	})
 })

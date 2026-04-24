@@ -160,7 +160,13 @@ describe('movePlanner error and edge cases', () => {
 		it('returns not found for Little Pigs stacking over limit', () => {
 			const map = {
 				...baseMap,
-				occupiedHexes: [{ q: 1, r: 1, role: 'defender', unitType: 'LittlePigs', squads: 2 }],
+				occupiedHexes: [
+					{ q: 1, r: 1, role: 'defender', unitType: 'LittlePigs' },
+					{ q: 1, r: 1, role: 'defender', unitType: 'LittlePigs' },
+					{ q: 1, r: 1, role: 'defender', unitType: 'LittlePigs' },
+					{ q: 1, r: 1, role: 'defender', unitType: 'LittlePigs' },
+					{ q: 1, r: 1, role: 'defender', unitType: 'LittlePigs' },
+				],
 			}
 			const result = findMovePath({
 				map,
@@ -169,7 +175,7 @@ describe('movePlanner error and edge cases', () => {
 				movementAllowance: 2,
 				movingRole: 'defender',
 				movingUnitType: 'LittlePigs',
-				incomingSquads: 2,
+				incomingMembers: 1,
 			})
 			expect(result.found).toBe(false)
 		})

@@ -93,7 +93,7 @@ describe('moveValidator', () => {
           position: { q: 0, r: 0 },
           status: 'operational',
           weapons: [],
-            squads: 3,
+          squads: 1,
         },
         'pigs-2': {
           id: 'pigs-2',
@@ -101,7 +101,39 @@ describe('moveValidator', () => {
           position: { q: 1, r: 0 },
           status: 'operational',
           weapons: [],
-            squads: 3,
+          squads: 1,
+        },
+        'pigs-3': {
+          id: 'pigs-3',
+          type: 'LittlePigs',
+          position: { q: 1, r: 0 },
+          status: 'operational',
+          weapons: [],
+          squads: 5,
+        },
+        'pigs-4': {
+          id: 'pigs-4',
+          type: 'LittlePigs',
+          position: { q: 1, r: 0 },
+          status: 'operational',
+          weapons: [],
+          squads: 7,
+        },
+        'pigs-5': {
+          id: 'pigs-5',
+          type: 'LittlePigs',
+          position: { q: 1, r: 0 },
+          status: 'operational',
+          weapons: [],
+          squads: 1,
+        },
+        'pigs-6': {
+          id: 'pigs-6',
+          type: 'LittlePigs',
+          position: { q: 1, r: 0 },
+          status: 'operational',
+          weapons: [],
+          squads: 2,
         },
       },
     })
@@ -142,6 +174,37 @@ describe('moveValidator', () => {
       valid: false,
       code: 'HEX_OCCUPIED',
       detailCode: 'mixed-stack',
+    })
+  })
+
+  it('ignores legacy squads magnitude when evaluating Little Pigs stack legality', () => {
+    const state = makeState({
+      defenders: {
+        'pigs-1': {
+          id: 'pigs-1',
+          type: 'LittlePigs',
+          position: { q: 0, r: 0 },
+          status: 'operational',
+          weapons: [],
+          squads: 1,
+        },
+        'pigs-2': {
+          id: 'pigs-2',
+          type: 'LittlePigs',
+          position: { q: 1, r: 0 },
+          status: 'operational',
+          weapons: [],
+          squads: 99,
+        },
+      },
+    })
+
+    const result = validateMove(map, state, move('pigs-1', { q: 1, r: 0 }))
+
+    expect(result).toMatchObject({
+      valid: true,
+      unitId: 'pigs-1',
+      to: { q: 1, r: 0 },
     })
   })
 
