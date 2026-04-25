@@ -415,3 +415,46 @@ Start with Phase 1 and Phase 2 in a narrow vertical cut:
 4. add helper tests for projecting `group.units` from canonical defenders plus `unitIds`
 
 This gives the refactor a stable foundation before movement, combat, API, and UI are migrated.
+
+## Bugs
+
+
+- ~~Map labels are showing each individual unit instead of the stack name~~ **[CLOSED]**
+  - **Root Cause:** Map overlays and other UI surfaces were using the individual unit's `friendlyName` or ID for display, not the stack/group label from `stackRoster`/`stackNaming`.
+  - **Fix:** All map overlays/tooltips now use `resolveBattlefieldStackLabel` with the correct group context. Group membership is resolved via `stackRoster` and the group label is used. Map now renders one icon per group, label is correct, and tests pass.
+
+---
+
+**Next recommended task:**
+
+Refactor right rail selection and action submission logic to use canonical group membership from `stackRoster.groupsById`.
+
+This will:
+- Fix selection bugs where the right rail does not select groups correctly.
+- Ensure action submission (e.g., move, attack) uses the correct group/unitIds.
+- Centralize all group/unit display and selection logic for maintainability.
+
+**Suggested steps:**
+1. Update right rail selection logic to use stackRoster group/unitIds.
+2. Refactor action submission to use canonical group membership.
+3. Add/expand tests for right rail selection and action submission.
+
+- When selecting a stack, the right rail selector buttons for Select All and Clear, or attempting to toggle any unit, clears the box and the stack selection
+  - **Root Cause:** The right rail stack selection logic is not correctly tracking group membership or is resetting selection state on any change. Selection logic may use unit IDs directly, not canonical group/unitIds from `stackRoster`.
+  - **Fix Guidance:** Refactor right rail selection logic to use canonical group membership from `stackRoster.groupsById`. Toggling a unit in a stack should only update selection for that group. "Select All" and "Clear" should operate on the group’s `unitIds` array.
+
+- When submitting either a move or combat for a stack, nothing happens except clearing the selection. Nothing shows up in the debug or is sent to the server
+  - **Root Cause:** The action submission handler is not correctly building the action payload from the selected stack/group. If selection state is not using correct unit IDs (from `stackRoster`), the action may be empty/invalid, resulting in no-op.
+  - **Fix Guidance:** Ensure move/combat submission code collects selected unit IDs from the current group (using `stackRoster`). Validate that the action payload is non-empty and matches the expected contract before sending. Add debug logging before submission to verify the payload.
+
+- left rail attack select for shows both a group of 3 and a group of 2 with an attack of '011'
+  - **Root Cause:** Left rail grouping logic is using position/type clustering or stale logic, not canonical `stackRoster`. Attack values may be concatenated or miscomputed if the group is not resolved properly.
+  - **Fix Guidance:** Refactor left rail to use `stackRoster.groupsById` for grouping, not just co-located units. For each group, sum or otherwise correctly compute the attack value based on group membership, not by string concatenation.
+
+- when a stack is selected for combat, in the right rail confirmation box it shows the attack strength squared? Group of 2 is attack 4, group of 3 is attack 9
+  - **Root Cause:** Attack strength is being calculated as `baseAttack * stackSize` where `baseAttack` is already the sum for the group, or the logic is multiplying instead of summing.
+  - **Fix Guidance:** Ensure attack strength is calculated as the sum of each member's attack, not as `baseAttack * stackSize`. Audit the code path for attack strength in both rails and confirmation to ensure it uses the correct aggregation.
+
+- during DEFENDER_COMBAT, for Onion player they see the populated left rail attackers list, which behaves mostly like the defender's screen. A selected unit does not show up in the inspector
+  - **Root Cause:** Left rail is not filtering/hiding the attacker list for Onion player during DEFENDER_COMBAT. Inspector logic may be tied to the wrong selection state or not updating for Onion units.
+  - **Fix Guidance:** Add a role/phase check to hide/disable the left rail attacker list for Onion during DEFENDER_COMBAT. Ensure the inspector updates for Onion units when selected, and that selection state is not being overridden by defender logic.
