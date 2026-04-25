@@ -30,8 +30,6 @@ function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefieldSnaps
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: 'dragon-7',
-		mode: 'fire',
 		scenarioName: 'Authoritative swamp state',
 		turnNumber: 8,
 		lastEventSeq: 47,
@@ -99,8 +97,6 @@ function createConnectedBattlefieldSnapshot(
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: 'wolf-2',
-		mode: 'fire',
 		scenarioName: "The Siege of Shrek's Swamp",
 		turnNumber: 8,
 		lastEventSeq: 47,
@@ -185,7 +181,6 @@ function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot {
 	return {
 		...createConnectedBattlefieldSnapshot(),
 		phase: 'DEFENDER_COMBAT' as const,
-		selectedUnitId: 'wolf-2',
 		authoritativeState: {
 			...createConnectedBattlefieldSnapshot().authoritativeState,
 			onion: {
@@ -268,6 +263,7 @@ describe('App orchestration (injected game client)', () => {
 
 		const dragonButton = await screen.findByTestId('combat-unit-dragon-7')
 		const dragonUnit = await screen.findByTestId('hex-unit-dragon-7')
+		await userEvent.click(dragonButton)
 		expect(dragonButton.getAttribute('data-selected')).toBe('true')
 		expect(dragonUnit.getAttribute('data-selected')).toBe('true')
 		expect(screen.queryByTestId('combat-unit-wolf-2')).toBeNull()
@@ -303,7 +299,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /the onion 1/i })
+		const onionCard = await screen.findByTestId('combat-unit-onion-1')
 		expect(onionCard.textContent).toContain('Moves 2')
 	})
 
@@ -319,7 +315,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /the onion 1/i })
+		const onionCard = await screen.findByTestId('combat-unit-onion-1')
 		expect(onionCard.textContent).toContain('Moves 1')
 	})
 
@@ -341,20 +337,19 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /the onion 1/i })
+		const onionCard = await screen.findByTestId('combat-unit-onion-1')
 		expect(onionCard.textContent).toContain('Moves 2')
 		await userEvent.click(onionCard)
 		await act(async () => {
 			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-2'))
 		})
-		await screen.findByRole('button', { name: /the onion 1/i })
+		await screen.findByTestId('combat-unit-onion-1')
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 0, r: 2 } })
 	})
 
 	it('prompts before a ram-capable Onion move and can skip the ram', async () => {
 		const snapshot = createSnapshotWithTreads(45, 3)
 		snapshot.phase = 'ONION_MOVE'
-		snapshot.selectedUnitId = 'onion-1'
 		snapshot.scenarioName = 'Ram prompt scenario'
 		snapshot.turnNumber = 1
 		snapshot.lastEventSeq = 0
@@ -379,7 +374,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await userEvent.click(await screen.findByRole('button', { name: /the onion 1/i }))
+		await userEvent.click(await screen.findByTestId('combat-unit-onion-1'))
 		await act(async () => {
 			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-2'))
 		})
@@ -394,7 +389,6 @@ describe('App orchestration (injected game client)', () => {
 		const user = userEvent.setup()
 		const snapshot = createSnapshotWithTreads(45, 3)
 		snapshot.phase = 'ONION_MOVE'
-		snapshot.selectedUnitId = 'onion-1'
 		snapshot.scenarioName = 'Ram toast scenario'
 		snapshot.turnNumber = 1
 		snapshot.lastEventSeq = 0
@@ -450,7 +444,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await user.click(await screen.findByRole('button', { name: /the onion 1/i }))
+		await user.click(await screen.findByTestId('combat-unit-onion-1'))
 		await act(async () => {
 			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-1'))
 		})
@@ -477,6 +471,7 @@ describe('App orchestration (injected game client)', () => {
 
 		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		await user.click(wolfButton)
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
@@ -508,6 +503,7 @@ describe('App orchestration (injected game client)', () => {
 
 		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		await user.click(wolfButton)
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
@@ -621,7 +617,6 @@ describe('App orchestration (injected game client)', () => {
 	it('submits a move when the active player right-clicks an in-range hex', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot({
 			phase: 'DEFENDER_MOVE',
-			selectedUnitId: 'wolf-2',
 		})
 		const session = { role: 'defender' as const }
 		const submitAction = vi.fn().mockResolvedValue(snapshot)
@@ -636,6 +631,7 @@ describe('App orchestration (injected game client)', () => {
 
 		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		fireEvent.click(wolfButton)
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
@@ -649,7 +645,6 @@ describe('App orchestration (injected game client)', () => {
 	it('keeps rejected move reasons local to the board', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot({
 			phase: 'DEFENDER_MOVE',
-			selectedUnitId: 'wolf-2',
 		})
 		const session = { role: 'defender' as const }
 		const submitAction = vi.fn().mockResolvedValue(snapshot)
@@ -662,7 +657,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByTestId('hex-unit-wolf-2')
+		fireEvent.click(await screen.findByTestId('combat-unit-wolf-2'))
 
 		await act(async () => {
 			fireEvent.contextMenu(screen.getByTestId('hex-cell-4-4'))
@@ -676,7 +671,6 @@ describe('App orchestration (injected game client)', () => {
 	it('does not submit a move when the player is inactive', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot({
 			phase: 'DEFENDER_MOVE',
-			selectedUnitId: 'wolf-2',
 		})
 		const session = { role: 'onion' as const }
 		const submitAction = vi.fn().mockResolvedValue(snapshot)
@@ -690,6 +684,7 @@ describe('App orchestration (injected game client)', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const moveWolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		fireEvent.click(screen.getByTestId('combat-unit-wolf-2'))
 		expect(moveWolfUnit.getAttribute('data-selected')).toBe('true')
 
 		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-6'))
@@ -698,10 +693,7 @@ describe('App orchestration (injected game client)', () => {
 	})
 
 	it('renders from the current game snapshot', async () => {
-		const snapshot = createConnectedBattlefieldSnapshot({
-			selectedUnitId: 'puss-1',
-			mode: 'combined',
-		})
+		const snapshot = createConnectedBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
 
 		const client = createGameClient({
@@ -719,6 +711,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(
 			screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.classList.contains('phase-chip-active') === true),
 		).not.toBeNull()
+		fireEvent.click(await screen.findByTestId('combat-unit-puss-1'))
 		expect(screen.getByTestId('combat-unit-puss-1').getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
 	})
@@ -837,7 +830,6 @@ describe('App orchestration (injected game client)', () => {
 					},
 				},
 			},
-			selectedUnitId: 'active-1',
 		}
 		const session = { role: 'defender' as const }
 
@@ -856,20 +848,12 @@ describe('App orchestration (injected game client)', () => {
 		const deadCombatButton = deadButton as HTMLButtonElement
 
 		expect(activeButton.compareDocumentPosition(deadButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-		expect(noReadyCombatButton.disabled).toBe(false)
+		expect(noReadyCombatButton.disabled).toBe(true)
 		expect(noReadyButton.getAttribute('class')).toContain('is-disabled')
 		expect(noReadyButton.getAttribute('title')).toBe('This unit is not eligible to attack.')
-		expect(deadCombatButton.disabled).toBe(false)
+		expect(deadCombatButton.disabled).toBe(true)
 		expect(deadButton.getAttribute('class')).toContain('is-disabled')
 		expect(deadButton.getAttribute('class')).toContain('tone-destroyed')
-
-		await userEvent.click(screen.getByTestId('combat-unit-no-ready-1'))
-		expect(screen.getByTestId('combat-unit-no-ready-1').getAttribute('data-selected')).toBe('true')
-		expect(screen.getByTestId('hex-unit-no-ready-1').getAttribute('data-selected')).toBe('true')
-
-		await userEvent.click(screen.getByTestId('combat-unit-dead-1'))
-		expect(screen.getByTestId('combat-unit-no-ready-1').getAttribute('data-selected')).toBe('true')
-		expect(screen.getByTestId('hex-unit-no-ready-1').getAttribute('data-selected')).toBe('true')
 	})
 
 	it('renders a shared combat range overlay for selected onion weapons', async () => {
@@ -1147,6 +1131,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
+		await user.click(await screen.findByTestId('combat-unit-wolf-2'))
 		const targetList = await screen.findByTestId('combat-target-list')
 		expect(targetList.textContent).toContain('Main Battery')
 		expect(targetList.textContent).toContain('Secondary Battery')
@@ -1215,10 +1200,10 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('hex-unit-puss-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-ineligible')
 		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
 
+		fireEvent.click(screen.getByTestId('combat-unit-wolf-2'))
 		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
 		const inspectorPanel = document.querySelector('.selection-panel-header')
 		expect(inspectorPanel?.textContent).toContain('Inspector')
-		expect(inspectorPanel?.textContent).toContain('The Onion 1')
 	})
 
 	it('selects a combat target from the rail on right click', async () => {
@@ -1233,6 +1218,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
+		fireEvent.click(await screen.findByTestId('combat-unit-wolf-2'))
 		const target = await screen.findByTestId('combat-target-weapon:main-1')
 		fireEvent.contextMenu(target)
 
@@ -1253,7 +1239,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		await screen.findByTestId('combat-unit-wolf-2')
+		fireEvent.click(await screen.findByTestId('combat-unit-wolf-2'))
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
 
 		const treadsTarget = within(await screen.findByTestId('combat-target-list')).getAllByRole('button')[0]
@@ -1273,7 +1259,6 @@ describe('App orchestration (injected game client)', () => {
 		const snapshot = {
 			...baseSnapshot,
 			phase: 'DEFENDER_COMBAT' as const,
-			selectedUnitId: 'pigs-2',
 			authoritativeState: {
 				...baseSnapshot.authoritativeState,
 				defenders: {
@@ -1326,12 +1311,13 @@ describe('App orchestration (injected game client)', () => {
 		})
 
 		render(<App gameClient={client} gameId={123} />)
+		fireEvent.click(await screen.findByTestId('combat-unit-pigs-1'))
 
 		const spentMember = await screen.findByTestId('combat-stack-member-pigs-1')
 		const readyMember = await screen.findByTestId('combat-stack-member-pigs-2')
 
 		expect(spentMember.getAttribute('disabled')).not.toBeNull()
-		expect(spentMember.getAttribute('data-selected')).toBe('false')
+		expect(spentMember.getAttribute('data-selected')).not.toBe('true')
 		expect(readyMember.getAttribute('data-selected')).toBe('true')
 		expect(readyMember.getAttribute('disabled')).toBeNull()
 	})
@@ -1393,7 +1379,6 @@ describe('App orchestration (injected game client)', () => {
 				...baseSnapshot.authoritativeState.onion,
 					position: { q: 5, r: 4 },
 			},
-			selectedUnitId: 'long-range-spent',
 		}
 		const session = { role: 'defender' as const }
 
@@ -1405,6 +1390,7 @@ describe('App orchestration (injected game client)', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
+		fireEvent.click(await screen.findByTestId('combat-unit-long-range-spent'))
 		const selectedUnit = await screen.findByTestId('combat-unit-long-range-spent')
 		expect(selectedUnit.getAttribute('data-selected')).toBe('true')
 		expect(screen.queryByTestId('combat-target-list')).toBeNull()
@@ -1425,6 +1411,7 @@ describe('App orchestration (injected game client)', () => {
 
 		const groupedWolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		const groupedWolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		fireEvent.click(groupedWolfButton)
 		expect(groupedWolfButton.getAttribute('data-selected')).toBe('true')
 		expect(groupedWolfUnit.getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 4')

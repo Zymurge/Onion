@@ -159,22 +159,6 @@ export function useBattlefieldInteractionState({
     }
   }, [clientSnapshot, clientSnapshotPhase])
 
-  useEffect(() => {
-    if (clientSnapshot === null) {
-      return
-    }
-
-    if (!hasExplicitSelection && selectedUnitIds === null && clientSnapshot.selectedUnitId) {
-      setSelectedUnitIds(
-        resolveBattlefieldStackSelectionIds(clientSnapshot.authoritativeState ?? null, clientSnapshot.selectedUnitId),
-      )
-    }
-
-    if (clientSnapshot.mode === 'fire' || clientSnapshot.mode === 'combined' || clientSnapshot.mode === 'end-phase') {
-      setActiveMode(clientSnapshot.mode)
-    }
-  }, [clientSnapshot, hasExplicitSelection, selectedUnitIds])
-
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeSessionController === null) {
       debugLog('commitClientAction skipped', {

@@ -15,8 +15,6 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: 'dragon-7',
-		mode: 'fire',
 		scenarioName: 'Fake Test Scenario',
 		turnNumber: 1,
 		lastEventSeq: 1,
@@ -62,7 +60,6 @@ function createAppShellSnapshot(): GameSnapshot & {
 			phase: 'DEFENDER_COMBAT',
 			lastEventSeq: 80,
 			scenarioName: 'App shell baseline snapshot',
-			selectedUnitId: 'wolf-2',
 		}),
 		authoritativeState: {
 			onion: {
@@ -289,7 +286,7 @@ describe('App fake backend vertical slice', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const selectedUnit = await screen.findByTestId('hex-unit-wolf-2')
-		expect(selectedUnit.getAttribute('data-selected')).toBe('true')
+		expect(selectedUnit.getAttribute('data-selected')).toBe('false')
 
 		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
 		await user.click(screen.getByRole('button', { name: /advance phase/i }))

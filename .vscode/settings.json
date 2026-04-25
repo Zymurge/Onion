@@ -24,7 +24,8 @@
         "git merge": true,
         "npx vitest": true,
         "npx tsc": true,
-        "docker exec": true
+        "docker exec": true,
+        "awk": true
     },
     "github.copilot.chat.cli.forkSessions.enabled": true,
     "npm.scriptRunner": "pnpm"

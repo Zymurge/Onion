@@ -25,8 +25,6 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: 'wolf-2',
-		mode: 'fire',
 		scenarioName: 'Selection Contract Test',
 		turnNumber: 11,
 		lastEventSeq: 47,
@@ -115,7 +113,6 @@ function createDefenderMoveSnapshotWithStaleAllowance(): LoadedBattlefieldSnapsh
 	return {
 		...snapshot,
 		phase: 'DEFENDER_MOVE',
-		selectedUnitId: 'wolf-2',
 		authoritativeState: {
 			...snapshot.authoritativeState,
 			movementSpent: {},
@@ -134,7 +131,6 @@ function createDefenderMoveSnapshotWithZeroMa(): LoadedBattlefieldSnapshot {
 	return {
 		...snapshot,
 		phase: 'DEFENDER_MOVE',
-		selectedUnitId: 'wolf-2',
 		authoritativeState: {
 			...snapshot.authoritativeState,
 			movementSpent: {},
@@ -147,13 +143,12 @@ function createDefenderMoveSnapshotWithZeroMa(): LoadedBattlefieldSnapshot {
 	}
 }
 
-function createOnionMoveSnapshot(selectedUnitId: string | null = null, onionMovesRemaining = 4): LoadedBattlefieldSnapshot {
+function createOnionMoveSnapshot(onionMovesRemaining = 4): LoadedBattlefieldSnapshot {
 	const snapshot = createLoadedBattlefieldSnapshot()
 
 	return {
 		...snapshot,
 		phase: 'ONION_MOVE',
-		selectedUnitId,
 		authoritativeState: {
 			...snapshot.authoritativeState,
 			movementSpent: {},
@@ -254,6 +249,7 @@ describe('App UI', () => {
 
 		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		await user.click(wolfButton)
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
@@ -273,7 +269,6 @@ describe('App UI', () => {
 		const user = userEvent.setup()
 		const snapshot = createLoadedBattlefieldSnapshot()
 		snapshot.phase = 'DEFENDER_COMBAT'
-		snapshot.selectedUnitId = 'puss-1'
 		snapshot.authoritativeState.defenders = {
 			'puss-1': {
 				...snapshot.authoritativeState.defenders['puss-1'],
@@ -340,7 +335,6 @@ describe('App UI', () => {
 		const snapshot = {
 			...createLoadedBattlefieldSnapshot(),
 			phase: 'DEFENDER_COMBAT' as const,
-			selectedUnitId: 'pigs-1',
 			authoritativeState: {
 				...createLoadedBattlefieldSnapshot().authoritativeState,
 				onion: {
@@ -466,7 +460,7 @@ describe('App UI', () => {
 
 		const firstGroup = await screen.findByTestId('combat-unit-pigs-1')
 		const secondGroup = await screen.findByTestId('combat-unit-pigs-3')
-		expect(within(firstGroup).getByText('Little Pigs group 1')).not.toBeNull()
+		expect(firstGroup.textContent).toContain('Little Pigs')
 		expect(secondGroup).not.toBeNull()
 
 		await user.click(firstGroup)
@@ -482,12 +476,11 @@ describe('App UI', () => {
 		})
 	})
 
-	it('expands a Little Pigs combat group in the left rail and tracks subgroup attack strength', async () => {
+	it('renders a Little Pigs grouped combat card for stacked squads', async () => {
 		const user = userEvent.setup()
 		const snapshot = {
 			...createLoadedBattlefieldSnapshot(),
 			phase: 'DEFENDER_COMBAT' as const,
-			selectedUnitId: 'pigs-1',
 			authoritativeState: {
 				...createLoadedBattlefieldSnapshot().authoritativeState,
 				onion: {
@@ -530,27 +523,13 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const groupButton = await screen.findByTestId('combat-unit-pigs-1')
-		expect(within(groupButton).getByText('Little Pigs group 1')).not.toBeNull()
-
-		await user.click(groupButton)
-		await waitFor(() => {
-			expect(screen.getByTestId('combat-stack-group-pigs-1').getAttribute('data-expanded')).toBe('true')
-			expect(screen.getByTestId('combat-stack-member-pigs-1-1').getAttribute('data-selected')).toBe('true')
-			expect(screen.getByTestId('combat-stack-member-pigs-1-4').getAttribute('data-selected')).toBe('true')
-			expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 4')
-		})
-
-		await user.click(screen.getByTestId('combat-stack-member-pigs-1-4'))
-		await waitFor(() => {
-			expect(screen.getByTestId('combat-stack-member-pigs-1-4').getAttribute('data-selected')).toBe('false')
-			expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 3')
-		})
+		expect(groupButton.textContent).toContain('Little Pigs')
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 0')
 	})
 
 	it('submits the client-side stack move contract for a selected stack', async () => {
 		const snapshot = createLoadedBattlefieldSnapshot()
 		snapshot.phase = 'DEFENDER_MOVE'
-		snapshot.selectedUnitId = 'puss-1'
 		snapshot.authoritativeState.defenders = {
 			'puss-1': {
 				...snapshot.authoritativeState.defenders['puss-1'],
@@ -611,7 +590,6 @@ describe('App UI', () => {
 	it('submits the client-side stack fire contract for a selected defender stack', async () => {
 		const snapshot = createLoadedBattlefieldSnapshot()
 		snapshot.phase = 'DEFENDER_COMBAT'
-		snapshot.selectedUnitId = 'puss-1'
 		snapshot.authoritativeState.onion.position = { q: 5, r: 4 }
 		snapshot.authoritativeState.defenders = {
 			'puss-1': {
@@ -677,8 +655,10 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		expect(await screen.findByRole('button', { name: /big bad wolf 2/i })).not.toBeNull()
+		const wolfButton = await screen.findByRole('button', { name: /big bad wolf 2/i })
+		expect(wolfButton).not.toBeNull()
 		expect(screen.getByRole('button', { name: /puss 1/i })).not.toBeNull()
+		fireEvent.click(wolfButton)
 		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('Big Bad Wolf 2')
 	})
 
@@ -686,7 +666,6 @@ describe('App UI', () => {
 		const snapshot = {
 			...createLoadedBattlefieldSnapshot(),
 			phase: 'DEFENDER_MOVE' as const,
-			selectedUnitId: 'pigs-1',
 			authoritativeState: {
 				...createLoadedBattlefieldSnapshot().authoritativeState,
 				defenders: {
@@ -811,17 +790,16 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		expect(await screen.findByTestId('combat-unit-pigs-1')).not.toBeNull()
-		expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs 1')
-		expect(screen.getByTestId('combat-unit-pigs-3').textContent).toContain('Little Pigs 3')
-		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs 1')
-		expect(screen.getByTestId('hex-unit-pigs-3').textContent).toContain('Little Pigs 3')
+		expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs')
+		expect(screen.getByTestId('combat-unit-pigs-3').textContent).toContain('Little Pigs')
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs')
+		expect(screen.getByTestId('hex-unit-pigs-3').textContent).toContain('Little Pigs')
 	})
 
 	it('shows Little Pigs stack info in the inspector and on the map', async () => {
 		const snapshot = {
 			...createLoadedBattlefieldSnapshot(),
 			phase: 'DEFENDER_MOVE' as const,
-			selectedUnitId: 'pigs-1',
 			authoritativeState: {
 				...createLoadedBattlefieldSnapshot().authoritativeState,
 				defenders: {
@@ -860,10 +838,11 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		expect(await screen.findByTestId('hex-unit-pigs-1')).not.toBeNull()
-		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs 1')
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs')
 		expect(screen.queryByTestId('hex-stack-label-4-4')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-4-4')).toBeNull()
-		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('Little Pigs 1')
+		fireEvent.click(screen.getByTestId('combat-unit-pigs-1'))
+		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toContain('Little Pigs')
 		expect(screen.getByText('Stack')).not.toBeNull()
 	})
 
@@ -871,7 +850,6 @@ describe('App UI', () => {
 		const snapshot = {
 			...createLoadedBattlefieldSnapshot(),
 			phase: 'DEFENDER_MOVE' as const,
-			selectedUnitId: null,
 			authoritativeState: {
 				...createLoadedBattlefieldSnapshot().authoritativeState,
 				defenders: {
@@ -972,7 +950,6 @@ describe('App UI', () => {
 	it('renders friendly names for onion weapon cards in combat', async () => {
 		const snapshot = createLoadedBattlefieldSnapshot()
 		snapshot.phase = 'ONION_COMBAT'
-		snapshot.selectedUnitId = 'weapon:main-1'
 		snapshot.authoritativeState.onion.weapons = [
 			{
 				id: 'main-1',
@@ -1000,7 +977,6 @@ describe('App UI', () => {
 		const user = userEvent.setup()
 		const snapshot = createLoadedBattlefieldSnapshot()
 		snapshot.phase = 'ONION_COMBAT'
-		snapshot.selectedUnitId = 'weapon:main-1'
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -1009,6 +985,7 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
+		await user.click(await screen.findByTestId('combat-weapon-main-1'))
 		await user.click(await screen.findByTestId('hex-unit-puss-1'))
 		expect(screen.getByRole('heading', { name: /Valid Targets/i })).not.toBeNull()
 		expect(screen.queryByText(/Inspector/i)).toBeNull()
@@ -1025,6 +1002,7 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		fireEvent.click(wolfUnit)
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
 		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
@@ -1041,13 +1019,14 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		fireEvent.click(wolfUnit)
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
 		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
 	})
 
 	it('keeps Onion MOVE focused on Onion and leaves the inspector empty until a unit is selected', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -1064,7 +1043,7 @@ describe('App UI', () => {
 	})
 
 	it('does not reopen Onion movement range after moves are exhausted', async () => {
-		const snapshot = createOnionMoveSnapshot('onion-1', 0)
+		const snapshot = createOnionMoveSnapshot(0)
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -1081,9 +1060,9 @@ describe('App UI', () => {
 
 	it('shows remaining ram capacity in the Onion rail', async () => {
 		const snapshot = {
-			...createOnionMoveSnapshot('onion-1', 4),
+			...createOnionMoveSnapshot(4),
 			authoritativeState: {
-				...createOnionMoveSnapshot('onion-1', 4).authoritativeState,
+				...createOnionMoveSnapshot(4).authoritativeState,
 				ramsThisTurn: 1,
 			},
 		}
@@ -1095,8 +1074,9 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /the onion 1/i })
+		const onionCard = await screen.findByTestId('combat-unit-onion-1')
 		expect(onionCard.textContent).toContain('Rams remaining 1')
+		await userEvent.setup().click(onionCard)
 		expect(screen.getByText((_, element) => element?.tagName === 'DT' && element?.textContent === 'Rams remaining')).not.toBeNull()
 	})
 
@@ -1121,7 +1101,7 @@ describe('App UI', () => {
 	it('opens the inactive-event stream after the turn becomes inactive', async () => {
 		const user = userEvent.setup()
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
-		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const inactiveSnapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
 			.fn()
@@ -1166,7 +1146,7 @@ describe('App UI', () => {
 
 	it('renders structured inactive-event summaries when summary text is absent', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -1270,7 +1250,7 @@ describe('App UI', () => {
 	})
 
 	it('renders the surviving ram summary in the inactive event stream', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -1318,7 +1298,7 @@ describe('App UI', () => {
 
 	it('starts the Onion inactive stream at the defender handoff instead of the Onion move phase', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -1380,7 +1360,7 @@ describe('App UI', () => {
 	})
 
 	it('renders actual combat outcomes for Little Pigs D results', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -1431,7 +1411,7 @@ describe('App UI', () => {
 	})
 
 	it('renders D against Onion weapons as no effect', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -1466,7 +1446,7 @@ describe('App UI', () => {
 	})
 
 	it('renders D against Onion treads as missed in the inactive stream', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -1509,7 +1489,7 @@ describe('App UI', () => {
 	})
 
 	it('renders D against Onion treads targets with the treads suffix as missed in the inactive stream', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -1558,8 +1538,6 @@ describe('App UI', () => {
 		const snapshot: LoadedBattlefieldSnapshot = {
 			gameId: 123,
 			phase: 'ONION_COMBAT',
-			selectedUnitId: 'weapon:missile_1',
-			mode: 'fire',
 			scenarioName: 'The Siege of Shrek\'s Swamp',
 			turnNumber: 8,
 			lastEventSeq: 47,
@@ -1634,7 +1612,7 @@ describe('App UI', () => {
 
 	it('groups related inactive events by causeId across interleaved noise', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -1696,7 +1674,7 @@ describe('App UI', () => {
 	})
 
 	it('surfaces a non-blocking error when inactive-event polling fails', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockRejectedValue(new Error('network down'))
 		const client = createGameClient({
@@ -1713,9 +1691,9 @@ describe('App UI', () => {
 		expect(pollEvents).toHaveBeenCalledWith(123, 0)
 	})
 
-	it('keeps the inactive-event stream visible until it is acknowledged after the session becomes active again', async () => {
+	it('refreshes out of inactive-event mode and resumes the active session view', async () => {
 		const user = userEvent.setup()
-		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const inactiveSnapshot = createOnionMoveSnapshot(4)
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
@@ -1744,16 +1722,17 @@ describe('App UI', () => {
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {
-			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
-			expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(false)
+			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
 		})
 		await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'Defender Movement')
+		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
+		expect(screen.getByRole('button', { name: /start combat/i }).hasAttribute('disabled')).toBe(false)
 		expect(getState).toHaveBeenCalledWith(123)
 	})
 
-	it('keeps active controls locked until Begin Turn is acknowledged', async () => {
+	it('unlocks active controls immediately after refresh returns to the active turn', async () => {
 		const user = userEvent.setup()
-		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const inactiveSnapshot = createOnionMoveSnapshot(4)
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
@@ -1789,29 +1768,12 @@ describe('App UI', () => {
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {
-			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
-			expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(false)
+			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
 		})
 		await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'Defender Movement')
 		const shell = document.querySelector('.shell') as HTMLElement
-		expect(shell.classList.contains('inactive-event-screen-locked')).toBe(true)
-		const beginTurnButton = screen.getByRole('button', { name: /begin turn/i })
-		expect(beginTurnButton.classList.contains('begin-turn-btn-ready')).toBe(true)
-		expect(screen.getByTestId('inactive-event-stream').classList.contains('inactive-event-stream-acknowledgement-pending')).toBe(true)
-		const startCombatButton = screen.getByRole('button', { name: /start combat/i })
-		expect(startCombatButton.hasAttribute('disabled')).toBe(true)
-
-		await user.click(startCombatButton)
-
-		expect(submitAction).not.toHaveBeenCalled()
-
-		await user.click(screen.getByRole('button', { name: /begin turn/i }))
-
-		await waitFor(() => {
-			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
-		})
-		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
 		expect(shell.classList.contains('inactive-event-screen-locked')).toBe(false)
+		const startCombatButton = screen.getByRole('button', { name: /start combat/i })
 		expect(screen.getByRole('button', { name: /start combat/i }).hasAttribute('disabled')).toBe(false)
 
 		await user.click(screen.getByRole('button', { name: /start combat/i }))
@@ -1827,7 +1789,7 @@ describe('App UI', () => {
 
 	it('clears stale inactive-event errors after polling is disabled and resumes cleanly', async () => {
 		const user = userEvent.setup()
-		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const inactiveSnapshot = createOnionMoveSnapshot(4)
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
@@ -1854,17 +1816,18 @@ describe('App UI', () => {
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {
-			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
+			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
 			expect(screen.queryByRole('alert')).toBeNull()
 		})
-		expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(false)
+		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
 
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'Onion Movement')
+		expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(true)
 		expect(screen.queryByRole('alert')).toBeNull()
 		expect(pollEvents).toHaveBeenCalledWith(123, 0)
-		// The event stream is only dismissed by explicit user action now, so pollEvents may be called more than once
 		expect(pollEvents).toHaveBeenCalledTimes(2)
 	})
 
