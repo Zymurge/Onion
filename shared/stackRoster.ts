@@ -210,6 +210,7 @@ export function validateStackRoster(stackRoster: StackRosterState | undefined): 
 export function buildStackRosterIndex(stackRoster: StackRosterState | undefined): StackRosterIndex {
 	const groupsById: Record<string, StackRosterGroupView> = {}
 	const unitsById: Record<string, StackRosterUnitView> = {}
+	const groupIdsByUnitId = new Map<string, string>()
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		const normalizedGroup = normalizeStackRosterGroup(groupId, group)
@@ -229,8 +230,13 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 			}
 
 			unitsById[unit.id] = unitView
+			groupIdsByUnitId.set(unit.id, groupId)
 			return unitView
 		})
+
+		for (const unitId of normalizedGroup.unitIds ?? []) {
+			groupIdsByUnitId.set(unitId, groupId)
+		}
 
 		groupsById[groupId] = {
 			...normalizedGroup,
@@ -248,12 +254,12 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 			return groupsById[groupId]?.units ?? []
 		},
 		getUnitGroup(unitId: string) {
-			const unit = unitsById[unitId]
-			if (unit === undefined) {
+			const groupId = groupIdsByUnitId.get(unitId)
+			if (groupId === undefined) {
 				return null
 			}
 
-			return groupsById[unit.groupId] ?? null
+			return groupsById[groupId] ?? null
 		},
 	}
 }

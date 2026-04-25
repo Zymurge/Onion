@@ -1,7 +1,7 @@
 import { CombatConfirmationView } from './CombatConfirmationView'
 import { CombatTargetList } from './CombatTargetList'
 import { InactiveEventStream } from './InactiveEventStream'
-import { parseAttackStats, parseWeaponStats } from '../lib/appViewHelpers'
+import { parseAttackStats, parseWeaponStats, resolveBattlefieldUnitName } from '../lib/appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
@@ -27,11 +27,13 @@ type BattlefieldRightRailProps = {
   selectedCombatAttackStrength: number
   selectedCombatTarget: CombatTargetOption | null
   selectedCombatTargetId: string | null
-  displayedDefenders: ReadonlyArray<BattlefieldUnit>
-  displayedOnion: BattlefieldOnionView | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
-  selectedStackUnitIds: string[]
+  rightRailStackPanel: {
+    isVisible: boolean
+    selectedStackMembers: ReadonlyArray<BattlefieldUnit | BattlefieldOnionView>
+    selectedStackSelectionCount: number
+  }
   victoryObjectives: ReadonlyArray<VictoryObjectiveState>
   escapeHexes: ReadonlyArray<VictoryEscapeHex>
   inactiveEventStream: {
@@ -65,11 +67,9 @@ export function BattlefieldRightRail({
   selectedCombatAttackStrength,
   selectedCombatTarget,
   selectedCombatTargetId,
-  displayedDefenders,
-  displayedOnion,
   selectedInspectorDefender,
   selectedInspectorOnion,
-  selectedStackUnitIds,
+  rightRailStackPanel,
   victoryObjectives,
   escapeHexes,
   inactiveEventStream,
@@ -81,33 +81,17 @@ export function BattlefieldRightRail({
   onSelectUnit,
   onDeselect,
 }: BattlefieldRightRailProps) {
-  const inspectedStackUnitIds = selectedInspectorDefender === null
-    ? []
-    : displayedDefenders
-      .filter((unit) => unit.status !== 'destroyed' && unit.type === selectedInspectorDefender.type && unit.q === selectedInspectorDefender.q && unit.r === selectedInspectorDefender.r)
-      .map((unit) => unit.id)
-  const stackPanelUnitIds = selectedStackUnitIds.length > 1 ? selectedStackUnitIds : inspectedStackUnitIds
-
-  const selectedStackMembers = stackPanelUnitIds
-    .map((unitId) => (
-      displayedOnion !== null && displayedOnion.id === unitId
-        ? displayedOnion
-        : displayedDefenders.find((unit) => unit.id === unitId) ?? null
-    ))
-    .filter((unit): unit is BattlefieldOnionView | BattlefieldUnit => unit !== null)
-  const selectedStackSelectionCount = stackPanelUnitIds.filter((unitId) => activeSelectedUnitIds.includes(unitId)).length
-
-  const stackSelectionPanel = selectedStackMembers.length > 1 && !(isCombatPhase && activeCombatRole === 'defender') ? (
+  const stackSelectionPanel = rightRailStackPanel.isVisible ? (
     <section className="selection-panel panel-subtle">
       <div className="selection-panel-header">
         <div>
           <p className="eyebrow">Stack</p>
           <h2>Choose units</h2>
         </div>
-        <span className="mini-tag">{selectedStackSelectionCount}/{selectedStackMembers.length}</span>
+        <span className="mini-tag">{rightRailStackPanel.selectedStackSelectionCount}/{rightRailStackPanel.selectedStackMembers.length}</span>
       </div>
       <div className="attacker-selection-list stack-selection-list">
-        {selectedStackMembers.map((unit) => {
+        {rightRailStackPanel.selectedStackMembers.map((unit) => {
           const isSelected = activeSelectedUnitIds.includes(unit.id)
           return (
             <button
@@ -120,7 +104,7 @@ export function BattlefieldRightRail({
               data-testid={`stack-member-${unit.id}`}
               onClick={() => onSelectUnit(unit.id, true)}
             >
-              <div className="weapon-card-name">{unit.friendlyName ?? unit.type}</div>
+              <div className="weapon-card-name">{resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)}</div>
               <div className="weapon-card-stats">Toggle in stack</div>
             </button>
           )
@@ -131,7 +115,7 @@ export function BattlefieldRightRail({
           type="button"
           className="combat-confirm-button"
           disabled={isInteractionLocked}
-          onClick={() => onSelectUnit(selectedStackMembers[0].id, false)}
+          onClick={() => onSelectUnit(rightRailStackPanel.selectedStackMembers[0].id, false)}
         >
           Select all
         </button>
@@ -205,7 +189,7 @@ export function BattlefieldRightRail({
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>
-              <h2>{selectedInspectorOnion.friendlyName ?? selectedInspectorOnion.type}</h2>
+              <h2>{resolveBattlefieldUnitName(selectedInspectorOnion.type, selectedInspectorOnion.id, selectedInspectorOnion.friendlyName)}</h2>
             </div>
             <span className="mini-tag">Selected</span>
           </div>
@@ -278,7 +262,7 @@ export function BattlefieldRightRail({
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>
-              <h2>{selectedInspectorDefender.friendlyName ?? selectedInspectorDefender.type}</h2>
+              <h2>{resolveBattlefieldUnitName(selectedInspectorDefender.type, selectedInspectorDefender.id, selectedInspectorDefender.friendlyName)}</h2>
             </div>
             <span className="mini-tag">Selected</span>
           </div>

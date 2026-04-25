@@ -142,4 +142,42 @@ describe('normalizeInitialStateToGameState', () => {
     expect(pigGroups[0]?.unitIds).toHaveLength(3)
     expect((pigGroups[0]?.unitIds ?? []).every((unitId) => gameState.defenders[unitId] !== undefined)).toBe(true)
   })
+
+  it('assigns Little Pigs ids and friendly names from a single ordinal sequence across stack groups', () => {
+    const groupedInitialState = {
+      onion: validInitialState.onion,
+      defenders: {
+        'pigs-stack-1': {
+          kind: 'stack-group',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 7 },
+          count: 2,
+          status: 'operational',
+        },
+        'pigs-stack-2': {
+          kind: 'stack-group',
+          unitType: 'LittlePigs',
+          position: { q: 5, r: 7 },
+          count: 3,
+          status: 'operational',
+        },
+      },
+    }
+
+    const parsed = InitialStateSchema.parse(groupedInitialState as unknown as object)
+    const gameState = normalizeInitialStateToGameState(parsed)
+
+    expect(Object.keys(gameState.defenders).filter((unitId) => unitId.startsWith('pigs-'))).toEqual([
+      'pigs-1',
+      'pigs-2',
+      'pigs-3',
+      'pigs-4',
+      'pigs-5',
+    ])
+    expect(gameState.defenders['pigs-1'].friendlyName).toBe('Little Pigs 1')
+    expect(gameState.defenders['pigs-2'].friendlyName).toBe('Little Pigs 2')
+    expect(gameState.defenders['pigs-3'].friendlyName).toBe('Little Pigs 3')
+    expect(gameState.defenders['pigs-4'].friendlyName).toBe('Little Pigs 4')
+    expect(gameState.defenders['pigs-5'].friendlyName).toBe('Little Pigs 5')
+  })
 })

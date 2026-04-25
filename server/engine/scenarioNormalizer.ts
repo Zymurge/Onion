@@ -21,6 +21,10 @@ function isStackGroupEntry(entry: DefenderEntry): entry is DefenderStackGroupEnt
   return 'kind' in entry && entry.kind === 'stack-group'
 }
 
+function buildStackUnitIdBase(groupKey: string): string {
+  return groupKey.replace(/-(?:stack|group)-\d+$/i, '') || groupKey
+}
+
 /**
  * Normalize a scenario initialState into a valid EngineGameState.
  * Assumes initialState has already been validated by Zod.
@@ -56,6 +60,7 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
   const defenders: Record<string, DefenderUnit> = {}
   const stackRoster: StackRosterState = { groupsById: {} }
   const stackNamingEngine = createStackNamingEngine()
+  const nextStackUnitOrdinalByBase = new Map<string, number>()
 
   for (const [key, def] of Object.entries(initial.defenders) as Array<[string, DefenderEntry]>) {
     if (isStackGroupEntry(def)) {
@@ -66,8 +71,10 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
       }
 
       const unitIds: string[] = []
+      const unitIdBase = buildStackUnitIdBase(key)
+      const nextOrdinal = nextStackUnitOrdinalByBase.get(unitIdBase) ?? 0
       for (let index = 0; index < def.count; index += 1) {
-        const unitId = `${key}-${index + 1}`
+        const unitId = `${unitIdBase}-${nextOrdinal + index + 1}`
         unitIds.push(unitId)
         defenders[unitId] = {
           id: unitId,
@@ -81,6 +88,7 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
           })),
         }
       }
+      nextStackUnitOrdinalByBase.set(unitIdBase, nextOrdinal + def.count)
 
       const groupKey = buildStackGroupKey(def.unitType, def.position)
       const firstUnitFriendlyName = defenders[unitIds[0]]?.friendlyName

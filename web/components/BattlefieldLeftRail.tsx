@@ -5,7 +5,7 @@ import {
   countSelectedBattlefieldStackMembers,
   getBattlefieldStackSize,
   parseAttackStats,
-  resolveBattlefieldStackLabel,
+  resolveBattlefieldDisplayName,
   resolveBattlefieldUnitName,
   resolveBattlefieldWeaponName,
   resolveSelectionOwnerUnitId,
@@ -95,14 +95,14 @@ function buildDefenderCombatGroups(
     const isDestroyed = anchorUnit.status === 'destroyed'
     const baseAttackStats = parseAttackStats(anchorUnit.attack)
     const stackSize = rosterGroup !== null ? rosterGroup.units.length : units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
-    const label = resolveBattlefieldStackLabel(
-      anchorUnit.type,
-      anchorUnit.id,
-      anchorUnit.friendlyName,
-      stackSize,
-      rosterGroup?.groupKey ?? `${anchorUnit.type}:${anchorUnit.q},${anchorUnit.r}`,
-      stackNaming,
-    )
+    const label = resolveBattlefieldDisplayName({
+      id: anchorUnit.id,
+      type: anchorUnit.type,
+      q: anchorUnit.q,
+      r: anchorUnit.r,
+      friendlyName: anchorUnit.friendlyName,
+      squads: stackSize,
+    }, stackNaming)
     const rosterMembers = rosterGroup?.units ?? null
     const members = rosterMembers !== null && rosterMembers.length > 1
       ? rosterMembers.map((unit) => ({
@@ -346,7 +346,7 @@ export function BattlefieldLeftRail({
                   onSelectUnit(displayedOnion.id, event.ctrlKey || event.metaKey)
                 }}
               >
-                <h3>{displayedOnion.friendlyName ?? displayedOnion.id}</h3>
+                <h3>{resolveBattlefieldUnitName(displayedOnion.type, displayedOnion.id, displayedOnion.friendlyName)}</h3>
                 <div className="unit-summary">
                   <div className="summary-line">
                     <span>Treads <strong>{displayedOnion.treads}</strong></span>
@@ -406,7 +406,7 @@ export function BattlefieldLeftRail({
                         onSelectUnit(unit.id, event.ctrlKey || event.metaKey)
                       }}
                     >
-                      <div className="weapon-card-name">{unit.friendlyName ?? unit.type}</div>
+                      <div className="weapon-card-name">{resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)}</div>
                       <div className="weapon-card-stats">Damage: {attackStats.damage} &nbsp;·&nbsp; Range: {attackStats.range} &nbsp;·&nbsp; Move: {unit.move}</div>
                     </button>
                   )

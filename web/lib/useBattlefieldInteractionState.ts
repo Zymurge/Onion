@@ -4,6 +4,7 @@ import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitM
 import type { GameAction, GameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
 import { buildClientStackSelection, isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
+import { buildRightRailStackSubmissionAction } from './rightRailSelection'
 import type { TurnPhase } from '../../shared/types/index'
 import logger from './logger'
 
@@ -407,7 +408,26 @@ export function useBattlefieldInteractionState({
       ? resolveBattlefieldStackSelectionIds(clientSnapshot.authoritativeState ?? null, clientSnapshot.selectedUnitId)
       : []
     const selectedBoardUnitIds = buildSelectedBoardUnitIds(selectedUnitIds, defaultSelection)
-    const stackSelection = buildClientStackSelection(clientSnapshot?.authoritativeState ?? null, unitId, selectedBoardUnitIds)
+    const stackSubmission = buildRightRailStackSubmissionAction({
+      kind: 'move',
+      state: clientSnapshot?.authoritativeState ?? null,
+      anchorUnitId: unitId,
+      selectedUnitIds: selectedBoardUnitIds,
+      to,
+    })
+
+    if (!stackSubmission.ok && stackSubmission.reason === 'empty-selection') {
+      setActionError('Select at least one stack member before submitting the move.')
+      debugLog('handleMoveUnit blocked', {
+        unitId,
+        to,
+        reason: stackSubmission.reason,
+        selectedBoardUnitIds,
+      })
+      return
+    }
+
+    const stackSelection = stackSubmission.ok ? stackSubmission.action.selection : buildClientStackSelection(clientSnapshot?.authoritativeState ?? null, unitId, selectedBoardUnitIds)
     await commitClientAction(
       stackSelection === null
         ? { type: 'MOVE', unitId, to }

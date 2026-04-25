@@ -6,10 +6,16 @@ import type { GameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
 import { buildFriendlyName } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { resolveStackLabel, resolveStackLabelFromSnapshot, resolveStackUnitName } from '../../shared/stackNaming'
+import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot } from '../../shared/stackNaming'
+import { resolveSelectionName } from './resolveSelectionName'
 
 export function resolveBattlefieldUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
-  return resolveStackUnitName(unitType, unitId, friendlyName)
+  return resolveSelectionName({
+    kind: 'unit',
+    unitId,
+    unitType,
+    friendlyName,
+  })
 }
 
 const STACK_MEMBER_SELECTION_PREFIX = 'stack-member:'
@@ -27,10 +33,46 @@ export function resolveBattlefieldStackLabel(
   stackNaming?: StackNamingSnapshot,
 ): string {
   if (groupKey !== undefined) {
+    if (stackNaming !== undefined) {
+      return resolveSelectionName({ kind: 'group', groupKey, stackNaming })
+    }
+
     return resolveStackLabelFromSnapshot(stackNaming, groupKey, unitType, unitId, friendlyName, stackSize)
   }
 
   return resolveStackLabel(unitType, unitId, friendlyName, stackSize)
+}
+
+export function resolveBattlefieldDisplayName(
+  unit: {
+    id: string
+    type: string
+    q: number
+    r: number
+    friendlyName?: string
+    squads?: number
+  },
+  stackNaming?: StackNamingSnapshot,
+): string {
+  if (stackNaming !== undefined) {
+    const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
+    const group = stackNaming.groupsInUse.find((entry) => entry.groupKey === groupKey)
+    if (group !== undefined) {
+      return resolveSelectionName({ kind: 'group', groupKey: group.groupKey, stackNaming })
+    }
+  }
+
+  const stackSize = getBattlefieldStackSize(unit)
+  if (stackSize > 1) {
+    return resolveStackLabel(unit.type, unit.id, unit.friendlyName, stackSize)
+  }
+
+  return resolveSelectionName({
+    kind: 'unit',
+    unitId: unit.id,
+    unitType: unit.type,
+    friendlyName: unit.friendlyName,
+  })
 }
 
 type StackSourceUnit = {

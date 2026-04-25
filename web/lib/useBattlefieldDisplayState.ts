@@ -20,6 +20,7 @@ import {
 } from './appViewHelpers'
 import { buildCombatRangeHexKeys } from './combatRange'
 import { buildCombatTargetOptions } from './combatPreview'
+import { buildRightRailStackSelectionViewModel } from './rightRailSelection'
 import type { GameSessionViewState } from './gameSessionTypes'
 import type { SessionBinding } from './sessionBinding'
 import type { Mode } from './battlefieldView'
@@ -33,6 +34,12 @@ type UseBattlefieldDisplayStateOptions = {
   hasExplicitSelection: boolean
   sessionState: GameSessionViewState
   activeSessionBinding: SessionBinding | null
+}
+
+type RightRailStackPanelViewModel = {
+  isVisible: boolean
+  selectedStackMembers: ReturnType<typeof buildRightRailStackSelectionViewModel>['selectedStackMembers']
+  selectedStackSelectionCount: number
 }
 
 const turnPhaseLabels: Record<TurnPhase, string> = {
@@ -124,6 +131,19 @@ export function useBattlefieldDisplayState({
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
     const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
+    const rightRailStackSelection = buildRightRailStackSelectionViewModel({
+      state: authoritativeState,
+      inspectedUnitId: selectedInspectorUnitId,
+      selectedStackUnitIds,
+      activeSelectedUnitIds,
+      displayedDefenders,
+      displayedOnion,
+    })
+    const rightRailStackPanel: RightRailStackPanelViewModel = {
+      isVisible: rightRailStackSelection.selectedStackMembers.length > 1 && !(isCombatPhase && activeCombatRole === 'defender'),
+      selectedStackMembers: rightRailStackSelection.selectedStackMembers,
+      selectedStackSelectionCount: rightRailStackSelection.selectedStackSelectionCount,
+    }
     const selectedInspectorDefender =
       selectedInspectorOnion !== null ||
       selectedInspectorUnitId === null ||
@@ -191,6 +211,7 @@ export function useBattlefieldDisplayState({
       selectedInspectorDefender,
       selectedInspectorOnion,
       selectedInspectorUnitId,
+      rightRailStackPanel,
       selectedStackUnitIds,
       shellPhase,
     }

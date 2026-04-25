@@ -28,10 +28,10 @@ import type {
 } from './lib/gameSessionTypes'
 import type { SessionBinding } from './lib/sessionBinding'
 import {
-  buildClientStackSelection,
   buildCombatTargetActionId,
   getPhaseOwner,
 } from './lib/appViewHelpers'
+import { buildRightRailStackSubmissionAction } from './lib/rightRailSelection'
 import logger from './lib/logger'
 import './App.css'
 
@@ -566,7 +566,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     selectedInspectorDefender,
     selectedInspectorOnion,
     selectedInspectorUnitId,
-    selectedStackUnitIds,
+    rightRailStackPanel,
     escapeHexes,
     victoryObjectives,
     shellPhase,
@@ -657,14 +657,25 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
     const targetId = buildCombatTargetActionId(selectedCombatTarget.id, displayedOnion.id)
     const selectedBoardUnitIds = activeSelectedUnitIds.filter((selectionId) => !selectionId.startsWith('weapon:'))
-    const stackSelection = activeCombatRole === 'defender'
-      ? buildClientStackSelection(clientSnapshot?.authoritativeState ?? null, selectedInspectorUnitId, selectedBoardUnitIds)
+    const stackSubmission = activeCombatRole === 'defender'
+      ? buildRightRailStackSubmissionAction({
+        kind: 'combat',
+        state: clientSnapshot?.authoritativeState ?? null,
+        anchorUnitId: selectedInspectorUnitId,
+        selectedUnitIds: selectedBoardUnitIds,
+        targetId,
+      })
       : null
 
+    if (stackSubmission !== null && !stackSubmission.ok && stackSubmission.reason === 'empty-selection') {
+      setActionError('Select at least one stack member before resolving combat.')
+      return
+    }
+
     void commitClientAction(
-      stackSelection === null
+      stackSubmission === null || !stackSubmission.ok
         ? { type: 'FIRE', attackers: selectedCombatAttackerIds, targetId }
-        : { type: 'FIRE_STACK', attackers: selectedCombatAttackerIds, targetId, selection: stackSelection },
+        : stackSubmission.action,
     )
   }
 
@@ -873,6 +884,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             activeTurnActive={activeTurnActive}
             defenders={displayedDefenders}
             onion={displayedOnion}
+            stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
+            stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
             scenarioMap={displayedScenarioMap}
             selectedCombatTargetId={selectedCombatTargetId}
             selectedUnitIds={activeSelectedUnitIds}
@@ -916,11 +929,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           selectedCombatAttackStrength={selectedCombatAttackStrength}
           selectedCombatTarget={selectedCombatTarget}
           selectedCombatTargetId={selectedCombatTargetId}
-          displayedDefenders={displayedDefenders}
-          displayedOnion={displayedOnion}
           selectedInspectorDefender={selectedInspectorDefender}
           selectedInspectorOnion={selectedInspectorOnion}
-          selectedStackUnitIds={selectedStackUnitIds}
+          rightRailStackPanel={rightRailStackPanel}
           escapeHexes={escapeHexes}
           victoryObjectives={victoryObjectives}
           inactiveEventStream={inactiveEventStream}
