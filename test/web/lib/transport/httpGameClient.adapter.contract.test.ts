@@ -94,8 +94,6 @@ describe('http game client adapter contract', () => {
 					},
 				gameId: 123,
 				phase: 'DEFENDER_COMBAT',
-				selectedUnitId: null,
-				mode: 'fire',
 				scenarioMap: {
 					width: 15,
 					height: 22,
@@ -133,7 +131,7 @@ describe('http game client adapter contract', () => {
 		)
 	})
 
-	it('keeps selection and mode local while refreshing server state', async () => {
+	it('refreshes authoritative server state without carrying UI-local snapshot fields', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,
 			status,
@@ -194,8 +192,6 @@ describe('http game client adapter contract', () => {
 			movementRemainingByUnit: { 'onion-1': 0 },
 			gameId: 123,
 			phase: 'DEFENDER_COMBAT',
-			selectedUnitId: 'wolf-2',
-			mode: 'combined',
 			scenarioName: "The Siege of Shrek's Swamp",
 			escapeHexes: [{ q: 9, r: 5 }],
 			scenarioMap: {
@@ -343,8 +339,6 @@ describe('http game client adapter contract', () => {
 			movementRemainingByUnit: { 'onion-1': 0 },
 			gameId: 123,
 			phase: 'ONION_COMBAT',
-			selectedUnitId: null,
-			mode: 'fire',
 			scenarioName: "The Siege of Shrek's Swamp",
 			escapeHexes: [{ q: 9, r: 5 }],
 			scenarioMap: {

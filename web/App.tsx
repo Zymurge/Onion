@@ -397,6 +397,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const displayState = useBattlefieldDisplayState({
     activeSessionBinding,
+    activeMode: interactionState.activeMode,
     combatBaseSnapshot: interactionState.combatBaseSnapshot,
     hasExplicitSelection: interactionState.hasExplicitSelection,
     lastRefreshAt: interactionState.lastRefreshAt,

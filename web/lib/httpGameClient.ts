@@ -1,11 +1,10 @@
 import {
 	createGameClient,
 	GameClientSeamError,
-	type ActionMode,
 	type GameAction,
 	type GameClient,
 	type GameStateEnvelope,
-	type GameSnapshot,
+	type ServerGameSnapshot,
 } from './gameClient'
 import type { GameRequestTransport } from './gameSessionTypes'
 
@@ -56,12 +55,10 @@ function normalizePhase(phase: unknown): TurnPhase {
 	return TURN_PHASES.includes(upperPhase as TurnPhase) ? (upperPhase as TurnPhase) : 'DEFENDER_MOVE'
 }
 
-function createInitialSnapshot(gameId: number): GameSnapshot {
+function createInitialSnapshot(gameId: number): ServerGameSnapshot {
 	return {
 		gameId,
 		phase: 'DEFENDER_MOVE',
-		selectedUnitId: null,
-		mode: 'fire',
 		scenarioName: undefined,
 		turnNumber: undefined,
 		lastEventSeq: 0,
@@ -69,7 +66,7 @@ function createInitialSnapshot(gameId: number): GameSnapshot {
 	}
 }
 
-function mergeSnapshot(base: GameSnapshot, next: Partial<GameSnapshot>): GameSnapshot {
+function mergeSnapshot(base: ServerGameSnapshot, next: Partial<ServerGameSnapshot>): ServerGameSnapshot {
 	return {
 		...base,
 		...next,
@@ -115,7 +112,7 @@ function buildError(result: ApiFailure): GameClientSeamError {
 
 function mapServerSnapshot(
 	response: GameStateResponse,
-	currentSnapshot: GameSnapshot | null,
+	currentSnapshot: ServerGameSnapshot | null,
 	gameId: number,
 ): GameStateEnvelope {
 	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
@@ -143,9 +140,9 @@ function mapServerSnapshot(
 
 function mapActionSnapshot(
 	response: ActionSuccessResponse,
-	currentSnapshot: GameSnapshot | null,
+	currentSnapshot: ServerGameSnapshot | null,
 	gameId: number,
-): GameSnapshot {
+): ServerGameSnapshot {
 	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
 	const responseEvents = Array.isArray(response.events) ? response.events : []
 	const phaseChange = [...responseEvents].reverse().find((event) => event.type === 'PHASE_CHANGED')
@@ -165,28 +162,13 @@ function mapActionSnapshot(
 		ramResolution: buildRamResolution(responseEvents),
 	})
 }
-
-function updateLocalSnapshot(currentSnapshot: GameSnapshot | null, action: GameAction, gameId: number): GameSnapshot {
-	const baseSnapshot = currentSnapshot ?? createInitialSnapshot(gameId)
-
-	if (action.type === 'select-unit') {
-		return mergeSnapshot(baseSnapshot, { selectedUnitId: action.unitId })
-	}
-
-	if (action.type === 'set-mode') {
-		return mergeSnapshot(baseSnapshot, { mode: action.mode as ActionMode })
-	}
-
-	return baseSnapshot
-}
-
 function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 	requestTransport: GameRequestTransport
 	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<{ seq: number; type: string; summary: string; timestamp: string }>>
 } {
 	const fetchImpl = options.fetchImpl ?? fetch
 	const baseUrl = trimTrailingSlash(options.baseUrl)
-	let currentSnapshot: GameSnapshot | null = null
+	let currentSnapshot: ServerGameSnapshot | null = null
 
 	const requestTransport: GameRequestTransport = {
 		async getState(gameId: number) {
@@ -288,7 +270,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 				return envelope.snapshot
 			}
 
-			currentSnapshot = updateLocalSnapshot(currentSnapshot, action, gameId)
+			currentSnapshot = currentSnapshot ?? createInitialSnapshot(gameId)
 			return currentSnapshot
 		},
 	}

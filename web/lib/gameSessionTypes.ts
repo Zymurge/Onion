@@ -14,7 +14,7 @@
  * - `GameSessionViewState` is the snapshot consumed by React and test helpers.
  */
 
-import type { GameAction, GameClientSeamError, GameEvent, GameSessionContext, GameSnapshot } from './gameClient'
+import type { GameAction, GameClientSeamError, GameEvent, GameSessionContext, ServerGameSnapshot } from './gameClient'
 
 /**
  * Live connection state reported to the session controller and UI.
@@ -39,7 +39,7 @@ export type LiveSessionSignal =
  */
 export type GameSessionViewState = {
 	status: 'idle' | 'loading' | 'ready' | 'refreshing' | 'error'
-	snapshot: GameSnapshot | null
+	snapshot: ServerGameSnapshot | null
 	session: GameSessionContext | null
 	liveConnection: LiveConnectionStatus
 	lastAppliedEventSeq: number | null
@@ -81,7 +81,7 @@ export type GameSessionController = {
 	getSnapshot(): GameSessionViewState
 	load(): Promise<void>
 	refresh(reason?: GameSessionRefreshReason): Promise<void>
-	submitAction(action: GameAction): Promise<GameSnapshot | null>
+	submitAction(action: GameAction): Promise<ServerGameSnapshot | null>
 	dispose(): void
 }
 
@@ -100,8 +100,8 @@ export type UseGameSessionOptions = {
  * refresh policy, or local projection.
  */
 export type GameRequestTransport = {
-	getState(gameId: number): Promise<{ snapshot: GameSnapshot; session: GameSessionContext }>
-	submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
+	getState(gameId: number): Promise<{ snapshot: ServerGameSnapshot; session: GameSessionContext }>
+	submitAction(gameId: number, action: GameAction): Promise<ServerGameSnapshot>
 	pollEvents?(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }
 

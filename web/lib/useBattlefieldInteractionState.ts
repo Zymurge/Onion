@@ -6,6 +6,7 @@ import type { GameSessionController } from './gameSessionTypes'
 import { buildClientStackSelection, isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
 import { buildRightRailStackSubmissionAction, clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
 import type { TurnPhase } from '../../shared/types/index'
+import type { Mode } from './battlefieldView'
 import logger from './logger'
 
 type UseBattlefieldInteractionStateOptions = {
@@ -109,8 +110,8 @@ function buildRamPrompt(snapshot: GameSnapshot | null, unitId: string, to: { q: 
   }
 }
 
-function buildSelectedBoardUnitIds(selectedUnitIds: string[] | null, defaultSelection: string[]): string[] {
-  return (selectedUnitIds ?? defaultSelection).filter((selectionId) => !isWeaponSelectionId(selectionId))
+function buildSelectedBoardUnitIds(selectedUnitIds: string[] | null): string[] {
+  return (selectedUnitIds ?? []).filter((selectionId) => !isWeaponSelectionId(selectionId))
 }
 
 export function useBattlefieldInteractionState({
@@ -125,6 +126,7 @@ export function useBattlefieldInteractionState({
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
   const [hasExplicitSelection, setHasExplicitSelection] = useState(false)
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
+  const [activeMode, setActiveMode] = useState<Mode>('fire')
   const [actionError, setActionError] = useState<string | null>(null)
   const [, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
   const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
@@ -156,6 +158,22 @@ export function useBattlefieldInteractionState({
       setSelectedCombatTargetId(null)
     }
   }, [clientSnapshot, clientSnapshotPhase])
+
+  useEffect(() => {
+    if (clientSnapshot === null) {
+      return
+    }
+
+    if (!hasExplicitSelection && selectedUnitIds === null && clientSnapshot.selectedUnitId) {
+      setSelectedUnitIds(
+        resolveBattlefieldStackSelectionIds(clientSnapshot.authoritativeState ?? null, clientSnapshot.selectedUnitId),
+      )
+    }
+
+    if (clientSnapshot.mode === 'fire' || clientSnapshot.mode === 'combined' || clientSnapshot.mode === 'end-phase') {
+      setActiveMode(clientSnapshot.mode)
+    }
+  }, [clientSnapshot, hasExplicitSelection, selectedUnitIds])
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeSessionController === null) {
@@ -261,10 +279,7 @@ export function useBattlefieldInteractionState({
     const prompt = pendingRamPrompt
     setPendingRamPrompt(null)
 
-    const defaultSelection = clientSnapshot?.selectedUnitId
-      ? resolveBattlefieldStackSelectionIds(clientSnapshot.authoritativeState ?? null, clientSnapshot.selectedUnitId)
-      : []
-    const selectedBoardUnitIds = buildSelectedBoardUnitIds(selectedUnitIds, defaultSelection)
+    const selectedBoardUnitIds = buildSelectedBoardUnitIds(selectedUnitIds)
     const stackSelection = buildClientStackSelection(clientSnapshot?.authoritativeState ?? null, prompt.unitId, selectedBoardUnitIds)
 
     void commitClientAction(
@@ -301,10 +316,7 @@ export function useBattlefieldInteractionState({
       return
     }
 
-    const defaultSelection = clientSnapshot?.selectedUnitId
-      ? resolveBattlefieldStackSelectionIds(clientSnapshot.authoritativeState ?? null, clientSnapshot.selectedUnitId)
-      : []
-    const baseSelection = selectedUnitIds ?? defaultSelection
+    const baseSelection = selectedUnitIds ?? []
     const preserveCombatSelection =
       clientSnapshotPhase === 'ONION_COMBAT' &&
       !additive &&
@@ -332,7 +344,7 @@ export function useBattlefieldInteractionState({
     })
 
     setSelectedUnitIds((currentSelection) => {
-      const baseSelection = currentSelection ?? defaultSelection
+      const baseSelection = currentSelection ?? []
 
       if (!additive) {
         const stackMemberIds = resolveBattlefieldStackSelectionIds(clientSnapshot?.authoritativeState ?? null, selectionOwnerUnitId)
@@ -459,10 +471,7 @@ export function useBattlefieldInteractionState({
     }
 
     setActionError(null)
-    const defaultSelection = clientSnapshot?.selectedUnitId
-      ? resolveBattlefieldStackSelectionIds(clientSnapshot.authoritativeState ?? null, clientSnapshot.selectedUnitId)
-      : []
-    const selectedBoardUnitIds = buildSelectedBoardUnitIds(selectedUnitIds, defaultSelection)
+    const selectedBoardUnitIds = buildSelectedBoardUnitIds(selectedUnitIds)
     const stackSubmission = buildRightRailStackSubmissionAction({
       kind: 'move',
       state: clientSnapshot?.authoritativeState ?? null,
@@ -551,8 +560,10 @@ export function useBattlefieldInteractionState({
     pendingCombatResolution,
     pendingRamResolution,
     hasExplicitSelection,
+    activeMode,
     selectedCombatTargetId,
     selectedUnitIds,
+    setActiveMode,
     setActionError,
     setSelectedCombatTargetId,
     setSelectedUnitIds,

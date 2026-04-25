@@ -30,6 +30,7 @@ import type { TurnPhase } from '../../shared/types/index'
 
 type UseBattlefieldDisplayStateOptions = {
   combatBaseSnapshot: GameSnapshot | null
+  activeMode: Mode
   lastRefreshAt: Date | null
   selectedCombatTargetId: string | null
   selectedUnitIds: string[] | null
@@ -56,6 +57,7 @@ const turnPhaseLabels: Record<TurnPhase, string> = {
 
 export function useBattlefieldDisplayState({
   combatBaseSnapshot,
+  activeMode,
   lastRefreshAt,
   selectedCombatTargetId,
   selectedUnitIds,
@@ -69,20 +71,12 @@ export function useBattlefieldDisplayState({
     const activeGameIdProp = activeSessionBinding?.gameId
     const activePhase = clientSnapshot?.phase ?? null
     const authoritativeState = clientSnapshot?.authoritativeState ?? null
-    const selectedSnapshotUnitId = clientSnapshot?.selectedUnitId ?? null
-    const defaultSelectedUnitIds = selectedSnapshotUnitId === null
-      ? []
-      : resolveBattlefieldStackSelectionIds(authoritativeState, selectedSnapshotUnitId)
-    const selectedBoardUnitId = !hasExplicitSelection
-      ? selectedSnapshotUnitId
-      : (() => {
-        const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
-        return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
-      })()
+    const selectedBoardUnitId = (() => {
+      const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
+      return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
+    })()
     const selectedStackUnitIds = selectedBoardUnitId === null ? [] : resolveBattlefieldStackMemberIds(authoritativeState, selectedBoardUnitId)
-    const activeSelectedUnitIds = !hasExplicitSelection
-      ? defaultSelectedUnitIds
-      : (selectedUnitIds ?? [])
+    const activeSelectedUnitIds = selectedUnitIds ?? []
     const headerHasSnapshot = clientSnapshot !== null
     const activeTurnNumber = clientSnapshot?.turnNumber ?? null
     const activeScenarioName = clientSnapshot?.scenarioName ?? null
@@ -93,7 +87,6 @@ export function useBattlefieldDisplayState({
     const phaseAdvanceLabel = getPhaseAdvanceLabel(activePhase, activeRole)
     const shellPhase = activePhase ?? 'DEFENDER_MOVE'
     const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
-    const activeMode: Mode = clientSnapshot?.mode ?? 'fire'
     const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
     const activeCombatRole: 'onion' | 'defender' | null = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
     const isMovementPhase = activePhase === 'ONION_MOVE' || activePhase === 'DEFENDER_MOVE' || activePhase === 'GEV_SECOND_MOVE'
@@ -240,6 +233,7 @@ export function useBattlefieldDisplayState({
     }
   }, [
     activeSessionBinding,
+    activeMode,
     combatBaseSnapshot,
     lastRefreshAt,
     hasExplicitSelection,
