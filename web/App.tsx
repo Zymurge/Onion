@@ -313,20 +313,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     sessionRole !== null
       ? `${activeGameIdForGate}:${sessionTurnNumber}:${sessionRole}:${sessionPhase}`
       : null
-  const shouldPromptForAcknowledgement =
-    currentActiveTurnKey !== null &&
-    previousTurnGateRef.current?.turnKnown === true &&
-    previousTurnGateRef.current?.activeGameId === activeGameIdForGate &&
-    previousTurnGateRef.current.sessionTurnActive === false &&
-    sessionTurnActive
 
   const pendingAcknowledgementTurnKey =
     currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
       ? turnGateSnapshot.pendingAcknowledgementTurnKey === currentActiveTurnKey
         ? currentActiveTurnKey
-        : shouldPromptForAcknowledgement
-          ? currentActiveTurnKey
-          : null
+        : null
       : null
 
   const inactiveEventStream = useInactiveEventStream({
@@ -339,6 +331,14 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   useEffect(() => {
     setTurnGateSnapshot((current) => {
+      const previousTurnGate = previousTurnGateRef.current
+      const shouldPromptForAcknowledgement =
+        currentActiveTurnKey !== null &&
+        previousTurnGate?.turnKnown === true &&
+        previousTurnGate?.activeGameId === activeGameIdForGate &&
+        previousTurnGate.sessionTurnActive === false &&
+        sessionTurnActive
+
       const nextPendingAcknowledgementTurnKey =
         currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
           ? shouldPromptForAcknowledgement || current.pendingAcknowledgementTurnKey === currentActiveTurnKey
@@ -374,7 +374,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     currentActiveTurnKey,
     sessionTurnActive,
     sessionTurnKnown,
-    shouldPromptForAcknowledgement,
   ])
 
   const inactiveEventAcknowledgementPending =
@@ -522,6 +521,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     handleResolveRamPrompt,
     handleRefresh,
     handleSelectUnit,
+    handleSelectStackMember,
+    handleSelectAllStackMembers,
+    handleClearStackSelection,
     isRefreshing,
     pendingRamPrompt,
     pendingCombatResolution,
@@ -637,6 +639,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const isControlledSession = activeSessionBinding !== null
   const shouldShowGameOverToast = sessionWinner !== null && sessionWinnerToastKey !== null && dismissedGameOverToastKey !== sessionWinnerToastKey
+  const rightRailStackMemberIds = rightRailStackPanel.selectedStackSelectionIds
 
   const {
     debugEntries,
@@ -651,18 +654,17 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       return
     }
 
-    if (selectedCombatTarget === null || selectedCombatAttackCount === 0 || displayedOnion === null) {
+    if (selectedCombatTarget === null || selectedCombatTarget.isDisabled === true || selectedCombatAttackCount === 0 || displayedOnion === null) {
       return
     }
 
     const targetId = buildCombatTargetActionId(selectedCombatTarget.id, displayedOnion.id)
-    const selectedBoardUnitIds = activeSelectedUnitIds.filter((selectionId) => !selectionId.startsWith('weapon:'))
     const stackSubmission = activeCombatRole === 'defender'
       ? buildRightRailStackSubmissionAction({
         kind: 'combat',
         state: clientSnapshot?.authoritativeState ?? null,
         anchorUnitId: selectedInspectorUnitId,
-        selectedUnitIds: selectedBoardUnitIds,
+        selectedUnitIds: selectedCombatAttackerIds,
         targetId,
       })
       : null
@@ -940,8 +942,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onAttemptRam={() => handleResolveRamPrompt(true)}
           onDeclineRam={() => handleResolveRamPrompt(false)}
           onSelectCombatTarget={setSelectedCombatTargetId}
-          onSelectUnit={handleSelectUnit}
-          onDeselect={handleDeselectUnit}
+          onToggleStackMember={(unitId) => handleSelectStackMember(unitId, rightRailStackMemberIds)}
+          onSelectAllStackMembers={() => handleSelectAllStackMembers(rightRailStackMemberIds)}
+          onClearStackSelection={handleClearStackSelection}
         />
       </main>
     </div>

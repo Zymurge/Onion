@@ -416,6 +416,45 @@ describe('validateCombatAction', () => {
     )
   })
 
+  it('allows the Onion to fire a different ready weapon again in the same combat phase', () => {
+    const defender1 = makeDefender({ id: 'd1', position: { q: 2, r: 0 } })
+    const defender2 = makeDefender({ id: 'd2', position: { q: 1, r: 1 } })
+    const onion = makeOnion({
+      weapons: [
+        makeWeapon({ id: 'main', attack: 4, range: 3, defense: 4, individuallyTargetable: true }),
+        makeWeapon({ id: 'secondary_1', attack: 3, range: 2, defense: 3, individuallyTargetable: true }),
+      ],
+    })
+    const state = makeState({ onion, defenders: { d1: defender1, d2: defender2 } })
+
+    const first = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['main'],
+      targetId: 'd1',
+    })
+
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+
+    const firstResult = executeCombatAction(state, first.plan, 6)
+    expect(firstResult.success).toBe(true)
+    expect(state.onion.weapons.find((weapon) => weapon.id === 'main')?.status).toBe('spent')
+    expect(state.onion.weapons.find((weapon) => weapon.id === 'secondary_1')?.status).toBe('ready')
+
+    const second = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['secondary_1'],
+      targetId: 'd2',
+    })
+
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+
+    const secondResult = executeCombatAction(state, second.plan, 6)
+    expect(secondResult.success).toBe(true)
+    expect(state.onion.weapons.find((weapon) => weapon.id === 'secondary_1')?.status).toBe('spent')
+  })
+
   it('rejects multi-attacker defender fire against Onion treads', () => {
     const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
     const d2 = makeDefender({ id: 'd2', position: { q: 0, r: 1 } })

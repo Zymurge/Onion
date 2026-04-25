@@ -18,6 +18,10 @@ export function resolveBattlefieldUnitName(unitType: string, unitId: string | un
   })
 }
 
+export function isBattlefieldUnitCombatReady(unit: { actionableModes: ReadonlyArray<Mode> }): boolean {
+  return unit.actionableModes.includes('fire')
+}
+
 const STACK_MEMBER_SELECTION_PREFIX = 'stack-member:'
 
 export function getBattlefieldStackSize(unit: { squads?: number }): number {
@@ -197,6 +201,21 @@ export function countSelectedBattlefieldStackMembers(
   }
 
   return selectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unitId) ? 1 : 0
+}
+
+export function countSelectedBattlefieldStackGroups(
+  state: StackSourceState | null | undefined,
+  selectedUnitIds: ReadonlyArray<string>,
+): number {
+  const selectedGroupKeys = new Set<string>()
+
+  for (const selectedUnitId of selectedUnitIds) {
+    const resolvedUnitId = resolveSelectionOwnerUnitId(selectedUnitId)
+    const selectedGroupIds = resolveBattlefieldStackMemberIds(state, resolvedUnitId)
+    selectedGroupKeys.add(selectedGroupIds.join('|'))
+  }
+
+  return selectedGroupKeys.size
 }
 
 export function buildClientStackSelection(

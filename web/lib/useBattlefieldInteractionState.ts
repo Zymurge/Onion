@@ -4,7 +4,7 @@ import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitM
 import type { GameAction, GameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
 import { buildClientStackSelection, isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
-import { buildRightRailStackSubmissionAction } from './rightRailSelection'
+import { buildRightRailStackSubmissionAction, clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
 import type { TurnPhase } from '../../shared/types/index'
 import logger from './logger'
 
@@ -351,6 +351,61 @@ export function useBattlefieldInteractionState({
     setActionError(null)
   }
 
+  function handleSelectStackMember(unitId: string, stackMemberIds: readonly string[]) {
+    if (isSelectionLocked) {
+      debugLog('handleSelectStackMember blocked', {
+        unitId,
+        isSelectionLocked,
+      })
+      return
+    }
+
+    clearPendingCombatResolution(false)
+    setPendingRamPrompt(null)
+    setSelectedCombatTargetId(null)
+    setActionError(null)
+
+    setSelectedUnitIds((currentSelection) =>
+      toggleRightRailStackMemberSelection(currentSelection, stackMemberIds, unitId),
+    )
+    setHasExplicitSelection(true)
+  }
+
+  function handleSelectAllStackMembers(stackMemberIds: readonly string[]) {
+    if (isSelectionLocked) {
+      debugLog('handleSelectAllStackMembers blocked', {
+        isSelectionLocked,
+        stackMemberIds,
+      })
+      return
+    }
+
+    clearPendingCombatResolution(false)
+    setPendingRamPrompt(null)
+    setSelectedCombatTargetId(null)
+    setActionError(null)
+
+    setSelectedUnitIds(selectRightRailStackMembers(stackMemberIds))
+    setHasExplicitSelection(true)
+  }
+
+  function handleClearStackSelection() {
+    if (isSelectionLocked) {
+      debugLog('handleClearStackSelection blocked', {
+        isSelectionLocked,
+      })
+      return
+    }
+
+    clearPendingCombatResolution(false)
+    setPendingRamPrompt(null)
+    setSelectedCombatTargetId(null)
+    setActionError(null)
+
+    setSelectedUnitIds(clearRightRailStackSelection())
+    setHasExplicitSelection(true)
+  }
+
   function handleDeselectUnit() {
     if (isSelectionLocked) {
       debugLog('handleDeselectUnit blocked', {
@@ -487,6 +542,9 @@ export function useBattlefieldInteractionState({
     handleResolveRamPrompt,
     handleRefresh,
     handleSelectUnit,
+    handleSelectStackMember,
+    handleSelectAllStackMembers,
+    handleClearStackSelection,
     isRefreshing,
     lastRefreshAt,
     pendingRamPrompt,

@@ -91,7 +91,8 @@ function buildDefenderCombatGroups(
     const anchorUnit = rosterGroup !== null
       ? units.find((unit) => rosterGroup.unitIds.includes(unit.id)) ?? units[0]
       : units[0]
-    const isActionable = anchorUnit.actionableModes.includes(activeMode)
+    const actionableMembers = units.filter((unit) => unit.actionableModes.includes(activeMode))
+    const isActionable = actionableMembers.length > 0
     const isDestroyed = anchorUnit.status === 'destroyed'
     const baseAttackStats = parseAttackStats(anchorUnit.attack)
     const stackSize = rosterGroup !== null ? rosterGroup.units.length : units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
@@ -154,7 +155,7 @@ function buildDefenderCombatGroups(
     return {
       anchorUnit,
       attackStrength: units.length > 1
-        ? units.reduce((total, unit) => total + parseAttackStats(unit.attack).damage, 0)
+        ? actionableMembers.reduce((total, unit) => total + parseAttackStats(unit.attack).damage, 0)
         : baseAttackStats.damage * stackSize,
       isActionable,
       isDestroyed,
@@ -261,12 +262,12 @@ export function BattlefieldLeftRail({
                         `tone-${statusTone(group.anchorUnit.status)}`,
                       ].join(' ')}
                       aria-pressed={isSelected}
-                      disabled={isSelectionLocked}
+                      disabled={isSelectionLocked || isDisabled}
                       data-selected={isSelected}
                       data-testid={`combat-unit-${group.anchorUnit.id}`}
                       title={group.isDestroyed ? 'Destroyed units cannot attack.' : !group.isActionable ? 'This unit is not eligible to attack.' : undefined}
                       onClick={(event) => {
-                        if (isSelectionLocked) {
+                        if (isSelectionLocked || isDisabled) {
                           event.preventDefault()
                           event.stopPropagation()
                           return
@@ -286,17 +287,20 @@ export function BattlefieldLeftRail({
                       <div className="combat-stack-member-list">
                         {group.members.map((member) => {
                           const isMemberSelected = activeSelectedUnitIds.includes(member.selectionId)
+                          const memberUnit = displayedDefenders.find((unit) => unit.id === member.selectionId)
+                          const isMemberActionable = memberUnit?.actionableModes.includes(activeMode) === true
+                          const isMemberDisabled = isSelectionLocked || !isMemberActionable
                           return (
                             <button
                               key={member.selectionId}
                               type="button"
-                              className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}`}
+                              className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}${isMemberDisabled ? ' is-disabled' : ''}`}
                               aria-pressed={isMemberSelected}
-                              disabled={isSelectionLocked}
+                              disabled={isMemberDisabled}
                               data-selected={isMemberSelected}
                               data-testid={member.testId}
                               onClick={(event) => {
-                                if (isSelectionLocked) {
+                                if (isMemberDisabled) {
                                   event.preventDefault()
                                   event.stopPropagation()
                                   return

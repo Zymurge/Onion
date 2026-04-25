@@ -418,7 +418,6 @@ This gives the refactor a stable foundation before movement, combat, API, and UI
 
 ## Bugs
 
-
 - ~~Map labels are showing each individual unit instead of the stack name~~ **[CLOSED]**
   - **Root Cause:** Map overlays and other UI surfaces were using the individual unit's `friendlyName` or ID for display, not the stack/group label from `stackRoster`/`stackNaming`.
   - **Fix:** All map overlays/tooltips now use `resolveBattlefieldStackLabel` with the correct group context. Group membership is resolved via `stackRoster` and the group label is used. Map now renders one icon per group, label is correct, and tests pass.
@@ -430,11 +429,13 @@ This gives the refactor a stable foundation before movement, combat, API, and UI
 Refactor right rail selection and action submission logic to use canonical group membership from `stackRoster.groupsById`.
 
 This will:
+
 - Fix selection bugs where the right rail does not select groups correctly.
 - Ensure action submission (e.g., move, attack) uses the correct group/unitIds.
 - Centralize all group/unit display and selection logic for maintainability.
 
 **Suggested steps:**
+
 1. Update right rail selection logic to use stackRoster group/unitIds.
 2. Refactor action submission to use canonical group membership.
 3. Add/expand tests for right rail selection and action submission.
@@ -479,15 +480,15 @@ That does three things:
 2. It makes the component mostly presentational
 3. It gives tests a stable seam that does not depend on rendering incidental `displayedDefenders` shapes
 
-#### Concrete tasks to get there:
+#### Concrete tasks to get there
 
-1. **Create a dedicated selector/helper for active right-rail stack state.**
+1.**Create a dedicated selector/helper for active right-rail stack state.**
 
 - Put it in the hook layer or a nearby pure helper, but keep it out of the component.
 - It should accept authoritative state, current anchor/inspected unit, and current selected ids, then return the active group id, member ids, and selected count.
 - This should replace the ad hoc `inspectedStackUnitIds` and `stackPanelUnitIds` logic in `BattlefieldRightRail.tsx:77`.
 
-2. **Replace generic rail callbacks with intent-specific operations.**
+2.**Replace generic rail callbacks with intent-specific operations.**
 
 - Instead of `onSelectUnit(unitId, additive)` and `onDeselect`, add explicit operations such as:
   - `onSelectStack(groupOrAnchorUnitId)`
@@ -496,27 +497,27 @@ That does three things:
   - `onClearStackSelection()`
 - These can still delegate internally, but the surface API becomes testable and unambiguous.
 
-3. **Move stack membership resolution fully behind canonical helpers.**
+3.**Move stack membership resolution fully behind canonical helpers.**
 
 - Do not let the component filter `displayedDefenders` by type/q/r at all. That is exactly the stale logic the refactor is trying to remove.
 - Reuse or extend the existing canonical membership helper in `appViewHelpers.ts:89`, or better, route through the roster index in `stackRoster.ts:210` so the rail is driven by `getUnitGroup` and `getGroupUnits`.
 
-4. **Separate “selection mutation” from “action submission payload building.”**
+4.**Separate “selection mutation” from “action submission payload building.”**
 
 - Add one pure helper that takes the active stack selection plus current mode and returns a validated move/combat payload or a typed failure result.
 - Submission code should not discover members on the fly. It should receive already-normalized `selectedUnitIds` and either dispatch or return a concrete reason it cannot.
 
-5. **Make empty submission impossible to do silently.**
+5.**Make empty submission impossible to do silently.**
 
 - If the current group has zero selected members, the submit path should return an explicit validation result before any selection reset.
 - The current bug description strongly suggests that clearing is happening before dispatch success is known. The rule should be: selection persists unless submission succeeds or the user explicitly clears it.
 
-6. **Decouple “inspector focus” from “stack selection.”**
+6.**Decouple “inspector focus” from “stack selection.”**
 
 - The current rail appears to derive its stack panel from `selectedInspectorDefender` when explicit stack selection is absent. That is convenient, but it blurs inspection and selection into one state machine.
 - Make that fallback explicit in the hook: inspector focus may determine the default active group, but once explicit stack selection exists, inspector changes should not rewrite it.
 
-7. **Introduce a right-rail view-model test seam.**
+7.**Introduce a right-rail view-model test seam.**
 
 - Before changing behavior further, add pure tests around the new selector/helper rather than only UI tests.
 - The existing contract tests in `appViewHelpers.stackGrouping.contract.test.ts:6` are a good precedent. Add equivalent tests for:
@@ -528,7 +529,7 @@ That does three things:
   - building the expected move payload from selected member ids
   - building the expected combat payload from selected member ids
 
-8. **Reduce the component to rendering and event wiring.**
+8.**Reduce the component to rendering and event wiring.**
 
 - After the new helper/hook API exists, `BattlefieldRightRail.tsx` should not compute membership, selected counts, or fallback stack inference itself.
 - It should receive a precomputed model like:

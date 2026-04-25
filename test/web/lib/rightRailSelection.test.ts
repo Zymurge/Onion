@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildRightRailCombatAction,
+  clearRightRailStackSelection,
   buildRightRailMoveAction,
   buildRightRailStackSubmissionAction,
   buildRightRailStackSelectionModel,
   buildRightRailStackSelectionViewModel,
+  selectRightRailStackMembers,
+  toggleRightRailStackMemberSelection,
 } from '#web/lib/rightRailSelection'
 
 function createStackState() {
@@ -214,6 +217,53 @@ describe('rightRailSelection', () => {
       })
     })
 
+    it('accepts reloaded stack owner ids for stack submissions', () => {
+      const state = createStackState()
+
+      expect(buildRightRailStackSubmissionAction({
+        kind: 'move',
+        state,
+        anchorUnitId: 'pigs-1',
+        selectedUnitIds: ['pigs-1'],
+        to: { q: 5, r: 4 },
+      })).toEqual({
+        ok: true,
+        action: {
+          type: 'MOVE_STACK',
+          selection: {
+            anchorUnitId: 'pigs-1',
+            availableUnitIds: ['pigs-1', 'pigs-2'],
+            selectedUnitIds: ['pigs-1', 'pigs-2'],
+          },
+          to: { q: 5, r: 4 },
+        },
+      })
+    })
+
+    it('maps reloaded stack-member ids to their corresponding stack members', () => {
+      const state = createStackState()
+
+      expect(buildRightRailStackSubmissionAction({
+        kind: 'combat',
+        state,
+        anchorUnitId: 'pigs-1',
+        selectedUnitIds: ['stack-member:pigs-1:2'],
+        targetId: 'onion-1',
+      })).toEqual({
+        ok: true,
+        action: {
+          type: 'FIRE_STACK',
+          attackers: ['pigs-2'],
+          targetId: 'onion-1',
+          selection: {
+            anchorUnitId: 'pigs-1',
+            availableUnitIds: ['pigs-1', 'pigs-2'],
+            selectedUnitIds: ['pigs-2'],
+          },
+        },
+      })
+    })
+
     it('rejects empty stack submissions instead of auto-filling the full group', () => {
       const state = createStackState()
 
@@ -227,6 +277,18 @@ describe('rightRailSelection', () => {
         ok: false,
         reason: 'empty-selection',
       })
+    })
+  })
+
+  describe('stack selection mutation helpers', () => {
+    it('toggles only stack members while preserving the selected order', () => {
+      expect(toggleRightRailStackMemberSelection(['pigs-1', 'wolf-1'], ['pigs-1', 'pigs-2'], 'pigs-2')).toEqual(['pigs-1', 'pigs-2'])
+      expect(toggleRightRailStackMemberSelection(['pigs-1', 'pigs-2'], ['pigs-1', 'pigs-2'], 'pigs-1')).toEqual(['pigs-2'])
+    })
+
+    it('selects and clears stack membership explicitly', () => {
+      expect(selectRightRailStackMembers(['pigs-2', 'pigs-1', 'pigs-2'])).toEqual(['pigs-2', 'pigs-1'])
+      expect(clearRightRailStackSelection()).toEqual([])
     })
   })
 })

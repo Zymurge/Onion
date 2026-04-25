@@ -26,6 +26,8 @@ export type CombatTargetOption = {
 	detail: string
 	defense: number
 	modifiers: string[]
+	isDisabled?: boolean
+	disabledTitle?: string
 }
 
 type CombatPreviewInput = {
@@ -35,6 +37,7 @@ type CombatPreviewInput = {
 	displayedOnion: BattlefieldOnionView | null
 	selectedUnitIds: ReadonlyArray<string>
 	selectedAttackStrength: number
+	selectedAttackGroupCount: number
 	displayedScenarioMap: { width: number; height: number; cells?: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null
 }
 
@@ -153,6 +156,7 @@ export function buildCombatTargetOptions({
 	displayedOnion,
 	selectedUnitIds,
 	selectedAttackStrength,
+	selectedAttackGroupCount,
 	displayedScenarioMap,
 }: CombatPreviewInput): CombatTargetOption[] {
 	if (activeCombatRole === null) {
@@ -247,6 +251,11 @@ export function buildCombatTargetOptions({
 			defense: selectedAttackStrength,
 			modifiers: selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 			detail: `Treads: ${displayedOnion.treads}`,
+			isDisabled: activeCombatRole === 'defender' && selectedAttackGroupCount > 1,
+			disabledTitle:
+				activeCombatRole === 'defender' && selectedAttackGroupCount > 1
+					? 'Select attackers from one defender stack to target treads.'
+					: undefined,
 		},
 		...readyWeaponTargets,
 	]

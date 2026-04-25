@@ -1,5 +1,5 @@
 import type { GameAction, StackActionSelection } from './gameClient'
-import { resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds } from './appViewHelpers'
+import { parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
@@ -60,6 +60,32 @@ function uniqueIds(unitIds: readonly string[]): string[] {
   return Array.from(new Set(unitIds))
 }
 
+function normalizeStackMemberSelection(selectedUnitIds: readonly string[] | null | undefined, stackMemberIds: readonly string[]): string[] {
+  const allowedIds = new Set(stackMemberIds)
+  return uniqueIds((selectedUnitIds ?? []).filter((unitId) => allowedIds.has(unitId)))
+}
+
+export function selectRightRailStackMembers(stackMemberIds: readonly string[]): string[] {
+  return uniqueIds(stackMemberIds)
+}
+
+export function toggleRightRailStackMemberSelection(
+  selectedUnitIds: readonly string[] | null | undefined,
+  stackMemberIds: readonly string[],
+  unitId: string,
+): string[] {
+  const normalizedSelection = normalizeStackMemberSelection(selectedUnitIds, stackMemberIds)
+  if (normalizedSelection.includes(unitId)) {
+    return normalizedSelection.filter((selectedId) => selectedId !== unitId)
+  }
+
+  return [...normalizedSelection, unitId]
+}
+
+export function clearRightRailStackSelection(): string[] {
+  return []
+}
+
 function findGroupIdForUnit(state: StackSourceState, unitId: string | null): string | null {
   if (unitId === null) {
     return null
@@ -82,7 +108,26 @@ function buildValidatedStackSelection(
     return { ok: false, reason: 'not-a-stack' }
   }
 
-  const normalizedSelectedUnitIds = uniqueIds(selectedUnitIds.filter((unitId) => availableUnitIds.includes(unitId)))
+  const normalizedSelectedUnitIds = uniqueIds(
+    selectedUnitIds.flatMap((unitId) => {
+      if (unitId === anchorUnitId) {
+        return [...availableUnitIds]
+      }
+
+      if (availableUnitIds.includes(unitId)) {
+        return [unitId]
+      }
+
+      const stackMemberSelection = parseStackMemberSelectionId(unitId)
+      if (stackMemberSelection !== null) {
+        const selectedStackMemberId = availableUnitIds[stackMemberSelection.memberIndex - 1]
+        return selectedStackMemberId === undefined ? [] : [selectedStackMemberId]
+      }
+
+      const ownerUnitId = resolveSelectionOwnerUnitId(unitId)
+      return ownerUnitId === anchorUnitId ? [...availableUnitIds] : []
+    }),
+  )
   if (normalizedSelectedUnitIds.length === 0) {
     return { ok: false, reason: 'empty-selection' }
   }

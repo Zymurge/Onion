@@ -357,11 +357,6 @@ export function validateCombatAction(
   }
 
   if (state.currentPhase === 'ONION_COMBAT') {
-    const onionCombatKey = state.onion.id ?? 'onion'
-    if (getCombatSpent(state, onionCombatKey) > 0) {
-      return { ok: false, code: 'ATTACKER_ALREADY_ACTED', error: 'The Onion has already acted this phase' }
-    }
-
     const target = state.defenders[command.targetId]
     if (!target) {
       return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
@@ -586,8 +581,6 @@ export function executeCombatAction(
         applyWeaponStatusTransition(state.onion, firedWeapon.id, previousWeaponStatus, 'spent')
       }
     }
-
-    spendCombatAction(state, state.onion.id ?? 'onion')
 
     const statusChanges = defender.status !== previousStatus
       ? [{ unitId: defender.id, from: previousStatus, to: defender.status }]

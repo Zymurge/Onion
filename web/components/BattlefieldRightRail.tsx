@@ -33,6 +33,7 @@ type BattlefieldRightRailProps = {
     isVisible: boolean
     selectedStackMembers: ReadonlyArray<BattlefieldUnit | BattlefieldOnionView>
     selectedStackSelectionCount: number
+    selectedStackSelectionIds: ReadonlyArray<string>
   }
   victoryObjectives: ReadonlyArray<VictoryObjectiveState>
   escapeHexes: ReadonlyArray<VictoryEscapeHex>
@@ -49,8 +50,9 @@ type BattlefieldRightRailProps = {
   onAttemptRam: () => void
   onDeclineRam: () => void
   onSelectCombatTarget: (targetId: string) => void
-  onSelectUnit: (unitId: string, additive?: boolean) => void
-  onDeselect: () => void
+  onToggleStackMember: (unitId: string) => void
+  onSelectAllStackMembers: () => void
+  onClearStackSelection: () => void
 }
 
 export function BattlefieldRightRail({
@@ -78,8 +80,9 @@ export function BattlefieldRightRail({
   onAttemptRam,
   onDeclineRam,
   onSelectCombatTarget,
-  onSelectUnit,
-  onDeselect,
+  onToggleStackMember,
+  onSelectAllStackMembers,
+  onClearStackSelection,
 }: BattlefieldRightRailProps) {
   const stackSelectionPanel = rightRailStackPanel.isVisible ? (
     <section className="selection-panel panel-subtle">
@@ -92,17 +95,19 @@ export function BattlefieldRightRail({
       </div>
       <div className="attacker-selection-list stack-selection-list">
         {rightRailStackPanel.selectedStackMembers.map((unit) => {
-          const isSelected = activeSelectedUnitIds.includes(unit.id)
+          const isSelected = rightRailStackPanel.selectedStackSelectionIds.includes(unit.id)
+          const isCombatReady = activeCombatRole !== 'defender' || !('actionableModes' in unit) || unit.actionableModes.includes('fire')
+          const isDisabled = isInteractionLocked || (activeCombatRole === 'defender' && !isCombatReady)
           return (
             <button
               key={unit.id}
               type="button"
-              className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}`}
+              className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}${isDisabled ? ' is-disabled' : ''}`}
               aria-pressed={isSelected}
-              disabled={isInteractionLocked}
+              disabled={isDisabled}
               data-selected={isSelected}
               data-testid={`stack-member-${unit.id}`}
-              onClick={() => onSelectUnit(unit.id, true)}
+              onClick={() => onToggleStackMember(unit.id)}
             >
               <div className="weapon-card-name">{resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)}</div>
               <div className="weapon-card-stats">Toggle in stack</div>
@@ -115,7 +120,7 @@ export function BattlefieldRightRail({
           type="button"
           className="combat-confirm-button"
           disabled={isInteractionLocked}
-          onClick={() => onSelectUnit(rightRailStackPanel.selectedStackMembers[0].id, false)}
+          onClick={onSelectAllStackMembers}
         >
           Select all
         </button>
@@ -123,7 +128,7 @@ export function BattlefieldRightRail({
           type="button"
           className="combat-confirm-button combat-confirm-button-secondary"
           disabled={isInteractionLocked}
-          onClick={onDeselect}
+          onClick={onClearStackSelection}
         >
           Clear
         </button>
@@ -248,7 +253,6 @@ export function BattlefieldRightRail({
             <CombatTargetList
               targets={combatTargetOptions}
               selectedTargetId={selectedCombatTargetId}
-              selectedCombatAttackCount={selectedCombatAttackCount}
               isDisabled={isInteractionLocked}
               onSelectTarget={onSelectCombatTarget}
             />

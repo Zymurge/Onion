@@ -1241,7 +1241,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(confirmationView.textContent).toContain('Confirm attack on Main Battery')
 	})
 
-	it('disables treads for grouped attacks and explains why', async () => {
+	it('blocks treads when multiple defender groups are selected', async () => {
 		const snapshot = createGroupedInRangeCombatSnapshot()
 		const session = { role: 'defender' as const }
 
@@ -1261,11 +1261,79 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 8')
 		expect(treadsButton.disabled).toBe(true)
 		expect(treadsTarget.getAttribute('aria-disabled')).toBe('true')
-		expect(treadsTarget.getAttribute('title')).toBe('Treads must be singly targeted.')
+		expect(treadsTarget.getAttribute('title')).toContain('one defender stack')
 
 		fireEvent.contextMenu(treadsTarget)
 		expect(treadsTarget.getAttribute('data-selected')).toBe('false')
 		expect(screen.queryByTestId('combat-confirmation-view')).toBeNull()
+	})
+
+	it('greys out spent stack members after one pig has fired', async () => {
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'DEFENDER_COMBAT' as const,
+			selectedUnitId: 'pigs-2',
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				defenders: {
+					...baseSnapshot.authoritativeState.defenders,
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 1,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 2,
+								status: 'spent' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-2': {
+						id: 'pigs-2',
+						type: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 1,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 2,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+			},
+		}
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const spentMember = await screen.findByTestId('combat-stack-member-pigs-1')
+		const readyMember = await screen.findByTestId('combat-stack-member-pigs-2')
+
+		expect(spentMember.getAttribute('disabled')).not.toBeNull()
+		expect(spentMember.getAttribute('data-selected')).toBe('false')
+		expect(readyMember.getAttribute('data-selected')).toBe('true')
+		expect(readyMember.getAttribute('disabled')).toBeNull()
 	})
 
 	it('bases defender combat range on ready weapons rather than display summaries', async () => {
