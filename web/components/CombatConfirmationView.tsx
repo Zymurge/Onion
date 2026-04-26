@@ -1,4 +1,5 @@
 import { calculateCombatOdds } from '../lib/combatOdds'
+import logger from '../lib/logger'
 
 type CombatConfirmationViewProps = {
   title: string
@@ -58,14 +59,13 @@ export function CombatConfirmationView({ title, attackStrength, defenseStrength,
             type="button"
             disabled={isDisabled}
             onClick={(event) => {
-              if (isDisabled) {
-                event.preventDefault()
-                event.stopPropagation()
-                return
-              }
-
               event.stopPropagation()
-              onConfirm()
+
+              try {
+                onConfirm()
+              } catch (error) {
+                logger.error({ error, title }, '[combat-confirmation] confirm handler failed')
+              }
             }}
           >
             {confirmLabel ?? 'Confirm attack'}

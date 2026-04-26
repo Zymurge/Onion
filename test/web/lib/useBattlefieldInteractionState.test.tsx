@@ -275,4 +275,72 @@ describe('useBattlefieldInteractionState', () => {
 		expect(result.current.actionError).toBe('Select at least one stack member before submitting the move.')
 		expect(submitAction).not.toHaveBeenCalled()
 	})
+
+	it('keeps state unchanged when selection and movement are locked', async () => {
+		const submitAction = vi.fn().mockResolvedValue(createSnapshot({ lastEventSeq: 11, phase: 'DEFENDER_MOVE' }))
+		const controller = createController()
+		controller.submitAction = submitAction
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: createSnapshot({ phase: 'DEFENDER_MOVE' }),
+				clientSnapshotPhase: 'DEFENDER_MOVE',
+				isControlledSession: true,
+				isInteractionLocked: true,
+				isSelectionLocked: true,
+			}),
+		)
+
+		await act(async () => {
+			result.current.setSelectedUnitIds(['def-1'])
+		})
+
+		await act(async () => {
+			result.current.handleSelectUnit('def-1')
+			result.current.handleSelectStackMember('def-1', ['def-1'])
+			result.current.handleSelectAllStackMembers(['def-1'])
+			result.current.handleClearStackSelection()
+			result.current.handleDeselectUnit()
+		})
+
+		await act(async () => {
+			await result.current.handleMoveUnit('def-1', { q: 1, r: 1 })
+		})
+
+		expect(result.current.selectedUnitIds).toEqual(['def-1'])
+		expect(result.current.actionError).toBeNull()
+		expect(result.current.pendingRamPrompt).toBeNull()
+		expect(submitAction).not.toHaveBeenCalled()
+	})
+
+	it('refreshes after a failed combat commit', async () => {
+		const submitAction = vi.fn().mockRejectedValue(new Error('combat exploded'))
+		const refresh = vi.fn().mockResolvedValue(undefined)
+		const controller = createController()
+		controller.submitAction = submitAction
+		controller.refresh = refresh
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: createSnapshot({ phase: 'DEFENDER_COMBAT' }),
+				clientSnapshotPhase: 'DEFENDER_COMBAT',
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			await result.current.commitClientAction({ type: 'FIRE', attackers: ['def-1'], targetId: 'onion-1' })
+		})
+
+		expect(refresh).toHaveBeenCalledTimes(1)
+		expect(result.current.actionError).toContain('combat exploded')
+		expect(result.current.pendingCombatResolution).toBeNull()
+		expect(result.current.selectedUnitIds).toEqual([])
+	})
 })
