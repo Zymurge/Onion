@@ -305,7 +305,8 @@ The sequence below is intended to be handed to agents one step at a time. Each s
 - Step 3 completed: interaction state is explicit and client-local.
 - Step 4 completed: display derivation now uses shared normalization helpers and no longer duplicates weapon-selection parsing.
 - Step 5 completed: commit translation now runs through explicit builders.
-- Step 6 remains next: simplify App to composition only.
+- Step 6 completed: App shell now composes session, interaction, and display layers without inline action construction.
+- Step 7 remains next: add and harden reload/reconnect regression coverage.
 
 ### Step 1. Freeze Vocabulary And Ownership
 
@@ -474,6 +475,10 @@ Validation:
 - orchestration tests
 - no broad app-state regressions
 
+Status:
+
+- Completed on 2026-04-25.
+
 ### Step 7. Add Hard-Reload And Reconnect Regression Coverage
 
 Goal:
@@ -520,6 +525,7 @@ Tasks:
 Definition of done:
 
 - there is one obvious path from backend snapshot to local interaction to derived view to committed command
+- code coverage of the web layer is at least 70% and/or documented in low coverage areas that are impractical to test
 
 Validation:
 

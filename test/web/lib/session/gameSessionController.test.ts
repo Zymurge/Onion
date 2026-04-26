@@ -28,16 +28,12 @@ function createSnapshot(overrides: {
 	phase: TurnPhase
 	lastEventSeq: number
 	gameId?: number
-	selectedUnitId?: string | null
-	mode?: GameSnapshot['mode']
 	scenarioName?: string
 	turnNumber?: number
 }): GameSnapshot {
 	return {
 		gameId: overrides.gameId ?? 123,
 		phase: overrides.phase,
-		selectedUnitId: overrides.selectedUnitId ?? null,
-		mode: overrides.mode ?? 'fire',
 		scenarioName: overrides.scenarioName ?? 'Test session',
 		turnNumber: overrides.turnNumber ?? 1,
 		lastEventSeq: overrides.lastEventSeq,

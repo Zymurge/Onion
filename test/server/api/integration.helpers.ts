@@ -6,9 +6,27 @@ import { listReachableMoves, type MoveMapSnapshot } from '#shared/movePlanner'
 
 export type ScenarioMap = { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: Array<{ q: number; r: number; t: number }> }
 
+type ScenarioStackRosterGroup = {
+  unitIds?: string[]
+}
+
+type ScenarioDefender = {
+  kind?: string
+  unitType?: string
+  count?: number
+  position?: { q: number; r: number }
+  status?: string
+  squads?: number
+  type?: string
+  weapons?: Array<{ status?: string }>
+}
+
 export interface ExpectedState {
   onion: any
   defenders: Record<string, any>
+  stackRoster?: {
+    groupsById: Record<string, ScenarioStackRosterGroup>
+  }
 }
 
 type OnionSpentTracker = {
@@ -29,7 +47,7 @@ export function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value))
 }
 
-export function buildExpectedState(initialState: any): ExpectedState {
+export function buildExpectedState(initialState: { onion: any; defenders: Record<string, ScenarioDefender>; stackRoster?: { groupsById?: Record<string, ScenarioStackRosterGroup> } }): ExpectedState {
   const radius = translateScenarioCoord.lastRadius
   if (radius === undefined) {
     throw new Error('translateScenarioCoord.lastRadius is undefined')
@@ -43,9 +61,9 @@ export function buildExpectedState(initialState: any): ExpectedState {
   const stackOrdinals: Record<string, number> = {}
   for (const [key, def] of Object.entries(initialState.defenders)) {
     if (def.kind === 'stack-group') {
-      const unitType = def.unitType
+      const unitType = def.unitType!
       const count = def.count || 1
-      const position = translateScenarioCoord(def.position, radius)
+      const position = translateScenarioCoord(def.position!, radius)
       // Use the same base as scenarioNormalizer
       const unitIdBase = unitType === 'LittlePigs' ? 'pigs' : unitType.toLowerCase()
       let ordinal = stackOrdinals[unitIdBase] || 0
@@ -60,7 +78,7 @@ export function buildExpectedState(initialState: any): ExpectedState {
       }
       stackOrdinals[unitIdBase] = ordinal + count
     } else {
-      const defender = clone(def)
+      const defender = clone(def) as ScenarioDefender & { position?: { q: number; r: number } }
       if (defender?.position) {
         defender.position = translateScenarioCoord(defender.position, radius)
       }
@@ -68,7 +86,11 @@ export function buildExpectedState(initialState: any): ExpectedState {
     }
   }
 
-  return { onion, defenders }
+  const stackRoster = initialState.stackRoster?.groupsById
+    ? { groupsById: clone(initialState.stackRoster.groupsById) }
+    : undefined
+
+  return { onion, defenders, stackRoster }
 }
 
 export async function registerAndLoginUser(app: any, username: string, password: string) {
@@ -323,7 +345,7 @@ export function assertStateMatches(apiState: any, expected: ExpectedState) {
   // If expected.stackRoster exists, check stack groups and memberships
   if (expected.stackRoster && expected.stackRoster.groupsById) {
     expect(apiState.stackRoster && apiState.stackRoster.groupsById, 'apiState.stackRoster.groupsById missing').toBeTruthy()
-    for (const [groupId, expectedGroup] of Object.entries(expected.stackRoster.groupsById)) {
+    for (const [groupId, expectedGroup] of Object.entries(expected.stackRoster.groupsById as Record<string, ScenarioStackRosterGroup>)) {
       const actualGroup = apiState.stackRoster.groupsById[groupId]
       expect(actualGroup, `Missing stack group ${groupId} in apiState.stackRoster`).toBeTruthy()
       // Compare unitIds as sets (order-insensitive)

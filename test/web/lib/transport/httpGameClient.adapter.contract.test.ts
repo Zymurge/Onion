@@ -160,21 +160,33 @@ describe('http game client adapter contract', () => {
 				eventSeq: 47,
 			}))
 			.mockResolvedValueOnce(jsonResponse({
+				ok: true,
+				seq: 48,
+				events: [],
+				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
+				movementRemainingByUnit: {
+					'onion-1': 0,
+				},
+				turnNumber: 8,
+				eventSeq: 48,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
 				gameId: 123,
 				role: 'defender',
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
 				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
-					movementRemainingByUnit: {
-						'onion-1': 0,
-					},
+				movementRemainingByUnit: {
+					'onion-1': 0,
+				},
 				scenarioMap: {
 					width: 15,
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
 				},
+				escapeHexes: [{ q: 9, r: 5 }],
 				eventSeq: 49,
 			}))
 
@@ -184,8 +196,7 @@ describe('http game client adapter contract', () => {
 		})
 
 		await client.getState(123)
-		await client.submitAction(123, { type: 'select-unit', unitId: 'wolf-2' })
-		await client.submitAction(123, { type: 'set-mode', mode: 'combined' })
+		await client.submitAction(123, { type: 'end-phase' })
 
 		await expect(client.submitAction(123, { type: 'refresh' })).resolves.toEqual({
 				authoritativeState: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
@@ -204,7 +215,7 @@ describe('http game client adapter contract', () => {
 			lastEventSeq: 49,
 		})
 
-		expect(fetchImpl).toHaveBeenCalledTimes(2)
+		expect(fetchImpl).toHaveBeenCalledTimes(3)
 	})
 
 	it('maps action winner into the returned snapshot after escape victory', async () => {

@@ -298,4 +298,40 @@ describe('App fake backend vertical slice', () => {
 			})
 		})
 	})
+
+	it('rebuilds from the backend on remount and clears local selection state', async () => {
+		const session: GameSessionContext = { role: 'defender' }
+		const backend = createFakeGameBackend({
+			initialSnapshot: createAppShellSnapshot(),
+			session,
+		})
+		const client = createGameClient(backend.requestTransport)
+		const user = userEvent.setup()
+
+		const { unmount } = render(<App gameClient={client} gameId={123} />)
+
+		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
+		await user.click(wolfButton)
+		expect(wolfButton.getAttribute('data-selected')).toBe('true')
+
+		backend.queueRefresh(
+			{
+				...createAppShellSnapshot(),
+				phase: 'DEFENDER_COMBAT',
+				scenarioName: 'Reloaded app shell snapshot',
+				turnNumber: 2,
+				lastEventSeq: 81,
+			},
+			session,
+		)
+
+		unmount()
+		render(<App gameClient={client} gameId={123} />)
+
+		await waitFor(() => {
+			expect(screen.getByText('Reloaded app shell snapshot')).not.toBeNull()
+		})
+		expect(screen.getByTestId('combat-unit-wolf-2').getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
+	})
 })
