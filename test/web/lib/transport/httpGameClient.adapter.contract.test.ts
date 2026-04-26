@@ -300,6 +300,148 @@ describe('http game client adapter contract', () => {
 		expect(fetchImpl).toHaveBeenCalledTimes(1)
 	})
 
+	it('sends stack fire actions to the backend as FIRE commands', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
+				movementRemainingByUnit: { 'wolf-2': 4 },
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				eventSeq: 47,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
+				ok: true,
+				seq: 48,
+				events: [
+					{ seq: 48, type: 'FIRE_RESOLVED', timestamp: '2026-03-26T12:00:00.000Z', attackers: ['wolf-2', 'wolf-3'], targetId: 'onion-1', roll: 4, outcome: 'D', odds: '2:1' },
+				],
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
+				movementRemainingByUnit: { 'wolf-2': 4 },
+				turnNumber: 8,
+				eventSeq: 48,
+			}))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			token: 'stub.token',
+		})
+
+		await client.getState(123)
+		await expect(client.submitAction(123, {
+			type: 'FIRE',
+			attackers: ['wolf-2', 'wolf-3'],
+			targetId: 'onion-1',
+		})).resolves.toMatchObject({
+			gameId: 123,
+			lastEventSeq: 48,
+			combatResolution: {
+				actionType: 'FIRE',
+				attackers: ['wolf-2', 'wolf-3'],
+				targetId: 'onion-1',
+				outcome: 'D',
+				outcomeLabel: 'Hit',
+				roll: 4,
+				odds: '2:1',
+			},
+		})
+
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123/actions')
+		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
+			expect.objectContaining({
+				method: 'POST',
+				body: JSON.stringify({ type: 'FIRE', attackers: ['wolf-2', 'wolf-3'], targetId: 'onion-1' }),
+			}),
+		)
+	})
+
+	it('sends MOVE_STACK actions to the backend with the stack selection payload', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_MOVE',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
+				movementRemainingByUnit: { 'wolf-2': 4 },
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				eventSeq: 47,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
+				ok: true,
+				seq: 48,
+				events: [
+					{ seq: 48, type: 'UNIT_MOVED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'wolf-2', to: { q: 5, r: 4 } },
+				],
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
+				movementRemainingByUnit: { 'wolf-2': 3 },
+				turnNumber: 8,
+				eventSeq: 48,
+			}))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			token: 'stub.token',
+		})
+
+		await client.getState(123)
+		await client.submitAction(123, {
+			type: 'MOVE_STACK',
+			selection: {
+				anchorUnitId: 'wolf-2',
+				availableUnitIds: ['wolf-2', 'wolf-3'],
+				selectedUnitIds: ['wolf-2'],
+			},
+			to: { q: 5, r: 4 },
+		})
+
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123/actions')
+		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
+			expect.objectContaining({
+				method: 'POST',
+				body: JSON.stringify({
+					type: 'MOVE_STACK',
+					selection: {
+						anchorUnitId: 'wolf-2',
+						availableUnitIds: ['wolf-2', 'wolf-3'],
+						selectedUnitIds: ['wolf-2'],
+					},
+					to: { q: 5, r: 4 },
+				}),
+			}),
+		)
+	})
+
 	it('sends end phase actions to the backend', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,

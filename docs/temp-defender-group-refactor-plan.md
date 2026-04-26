@@ -460,6 +460,46 @@ This will:
   - **Root Cause:** Left rail is not filtering/hiding the attacker list for Onion player during DEFENDER_COMBAT. Inspector logic may be tied to the wrong selection state or not updating for Onion units.
   - **Fix Guidance:** Add a role/phase check to hide/disable the left rail attacker list for Onion during DEFENDER_COMBAT. Ensure the inspector updates for Onion units when selected, and that selection state is not being overridden by defender logic.
 
+### Defender Phase Issues To Fix
+
+These were reproduced during Defender phases and should be treated as active follow-up bugs for the right-rail / grouped-selection refactor.
+
+#### MOVE issues
+
+- Left rail shows Little Pigs individually instead of as groups; selecting any member still opens the right rail selection box and acts like a full group selection.
+  - **Probable Cause:** The left rail is still rendering defender membership from raw per-unit data and/or a fallback co-location cluster, while the group selection state is being shared too broadly between rail presentation and action intent.
+  - **Fix Target:** Grouped defenders should render as groups on the left rail, with the right rail owning individual-member selection only. The left rail should not need a dropdown for stack membership.
+
+- Selecting a Little Pigs group directly on the map correctly highlights all members on the left rail, but it also opens the right rail selection state instead of a read-only group inspection.
+  - **Probable Cause:** Map-click handling is likely routing into the same state path used for right-rail stack selection, so inspection and selection are still conflated.
+  - **Fix Target:** Map group clicks should drive inspection/highlight separately from stack editing/selection.
+
+- In the right rail, `Select All`, `Clear`, and the individual selector buttons just dismiss the rail instead of keeping the stack selection active.
+  - **Probable Cause:** The selection handlers are probably clearing the active stack context before the updated selection can be committed, or they are rebuilding selection from an incomplete/empty source of truth.
+  - **Fix Target:** Right-rail actions should mutate the active group selection, not collapse the panel unless the user explicitly closes it.
+
+- The only reliable way to move a defender group is to select the group on the map and right-click a destination; using the right rail move controls does not complete the move.
+  - **Probable Cause:** Action submission from the right rail is probably not building a valid `MOVE_STACK` payload from the selected unit ids, so the submission path is dropping back to a no-op/clear path.
+  - **Fix Target:** Right-rail move submission must resolve the active group into a valid movement command and send it consistently.
+
+- For Onion as inspector, clicking a group opens the full right-rail move selector instead of a group inspection view.
+  - **Probable Cause:** Inspector focus is likely being overridden by the same fallback logic that activates stack editing when a group is selected, so inspection state and selection state are still sharing one code path.
+  - **Fix Target:** Inspector mode should remain read-only unless the user explicitly enters selection/edit intent.
+
+#### COMBAT issues
+
+- Group attack totals still render as `0111` for stacks with multiple members.
+  - **Probable Cause:** The attack label is probably being assembled from per-member flags or string concatenation rather than a numeric summary of the selected group.
+  - **Fix Target:** Render a single numeric group attack total derived from the selected members.
+
+- Group attack totals appear to be calculated as the square of the number of units in the right rail.
+  - **Probable Cause:** The combat aggregation path is likely multiplying by stack size somewhere instead of summing member attack values, or it is reusing a stack-size score where a total-attack score is expected.
+  - **Fix Target:** Compute group attack as a sum of member contributions, not a size-squared value.
+
+- After selecting a group on the left rail and submitting combat, the group cannot be selected again later; it is marked as already attacked and disabled.
+  - **Probable Cause:** The attacked/spent state is likely being attached to the group container or canonical left-rail selection model instead of the committed combat action, and it is not being reset correctly after the attack resolves.
+  - **Fix Target:** Combat spent-state should track actual member combat usage and remain selectable again until the phase rules genuinely block it.
+
 ### Right Rail Refactor Design
 
 The biggest encapsulation opportunity is to introduce one right-rail-specific selection model instead of passing raw arrays and unit ids around. Right now you already have partial canonical helpers in `appViewHelpers.ts:89` and a fuller roster abstraction in `stackRoster.ts:60`. The refactor should stop the rail from manually deriving members from displayed units and instead consume a small, explicit view model such as:

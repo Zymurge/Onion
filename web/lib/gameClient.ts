@@ -73,7 +73,6 @@ export type GameAction =
 	| { type: 'MOVE'; unitId: string; to: { q: number; r: number }; attemptRam?: boolean }
 	| { type: 'MOVE_STACK'; selection: StackActionSelection; to: { q: number; r: number }; attemptRam?: boolean }
 	| { type: 'FIRE'; attackers: string[]; targetId: string }
-	| { type: 'FIRE_STACK'; attackers: string[]; targetId: string; selection: StackActionSelection }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 

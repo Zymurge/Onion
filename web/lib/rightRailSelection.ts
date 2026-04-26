@@ -53,7 +53,7 @@ type RightRailCombatSubmissionInput = {
 export type RightRailStackSubmissionInput = RightRailMoveSubmissionInput | RightRailCombatSubmissionInput
 
 export type RightRailStackSubmissionResult =
-  | { ok: true; action: Extract<GameAction, { type: 'MOVE_STACK' } | { type: 'FIRE_STACK' }> }
+  | { ok: true; action: Extract<GameAction, { type: 'MOVE_STACK' }> | Extract<GameAction, { type: 'FIRE' }> }
   | { ok: false; reason: RightRailStackSubmissionFailureReason }
 
 function uniqueIds(unitIds: readonly string[]): string[] {
@@ -250,7 +250,7 @@ export function buildRightRailCombatAction({
   anchorUnitId: string | null
   selectedUnitIds: readonly string[]
   targetId: string | null
-}): RightRailStackActionResult<Extract<GameAction, { type: 'FIRE_STACK' }>> {
+}): RightRailStackActionResult<Extract<GameAction, { type: 'FIRE' }>> {
   const submissionResult = buildRightRailStackSubmissionAction({
     kind: 'combat',
     state,
@@ -289,10 +289,9 @@ export function buildRightRailStackSubmissionAction(input: RightRailStackSubmiss
   return {
     ok: true,
     action: {
-      type: 'FIRE_STACK',
+      type: 'FIRE',
       attackers: selectionResult.selection.selectedUnitIds,
       targetId: input.targetId,
-      selection: selectionResult.selection,
     },
   }
 }

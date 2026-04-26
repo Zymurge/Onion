@@ -10,8 +10,12 @@ import { phaseActor } from '#server/engine/phases'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { createMap } from '#server/engine/map'
 import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '#server/engine/index'
+import type { MovementPlan } from '#server/engine/index'
 import { InitialStateSchema } from '#server/engine/scenarioSchema'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
+import type { EngineGameState } from '#server/engine/units'
+import { buildStackRosterFromUnits } from '#shared/stackRoster'
+import { refreshStackNamingSnapshot, resolveStackLabelFromSnapshot } from '#shared/stackNaming'
 import {
   assertScenarioStateFitsMap,
   buildCombatEvents,
@@ -53,6 +57,78 @@ const INITIAL_STATE: GameState = {
     batteries: { main: 1, secondary: 4, ap: 8 },
   },
   defenders: {},
+}
+
+function syncDefenderStackState(state: EngineGameState) {
+  const activeDefenders = Object.values(state.defenders).filter((unit) => unit.status !== 'destroyed')
+  state.stackNaming = refreshStackNamingSnapshot(
+    state.stackNaming,
+    activeDefenders.map((unit) => ({
+      id: unit.id,
+      type: unit.type,
+      position: unit.position,
+      status: unit.status,
+      squads: unit.squads,
+      friendlyName: unit.friendlyName,
+    })),
+  )
+
+  const nextStackRoster = buildStackRosterFromUnits(
+    activeDefenders.map((unit) => ({
+      id: unit.id,
+      type: unit.type,
+      position: unit.position,
+      status: unit.status,
+      friendlyName: unit.friendlyName,
+      squads: unit.squads,
+      weapons: unit.weapons,
+      targetRules: unit.targetRules,
+    })),
+  )
+
+  for (const [groupId, group] of Object.entries(nextStackRoster.groupsById)) {
+    const firstUnit = group.units?.[0]
+    group.groupName = resolveStackLabelFromSnapshot(
+      state.stackNaming,
+      groupId,
+      group.unitType,
+      firstUnit?.id,
+      firstUnit?.friendlyName,
+      Math.max(activeDefenders.find((unit) => unit.id === firstUnit?.id)?.squads ?? 1, group.units?.length ?? group.unitIds?.length ?? 1),
+    )
+  }
+
+  state.stackRoster = nextStackRoster
+}
+
+function validateMoveStackSelection(state: EngineGameState, command: Extract<Command, { type: 'MOVE_STACK' }>): { ok: true; unitIds: string[] } | { ok: false; error: string } {
+  const selection = command.selection
+  if (!selection || typeof selection.anchorUnitId !== 'string' || !Array.isArray(selection.selectedUnitIds)) {
+    return { ok: false, error: 'MOVE_STACK requires a valid selection.' }
+  }
+
+  const selectedUnitIds = Array.from(new Set(selection.selectedUnitIds.filter((unitId): unitId is string => typeof unitId === 'string' && unitId.trim().length > 0)))
+  if (selectedUnitIds.length === 0) {
+    return { ok: false, error: 'MOVE_STACK requires at least one selected unit.' }
+  }
+
+  const anchorUnit = state.defenders[selection.anchorUnitId]
+  if (anchorUnit === undefined || anchorUnit.status === 'destroyed') {
+    return { ok: false, error: `MOVE_STACK anchor '${selection.anchorUnitId}' is not available.` }
+  }
+
+  for (const unitId of selectedUnitIds) {
+    const unit = state.defenders[unitId]
+    if (unit === undefined || unit.status === 'destroyed') {
+      return { ok: false, error: `MOVE_STACK unit '${unitId}' is not available.` }
+    }
+
+    if (unit.type !== anchorUnit.type || unit.position.q !== anchorUnit.position.q || unit.position.r !== anchorUnit.position.r) {
+      return { ok: false, error: 'MOVE_STACK selected units must come from the same stack hex and type.' }
+    }
+  }
+
+  return { ok: true, unitIds: selectedUnitIds }
 }
 
 function resolveWinnerRole(
@@ -548,7 +624,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
-      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE'])
+        const supportedCommands = new Set(['END_PHASE', 'MOVE', 'MOVE_STACK', 'FIRE'])
       if (!supportedCommands.has(command.type)) {
         logger.warn({ commandType: command.type }, 'Unknown command type')
         return reply.status(400).send({
@@ -562,6 +638,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
 
       let newEvents: EventEnvelope[]
       let currentState = match.state
+        let moveOutcome: Record<string, unknown> | null = null
       const expectedLastEventSeq = match.events.at(-1)?.seq ?? 0
       const causeId = String(req.id)
       const escapeHexes = getScenarioEscapeHexes(match.scenarioSnapshot as ScenarioSnapshot)
@@ -618,29 +695,97 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           'Phase advanced',
         )
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq, escapeHexes, victoryObjectives, winner })
-      } else if (command.type === 'MOVE') {
-        logger.info({ gameId: match.gameId, unitId: command.unitId }, 'Processing MOVE command')
+        } else if (command.type === 'MOVE' || command.type === 'MOVE_STACK') {
+          logger.info({ gameId: match.gameId, unitId: command.type === 'MOVE' ? command.unitId : command.selection.anchorUnitId }, 'Processing MOVE command')
         const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
-        const validation = validateUnitMovement(map, state, command)
-        if (!validation.ok) {
-          logger.info({ gameId: match.gameId, error: validation.error }, 'Invalid move command')
-          return reply.status(422).send({
-            ok: false,
-            error: validation.error,
-            code: 'MOVE_INVALID',
-            detailCode: validation.code,
-            currentPhase: match.phase,
-          })
-        }
-        const result = executeUnitMovement(state, validation.plan)
-        if (!result.success) {
-          logger.info({ gameId: match.gameId, error: result.error }, 'Invalid move command')
-          return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
-        }
+          if (command.type === 'MOVE') {
+            const validation = validateUnitMovement(map, state, command)
+            if (!validation.ok) {
+              logger.info({ gameId: match.gameId, error: validation.error }, 'Invalid move command')
+              return reply.status(422).send({
+                ok: false,
+                error: validation.error,
+                code: 'MOVE_INVALID',
+                detailCode: validation.code,
+                currentPhase: match.phase,
+              })
+            }
+            const result = executeUnitMovement(state, validation.plan)
+            if (!result.success) {
+              logger.info({ gameId: match.gameId, error: result.error }, 'Invalid move command')
+              return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+            }
 
-        const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = attachTurnMetadata(attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state), causeId), match.turnNumber, match.phase)
+            syncDefenderStackState(state)
+
+            const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
+            newEvents = attachTurnMetadata(attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state), causeId), match.turnNumber, match.phase)
+              moveOutcome = {
+                unitId: command.unitId,
+                unitFriendlyName: newEvents[0]?.unitFriendlyName ?? null,
+                from: validation.plan.from,
+                to: validation.plan.to,
+                cost: validation.plan.cost,
+                rammedUnitIds: result.rammedUnitIds ?? [],
+                destroyedUnits: result.destroyedUnits ?? [],
+                treadDamage: result.treadDamage ?? 0,
+              }
+          } else {
+            const selectionValidation = validateMoveStackSelection(state, command)
+            if (!selectionValidation.ok) {
+              logger.info({ gameId: match.gameId, error: selectionValidation.error }, 'Invalid stack move command')
+              return reply.status(422).send({ ok: false, error: selectionValidation.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+            }
+
+            const previewState = structuredClone(state) as EngineGameState
+            const validatedMoves: Array<{ unitCommand: Extract<Command, { type: 'MOVE' }>; plan: MovementPlan }> = []
+            for (const unitId of selectionValidation.unitIds) {
+              const unitCommand: Extract<Command, { type: 'MOVE' }> = {
+                type: 'MOVE',
+                unitId,
+                to: command.to,
+                ...(command.attemptRam === undefined ? {} : { attemptRam: command.attemptRam }),
+              }
+              const validation = validateUnitMovement(map, previewState, unitCommand)
+              if (!validation.ok) {
+                logger.info({ gameId: match.gameId, error: validation.error, unitId }, 'Invalid stack move member command')
+                return reply.status(422).send({
+                  ok: false,
+                  error: validation.error,
+                  code: 'MOVE_INVALID',
+                  detailCode: validation.code,
+                  currentPhase: match.phase,
+                })
+              }
+              const previewResult = executeUnitMovement(previewState, validation.plan)
+              if (!previewResult.success) {
+                logger.info({ gameId: match.gameId, error: previewResult.error, unitId }, 'Invalid stack move member command')
+                return reply.status(422).send({ ok: false, error: previewResult.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+              }
+              validatedMoves.push({ unitCommand, plan: validation.plan })
+            }
+
+            newEvents = []
+            let nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
+            for (const { unitCommand, plan } of validatedMoves) {
+              const result = executeUnitMovement(state, plan)
+              if (!result.success) {
+                logger.info({ gameId: match.gameId, error: result.error, unitId: unitCommand.unitId }, 'Invalid stack move member command')
+                return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+              }
+              const moveEvents = attachTurnMetadata(attachCauseId(buildMoveEvents(nextSeq, plan.unitId, unitCommand, result, state), causeId), match.turnNumber, match.phase)
+              newEvents.push(...moveEvents)
+              nextSeq = (moveEvents.at(-1)?.seq ?? nextSeq - 1) + 1
+            }
+
+            syncDefenderStackState(state)
+              moveOutcome = {
+                selection: command.selection,
+                to: command.to,
+                eventCount: newEvents.length,
+              }
+          }
 
         currentState = state
         const winnerUserId = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
@@ -656,21 +801,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           events: newEvents,
         })
         const turnNumber = match.turnNumber
-        const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
+          const eventSeq = newEvents.at(-1)?.seq ?? (match.events.at(-1)?.seq ?? 0)
         const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
-        logSentEvents(match.gameId, 'MOVE', newEvents)
-        logActionOutcome(match.gameId, 'MOVE', {
-          unitId: command.unitId,
-          unitFriendlyName: newEvents[0]?.unitFriendlyName ?? null,
-          from: validation.plan.from,
-          to: validation.plan.to,
-          cost: validation.plan.cost,
-          rammedUnitIds: result.rammedUnitIds ?? [],
-          destroyedUnits: result.destroyedUnits ?? [],
-          treadDamage: result.treadDamage ?? 0,
-        }, newEvents)
+          logSentEvents(match.gameId, 'MOVE', newEvents)
+          logActionOutcome(match.gameId, 'MOVE', moveOutcome ?? { to: command.to, eventCount: newEvents.length }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
-        logger.debug({ gameId: match.gameId, unitId: command.unitId }, 'Move executed')
+          logger.debug({ gameId: match.gameId, actionType: command.type }, 'Move executed')
         return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq, escapeHexes, victoryObjectives, winner })
       } else if (command.type === 'FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')

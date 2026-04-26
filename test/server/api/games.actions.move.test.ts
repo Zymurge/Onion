@@ -163,6 +163,178 @@ describe('POST /games/:id/actions MOVE', () => {
     executeSpy.mockRestore()
   })
 
+  it('accepts MOVE_STACK and executes one move per selected unit', async () => {
+    const defenderId = '22222222-2222-4222-8222-222222222222'
+    const onionId = '11111111-1111-4111-8111-111111111111'
+    const gameId = 333333334
+    const mockDb = {
+      createUser: async () => ({ userId: defenderId }),
+      findUserByUsername: async () => null,
+      createMatch: async () => ({ gameId }),
+      findMatch: async () => ({
+        gameId,
+        scenarioId: 'swamp-siege-01',
+        scenarioSnapshot: {
+          map: materializeScenarioMap({ radius: 10, hexes: [] }),
+          victoryConditions: { maxTurns: 20 },
+        },
+        players: { onion: onionId, defender: defenderId },
+        phase: 'DEFENDER_MOVE' as const,
+        turnNumber: 2,
+        winner: null,
+        state: {
+          onion: { id: 'onion-1', position: { q: 0, r: 10 }, treads: 45, missiles: 2, batteries: { main: 1, secondary: 4, ap: 8 } },
+          defenders: {
+            'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', squads: 2, weapons: [] },
+            'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', squads: 2, weapons: [] },
+          },
+          stackRoster: {
+            groupsById: {
+              'LittlePigs:4,4': {
+                groupName: 'Little Pigs group 1',
+                unitType: 'LittlePigs',
+                position: { q: 4, r: 4 },
+                unitIds: ['pigs-1', 'pigs-2'],
+              },
+            },
+          },
+          ramsThisTurn: 0,
+        },
+        events: [],
+      }),
+      listMatchesByUserId: async () => [],
+      updateMatchPlayers: async () => {},
+      updateMatchState: async () => {},
+      persistMatchProgress: async () => {},
+      appendEvents: async () => {},
+      getEvents: async () => [],
+    }
+    const app = buildApp(mockDb as any)
+
+    const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement')
+      .mockReturnValueOnce({ ok: true, plan: createMovePlan({ unitId: 'pigs-1', from: { q: 4, r: 4 }, to: { q: 5, r: 4 }, path: [{ q: 5, r: 4 }] }) } as any)
+      .mockReturnValueOnce({ ok: true, plan: createMovePlan({ unitId: 'pigs-2', from: { q: 4, r: 4 }, to: { q: 5, r: 4 }, path: [{ q: 5, r: 4 }] }) } as any)
+      .mockReturnValueOnce({ ok: true, plan: createMovePlan({ unitId: 'pigs-1', from: { q: 4, r: 4 }, to: { q: 5, r: 4 }, path: [{ q: 5, r: 4 }] }) } as any)
+      .mockReturnValueOnce({ ok: true, plan: createMovePlan({ unitId: 'pigs-2', from: { q: 4, r: 4 }, to: { q: 5, r: 4 }, path: [{ q: 5, r: 4 }] }) } as any)
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
+      state.defenders[plan.unitId].position = plan.to
+      return { success: true, newPosition: plan.to }
+    }) as any)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer stub.${defenderId}` },
+      payload: {
+        type: 'MOVE_STACK',
+        selection: {
+          anchorUnitId: 'pigs-1',
+          availableUnitIds: ['pigs-1', 'pigs-2'],
+          selectedUnitIds: ['pigs-1', 'pigs-2'],
+        },
+        to: { q: 5, r: 4 },
+      },
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.ok).toBe(true)
+    expect(validateSpy).toHaveBeenCalledTimes(2)
+    expect(executeSpy).toHaveBeenCalledTimes(4)
+    expect(body.events.filter((event: any) => event.type === 'UNIT_MOVED')).toHaveLength(2)
+    expect(body.state.stackRoster.groupsById['LittlePigs:5,4']).toMatchObject({
+      position: { q: 5, r: 4 },
+      units: expect.arrayContaining([
+        expect.objectContaining({ id: 'pigs-1' }),
+        expect.objectContaining({ id: 'pigs-2' }),
+      ]),
+    })
+
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
+  })
+
+  it('persists MOVE_STACK results into the fetched game state', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const initialStateRes = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+    expect(initialStateRes.statusCode).toBe(200)
+    const initialStateBody = initialStateRes.json<{ state: { stackRoster: { groupsById: Record<string, { unitType: string; position: { q: number; r: number }; unitIds?: string[] }> } } }>()
+    const initialStackEntry = Object.values(initialStateBody.state.stackRoster.groupsById).find((group) => (group.unitIds?.length ?? 0) > 1)
+    expect(initialStackEntry, 'expected a multi-unit defender stack in the scenario').toBeTruthy()
+    const selectedUnitIds = initialStackEntry!.unitIds ?? []
+    const moveTo = { q: initialStackEntry!.position.q + 1, r: initialStackEntry!.position.r }
+
+    const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockImplementation(((_map: any, _state: any, command: any) => {
+      return {
+        ok: true,
+        plan: createMovePlan({ unitId: command.unitId, from: initialStackEntry!.position, to: moveTo, path: [moveTo] }),
+      }
+    }) as any)
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
+      state.defenders[plan.unitId].position = plan.to
+      return { success: true, newPosition: plan.to }
+    }) as any)
+
+    const advancePhaseRes = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: { type: 'END_PHASE' },
+    })
+    expect(advancePhaseRes.statusCode).toBe(200)
+
+    const advanceToDefenderMoveRes = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: { type: 'END_PHASE' },
+    })
+    expect(advanceToDefenderMoveRes.statusCode).toBe(200)
+
+    const moveRes = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${fiona.token}` },
+      payload: {
+        type: 'MOVE_STACK',
+        selection: {
+          anchorUnitId: selectedUnitIds[0],
+          availableUnitIds: selectedUnitIds,
+          selectedUnitIds,
+        },
+        to: moveTo,
+      },
+    })
+
+    expect(moveRes.statusCode).toBe(200)
+    const moveBody = moveRes.json()
+    expect(moveBody.ok).toBe(true)
+
+    const persistedStateRes = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${fiona.token}` },
+    })
+    expect(persistedStateRes.statusCode).toBe(200)
+    const persistedStateBody = persistedStateRes.json<{ state: { defenders: Record<string, { position: { q: number; r: number } }>; stackRoster: { groupsById: Record<string, { position: { q: number; r: number }; unitIds?: string[] }> } } }>()
+
+    for (const unitId of selectedUnitIds) {
+      expect(persistedStateBody.state.defenders[unitId].position).toEqual(moveTo)
+    }
+
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
+  })
+
   it('returns 409 when persistence detects stale state', async () => {
     const onionId = '11111111-1111-4111-8111-111111111111'
     const defenderId = '22222222-2222-4222-8222-222222222222'

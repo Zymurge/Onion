@@ -155,7 +155,7 @@ describe('rightRailSelection', () => {
   })
 
   describe('buildRightRailCombatAction', () => {
-    it('builds a FIRE_STACK action from the selected stack members and target', () => {
+    it('builds a FIRE action from the selected stack members and target', () => {
       const state = createStackState()
 
       expect(buildRightRailCombatAction({
@@ -166,14 +166,9 @@ describe('rightRailSelection', () => {
       })).toEqual({
         ok: true,
         action: {
-          type: 'FIRE_STACK',
+          type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1',
-          selection: {
-            anchorUnitId: 'pigs-1',
-            availableUnitIds: ['pigs-1', 'pigs-2'],
-            selectedUnitIds: ['pigs-2'],
-          },
         },
       })
     })
@@ -252,14 +247,9 @@ describe('rightRailSelection', () => {
       })).toEqual({
         ok: true,
         action: {
-          type: 'FIRE_STACK',
+          type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1',
-          selection: {
-            anchorUnitId: 'pigs-1',
-            availableUnitIds: ['pigs-1', 'pigs-2'],
-            selectedUnitIds: ['pigs-2'],
-          },
         },
       })
     })

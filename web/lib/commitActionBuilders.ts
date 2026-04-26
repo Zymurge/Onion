@@ -86,7 +86,7 @@ function buildCombatPayload(
   selectedUnitIds: readonly string[],
   targetId: string,
   onionId?: string,
-): CommitActionResult<Extract<GameAction, { type: 'FIRE' } | { type: 'FIRE_STACK' }>> {
+): CommitActionResult<Extract<GameAction, { type: 'FIRE' }>> {
   const translatedTargetId = buildCombatTargetActionId(targetId, onionId)
   const stackSubmission = buildRightRailStackSubmissionAction({
     kind: 'combat',
@@ -103,7 +103,11 @@ function buildCombatPayload(
   if (stackSubmission.ok) {
     return {
       ok: true,
-      action: stackSubmission.action,
+      action: {
+        type: 'FIRE',
+        attackers: stackSubmission.action.attackers,
+        targetId: stackSubmission.action.targetId,
+      },
     }
   }
 
@@ -121,7 +125,7 @@ export function buildMoveCommitAction(input: MoveCommitActionInput): CommitActio
   return buildMovePayload(input.state, input.unitId, input.selectedUnitIds, input.to, input.attemptRam)
 }
 
-export function buildCombatCommitAction(input: CombatCommitActionInput): CommitActionResult<Extract<GameAction, { type: 'FIRE' } | { type: 'FIRE_STACK' }>> {
+export function buildCombatCommitAction(input: CombatCommitActionInput): CommitActionResult<Extract<GameAction, { type: 'FIRE' }>> {
   if (input.targetId === null || input.targetId.trim().length === 0) {
     return { ok: false, reason: 'missing-target' }
   }

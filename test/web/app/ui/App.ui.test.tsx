@@ -633,14 +633,9 @@ describe('App UI', () => {
 
 		await waitFor(() => {
 			expect(submitAction).toHaveBeenCalledWith(123, {
-				type: 'FIRE_STACK',
+				type: 'FIRE',
 				attackers: ['puss-1', 'puss-2'],
 				targetId: 'onion-1',
-				selection: {
-					anchorUnitId: 'puss-1',
-					availableUnitIds: ['puss-1', 'puss-2'],
-					selectedUnitIds: ['puss-1', 'puss-2'],
-				},
 			})
 		})
 	})

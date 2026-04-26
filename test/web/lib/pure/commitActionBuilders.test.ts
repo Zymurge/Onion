@@ -95,7 +95,7 @@ describe('commitActionBuilders', () => {
   })
 
   describe('buildCombatCommitAction', () => {
-    it('builds a FIRE_STACK action when the active unit is a stack and members are selected', () => {
+    it('builds a FIRE action when the active unit is a stack and members are selected', () => {
       const state = createStackState()
 
       expect(buildCombatCommitAction({
@@ -106,14 +106,9 @@ describe('commitActionBuilders', () => {
       })).toEqual({
         ok: true,
         action: {
-          type: 'FIRE_STACK',
+          type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1:treads',
-          selection: {
-            anchorUnitId: 'pigs-1',
-            availableUnitIds: ['pigs-1', 'pigs-2'],
-            selectedUnitIds: ['pigs-2'],
-          },
         },
       })
     })
