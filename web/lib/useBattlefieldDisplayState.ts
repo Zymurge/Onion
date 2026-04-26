@@ -34,7 +34,6 @@ type UseBattlefieldDisplayStateOptions = {
   lastRefreshAt: Date | null
   selectedCombatTargetId: string | null
   selectedUnitIds: string[] | null
-  hasExplicitSelection: boolean
   sessionState: GameSessionViewState
   activeSessionBinding: SessionBinding | null
 }
@@ -61,7 +60,6 @@ export function useBattlefieldDisplayState({
   lastRefreshAt,
   selectedCombatTargetId,
   selectedUnitIds,
-  hasExplicitSelection,
   sessionState,
   activeSessionBinding,
 }: UseBattlefieldDisplayStateOptions) {
@@ -237,7 +235,6 @@ export function useBattlefieldDisplayState({
     activeMode,
     combatBaseSnapshot,
     lastRefreshAt,
-    hasExplicitSelection,
     selectedCombatTargetId,
     selectedUnitIds,
     sessionState,

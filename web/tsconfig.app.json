@@ -26,5 +26,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["App.tsx", "main.tsx", "env.d.ts", "index.css", "App.css", "components", "lib", "assets", "../shared", "../test/shared/websocketProtocol.test.ts", "../test/shared/scenarioMap.test.ts", "../test/web/lib/resolveSelectionName.test.ts"]
+  "include": ["App.tsx", "main.tsx", "env.d.ts", "index.css", "App.css", "components", "lib", "assets", "../shared", "../test/shared/websocketProtocol.test.ts", "../test/shared/scenarioMap.test.ts"]
 }

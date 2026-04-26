@@ -398,7 +398,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     activeSessionBinding,
     activeMode: interactionState.activeMode,
     combatBaseSnapshot: interactionState.combatBaseSnapshot,
-    hasExplicitSelection: interactionState.hasExplicitSelection,
     lastRefreshAt: interactionState.lastRefreshAt,
     selectedCombatTargetId: interactionState.selectedCombatTargetId,
     selectedUnitIds: interactionState.selectedUnitIds,
@@ -639,7 +638,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const isControlledSession = activeSessionBinding !== null
   const shouldShowGameOverToast = sessionWinner !== null && sessionWinnerToastKey !== null && dismissedGameOverToastKey !== sessionWinnerToastKey
-  const rightRailStackMemberIds = rightRailStackPanel.selectedStackSelectionIds
+  const rightRailStackMemberIds = rightRailStackPanel.selectedStackMembers.map((m) => m.id)
 
   const {
     debugEntries,
@@ -917,7 +916,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         <BattlefieldRightRail
           activeCombatRole={activeCombatRole}
           activeRole={activeRole}
-          activeSelectedUnitIds={activeSelectedUnitIds}
           activeSelectedUnitCount={activeSelectedUnitIds.length}
           isCombatPhase={isCombatPhase}
           showInactiveEventStream={inactiveEventWindowVisible}

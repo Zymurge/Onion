@@ -45,13 +45,6 @@ const combatRules = ONION_STATIC_RULES
 
 const combatCalculator = createCombatCalculator(combatRules)
 
-function isWeaponSelectionId(selectionId: string) {
-	return selectionId.startsWith('weapon:')
-}
-
-function stripWeaponSelectionId(selectionId: string) {
-	return selectionId.replace(/^weapon:/, '')
-}
 function terrainTypeFromHex(value: number | undefined): TerrainType {
 	if (value === 1) {
 		return 'ridgeline'

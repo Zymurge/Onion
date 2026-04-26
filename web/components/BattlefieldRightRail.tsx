@@ -16,7 +16,6 @@ type RamPrompt = {
 type BattlefieldRightRailProps = {
   activeCombatRole: 'onion' | 'defender' | null
   activeRole: 'onion' | 'defender' | null
-  activeSelectedUnitIds: string[]
   activeSelectedUnitCount: number
   isCombatPhase: boolean
   showInactiveEventStream: boolean
@@ -58,7 +57,6 @@ type BattlefieldRightRailProps = {
 export function BattlefieldRightRail({
   activeCombatRole,
   activeRole,
-  activeSelectedUnitIds,
   activeSelectedUnitCount,
   isCombatPhase,
   showInactiveEventStream,

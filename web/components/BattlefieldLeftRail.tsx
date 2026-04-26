@@ -8,7 +8,6 @@ import {
   resolveBattlefieldDisplayName,
   resolveBattlefieldUnitName,
   resolveBattlefieldWeaponName,
-  resolveSelectionOwnerUnitId,
 } from '../lib/appViewHelpers'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex, type StackRosterState } from '../../shared/stackRoster'
@@ -95,7 +94,7 @@ function buildDefenderCombatGroups(
     const isActionable = actionableMembers.length > 0
     const isDestroyed = anchorUnit.status === 'destroyed'
     const baseAttackStats = parseAttackStats(anchorUnit.attack)
-    const stackSize = rosterGroup !== null ? rosterGroup.units.length : units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
+    const stackSize = rosterGroup !== null ? rosterGroup.unitIds.length : units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
     const label = resolveBattlefieldDisplayName({
       id: anchorUnit.id,
       type: anchorUnit.type,
