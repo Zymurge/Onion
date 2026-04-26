@@ -18,7 +18,7 @@ describe('buildCombatTargetOptions', () => {
 					move: 0,
 					weapons: 'main: ready',
 					attack: '1 / rng 1',
-					defense: 3,
+					defense: 2,
 					squads: 2,
 					actionableModes: ['fire'],
 				},
@@ -49,6 +49,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 			selectedUnitIds: ['weapon:main-1'],
 			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
 			displayedScenarioMap: {
 				width: 8,
 				height: 8,
@@ -121,6 +122,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 			selectedUnitIds: ['weapon:ap_1'],
 			selectedAttackStrength: 1,
+			selectedAttackGroupCount: 1,
 			displayedScenarioMap: {
 				width: 8,
 				height: 8,
@@ -175,6 +177,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 			selectedUnitIds: ['weapon:main-1'],
 			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
 			displayedScenarioMap: {
 				width: 8,
 				height: 8,
@@ -232,6 +235,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 			selectedUnitIds: ['weapon:ap_1'],
 			selectedAttackStrength: 1,
+			selectedAttackGroupCount: 1,
 			displayedScenarioMap: {
 				width: 8,
 				height: 8,
@@ -288,6 +292,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 			selectedUnitIds: ['wolf-2'],
 			selectedAttackStrength: 2,
+			selectedAttackGroupCount: 1,
 			displayedScenarioMap: {
 				width: 8,
 				height: 8,
@@ -296,5 +301,78 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options.map((option) => option.id)).toEqual(['onion-1:treads', 'weapon:ap_1'])
+	})
+
+	it('disables treads when multiple defender groups are selected', () => {
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'defender',
+			combatRangeHexKeys: new Set(['0,0']),
+			displayedDefenders: [
+				{
+					id: 'wolf-2',
+					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
+					status: 'operational',
+					q: 1,
+					r: 1,
+					move: 4,
+					weapons: 'main: ready',
+					attack: '2 / rng 2',
+					defense: 4,
+					actionableModes: ['fire'],
+				},
+				{
+					id: 'puss-1',
+					type: 'Puss',
+					friendlyName: 'Puss 1',
+					status: 'operational',
+					q: 2,
+					r: 1,
+					move: 4,
+					weapons: 'main: ready',
+					attack: '1 / rng 1',
+					defense: 3,
+					actionableModes: ['fire'],
+				},
+			],
+			displayedOnion: {
+				id: 'onion-1',
+				type: 'TheOnion',
+				q: 0,
+				r: 0,
+				status: 'operational',
+				treads: 33,
+				movesAllowed: 0,
+				movesRemaining: 0,
+				rams: 0,
+				weapons: 'main: ready',
+				weaponDetails: [
+					{
+						id: 'ap_1',
+						name: 'AP Gun',
+						friendlyName: 'AP Gun 1',
+						attack: 1,
+						range: 1,
+						defense: 1,
+						status: 'ready',
+						individuallyTargetable: true,
+						targetRules: { allowedTargetUnitTypes: ['LittlePigs'] },
+					},
+				],
+			},
+			selectedUnitIds: ['wolf-2', 'puss-1'],
+			selectedAttackStrength: 2,
+			selectedAttackGroupCount: 2,
+			displayedScenarioMap: {
+				width: 8,
+				height: 8,
+				hexes: [],
+			},
+		})
+
+		expect(options.find((option) => option.id === 'onion-1:treads')).toMatchObject({
+			isDisabled: true,
+			disabledTitle: 'Select attackers from one defender stack to target treads.',
+		})
 	})
 })

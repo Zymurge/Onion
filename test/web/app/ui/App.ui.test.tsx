@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { StrictMode } from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -25,8 +25,6 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: 'wolf-2',
-		mode: 'fire',
 		scenarioName: 'Selection Contract Test',
 		turnNumber: 11,
 		lastEventSeq: 47,
@@ -115,7 +113,6 @@ function createDefenderMoveSnapshotWithStaleAllowance(): LoadedBattlefieldSnapsh
 	return {
 		...snapshot,
 		phase: 'DEFENDER_MOVE',
-		selectedUnitId: 'wolf-2',
 		authoritativeState: {
 			...snapshot.authoritativeState,
 			movementSpent: {},
@@ -134,7 +131,6 @@ function createDefenderMoveSnapshotWithZeroMa(): LoadedBattlefieldSnapshot {
 	return {
 		...snapshot,
 		phase: 'DEFENDER_MOVE',
-		selectedUnitId: 'wolf-2',
 		authoritativeState: {
 			...snapshot.authoritativeState,
 			movementSpent: {},
@@ -147,13 +143,12 @@ function createDefenderMoveSnapshotWithZeroMa(): LoadedBattlefieldSnapshot {
 	}
 }
 
-function createOnionMoveSnapshot(selectedUnitId: string | null = null, onionMovesRemaining = 4): LoadedBattlefieldSnapshot {
+function createOnionMoveSnapshot(onionMovesRemaining = 4): LoadedBattlefieldSnapshot {
 	const snapshot = createLoadedBattlefieldSnapshot()
 
 	return {
 		...snapshot,
 		phase: 'ONION_MOVE',
-		selectedUnitId,
 		authoritativeState: {
 			...snapshot.authoritativeState,
 			movementSpent: {},
@@ -254,6 +249,7 @@ describe('App UI', () => {
 
 		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		await user.click(wolfButton)
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 
@@ -269,6 +265,386 @@ describe('App UI', () => {
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 	})
 
+	it('expands a stacked combat group in the left rail and lets the user toggle members', async () => {
+		const user = userEvent.setup()
+		const snapshot = createLoadedBattlefieldSnapshot()
+		snapshot.phase = 'DEFENDER_COMBAT'
+		snapshot.authoritativeState.defenders = {
+			'puss-1': {
+				...snapshot.authoritativeState.defenders['puss-1'],
+				id: 'puss-1',
+				type: 'Puss',
+				friendlyName: 'Puss 1',
+				position: { q: 4, r: 4 },
+				status: 'operational',
+				move: 3,
+				actionableModes: ['fire', 'combined'],
+			},
+			'puss-2': {
+				...snapshot.authoritativeState.defenders['puss-1'],
+				id: 'puss-2',
+				type: 'Puss',
+				friendlyName: 'Puss 2',
+				position: { q: 4, r: 4 },
+				status: 'operational',
+				move: 3,
+				actionableModes: ['fire', 'combined'],
+			},
+		}
+		snapshot.movementRemainingByUnit = {
+			...snapshot.movementRemainingByUnit,
+			'puss-1': 3,
+			'puss-2': 3,
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		fireEvent.click(await screen.findByTestId('combat-unit-puss-1'))
+		await waitFor(() => {
+			expect(screen.getByTestId('combat-unit-puss-1').getAttribute('data-selected')).toBe('true')
+			expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+			expect(screen.getByTestId('hex-unit-puss-2').getAttribute('data-selected')).toBe('true')
+		})
+		expect(await screen.findByTestId('combat-stack-group-puss-1')).not.toBeNull()
+		expect(await screen.findByTestId('combat-stack-member-puss-1')).not.toBeNull()
+		expect(await screen.findByTestId('combat-stack-member-puss-2')).not.toBeNull()
+		expect(screen.getByTestId('combat-stack-member-puss-1').textContent).toContain('Puss 1')
+		expect(screen.getByTestId('combat-stack-member-puss-2').textContent).toContain('Puss 2')
+		expect(screen.queryByTestId('stack-member-puss-1')).toBeNull()
+		await waitFor(() => {
+			expect(screen.getByTestId('combat-stack-member-puss-1').getAttribute('data-selected')).toBe('true')
+			expect(screen.getByTestId('combat-stack-member-puss-2').getAttribute('data-selected')).toBe('true')
+			expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+			expect(screen.getByTestId('hex-unit-puss-2').getAttribute('data-selected')).toBe('true')
+		})
+
+		await user.click(screen.getByTestId('combat-stack-member-puss-2'))
+		expect(screen.getByTestId('combat-stack-member-puss-2').getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('hex-unit-puss-2').getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('combat-stack-member-puss-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+	})
+
+	it('renders distinct canonical member names for each Little Pigs combat group when roster data is present', async () => {
+		const user = userEvent.setup()
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			phase: 'DEFENDER_COMBAT' as const,
+			authoritativeState: {
+				...createLoadedBattlefieldSnapshot().authoritativeState,
+				onion: {
+					...createLoadedBattlefieldSnapshot().authoritativeState.onion,
+					position: { q: 5, r: 4 },
+				},
+				defenders: {
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 1',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 2,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-2': {
+						id: 'pigs-2',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 2',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 2,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-3': {
+						id: 'pigs-3',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 3',
+						position: { q: 6, r: 6 },
+						status: 'operational' as const,
+						squads: 2,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-4': {
+						id: 'pigs-4',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 4',
+						position: { q: 6, r: 6 },
+						status: 'operational' as const,
+						squads: 2,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+				stackRoster: {
+					groupsById: {
+						'group-1': {
+							groupName: 'Little Pigs group 1',
+							unitType: 'LittlePigs',
+							position: { q: 4, r: 4 },
+							units: [
+								{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 1 },
+								{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 1 },
+							],
+						},
+						'group-2': {
+							groupName: 'Little Pigs group 2',
+							unitType: 'LittlePigs',
+							position: { q: 6, r: 6 },
+							units: [
+								{ id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 1 },
+								{ id: 'pigs-4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 1 },
+							],
+						},
+					},
+				},
+			},
+			movementRemainingByUnit: {
+				...createLoadedBattlefieldSnapshot().movementRemainingByUnit,
+				'pigs-1': 3,
+				'pigs-2': 3,
+				'pigs-3': 3,
+				'pigs-4': 3,
+			},
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const firstGroup = await screen.findByTestId('combat-unit-pigs-1')
+		const secondGroup = await screen.findByTestId('combat-unit-pigs-3')
+		expect(firstGroup.textContent).toContain('Little Pigs')
+		expect(secondGroup).not.toBeNull()
+
+		await user.click(firstGroup)
+		await waitFor(() => {
+			expect(screen.getByTestId('combat-stack-member-pigs-1').textContent).toContain('Little Pigs 1')
+			expect(screen.getByTestId('combat-stack-member-pigs-2').textContent).toContain('Little Pigs 2')
+		})
+
+		await user.click(secondGroup)
+		await waitFor(() => {
+			expect(screen.getByTestId('combat-stack-member-pigs-3').textContent).toContain('Little Pigs 3')
+			expect(screen.getByTestId('combat-stack-member-pigs-4').textContent).toContain('Little Pigs 4')
+		})
+	})
+
+	it('renders a Little Pigs grouped combat card for stacked squads', async () => {
+		const user = userEvent.setup()
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			phase: 'DEFENDER_COMBAT' as const,
+			authoritativeState: {
+				...createLoadedBattlefieldSnapshot().authoritativeState,
+				onion: {
+					...createLoadedBattlefieldSnapshot().authoritativeState.onion,
+					position: { q: 5, r: 4 },
+				},
+				defenders: {
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 1',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 4,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+			},
+			movementRemainingByUnit: {
+				...createLoadedBattlefieldSnapshot().movementRemainingByUnit,
+				'pigs-1': 3,
+			},
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const groupButton = await screen.findByTestId('combat-unit-pigs-1')
+		expect(groupButton.textContent).toContain('Little Pigs')
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 0')
+	})
+
+	it('submits the client-side stack move contract for a selected stack', async () => {
+		const snapshot = createLoadedBattlefieldSnapshot()
+		snapshot.phase = 'DEFENDER_MOVE'
+		snapshot.authoritativeState.defenders = {
+			'puss-1': {
+				...snapshot.authoritativeState.defenders['puss-1'],
+				id: 'puss-1',
+				type: 'Puss',
+				friendlyName: 'Puss 1',
+				position: { q: 4, r: 4 },
+				status: 'operational',
+				move: 3,
+				actionableModes: ['fire', 'combined'],
+			},
+			'puss-2': {
+				...snapshot.authoritativeState.defenders['puss-1'],
+				id: 'puss-2',
+				type: 'Puss',
+				friendlyName: 'Puss 2',
+				position: { q: 4, r: 4 },
+				status: 'operational',
+				move: 3,
+				actionableModes: ['fire', 'combined'],
+			},
+		}
+		snapshot.movementRemainingByUnit = {
+			...snapshot.movementRemainingByUnit,
+			'puss-1': 3,
+			'puss-2': 3,
+		}
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		fireEvent.click(await screen.findByTestId('combat-unit-puss-1'))
+		await waitFor(() => {
+			expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+			expect(screen.getByTestId('hex-unit-puss-2').getAttribute('data-selected')).toBe('true')
+		})
+
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-5-4'))
+
+		await waitFor(() => {
+			expect(submitAction).toHaveBeenCalledWith(123, {
+				type: 'MOVE_STACK',
+				selection: {
+					anchorUnitId: 'puss-1',
+					availableUnitIds: ['puss-1', 'puss-2'],
+					selectedUnitIds: ['puss-1', 'puss-2'],
+				},
+				to: { q: 5, r: 4 },
+			})
+		})
+	})
+
+	it('submits the client-side stack fire contract for a selected defender stack', async () => {
+		const snapshot = createLoadedBattlefieldSnapshot()
+		snapshot.phase = 'DEFENDER_COMBAT'
+		snapshot.authoritativeState.onion.position = { q: 5, r: 4 }
+		snapshot.authoritativeState.defenders = {
+			'puss-1': {
+				...snapshot.authoritativeState.defenders['puss-1'],
+				id: 'puss-1',
+				type: 'Puss',
+				friendlyName: 'Puss 1',
+				position: { q: 4, r: 4 },
+				status: 'operational',
+				move: 3,
+				actionableModes: ['fire', 'combined'],
+			},
+			'puss-2': {
+				...snapshot.authoritativeState.defenders['puss-1'],
+				id: 'puss-2',
+				type: 'Puss',
+				friendlyName: 'Puss 2',
+				position: { q: 4, r: 4 },
+				status: 'operational',
+				move: 3,
+				actionableModes: ['fire', 'combined'],
+			},
+		}
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		fireEvent.click(await screen.findByTestId('combat-unit-puss-1'))
+		await waitFor(() => {
+			expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+			expect(screen.getByTestId('hex-unit-puss-2').getAttribute('data-selected')).toBe('true')
+		})
+
+		fireEvent.contextMenu(screen.getByTestId('hex-unit-onion-1'))
+		fireEvent.click(await screen.findByRole('button', { name: /resolve combat/i }))
+
+		await waitFor(() => {
+			expect(submitAction).toHaveBeenCalledWith(123, {
+				type: 'FIRE_STACK',
+				attackers: ['puss-1', 'puss-2'],
+				targetId: 'onion-1',
+				selection: {
+					anchorUnitId: 'puss-1',
+					availableUnitIds: ['puss-1', 'puss-2'],
+					selectedUnitIds: ['puss-1', 'puss-2'],
+				},
+			})
+		})
+	})
+
 	it('renders friendly names on the left and right rail cards', async () => {
 		const snapshot = createDefenderMoveSnapshotWithZeroMa()
 		const client = createGameClient({
@@ -279,16 +655,201 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		expect(await screen.findByRole('button', { name: /big bad wolf 2/i })).not.toBeNull()
+		const wolfButton = await screen.findByRole('button', { name: /big bad wolf 2/i })
+		expect(wolfButton).not.toBeNull()
 		expect(screen.getByRole('button', { name: /puss 1/i })).not.toBeNull()
+		fireEvent.click(wolfButton)
 		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toBe('Big Bad Wolf 2')
+	})
+
+	it('renders distinct canonical Little Pigs unit names in move phase when roster data is present', async () => {
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			phase: 'DEFENDER_MOVE' as const,
+			authoritativeState: {
+				...createLoadedBattlefieldSnapshot().authoritativeState,
+				defenders: {
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 1',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 2,
+						move: 3,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-2': {
+						id: 'pigs-2',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 2',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 2,
+						move: 3,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-3': {
+						id: 'pigs-3',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 3',
+						position: { q: 6, r: 6 },
+						status: 'operational' as const,
+						squads: 2,
+						move: 3,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-4': {
+						id: 'pigs-4',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 4',
+						position: { q: 6, r: 6 },
+						status: 'operational' as const,
+						squads: 2,
+						move: 3,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+				stackRoster: {
+					groupsById: {
+						'group-1': {
+							groupName: 'Little Pigs group 1',
+							unitType: 'LittlePigs',
+							position: { q: 4, r: 4 },
+							units: [
+								{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 1 },
+								{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 1 },
+							],
+						},
+						'group-2': {
+							groupName: 'Little Pigs group 2',
+							unitType: 'LittlePigs',
+							position: { q: 6, r: 6 },
+							units: [
+								{ id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 1 },
+								{ id: 'pigs-4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 1 },
+							],
+						},
+					},
+				},
+			},
+			movementRemainingByUnit: {
+				...createLoadedBattlefieldSnapshot().movementRemainingByUnit,
+				'pigs-1': 3,
+				'pigs-2': 3,
+				'pigs-3': 3,
+				'pigs-4': 3,
+			},
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByTestId('combat-unit-pigs-1')).not.toBeNull()
+		expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs')
+		expect(screen.getByTestId('combat-unit-pigs-3').textContent).toContain('Little Pigs')
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs')
+		expect(screen.getByTestId('hex-unit-pigs-3').textContent).toContain('Little Pigs')
+	})
+
+	it('shows Little Pigs stack info in the inspector and on the map', async () => {
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			phase: 'DEFENDER_MOVE' as const,
+			authoritativeState: {
+				...createLoadedBattlefieldSnapshot().authoritativeState,
+				defenders: {
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 1',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 4,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+			},
+			movementRemainingByUnit: {
+				...createLoadedBattlefieldSnapshot().movementRemainingByUnit,
+				'pigs-1': 3,
+			},
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByTestId('hex-unit-pigs-1')).not.toBeNull()
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs')
+		expect(screen.queryByTestId('hex-stack-label-4-4')).toBeNull()
+		expect(screen.queryByTestId('hex-stack-count-4-4')).toBeNull()
+		fireEvent.click(screen.getByTestId('combat-unit-pigs-1'))
+		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toContain('Little Pigs')
+		expect(screen.getByText('Stack')).not.toBeNull()
 	})
 
 	it('keeps a destroyed swamp on the map and shows victory objectives in the inspector', async () => {
 		const snapshot = {
 			...createLoadedBattlefieldSnapshot(),
 			phase: 'DEFENDER_MOVE' as const,
-			selectedUnitId: null,
 			authoritativeState: {
 				...createLoadedBattlefieldSnapshot().authoritativeState,
 				defenders: {
@@ -389,7 +950,6 @@ describe('App UI', () => {
 	it('renders friendly names for onion weapon cards in combat', async () => {
 		const snapshot = createLoadedBattlefieldSnapshot()
 		snapshot.phase = 'ONION_COMBAT'
-		snapshot.selectedUnitId = 'weapon:main-1'
 		snapshot.authoritativeState.onion.weapons = [
 			{
 				id: 'main-1',
@@ -417,7 +977,6 @@ describe('App UI', () => {
 		const user = userEvent.setup()
 		const snapshot = createLoadedBattlefieldSnapshot()
 		snapshot.phase = 'ONION_COMBAT'
-		snapshot.selectedUnitId = 'weapon:main-1'
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -426,6 +985,7 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
+		await user.click(await screen.findByTestId('combat-weapon-main-1'))
 		await user.click(await screen.findByTestId('hex-unit-puss-1'))
 		expect(screen.getByRole('heading', { name: /Valid Targets/i })).not.toBeNull()
 		expect(screen.queryByText(/Inspector/i)).toBeNull()
@@ -442,6 +1002,7 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		fireEvent.click(wolfUnit)
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
 		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
@@ -458,13 +1019,14 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		fireEvent.click(wolfUnit)
 		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
 		expect(wolfUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
 		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
 	})
 
 	it('keeps Onion MOVE focused on Onion and leaves the inspector empty until a unit is selected', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -481,7 +1043,7 @@ describe('App UI', () => {
 	})
 
 	it('does not reopen Onion movement range after moves are exhausted', async () => {
-		const snapshot = createOnionMoveSnapshot('onion-1', 0)
+		const snapshot = createOnionMoveSnapshot(0)
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -498,9 +1060,9 @@ describe('App UI', () => {
 
 	it('shows remaining ram capacity in the Onion rail', async () => {
 		const snapshot = {
-			...createOnionMoveSnapshot('onion-1', 4),
+			...createOnionMoveSnapshot(4),
 			authoritativeState: {
-				...createOnionMoveSnapshot('onion-1', 4).authoritativeState,
+				...createOnionMoveSnapshot(4).authoritativeState,
 				ramsThisTurn: 1,
 			},
 		}
@@ -512,8 +1074,9 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /the onion 1/i })
+		const onionCard = await screen.findByTestId('combat-unit-onion-1')
 		expect(onionCard.textContent).toContain('Rams remaining 1')
+		await userEvent.setup().click(onionCard)
 		expect(screen.getByText((_, element) => element?.tagName === 'DT' && element?.textContent === 'Rams remaining')).not.toBeNull()
 	})
 
@@ -538,7 +1101,7 @@ describe('App UI', () => {
 	it('opens the inactive-event stream after the turn becomes inactive', async () => {
 		const user = userEvent.setup()
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
-		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const inactiveSnapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
 			.fn()
@@ -583,7 +1146,7 @@ describe('App UI', () => {
 
 	it('renders structured inactive-event summaries when summary text is absent', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -687,7 +1250,7 @@ describe('App UI', () => {
 	})
 
 	it('renders the surviving ram summary in the inactive event stream', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -735,7 +1298,7 @@ describe('App UI', () => {
 
 	it('starts the Onion inactive stream at the defender handoff instead of the Onion move phase', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -797,7 +1360,7 @@ describe('App UI', () => {
 	})
 
 	it('renders actual combat outcomes for Little Pigs D results', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -848,7 +1411,7 @@ describe('App UI', () => {
 	})
 
 	it('renders D against Onion weapons as no effect', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -883,7 +1446,7 @@ describe('App UI', () => {
 	})
 
 	it('renders D against Onion treads as missed in the inactive stream', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -926,7 +1489,7 @@ describe('App UI', () => {
 	})
 
 	it('renders D against Onion treads targets with the treads suffix as missed in the inactive stream', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -975,8 +1538,6 @@ describe('App UI', () => {
 		const snapshot: LoadedBattlefieldSnapshot = {
 			gameId: 123,
 			phase: 'ONION_COMBAT',
-			selectedUnitId: 'weapon:missile_1',
-			mode: 'fire',
 			scenarioName: 'The Siege of Shrek\'s Swamp',
 			turnNumber: 8,
 			lastEventSeq: 47,
@@ -1051,7 +1612,7 @@ describe('App UI', () => {
 
 	it('groups related inactive events by causeId across interleaved noise', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -1113,7 +1674,7 @@ describe('App UI', () => {
 	})
 
 	it('surfaces a non-blocking error when inactive-event polling fails', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockRejectedValue(new Error('network down'))
 		const client = createGameClient({
@@ -1130,9 +1691,9 @@ describe('App UI', () => {
 		expect(pollEvents).toHaveBeenCalledWith(123, 0)
 	})
 
-	it('keeps the inactive-event stream visible until it is acknowledged after the session becomes active again', async () => {
+	it('refreshes out of inactive-event mode and resumes the active session view', async () => {
 		const user = userEvent.setup()
-		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const inactiveSnapshot = createOnionMoveSnapshot(4)
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
@@ -1161,16 +1722,17 @@ describe('App UI', () => {
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {
-			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
-			expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(false)
+			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
 		})
 		await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'Defender Movement')
+		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
+		expect(screen.getByRole('button', { name: /start combat/i }).hasAttribute('disabled')).toBe(false)
 		expect(getState).toHaveBeenCalledWith(123)
 	})
 
-	it('keeps active controls locked until Begin Turn is acknowledged', async () => {
+	it('unlocks active controls immediately after refresh returns to the active turn', async () => {
 		const user = userEvent.setup()
-		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const inactiveSnapshot = createOnionMoveSnapshot(4)
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
@@ -1206,29 +1768,12 @@ describe('App UI', () => {
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {
-			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
-			expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(false)
+			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
 		})
 		await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'Defender Movement')
 		const shell = document.querySelector('.shell') as HTMLElement
-		expect(shell.classList.contains('inactive-event-screen-locked')).toBe(true)
-		const beginTurnButton = screen.getByRole('button', { name: /begin turn/i })
-		expect(beginTurnButton.classList.contains('begin-turn-btn-ready')).toBe(true)
-		expect(screen.getByTestId('inactive-event-stream').classList.contains('inactive-event-stream-acknowledgement-pending')).toBe(true)
-		const startCombatButton = screen.getByRole('button', { name: /start combat/i })
-		expect(startCombatButton.hasAttribute('disabled')).toBe(true)
-
-		await user.click(startCombatButton)
-
-		expect(submitAction).not.toHaveBeenCalled()
-
-		await user.click(screen.getByRole('button', { name: /begin turn/i }))
-
-		await waitFor(() => {
-			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
-		})
-		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
 		expect(shell.classList.contains('inactive-event-screen-locked')).toBe(false)
+		const startCombatButton = screen.getByRole('button', { name: /start combat/i })
 		expect(screen.getByRole('button', { name: /start combat/i }).hasAttribute('disabled')).toBe(false)
 
 		await user.click(screen.getByRole('button', { name: /start combat/i }))
@@ -1244,7 +1789,7 @@ describe('App UI', () => {
 
 	it('clears stale inactive-event errors after polling is disabled and resumes cleanly', async () => {
 		const user = userEvent.setup()
-		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const inactiveSnapshot = createOnionMoveSnapshot(4)
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
@@ -1271,17 +1816,18 @@ describe('App UI', () => {
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {
-			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
+			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
 			expect(screen.queryByRole('alert')).toBeNull()
 		})
-		expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(false)
+		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
 
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
+		await screen.findByText((_, element) => element?.classList.contains('phase-chip-state') === true && element.textContent === 'Onion Movement')
+		expect(screen.getByRole('button', { name: /begin turn/i }).hasAttribute('disabled')).toBe(true)
 		expect(screen.queryByRole('alert')).toBeNull()
 		expect(pollEvents).toHaveBeenCalledWith(123, 0)
-		// The event stream is only dismissed by explicit user action now, so pollEvents may be called more than once
 		expect(pollEvents).toHaveBeenCalledTimes(2)
 	})
 

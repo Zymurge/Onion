@@ -14,15 +14,13 @@ describe('game client seam contract', () => {
 	const snapshot: GameSnapshot = {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: 'wolf-2',
-		mode: 'fire',
 		scenarioName: "The Siege of Shrek's Swamp",
 		turnNumber: 8,
 		lastEventSeq: 47,
 	}
 	const session: GameStateEnvelope['session'] = { role: 'defender' }
 
-	const action: GameAction = { type: 'set-mode', mode: 'end-phase' }
+	const action: GameAction = { type: 'MOVE', unitId: 'wolf-2', to: { q: 2, r: 4 } }
 
 	it('loads the current state through the seam', async () => {
 		const transport: GameRequestTransport = {

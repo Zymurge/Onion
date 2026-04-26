@@ -34,8 +34,20 @@
       "wolf-2":  { "type": "BigBadWolf", "position": { "q": 6,  "r": 6 }, "status": "operational" },
       "puss-1":  { "type": "Puss",       "position": { "q": 6,  "r": 4 }, "status": "operational" },
       "witch-1": { "type": "Witch",      "position": { "q": 7,  "r": 3 }, "status": "operational" },
-      "pigs-1":  { "type": "LittlePigs", "position": { "q": 4,  "r": 7 }, "squads": 3, "status": "operational" },
-      "pigs-2":  { "type": "LittlePigs", "position": { "q": 5,  "r": 7 }, "squads": 2, "status": "operational" }
+      "pigs-stack-1": {
+        "kind": "stack-group",
+        "unitType": "LittlePigs",
+        "position": { "q": 4, "r": 7 },
+        "count": 3,
+        "status": "operational"
+      },
+      "pigs-stack-2": {
+        "kind": "stack-group",
+        "unitType": "LittlePigs",
+        "position": { "q": 5, "r": 7 },
+        "count": 2,
+        "status": "operational"
+      }
     }
   },
   "victoryConditions": {

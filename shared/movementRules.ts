@@ -69,9 +69,11 @@ export function getStopOnOccupiedHexFailure(input: {
 	movingRole: MoveRole
 	movingUnitType: string
 	occupants: MoveOccupant[]
+	incomingMembers?: number
 	incomingSquads?: number
 }): StopOccupationFailure | null {
-	const { movingRole, movingUnitType, occupants, incomingSquads = 1 } = input
+	const { movingRole, movingUnitType, occupants } = input
+	const incomingMembers = input.incomingMembers ?? input.incomingSquads ?? 1
 
 	if (occupants.length === 0) {
 		return null
@@ -94,14 +96,15 @@ export function getStopOnOccupiedHexFailure(input: {
 	}
 
 	const maxStacks = getUnitDefinition(movingUnitType)?.abilities.maxStacks ?? 1
-	const destinationSquads = occupants.reduce((total, occupant) => total + (occupant.squads ?? 1), 0)
-	return incomingSquads + destinationSquads <= maxStacks ? null : 'stack-limit'
+	const destinationMembers = occupants.length
+	return incomingMembers + destinationMembers <= maxStacks ? null : 'stack-limit'
 }
 
 export function canStopOnOccupiedHex(input: {
 	movingRole: MoveRole
 	movingUnitType: string
 	occupants: MoveOccupant[]
+	incomingMembers?: number
 	incomingSquads?: number
 }): boolean {
 	return getStopOnOccupiedHexFailure(input) === null

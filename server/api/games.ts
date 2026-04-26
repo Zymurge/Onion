@@ -661,6 +661,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logSentEvents(match.gameId, 'MOVE', newEvents)
         logActionOutcome(match.gameId, 'MOVE', {
           unitId: command.unitId,
+          unitFriendlyName: newEvents[0]?.unitFriendlyName ?? null,
           from: validation.plan.from,
           to: validation.plan.to,
           cost: validation.plan.cost,
@@ -714,7 +715,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logSentEvents(match.gameId, command.type, newEvents)
         logActionOutcome(match.gameId, 'FIRE', {
           attackers: command.attackers,
+          attackerFriendlyNames: newEvents[0]?.attackerFriendlyNames ?? [],
           targetId: result.targetId,
+          targetFriendlyName: newEvents[0]?.targetFriendlyName ?? null,
           roll: result.roll?.roll ?? null,
           outcome: result.roll?.result ?? null,
           odds: result.roll?.odds ?? null,

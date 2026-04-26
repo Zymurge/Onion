@@ -12,7 +12,7 @@ import {
 
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex, UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
-import { resolveBattlefieldUnitName, resolveBattlefieldWeaponName } from './appViewHelpers'
+import { getDisplayDefense, getTerrainValueAt, isWeaponSelectionId, resolveBattlefieldUnitName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './appViewHelpers'
 
 type CombatRole = 'onion' | 'defender'
 
@@ -26,6 +26,8 @@ export type CombatTargetOption = {
 	detail: string
 	defense: number
 	modifiers: string[]
+	isDisabled?: boolean
+	disabledTitle?: string
 }
 
 type CombatPreviewInput = {
@@ -35,20 +37,13 @@ type CombatPreviewInput = {
 	displayedOnion: BattlefieldOnionView | null
 	selectedUnitIds: ReadonlyArray<string>
 	selectedAttackStrength: number
+	selectedAttackGroupCount: number
 	displayedScenarioMap: { width: number; height: number; cells?: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null
 }
 
 const combatRules = ONION_STATIC_RULES
 
 const combatCalculator = createCombatCalculator(combatRules)
-
-function isWeaponSelectionId(selectionId: string) {
-	return selectionId.startsWith('weapon:')
-}
-
-function stripWeaponSelectionId(selectionId: string) {
-	return selectionId.replace(/^weapon:/, '')
-}
 
 function terrainTypeFromHex(value: number | undefined): TerrainType {
 	if (value === 1) {
@@ -122,7 +117,7 @@ function buildCombatCalculatorInputForWeaponTarget(
 	const units: CombatCalculatorInput['combatState']['units'] = {}
 
 	for (const attackerId of selectedAttackerIds) {
-		const attacker = displayedDefenders.find((unit) => unit.id === attackerId)
+		const attacker = displayedDefenders.find((unit) => unit.id === resolveSelectionOwnerUnitId(attackerId))
 		if (attacker !== undefined) {
 			units[attackerId] = { type: attacker.type }
 		}
@@ -153,6 +148,7 @@ export function buildCombatTargetOptions({
 	displayedOnion,
 	selectedUnitIds,
 	selectedAttackStrength,
+	selectedAttackGroupCount,
 	displayedScenarioMap,
 }: CombatPreviewInput): CombatTargetOption[] {
 	if (activeCombatRole === null) {
@@ -189,6 +185,8 @@ export function buildCombatTargetOptions({
 				const result = combatCalculator.calculateResult(
 					buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, unit, displayedScenarioMap),
 				)
+				const terrainType = getTerrainValueAt(displayedScenarioMap, unit.q, unit.r)
+				const defense = getDisplayDefense(unit.type, unit.squads, terrainType)
 
 				return {
 					id: unit.id,
@@ -197,12 +195,12 @@ export function buildCombatTargetOptions({
 					r: unit.r,
 					status: unit.status,
 					label: resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName),
-					defense: result.defenseStrength,
+					defense,
 					modifiers: buildTargetModifiers(
 						result.modifiers,
 						selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 					),
-					detail: `Defense: ${result.defenseStrength}`,
+					detail: `Defense: ${defense}`,
 				}
 			})
 	}
@@ -245,6 +243,11 @@ export function buildCombatTargetOptions({
 			defense: selectedAttackStrength,
 			modifiers: selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 			detail: `Treads: ${displayedOnion.treads}`,
+			isDisabled: activeCombatRole === 'defender' && selectedAttackGroupCount > 1,
+			disabledTitle:
+				activeCombatRole === 'defender' && selectedAttackGroupCount > 1
+					? 'Select attackers from one defender stack to target treads.'
+					: undefined,
 		},
 		...readyWeaponTargets,
 	]

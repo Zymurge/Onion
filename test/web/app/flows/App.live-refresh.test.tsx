@@ -12,8 +12,6 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: 'dragon-7',
-		mode: 'fire',
 		scenarioName: 'Fake Test Scenario',
 		turnNumber: 1,
 		lastEventSeq: 47,

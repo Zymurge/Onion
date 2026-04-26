@@ -1069,6 +1069,29 @@
   gap: 6px;
 }
 
+.combat-stack-group {
+  display: grid;
+  gap: 6px;
+}
+
+.combat-stack-card-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.combat-stack-member-list {
+  display: grid;
+  gap: 6px;
+  padding-left: 12px;
+}
+
+.combat-stack-member-button {
+  border-style: dashed;
+}
+
 
 .defender-row,
 .defender-card-button,

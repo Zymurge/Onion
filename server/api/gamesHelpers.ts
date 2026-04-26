@@ -11,6 +11,8 @@ import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenario
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
 import { buildFriendlyName } from '#shared/unitDefinitions'
+import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot, refreshStackNamingSnapshot } from '#shared/stackNaming'
+import type { StackNamingSourceUnit } from '#shared/stackNaming'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import type { EngineGameState } from '#server/engine/units'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
@@ -152,8 +154,23 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 }
 
 export function buildEngineState(match: MatchRecord): EngineGameState {
+  const stackNaming = refreshStackNamingSnapshot(
+    match.state.stackNaming,
+    Object.values(match.state.defenders)
+      .filter((unit) => typeof unit.id === 'string')
+      .map((unit) => ({
+        id: unit.id as string,
+        type: unit.type,
+        position: unit.position,
+        status: String(unit.status),
+        squads: unit.squads,
+        friendlyName: unit.friendlyName,
+      }))
+  )
   return {
     ...structuredClone(match.state),
+    stackRoster: structuredClone(match.state.stackRoster) ?? { groupsById: {} },
+    stackNaming,
     ramsThisTurn: match.state.ramsThisTurn ?? 0,
     currentPhase: match.phase,
     turn: match.turnNumber,
@@ -441,11 +458,23 @@ function resolveUnitFriendlyName(state: GameState, unitId: string): string {
 
   for (const defender of Object.values(state.defenders)) {
     if (defender.id === unitId) {
+      if ((defender.squads ?? 1) > 1) {
+        return resolveStackLabelFromSnapshot(
+          state.stackNaming,
+          buildStackGroupKey(defender.type, defender.position),
+          defender.type,
+          defender.id,
+          defender.friendlyName,
+          defender.squads,
+        )
+      }
+
       if (defender.friendlyName !== undefined && defender.friendlyName.trim().length > 0) {
         return defender.friendlyName
       }
 
       const defenderDefinition = getUnitDefinition(defender.type)
+
       if (defenderDefinition?.friendlyNameTemplate !== undefined) {
         return buildFriendlyName(defenderDefinition.friendlyNameTemplate, defender.id ?? unitId)
       }
@@ -563,6 +592,39 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
           ? 'defender'
           : null
 
+  const stackRosterSource = match.state.stackRoster ?? { groupsById: {} }
+
+  const stackRosterGroupsById = Object.fromEntries(
+    Object.entries(stackRosterSource.groupsById ?? {}).flatMap(([groupId, group]) => {
+      const maxStacks = getUnitDefinition(group.unitType)?.abilities.maxStacks ?? 1
+      if (maxStacks <= 1) {
+        return []
+      }
+
+      const unitIds = group.unitIds ?? (group.units ?? []).map((unit) => unit.id)
+      if (unitIds.length === 0) {
+        return []
+      }
+
+      return [[
+        groupId,
+        {
+          groupName: group.groupName,
+          unitType: group.unitType,
+          position: group.position,
+          unitIds,
+        },
+      ]]
+    }),
+  )
+
+  const defenders = Object.fromEntries(
+    Object.entries(match.state.defenders).map(([defenderId, defender]) => {
+      const { squads: _squads, ...defenderWithoutSquads } = defender
+      return [defenderId, defenderWithoutSquads]
+    }),
+  )
+
   return {
     gameId: match.gameId,
     scenarioId: match.scenarioId,
@@ -572,7 +634,11 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     turnNumber: match.turnNumber,
     winner,
     players: match.players,
-    state: match.state,
+    state: {
+      ...match.state,
+      defenders,
+      stackRoster: { groupsById: stackRosterGroupsById },
+    },
     movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
     victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber),
     escapeHexes,

@@ -1,10 +1,13 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
-import { statusTone, unitCode, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
+import { resolveBattlefieldDisplayName, resolveSelectionOwnerUnitId } from '../lib/appViewHelpers'
+import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
+import type { StackNamingSnapshot } from '../../shared/stackNaming'
+import { buildStackRosterIndex, type StackRosterState } from '../../shared/stackRoster'
 import './HexMapBoard.css'
 
 import swampDestroyedSprite from '../assets/The Swamp - destroyed.png'
@@ -28,6 +31,8 @@ type HexMapBoardProps = {
   combatRangeHexKeys?: ReadonlySet<string>
   combatTargetIds?: ReadonlySet<string>
   escapeHexes?: Array<{ q: number; r: number }>
+  stackNaming?: StackNamingSnapshot
+  stackRoster?: StackRosterState
   canSubmitMove?: boolean
   isSelectionLocked?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
@@ -72,6 +77,14 @@ function shouldRenderDefender(defender: BattlefieldUnit) {
 
 function getSwampSpriteHref(status: string) {
   return status === 'destroyed' ? swampDestroyedSprite : swampIntactSprite
+}
+
+function getUnitMarkerText(occupant: HexOccupant, stackNaming?: StackNamingSnapshot): string | null {
+  if (occupant.type === 'Swamp') {
+    return null
+  }
+
+  return resolveBattlefieldDisplayName(occupant, stackNaming)
 }
 
 function buildMoveValidationState(
@@ -119,11 +132,12 @@ function buildMoveValidationState(
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, escapeHexes, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, escapeHexes, stackNaming, stackRoster, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   void viewerRole
 
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
+  const stackRosterIndex = useMemo(() => stackRoster === undefined ? null : buildStackRosterIndex(stackRoster), [stackRoster])
   const escapePatternId = useId().replaceAll(':', '')
   const [moveError, setMoveError] = useState<string | null>(null)
   const [zoomPercent, setZoomPercent] = useState(100)
@@ -143,7 +157,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
         continue
       }
 
-      selectedIds.add(selectionId)
+      selectedIds.add(resolveSelectionOwnerUnitId(selectionId))
     }
 
     return selectedIds
@@ -151,7 +165,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
   const selectedPrimaryUnitId = useMemo(() => {
     const directSelection = selectedUnitIds.find((selectionId) => !selectionId.startsWith('weapon:'))
     if (directSelection !== undefined) {
-      return directSelection
+      return resolveSelectionOwnerUnitId(directSelection)
     }
 
     return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onion.id : ''
@@ -497,142 +511,176 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                       pointerEvents="none"
                     />
                   ) : null}
-                  {cellOccupants.map((occupant, index) => {
-                    const isOccupantOnion = occupant.id === onion.id
-                    const isOccupantSelected = selectedUnitSet.has(occupant.id)
-                    const offset = getStackOffset(index, cellOccupants.length)
-                    const isSwamp = occupant.type === 'Swamp'
+                    {(() => {
+                      const renderedOccupants: HexOccupant[] = []
+                      const renderedGroupIds = new Set<string>()
 
-                    const isDestroyed = occupant.status === 'destroyed'
-                    const isDisabled = occupant.status === 'disabled'
-                    const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
-                    const isMovementPhaseActiveSide = phase === 'ONION_MOVE' ? isOccupantOnion : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE' ? !isOccupantOnion : false
-                    const combatHasReadyAttack = isOccupantOnion
-                      ? (occupant.weaponDetails ?? []).some((weapon) => weapon.status === 'ready')
-                      : 'actionableModes' in occupant && occupant.actionableModes.includes('fire')
-                    const moveHasRemaining = isOccupantOnion
-                      ? onion.movesRemaining > 0
-                      : 'move' in occupant && occupant.move > 0
-                    const combatEligibilityClass = !isCombatPhase
-                      ? ''
-                      : isDestroyed || isDisabled
-                        ? 'hex-unit-rect-combat-disabled'
-                        : activeCombatRole === 'onion'
-                          ? isOccupantOnion
-                            ? combatHasReadyAttack
-                              ? 'hex-unit-rect-combat-eligible'
-                              : 'hex-unit-rect-combat-ineligible'
-                            : 'hex-unit-rect-combat-inspectable'
-                          : activeCombatRole === 'defender'
-                            ? !isOccupantOnion
-                              ? combatHasReadyAttack
-                                ? 'hex-unit-rect-combat-eligible'
-                                : 'hex-unit-rect-combat-ineligible'
-                              : 'hex-unit-rect-combat-inspectable'
-                            : ''
-                    const movementEligibilityClass = !isMovementPhase
-                      ? ''
-                      : isSwamp
-                        ? isDestroyed ? 'hex-unit-rect-swamp-destroyed' : 'hex-unit-rect-swamp'
-                        : isDestroyed || isDisabled
-                        ? 'hex-unit-rect-move-disabled'
-                        : isMovementPhaseActiveSide
-                          ? moveHasRemaining
-                            ? 'hex-unit-rect-move-eligible'
-                            : 'hex-unit-rect-move-ineligible'
-                          : 'hex-unit-rect-move-inspectable'
-                    const swampRectClass = isSwamp
-                      ? isDestroyed || isDisabled
-                        ? 'hex-unit-rect-swamp-destroyed'
-                        : 'hex-unit-rect-swamp'
-                      : ''
-                    const unitRectX = isSwamp ? center.x - 24 : center.x - 16
-                    const unitRectY = isSwamp ? center.y - 24 : center.y - 11
-                    const unitRectWidth = isSwamp ? 48 : 32
-                    const unitRectHeight = isSwamp ? 48 : 22
-                    return (
-                      <g
-                        key={occupant.id}
-                        data-testid={`hex-unit-${occupant.id}`}
-                        data-selected={isOccupantSelected}
-                        className={[
-                          'hex-unit-stack',
-                          isOccupantOnion ? 'hex-unit-stack-onion' : 'hex-unit-stack-defender',
-                          isSwamp ? 'hex-unit-stack-swamp' : '',
-                          isOccupantSelected ? 'hex-unit-stack-selected' : '',
-                          isMovementPhase && movementEligibilityClass === 'hex-unit-rect-move-eligible' ? 'hex-unit-stack-move-ready' : '',
-                          isDisabled ? 'hex-unit-stack-disabled' : '',
-                          isSwamp ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral') : `tone-${statusTone(occupant.status)}`,
-                        ].join(' ')}
-                        transform={`translate(${offset.dx}, ${offset.dy})`}
-                        onClick={(event) => {
-                          if (isSelectionLocked) {
-                            event.stopPropagation()
-                            return
+                      for (const occupant of cellOccupants) {
+                        const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
+
+                        if (rosterGroup !== null) {
+                          if (renderedGroupIds.has(rosterGroup.groupId)) {
+                            continue
                           }
 
-                          event.stopPropagation()
+                          renderedGroupIds.add(rosterGroup.groupId)
+                          const anchorUnitId = rosterGroup.unitIds.find((unitId) => cellOccupants.some((cellOccupant) => cellOccupant.id === unitId)) ?? occupant.id
+                          renderedOccupants.push(cellOccupants.find((cellOccupant) => cellOccupant.id === anchorUnitId) ?? occupant)
+                          continue
+                        }
 
-                          onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
-                        }}
-                      >
-                        <rect
-                          className={[
-                            'hex-unit-rect',
-                            isSwamp ? swampRectClass : isOccupantOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
-                            isOccupantSelected ? 'hex-unit-rect-selected' : '',
-                            isSwamp ? '' : movementEligibilityClass,
-                            isDisabled ? 'hex-unit-rect-disabled' : '',
-                            isSwamp ? '' : combatEligibilityClass,
-                          ].join(' ')}
-                          x={unitRectX}
-                          y={unitRectY}
-                          width={unitRectWidth}
-                          height={unitRectHeight}
-                          rx={isSwamp ? 4 : 2}
-                        />
-                        {occupant.type === 'Swamp' ? null : (
-                          <text className="hex-unit-marker" x={center.x} y={center.y + 4} textAnchor="middle">
-                            {unitCode(occupant.type)}
-                          </text>
-                        )}
-                        {occupant.type === 'Swamp' ? (
-                          <image
-                            href={getSwampSpriteHref(occupant.status)}
-                            x={center.x - 19}
-                            y={center.y - 19}
-                            width={38}
-                            height={38}
-                            preserveAspectRatio="xMidYMid meet"
-                          />
-                        ) : null}
-                        {isDisabled && (
-                          <g className="hex-unit-disabled-indicator">
+                        renderedOccupants.push(occupant)
+                      }
+
+                      return renderedOccupants.map((occupant, index) => {
+                        const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
+                        const isOccupantOnion = occupant.id === onion.id
+                        const isOccupantSelected = rosterGroup !== null
+                          ? rosterGroup.unitIds.some((unitId) => selectedUnitSet.has(unitId))
+                          : selectedUnitSet.has(occupant.id)
+                        const offset = getStackOffset(index, renderedOccupants.length)
+                        const isSwamp = occupant.type === 'Swamp'
+                        const isDestroyed = occupant.status === 'destroyed'
+                        const isDisabled = occupant.status === 'disabled'
+                        const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
+                        const isMovementPhaseActiveSide = phase === 'ONION_MOVE' ? isOccupantOnion : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE' ? !isOccupantOnion : false
+                        const combatHasReadyAttack = isOccupantOnion
+                          ? (occupant.weaponDetails ?? []).some((weapon) => weapon.status === 'ready')
+                          : 'actionableModes' in occupant && occupant.actionableModes.includes('fire')
+                        const moveHasRemaining = isOccupantOnion
+                          ? onion.movesRemaining > 0
+                          : 'move' in occupant && occupant.move > 0
+                        const combatEligibilityClass = !isCombatPhase
+                          ? ''
+                          : isDestroyed || isDisabled
+                            ? 'hex-unit-rect-combat-disabled'
+                            : activeCombatRole === 'onion'
+                              ? isOccupantOnion
+                                ? combatHasReadyAttack
+                                  ? 'hex-unit-rect-combat-eligible'
+                                  : 'hex-unit-rect-combat-ineligible'
+                                : 'hex-unit-rect-combat-inspectable'
+                              : activeCombatRole === 'defender'
+                                ? !isOccupantOnion
+                                  ? combatHasReadyAttack
+                                    ? 'hex-unit-rect-combat-eligible'
+                                    : 'hex-unit-rect-combat-ineligible'
+                                  : 'hex-unit-rect-combat-inspectable'
+                                : ''
+                        const movementEligibilityClass = !isMovementPhase
+                          ? ''
+                          : isSwamp
+                            ? isDestroyed ? 'hex-unit-rect-swamp-destroyed' : 'hex-unit-rect-swamp'
+                            : isDestroyed || isDisabled
+                            ? 'hex-unit-rect-move-disabled'
+                            : isMovementPhaseActiveSide
+                              ? moveHasRemaining
+                                ? 'hex-unit-rect-move-eligible'
+                                : 'hex-unit-rect-move-ineligible'
+                              : 'hex-unit-rect-move-inspectable'
+                        const swampRectClass = isSwamp
+                          ? isDestroyed || isDisabled
+                            ? 'hex-unit-rect-swamp-destroyed'
+                            : 'hex-unit-rect-swamp'
+                          : ''
+                        const unitRectX = isSwamp ? center.x - 24 : center.x - 16
+                        const unitRectY = isSwamp ? center.y - 24 : center.y - 11
+                        const unitRectWidth = isSwamp ? 48 : 32
+                        const unitRectHeight = isSwamp ? 48 : 22
+                        const markerText = getUnitMarkerText(occupant, stackNaming)
+                        const markerToneClass = (!isSwamp && (movementEligibilityClass === 'hex-unit-rect-move-inspectable' || combatEligibilityClass === 'hex-unit-rect-combat-inspectable'))
+                          ? 'tone-dim'
+                          : ''
+
+                        return (
+                          <g
+                            key={occupant.id}
+                            data-testid={`hex-unit-${occupant.id}`}
+                            data-selected={isOccupantSelected}
+                            className={[
+                              'hex-unit-stack',
+                              isOccupantOnion ? 'hex-unit-stack-onion' : 'hex-unit-stack-defender',
+                              isSwamp ? 'hex-unit-stack-swamp' : '',
+                              isOccupantSelected ? 'hex-unit-stack-selected' : '',
+                              isMovementPhase && movementEligibilityClass === 'hex-unit-rect-move-eligible' ? 'hex-unit-stack-move-ready' : '',
+                              isDisabled ? 'hex-unit-stack-disabled' : '',
+                              isSwamp ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral') : `tone-${statusTone(occupant.status)}`,
+                            ].join(' ')}
+                            transform={`translate(${offset.dx}, ${offset.dy})`}
+                            onClick={(event) => {
+                              if (isSelectionLocked) {
+                                event.stopPropagation()
+                                return
+                              }
+
+                              event.stopPropagation()
+
+                              onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
+                            }}
+                          >
                             <rect
-                              x={center.x - 16}
-                              y={center.y - 11}
-                              width={32}
-                              height={22}
-                              rx={2}
-                              fill="#888"
-                              opacity="0.18"
+                              className={[
+                                'hex-unit-rect',
+                                isSwamp ? swampRectClass : isOccupantOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
+                                isOccupantSelected ? 'hex-unit-rect-selected' : '',
+                                isSwamp ? '' : movementEligibilityClass,
+                                isDisabled ? 'hex-unit-rect-disabled' : '',
+                                isSwamp ? '' : combatEligibilityClass,
+                              ].join(' ')}
+                              x={unitRectX}
+                              y={unitRectY}
+                              width={unitRectWidth}
+                              height={unitRectHeight}
+                              rx={isSwamp ? 4 : 2}
                             />
-                            <text
-                              x={center.x + 12}
-                              y={center.y - 7}
-                              fontSize="13"
-                              fill="#b71c1c"
-                              fontWeight="bold"
-                              textAnchor="middle"
-                              className="hex-unit-disabled-icon"
-                            >
-                              &#9888;
-                            </text>
+                            {markerText !== null ? (
+                              <text
+                                className={['hex-unit-marker', markerToneClass].join(' ')}
+                                x={center.x}
+                                y={center.y + 4}
+                                textAnchor="middle"
+                              >
+                                {markerText}
+                              </text>
+                            ) : null}
+                            {occupant.type === 'Swamp' ? (
+                              <image
+                                href={getSwampSpriteHref(occupant.status)}
+                                x={center.x - 19}
+                                y={center.y - 19}
+                                width={38}
+                                height={38}
+                                preserveAspectRatio="xMidYMid meet"
+                              />
+                            ) : null}
+                            {isDisabled && (
+                              <g className="hex-unit-disabled-indicator">
+                                <rect
+                                  x={center.x - 16}
+                                  y={center.y - 11}
+                                  width={32}
+                                  height={22}
+                                  rx={2}
+                                  fill="#888"
+                                  opacity="0.18"
+                                />
+                                <text
+                                  x={center.x + 12}
+                                  y={center.y - 7}
+                                  fontSize="13"
+                                  fill="#b71c1c"
+                                  fontWeight="bold"
+                                  textAnchor="middle"
+                                  className="hex-unit-disabled-icon"
+                                >
+                                  &#9888;
+                                </text>
+                              </g>
+                            )}
                           </g>
-                        )}
-                      </g>
-                    )
-                  })}
+                        )
+                      })
+                    })()}
                   <text className="hex-coord" x={center.x} y={center.y + 18} textAnchor="middle">
                         {coord.q},{coord.r}
                   </text>

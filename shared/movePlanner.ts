@@ -120,6 +120,7 @@ export function findMovePath(input: {
 	movementAllowance: number
 	movingRole: MoveRole
 	movingUnitType: string
+	incomingMembers?: number
 	incomingSquads?: number
 }): { found: true; path: HexPos[]; cost: number } | { found: false; path: []; cost: 0 } {
 	const cellLookup = getCellLookup(input.map)
@@ -153,7 +154,7 @@ export function findMovePath(input: {
 				movingRole: input.movingRole,
 				movingUnitType: input.movingUnitType,
 				occupants: currentOccupants,
-				incomingSquads: input.incomingSquads ?? 1,
+				incomingMembers: input.incomingMembers ?? input.incomingSquads ?? 1,
 			})
 		) {
 			return { found: true, path: reconstructPath(prev, input.from, input.to), cost }
@@ -189,6 +190,7 @@ export function listReachableMoves(input: {
 	movementAllowance: number
 	movingRole: MoveRole
 	movingUnitType: string
+	incomingMembers?: number
 	incomingSquads?: number
 }): ReachableMove[] {
 	const { dist, prev } = exploreReachableMoves(input.map, input.from, input.movementAllowance, input.movingUnitType, input.movingRole)
@@ -205,7 +207,7 @@ export function listReachableMoves(input: {
 			movingRole: input.movingRole,
 			movingUnitType: input.movingUnitType,
 			occupants,
-			incomingSquads: input.incomingSquads ?? 1,
+			incomingMembers: input.incomingMembers ?? input.incomingSquads ?? 1,
 		})) {
 			continue
 		}

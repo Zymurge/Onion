@@ -73,6 +73,7 @@ export type CombatValidationCode =
   | 'TARGET_OUT_OF_RANGE'
   | 'NO_ATTACKERS'
   | 'MULTI_ATTACK_TREAD_TARGET'
+  | 'ATTACKER_ALREADY_ACTED'
   | 'DUPLICATE_ATTACKER'
 
 export type CombatTarget =
@@ -112,7 +113,6 @@ export type CombatOutcomeEffect =
   | 'no-effect'
   | 'disabled'
   | 'destroyed'
-  | 'squad-loss'
   | 'tread-loss'
   | 'weapon-destroyed'
 
@@ -120,7 +120,6 @@ export interface CombatOutcomeResolution {
   targetId: string
   effect: CombatOutcomeEffect
   result: CombatResult
-  squadsLost?: number
   treadsLost?: number
   weaponId?: string
   weaponDestroyed?: string
@@ -131,6 +130,20 @@ type FireCommand = Extract<Command, { type: 'FIRE' }>
 const COMBAT_STATIC_RULES = ONION_STATIC_RULES
 
 const combatCalculator = createCombatCalculator(COMBAT_STATIC_RULES)
+
+function combatSpentKey(turn: number, phase: string, unitId: string): string {
+  return `${turn}:${phase}:${unitId}`
+}
+
+function getCombatSpent(state: EngineGameState, unitId: string): number {
+  return state.combatSpent?.[combatSpentKey(state.turn, state.currentPhase, unitId)] ?? 0
+}
+
+function spendCombatAction(state: EngineGameState, unitId: string): void {
+  state.combatSpent ??= {}
+  const key = combatSpentKey(state.turn, state.currentPhase, unitId)
+  state.combatSpent[key] = (state.combatSpent[key] ?? 0) + 1
+}
 
 function getTerrainTypeAt(map: GameMap, position: { q: number; r: number }) {
   return map.hexes[`${position.q},${position.r}`]?.terrain
@@ -313,10 +326,6 @@ export function resolveCombatOutcome(
       return { targetId: target.id, effect: 'no-effect', result }
     }
 
-    if (result === 'D') {
-      return { targetId: target.id, effect: 'squad-loss', result, squadsLost: 1 }
-    }
-
     return { targetId: target.id, effect: 'destroyed', result }
   }
 
@@ -471,6 +480,9 @@ export function validateCombatAction(
     if (unit.status !== 'operational') {
       return { ok: false, code: 'ATTACKER_NOT_OPERATIONAL', error: `Attacker '${attackerId}' is not operational` }
     }
+    if (getCombatSpent(state, attackerId) > 0) {
+      return { ok: false, code: 'ATTACKER_ALREADY_ACTED', error: `Attacker '${attackerId}' has already acted this phase` }
+    }
 
     const readyWeapons = getReadyWeapons(unit)
     if (readyWeapons.length === 0) {
@@ -581,7 +593,6 @@ export function executeCombatAction(
       targetId: defender.id,
       roll: combatRoll,
       statusChanges,
-      squadsLost: damage.squadsLost,
     }
   }
 
@@ -612,6 +623,7 @@ export function executeCombatAction(
         }
       }
     }
+    spendCombatAction(state, attackerId)
   }
 
   return {
@@ -681,7 +693,6 @@ export function applyDamage(
   treads?: number
   weaponDestroyed?: string
   unitDestroyed?: boolean
-  squadsLost?: number
 } {
   const outcome = resolveCombatOutcome(target, result, attackStrength, weaponId)
 
@@ -694,16 +705,6 @@ export function applyDamage(
     case 'destroyed':
       target.status = 'destroyed'
       return { unitDestroyed: true }
-    case 'squad-loss': {
-      const pigs = target as DefenderUnit & { squads?: number }
-      const squads = (pigs.squads ?? 1) - (outcome.squadsLost ?? 0)
-      pigs.squads = squads
-      if (squads <= 0) {
-        pigs.status = 'destroyed'
-        return { squadsLost: outcome.squadsLost, unitDestroyed: true }
-      }
-      return { squadsLost: outcome.squadsLost }
-    }
     case 'tread-loss': {
       const onion = target as OnionUnit
       const lost = outcome.treadsLost ?? attackStrength

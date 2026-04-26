@@ -1,3 +1,93 @@
+	it('renders Little Pigs group info inside the LP marker', () => {
+		const littlePigsStack: BattlefieldUnit[] = [
+			{
+				id: 'pigs-1',
+				type: 'LittlePigs',
+				friendlyName: 'Little Pigs 1',
+				status: 'operational',
+				q: 2,
+				r: 2,
+				move: 3,
+				weapons: 'main: ready',
+				attack: '1 / rng 1',
+				actionableModes: ['fire', 'combined'],
+			},
+			{
+				id: 'pigs-2',
+				type: 'LittlePigs',
+				friendlyName: 'Little Pigs 2',
+				status: 'operational',
+				q: 2,
+				r: 2,
+				move: 3,
+				weapons: 'main: ready',
+				attack: '1 / rng 1',
+				actionableModes: ['fire', 'combined'],
+			},
+		]
+		const stackNaming = {
+			groupsInUse: [
+				{ groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group', unitType: 'LittlePigs' },
+			],
+			usedGroupNames: ['Little Pigs group'],
+		}
+		const stackRoster = {
+			groupsById: {
+				'LittlePigs:2,2': {
+					groupName: 'Little Pigs group',
+					unitType: 'LittlePigs',
+					position: { q: 2, r: 2 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={littlePigsStack}
+				onion={onion}
+				stackNaming={stackNaming as any}
+				stackRoster={stackRoster as any}
+				phase="DEFENDER_COMBAT"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs group')
+		expect(screen.queryByTestId('hex-unit-pigs-2')).toBeNull()
+		expect(screen.getAllByText('Little Pigs group')).toHaveLength(1)
+		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
+		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()
+	})
+
+	it('applies dim marker styling to inspectable yellow markers', () => {
+		const inspectableUnit: BattlefieldUnit = {
+			...defenders[1],
+			id: 'wolf-2',
+			status: 'operational',
+			actionableModes: [],
+		}
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[inspectableUnit]}
+				onion={onion}
+				phase="ONION_COMBAT"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('text')?.getAttribute('class')).toContain('tone-dim')
+	})
+
 	it('colors Onion combat map state with Onion green and defenders yellow', () => {
 		const eligible: BattlefieldUnit = {
 			...defenders[0],
@@ -158,6 +248,53 @@ const staleDefenderMove: BattlefieldUnit[] = [
 ]
 
 describe('HexMapBoard', () => {
+	it('renders stacked Little Pigs without a badge overlay', () => {
+		const stackedDefenders: BattlefieldUnit[] = [
+			{
+				...defenders[0],
+				id: 'pigs-1',
+				type: 'LittlePigs',
+				friendlyName: 'Little Pigs 1',
+				q: 2,
+				r: 2,
+				move: 3,
+				weapons: 'main: ready',
+				attack: '1 / rng 0',
+				actionableModes: ['fire', 'combined'],
+			},
+			{
+				...defenders[1],
+				id: 'pigs-2',
+				type: 'LittlePigs',
+				friendlyName: 'Little Pigs 2',
+				q: 2,
+				r: 2,
+				move: 3,
+				weapons: 'main: ready',
+				attack: '1 / rng 0',
+				actionableModes: ['fire', 'combined'],
+			},
+		]
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={stackedDefenders}
+				onion={onion}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs 1')
+		expect(screen.getByTestId('hex-unit-pigs-2').textContent).toContain('Little Pigs 2')
+		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
+		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()
+	})
+
 	it('highlights an eligible selected unit and its reachable move radius', () => {
 		render(
 			<HexMapBoard

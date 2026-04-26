@@ -230,13 +230,12 @@ describe('resolveCombatOutcome', () => {
     })
   })
 
-  it('resolves D against stacked Little Pigs as a squad loss', () => {
+  it('resolves D against Little Pigs as unit destruction in per-unit model', () => {
     const target = makeDefender({ type: 'LittlePigs', squads: 3 })
 
     expect(resolveCombatOutcome(target, 'D', 1)).toMatchObject({
-      effect: 'squad-loss',
+      effect: 'destroyed',
       targetId: target.id,
-      squadsLost: 1,
     })
   })
 
@@ -287,15 +286,14 @@ describe('applyDamage', () => {
   })
 
   describe('LittlePigs infantry', () => {
-    it('D result on multi-squad removes one squad', () => {
+    it('D result destroys the targeted Little Pigs unit', () => {
       const pigs = makeDefender({ type: 'LittlePigs', squads: 3 })
       const result = applyDamage(pigs, 'D', 1)
-      expect(result.squadsLost).toBe(1)
-      expect(pigs.squads).toBe(2)
-      expect(pigs.status).toBe('operational')
+      expect(result.unitDestroyed).toBeTruthy()
+      expect(pigs.status).toBe('destroyed')
     })
 
-    it('D result on last squad destroys the unit', () => {
+    it('D result destroys Little Pigs even when squads is 1', () => {
       const pigs = makeDefender({ type: 'LittlePigs', squads: 1 })
       applyDamage(pigs, 'D', 1)
       expect(pigs.status).toBe('destroyed')
@@ -418,6 +416,45 @@ describe('validateCombatAction', () => {
     )
   })
 
+  it('allows the Onion to fire a different ready weapon again in the same combat phase', () => {
+    const defender1 = makeDefender({ id: 'd1', position: { q: 2, r: 0 } })
+    const defender2 = makeDefender({ id: 'd2', position: { q: 1, r: 1 } })
+    const onion = makeOnion({
+      weapons: [
+        makeWeapon({ id: 'main', attack: 4, range: 3, defense: 4, individuallyTargetable: true }),
+        makeWeapon({ id: 'secondary_1', attack: 3, range: 2, defense: 3, individuallyTargetable: true }),
+      ],
+    })
+    const state = makeState({ onion, defenders: { d1: defender1, d2: defender2 } })
+
+    const first = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['main'],
+      targetId: 'd1',
+    })
+
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+
+    const firstResult = executeCombatAction(state, first.plan, 6)
+    expect(firstResult.success).toBe(true)
+    expect(state.onion.weapons.find((weapon) => weapon.id === 'main')?.status).toBe('spent')
+    expect(state.onion.weapons.find((weapon) => weapon.id === 'secondary_1')?.status).toBe('ready')
+
+    const second = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['secondary_1'],
+      targetId: 'd2',
+    })
+
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+
+    const secondResult = executeCombatAction(state, second.plan, 6)
+    expect(secondResult.success).toBe(true)
+    expect(state.onion.weapons.find((weapon) => weapon.id === 'secondary_1')?.status).toBe('spent')
+  })
+
   it('rejects multi-attacker defender fire against Onion treads', () => {
     const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
     const d2 = makeDefender({ id: 'd2', position: { q: 0, r: 1 } })
@@ -465,6 +502,40 @@ describe('validateCombatAction', () => {
     expect(result.plan.target.kind).toBe('treads')
     expect(result.plan.target.id).toBe('onion')
     expect(result.plan.defense).toBe(result.plan.attackStrength)
+  })
+
+  it('rejects a second combat action from a unit that already acted in the same phase', () => {
+    const d1 = makeDefender({
+      id: 'd1',
+      position: { q: 1, r: 0 },
+      weapons: [makeWeapon(), makeWeapon({ id: 'secondary', attack: 2, range: 2 })],
+    })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1 } })
+
+    const first = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['d1'],
+      targetId: 'onion',
+    })
+
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+
+    const firstResult = executeCombatAction(state, first.plan, 6)
+    expect(firstResult.success).toBe(true)
+
+    const second = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['d1'],
+      targetId: 'onion',
+    })
+
+    expect(second).toEqual({
+      ok: false,
+      code: 'ATTACKER_ALREADY_ACTED',
+      error: expect.any(String),
+    })
+    expect(state.combatSpent).toMatchObject({ [`1:DEFENDER_COMBAT:d1`]: 1 })
   })
 })
 

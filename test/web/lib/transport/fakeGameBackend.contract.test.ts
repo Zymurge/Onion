@@ -8,8 +8,6 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: 'wolf-2',
-		mode: 'fire',
 		scenarioName: 'Fake backend contract snapshot',
 		turnNumber: 8,
 		lastEventSeq: 47,

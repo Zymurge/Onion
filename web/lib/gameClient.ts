@@ -29,11 +29,9 @@ export type CombatResolution = {
 	details: string[]
 }
 
-export type GameSnapshot = {
+export type ServerGameSnapshot = {
 	gameId: number
 	phase: TurnPhase
-	selectedUnitId: string | null
-	mode: ActionMode
 	winner?: 'onion' | 'defender' | null
 	scenarioName?: string
 	turnNumber?: number
@@ -47,12 +45,25 @@ export type GameSnapshot = {
 	ramResolution?: RamResolution[]
 }
 
+// Transitional compatibility alias for older local fixtures.
+// Authoritative transport and session seams must use ServerGameSnapshot instead.
+export type GameSnapshot = ServerGameSnapshot & {
+	selectedUnitId?: string | null
+	mode?: ActionMode
+}
+
 export type GameSessionContext = {
 	role: 'onion' | 'defender'
 }
 
+export type StackActionSelection = {
+	anchorUnitId: string
+	availableUnitIds: string[]
+	selectedUnitIds: string[]
+}
+
 export type GameStateEnvelope = {
-	snapshot: GameSnapshot
+	snapshot: ServerGameSnapshot
 	session: GameSessionContext
 }
 
@@ -60,7 +71,9 @@ export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
 	| { type: 'MOVE'; unitId: string; to: { q: number; r: number }; attemptRam?: boolean }
+	| { type: 'MOVE_STACK'; selection: StackActionSelection; to: { q: number; r: number }; attemptRam?: boolean }
 	| { type: 'FIRE'; attackers: string[]; targetId: string }
+	| { type: 'FIRE_STACK'; attackers: string[]; targetId: string; selection: StackActionSelection }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 
@@ -79,7 +92,7 @@ export type GameClientTransport = GameRequestTransport & {
 
 export type GameClient = {
 	getState(gameId: number): Promise<GameStateEnvelope>
-	submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
+	submitAction(gameId: number, action: GameAction): Promise<ServerGameSnapshot>
 	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }
 

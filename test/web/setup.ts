@@ -1,8 +1,11 @@
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, vi } from 'vitest'
 import { JSDOM } from 'jsdom'
 
 import '@testing-library/jest-dom/vitest'
+
+const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
 if (typeof document === 'undefined') {
 	const dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -27,4 +30,9 @@ if (typeof document === 'undefined') {
 afterEach(() => {
 	cleanup()
 	document.body.innerHTML = ''
+})
+
+afterEach(() => {
+	consoleErrorSpy.mockClear()
+	consoleWarnSpy.mockClear()
 })

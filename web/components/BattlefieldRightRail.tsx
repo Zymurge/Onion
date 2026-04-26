@@ -1,7 +1,7 @@
 import { CombatConfirmationView } from './CombatConfirmationView'
 import { CombatTargetList } from './CombatTargetList'
 import { InactiveEventStream } from './InactiveEventStream'
-import { parseAttackStats, parseWeaponStats } from '../lib/appViewHelpers'
+import { parseAttackStats, parseWeaponStats, resolveBattlefieldUnitName } from '../lib/appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
@@ -28,6 +28,12 @@ type BattlefieldRightRailProps = {
   selectedCombatTargetId: string | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
+  rightRailStackPanel: {
+    isVisible: boolean
+    selectedStackMembers: ReadonlyArray<BattlefieldUnit | BattlefieldOnionView>
+    selectedStackSelectionCount: number
+    selectedStackSelectionIds: ReadonlyArray<string>
+  }
   victoryObjectives: ReadonlyArray<VictoryObjectiveState>
   escapeHexes: ReadonlyArray<VictoryEscapeHex>
   inactiveEventStream: {
@@ -43,6 +49,9 @@ type BattlefieldRightRailProps = {
   onAttemptRam: () => void
   onDeclineRam: () => void
   onSelectCombatTarget: (targetId: string) => void
+  onToggleStackMember: (unitId: string) => void
+  onSelectAllStackMembers: () => void
+  onClearStackSelection: () => void
 }
 
 export function BattlefieldRightRail({
@@ -60,6 +69,7 @@ export function BattlefieldRightRail({
   selectedCombatTargetId,
   selectedInspectorDefender,
   selectedInspectorOnion,
+  rightRailStackPanel,
   victoryObjectives,
   escapeHexes,
   inactiveEventStream,
@@ -68,7 +78,62 @@ export function BattlefieldRightRail({
   onAttemptRam,
   onDeclineRam,
   onSelectCombatTarget,
+  onToggleStackMember,
+  onSelectAllStackMembers,
+  onClearStackSelection,
 }: BattlefieldRightRailProps) {
+  const stackSelectionPanel = rightRailStackPanel.isVisible ? (
+    <section className="selection-panel panel-subtle">
+      <div className="selection-panel-header">
+        <div>
+          <p className="eyebrow">Stack</p>
+          <h2>Choose units</h2>
+        </div>
+        <span className="mini-tag">{rightRailStackPanel.selectedStackSelectionCount}/{rightRailStackPanel.selectedStackMembers.length}</span>
+      </div>
+      <div className="attacker-selection-list stack-selection-list">
+        {rightRailStackPanel.selectedStackMembers.map((unit) => {
+          const isSelected = rightRailStackPanel.selectedStackSelectionIds.includes(unit.id)
+          const isCombatReady = activeCombatRole !== 'defender' || !('actionableModes' in unit) || unit.actionableModes.includes('fire')
+          const isDisabled = isInteractionLocked || (activeCombatRole === 'defender' && !isCombatReady)
+          return (
+            <button
+              key={unit.id}
+              type="button"
+              className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}${isDisabled ? ' is-disabled' : ''}`}
+              aria-pressed={isSelected}
+              disabled={isDisabled}
+              data-selected={isSelected}
+              data-testid={`stack-member-${unit.id}`}
+              onClick={() => onToggleStackMember(unit.id)}
+            >
+              <div className="weapon-card-name">{resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)}</div>
+              <div className="weapon-card-stats">Toggle in stack</div>
+            </button>
+          )
+        })}
+      </div>
+      <div className="combat-confirmation-actions">
+        <button
+          type="button"
+          className="combat-confirm-button"
+          disabled={isInteractionLocked}
+          onClick={onSelectAllStackMembers}
+        >
+          Select all
+        </button>
+        <button
+          type="button"
+          className="combat-confirm-button combat-confirm-button-secondary"
+          disabled={isInteractionLocked}
+          onClick={onClearStackSelection}
+        >
+          Clear
+        </button>
+      </div>
+    </section>
+  ) : null
+
   const shouldShowCombatPanel =
     isCombatPhase &&
     activeRole === activeCombatRole &&
@@ -123,10 +188,11 @@ export function BattlefieldRightRail({
       ) : null}
       {selectedInspectorOnion !== null ? (
         <section className="selection-panel panel-subtle">
+          {stackSelectionPanel}
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>
-              <h2>{selectedInspectorOnion.friendlyName ?? selectedInspectorOnion.type}</h2>
+              <h2>{resolveBattlefieldUnitName(selectedInspectorOnion.type, selectedInspectorOnion.id, selectedInspectorOnion.friendlyName)}</h2>
             </div>
             <span className="mini-tag">Selected</span>
           </div>
@@ -168,6 +234,7 @@ export function BattlefieldRightRail({
             </div>
             <span className="mini-tag">{combatTargetOptions.length} in range</span>
           </div>
+          {stackSelectionPanel}
           {selectedCombatTarget !== null ? (
             <CombatConfirmationView
               title={`Confirm attack on ${selectedCombatTarget.label}`}
@@ -184,7 +251,6 @@ export function BattlefieldRightRail({
             <CombatTargetList
               targets={combatTargetOptions}
               selectedTargetId={selectedCombatTargetId}
-              selectedCombatAttackCount={selectedCombatAttackCount}
               isDisabled={isInteractionLocked}
               onSelectTarget={onSelectCombatTarget}
             />
@@ -194,10 +260,11 @@ export function BattlefieldRightRail({
         </section>
       ) : selectedInspectorDefender !== null ? (
         <section className="selection-panel panel-subtle">
+          {stackSelectionPanel}
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>
-              <h2>{selectedInspectorDefender.friendlyName ?? selectedInspectorDefender.type}</h2>
+              <h2>{resolveBattlefieldUnitName(selectedInspectorDefender.type, selectedInspectorDefender.id, selectedInspectorDefender.friendlyName)}</h2>
             </div>
             <span className="mini-tag">Selected</span>
           </div>

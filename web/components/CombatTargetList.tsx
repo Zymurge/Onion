@@ -4,7 +4,6 @@ import type { CombatTargetOption } from '../lib/combatPreview'
 type CombatTargetListProps = {
   targets: ReadonlyArray<CombatTargetOption>
   selectedTargetId: string | null
-  selectedCombatAttackCount: number
   isDisabled?: boolean
   onSelectTarget: (targetId: string) => void
 }
@@ -12,7 +11,6 @@ type CombatTargetListProps = {
 export function CombatTargetList({
   targets,
   selectedTargetId,
-  selectedCombatAttackCount,
   isDisabled = false,
   onSelectTarget,
 }: CombatTargetListProps) {
@@ -20,8 +18,7 @@ export function CombatTargetList({
     <div className="attacker-selection-list" data-testid="combat-target-list">
       {targets.map((target) => {
         const isSelected = selectedTargetId === target.id
-        const isTreadsTarget = target.id.endsWith(':treads')
-        const isGroupAttackOnTreads = isTreadsTarget && selectedCombatAttackCount > 1
+        const targetIsDisabled = isDisabled || target.isDisabled === true
 
         return (
           <button
@@ -31,23 +28,17 @@ export function CombatTargetList({
               'attacker-card-button',
               'slim-weapon-card',
               isSelected ? 'is-selected' : '',
-              isGroupAttackOnTreads || isDisabled ? 'is-disabled' : '',
+              targetIsDisabled ? 'is-disabled' : '',
               `tone-${statusTone(target.status)}`,
             ].join(' ')}
-            disabled={isGroupAttackOnTreads || isDisabled}
-            title={isDisabled ? 'Controls are unavailable until the inactive event window is dismissed.' : isGroupAttackOnTreads ? 'Treads must be singly targeted.' : undefined}
+            disabled={targetIsDisabled}
+            title={targetIsDisabled ? target.disabledTitle ?? 'Controls are unavailable until the inactive event window is dismissed.' : undefined}
             aria-pressed={isSelected}
-            aria-disabled={isGroupAttackOnTreads || isDisabled}
+            aria-disabled={targetIsDisabled}
             data-selected={isSelected}
             data-testid={`combat-target-${target.id}`}
             onClick={(event) => {
-              if (isDisabled) {
-                event.preventDefault()
-                event.stopPropagation()
-                return
-              }
-
-              if (isGroupAttackOnTreads) {
+              if (targetIsDisabled) {
                 event.preventDefault()
                 event.stopPropagation()
                 return
@@ -57,12 +48,14 @@ export function CombatTargetList({
               onSelectTarget(target.id)
             }}
             onContextMenu={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-
-              if (isGroupAttackOnTreads) {
+              if (targetIsDisabled) {
+                event.preventDefault()
+                event.stopPropagation()
                 return
               }
+
+              event.preventDefault()
+              event.stopPropagation()
 
               onSelectTarget(target.id)
             }}

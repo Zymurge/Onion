@@ -19,6 +19,7 @@ import { useGameSession } from './lib/useGameSession'
 import { useDebugDiagnostics } from './lib/useDebugDiagnostics'
 import { useBattlefieldInteractionState } from './lib/useBattlefieldInteractionState'
 import { useBattlefieldDisplayState } from './lib/useBattlefieldDisplayState'
+import { buildCombatCommitAction, buildEndPhaseCommitAction } from './lib/commitActionBuilders'
 import { useInactiveEventStream } from './lib/useInactiveEventStream'
 import type {
   GameRequestTransport,
@@ -28,7 +29,6 @@ import type {
 } from './lib/gameSessionTypes'
 import type { SessionBinding } from './lib/sessionBinding'
 import {
-  buildCombatTargetActionId,
   getPhaseOwner,
 } from './lib/appViewHelpers'
 import logger from './lib/logger'
@@ -312,20 +312,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     sessionRole !== null
       ? `${activeGameIdForGate}:${sessionTurnNumber}:${sessionRole}:${sessionPhase}`
       : null
-  const shouldPromptForAcknowledgement =
-    currentActiveTurnKey !== null &&
-    previousTurnGateRef.current?.turnKnown === true &&
-    previousTurnGateRef.current?.activeGameId === activeGameIdForGate &&
-    previousTurnGateRef.current.sessionTurnActive === false &&
-    sessionTurnActive
 
   const pendingAcknowledgementTurnKey =
     currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
       ? turnGateSnapshot.pendingAcknowledgementTurnKey === currentActiveTurnKey
         ? currentActiveTurnKey
-        : shouldPromptForAcknowledgement
-          ? currentActiveTurnKey
-          : null
+        : null
       : null
 
   const inactiveEventStream = useInactiveEventStream({
@@ -338,6 +330,14 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   useEffect(() => {
     setTurnGateSnapshot((current) => {
+      const previousTurnGate = previousTurnGateRef.current
+      const shouldPromptForAcknowledgement =
+        currentActiveTurnKey !== null &&
+        previousTurnGate?.turnKnown === true &&
+        previousTurnGate?.activeGameId === activeGameIdForGate &&
+        previousTurnGate.sessionTurnActive === false &&
+        sessionTurnActive
+
       const nextPendingAcknowledgementTurnKey =
         currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
           ? shouldPromptForAcknowledgement || current.pendingAcknowledgementTurnKey === currentActiveTurnKey
@@ -373,7 +373,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     currentActiveTurnKey,
     sessionTurnActive,
     sessionTurnKnown,
-    shouldPromptForAcknowledgement,
   ])
 
   const inactiveEventAcknowledgementPending =
@@ -397,6 +396,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const displayState = useBattlefieldDisplayState({
     activeSessionBinding,
+    activeMode: interactionState.activeMode,
     combatBaseSnapshot: interactionState.combatBaseSnapshot,
     lastRefreshAt: interactionState.lastRefreshAt,
     selectedCombatTargetId: interactionState.selectedCombatTargetId,
@@ -520,6 +520,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     handleResolveRamPrompt,
     handleRefresh,
     handleSelectUnit,
+    handleSelectStackMember,
+    handleSelectAllStackMembers,
+    handleClearStackSelection,
     isRefreshing,
     pendingRamPrompt,
     pendingCombatResolution,
@@ -540,6 +543,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     activeSelectedUnitIds,
     activeTurnActive,
     activeTurnNumber,
+    clientSnapshot,
     combatRangeHexKeys,
     combatTargetIds,
     combatTargetOptions,
@@ -562,6 +566,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     selectedCombatTarget,
     selectedInspectorDefender,
     selectedInspectorOnion,
+    selectedInspectorUnitId,
+    rightRailStackPanel,
     escapeHexes,
     victoryObjectives,
     shellPhase,
@@ -632,6 +638,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const isControlledSession = activeSessionBinding !== null
   const shouldShowGameOverToast = sessionWinner !== null && sessionWinnerToastKey !== null && dismissedGameOverToastKey !== sessionWinnerToastKey
+  const rightRailStackMemberIds = rightRailStackPanel.selectedStackMembers.map((m) => m.id)
 
   const {
     debugEntries,
@@ -646,12 +653,28 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       return
     }
 
-    if (selectedCombatTarget === null || selectedCombatAttackCount === 0 || displayedOnion === null) {
+    if (selectedCombatTarget === null || selectedCombatTarget.isDisabled === true || selectedCombatAttackCount === 0 || displayedOnion === null) {
       return
     }
 
-    const targetId = buildCombatTargetActionId(selectedCombatTarget.id, displayedOnion.id)
-    void commitClientAction({ type: 'FIRE', attackers: selectedCombatAttackerIds, targetId })
+    const combatAction = buildCombatCommitAction({
+      state: clientSnapshot?.authoritativeState ?? null,
+      anchorUnitId: activeCombatRole === 'defender' ? selectedInspectorUnitId : null,
+      selectedUnitIds: selectedCombatAttackerIds,
+      targetId: selectedCombatTarget.id,
+      onionId: displayedOnion.id,
+    })
+
+    if (!combatAction.ok && combatAction.reason === 'empty-selection') {
+      setActionError('Select at least one stack member before resolving combat.')
+      return
+    }
+
+    if (!combatAction.ok) {
+      return
+    }
+
+    void commitClientAction(combatAction.action)
   }
 
   function handleDismissGameOverToast() {
@@ -730,7 +753,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 if (inactiveEventControlsLocked) {
                   return
                 }
-                void commitClientAction({ type: 'end-phase' })
+                void commitClientAction(buildEndPhaseCommitAction().action)
               }}
             >
               {phaseAdvanceLabel}
@@ -830,7 +853,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onClose={() => setDebugOpen(false)}
           lines={debugEntries}
           onAdvancePhase={() => {
-            void commitClientAction({ type: 'end-phase' })
+            void commitClientAction(buildEndPhaseCommitAction().action)
           }}
         />
       )}
@@ -848,6 +871,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onionWeapons={onionWeapons}
           readyWeaponDetails={readyWeaponDetails}
           selectedCombatAttackLabel={selectedCombatAttackLabel}
+          stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
+          stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
           onSelectUnit={handleSelectUnit}
         />
 
@@ -857,6 +882,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             activeTurnActive={activeTurnActive}
             defenders={displayedDefenders}
             onion={displayedOnion}
+            stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
+            stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
             scenarioMap={displayedScenarioMap}
             selectedCombatTargetId={selectedCombatTargetId}
             selectedUnitIds={activeSelectedUnitIds}
@@ -901,6 +928,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           selectedCombatTargetId={selectedCombatTargetId}
           selectedInspectorDefender={selectedInspectorDefender}
           selectedInspectorOnion={selectedInspectorOnion}
+          rightRailStackPanel={rightRailStackPanel}
           escapeHexes={escapeHexes}
           victoryObjectives={victoryObjectives}
           inactiveEventStream={inactiveEventStream}
@@ -909,6 +937,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onAttemptRam={() => handleResolveRamPrompt(true)}
           onDeclineRam={() => handleResolveRamPrompt(false)}
           onSelectCombatTarget={setSelectedCombatTargetId}
+          onToggleStackMember={(unitId) => handleSelectStackMember(unitId, rightRailStackMemberIds)}
+          onSelectAllStackMembers={() => handleSelectAllStackMembers(rightRailStackMemberIds)}
+          onClearStackSelection={handleClearStackSelection}
         />
       </main>
     </div>

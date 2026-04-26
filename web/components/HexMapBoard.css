@@ -384,6 +384,35 @@
   pointer-events: none;
 }
 
+/* Make marker text black on yellow/inactive units */
+.hex-unit-marker.tone-dim {
+  fill: var(--ink, #544b3d);
+  font-family: var(--display-font, 'Rajdhani', 'Aptos Narrow', 'Arial Narrow', sans-serif);
+  text-shadow: none;
+}
+
+.hex-stack-badge {
+  pointer-events: none;
+}
+
+.hex-stack-badge-bg {
+  fill: rgba(24, 39, 35, 0.78);
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 1;
+}
+
+.hex-stack-label,
+.hex-stack-count {
+  font-size: 8px;
+  font-weight: 700;
+  fill: #f8fff8;
+  pointer-events: none;
+}
+
+.hex-stack-count {
+  fill: #ffe082;
+}
+
 .hex-coord {
   font-size: 9px;
   fill: #333333;

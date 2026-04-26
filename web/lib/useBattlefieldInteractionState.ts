@@ -3,8 +3,11 @@ import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
 import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
 import type { GameAction, GameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
-import { isWeaponSelectionId } from './appViewHelpers'
+import { isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
+import { buildMoveCommitAction } from './commitActionBuilders'
+import { clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
 import type { TurnPhase } from '../../shared/types/index'
+import type { Mode } from './battlefieldView'
 import logger from './logger'
 
 type UseBattlefieldInteractionStateOptions = {
@@ -108,6 +111,10 @@ function buildRamPrompt(snapshot: GameSnapshot | null, unitId: string, to: { q: 
   }
 }
 
+function buildSelectedBoardUnitIds(selectedUnitIds: string[] | null): string[] {
+  return (selectedUnitIds ?? []).filter((selectionId) => !isWeaponSelectionId(selectionId))
+}
+
 export function useBattlefieldInteractionState({
   activeSessionController,
   activeTurnActive,
@@ -118,7 +125,9 @@ export function useBattlefieldInteractionState({
   isSelectionLocked,
 }: UseBattlefieldInteractionStateOptions) {
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
+  const [hasExplicitSelection, setHasExplicitSelection] = useState(false)
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
+  const [activeMode, setActiveMode] = useState<Mode>('fire')
   const [actionError, setActionError] = useState<string | null>(null)
   const [, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
   const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
@@ -226,6 +235,7 @@ export function useBattlefieldInteractionState({
 
     if (clearSelection) {
       setSelectedUnitIds([])
+      setHasExplicitSelection(true)
       setSelectedCombatTargetId(null)
     }
     setPendingRamPrompt(null)
@@ -254,8 +264,22 @@ export function useBattlefieldInteractionState({
     const prompt = pendingRamPrompt
     setPendingRamPrompt(null)
 
-    void commitClientAction({ type: 'MOVE', unitId: prompt.unitId, to: prompt.to, attemptRam })
+    const moveAction = buildMoveCommitAction({
+      state: clientSnapshot?.authoritativeState ?? null,
+      unitId: prompt.unitId,
+      selectedUnitIds: selectedUnitIds ?? [],
+      to: prompt.to,
+      attemptRam,
+    })
+
+    if (!moveAction.ok) {
+      setActionError('Select at least one stack member before submitting the move.')
+      return
+    }
+
+    void commitClientAction(moveAction.action)
     setSelectedUnitIds([])
+    setHasExplicitSelection(true)
   }
 
   function handleSelectUnit(unitId: string, additive = false) {
@@ -269,12 +293,13 @@ export function useBattlefieldInteractionState({
     }
 
     const authoritativeState = clientSnapshot?.authoritativeState
+    const selectionOwnerUnitId = resolveSelectionOwnerUnitId(unitId)
     const destroyedUnit = authoritativeState === undefined
       ? false
-      : unitId === authoritativeState.onion.id
+      : selectionOwnerUnitId === authoritativeState.onion.id
         ? authoritativeState.onion.status === 'destroyed'
         : (() => {
-          const defender = authoritativeState.defenders[unitId]
+          const defender = authoritativeState.defenders[selectionOwnerUnitId]
           return defender?.status === 'destroyed' && defender.type !== 'Swamp'
         })()
 
@@ -282,12 +307,12 @@ export function useBattlefieldInteractionState({
       return
     }
 
-    const baseSelection = selectedUnitIds ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
+    const baseSelection = selectedUnitIds ?? []
     const preserveCombatSelection =
       clientSnapshotPhase === 'ONION_COMBAT' &&
       !additive &&
-      unitId !== authoritativeState?.onion.id &&
-      authoritativeState?.defenders[unitId] !== undefined &&
+      selectionOwnerUnitId !== authoritativeState?.onion.id &&
+      authoritativeState?.defenders[selectionOwnerUnitId] !== undefined &&
       baseSelection.some(isWeaponSelectionId)
 
     if (preserveCombatSelection) {
@@ -310,12 +335,15 @@ export function useBattlefieldInteractionState({
     })
 
     setSelectedUnitIds((currentSelection) => {
-      const baseSelection = currentSelection ?? (clientSnapshot?.selectedUnitId ? [clientSnapshot.selectedUnitId] : [])
+      const baseSelection = currentSelection ?? []
 
       if (!additive) {
-        return [unitId]
+        const stackMemberIds = resolveBattlefieldStackSelectionIds(clientSnapshot?.authoritativeState ?? null, selectionOwnerUnitId)
+        setHasExplicitSelection(true)
+        return stackMemberIds
       }
 
+      setHasExplicitSelection(true)
       if (baseSelection.includes(unitId)) {
         return baseSelection.filter((selectedId) => selectedId !== unitId)
       }
@@ -324,6 +352,61 @@ export function useBattlefieldInteractionState({
     })
     setSelectedCombatTargetId(null)
     setActionError(null)
+  }
+
+  function handleSelectStackMember(unitId: string, stackMemberIds: readonly string[]) {
+    if (isSelectionLocked) {
+      debugLog('handleSelectStackMember blocked', {
+        unitId,
+        isSelectionLocked,
+      })
+      return
+    }
+
+    clearPendingCombatResolution(false)
+    setPendingRamPrompt(null)
+    setSelectedCombatTargetId(null)
+    setActionError(null)
+
+    setSelectedUnitIds((currentSelection) =>
+      toggleRightRailStackMemberSelection(currentSelection, stackMemberIds, unitId),
+    )
+    setHasExplicitSelection(true)
+  }
+
+  function handleSelectAllStackMembers(stackMemberIds: readonly string[]) {
+    if (isSelectionLocked) {
+      debugLog('handleSelectAllStackMembers blocked', {
+        isSelectionLocked,
+        stackMemberIds,
+      })
+      return
+    }
+
+    clearPendingCombatResolution(false)
+    setPendingRamPrompt(null)
+    setSelectedCombatTargetId(null)
+    setActionError(null)
+
+    setSelectedUnitIds(selectRightRailStackMembers(stackMemberIds))
+    setHasExplicitSelection(true)
+  }
+
+  function handleClearStackSelection() {
+    if (isSelectionLocked) {
+      debugLog('handleClearStackSelection blocked', {
+        isSelectionLocked,
+      })
+      return
+    }
+
+    clearPendingCombatResolution(false)
+    setPendingRamPrompt(null)
+    setSelectedCombatTargetId(null)
+    setActionError(null)
+
+    setSelectedUnitIds(clearRightRailStackSelection())
+    setHasExplicitSelection(true)
   }
 
   function handleDeselectUnit() {
@@ -340,6 +423,7 @@ export function useBattlefieldInteractionState({
       selectedUnitIds,
     })
     setSelectedUnitIds([])
+    setHasExplicitSelection(true)
     setSelectedCombatTargetId(null)
     setPendingRamPrompt(null)
     setActionError(null)
@@ -378,8 +462,27 @@ export function useBattlefieldInteractionState({
     }
 
     setActionError(null)
-    await commitClientAction({ type: 'MOVE', unitId, to })
+    const moveAction = buildMoveCommitAction({
+      state: clientSnapshot?.authoritativeState ?? null,
+      unitId,
+      selectedUnitIds: selectedUnitIds ?? [],
+      to,
+    })
+
+    if (!moveAction.ok) {
+      setActionError('Select at least one stack member before submitting the move.')
+      debugLog('handleMoveUnit blocked', {
+        unitId,
+        to,
+        reason: moveAction.reason,
+        selectedBoardUnitIds: buildSelectedBoardUnitIds(selectedUnitIds),
+      })
+      return
+    }
+
+    await commitClientAction(moveAction.action)
     setSelectedUnitIds([])
+    setHasExplicitSelection(true)
   }
 
   async function handleRefresh() {
@@ -432,13 +535,19 @@ export function useBattlefieldInteractionState({
     handleResolveRamPrompt,
     handleRefresh,
     handleSelectUnit,
+    handleSelectStackMember,
+    handleSelectAllStackMembers,
+    handleClearStackSelection,
     isRefreshing,
     lastRefreshAt,
     pendingRamPrompt,
     pendingCombatResolution,
     pendingRamResolution,
+    hasExplicitSelection,
+    activeMode,
     selectedCombatTargetId,
     selectedUnitIds,
+    setActiveMode,
     setActionError,
     setSelectedCombatTargetId,
     setSelectedUnitIds,

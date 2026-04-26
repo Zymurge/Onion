@@ -36,8 +36,6 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 	return {
 		gameId: 123,
 		phase,
-		selectedUnitId: 'wolf-2',
-		mode: 'fire',
 		scenarioName: 'Test Scenario',
 		turnNumber: 11,
 		lastEventSeq: 47,
@@ -183,8 +181,6 @@ describe('App connect gate', () => {
 		const submitAction = vi.fn().mockResolvedValue({
 			gameId: 123,
 			phase: 'ONION_MOVE',
-			selectedUnitId: 'wolf-2',
-			mode: 'fire',
 			scenarioName: 'Test Scenario',
 			turnNumber: 11,
 			lastEventSeq: 47,
@@ -246,7 +242,7 @@ describe('App connect gate', () => {
 			screen.getByText((_, element) => element?.classList.contains('phase-chip-state') === true && element?.classList.contains('phase-chip-active') === true),
 		).not.toBeNull()
 
-		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 		timeSpy.mockRestore()
 	})
 
