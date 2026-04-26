@@ -6,7 +6,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: ['server/**', 'shared/**', 'types/**'],
-      exclude: ['server/**/*.test.ts', 'server/**/*.integration.test.ts', 'shared/**/*.test.ts', 'test/**'],
+      exclude: ['server/**/*.test.ts', 'server/**/*.integration.test.ts', 'server/db/migrations/**', 'shared/**/*.test.ts', 'test/**'],
     },
     projects: ['./vitest.node.config.ts', './web/vitest.config.ts'],
   },
