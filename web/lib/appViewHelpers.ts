@@ -451,6 +451,11 @@ export function buildCombatTargetActionId(targetId: string, onionId: string | un
   return targetId
 }
 
+export function normalizeSelectionIds(selectedIds: readonly string[] | null | undefined, allowedIds: readonly string[]): string[] {
+  const allowedIdSet = new Set(allowedIds)
+  return Array.from(new Set((selectedIds ?? []).filter((selectionId) => allowedIdSet.has(selectionId))))
+}
+
 export function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean, activePhase: TurnPhase | null): Mode[] {
   if (status === 'destroyed' || status === 'disabled') {
     return []

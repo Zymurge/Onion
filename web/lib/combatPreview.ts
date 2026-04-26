@@ -12,7 +12,7 @@ import {
 
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex, UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
-import { getDisplayDefense, getTerrainValueAt, resolveBattlefieldUnitName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId } from './appViewHelpers'
+import { getDisplayDefense, getTerrainValueAt, isWeaponSelectionId, resolveBattlefieldUnitName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './appViewHelpers'
 
 type CombatRole = 'onion' | 'defender'
 
@@ -52,7 +52,6 @@ function isWeaponSelectionId(selectionId: string) {
 function stripWeaponSelectionId(selectionId: string) {
 	return selectionId.replace(/^weapon:/, '')
 }
-
 function terrainTypeFromHex(value: number | undefined): TerrainType {
 	if (value === 1) {
 		return 'ridgeline'

@@ -299,6 +299,14 @@ Responsibilities:
 
 The sequence below is intended to be handed to agents one step at a time. Each step should land with tests and should preserve behavior unless the step explicitly changes it.
 
+### Progress
+
+- Step 2 completed: UI-local fields removed from the snapshot contract.
+- Step 3 completed: interaction state is explicit and client-local.
+- Step 4 completed: display derivation now uses shared normalization helpers and no longer duplicates weapon-selection parsing.
+- Step 5 completed: commit translation now runs through explicit builders.
+- Step 6 remains next: simplify App to composition only.
+
 ### Step 1. Freeze Vocabulary And Ownership
 
 Goal:
@@ -398,6 +406,10 @@ Definition of done:
 - Stack selection semantics are owned in one place.
 - Hard reload produces the same derived model as a fresh local selection from the same server state.
 
+Status:
+
+- Completed on 2026-04-25.
+
 Validation:
 
 - pure helper tests
@@ -430,6 +442,10 @@ Validation:
 
 - pure command-builder tests
 - existing commit-path orchestration tests
+
+Status:
+
+- Completed on 2026-04-25.
 
 ### Step 6. Simplify App To Composition Only
 

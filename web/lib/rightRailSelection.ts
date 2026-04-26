@@ -1,5 +1,5 @@
 import type { GameAction, StackActionSelection } from './gameClient'
-import { parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
+import { normalizeSelectionIds, parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
@@ -61,8 +61,7 @@ function uniqueIds(unitIds: readonly string[]): string[] {
 }
 
 function normalizeStackMemberSelection(selectedUnitIds: readonly string[] | null | undefined, stackMemberIds: readonly string[]): string[] {
-  const allowedIds = new Set(stackMemberIds)
-  return uniqueIds((selectedUnitIds ?? []).filter((unitId) => allowedIds.has(unitId)))
+  return normalizeSelectionIds(selectedUnitIds, stackMemberIds)
 }
 
 export function selectRightRailStackMembers(stackMemberIds: readonly string[]): string[] {

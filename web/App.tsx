@@ -19,6 +19,7 @@ import { useGameSession } from './lib/useGameSession'
 import { useDebugDiagnostics } from './lib/useDebugDiagnostics'
 import { useBattlefieldInteractionState } from './lib/useBattlefieldInteractionState'
 import { useBattlefieldDisplayState } from './lib/useBattlefieldDisplayState'
+import { buildCombatCommitAction, buildEndPhaseCommitAction } from './lib/commitActionBuilders'
 import { useInactiveEventStream } from './lib/useInactiveEventStream'
 import type {
   GameRequestTransport,
@@ -28,10 +29,8 @@ import type {
 } from './lib/gameSessionTypes'
 import type { SessionBinding } from './lib/sessionBinding'
 import {
-  buildCombatTargetActionId,
   getPhaseOwner,
 } from './lib/appViewHelpers'
-import { buildRightRailStackSubmissionAction } from './lib/rightRailSelection'
 import logger from './lib/logger'
 import './App.css'
 
@@ -659,27 +658,24 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       return
     }
 
-    const targetId = buildCombatTargetActionId(selectedCombatTarget.id, displayedOnion.id)
-    const stackSubmission = activeCombatRole === 'defender'
-      ? buildRightRailStackSubmissionAction({
-        kind: 'combat',
-        state: clientSnapshot?.authoritativeState ?? null,
-        anchorUnitId: selectedInspectorUnitId,
-        selectedUnitIds: selectedCombatAttackerIds,
-        targetId,
-      })
-      : null
+    const combatAction = buildCombatCommitAction({
+      state: clientSnapshot?.authoritativeState ?? null,
+      anchorUnitId: activeCombatRole === 'defender' ? selectedInspectorUnitId : null,
+      selectedUnitIds: selectedCombatAttackerIds,
+      targetId: selectedCombatTarget.id,
+      onionId: displayedOnion.id,
+    })
 
-    if (stackSubmission !== null && !stackSubmission.ok && stackSubmission.reason === 'empty-selection') {
+    if (!combatAction.ok && combatAction.reason === 'empty-selection') {
       setActionError('Select at least one stack member before resolving combat.')
       return
     }
 
-    void commitClientAction(
-      stackSubmission === null || !stackSubmission.ok
-        ? { type: 'FIRE', attackers: selectedCombatAttackerIds, targetId }
-        : stackSubmission.action,
-    )
+    if (!combatAction.ok) {
+      return
+    }
+
+    void commitClientAction(combatAction.action)
   }
 
   function handleDismissGameOverToast() {
@@ -758,7 +754,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
                 if (inactiveEventControlsLocked) {
                   return
                 }
-                void commitClientAction({ type: 'end-phase' })
+                void commitClientAction(buildEndPhaseCommitAction().action)
               }}
             >
               {phaseAdvanceLabel}
@@ -858,7 +854,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onClose={() => setDebugOpen(false)}
           lines={debugEntries}
           onAdvancePhase={() => {
-            void commitClientAction({ type: 'end-phase' })
+            void commitClientAction(buildEndPhaseCommitAction().action)
           }}
         />
       )}

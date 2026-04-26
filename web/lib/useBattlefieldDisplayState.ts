@@ -16,7 +16,7 @@ import {
   parseRangeValue,
   parseWeaponStats,
   resolveBattlefieldStackMemberIds,
-  resolveBattlefieldStackSelectionIds,
+  normalizeSelectionIds,
   resolveSelectionOwnerUnitId,
   stripWeaponSelectionId,
 } from './appViewHelpers'
@@ -109,10 +109,11 @@ export function useBattlefieldDisplayState({
         .filter(isBattlefieldUnitCombatReady)
         .map((unit) => unit.id),
     )
+    const selectedCombatOwnerUnitIds = activeSelectedUnitIds.map(resolveSelectionOwnerUnitId)
     const selectedCombatSelectionIds = !isCombatPhase
       ? []
       : activeCombatRole === 'defender'
-        ? Array.from(new Set(activeSelectedUnitIds.map(resolveSelectionOwnerUnitId).filter((unitId) => readyDefenderUnitIds.has(unitId))))
+        ? normalizeSelectionIds(selectedCombatOwnerUnitIds, Array.from(readyDefenderUnitIds))
         : activeSelectedUnitIds
     const selectedCombatAttackerIds = !isCombatPhase
       ? []

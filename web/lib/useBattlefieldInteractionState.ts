@@ -3,8 +3,9 @@ import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
 import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
 import type { GameAction, GameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
-import { buildClientStackSelection, isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
-import { buildRightRailStackSubmissionAction, clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
+import { isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
+import { buildMoveCommitAction } from './commitActionBuilders'
+import { clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
 import type { TurnPhase } from '../../shared/types/index'
 import type { Mode } from './battlefieldView'
 import logger from './logger'
@@ -263,14 +264,20 @@ export function useBattlefieldInteractionState({
     const prompt = pendingRamPrompt
     setPendingRamPrompt(null)
 
-    const selectedBoardUnitIds = buildSelectedBoardUnitIds(selectedUnitIds)
-    const stackSelection = buildClientStackSelection(clientSnapshot?.authoritativeState ?? null, prompt.unitId, selectedBoardUnitIds)
+    const moveAction = buildMoveCommitAction({
+      state: clientSnapshot?.authoritativeState ?? null,
+      unitId: prompt.unitId,
+      selectedUnitIds: selectedUnitIds ?? [],
+      to: prompt.to,
+      attemptRam,
+    })
 
-    void commitClientAction(
-      stackSelection === null
-        ? { type: 'MOVE', unitId: prompt.unitId, to: prompt.to, attemptRam }
-        : { type: 'MOVE_STACK', selection: stackSelection, to: prompt.to, attemptRam },
-    )
+    if (!moveAction.ok) {
+      setActionError('Select at least one stack member before submitting the move.')
+      return
+    }
+
+    void commitClientAction(moveAction.action)
     setSelectedUnitIds([])
     setHasExplicitSelection(true)
   }
@@ -455,32 +462,25 @@ export function useBattlefieldInteractionState({
     }
 
     setActionError(null)
-    const selectedBoardUnitIds = buildSelectedBoardUnitIds(selectedUnitIds)
-    const stackSubmission = buildRightRailStackSubmissionAction({
-      kind: 'move',
+    const moveAction = buildMoveCommitAction({
       state: clientSnapshot?.authoritativeState ?? null,
-      anchorUnitId: unitId,
-      selectedUnitIds: selectedBoardUnitIds,
+      unitId,
+      selectedUnitIds: selectedUnitIds ?? [],
       to,
     })
 
-    if (!stackSubmission.ok && stackSubmission.reason === 'empty-selection') {
+    if (!moveAction.ok) {
       setActionError('Select at least one stack member before submitting the move.')
       debugLog('handleMoveUnit blocked', {
         unitId,
         to,
-        reason: stackSubmission.reason,
-        selectedBoardUnitIds,
+        reason: moveAction.reason,
+        selectedBoardUnitIds: buildSelectedBoardUnitIds(selectedUnitIds),
       })
       return
     }
 
-    const stackSelection = stackSubmission.ok ? stackSubmission.action.selection : buildClientStackSelection(clientSnapshot?.authoritativeState ?? null, unitId, selectedBoardUnitIds)
-    await commitClientAction(
-      stackSelection === null
-        ? { type: 'MOVE', unitId, to }
-        : { type: 'MOVE_STACK', selection: stackSelection, to },
-    )
+    await commitClientAction(moveAction.action)
     setSelectedUnitIds([])
     setHasExplicitSelection(true)
   }
