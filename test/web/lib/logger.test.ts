@@ -28,4 +28,29 @@ describe('web logger', () => {
 
 		expect(debugSpy).toHaveBeenCalledWith(expect.objectContaining({ msg: 'debug message', event: 'handled', level: 20 }))
 	})
+
+	it('forwards warn and error entries and ignores empty calls', async () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+		const {
+			default: logger,
+			getWebLoggerLevel,
+			isWebDebugLoggingEnabled,
+			resolveWebLogLevel,
+			setWebLoggerLevel,
+		} = await import('#web/lib/logger')
+
+		setWebLoggerLevel('warn')
+		logger.warn()
+		logger.warn('warning message', { code: 7 })
+		logger.error({ event: 'failure' }, 'fatal message')
+
+		expect(warnSpy).toHaveBeenCalledWith(expect.objectContaining({ msg: 'warning message', code: 7, level: 40 }))
+		expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ msg: 'fatal message', event: 'failure', level: 50 }))
+		expect(getWebLoggerLevel()).toBe('warn')
+		expect(isWebDebugLoggingEnabled()).toBe(false)
+		expect(resolveWebLogLevel(' DEBUG ')).toBe('debug')
+		expect(resolveWebLogLevel('invalid')).toBeNull()
+		expect(resolveWebLogLevel(null)).toBeNull()
+	})
 })

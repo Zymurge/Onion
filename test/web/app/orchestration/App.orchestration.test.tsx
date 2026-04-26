@@ -455,6 +455,64 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByText('Ram on Big Bad Wolf 2: survived')).not.toBeNull()
 	})
 
+	it('renders ram toast fallback details and dismisses it from the app shell', async () => {
+		const user = userEvent.setup()
+		const snapshot = createSnapshotWithTreads(45, 3)
+		snapshot.phase = 'ONION_MOVE'
+		snapshot.scenarioName = 'Ram toast fallback scenario'
+		snapshot.turnNumber = 1
+		snapshot.lastEventSeq = 0
+		snapshot.authoritativeState.onion.position = { q: 0, r: 0 }
+		snapshot.authoritativeState.defenders = {
+			'd1': {
+				id: 'd1',
+				type: 'Puss',
+				position: { q: 0, r: 1 },
+				status: 'operational',
+				weapons: [],
+			},
+		}
+		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
+
+		const ramSnapshot = {
+			...snapshot,
+			ramResolution: [
+				{
+					actionType: 'MOVE' as const,
+					unitId: 'onion-1',
+					rammedUnitId: 'd1',
+					rammedUnitFriendlyName: 'Puss 1',
+					destroyedUnitId: '',
+					details: [],
+				},
+			],
+		}
+
+		const submitAction = vi.fn().mockResolvedValue(ramSnapshot)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await user.click(await screen.findByTestId('combat-unit-onion-1'))
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-1'))
+		})
+		await user.click(await screen.findByRole('button', { name: /attempt ram/i }))
+
+		const toast = await screen.findByTestId('ram-resolution-toast')
+		expect(toast.textContent).toContain('Ram on Puss 1: survived')
+		expect(toast.textContent).toContain('No additional effects.')
+		expect(toast.textContent).toContain('Destroyed')
+		expect(within(toast).queryByText(/tread loss/i)).toBeNull()
+
+		await user.click(within(toast).getByRole('button', { name: /dismiss/i }))
+		expect(screen.queryByTestId('ram-resolution-toast')).toBeNull()
+	})
+
 	it('selects a unit locally without submitting an action', async () => {
 		const user = userEvent.setup()
 		const snapshot = createConnectedBattlefieldSnapshot()

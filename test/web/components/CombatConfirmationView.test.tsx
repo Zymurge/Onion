@@ -57,4 +57,45 @@ describe('CombatConfirmationView', () => {
     screen.getByRole('button', { name: /resolve combat/i }).click()
     expect(onConfirm).toHaveBeenCalledTimes(1)
   })
+
+  it('uses the default label and hides actions when no handler is provided', () => {
+    render(
+      <CombatConfirmationView
+        title="Confirm attack on Wolf"
+        attackStrength={5}
+        defenseStrength={2}
+        modifiers={[]}
+        dataTestId="combat-confirmation-view"
+      />,
+    )
+
+    expect(screen.getByText(/^2:1$/i)).not.toBeNull()
+    expect(screen.getByText(/Confirm attack on Wolf/i)).not.toBeNull()
+    expect(screen.getByText(/^confirmation$/i)).not.toBeNull()
+    expect(screen.queryByRole('button', { name: /confirm attack/i })).toBeNull()
+  })
+
+  it('renders a disabled confirm button without calling the handler', () => {
+    const onConfirm = vi.fn()
+
+    render(
+      <CombatConfirmationView
+        title="Confirm attack on Wolf"
+        attackStrength={5}
+        defenseStrength={2}
+        modifiers={[]}
+        confirmLabel="Resolve combat"
+        onConfirm={onConfirm}
+        isDisabled
+        dataTestId="combat-confirmation-view"
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: /resolve combat/i })
+    expect(button).toBeDisabled()
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
 })
