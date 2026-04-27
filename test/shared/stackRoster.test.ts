@@ -6,6 +6,8 @@ import {
 	buildStackRosterIndex,
 	expandStackRosterGroups,
 	mergeStackRosterGroups,
+	moveStackRosterGroup,
+	relocateStackRosterUnits,
 	retireStackRosterGroup,
 	splitStackRosterGroup,
 	validateStackRoster,
@@ -368,5 +370,56 @@ describe('stack roster', () => {
 		const retired = retireStackRosterGroup(split, 'g-c')
 		expect(retired.groupsById['g-c']).toBeUndefined()
 		expect(retired.groupsById['g-a']?.unitIds).toEqual(['pigs-1', 'pigs-3'])
+	})
+
+	it('moves a single selected member without inventing a new group name', () => {
+		const initialRoster: StackRosterState = {
+			groupsById: {
+				'g-a': {
+					groupName: 'Little Pigs group A',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+				},
+			},
+		}
+
+		const moved = moveStackRosterGroup(initialRoster, {
+			sourceGroupId: 'g-a',
+			destinationGroupId: 'g-b',
+			destinationGroupName: 'Little Pigs group B',
+			movedUnitIds: ['pigs-1'],
+			destinationPosition: { q: 5, r: 4 },
+		})
+
+		expect(moved.groupsById['g-a']?.unitIds).toEqual(['pigs-2', 'pigs-3'])
+		expect(moved.groupsById['g-b']).toBeUndefined()
+	})
+
+	it('merges an ungrouped moved unit into an existing destination stack', () => {
+		const initialRoster: StackRosterState = {
+			groupsById: {
+				'LittlePigs:5,4': {
+					groupName: 'Little Pigs group B',
+					unitType: 'LittlePigs',
+					position: { q: 5, r: 4 },
+					unitIds: ['pigs-2', 'pigs-3'],
+				},
+			},
+		}
+
+		const moved = relocateStackRosterUnits(initialRoster, {
+			movedUnitIds: ['pigs-1'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 5, r: 4 },
+			destinationGroupName: 'Little Pigs group B',
+		})
+
+		expect(moved.groupsById['LittlePigs:5,4']).toMatchObject({
+			groupName: 'Little Pigs group B',
+			unitType: 'LittlePigs',
+			position: { q: 5, r: 4 },
+			unitIds: ['pigs-2', 'pigs-3', 'pigs-1'],
+		})
 	})
 })

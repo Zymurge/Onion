@@ -1,4 +1,4 @@
-import type { Command, GameState, HexPos, TurnPhase } from './types/index.js'
+import type { GameState, HexPos, SingleUnitMoveCommand, TurnPhase } from './types/index.js'
 import { calculateRamming } from './rammingCalculator.js'
 import { findMovePath, type MoveMapSnapshot } from './movePlanner.js'
 import {
@@ -183,7 +183,7 @@ function collectRammedUnits(state: MoveValidationState, path: HexPos[], movingUn
 export function validateMove(
 	map: MoveMapSnapshot,
 	state: MoveValidationState,
-	command: Extract<Command, { type: 'MOVE' }>,
+	command: SingleUnitMoveCommand,
 ): MoveValidationResult {
 	const resolved = resolveUnit(state, command.unitId)
 	if (!resolved) {

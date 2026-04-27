@@ -16,6 +16,35 @@ function createEvent(overrides: Partial<GameEvent> & { seq: number; type: string
 }
 
 describe('useInactiveEventStream', () => {
+	it('starts a new inactive window from the handoff seq when the turn ends', async () => {
+		const pollEvents = vi.fn().mockResolvedValue([
+			createEvent({ seq: 11, type: 'FIRE_RESOLVED', timestamp: 't11', turnNumber: 4, targetId: 'onion-1', outcome: 'NE' }),
+		])
+
+		const { result, rerender } = renderHook(
+			({ activeTurnActive }) =>
+				useInactiveEventStream({
+					activeGameId: 123,
+					activeTurnActive,
+					currentTurnNumber: 4,
+					lastAppliedEventSeq: 10,
+					pollEvents,
+				}),
+			{ initialProps: { activeTurnActive: true } },
+		)
+
+		expect(pollEvents).not.toHaveBeenCalled()
+
+		rerender({ activeTurnActive: false })
+
+		await waitFor(() => {
+			expect(pollEvents).toHaveBeenCalledWith(123, 10)
+			expect(result.current.entries).toHaveLength(1)
+		})
+
+		expect(result.current.entries[0]).toMatchObject({ seq: 11 })
+	})
+
 	it('filters inactive events to the current turn window', async () => {
 		const pollEvents = vi.fn().mockResolvedValue([
 			createEvent({ seq: 1, type: 'FIRE_RESOLVED', timestamp: 't1', turnNumber: 2, targetId: 'onion-1', outcome: 'X' }),

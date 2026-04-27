@@ -142,7 +142,7 @@ async function runOnionMovePhase(ctx: IntegrationContext) {
   expect(moveTarget).not.toBeNull()
   if (!moveTarget) return
 
-  const moveCmd = { type: 'MOVE' as const, unitId: ctx.onionId, to: moveTarget }
+  const moveCmd = { type: 'MOVE' as const, movers: [ctx.onionId], to: moveTarget }
   const moveRes = await ctx.app.inject({
     method: 'POST',
     url: `/games/${ctx.gameId}/actions`,
@@ -229,7 +229,7 @@ async function runDefenderMovePhase(ctx: IntegrationContext) {
     const moveTarget = chooseReachableMoveToward(ctx.scenarioMap, latestState, unitId, latestState.onion.position)
     if (!moveTarget) continue
 
-    const moveCmd = { type: 'MOVE' as const, unitId, to: moveTarget }
+    const moveCmd = { type: 'MOVE' as const, movers: [unitId], to: moveTarget }
     const moveRes = await ctx.app.inject({
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,
@@ -324,7 +324,7 @@ async function runGevSecondMovePhase(ctx: IntegrationContext) {
   expect(moveTarget).not.toBeNull()
   if (!moveTarget) return
 
-  const moveCmd = { type: 'MOVE' as const, unitId: gevUnitId, to: moveTarget }
+  const moveCmd = { type: 'MOVE' as const, movers: [gevUnitId], to: moveTarget }
   const moveRes = await ctx.app.inject({
     method: 'POST',
     url: `/games/${ctx.gameId}/actions`,
@@ -519,7 +519,7 @@ describe('Integration Phases (Modular)', () => {
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,
       headers: { authorization: `Bearer ${ctx.onionUser.token}` },
-      payload: { type: 'MOVE', unitId: ctx.onionId, to: { q: 0, r: 10 } },
+      payload: { type: 'MOVE', movers: [ctx.onionId], to: { q: 0, r: 10 } },
     })
     expect(wrongMoveInCombatRes.statusCode).toBe(422)
     const wrongMoveInCombatBody = wrongMoveInCombatRes.json()

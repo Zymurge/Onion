@@ -37,7 +37,7 @@ describe('commitActionBuilders', () => {
   })
 
   describe('buildMoveCommitAction', () => {
-    it('builds a MOVE_STACK action when the active unit is a stack and members are selected', () => {
+    it('builds a MOVE action with movers when the active unit is a stack and members are selected', () => {
       const state = createStackState()
 
       expect(buildMoveCommitAction({
@@ -49,19 +49,15 @@ describe('commitActionBuilders', () => {
       })).toEqual({
         ok: true,
         action: {
-          type: 'MOVE_STACK',
-          selection: {
-            anchorUnitId: 'pigs-1',
-            availableUnitIds: ['pigs-1', 'pigs-2'],
-            selectedUnitIds: ['pigs-2', 'pigs-1'],
-          },
+          type: 'MOVE',
+          movers: ['pigs-2', 'pigs-1'],
           to: { q: 5, r: 4 },
           attemptRam: true,
         },
       })
     })
 
-    it('builds a MOVE action when the active unit is not a stack', () => {
+    it('builds a MOVE action with a single mover when the active unit is not a stack', () => {
       const state = createStackState()
 
       expect(buildMoveCommitAction({
@@ -73,7 +69,7 @@ describe('commitActionBuilders', () => {
         ok: true,
         action: {
           type: 'MOVE',
-          unitId: 'wolf-1',
+          movers: ['wolf-1'],
           to: { q: 5, r: 4 },
         },
       })

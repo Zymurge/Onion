@@ -401,7 +401,8 @@ export function useInactiveEventStream({
 	const latestAppliedEventSeqRef = useRef<number | null>(lastAppliedEventSeq)
 	const queuedRefreshRef = useRef(false)
 	const lastGameIdRef = useRef<number | null>(null)
-	const lastTurnNumberRef = useRef<number | null>(null)
+	const lastActiveTurnActiveRef = useRef<boolean | null>(null)
+	const windowStartSeqRef = useRef<number | null>(null)
 
 	useEffect(() => {
 		latestAppliedEventSeqRef.current = lastAppliedEventSeq
@@ -410,7 +411,8 @@ export function useInactiveEventStream({
 	useEffect(() => {
 		if (lastGameIdRef.current !== activeGameId) {
 			lastGameIdRef.current = activeGameId
-			lastTurnNumberRef.current = currentTurnNumber
+			lastActiveTurnActiveRef.current = activeTurnActive
+			windowStartSeqRef.current = null
 			setEntries([])
 			setIsDismissed(false)
 			setIsLoading(false)
@@ -420,23 +422,24 @@ export function useInactiveEventStream({
 			inFlightAfterSeqRef.current = null
 			queuedRefreshRef.current = false
 		}
-	}, [activeGameId, currentTurnNumber])
+	}, [activeGameId, activeTurnActive, currentTurnNumber])
 
 	useEffect(() => {
-		if (lastTurnNumberRef.current === currentTurnNumber) {
-			return
+		const previousActiveTurnActive = lastActiveTurnActiveRef.current
+		if (previousActiveTurnActive === true && activeTurnActive === false) {
+			windowStartSeqRef.current = lastAppliedEventSeq
+			setEntries([])
+			setIsDismissed(false)
+			setIsLoading(false)
+			setErrorMessage(null)
+			seenSeqsRef.current = new Set<number>()
+			loadedThroughSeqRef.current = null
+			inFlightAfterSeqRef.current = null
+			queuedRefreshRef.current = false
 		}
 
-		lastTurnNumberRef.current = currentTurnNumber
-		setEntries([])
-		setIsDismissed(false)
-		setIsLoading(false)
-		setErrorMessage(null)
-		seenSeqsRef.current = new Set<number>()
-		loadedThroughSeqRef.current = null
-		inFlightAfterSeqRef.current = null
-		queuedRefreshRef.current = false
-	}, [currentTurnNumber])
+		lastActiveTurnActiveRef.current = activeTurnActive
+	}, [activeTurnActive, lastAppliedEventSeq])
 
 	useEffect(() => {
 		if (
@@ -454,7 +457,7 @@ export function useInactiveEventStream({
 			return
 		}
 
-		const afterSeq = loadedThroughSeq ?? 0
+		const afterSeq = loadedThroughSeq ?? windowStartSeqRef.current ?? 0
 		if (inFlightAfterSeqRef.current === afterSeq) {
 			queuedRefreshRef.current = true
 			return

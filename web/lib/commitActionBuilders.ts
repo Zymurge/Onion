@@ -38,7 +38,7 @@ function buildMovePayload(
   selectedUnitIds: readonly string[],
   to: { q: number; r: number },
   attemptRam?: boolean,
-): CommitActionResult<Extract<GameAction, { type: 'MOVE' } | { type: 'MOVE_STACK' }>> {
+): CommitActionResult<Extract<GameAction, { type: 'MOVE' }>> {
   const selectedBoardUnitIds = selectedUnitIds.filter((selectionId) => !isWeaponSelectionId(selectionId))
   const stackSubmission = buildRightRailStackSubmissionAction({
     kind: 'move',
@@ -53,16 +53,18 @@ function buildMovePayload(
     return stackSubmission
   }
 
-  const stackSelection = stackSubmission.ok
-    ? stackSubmission.action.selection
-    : buildClientStackSelection(state, unitId, selectedBoardUnitIds)
+  if (stackSubmission.ok) {
+    return stackSubmission
+  }
+
+  const stackSelection = buildClientStackSelection(state, unitId, selectedBoardUnitIds)
 
   if (stackSelection === null) {
     return {
       ok: true,
       action: {
         type: 'MOVE',
-        unitId,
+        movers: [unitId],
         to,
         ...(attemptRam === undefined ? {} : { attemptRam }),
       },
@@ -72,8 +74,8 @@ function buildMovePayload(
   return {
     ok: true,
     action: {
-      type: 'MOVE_STACK',
-      selection: stackSelection,
+      type: 'MOVE',
+      movers: stackSelection.selectedUnitIds,
       to,
       ...(attemptRam === undefined ? {} : { attemptRam }),
     },
@@ -121,7 +123,7 @@ function buildCombatPayload(
   }
 }
 
-export function buildMoveCommitAction(input: MoveCommitActionInput): CommitActionResult<Extract<GameAction, { type: 'MOVE' } | { type: 'MOVE_STACK' }>> {
+export function buildMoveCommitAction(input: MoveCommitActionInput): CommitActionResult<Extract<GameAction, { type: 'MOVE' }>> {
   return buildMovePayload(input.state, input.unitId, input.selectedUnitIds, input.to, input.attemptRam)
 }
 

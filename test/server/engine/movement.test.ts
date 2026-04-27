@@ -13,6 +13,7 @@ import type { GameMap } from '#server/engine/map'
 import type { MovementPlan } from '#server/engine/movement'
 import type { DefenderUnit, OnionUnit, EngineGameState } from '#server/engine/units'
 import logger from '#server/logger'
+import { buildStackRosterFromUnits } from '#shared/stackRoster'
 
 let infoSpy: any, warnSpy: any, errorSpy: any;
 
@@ -59,12 +60,14 @@ function makeOnion(overrides: Partial<OnionUnit> = {}): OnionUnit {
 }
 
 function makeState(overrides: Partial<EngineGameState> = {}): EngineGameState {
+  const defenders = overrides.defenders ?? {}
   return {
     onion: makeOnion(),
-    defenders: {},
+    defenders,
     ramsThisTurn: 0,
     currentPhase: 'ONION_MOVE',
     turn: 1,
+    stackRoster: overrides.stackRoster ?? buildStackRosterFromUnits(Object.values(defenders)),
     ...overrides,
   }
 }
@@ -515,18 +518,25 @@ describe('executeUnitMovement', () => {
       groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group'],
     }
+    state.stackRoster = {
+      groupsById: {
+        'LittlePigs:0,0': {
+          groupName: 'Little Pigs group',
+          unitType: 'LittlePigs',
+          position: { q: 0, r: 0 },
+          unitIds: ['p1', 'p2'],
+        },
+      },
+    }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))
 
     expect(result.success).toBe(true)
     expect(state.defenders.p1.position).toEqual({ q: 1, r: 0 })
-    expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.groupsInUse).toEqual([
-      { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-      { groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
-    ])
+    expect(state.stackRoster?.groupsById['LittlePigs:0,0']).toBeUndefined()
+    expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.groupsInUse).toEqual([])
     expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.usedGroupNames).toEqual([
       'Little Pigs group 1',
-      'Little Pigs group 2',
     ])
   })
 
@@ -543,6 +553,7 @@ describe('executeUnitMovement', () => {
       groupsInUse: [{ groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group 1'],
     }
+    state.stackRoster = { groupsById: {} }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'onion', from: { q: 0, r: 0 }, to: { q: 2, r: 0 } }))
 
@@ -567,6 +578,16 @@ describe('executeUnitMovement', () => {
         { groupKey: 'LittlePigs:2,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
       ],
       usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+    }
+    state.stackRoster = {
+      groupsById: {
+        'merged-group': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 0, r: 0 },
+          unitIds: ['p1', 'p2'],
+        },
+      },
     }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p2', from: { q: 2, r: 0 }, to: { q: 0, r: 0 } }))

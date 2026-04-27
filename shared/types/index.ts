@@ -101,9 +101,12 @@ export interface EventEnvelope {
   [key: string]: unknown
 }
 
+export type MoveCommand = { type: 'MOVE'; movers: string[]; to: HexPos; attemptRam?: boolean }
+
+export type SingleUnitMoveCommand = { type: 'MOVE'; unitId: string; to: HexPos; attemptRam?: boolean }
+
 export type Command =
-  | { type: 'MOVE'; unitId: string; to: HexPos; attemptRam?: boolean }
-  | { type: 'MOVE_STACK'; selection: { anchorUnitId: string; availableUnitIds: string[]; selectedUnitIds: string[] }; to: HexPos; attemptRam?: boolean }
+  | MoveCommand
   | { type: 'FIRE'; attackers: string[]; targetId: string }
   | { type: 'END_PHASE' }
 

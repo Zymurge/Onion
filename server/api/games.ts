@@ -3,7 +3,7 @@ import logger from '#server/logger'
 import type { WebSocket } from 'ws'
 import { z } from 'zod'
 
-import type { PlayerRole, Command, EventEnvelope, GameState } from '#shared/types/index'
+import type { PlayerRole, Command, EventEnvelope, GameState, SingleUnitMoveCommand } from '#shared/types/index'
 import type { DbAdapter } from '#server/db/adapter'
 import { StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
@@ -31,6 +31,7 @@ import {
   serializeWsMessage,
   type ScenarioSnapshot,
 } from '#server/api/gamesHelpers'
+import { buildStackRosterIndex, relocateStackRosterUnits } from '#shared/stackRoster'
 import type {
   WebSocketClientMessage,
   WebSocketServerErrorMessage,
@@ -513,7 +514,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
-      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'MOVE_STACK', 'FIRE'])
+      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE'])
       if (!supportedCommands.has(command.type)) {
         logger.warn({ commandType: command.type }, 'Unknown command type')
         return reply.status(400).send({
@@ -552,8 +553,8 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq })
-      } else if (command.type === 'MOVE' || command.type === 'MOVE_STACK') {
-        const moveUnitIds = command.type === 'MOVE_STACK' ? [...new Set(command.selection.selectedUnitIds)] : [command.unitId]
+      } else if (command.type === 'MOVE') {
+        const moveUnitIds = [...new Set(command.movers)]
         if (moveUnitIds.length === 0) {
           logger.info({ gameId: match.gameId }, 'Move selection missing unit id')
           return reply.status(422).send({ ok: false, error: 'Move selection did not include a unit id', code: 'MOVE_INVALID', currentPhase: match.phase })
@@ -570,14 +571,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         let nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
 
         for (const moveUnitId of moveUnitIds) {
-          const moveCommand: Extract<Command, { type: 'MOVE' }> = command.type === 'MOVE'
-            ? command
-            : {
-                type: 'MOVE',
-                unitId: moveUnitId,
-                to: command.to,
-                ...(command.attemptRam ? { attemptRam: true } : {}),
-              }
+          const moveCommand: SingleUnitMoveCommand = {
+            type: 'MOVE',
+            unitId: moveUnitId,
+            to: command.to,
+            ...(command.attemptRam ? { attemptRam: true } : {}),
+          }
 
           const validation = validateUnitMovement(map, state, moveCommand)
           if (!validation.ok) {
@@ -597,7 +596,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
           }
 
-          const emittedEvents = buildMoveEvents(nextSeq, validation.plan.unitId, moveCommand, result, state)
+          const emittedEvents = buildMoveEvents(nextSeq, validation.plan.unitId, moveCommand, result, state, match.phase)
           moveEvents.push(...emittedEvents)
           nextSeq += emittedEvents.length
           if (firstMovePlan === null) {
@@ -667,7 +666,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = attachCauseId(buildCombatEvents(seq, command, result, state), causeId)
+        newEvents = attachCauseId(buildCombatEvents(seq, command, result, state, match.phase), causeId)
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
         await db.persistMatchProgress({

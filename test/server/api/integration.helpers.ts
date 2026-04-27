@@ -238,10 +238,18 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
   if (!result?.ok) return
 
   if (action.type === 'MOVE') {
-    if (expected.onion.id && action.unitId === expected.onion.id) {
-      expected.onion.position = clone(action.to)
-    } else if (expected.defenders[action.unitId]) {
-      expected.defenders[action.unitId].position = clone(action.to)
+    const moverIds = Array.isArray(action.movers)
+      ? action.movers
+      : typeof action.unitId === 'string'
+        ? [action.unitId]
+        : []
+
+    for (const moverId of moverIds) {
+      if (expected.onion.id && moverId === expected.onion.id) {
+        expected.onion.position = clone(action.to)
+      } else if (expected.defenders[moverId]) {
+        expected.defenders[moverId].position = clone(action.to)
+      }
     }
   }
 

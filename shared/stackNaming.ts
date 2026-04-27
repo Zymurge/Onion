@@ -1,4 +1,5 @@
 import { buildFriendlyName, getAllUnitDefinitions } from './unitDefinitions.js'
+import type { StackRosterState } from './types/index.js'
 
 type StackNamingGroupRecord = {
 	groupKey: string
@@ -160,26 +161,29 @@ export class StackNamingEngine {
 	}
 }
 
-export function refreshStackNamingSnapshot(
+export function refreshStackNamingSnapshotFromRoster(
 	seed: StackNamingSnapshot | undefined,
-	units: ReadonlyArray<StackNamingSourceUnit>,
+	stackRoster: StackRosterState | undefined,
+	unitsById: ReadonlyArray<StackNamingSourceUnit>,
 ): StackNamingSnapshot {
 	const engine = createStackNamingEngine(seed)
+	const sourceUnitById = new Map(unitsById.map((unit) => [unit.id, unit]))
 	const activeGroupKeys: string[] = []
 
-	for (const unit of units) {
-		if (unit.status === 'destroyed') {
+	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
+		const unitIds = group.unitIds ?? group.units?.map((unit) => unit.id) ?? []
+		if (unitIds.length <= 1) {
 			continue
 		}
 
-		const stackSize = Math.max(unit.squads ?? 1, 1)
-		if (stackSize <= 1) {
+		const firstUnit = sourceUnitById.get(unitIds[0])
+		if (firstUnit === undefined) {
 			continue
 		}
 
-		const groupKey = buildStackGroupKey(unit.type, unit.position)
+		const groupKey = buildStackGroupKey(group.unitType, group.position)
 		activeGroupKeys.push(groupKey)
-		engine.resolveGroupName(groupKey, unit.type, unit.id, unit.friendlyName, stackSize)
+		engine.resolveGroupName(groupKey, group.unitType, firstUnit.id, firstUnit.friendlyName, unitIds.length)
 	}
 
 	engine.clearMissingGroups(activeGroupKeys)

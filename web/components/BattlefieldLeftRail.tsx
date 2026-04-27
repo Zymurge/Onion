@@ -153,20 +153,12 @@ function buildDefenderCombatGroups(
     }
   }
 
-  const groupedUnits = new Map<string, BattlefieldUnit[]>()
   for (const unit of displayedDefenders) {
     if (consumedUnitIds.has(unit.id)) {
       continue
     }
 
-    const groupKey = `${unit.type}:${unit.q}:${unit.r}`
-    const existingGroup = groupedUnits.get(groupKey) ?? []
-    existingGroup.push(unit)
-    groupedUnits.set(groupKey, existingGroup)
-  }
-
-  for (const units of groupedUnits.values()) {
-    selectionGroups.push(buildCombatGroupFromUnits(units, activeMode, activeSelectedUnitIds, stackNaming, stackRoster))
+    selectionGroups.push(buildCombatGroupFromUnits([unit], activeMode, activeSelectedUnitIds, stackNaming, stackRoster))
   }
 
   return selectionGroups
@@ -254,20 +246,12 @@ function buildDefenderMoveGroups(
     }
   }
 
-  const groupedUnits = new Map<string, BattlefieldUnit[]>()
   for (const unit of displayedDefenders) {
     if (consumedUnitIds.has(unit.id)) {
       continue
     }
 
-    const groupKey = `${unit.type}:${unit.q}:${unit.r}`
-    const existingGroup = groupedUnits.get(groupKey) ?? []
-    existingGroup.push(unit)
-    groupedUnits.set(groupKey, existingGroup)
-  }
-
-  for (const units of groupedUnits.values()) {
-    selectionGroups.push(buildMoveGroupFromUnits(units, activeSelectedUnitIds, stackNaming, stackRoster))
+    selectionGroups.push(buildMoveGroupFromUnits([unit], activeSelectedUnitIds, stackNaming, stackRoster))
   }
 
   return selectionGroups

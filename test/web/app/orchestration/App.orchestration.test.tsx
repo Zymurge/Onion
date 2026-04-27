@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render as renderUi, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -248,6 +248,19 @@ function createSnapshotWithTreads(treads: number, movementRemaining: number): Au
 	}
 }
 
+function render(...args: Parameters<typeof renderUi>) {
+	const result = renderUi(...args)
+	void (async () => {
+		try {
+			const beginTurnButton = await screen.findByRole('button', { name: /begin turn/i })
+			fireEvent.click(beginTurnButton)
+		} catch {
+			return
+		}
+	})()
+	return result
+}
+
 describe('App orchestration (injected game client)', () => {
 	it('renders defender roster and inspector details from authoritative game state instead of mock battlefield data', async () => {
 		const snapshot = createAuthoritativeBattlefieldSnapshot()
@@ -344,7 +357,7 @@ describe('App orchestration (injected game client)', () => {
 			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-2'))
 		})
 		await screen.findByTestId('combat-unit-onion-1')
-		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 0, r: 2 } })
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 0, r: 2 } })
 	})
 
 	it('prompts before a ram-capable Onion move and can skip the ram', async () => {
@@ -382,7 +395,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(await screen.findByTestId('ram-confirmation-view')).not.toBeNull()
 		expect(submitAction).not.toHaveBeenCalled()
 		await userEvent.click(screen.getByRole('button', { name: /attempt ram/i }))
-		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 0, r: 2 }, attemptRam: true })
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 0, r: 2 }, attemptRam: true })
 	})
 
 	it('renders one ram toast per resolved target', async () => {
@@ -697,7 +710,7 @@ describe('App orchestration (injected game client)', () => {
 			fireEvent.contextMenu(screen.getByTestId('hex-cell-4-6'))
 		})
 
-		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', unitId: 'wolf-2', to: { q: 4, r: 6 } })
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', movers: ['wolf-2'], to: { q: 4, r: 6 } })
 	})
 
 	it('keeps rejected move reasons local to the board', async () => {
@@ -1358,6 +1371,16 @@ describe('App orchestration (injected game client)', () => {
 						],
 					},
 				},
+					stackRoster: {
+						groupsById: {
+							'LittlePigs:4,4': {
+								groupName: 'Little Pigs group 1',
+								unitType: 'LittlePigs',
+								position: { q: 4, r: 4 },
+								unitIds: ['pigs-1', 'pigs-2'],
+							},
+						},
+					},
 			},
 		}
 		const session = { role: 'defender' as const }

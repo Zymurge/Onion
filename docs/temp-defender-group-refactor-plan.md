@@ -12,6 +12,12 @@ This plan captures the agreed direction from the current stacking discussion and
 
 Phase 0 is complete when this document is treated as the temporary source of truth for authored defender input, canonical runtime state, and API/UI projections during the normalization refactor. Any older stack-contract language that contradicts this document is superseded until those docs are migrated.
 
+Current implementation note:
+
+- Move reconciliation is now owned by `server/engine/movement.ts`, not the HTTP route.
+- Web display-state projection now rejects stacked defenders that lack canonical `stackRoster` data instead of deriving membership from co-location.
+- The remaining work in this plan is doc cleanup and any polish that does not change canonical stack ownership.
+
 ## Decisions Locked In
 
 ### 1. Canonical runtime model
@@ -475,7 +481,7 @@ These were reproduced during Defender phases and should be treated as active fol
   - **Fix Target:** Right-rail actions should mutate the active group selection, not collapse the panel unless the user explicitly closes it.
 
 - The only reliable way to move a defender group is to select the group on the map and right-click a destination; using the right rail move controls does not complete the move.
-  - **Probable Cause:** Action submission from the right rail is probably not building a valid `MOVE_STACK` payload from the selected unit ids, so the submission path is dropping back to a no-op/clear path.
+  - **Probable Cause:** Action submission from the right rail is probably not building a valid unified `MOVE` payload from the selected unit ids, so the submission path is dropping back to a no-op/clear path.
   - **Fix Target:** Right-rail move submission must resolve the active group into a valid movement command and send it consistently.
 
 - For Onion as inspector, clicking a group opens the full right-rail move selector instead of a group inspection view.

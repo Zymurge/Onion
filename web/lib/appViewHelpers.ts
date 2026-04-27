@@ -126,15 +126,7 @@ export function resolveBattlefieldStackMemberIds(state: StackSourceState | null 
     return [unitId]
   }
 
-  const matchingUnits = Object.values(state.defenders ?? {}).filter((unit) => {
-    if (unit.status === 'destroyed') {
-      return false
-    }
-
-    return unit.type === selectedUnit.type && unit.position.q === selectedUnit.position.q && unit.position.r === selectedUnit.position.r
-  })
-
-  return matchingUnits.length > 0 ? matchingUnits.map((unit) => unit.id) : [unitId]
+  return [unitId]
 }
 
 export function buildStackMemberSelectionId(unitId: string, memberIndex: number): string {
@@ -161,28 +153,8 @@ export function resolveSelectionOwnerUnitId(selectionId: string): string {
   return parseStackMemberSelectionId(selectionId)?.unitId ?? selectionId
 }
 
-function buildVirtualStackMemberSelectionIds(state: StackSourceState | null | undefined, unitId: string): string[] {
-  const selectedUnit = state?.defenders?.[unitId]
-  if (selectedUnit === undefined) {
-    return []
-  }
-
-  const stackSize = getBattlefieldStackSize(selectedUnit)
-  if (stackSize <= 1) {
-    return []
-  }
-
-  return Array.from({ length: stackSize }, (_, index) => buildStackMemberSelectionId(unitId, index + 1))
-}
-
 export function resolveBattlefieldStackSelectionIds(state: StackSourceState | null | undefined, unitId: string): string[] {
-  const stackedUnitIds = resolveBattlefieldStackMemberIds(state, unitId)
-  if (stackedUnitIds.length > 1) {
-    return stackedUnitIds
-  }
-
-  const virtualSelectionIds = buildVirtualStackMemberSelectionIds(state, unitId)
-  return virtualSelectionIds.length > 0 ? virtualSelectionIds : stackedUnitIds
+  return resolveBattlefieldStackMemberIds(state, unitId)
 }
 
 export function countSelectedBattlefieldStackMembers(
@@ -193,11 +165,6 @@ export function countSelectedBattlefieldStackMembers(
   const stackedUnitIds = resolveBattlefieldStackMemberIds(state, unitId)
   if (stackedUnitIds.length > 1) {
     return stackedUnitIds.filter((memberId) => selectedUnitIds.includes(memberId)).length
-  }
-
-  const virtualSelectionIds = buildVirtualStackMemberSelectionIds(state, unitId)
-  if (virtualSelectionIds.length > 0) {
-    return virtualSelectionIds.filter((selectionId) => selectedUnitIds.includes(selectionId)).length
   }
 
   return selectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unitId) ? 1 : 0

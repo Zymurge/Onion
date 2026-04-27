@@ -20,13 +20,9 @@ describe('websocketProtocol definitions', () => {
 			command: Command
 			requestId?: string
 		}>()
-		expectTypeOf<Extract<Command, { type: 'MOVE_STACK' }>>().toMatchTypeOf<{
-			type: 'MOVE_STACK'
-			selection: {
-				anchorUnitId: string
-				availableUnitIds: string[]
-				selectedUnitIds: string[]
-			}
+		expectTypeOf<Extract<Command, { type: 'MOVE' }>>().toMatchTypeOf<{
+			type: 'MOVE'
+			movers: string[]
 			to: { q: number; r: number }
 			attemptRam?: boolean
 		}>()

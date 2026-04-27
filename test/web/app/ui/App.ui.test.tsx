@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '../../../../web/App'
+import { buildAcknowledgementTurnKey } from '../../../../web/lib/turnKey'
 import { createGameClient, type GameSnapshot } from '../../../../web/lib/gameClient'
 import { clearApiProtocolTraffic, requestJson } from '../../../../shared/apiProtocol'
 import type { GameState } from '../../../../shared/types/index'
@@ -559,6 +560,25 @@ describe('App UI', () => {
 
 		await user.click(beginTurnButton)
 		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
+	})
+
+	it('builds the Begin Turn acknowledgement key without phase data', () => {
+		expect(
+			buildAcknowledgementTurnKey({
+				activeGameId: 123,
+				currentTurnNumber: 11,
+				sessionRole: 'onion',
+				sessionTurnActive: true,
+			}),
+		).toBe('123:11:onion')
+		expect(
+			buildAcknowledgementTurnKey({
+				activeGameId: 123,
+				currentTurnNumber: 11,
+				sessionRole: 'defender',
+				sessionTurnActive: false,
+			}),
+		).toBeNull()
 	})
 
 	it('keeps dismissed inactive events hidden when later polls include older seqs again', async () => {

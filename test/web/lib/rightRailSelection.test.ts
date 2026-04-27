@@ -117,7 +117,7 @@ describe('rightRailSelection', () => {
   })
 
   describe('buildRightRailMoveAction', () => {
-    it('builds a MOVE_STACK action from the selected members of the active stack', () => {
+    it('builds a MOVE action from the selected members of the active stack', () => {
       const state = createStackState()
 
       expect(buildRightRailMoveAction({
@@ -128,12 +128,8 @@ describe('rightRailSelection', () => {
       })).toEqual({
         ok: true,
         action: {
-          type: 'MOVE_STACK',
-          selection: {
-            anchorUnitId: 'pigs-1',
-            availableUnitIds: ['pigs-1', 'pigs-2'],
-            selectedUnitIds: ['pigs-2', 'pigs-1'],
-          },
+          type: 'MOVE',
+          movers: ['pigs-2', 'pigs-1'],
           to: { q: 5, r: 4 },
         },
       })
@@ -189,7 +185,7 @@ describe('rightRailSelection', () => {
   })
 
   describe('buildRightRailStackSubmissionAction', () => {
-    it('builds a MOVE_STACK payload from normalized selected ids without re-deriving selection defaults', () => {
+    it('builds a MOVE payload from normalized selected ids without re-deriving selection defaults', () => {
       const state = createStackState()
 
       expect(buildRightRailStackSubmissionAction({
@@ -201,18 +197,14 @@ describe('rightRailSelection', () => {
       })).toEqual({
         ok: true,
         action: {
-          type: 'MOVE_STACK',
-          selection: {
-            anchorUnitId: 'pigs-1',
-            availableUnitIds: ['pigs-1', 'pigs-2'],
-            selectedUnitIds: ['pigs-2', 'pigs-1'],
-          },
+          type: 'MOVE',
+          movers: ['pigs-2', 'pigs-1'],
           to: { q: 5, r: 4 },
         },
       })
     })
 
-    it('accepts reloaded stack owner ids for stack submissions', () => {
+    it('keeps a lone stack anchor selection scoped to that member', () => {
       const state = createStackState()
 
       expect(buildRightRailStackSubmissionAction({
@@ -224,12 +216,8 @@ describe('rightRailSelection', () => {
       })).toEqual({
         ok: true,
         action: {
-          type: 'MOVE_STACK',
-          selection: {
-            anchorUnitId: 'pigs-1',
-            availableUnitIds: ['pigs-1', 'pigs-2'],
-            selectedUnitIds: ['pigs-1', 'pigs-2'],
-          },
+          type: 'MOVE',
+          movers: ['pigs-1'],
           to: { q: 5, r: 4 },
         },
       })

@@ -6,7 +6,7 @@ import logger from '#server/logger'
  * movement mechanics like Onion ramming and GEV second moves.
  */
 
-import type { HexPos, PlayerRole, Command } from '#shared/types/index'
+import type { HexPos, PlayerRole, SingleUnitMoveCommand } from '#shared/types/index'
 import { isInBounds } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
 import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
@@ -15,7 +15,8 @@ import { spendUnitMovement } from '#shared/unitMovement'
 import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
-import { refreshStackNamingSnapshot } from '#shared/stackNaming'
+import { buildStackRosterIndex, relocateStackRosterUnits } from '#shared/stackRoster'
+import { buildStackGroupKey, refreshStackNamingSnapshotFromRoster } from '#shared/stackNaming'
 
 /**
  * Result of validating a movement command.
@@ -127,7 +128,7 @@ function toMoveMapSnapshot(map: GameMap, state: EngineGameState, movingUnitId: s
 function validateMovePlan(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE' }>
+  command: SingleUnitMoveCommand
 ): MovementValidation {
   return toMovementValidation(validateSharedMove(toMoveMapSnapshot(map, state, command.unitId), state, command))
 }
@@ -152,6 +153,55 @@ function toMovementValidation(result: SharedMoveValidationResult): MovementValid
       capabilities: result.capabilities,
     },
   }
+}
+
+function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: string): void {
+  const movedDefender = state.defenders[movedUnitId]
+  if (movedDefender === undefined || movedDefender.status === 'destroyed') {
+    state.stackNaming = refreshStackNamingSnapshotFromRoster(
+      state.stackNaming,
+      state.stackRoster,
+      Object.values(state.defenders).map((unit) => ({
+        id: unit.id,
+        type: unit.type,
+        position: unit.position,
+        status: unit.status,
+        squads: unit.squads,
+        friendlyName: unit.friendlyName,
+      })),
+    )
+    return
+  }
+
+  const rosterIndex = buildStackRosterIndex(state.stackRoster)
+  const sourceGroup = rosterIndex.getUnitGroup(movedUnitId)
+  const destinationGroupId = buildStackGroupKey(movedDefender.type, movedDefender.position)
+  const destinationGroup = rosterIndex.groupsById[destinationGroupId] ?? null
+  const movedGroupName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+    ?? destinationGroup?.groupName
+    ?? sourceGroup?.groupName
+    ?? movedDefender.friendlyName
+    ?? movedDefender.type
+
+  state.stackRoster = relocateStackRosterUnits(state.stackRoster, {
+    movedUnitIds: [movedUnitId],
+    unitType: movedDefender.type,
+    destinationPosition: movedDefender.position,
+    destinationGroupName: movedGroupName,
+  })
+
+  state.stackNaming = refreshStackNamingSnapshotFromRoster(
+    state.stackNaming,
+    state.stackRoster,
+    Object.values(state.defenders).map((unit) => ({
+      id: unit.id,
+      type: unit.type,
+      position: unit.position,
+      status: unit.status,
+      squads: unit.squads,
+      friendlyName: unit.friendlyName,
+    })),
+  )
 }
 
 function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementResult {
@@ -189,7 +239,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
     unit.treads = Math.max(0, unit.treads - treadDamage)
   }
 
-  state.stackNaming = refreshStackNamingSnapshot(state.stackNaming, Object.values(state.defenders))
+  reconcileStackStateAfterMove(state, plan.unitId)
 
   return {
     success: true,
@@ -205,12 +255,12 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
 export function validateUnitMovement(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE' }>
+  command: SingleUnitMoveCommand
 ): MovementValidation
 export function validateUnitMovement(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE' }>
+  command: SingleUnitMoveCommand
 ): MovementValidation {
   return validateMovePlan(map, state, command)
 }
@@ -236,7 +286,7 @@ export function validateUnitMovement(
 export function executeOnionMovement(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE' }>
+  command: SingleUnitMoveCommand
 ): MovementResult {
   logger.debug({ position: state.onion.position, command }, '[executeOnionMovement] called')
   if (command.unitId !== state.onion.id) {

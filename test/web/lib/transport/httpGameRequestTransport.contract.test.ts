@@ -142,7 +142,7 @@ describe('http game request transport contract', () => {
 		})
 
 		await transport.getState(123)
-		await expect(transport.submitAction(123, { type: 'MOVE', unitId: 'wolf-2', to: { q: 7, r: 6 } })).resolves.toEqual(
+		await expect(transport.submitAction(123, { type: 'MOVE', movers: ['wolf-2'], to: { q: 7, r: 6 } })).resolves.toEqual(
 			expect.objectContaining({
 				gameId: 123,
 				phase: 'DEFENDER_MOVE',
@@ -159,7 +159,7 @@ describe('http game request transport contract', () => {
 					authorization: 'Bearer stub.token',
 					'content-type': 'application/json',
 				}),
-				body: JSON.stringify({ type: 'MOVE', unitId: 'wolf-2', to: { q: 7, r: 6 } }),
+				body: JSON.stringify({ type: 'MOVE', movers: ['wolf-2'], to: { q: 7, r: 6 } }),
 			}),
 		)
 	})

@@ -71,6 +71,7 @@
   - `stackRoster` is the authoritative source of stack membership, group identity, and unit identity.
   - `stackNaming` is the authoritative source of stack-name allocation, normalization, and retirement history.
   - `defenders` may remain as a compatibility or projection view, but it should not be used as the canonical source for stacked-unit identity once `stackRoster` is available.
+  - UI grouping and selection helpers must not infer stack membership from co-location or synthetic member ids; if canonical roster data is missing for stacked defenders, the projection layer should fail fast instead of inventing membership.
 
 ## 1c. Proposed Stack-Roster Contract
 

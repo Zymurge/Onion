@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
 	buildStackGroupKey,
 	createStackNamingEngine,
-	refreshStackNamingSnapshot,
+	refreshStackNamingSnapshotFromRoster,
 	resolveStackLabel,
 	resolveStackLabelFromSnapshot,
 	resolveStackUnitName,
@@ -67,7 +67,7 @@ describe('stack naming', () => {
 	})
 
 	it('refreshes active groups and drops missing ones from the snapshot', () => {
-		const snapshot = refreshStackNamingSnapshot(
+		const snapshot = refreshStackNamingSnapshotFromRoster(
 			{
 				groupsInUse: [
 					{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group', unitType: 'LittlePigs' },
@@ -75,11 +75,41 @@ describe('stack naming', () => {
 				],
 				usedGroupNames: ['Little Pigs group'],
 			},
+			{
+				groupsById: {
+					'g-a': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						units: [
+							{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: [] },
+							{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: [] },
+						],
+					},
+					'g-b': {
+						groupName: 'Little Pigs group 2',
+						unitType: 'LittlePigs',
+						position: { q: 5, r: 5 },
+						units: [
+							{ id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3', weapons: [] },
+							{ id: 'pigs-4', status: 'operational', friendlyName: 'Little Pigs 4', weapons: [] },
+						],
+					},
+					'g-c': {
+						groupName: 'Big Bad Wolf group',
+						unitType: 'BigBadWolf',
+						position: { q: 7, r: 7 },
+						units: [
+							{ id: 'wolf-1', status: 'destroyed', friendlyName: 'Big Bad Wolf 1', weapons: [] },
+						],
+					},
+				},
+			},
 			[
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', squads: 3, friendlyName: 'Little Pigs 1' },
-				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 5 }, status: 'operational', squads: 2, friendlyName: 'Little Pigs 2' },
-				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 8, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 3' },
-				{ id: 'puss-1', type: 'Puss', position: { q: 6, r: 6 }, status: 'operational', squads: 1, friendlyName: 'Puss 1' },
+				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', squads: 2, friendlyName: 'Little Pigs 2' },
+				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 5 }, status: 'operational', squads: 2, friendlyName: 'Little Pigs 3' },
+				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 5, r: 5 }, status: 'operational', squads: 2, friendlyName: 'Little Pigs 4' },
 				{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 7 }, status: 'destroyed', squads: 2, friendlyName: 'Big Bad Wolf 1' },
 			],
 		)
@@ -92,6 +122,41 @@ describe('stack naming', () => {
 		expect(snapshot.groupsInUse.some((group) => group.groupKey === 'BigBadWolf:7,7')).toBe(false)
 	})
 
+	it('refreshes stack names from the authoritative roster and ignores singleton groups', () => {
+		const snapshot = refreshStackNamingSnapshotFromRoster(
+			{
+				groupsInUse: [{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
+				usedGroupNames: ['Little Pigs group 1'],
+			},
+			{
+				groupsById: {
+					'g-a': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-1', 'pigs-2'],
+					},
+					'g-b': {
+						groupName: 'Little Pigs group 2',
+						unitType: 'LittlePigs',
+						position: { q: 5, r: 4 },
+						unitIds: ['pigs-3'],
+					},
+				},
+			},
+			[
+				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 3' },
+			],
+		)
+
+		expect(snapshot.groupsInUse).toMatchObject([
+			{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+		])
+		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1'])
+	})
+
 	it('retains the older group name when a merge resolves to the same group key', () => {
 		const engine = createStackNamingEngine({
 			groupsInUse: [{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
@@ -100,21 +165,6 @@ describe('stack naming', () => {
 
 		expect(engine.resolveGroupName('LittlePigs:4,4', 'LittlePigs', 'pigs-older', undefined, 2)).toBe('Little Pigs group 1')
 		expect(engine.resolveGroupName('LittlePigs:4,4', 'LittlePigs', 'pigs-newer', undefined, 2)).toBe('Little Pigs group 1')
-	})
-
-	it('drops destroyed stacked groups from the refreshed naming snapshot', () => {
-		const snapshot = refreshStackNamingSnapshot(
-			{
-				groupsInUse: [{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
-				usedGroupNames: ['Little Pigs group 1'],
-			},
-			[
-				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'destroyed', squads: 3, friendlyName: 'Little Pigs 1' },
-			],
-		)
-
-		expect(snapshot.groupsInUse).toEqual([])
-		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1'])
 	})
 
 	it('preserves non-group seed names and resolves unit names through the engine', () => {

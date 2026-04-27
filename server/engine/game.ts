@@ -60,7 +60,7 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
   const nextIdx = (TURN_PHASES.indexOf(fromPhase) + 1) % TURN_PHASES.length;
   if (nextIdx === 0) turnNumber++;
   let phase = TURN_PHASES[nextIdx];
-  newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: fromPhase, to: phase, turnNumber });
+  newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, phase: fromPhase, from: fromPhase, to: phase, turnNumber });
 
   if (phase === 'ONION_MOVE') {
     state.ramsThisTurn = 0;
@@ -80,25 +80,25 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
       const prevStatus = unit.status;
       if (unit.status === 'disabled') unit.status = 'recovering';
       if (unit.status !== prevStatus) {
-        newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, unitId, from: prevStatus, to: unit.status });
+          newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, phase: phase, unitId, from: prevStatus, to: unit.status });
       }
     }
   }
 
   // Auto-advance through DEFENDER_RECOVERY: process unit status transitions then continue
   if (phaseActor(phase) === 'engine') {
+    const engineFrom = phase;
     for (const [unitId, unit] of Object.entries(state.defenders)) {
       const prevStatus = unit.status;
       if (unit.status === 'recovering') unit.status = 'operational';
       if (unit.status !== prevStatus) {
-        newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, unitId, from: prevStatus, to: unit.status });
+        newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, phase: engineFrom, unitId, from: prevStatus, to: unit.status });
       }
     }
-    const engineFrom = phase;
     const engineNextIdx = (TURN_PHASES.indexOf(engineFrom) + 1) % TURN_PHASES.length;
     if (engineNextIdx === 0) turnNumber++;
     phase = TURN_PHASES[engineNextIdx];
-    newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, from: engineFrom, to: phase, turnNumber });
+    newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, phase: engineFrom, from: engineFrom, to: phase, turnNumber });
   }
 
   const result = { phase, turnNumber, state, newEvents };

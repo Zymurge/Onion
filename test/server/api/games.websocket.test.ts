@@ -79,7 +79,7 @@ describe('GET /games/:id/ws', () => {
 		}) as any)
 
 		const liveEventPromise = readWsMessage(ws)
-		await submitAction(app, gameId, shrek.token, { type: 'MOVE', unitId: onionUnitId, to: moveTo })
+		await submitAction(app, gameId, shrek.token, { type: 'MOVE', movers: [onionUnitId], to: moveTo })
 		const liveEventMessage = await liveEventPromise
 
 		expect(liveEventMessage.kind).toBe('EVENT')

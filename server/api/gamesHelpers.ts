@@ -9,9 +9,9 @@ import type { GameStateResponse, VictoryEscapeHex, VictoryObjectiveState } from 
 import { hexKey } from '#shared/hex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
-import type { Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
+import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, TurnPhase } from '#shared/types/index'
 import { buildFriendlyName } from '#shared/unitDefinitions'
-import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot, refreshStackNamingSnapshot } from '#shared/stackNaming'
+import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot, refreshStackNamingSnapshotFromRoster } from '#shared/stackNaming'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import type { EngineGameState } from '#server/engine/units'
@@ -154,8 +154,9 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 }
 
 export function buildEngineState(match: MatchRecord): EngineGameState {
-  const stackNaming = refreshStackNamingSnapshot(
+  const stackNaming = refreshStackNamingSnapshotFromRoster(
     match.state.stackNaming,
+    match.state.stackRoster,
     Object.values(match.state.defenders)
       .filter((unit) => typeof unit.id === 'string')
       .map((unit) => ({
@@ -165,7 +166,7 @@ export function buildEngineState(match: MatchRecord): EngineGameState {
         status: String(unit.status),
         squads: unit.squads,
         friendlyName: unit.friendlyName,
-      }))
+      })),
   )
   return {
     ...structuredClone(match.state),
@@ -300,6 +301,7 @@ export function buildCombatEvents(
   command: Extract<Command, { type: 'FIRE' }>,
   result: any,
   state: GameState,
+  phase?: TurnPhase,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
@@ -311,6 +313,7 @@ export function buildCombatEvents(
     seq: seq++,
     type: 'FIRE_RESOLVED',
     timestamp,
+    ...(phase === undefined ? {} : { phase }),
     attackers: command.attackers,
     attackerFriendlyNames,
     targetId: result.targetId,
@@ -325,6 +328,7 @@ export function buildCombatEvents(
       seq: seq++,
       type: 'ONION_TREADS_LOST',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       amount: result.treadsLost,
       remaining: state.onion.treads,
     })
@@ -335,6 +339,7 @@ export function buildCombatEvents(
       seq: seq++,
       type: 'ONION_BATTERY_DESTROYED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       weaponId: result.destroyedWeaponId,
       weaponFriendlyName: resolveWeaponFriendlyName(state, result.destroyedWeaponId),
       weaponType: getWeaponTypeFromId(result.destroyedWeaponId),
@@ -346,6 +351,7 @@ export function buildCombatEvents(
       seq: seq++,
       type: 'UNIT_STATUS_CHANGED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitId: statusChange.unitId,
       unitFriendlyName: resolveUnitFriendlyName(state, statusChange.unitId),
       from: statusChange.from,
@@ -358,6 +364,7 @@ export function buildCombatEvents(
       seq: seq++,
       type: 'UNIT_SQUADS_LOST',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitId: result.targetId,
       unitFriendlyName: resolveUnitFriendlyName(state, result.targetId),
       amount: result.squadsLost,
@@ -370,9 +377,10 @@ export function buildCombatEvents(
 export function buildMoveEvents(
   startSeq: number,
   moveUnitId: string,
-  command: Extract<Command, { type: 'MOVE' }>,
+  command: SingleUnitMoveCommand,
   result: any,
   state: GameState,
+  phase?: TurnPhase,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
@@ -385,6 +393,7 @@ export function buildMoveEvents(
       seq: seq++,
       type: isOnionMove ? 'ONION_MOVED' : 'UNIT_MOVED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitFriendlyName: moveUnitFriendlyName,
       ...(isOnionMove ? { to: command.to } : { unitId: canonicalMoveUnitId, to: command.to }),
     },
@@ -398,6 +407,7 @@ export function buildMoveEvents(
       seq: seq++,
       type: 'MOVE_RESOLVED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitId: canonicalMoveUnitId,
       unitFriendlyName: moveUnitFriendlyName,
       rammedUnitIds,
@@ -421,6 +431,7 @@ export function buildMoveEvents(
       seq: seq++,
       type: 'ONION_TREADS_LOST',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       amount: result.treadDamage,
       remaining: state.onion.treads,
     })
@@ -431,6 +442,7 @@ export function buildMoveEvents(
       seq: seq++,
       type: 'UNIT_STATUS_CHANGED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitId: destroyedId,
       unitFriendlyName: resolveUnitFriendlyName(state, destroyedId),
       from: 'operational',

@@ -215,30 +215,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					token: options.token,
 					body: {
 						type: 'MOVE',
-						unitId: action.unitId,
-						to: action.to,
-						...(action.attemptRam === undefined ? {} : { attemptRam: action.attemptRam }),
-					},
-					fetchImpl,
-				})
-
-				if (!result.ok) {
-					throw buildError(result)
-				}
-
-				currentSnapshot = mapActionSnapshot(result.data, currentSnapshot, gameId)
-				return currentSnapshot
-			}
-
-			if (action.type === 'MOVE_STACK') {
-				const result = await requestJson<ActionSuccessResponse>({
-					baseUrl,
-					path: `games/${gameId}/actions`,
-					method: 'POST',
-					token: options.token,
-					body: {
-						type: 'MOVE_STACK',
-						selection: action.selection,
+						movers: action.movers,
 						to: action.to,
 						...(action.attemptRam === undefined ? {} : { attemptRam: action.attemptRam }),
 					},

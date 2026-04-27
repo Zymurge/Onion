@@ -53,7 +53,7 @@ type RightRailCombatSubmissionInput = {
 export type RightRailStackSubmissionInput = RightRailMoveSubmissionInput | RightRailCombatSubmissionInput
 
 export type RightRailStackSubmissionResult =
-  | { ok: true; action: Extract<GameAction, { type: 'MOVE_STACK' }> | Extract<GameAction, { type: 'FIRE' }> }
+  | { ok: true; action: Extract<GameAction, { type: 'MOVE' }> | Extract<GameAction, { type: 'FIRE' }> }
   | { ok: false; reason: RightRailStackSubmissionFailureReason }
 
 function uniqueIds(unitIds: readonly string[]): string[] {
@@ -109,10 +109,6 @@ function buildValidatedStackSelection(
 
   const normalizedSelectedUnitIds = uniqueIds(
     selectedUnitIds.flatMap((unitId) => {
-      if (unitId === anchorUnitId) {
-        return [...availableUnitIds]
-      }
-
       if (availableUnitIds.includes(unitId)) {
         return [unitId]
       }
@@ -225,7 +221,7 @@ export function buildRightRailMoveAction({
   selectedUnitIds: readonly string[]
   to: { q: number; r: number }
   attemptRam?: boolean
-}): RightRailStackActionResult<Extract<GameAction, { type: 'MOVE_STACK' }>> {
+}): RightRailStackActionResult<Extract<GameAction, { type: 'MOVE' }>> {
   const submissionResult = buildRightRailStackSubmissionAction({
     kind: 'move',
     state,
@@ -274,8 +270,8 @@ export function buildRightRailStackSubmissionAction(input: RightRailStackSubmiss
     return {
       ok: true,
       action: {
-        type: 'MOVE_STACK',
-        selection: selectionResult.selection,
+        type: 'MOVE',
+        movers: selectionResult.selection.selectedUnitIds,
         to: input.to,
         ...(input.attemptRam === undefined ? {} : { attemptRam: input.attemptRam }),
       },

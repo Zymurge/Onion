@@ -26,7 +26,11 @@ import { buildRightRailStackSelectionViewModel } from './rightRailSelection'
 import type { GameSessionViewState } from './gameSessionTypes'
 import type { SessionBinding } from './sessionBinding'
 import type { Mode } from './battlefieldView'
-import type { TurnPhase } from '../../shared/types/index'
+import type { GameState, TurnPhase } from '../../shared/types/index'
+import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
+import { validateStackRosterConsistency } from '../../shared/stackRoster'
+
+const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
 type UseBattlefieldDisplayStateOptions = {
   combatBaseSnapshot: GameSnapshot | null
@@ -55,6 +59,43 @@ const turnPhaseLabels: Record<TurnPhase, string> = {
   GEV_SECOND_MOVE: 'GEV Second Move',
 }
 
+function hasImplicitStackedDefenders(authoritativeState: GameState): boolean {
+  const stackableUnitCountsByPosition = new Map<string, number>()
+
+  for (const defender of Object.values(authoritativeState.defenders)) {
+    const maxStacks = UNIT_DEFINITIONS[defender.type as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1
+    if (maxStacks <= 1) {
+      continue
+    }
+
+    if ((defender.squads ?? 1) > 1) {
+      return true
+    }
+
+    const groupKey = `${defender.type}:${defender.position.q},${defender.position.r}`
+    const nextCount = (stackableUnitCountsByPosition.get(groupKey) ?? 0) + 1
+    stackableUnitCountsByPosition.set(groupKey, nextCount)
+    if (nextCount > 1) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function assertCanonicalStackProjection(authoritativeState: GameState): void {
+  const stackRoster = authoritativeState.stackRoster
+
+  if (hasImplicitStackedDefenders(authoritativeState) && stackRoster === undefined) {
+    throw new Error('Loaded game snapshot is missing canonical stackRoster data for stacked defenders')
+  }
+
+  const consistencyIssues = validateStackRosterConsistency(authoritativeState.defenders, stackRoster)
+  if (consistencyIssues.length > 0) {
+    throw new Error(`Loaded game snapshot has invalid stack roster: ${consistencyIssues.map((issue) => issue.message).join('; ')}`)
+  }
+}
+
 export function useBattlefieldDisplayState({
   combatBaseSnapshot,
   activeMode,
@@ -70,6 +111,9 @@ export function useBattlefieldDisplayState({
     const activeGameIdProp = activeSessionBinding?.gameId
     const activePhase = clientSnapshot?.phase ?? null
     const authoritativeState = clientSnapshot?.authoritativeState ?? null
+    if (authoritativeState !== null) {
+      assertCanonicalStackProjection(authoritativeState)
+    }
     const selectedBoardUnitId = (() => {
       const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)

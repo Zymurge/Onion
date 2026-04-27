@@ -50,6 +50,21 @@ export type SplitStackRosterGroupInput = {
 	newPosition?: HexPos
 }
 
+export type MoveStackRosterGroupInput = {
+	sourceGroupId: string
+	destinationGroupId: string
+	destinationGroupName: string
+	movedUnitIds: string[]
+	destinationPosition: HexPos
+}
+
+export type RelocateStackRosterUnitsInput = {
+	movedUnitIds: string[]
+	unitType: string
+	destinationPosition: HexPos
+	destinationGroupName: string
+}
+
 export type StackRosterUnitView = StackRosterUnitState & {
 	groupId: string
 	groupKey: string
@@ -446,6 +461,129 @@ export function splitStackRosterGroup(
 		position: input.newPosition ?? sourceGroup.position,
 		unitIds: sourceUnitIds.filter((unitId) => movedIdSet.has(unitId)),
 		units: undefined,
+	}
+
+	return { groupsById }
+}
+
+export function moveStackRosterGroup(
+	stackRoster: StackRosterState | undefined,
+	input: MoveStackRosterGroupInput,
+): StackRosterState {
+	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	const sourceGroup = groupsById[input.sourceGroupId]
+	if (sourceGroup === undefined) {
+		throw new Error(`Cannot move from missing group ${input.sourceGroupId}`)
+	}
+
+	const movedIdSet = new Set(input.movedUnitIds)
+	if (movedIdSet.size === 0) {
+		throw new Error('Cannot move group without moved members')
+	}
+
+	const sourceUnitIds = resolveGroupUnitIds(sourceGroup)
+	for (const movedUnitId of movedIdSet) {
+		if (!sourceUnitIds.includes(movedUnitId)) {
+			throw new Error(`Cannot move missing group member ${movedUnitId}`)
+		}
+	}
+
+	const remainingUnitIds = sourceUnitIds.filter((unitId) => !movedIdSet.has(unitId))
+	if (remainingUnitIds.length > 1) {
+		groupsById[input.sourceGroupId] = {
+			...sourceGroup,
+			unitIds: remainingUnitIds,
+			units: undefined,
+		}
+	} else {
+		delete groupsById[input.sourceGroupId]
+	}
+
+	const destinationGroup = groupsById[input.destinationGroupId]
+	const movedUnitIds = [...movedIdSet]
+	if (destinationGroup !== undefined) {
+		const destinationUnitIds = [...new Set([...(destinationGroup.unitIds ?? destinationGroup.units?.map((unit) => unit.id) ?? []), ...movedUnitIds])]
+		groupsById[input.destinationGroupId] = {
+			...destinationGroup,
+			position: input.destinationPosition,
+			unitIds: destinationUnitIds,
+			units: undefined,
+		}
+	} else if (movedUnitIds.length > 1) {
+		groupsById[input.destinationGroupId] = {
+			groupName: input.destinationGroupName,
+			unitType: sourceGroup.unitType,
+			position: input.destinationPosition,
+			unitIds: movedUnitIds,
+			units: undefined,
+		}
+	}
+
+	return { groupsById }
+}
+
+export function relocateStackRosterUnits(
+	stackRoster: StackRosterState | undefined,
+	input: RelocateStackRosterUnitsInput,
+): StackRosterState {
+	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	const movedIdSet = new Set(input.movedUnitIds)
+	if (movedIdSet.size === 0) {
+		throw new Error('Cannot relocate units without moved members')
+	}
+
+	const destinationGroupId = buildStackGroupKey(input.unitType, input.destinationPosition)
+	const destinationSourceOverlap = Object.values(groupsById).some((group) => {
+		return group.unitType === input.unitType
+			&& group.position.q === input.destinationPosition.q
+			&& group.position.r === input.destinationPosition.r
+			&& resolveGroupUnitIds(group).some((unitId) => movedIdSet.has(unitId))
+	})
+	if (destinationSourceOverlap) {
+		return { groupsById }
+	}
+
+	for (const [groupId, group] of Object.entries(groupsById)) {
+		const groupUnitIds = resolveGroupUnitIds(group)
+		if (groupUnitIds.every((unitId) => !movedIdSet.has(unitId))) {
+			continue
+		}
+
+		const remainingUnitIds = groupUnitIds.filter((unitId) => !movedIdSet.has(unitId))
+		if (remainingUnitIds.length > 1) {
+			groupsById[groupId] = {
+				...group,
+				unitIds: remainingUnitIds,
+				units: undefined,
+			}
+		} else {
+			delete groupsById[groupId]
+		}
+	}
+
+	const destinationGroup = groupsById[destinationGroupId]
+	const destinationUnitIds = [
+		...new Set([
+			...(destinationGroup ? resolveGroupUnitIds(destinationGroup) : []),
+			...input.movedUnitIds,
+		]),
+	]
+
+	if (destinationUnitIds.length > 1) {
+		groupsById[destinationGroupId] = {
+			...(destinationGroup ?? {
+				groupName: input.destinationGroupName,
+				unitType: input.unitType,
+				position: input.destinationPosition,
+			}),
+			groupName: destinationGroup?.groupName ?? input.destinationGroupName,
+			unitType: input.unitType,
+			position: input.destinationPosition,
+			unitIds: destinationUnitIds,
+			units: undefined,
+		}
+	} else {
+		delete groupsById[destinationGroupId]
 	}
 
 	return { groupsById }

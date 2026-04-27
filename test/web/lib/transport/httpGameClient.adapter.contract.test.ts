@@ -247,7 +247,7 @@ describe('http game client adapter contract', () => {
 			fetchImpl,
 		})
 
-		await expect(client.submitAction(123, { type: 'MOVE', unitId: 'onion-1', to: { q: 9, r: 5 } })).resolves.toMatchObject({
+		await expect(client.submitAction(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 9, r: 5 } })).resolves.toMatchObject({
 			winner: 'onion',
 			lastEventSeq: 50,
 			escapeHexes: [{ q: 9, r: 5 }],
@@ -371,7 +371,7 @@ describe('http game client adapter contract', () => {
 		)
 	})
 
-	it('sends MOVE_STACK actions to the backend with the stack selection payload', async () => {
+	it('sends MOVE actions to the backend with the mover list payload', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,
 			status,
@@ -416,12 +416,8 @@ describe('http game client adapter contract', () => {
 
 		await client.getState(123)
 		await client.submitAction(123, {
-			type: 'MOVE_STACK',
-			selection: {
-				anchorUnitId: 'wolf-2',
-				availableUnitIds: ['wolf-2', 'wolf-3'],
-				selectedUnitIds: ['wolf-2'],
-			},
+			type: 'MOVE',
+			movers: ['wolf-2'],
 			to: { q: 5, r: 4 },
 		})
 
@@ -430,12 +426,8 @@ describe('http game client adapter contract', () => {
 			expect.objectContaining({
 				method: 'POST',
 				body: JSON.stringify({
-					type: 'MOVE_STACK',
-					selection: {
-						anchorUnitId: 'wolf-2',
-						availableUnitIds: ['wolf-2', 'wolf-3'],
-						selectedUnitIds: ['wolf-2'],
-					},
+					type: 'MOVE',
+					movers: ['wolf-2'],
 					to: { q: 5, r: 4 },
 				}),
 			}),
@@ -565,7 +557,7 @@ describe('http game client adapter contract', () => {
 		})
 
 		await client.getState(123)
-		await expect(client.submitAction(123, { type: 'MOVE', unitId: 'onion', to: { q: 7, r: 6 } })).resolves.toEqual(
+		await expect(client.submitAction(123, { type: 'MOVE', movers: ['onion'], to: { q: 7, r: 6 } })).resolves.toEqual(
 			expect.objectContaining({
 				gameId: 123,
 				phase: 'DEFENDER_MOVE',
@@ -593,7 +585,7 @@ describe('http game client adapter contract', () => {
 					authorization: 'Bearer stub.token',
 					'content-type': 'application/json',
 				}),
-				body: JSON.stringify({ type: 'MOVE', unitId: 'onion', to: { q: 7, r: 6 } }),
+				body: JSON.stringify({ type: 'MOVE', movers: ['onion'], to: { q: 7, r: 6 } }),
 			}),
 		)
 	})
@@ -640,11 +632,11 @@ describe('http game client adapter contract', () => {
 		})
 
 		await client.getState(123)
-		await client.submitAction(123, { type: 'MOVE', unitId: 'onion', to: { q: 7, r: 6 }, attemptRam: false })
+		await client.submitAction(123, { type: 'MOVE', movers: ['onion'], to: { q: 7, r: 6 }, attemptRam: false })
 
 		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
 			expect.objectContaining({
-				body: JSON.stringify({ type: 'MOVE', unitId: 'onion', to: { q: 7, r: 6 }, attemptRam: false }),
+				body: JSON.stringify({ type: 'MOVE', movers: ['onion'], to: { q: 7, r: 6 }, attemptRam: false }),
 			}),
 		)
 	})

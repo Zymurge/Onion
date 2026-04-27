@@ -21,6 +21,7 @@ import { useBattlefieldInteractionState } from './lib/useBattlefieldInteractionS
 import { useBattlefieldDisplayState } from './lib/useBattlefieldDisplayState'
 import { buildCombatCommitAction, buildEndPhaseCommitAction } from './lib/commitActionBuilders'
 import { useInactiveEventStream } from './lib/useInactiveEventStream'
+import { buildAcknowledgementTurnKey } from './lib/turnKey'
 import type {
   GameRequestTransport,
   GameSessionController,
@@ -303,15 +304,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const activeTurnOwner = getPhaseOwner(sessionPhase)
   const sessionTurnActive = sessionState.snapshot !== null && sessionRole !== null && activeTurnOwner === sessionRole
   const activeGameIdForGate = activeSessionBinding?.gameId ?? null
-  const currentActiveTurnKey =
-    sessionTurnKnown &&
-    sessionTurnActive &&
-    activeGameIdForGate !== null &&
-    sessionTurnNumber !== null &&
-    sessionPhase !== null &&
-    sessionRole !== null
-      ? `${activeGameIdForGate}:${sessionTurnNumber}:${sessionRole}:${sessionPhase}`
-      : null
+  const currentActiveTurnKey = buildAcknowledgementTurnKey({
+    activeGameId: activeGameIdForGate,
+    currentTurnNumber: sessionTurnNumber,
+    sessionRole,
+    sessionTurnActive: sessionTurnKnown && sessionTurnActive,
+  })
 
   const pendingAcknowledgementTurnKey =
     currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey ? currentActiveTurnKey : null
