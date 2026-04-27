@@ -188,7 +188,6 @@ export function BattlefieldRightRail({
       ) : null}
       {selectedInspectorOnion !== null ? (
         <section className="selection-panel panel-subtle">
-          {stackSelectionPanel}
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>
@@ -260,7 +259,6 @@ export function BattlefieldRightRail({
         </section>
       ) : selectedInspectorDefender !== null ? (
         <section className="selection-panel panel-subtle">
-          {stackSelectionPanel}
           <div className="selection-panel-header">
             <div>
               <p className="eyebrow">Inspector</p>
@@ -271,7 +269,11 @@ export function BattlefieldRightRail({
           <dl className="inspector-grid inspector-grid-right">
             <div>
               <dt>Stack</dt>
-              <dd>{selectedInspectorDefender.type === 'LittlePigs' ? selectedInspectorDefender.squads ?? 1 : 1}</dd>
+              <dd>{selectedInspectorDefender.type === 'LittlePigs'
+                ? (rightRailStackPanel.selectedStackMembers.length > 0
+                  ? rightRailStackPanel.selectedStackMembers.length
+                  : (selectedInspectorDefender.squads ?? 1))
+                : 1}</dd>
             </div>
             <div>
               <dt>Status</dt>

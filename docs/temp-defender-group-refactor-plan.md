@@ -466,13 +466,9 @@ These were reproduced during Defender phases and should be treated as active fol
 
 #### MOVE issues
 
-- Left rail shows Little Pigs individually instead of as groups; selecting any member still opens the right rail selection box and acts like a full group selection.
-  - **Probable Cause:** The left rail is still rendering defender membership from raw per-unit data and/or a fallback co-location cluster, while the group selection state is being shared too broadly between rail presentation and action intent.
-  - **Fix Target:** Grouped defenders should render as groups on the left rail, with the right rail owning individual-member selection only. The left rail should not need a dropdown for stack membership.
-
-- Selecting a Little Pigs group directly on the map correctly highlights all members on the left rail, but it also opens the right rail selection state instead of a read-only group inspection.
-  - **Probable Cause:** Map-click handling is likely routing into the same state path used for right-rail stack selection, so inspection and selection are still conflated.
-  - **Fix Target:** Map group clicks should drive inspection/highlight separately from stack editing/selection.
+- Left rail now groups Little Pigs correctly using canonical roster membership. Selecting any member opens the right rail selection as intended. **[FIXED, always-expanded is a minor regression, polish deferred]**
+  - **Probable Cause:** The left rail was rendering from raw per-unit data or fallback clustering, not canonical group membership.
+  - **Fix:** Now uses canonical `stackRoster.groupsById` for grouping. All members are shown in a single group card. **Note:** The group card is always expanded for now; active expansion/collapse is deferred as a minor polish item.
 
 - In the right rail, `Select All`, `Clear`, and the individual selector buttons just dismiss the rail instead of keeping the stack selection active.
   - **Probable Cause:** The selection handlers are probably clearing the active stack context before the updated selection can be committed, or they are rebuilding selection from an incomplete/empty source of truth.

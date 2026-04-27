@@ -804,7 +804,26 @@ describe('App UI', () => {
 						friendlyName: 'Little Pigs 1',
 						position: { q: 4, r: 4 },
 						status: 'operational' as const,
-						squads: 4,
+						squads: 1,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-2': {
+						id: 'pigs-2',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 2',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 1,
 						weapons: [
 							{
 								id: 'main',
@@ -818,10 +837,21 @@ describe('App UI', () => {
 						],
 					},
 				},
+				stackRoster: {
+					groupsById: {
+						'group-1': {
+							groupName: 'Little Pigs group 1',
+							unitType: 'LittlePigs',
+							position: { q: 4, r: 4 },
+							unitIds: ['pigs-1', 'pigs-2'],
+						},
+					},
+				},
 			},
 			movementRemainingByUnit: {
 				...createLoadedBattlefieldSnapshot().movementRemainingByUnit,
 				'pigs-1': 3,
+				'pigs-2': 3,
 			},
 		}
 		const client = createGameClient({
@@ -834,11 +864,85 @@ describe('App UI', () => {
 
 		expect(await screen.findByTestId('hex-unit-pigs-1')).not.toBeNull()
 		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs')
-		expect(screen.queryByTestId('hex-stack-label-4-4')).toBeNull()
-		expect(screen.queryByTestId('hex-stack-count-4-4')).toBeNull()
-		fireEvent.click(screen.getByTestId('combat-unit-pigs-1'))
+		fireEvent.click(screen.getByTestId('hex-unit-pigs-1'))
+		expect(screen.queryByRole('button', { name: /select all/i })).toBeNull()
+		expect(screen.queryByRole('button', { name: /^clear$/i })).toBeNull()
+	})
+
+	it('shows the pigs stack size in the inspector for the inactive Onion player', async () => {
+		const snapshot = {
+			...createLoadedBattlefieldSnapshot(),
+			phase: 'DEFENDER_MOVE' as const,
+			authoritativeState: {
+				...createLoadedBattlefieldSnapshot().authoritativeState,
+				defenders: {
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 1',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 1,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-2': {
+						id: 'pigs-2',
+						type: 'LittlePigs',
+						friendlyName: 'Little Pigs 2',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						squads: 1,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+				stackRoster: {
+					groupsById: {
+						'group-1': {
+							groupName: 'Little Pigs group 1',
+							unitType: 'LittlePigs',
+							position: { q: 4, r: 4 },
+							unitIds: ['pigs-1', 'pigs-2'],
+						},
+					},
+				},
+			},
+			movementRemainingByUnit: {
+				...createLoadedBattlefieldSnapshot().movementRemainingByUnit,
+				'pigs-1': 3,
+				'pigs-2': 3,
+			},
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		fireEvent.click(await screen.findByTestId('hex-unit-pigs-1'))
 		expect(document.querySelector('.rail-right .selection-panel h2')?.textContent).toContain('Little Pigs')
-		expect(screen.getByText('Stack')).not.toBeNull()
+		expect(screen.getByText('Stack').nextElementSibling?.textContent).toBe('2')
 	})
 
 	it('keeps a destroyed swamp on the map and shows victory objectives in the inspector', async () => {
