@@ -97,7 +97,6 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
         : stackNamingEngine.resolveGroupName(groupKey, def.unitType, unitIds[0], firstUnitFriendlyName, unitIds.length)
 
       stackRoster.groupsById[groupKey] = {
-        groupId: groupKey,
         groupName: resolvedGroupName,
         unitType: def.unitType,
         position: def.position,

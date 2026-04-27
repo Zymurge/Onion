@@ -441,7 +441,6 @@ export function splitStackRosterGroup(
 	}
 
 	groupsById[input.newGroupId] = {
-		groupId: input.newGroupId,
 		groupName: input.newGroupName,
 		unitType: sourceGroup.unitType,
 		position: input.newPosition ?? sourceGroup.position,

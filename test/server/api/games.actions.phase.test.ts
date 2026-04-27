@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildApp } from '#server/app'
 import { StaleMatchStateError } from '#server/db/adapter'
 import * as engineGameInternal from '#server/engine/game'
-import { materializeScenarioMap } from '#shared/scenarioMap'
 import { createGame, endPhase, getEvents, joinGame, register } from './helpers.js'
 
 describe('POST /games/:id/actions END_PHASE', () => {
@@ -27,20 +26,12 @@ describe('POST /games/:id/actions END_PHASE', () => {
       from: 'ONION_MOVE',
       to: 'ONION_COMBAT',
       turnNumber: 1,
-      phase: 'ONION_MOVE',
     })
-    expect(body.events.every((event: any) => event.turnNumber === body.turnNumber)).toBe(true)
-    expect(body.events.every((event: any) => event.phase === 'ONION_MOVE' || event.phase === 'ONION_COMBAT')).toBe(true)
     expect(body.events[0].causeId).toBeDefined()
     expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
     expect(body.turnNumber).toBe(1)
     expect(body.eventSeq).toBe(body.seq)
     expect(body).toHaveProperty('state')
-    expect(body.escapeHexes).toEqual([
-      { q: 0, r: 9 },
-      { q: 0, r: 10 },
-      { q: 0, r: 11 },
-    ])
   })
 
   it('advances phase from ONION_MOVE to ONION_COMBAT', async () => {
@@ -101,15 +92,12 @@ describe('POST /games/:id/actions END_PHASE', () => {
     await joinGame(app, gameId, fiona.token)
 
     const action = await endPhase(app, gameId, shrek.token)
-    const actionBody = action.json<{ eventSeq: number; turnNumber: number; events: Array<{ seq: number; causeId?: string; turnNumber?: number }> }>()
+    const actionBody = action.json<{ eventSeq: number; events: Array<{ causeId?: string }> }>()
     const eventsRes = await getEvents(app, gameId, shrek.token)
-    const events = eventsRes.json<{ events: Array<{ seq: number; type: string; turnNumber?: number; phase?: string }> }>().events
+    const events = eventsRes.json<{ events: Array<{ seq: number; type: string }> }>().events
 
-    const phaseEvents = events.filter((event) => event.type === 'PHASE_CHANGED')
-    expect(phaseEvents.length).toBeGreaterThan(0)
+    expect(events.some((event) => event.type === 'PHASE_CHANGED')).toBe(true)
     expect(events.at(-1)?.seq).toBe(actionBody.eventSeq)
-    expect(events.every((event) => event.turnNumber === actionBody.turnNumber)).toBe(true)
-    expect(phaseEvents.every((event) => event.phase === 'ONION_MOVE' || event.phase === 'ONION_COMBAT')).toBe(true)
     expect(actionBody.events.every((event: any) => event.causeId === actionBody.events[0].causeId)).toBe(true)
   })
 
@@ -235,7 +223,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
         gameId,
         scenarioId: 'swamp-siege-01',
         scenarioSnapshot: {
-          map: materializeScenarioMap({ radius: 10, hexes: [] }),
+          map: { width: 22, height: 14, cells: [{ q: 0, r: 10 }], hexes: [] },
           victoryConditions: { maxTurns: 20 },
         },
         players: { onion: onionId, defender: defenderId },

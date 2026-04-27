@@ -1,29 +1,29 @@
-import { useState } from 'react'
-
 import type { TimelineEvent } from '../lib/battlefieldView'
 
 type InactiveEventStreamProps = {
 	entries: ReadonlyArray<TimelineEvent>
 	errorMessage: string | null
 	isLoading: boolean
-	canDismiss: boolean
+	onDismiss: () => void
 	onDismissError: () => void
 }
 
-export function InactiveEventStream({ entries, errorMessage, isLoading, canDismiss, onDismissError }: InactiveEventStreamProps) {
+export function InactiveEventStream({ entries, errorMessage, isLoading, onDismiss, onDismissError }: InactiveEventStreamProps) {
 	const showLoading = isLoading && entries.length === 0
 	const showError = errorMessage !== null
-	const [expandedSeq, setExpandedSeq] = useState<number | null>(null)
 
 	return (
-		<section
-			className={`panel panel-subtle inactive-event-stream${canDismiss ? ' inactive-event-stream-acknowledgement-pending' : ''}`}
-			role="status"
-			aria-live="polite"
-			data-testid="inactive-event-stream"
-		>
+		<section className="panel panel-subtle inactive-event-stream" role="status" aria-live="polite" data-testid="inactive-event-stream">
 			<div className="inactive-event-stream-head">
 				<h3>Opponent’s Results</h3>
+				<button
+					className="inactive-event-stream-dismiss"
+					type="button"
+					onClick={onDismiss}
+					aria-label="Dismiss inactive event stream"
+				>
+					Dismiss
+				</button>
 			</div>
 
 			{showError ? (
@@ -48,24 +48,9 @@ export function InactiveEventStream({ entries, errorMessage, isLoading, canDismi
 						<li
 							key={entry.seq}
 							className={`inactive-event-stream-entry tone-${entry.tone ?? 'normal'}`}
-							tabIndex={0}
-							onBlur={() => setExpandedSeq((current) => (current === entry.seq ? null : current))}
-							onFocus={() => setExpandedSeq(entry.seq)}
-							onMouseEnter={() => setExpandedSeq(entry.seq)}
-							onMouseLeave={() => setExpandedSeq((current) => (current === entry.seq ? null : current))}
+							title={entry.details !== undefined && entry.details.length > 0 ? entry.details.join('\n') : undefined}
 						>
 							<p className="summary-line">{entry.summary}</p>
-							{expandedSeq === entry.seq && entry.details !== undefined && entry.details.length > 0 ? (
-								<div className="inactive-event-stream-entry-details" aria-label="Event details">
-									<ul className="inactive-event-stream-entry-details-list">
-										{entry.details.map((detail, index) => (
-											<li key={`${entry.seq}-${index}`} className="inactive-event-stream-entry-detail">
-												{detail}
-											</li>
-										))}
-									</ul>
-								</div>
-							) : null}
 						</li>
 					))
 				) : showLoading ? (

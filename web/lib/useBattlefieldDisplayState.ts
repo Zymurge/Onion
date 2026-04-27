@@ -108,11 +108,10 @@ export function useBattlefieldDisplayState({
         .filter(isBattlefieldUnitCombatReady)
         .map((unit) => unit.id),
     )
-    const selectedCombatOwnerUnitIds = activeSelectedUnitIds.map(resolveSelectionOwnerUnitId)
     const selectedCombatSelectionIds = !isCombatPhase
       ? []
       : activeCombatRole === 'defender'
-        ? normalizeSelectionIds(selectedCombatOwnerUnitIds, Array.from(readyDefenderUnitIds))
+        ? Array.from(new Set(activeSelectedUnitIds.filter((selectionId) => readyDefenderUnitIds.has(resolveSelectionOwnerUnitId(selectionId)))))
         : activeSelectedUnitIds
     const selectedCombatAttackerIds = !isCombatPhase
       ? []

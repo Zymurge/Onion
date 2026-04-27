@@ -3,31 +3,25 @@ import logger from '#server/logger'
 import type { WebSocket } from 'ws'
 import { z } from 'zod'
 
-import type { PlayerRole, Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
+import type { PlayerRole, Command, EventEnvelope, GameState } from '#shared/types/index'
 import type { DbAdapter } from '#server/db/adapter'
 import { StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { createMap } from '#server/engine/map'
 import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '#server/engine/index'
-import type { MovementPlan } from '#server/engine/index'
 import { InitialStateSchema } from '#server/engine/scenarioSchema'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
-import type { EngineGameState } from '#server/engine/units'
-import { buildStackRosterFromUnits } from '#shared/stackRoster'
-import { refreshStackNamingSnapshot, resolveStackLabelFromSnapshot } from '#shared/stackNaming'
 import {
   assertScenarioStateFitsMap,
   buildCombatEvents,
   buildEngineState,
-  buildVictoryObjectiveStates,
   buildGameStateResponse,
   buildMoveEvents,
   computeWinnerUserId,
   buildMovementRemainingByUnit,
   extractUserId,
   extractUserIdFromAuth,
-  getScenarioEscapeHexes,
   getScenarioMapSnapshot,
   logActionOutcome,
   logSentEvents,
@@ -57,123 +51,6 @@ const INITIAL_STATE: GameState = {
     batteries: { main: 1, secondary: 4, ap: 8 },
   },
   defenders: {},
-}
-
-function syncDefenderStackState(state: EngineGameState) {
-  const activeDefenders = Object.values(state.defenders).filter((unit) => unit.status !== 'destroyed')
-  state.stackNaming = refreshStackNamingSnapshot(
-    state.stackNaming,
-    activeDefenders.map((unit) => ({
-      id: unit.id,
-      type: unit.type,
-      position: unit.position,
-      status: unit.status,
-      squads: unit.squads,
-      friendlyName: unit.friendlyName,
-    })),
-  )
-
-  const nextStackRoster = buildStackRosterFromUnits(
-    activeDefenders.map((unit) => ({
-      id: unit.id,
-      type: unit.type,
-      position: unit.position,
-      status: unit.status,
-      friendlyName: unit.friendlyName,
-      squads: unit.squads,
-      weapons: unit.weapons,
-      targetRules: unit.targetRules,
-    })),
-  )
-
-  for (const [groupId, group] of Object.entries(nextStackRoster.groupsById)) {
-    const firstUnit = group.units?.[0]
-    group.groupName = resolveStackLabelFromSnapshot(
-      state.stackNaming,
-      groupId,
-      group.unitType,
-      firstUnit?.id,
-      firstUnit?.friendlyName,
-      Math.max(activeDefenders.find((unit) => unit.id === firstUnit?.id)?.squads ?? 1, group.units?.length ?? group.unitIds?.length ?? 1),
-    )
-  }
-
-  state.stackRoster = nextStackRoster
-}
-
-function validateMoveStackSelection(state: EngineGameState, command: Extract<Command, { type: 'MOVE_STACK' }>): { ok: true; unitIds: string[] } | { ok: false; error: string } {
-  const selection = command.selection
-  if (!selection || typeof selection.anchorUnitId !== 'string' || !Array.isArray(selection.selectedUnitIds)) {
-    return { ok: false, error: 'MOVE_STACK requires a valid selection.' }
-  }
-
-  const selectedUnitIds = Array.from(new Set(selection.selectedUnitIds.filter((unitId): unitId is string => typeof unitId === 'string' && unitId.trim().length > 0)))
-  if (selectedUnitIds.length === 0) {
-    return { ok: false, error: 'MOVE_STACK requires at least one selected unit.' }
-  }
-
-  const anchorUnit = state.defenders[selection.anchorUnitId]
-  if (anchorUnit === undefined || anchorUnit.status === 'destroyed') {
-    return { ok: false, error: `MOVE_STACK anchor '${selection.anchorUnitId}' is not available.` }
-  }
-
-  for (const unitId of selectedUnitIds) {
-    const unit = state.defenders[unitId]
-    if (unit === undefined || unit.status === 'destroyed') {
-      return { ok: false, error: `MOVE_STACK unit '${unitId}' is not available.` }
-    }
-
-    if (unit.type !== anchorUnit.type || unit.position.q !== anchorUnit.position.q || unit.position.r !== anchorUnit.position.r) {
-      return { ok: false, error: 'MOVE_STACK selected units must come from the same stack hex and type.' }
-    }
-  }
-
-  return { ok: true, unitIds: selectedUnitIds }
-}
-
-function resolveWinnerRole(
-  match: { players: { onion: string | null; defender: string | null } },
-  winnerUserId: string | null,
-  state: GameState,
-): PlayerRole | null {
-  if (winnerUserId === null) {
-    return null
-  }
-
-  if (winnerUserId === match.players.onion) {
-    return 'onion'
-  }
-
-  if (winnerUserId === match.players.defender) {
-    return 'defender'
-  }
-
-  if (state.onion.treads <= 0 || state.onion.status === 'destroyed') {
-    return 'defender'
-  }
-
-  return 'onion'
-}
-
-function appendGameOverEvent(events: EventEnvelope[], winner: PlayerRole | null, turnNumber: number, causeId: string): EventEnvelope[] {
-  if (winner === null) {
-    return events
-  }
-
-  const seq = (events.at(-1)?.seq ?? 0) + 1
-  const summary = winner === 'onion' ? 'Game over: the Onion escaped' : 'Game over: the defenders prevailed'
-  return [
-    ...events,
-    {
-      seq,
-      type: 'GAME_OVER',
-      timestamp: new Date().toISOString(),
-      turnNumber,
-      winner,
-      summary,
-      causeId,
-    },
-  ]
 }
 
 /**
@@ -215,12 +92,25 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     }))
   }
 
-  function attachTurnMetadata(events: EventEnvelope[], turnNumber: number, phase: TurnPhase): EventEnvelope[] {
-    return events.map((event) => ({
-      ...event,
-      phase,
-      turnNumber,
-    }))
+  function isStaleMatchStateError(err: unknown): boolean {
+    if (err instanceof StaleMatchStateError) {
+      return true
+    }
+
+    if (typeof err !== 'object' || err === null) {
+      return false
+    }
+
+    const errorLike = err as {
+      name?: unknown
+      message?: unknown
+      constructor?: { name?: unknown }
+    }
+
+    const name = typeof errorLike.name === 'string' ? errorLike.name : typeof errorLike.constructor?.name === 'string' ? errorLike.constructor.name : ''
+    const message = typeof errorLike.message === 'string' ? errorLike.message : ''
+
+    return name === 'StaleMatchStateError' || name === 'Error' && message.toLowerCase().includes('stale') || message.toLowerCase().includes('stale')
   }
 
   function removeLiveConnection(gameId: number, socket: WebSocket) {
@@ -364,7 +254,6 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         seq,
         type: 'PLAYER_JOINED',
         timestamp: new Date().toISOString(),
-        turnNumber: match.turnNumber,
         userId,
         role,
       }
@@ -617,14 +506,24 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.status(403).send({ ok: false, error: 'Not your turn', code: 'NOT_YOUR_TURN', currentPhase: match.phase })
       }
 
-      const command = req.body
+      type MoveStackCommand = {
+        type: 'MOVE_STACK'
+        selection?: {
+          anchorUnitId?: string
+          selectedUnitIds?: string[]
+        }
+        to: unknown
+        attemptRam?: boolean
+      }
+
+      const command = req.body as Command | MoveStackCommand
       logger.debug({ command }, 'Received command')
       if (!command?.type) {
         logger.warn({ command }, 'Missing command type')
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
-        const supportedCommands = new Set(['END_PHASE', 'MOVE', 'MOVE_STACK', 'FIRE'])
+      const supportedCommands = new Set(['END_PHASE', 'MOVE', 'MOVE_STACK', 'FIRE'])
       if (!supportedCommands.has(command.type)) {
         logger.warn({ commandType: command.type }, 'Unknown command type')
         return reply.status(400).send({
@@ -638,178 +537,110 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
 
       let newEvents: EventEnvelope[]
       let currentState = match.state
-        let moveOutcome: Record<string, unknown> | null = null
       const expectedLastEventSeq = match.events.at(-1)?.seq ?? 0
       const causeId = String(req.id)
-      const escapeHexes = getScenarioEscapeHexes(match.scenarioSnapshot as ScenarioSnapshot)
-      const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
-      const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
 
       if (command.type === 'END_PHASE') {
-        logger.info(
-          {
-            reqId: req.id,
-            userId,
-            gameId: match.gameId,
-            causeId,
-            phase: match.phase,
-            turnNumber: match.turnNumber,
-            expectedLastEventSeq,
-          },
-          'Advancing phase',
-        )
+        logger.info({ gameId: match.gameId, phase: match.phase }, 'Advancing phase')
         const result = advancePhaseWithEvents(match)
-        newEvents = attachTurnMetadata(attachCauseId(result.newEvents, causeId), result.turnNumber, match.phase)
+        newEvents = attachCauseId(result.newEvents, causeId)
         currentState = result.state
-        const winnerUserId = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
-        const winner = resolveWinnerRole(match, winnerUserId, result.state)
-        newEvents = appendGameOverEvent(newEvents, winner, result.turnNumber, causeId)
+        const winner = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
           phase: result.phase,
           turnNumber: result.turnNumber,
-          winner: winnerUserId,
+          winner,
           state: result.state,
           events: newEvents,
         })
         // Return updated state and events
         const turnNumber = result.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? 0
-        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
         broadcastGameEvents(match.gameId, newEvents)
-        logger.info(
-          {
-            reqId: req.id,
-            userId,
-            gameId: match.gameId,
-            causeId,
-            fromPhase: match.phase,
-            toPhase: result.phase,
-            turnNumber,
-            eventSeq,
-            eventCount: newEvents.length,
-            winner: winner ?? null,
-          },
-          'Phase advanced',
-        )
-        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq, escapeHexes, victoryObjectives, winner })
-        } else if (command.type === 'MOVE' || command.type === 'MOVE_STACK') {
-          logger.info({ gameId: match.gameId, unitId: command.type === 'MOVE' ? command.unitId : command.selection.anchorUnitId }, 'Processing MOVE command')
-        const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
-        const state = buildEngineState(match)
-          if (command.type === 'MOVE') {
-            const validation = validateUnitMovement(map, state, command)
-            if (!validation.ok) {
-              logger.info({ gameId: match.gameId, error: validation.error }, 'Invalid move command')
-              return reply.status(422).send({
-                ok: false,
-                error: validation.error,
-                code: 'MOVE_INVALID',
-                detailCode: validation.code,
-                currentPhase: match.phase,
-              })
-            }
-            const result = executeUnitMovement(state, validation.plan)
-            if (!result.success) {
-              logger.info({ gameId: match.gameId, error: result.error }, 'Invalid move command')
-              return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
-            }
+        logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
+        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq })
+      } else if (command.type === 'MOVE' || command.type === 'MOVE_STACK') {
+        let normalizedMoveCommand: Extract<Command, { type: 'MOVE' }>
 
-            syncDefenderStackState(state)
+        if (command.type === 'MOVE_STACK') {
+          const selectedUnitId =
+            Array.isArray(command.selection?.selectedUnitIds) && command.selection.selectedUnitIds.length > 0
+              ? command.selection.selectedUnitIds[0]
+              : command.selection?.anchorUnitId
 
-            const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
-            newEvents = attachTurnMetadata(attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, command, result, state), causeId), match.turnNumber, match.phase)
-              moveOutcome = {
-                unitId: command.unitId,
-                unitFriendlyName: newEvents[0]?.unitFriendlyName ?? null,
-                from: validation.plan.from,
-                to: validation.plan.to,
-                cost: validation.plan.cost,
-                rammedUnitIds: result.rammedUnitIds ?? [],
-                destroyedUnits: result.destroyedUnits ?? [],
-                treadDamage: result.treadDamage ?? 0,
-              }
-          } else {
-            const selectionValidation = validateMoveStackSelection(state, command)
-            if (!selectionValidation.ok) {
-              logger.info({ gameId: match.gameId, error: selectionValidation.error }, 'Invalid stack move command')
-              return reply.status(422).send({ ok: false, error: selectionValidation.error, code: 'MOVE_INVALID', currentPhase: match.phase })
-            }
-
-            const previewState = structuredClone(state) as EngineGameState
-            const validatedMoves: Array<{ unitCommand: Extract<Command, { type: 'MOVE' }>; plan: MovementPlan }> = []
-            for (const unitId of selectionValidation.unitIds) {
-              const unitCommand: Extract<Command, { type: 'MOVE' }> = {
-                type: 'MOVE',
-                unitId,
-                to: command.to,
-                ...(command.attemptRam === undefined ? {} : { attemptRam: command.attemptRam }),
-              }
-              const validation = validateUnitMovement(map, previewState, unitCommand)
-              if (!validation.ok) {
-                logger.info({ gameId: match.gameId, error: validation.error, unitId }, 'Invalid stack move member command')
-                return reply.status(422).send({
-                  ok: false,
-                  error: validation.error,
-                  code: 'MOVE_INVALID',
-                  detailCode: validation.code,
-                  currentPhase: match.phase,
-                })
-              }
-              const previewResult = executeUnitMovement(previewState, validation.plan)
-              if (!previewResult.success) {
-                logger.info({ gameId: match.gameId, error: previewResult.error, unitId }, 'Invalid stack move member command')
-                return reply.status(422).send({ ok: false, error: previewResult.error, code: 'MOVE_INVALID', currentPhase: match.phase })
-              }
-              validatedMoves.push({ unitCommand, plan: validation.plan })
-            }
-
-            newEvents = []
-            let nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
-            for (const { unitCommand, plan } of validatedMoves) {
-              const result = executeUnitMovement(state, plan)
-              if (!result.success) {
-                logger.info({ gameId: match.gameId, error: result.error, unitId: unitCommand.unitId }, 'Invalid stack move member command')
-                return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
-              }
-              const moveEvents = attachTurnMetadata(attachCauseId(buildMoveEvents(nextSeq, plan.unitId, unitCommand, result, state), causeId), match.turnNumber, match.phase)
-              newEvents.push(...moveEvents)
-              nextSeq = (moveEvents.at(-1)?.seq ?? nextSeq - 1) + 1
-            }
-
-            syncDefenderStackState(state)
-              moveOutcome = {
-                selection: command.selection,
-                to: command.to,
-                eventCount: newEvents.length,
-              }
+          if (selectedUnitId === undefined) {
+            logger.info({ gameId: match.gameId }, 'Move selection missing unit id')
+            return reply.status(422).send({ ok: false, error: 'Move selection did not include a unit id', code: 'MOVE_INVALID', currentPhase: match.phase })
           }
 
+          normalizedMoveCommand = {
+            type: 'MOVE',
+            unitId: selectedUnitId,
+            to: command.to as Extract<Command, { type: 'MOVE' }>['to'],
+            ...(command.attemptRam ? { attemptRam: true } : {}),
+          }
+        } else {
+          normalizedMoveCommand = command
+        }
+
+        logger.info({ gameId: match.gameId, unitId: normalizedMoveCommand.unitId }, 'Processing MOVE command')
+        const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+        const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
+        const state = buildEngineState(match)
+        const validation = validateUnitMovement(map, state, normalizedMoveCommand)
+        if (!validation.ok) {
+          logger.info({ gameId: match.gameId, error: validation.error }, 'Invalid move command')
+          return reply.status(422).send({
+            ok: false,
+            error: validation.error,
+            code: 'MOVE_INVALID',
+            detailCode: validation.code,
+            currentPhase: match.phase,
+          })
+        }
+        const result = executeUnitMovement(state, validation.plan)
+        if (!result.success) {
+          logger.info({ gameId: match.gameId, error: result.error }, 'Invalid move command')
+          return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+        }
+
+        const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
+        newEvents = attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, normalizedMoveCommand, result, state), causeId)
+
         currentState = state
-        const winnerUserId = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
-        const winner = resolveWinnerRole(match, winnerUserId, state)
-        newEvents = appendGameOverEvent(newEvents, winner, match.turnNumber, causeId)
+        const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
           phase: match.phase,
           turnNumber: match.turnNumber,
-          winner: winnerUserId,
+          winner,
           state,
           events: newEvents,
         })
         const turnNumber = match.turnNumber
-          const eventSeq = newEvents.at(-1)?.seq ?? (match.events.at(-1)?.seq ?? 0)
-        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
-          logSentEvents(match.gameId, 'MOVE', newEvents)
-          logActionOutcome(match.gameId, 'MOVE', moveOutcome ?? { to: command.to, eventCount: newEvents.length }, newEvents)
+        const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
+        logSentEvents(match.gameId, 'MOVE', newEvents)
+        logActionOutcome(match.gameId, 'MOVE', {
+          unitId: normalizedMoveCommand.unitId,
+          from: validation.plan.from,
+          to: validation.plan.to,
+          cost: validation.plan.cost,
+          rammedUnitIds: result.rammedUnitIds ?? [],
+          destroyedUnits: result.destroyedUnits ?? [],
+          treadDamage: result.treadDamage ?? 0,
+        }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
-          logger.debug({ gameId: match.gameId, actionType: command.type }, 'Move executed')
-        return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq, escapeHexes, victoryObjectives, winner })
+        logger.debug({ gameId: match.gameId, unitId: normalizedMoveCommand.unitId }, 'Move executed')
+        return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
       } else if (command.type === 'FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
+        const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
         const validation = validateCombatAction(map, state, command)
@@ -831,29 +662,24 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         const seq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = attachTurnMetadata(attachCauseId(buildCombatEvents(seq, command, result, state), causeId), match.turnNumber, match.phase)
+        newEvents = attachCauseId(buildCombatEvents(seq, command, result, state), causeId)
         currentState = state
-        const winnerUserId = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
-        const winner = resolveWinnerRole(match, winnerUserId, state)
-        newEvents = appendGameOverEvent(newEvents, winner, match.turnNumber, causeId)
+        const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
           phase: match.phase,
           turnNumber: match.turnNumber,
-          winner: winnerUserId,
+          winner,
           state,
           events: newEvents,
         })
         const turnNumber = match.turnNumber
         const eventSeq = newEvents.at(-1)?.seq ?? seq
-        const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, currentState, turnNumber)
         logSentEvents(match.gameId, command.type, newEvents)
         logActionOutcome(match.gameId, 'FIRE', {
           attackers: command.attackers,
-          attackerFriendlyNames: newEvents[0]?.attackerFriendlyNames ?? [],
           targetId: result.targetId,
-          targetFriendlyName: newEvents[0]?.targetFriendlyName ?? null,
           roll: result.roll?.roll ?? null,
           outcome: result.roll?.result ?? null,
           odds: result.roll?.odds ?? null,
@@ -864,10 +690,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
-        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq, escapeHexes, victoryObjectives, winner })
+        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
       }
     } catch (err) {
-      if (err instanceof StaleMatchStateError) {
+      if (isStaleMatchStateError(err)) {
         logger.warn({ err }, 'Stale match state error')
         return reply.status(409).send({
           ok: false,

@@ -5,6 +5,7 @@ import {
   countSelectedBattlefieldStackMembers,
   getBattlefieldStackSize,
   parseAttackStats,
+  parseRangeValue,
   resolveBattlefieldDisplayName,
   resolveBattlefieldUnitName,
   resolveBattlefieldWeaponName,
@@ -113,7 +114,7 @@ function buildCombatGroupFromUnits(
 
   return {
     anchorUnit,
-    attackStrength: units.reduce((total, unit) => total + parseAttackStats(unit.attack).damage, 0),
+    attackStrength: units.reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0),
     isActionable: units.some((unit) => unit.actionableModes.includes(activeMode)),
     isDestroyed: units.every((unit) => unit.status === 'destroyed'),
     label,

@@ -42,7 +42,6 @@ export type BattlefieldUnit = {
 export type BattlefieldOnionView = {
   id: string
   type: string
-  friendlyName?: string
   q: number
   r: number
   status: string
@@ -83,14 +82,12 @@ export function unitCode(unitType: string): string {
       return 'PU'
     case 'Witch':
       return 'WI'
-    case 'Swamp':
-      return 'SW'
     default:
       return '??'
   }
 }
 
-export function statusTone(status: UnitStatus | string): string {
+export function statusTone(status: UnitStatus): string {
   switch (status) {
     case 'operational':
       return 'ready'

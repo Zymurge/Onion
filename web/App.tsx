@@ -314,11 +314,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       : null
 
   const pendingAcknowledgementTurnKey =
-    currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
-      ? turnGateSnapshot.pendingAcknowledgementTurnKey === currentActiveTurnKey
-        ? currentActiveTurnKey
-        : null
-      : null
+    currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey ? currentActiveTurnKey : null
 
   const inactiveEventStream = useInactiveEventStream({
     activeGameId: activeGameIdForGate,
@@ -330,20 +326,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   useEffect(() => {
     setTurnGateSnapshot((current) => {
-      const previousTurnGate = previousTurnGateRef.current
-      const shouldPromptForAcknowledgement =
-        currentActiveTurnKey !== null &&
-        previousTurnGate?.turnKnown === true &&
-        previousTurnGate?.activeGameId === activeGameIdForGate &&
-        previousTurnGate.sessionTurnActive === false &&
-        sessionTurnActive
-
-      const nextPendingAcknowledgementTurnKey =
-        currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
-          ? shouldPromptForAcknowledgement || current.pendingAcknowledgementTurnKey === currentActiveTurnKey
-            ? currentActiveTurnKey
-            : null
-          : null
+      const nextPendingAcknowledgementTurnKey = pendingAcknowledgementTurnKey
 
       if (
         current.activeGameId === activeGameIdForGate &&
@@ -371,6 +354,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     acknowledgedActiveTurnKey,
     activeGameIdForGate,
     currentActiveTurnKey,
+    pendingAcknowledgementTurnKey,
     sessionTurnActive,
     sessionTurnKnown,
   ])
