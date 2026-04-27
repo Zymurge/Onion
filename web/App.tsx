@@ -638,7 +638,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const isControlledSession = activeSessionBinding !== null
   const shouldShowGameOverToast = sessionWinner !== null && sessionWinnerToastKey !== null && dismissedGameOverToastKey !== sessionWinnerToastKey
-  const rightRailStackMemberIds = rightRailStackPanel.selectedStackMembers.map((m) => m.id)
 
   const {
     debugEntries,
@@ -937,8 +936,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onAttemptRam={() => handleResolveRamPrompt(true)}
           onDeclineRam={() => handleResolveRamPrompt(false)}
           onSelectCombatTarget={setSelectedCombatTargetId}
-          onToggleStackMember={(unitId) => handleSelectStackMember(unitId, rightRailStackMemberIds)}
-          onSelectAllStackMembers={() => handleSelectAllStackMembers(rightRailStackMemberIds)}
+          onToggleStackMember={(unitId) => handleSelectStackMember(unitId, rightRailStackPanel.selectedStackMemberIds)}
+          onSelectAllStackMembers={() => handleSelectAllStackMembers(rightRailStackPanel.selectedStackMemberIds)}
           onClearStackSelection={handleClearStackSelection}
         />
       </main>

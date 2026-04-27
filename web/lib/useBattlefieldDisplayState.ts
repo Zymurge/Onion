@@ -41,6 +41,7 @@ type UseBattlefieldDisplayStateOptions = {
 type RightRailStackPanelViewModel = {
   isVisible: boolean
   selectedStackMembers: ReturnType<typeof buildRightRailStackSelectionViewModel>['selectedStackMembers']
+  selectedStackMemberIds: ReturnType<typeof buildRightRailStackSelectionViewModel>['memberUnitIds']
   selectedStackSelectionCount: number
   selectedStackSelectionIds: string[]
 }
@@ -154,6 +155,7 @@ export function useBattlefieldDisplayState({
     const rightRailStackPanel: RightRailStackPanelViewModel = {
       isVisible: rightRailStackSelection.selectedStackMembers.length > 1 && !(isCombatPhase && activeCombatRole === 'defender'),
       selectedStackMembers: rightRailStackSelection.selectedStackMembers,
+      selectedStackMemberIds: rightRailStackSelection.memberUnitIds,
       selectedStackSelectionCount: selectedCombatSelectionIds.length,
       selectedStackSelectionIds: selectedCombatSelectionIds,
     }
