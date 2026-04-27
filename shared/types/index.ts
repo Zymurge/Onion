@@ -103,6 +103,7 @@ export interface EventEnvelope {
 
 export type Command =
   | { type: 'MOVE'; unitId: string; to: HexPos; attemptRam?: boolean }
+  | { type: 'MOVE_STACK'; selection: { anchorUnitId: string; availableUnitIds: string[]; selectedUnitIds: string[] }; to: HexPos; attemptRam?: boolean }
   | { type: 'FIRE'; attackers: string[]; targetId: string }
   | { type: 'END_PHASE' }
 

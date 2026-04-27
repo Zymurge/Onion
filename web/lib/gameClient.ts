@@ -12,6 +12,12 @@ export type GamePhase = 'onion' | 'defender'
 
 export type ActionMode = 'fire' | 'combined' | 'end-phase'
 
+export type StackActionSelection = {
+	anchorUnitId: string
+	availableUnitIds: string[]
+	selectedUnitIds: string[]
+}
+
 export type CombatResolution = {
 	actionType: 'FIRE'
 	attackers: string[]
@@ -60,6 +66,7 @@ export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
 	| { type: 'MOVE'; unitId: string; to: { q: number; r: number } }
+	| { type: 'MOVE_STACK'; selection: StackActionSelection; to: { q: number; r: number }; attemptRam?: boolean }
 	| { type: 'FIRE'; attackers: string[]; targetId: string }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }

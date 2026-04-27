@@ -24,6 +24,54 @@ afterEach(() => {
 });
 
 describe('POST /games/:id/actions MOVE', () => {
+  it('accepts MOVE_STACK submissions and updates state on success', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const initialStateRes = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+    const initialStateBody = initialStateRes.json<{ state: { onion: { id?: string; position: { q: number; r: number } } } }>()
+    const onionUnitId = initialStateBody.state.onion.id ?? 'onion-1'
+
+    const moveTo = { q: 1, r: 10 }
+    const validatedPlan = createMovePlan({ unitId: onionUnitId, from: initialStateBody.state.onion.position, to: moveTo, path: [moveTo] })
+    const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
+    const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
+      state.onion.position = plan.to
+      return { success: true, newPosition: plan.to }
+    }) as any)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload: {
+        type: 'MOVE_STACK',
+        selection: {
+          anchorUnitId: onionUnitId,
+          availableUnitIds: [onionUnitId],
+          selectedUnitIds: [onionUnitId],
+        },
+        to: moveTo,
+      },
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.ok).toBe(true)
+    expect(body.state.onion.position).toEqual(moveTo)
+    expect(validateSpy).toHaveBeenCalled()
+    expect(executeSpy).toHaveBeenCalled()
+    validateSpy.mockRestore()
+    executeSpy.mockRestore()
+  })
+
   it('calls engine and updates state on success', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')

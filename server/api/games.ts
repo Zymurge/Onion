@@ -506,17 +506,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.status(403).send({ ok: false, error: 'Not your turn', code: 'NOT_YOUR_TURN', currentPhase: match.phase })
       }
 
-      type MoveStackCommand = {
-        type: 'MOVE_STACK'
-        selection?: {
-          anchorUnitId?: string
-          selectedUnitIds?: string[]
-        }
-        to: unknown
-        attemptRam?: boolean
-      }
-
-      const command = req.body as Command | MoveStackCommand
+      const command = req.body as Command
       logger.debug({ command }, 'Received command')
       if (!command?.type) {
         logger.warn({ command }, 'Missing command type')
@@ -563,53 +553,68 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
         return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq })
       } else if (command.type === 'MOVE' || command.type === 'MOVE_STACK') {
-        let normalizedMoveCommand: Extract<Command, { type: 'MOVE' }>
-
-        if (command.type === 'MOVE_STACK') {
-          const selectedUnitId =
-            Array.isArray(command.selection?.selectedUnitIds) && command.selection.selectedUnitIds.length > 0
-              ? command.selection.selectedUnitIds[0]
-              : command.selection?.anchorUnitId
-
-          if (selectedUnitId === undefined) {
-            logger.info({ gameId: match.gameId }, 'Move selection missing unit id')
-            return reply.status(422).send({ ok: false, error: 'Move selection did not include a unit id', code: 'MOVE_INVALID', currentPhase: match.phase })
-          }
-
-          normalizedMoveCommand = {
-            type: 'MOVE',
-            unitId: selectedUnitId,
-            to: command.to as Extract<Command, { type: 'MOVE' }>['to'],
-            ...(command.attemptRam ? { attemptRam: true } : {}),
-          }
-        } else {
-          normalizedMoveCommand = command
+        const moveUnitIds = command.type === 'MOVE_STACK' ? [...new Set(command.selection.selectedUnitIds)] : [command.unitId]
+        if (moveUnitIds.length === 0) {
+          logger.info({ gameId: match.gameId }, 'Move selection missing unit id')
+          return reply.status(422).send({ ok: false, error: 'Move selection did not include a unit id', code: 'MOVE_INVALID', currentPhase: match.phase })
         }
 
-        logger.info({ gameId: match.gameId, unitId: normalizedMoveCommand.unitId }, 'Processing MOVE command')
+        logger.info({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Processing MOVE command')
         const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
-        const validation = validateUnitMovement(map, state, normalizedMoveCommand)
-        if (!validation.ok) {
-          logger.info({ gameId: match.gameId, error: validation.error }, 'Invalid move command')
-          return reply.status(422).send({
-            ok: false,
-            error: validation.error,
-            code: 'MOVE_INVALID',
-            detailCode: validation.code,
-            currentPhase: match.phase,
-          })
-        }
-        const result = executeUnitMovement(state, validation.plan)
-        if (!result.success) {
-          logger.info({ gameId: match.gameId, error: result.error }, 'Invalid move command')
-          return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+        const moveEvents: EventEnvelope[] = []
+        let firstMovePlan: { from: { q: number; r: number }; to: { q: number; r: number }; cost: number } | null = null
+        let lastMoveResult: { rammedUnitIds?: string[]; destroyedUnits?: string[]; treadDamage?: number } | null = null
+        let nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
+
+        for (const moveUnitId of moveUnitIds) {
+          const moveCommand: Extract<Command, { type: 'MOVE' }> = command.type === 'MOVE'
+            ? command
+            : {
+                type: 'MOVE',
+                unitId: moveUnitId,
+                to: command.to,
+                ...(command.attemptRam ? { attemptRam: true } : {}),
+              }
+
+          const validation = validateUnitMovement(map, state, moveCommand)
+          if (!validation.ok) {
+            logger.info({ gameId: match.gameId, unitId: moveUnitId, error: validation.error }, 'Invalid move command')
+            return reply.status(422).send({
+              ok: false,
+              error: validation.error,
+              code: 'MOVE_INVALID',
+              detailCode: validation.code,
+              currentPhase: match.phase,
+            })
+          }
+
+          const result = executeUnitMovement(state, validation.plan)
+          if (!result.success) {
+            logger.info({ gameId: match.gameId, unitId: moveUnitId, error: result.error }, 'Invalid move command')
+            return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
+          }
+
+          const emittedEvents = buildMoveEvents(nextSeq, validation.plan.unitId, moveCommand, result, state)
+          moveEvents.push(...emittedEvents)
+          nextSeq += emittedEvents.length
+          if (firstMovePlan === null) {
+            firstMovePlan = {
+              from: validation.plan.from,
+              to: validation.plan.to,
+              cost: validation.plan.cost,
+            }
+          }
+          lastMoveResult = {
+            rammedUnitIds: result.rammedUnitIds,
+            destroyedUnits: result.destroyedUnits,
+            treadDamage: result.treadDamage,
+          }
         }
 
-        const nextSeq = (match.events.at(-1)?.seq ?? 0) + 1
-        newEvents = attachCauseId(buildMoveEvents(nextSeq, validation.plan.unitId, normalizedMoveCommand, result, state), causeId)
+        newEvents = attachCauseId(moveEvents, causeId)
 
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
@@ -626,16 +631,16 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
         logSentEvents(match.gameId, 'MOVE', newEvents)
         logActionOutcome(match.gameId, 'MOVE', {
-          unitId: normalizedMoveCommand.unitId,
-          from: validation.plan.from,
-          to: validation.plan.to,
-          cost: validation.plan.cost,
-          rammedUnitIds: result.rammedUnitIds ?? [],
-          destroyedUnits: result.destroyedUnits ?? [],
-          treadDamage: result.treadDamage ?? 0,
+          unitIds: moveUnitIds,
+          from: firstMovePlan?.from,
+          to: firstMovePlan?.to,
+          cost: firstMovePlan?.cost,
+          rammedUnitIds: lastMoveResult?.rammedUnitIds ?? [],
+          destroyedUnits: lastMoveResult?.destroyedUnits ?? [],
+          treadDamage: lastMoveResult?.treadDamage ?? 0,
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
-        logger.debug({ gameId: match.gameId, unitId: normalizedMoveCommand.unitId }, 'Move executed')
+        logger.debug({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Move executed')
         return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
       } else if (command.type === 'FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
