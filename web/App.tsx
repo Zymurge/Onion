@@ -192,7 +192,6 @@ function createRequestTransportFromGameClient(
  *   3. Active phase: After acknowledgement, player can interact with the board and controls.
  *
  * State is tracked via:
- *   - `turnGateSnapshot`: Tracks the authoritative game/turn/phase and whether acknowledgement is pending.
  *   - `acknowledgedActiveTurnKey`: Records the last acknowledged turn key.
  *   - `inactiveEventAcknowledgementPending`: True if the UI is waiting for the user to acknowledge the new turn.
  *
@@ -201,17 +200,6 @@ function createRequestTransportFromGameClient(
 function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectionGate = false }: AppProps) {
   const [connectedSession, setConnectedSession] = useState<SessionBinding | null>(null)
   const [acknowledgedActiveTurnKey, setAcknowledgedActiveTurnKey] = useState<string | null>(null)
-  const [turnGateSnapshot, setTurnGateSnapshot] = useState<{
-    activeGameId: number | null
-    pendingAcknowledgementTurnKey: string | null
-    sessionTurnActive: boolean
-    turnKnown: boolean
-  }>({
-    activeGameId: null,
-    pendingAcknowledgementTurnKey: null,
-    sessionTurnActive: false,
-    turnKnown: false,
-  })
   const [dismissedGameOverToastKey, setDismissedGameOverToastKey] = useState<string | null>(null)
   const previousDebugStateRef = useRef<{
     activeGameId: number | null
@@ -224,11 +212,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     sessionRole: 'onion' | 'defender' | null
     sessionTurnActive: boolean
     loggedAtMs: number
-  } | null>(null)
-  const previousTurnGateRef = useRef<{
-    activeGameId: number | null
-    sessionTurnActive: boolean
-    turnKnown: boolean
   } | null>(null)
   const previousSessionReloadRef = useRef<{
     activeGameId: number | null
@@ -321,41 +304,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     lastAppliedEventSeq: sessionState.lastAppliedEventSeq,
     pollEvents: activeSessionBinding?.requestTransport.pollEvents,
   })
-
-  useEffect(() => {
-    setTurnGateSnapshot((current) => {
-      const nextPendingAcknowledgementTurnKey = pendingAcknowledgementTurnKey
-
-      if (
-        current.activeGameId === activeGameIdForGate &&
-        current.pendingAcknowledgementTurnKey === nextPendingAcknowledgementTurnKey &&
-        current.sessionTurnActive === sessionTurnActive &&
-        current.turnKnown === sessionTurnKnown
-      ) {
-        return current
-      }
-
-      return {
-        activeGameId: activeGameIdForGate,
-        pendingAcknowledgementTurnKey: nextPendingAcknowledgementTurnKey,
-        sessionTurnActive,
-        turnKnown: sessionTurnKnown,
-      }
-    })
-
-    previousTurnGateRef.current = {
-      activeGameId: activeGameIdForGate,
-      sessionTurnActive,
-      turnKnown: sessionTurnKnown,
-    }
-  }, [
-    acknowledgedActiveTurnKey,
-    activeGameIdForGate,
-    currentActiveTurnKey,
-    pendingAcknowledgementTurnKey,
-    sessionTurnActive,
-    sessionTurnKnown,
-  ])
 
   const inactiveEventAcknowledgementPending =
     currentActiveTurnKey !== null &&
@@ -639,7 +587,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     const combatAction = buildCombatCommitAction({
-      state: clientSnapshot?.authoritativeState ?? null,
+      state: clientSnapshot?.authoritativeState as Parameters<typeof buildCombatCommitAction>[0]['state'],
       anchorUnitId: activeCombatRole === 'defender' ? selectedInspectorUnitId : null,
       selectedUnitIds: selectedCombatAttackerIds,
       targetId: selectedCombatTarget.id,

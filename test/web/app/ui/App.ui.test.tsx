@@ -25,8 +25,6 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: 'wolf-2',
-		mode: 'fire',
 		scenarioName: 'Selection Contract Test',
 		turnNumber: 11,
 		lastEventSeq: 47,
@@ -112,7 +110,6 @@ function createDefenderMoveSnapshotWithStaleAllowance(): LoadedBattlefieldSnapsh
 	return {
 		...snapshot,
 		phase: 'DEFENDER_MOVE',
-		selectedUnitId: 'wolf-2',
 		authoritativeState: {
 			...snapshot.authoritativeState,
 			movementSpent: {},
@@ -131,7 +128,6 @@ function createDefenderMoveSnapshotWithZeroMa(): LoadedBattlefieldSnapshot {
 	return {
 		...snapshot,
 		phase: 'DEFENDER_MOVE',
-		selectedUnitId: 'wolf-2',
 		authoritativeState: {
 			...snapshot.authoritativeState,
 			movementSpent: {},
@@ -144,13 +140,12 @@ function createDefenderMoveSnapshotWithZeroMa(): LoadedBattlefieldSnapshot {
 	}
 }
 
-function createOnionMoveSnapshot(selectedUnitId: string | null = null, onionMovesRemaining = 4): LoadedBattlefieldSnapshot {
+function createOnionMoveSnapshot(onionMovesRemaining = 4): LoadedBattlefieldSnapshot {
 	const snapshot = createLoadedBattlefieldSnapshot()
 
 	return {
 		...snapshot,
 		phase: 'ONION_MOVE',
-		selectedUnitId,
 		authoritativeState: {
 			...snapshot.authoritativeState,
 			movementSpent: {},
@@ -281,7 +276,7 @@ describe('App UI', () => {
 	})
 
 	it('keeps Onion MOVE focused on Onion and leaves the inspector empty until a unit is selected', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -298,7 +293,7 @@ describe('App UI', () => {
 	})
 
 	it('does not reopen Onion movement range after moves are exhausted', async () => {
-		const snapshot = createOnionMoveSnapshot('onion-1', 0)
+		const snapshot = createOnionMoveSnapshot(0)
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -315,9 +310,9 @@ describe('App UI', () => {
 
 	it('shows remaining ram capacity in the Onion rail', async () => {
 		const snapshot = {
-			...createOnionMoveSnapshot('onion-1', 4),
+			...createOnionMoveSnapshot(4),
 			authoritativeState: {
-				...createOnionMoveSnapshot('onion-1', 4).authoritativeState,
+				...createOnionMoveSnapshot(4).authoritativeState,
 				ramsThisTurn: 1,
 			},
 		}
@@ -425,7 +420,7 @@ describe('App UI', () => {
 
 	it('shows a ram resolution toast after a successful MOVE with ramming', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot('onion-1', 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue({
@@ -465,7 +460,7 @@ describe('App UI', () => {
 
 	it('shows a dismissible inactive-event stream for remote combat events', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockImplementation(async (_gameId: number, afterSeq: number) => {
 			if (afterSeq === 0) {
@@ -518,7 +513,7 @@ describe('App UI', () => {
 	})
 
 	it('loads historical inactive events on initial defender login', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -543,7 +538,7 @@ describe('App UI', () => {
 
 	it('shows Begin Turn for the active player until the turn is acknowledged', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot('onion-1', 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -580,7 +575,7 @@ describe('App UI', () => {
 
 	it('keeps dismissed inactive events hidden when later polls include older seqs again', async () => {
 		const user = userEvent.setup()
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockImplementation(async (_gameId: number, afterSeq: number) => {
 			if (afterSeq === 0) {
@@ -634,7 +629,7 @@ describe('App UI', () => {
 	})
 
 	it('surfaces a non-blocking error when inactive-event polling fails', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockRejectedValue(new Error('network down'))
 		const client = createGameClient({
@@ -653,7 +648,7 @@ describe('App UI', () => {
 
 	it('hides the inactive-event stream after the session becomes active again', async () => {
 		const user = userEvent.setup()
-		const inactiveSnapshot = createOnionMoveSnapshot(null, 4)
+		const inactiveSnapshot = createOnionMoveSnapshot(4)
 		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
@@ -680,7 +675,7 @@ describe('App UI', () => {
 	})
 
 	it('renders structured inactive-event summaries when summary text is absent', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{
@@ -763,7 +758,7 @@ describe('App UI', () => {
 	})
 
 	it('groups related inactive events by causeId across interleaved noise', async () => {
-		const snapshot = createOnionMoveSnapshot(null, 4)
+		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockResolvedValue([
 			{

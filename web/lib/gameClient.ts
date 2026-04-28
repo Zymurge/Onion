@@ -1,5 +1,6 @@
 import type { GameState, TurnPhase } from '../../shared/types/index'
 import type { GameRequestTransport } from './gameSessionTypes'
+import type { RamResolution as MoveResolution } from './moveResolution'
 
 export type ScenarioMapSnapshot = {
 	width: number
@@ -29,14 +30,7 @@ export type CombatResolution = {
 	details: string[]
 }
 
-export type RamResolution = {
-	actionType: 'MOVE'
-	unitId: string
-	rammedUnitIds: string[]
-	destroyedUnitIds: string[]
-	treadDamage?: number
-	details: string[]
-}
+export type RamResolution = MoveResolution
 
 export type ServerGameSnapshot = {
 	gameId: number
@@ -65,7 +59,7 @@ export type ServerGameSnapshot = {
 	}>
 	escapeHexes?: Array<{ q: number; r: number }>
 	combatResolution?: CombatResolution
-	ramResolution?: RamResolution
+	ramResolution?: RamResolution[]
 }
 
 export type GameSnapshot = ServerGameSnapshot

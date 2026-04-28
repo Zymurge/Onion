@@ -215,7 +215,7 @@ export function useBattlefieldInteractionState({
         clearPendingCombatResolution(false)
       }
 
-      setPendingRamResolution(nextSnapshot?.ramResolution?.length ? nextSnapshot.ramResolution : null)
+      setPendingRamResolution(nextSnapshot?.ramResolution ?? null)
       if (nextSnapshot !== null && !isCombatSnapshotPhase(nextSnapshot.phase)) {
         setSelectedCombatTargetId(null)
       }
@@ -280,7 +280,7 @@ export function useBattlefieldInteractionState({
     setPendingRamPrompt(null)
 
     const moveAction = buildMoveCommitAction({
-      state: clientSnapshot?.authoritativeState ?? null,
+      state: clientSnapshot?.authoritativeState as Parameters<typeof buildMoveCommitAction>[0]['state'],
       unitId: prompt.unitId,
       selectedUnitIds: selectedUnitIds ?? [],
       to: prompt.to,
@@ -353,7 +353,7 @@ export function useBattlefieldInteractionState({
       const baseSelection = currentSelection ?? []
 
       if (!additive) {
-        const stackMemberIds = resolveBattlefieldStackSelectionIds(clientSnapshot?.authoritativeState ?? null, selectionOwnerUnitId)
+        const stackMemberIds = resolveBattlefieldStackSelectionIds(clientSnapshot?.authoritativeState as Parameters<typeof resolveBattlefieldStackSelectionIds>[0], selectionOwnerUnitId)
         setHasExplicitSelection(true)
         return stackMemberIds
       }
@@ -478,7 +478,7 @@ export function useBattlefieldInteractionState({
 
     setActionError(null)
     const moveAction = buildMoveCommitAction({
-      state: clientSnapshot?.authoritativeState ?? null,
+      state: clientSnapshot?.authoritativeState as Parameters<typeof buildMoveCommitAction>[0]['state'],
       unitId,
       selectedUnitIds: selectedUnitIds ?? [],
       to,

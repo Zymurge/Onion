@@ -42,6 +42,7 @@ export type BattlefieldUnit = {
 export type BattlefieldOnionView = {
   id: string
   type: string
+  friendlyName?: string
   q: number
   r: number
   status: string

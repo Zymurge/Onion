@@ -15,8 +15,6 @@ function createSnapshot({ overrides = {} }: { overrides?: Partial<GameSnapshot> 
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
-		selectedUnitId: null,
-		mode: 'end-phase',
 		scenarioName: 'Fake Test Scenario',
 		turnNumber: 1,
 		lastEventSeq: 1,
