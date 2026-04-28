@@ -1,4 +1,4 @@
-import { createGameClient, type GameAction, type GameClient, type GameSnapshot } from './gameClient'
+import { createGameClient, type GameAction, type GameClient } from './gameClient'
 import { createHttpGameClient, createHttpGameRequestTransport } from './httpGameClient'
 import type { LiveConnectionStatus as LiveConnectionStatusType } from './gameSessionTypes'
 import { createLiveEventSource, type LiveEventSourceOptions } from './liveEventSource'
@@ -137,7 +137,7 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 				lastEventSeq: snapshot.lastEventSeq,
 				lastEventType: null,
 			})
-			return snapshot as GameSnapshot
+			return snapshot
 		},
 		async pollEvents(gameId: number, afterSeq: number) {
 			return client.pollEvents(gameId, afterSeq)

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { GameSnapshot } from './gameClient'
+import type { ServerGameSnapshot } from './gameClient'
 import {
   buildCombatRangeSources,
   buildLiveDefenders,
@@ -33,7 +33,7 @@ import { validateStackRosterConsistency } from '../../shared/stackRoster'
 const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
 type UseBattlefieldDisplayStateOptions = {
-  combatBaseSnapshot: GameSnapshot | null
+  combatBaseSnapshot: ServerGameSnapshot | null
   activeMode: Mode
   lastRefreshAt: Date | null
   selectedCombatTargetId: string | null
@@ -146,7 +146,7 @@ export function useBattlefieldDisplayState({
       authoritativeState,
       scenarioMap: scenarioMapSnapshot,
       movementRemainingByUnit: movementRemainingSnapshot,
-    } as GameSnapshot, activePhase, activeTurnActive)
+    } as ServerGameSnapshot, activePhase, activeTurnActive)
     const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
     const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
     const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []

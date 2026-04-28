@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
 import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
-import type { GameAction, GameSnapshot } from './gameClient'
+import type { GameAction, ServerGameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
 import { isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
 import { buildMoveCommitAction } from './commitActionBuilders'
@@ -13,7 +13,7 @@ import logger from './logger'
 type UseBattlefieldInteractionStateOptions = {
   activeSessionController: GameSessionController | null
   activeTurnActive: boolean
-  clientSnapshot: GameSnapshot | null
+  clientSnapshot: ServerGameSnapshot | null
   clientSnapshotPhase: TurnPhase | null
   isControlledSession: boolean
   isInteractionLocked: boolean

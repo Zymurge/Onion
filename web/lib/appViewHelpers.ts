@@ -2,7 +2,7 @@ import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitM
 import type { TargetRules, TurnPhase, UnitStatus, Weapon } from '../../shared/types/index'
 import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView'
-import type { GameSnapshot, StackActionSelection } from './gameClient'
+import type { ServerGameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
 import { buildFriendlyName } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
@@ -444,7 +444,7 @@ export function getActionableModes(status: UnitStatus | undefined, weapons: Read
   return hasReadyWeapon ? ['fire', 'combined'] : []
 }
 
-export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldUnit[] {
+export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldUnit[] {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
@@ -507,7 +507,7 @@ export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhas
     })
 }
 
-export function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
+export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
@@ -538,7 +538,7 @@ export function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | 
   }
 }
 
-export function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
+export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
   if (snapshot === null) {
     return null
   }
