@@ -9,12 +9,10 @@ import type { GameSnapshot } from '#web/lib/gameClient'
 function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	return {
 		gameId: 123,
-		mode: 'fire',
 		phase: 'ONION_MOVE',
 		scenarioName: 'Interaction state scenario',
 		turnNumber: 3,
 		lastEventSeq: 10,
-		selectedUnitId: null,
 		authoritativeState: {
 			onion: {
 				id: 'onion-1',
@@ -115,6 +113,36 @@ describe('useBattlefieldInteractionState', () => {
 		expect(result.current.selectedUnitIds).toEqual([])
 	})
 
+	it('exposes a single interaction state model', async () => {
+		const controller = createController()
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: createSnapshot(),
+				clientSnapshotPhase: 'ONION_MOVE',
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		expect(result.current.interactionState).toMatchObject({
+			selectedUnitIds: null,
+			hasExplicitSelection: false,
+			selectedCombatTargetId: null,
+			activeMode: 'fire',
+			actionError: null,
+			combatBaseSnapshot: null,
+			pendingCombatResolution: null,
+			pendingRamResolution: null,
+			pendingRamPrompt: null,
+			lastRefreshAt: null,
+			isRefreshing: false,
+		})
+	})
+
 	it('falls back to refresh completion when no controller is connected', async () => {
 		vi.useFakeTimers()
 		const { result } = renderHook(() =>
@@ -210,12 +238,10 @@ describe('useBattlefieldInteractionState', () => {
 		controller.submitAction = submitAction
 		const snapshot = {
 			gameId: 123,
-			mode: 'fire',
 			phase: 'DEFENDER_MOVE' as const,
 			scenarioName: 'Interaction state scenario',
 			turnNumber: 3,
 			lastEventSeq: 10,
-			selectedUnitId: null,
 			authoritativeState: {
 				onion: {
 					id: 'onion-1',

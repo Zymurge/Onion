@@ -26,11 +26,25 @@ type RamPrompt = {
   targetLabel: string
 }
 
+export type BattlefieldInteractionState = {
+  selectedUnitIds: string[] | null
+  hasExplicitSelection: boolean
+  selectedCombatTargetId: string | null
+  activeMode: Mode
+  actionError: string | null
+  combatBaseSnapshot: ServerGameSnapshot | null
+  pendingCombatResolution: ServerGameSnapshot['combatResolution'] | null
+  pendingRamResolution: ServerGameSnapshot['ramResolution'] | null
+  pendingRamPrompt: RamPrompt | null
+  lastRefreshAt: Date | null
+  isRefreshing: boolean
+}
+
 function isCombatSnapshotPhase(phase: TurnPhase | null): boolean {
   return phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
 }
 
-function buildMoveMapSnapshot(snapshot: GameSnapshot, movingUnitId: string): MoveMapSnapshot | null {
+function buildMoveMapSnapshot(snapshot: ServerGameSnapshot, movingUnitId: string): MoveMapSnapshot | null {
   const authoritativeState = snapshot.authoritativeState
   const scenarioMap = snapshot.scenarioMap
 
@@ -56,7 +70,7 @@ function buildMoveMapSnapshot(snapshot: GameSnapshot, movingUnitId: string): Mov
   }
 }
 
-function buildRamPrompt(snapshot: GameSnapshot | null, unitId: string, to: { q: number; r: number }): RamPrompt | null {
+function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to: { q: number; r: number }): RamPrompt | null {
   if (snapshot === null || snapshot.authoritativeState === undefined || snapshot.scenarioMap === undefined) {
     return null
   }
@@ -129,11 +143,12 @@ export function useBattlefieldInteractionState({
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
   const [activeMode, setActiveMode] = useState<Mode>('fire')
   const [actionError, setActionError] = useState<string | null>(null)
-  const [, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
-  const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
-  const [pendingRamResolution, setPendingRamResolution] = useState<GameSnapshot['ramResolution'] | null>(null)
+  const [, setPendingCombatSnapshot] = useState<ServerGameSnapshot | null>(null)
+  const [pendingCombatResolution, setPendingCombatResolution] = useState<ServerGameSnapshot['combatResolution'] | null>(null)
+  const [pendingRamResolution, setPendingRamResolution] = useState<ServerGameSnapshot['ramResolution'] | null>(null)
+  const [combatBaseSnapshot, setCombatBaseSnapshot] = useState<ServerGameSnapshot | null>(null)
+
   const [pendingRamPrompt, setPendingRamPrompt] = useState<RamPrompt | null>(null)
-  const [combatBaseSnapshot, setCombatBaseSnapshot] = useState<GameSnapshot | null>(null)
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -524,7 +539,22 @@ export function useBattlefieldInteractionState({
     }, 800)
   }
 
+  const interactionState: BattlefieldInteractionState = {
+    selectedUnitIds,
+    hasExplicitSelection,
+    selectedCombatTargetId,
+    activeMode,
+    actionError,
+    combatBaseSnapshot,
+    pendingCombatResolution,
+    pendingRamResolution,
+    pendingRamPrompt,
+    lastRefreshAt,
+    isRefreshing,
+  }
+
   return {
+    interactionState,
     actionError,
     combatBaseSnapshot,
     commitClientAction,
