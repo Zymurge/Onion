@@ -70,22 +70,6 @@ export type TerrainHex = {
   t: number
 }
 
-export function unitCode(unitType: string): string {
-  switch (unitType) {
-    case 'TheOnion':
-      return 'ON'
-    case 'BigBadWolf':
-      return 'BW'
-    case 'LittlePigs':
-      return 'LP'
-    case 'Puss':
-      return 'PU'
-    case 'Witch':
-      return 'WI'
-    default:
-      return '??'
-  }
-}
 
 export function statusTone(status: UnitStatus): string {
   switch (status) {

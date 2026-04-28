@@ -9,10 +9,12 @@ import type { GameSnapshot } from '#web/lib/gameClient'
 function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	return {
 		gameId: 123,
+		mode: 'fire',
 		phase: 'ONION_MOVE',
 		scenarioName: 'Interaction state scenario',
 		turnNumber: 3,
 		lastEventSeq: 10,
+		selectedUnitId: null,
 		authoritativeState: {
 			onion: {
 				id: 'onion-1',
@@ -54,7 +56,6 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 		...overrides,
 	}
 }
-
 function createController() {
 	return {
 		subscribe: vi.fn(),
@@ -105,7 +106,7 @@ describe('useBattlefieldInteractionState', () => {
 		await waitFor(() => {
 			expect(submitAction).toHaveBeenCalledWith({
 				type: 'MOVE',
-				unitId: 'onion-1',
+				movers: ['onion-1'],
 				to: { q: 0, r: 1 },
 				attemptRam: false,
 			})
@@ -170,7 +171,7 @@ describe('useBattlefieldInteractionState', () => {
 		await waitFor(() => {
 			expect(submitAction).toHaveBeenCalledWith({
 				type: 'MOVE',
-				unitId: 'onion-1',
+				movers: ['onion-1'],
 				to: { q: 1, r: 1 },
 			})
 		})
@@ -209,10 +210,12 @@ describe('useBattlefieldInteractionState', () => {
 		controller.submitAction = submitAction
 		const snapshot = {
 			gameId: 123,
+			mode: 'fire',
 			phase: 'DEFENDER_MOVE' as const,
 			scenarioName: 'Interaction state scenario',
 			turnNumber: 3,
 			lastEventSeq: 10,
+			selectedUnitId: null,
 			authoritativeState: {
 				onion: {
 					id: 'onion-1',
@@ -272,8 +275,14 @@ describe('useBattlefieldInteractionState', () => {
 			await result.current.handleMoveUnit('wolf-2', { q: 2, r: 2 })
 		})
 
-		expect(result.current.actionError).toBe('Select at least one stack member before submitting the move.')
-		expect(submitAction).not.toHaveBeenCalled()
+		await waitFor(() => {
+			expect(submitAction).toHaveBeenCalledWith({
+				type: 'MOVE',
+				movers: ['wolf-2'],
+				to: { q: 2, r: 2 },
+			})
+		})
+		expect(result.current.actionError).toBeNull()
 	})
 
 	it('keeps state unchanged when selection and movement are locked', async () => {

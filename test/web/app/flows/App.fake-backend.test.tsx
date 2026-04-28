@@ -11,10 +11,12 @@ import { createGameClient, type GameSnapshot, type GameSessionContext } from '..
 import type { GameState } from '#shared/types/index'
 import { useGameSession } from '../../../../web/lib/useGameSession'
 
-function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
+function createSnapshot({ overrides = {} }: { overrides?: Partial<GameSnapshot> } = {}): GameSnapshot {
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
+		selectedUnitId: null,
+		mode: 'end-phase',
 		scenarioName: 'Fake Test Scenario',
 		turnNumber: 1,
 		lastEventSeq: 1,
@@ -57,9 +59,11 @@ function createAppShellSnapshot(): GameSnapshot & {
 
 	return {
 		...createSnapshot({
-			phase: 'DEFENDER_COMBAT',
-			lastEventSeq: 80,
-			scenarioName: 'App shell baseline snapshot',
+			overrides: {
+				phase: 'DEFENDER_COMBAT',
+				lastEventSeq: 80,
+				scenarioName: 'App shell baseline snapshot',
+			}
 		}),
 		authoritativeState: {
 			onion: {
@@ -151,9 +155,11 @@ describe('App fake backend vertical slice', () => {
 		const session: GameSessionContext = { role: 'defender' }
 		const backend = createFakeGameBackend({
 			initialSnapshot: createSnapshot({
-				phase: 'DEFENDER_COMBAT',
-				lastEventSeq: 47,
-				scenarioName: 'Initial fake backend snapshot',
+				overrides: {
+					phase: 'DEFENDER_COMBAT',
+					lastEventSeq: 47,
+					scenarioName: 'Initial fake backend snapshot',
+				}
 			}),
 			session,
 		})
@@ -179,9 +185,11 @@ describe('App fake backend vertical slice', () => {
 		const session: GameSessionContext = { role: 'defender' }
 		const backend = createFakeGameBackend({
 			initialSnapshot: createSnapshot({
-				phase: 'DEFENDER_COMBAT',
-				lastEventSeq: 61,
-				scenarioName: 'Connection transition snapshot',
+				overrides: {
+					phase: 'DEFENDER_COMBAT',
+					lastEventSeq: 61,
+					scenarioName: 'Connection transition snapshot',
+				}
 			}),
 			session,
 		})
@@ -214,9 +222,11 @@ describe('App fake backend vertical slice', () => {
 		const session: GameSessionContext = { role: 'defender' }
 		const backend = createFakeGameBackend({
 			initialSnapshot: createSnapshot({
-				phase: 'DEFENDER_COMBAT',
-				lastEventSeq: 70,
-				scenarioName: 'Reconnect baseline snapshot',
+				overrides: {
+					phase: 'DEFENDER_COMBAT',
+					lastEventSeq: 70,
+					scenarioName: 'Reconnect baseline snapshot',
+				}
 			}),
 			session,
 		})
@@ -237,9 +247,11 @@ describe('App fake backend vertical slice', () => {
 
 			backend.queueRefresh(
 				createSnapshot({
-					phase: 'ONION_MOVE',
-					lastEventSeq: 71,
-					scenarioName: 'Reconnect refreshed snapshot',
+					overrides: {
+						phase: 'ONION_MOVE',
+						lastEventSeq: 71,
+						scenarioName: 'Reconnect refreshed snapshot',
+					}
 				}),
 				session,
 			)
@@ -310,6 +322,7 @@ describe('App fake backend vertical slice', () => {
 
 		const { unmount } = render(<App gameClient={client} gameId={123} />)
 
+		await user.click(await screen.findByRole('button', { name: /begin turn/i }))
 		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		await user.click(wolfButton)
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')

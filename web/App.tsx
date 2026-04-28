@@ -515,6 +515,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   } = interactionState
 
   const {
+    error: displayError,
     activeCombatRole,
     activeGameId,
     activeMode,
@@ -672,6 +673,13 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   return (
     <div className={`shell${inactiveEventScreenLocked ? ' inactive-event-screen-locked' : ''}`} data-phase={shellPhase}>
+      {displayError ? (
+        <ErrorOverlay
+          message={displayError}
+          placement="map"
+          onDismiss={() => { /* no-op for now, could add dismiss logic if desired */ }}
+        />
+      ) : null}
       {actionError ? <ErrorOverlay message={actionError} placement="app" onDismiss={() => setActionError(null)} /> : null}
       {pendingCombatResolution && selectedCombatTarget !== null ? (
         <CombatResolutionToast

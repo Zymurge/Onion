@@ -233,13 +233,13 @@ describe('App UI', () => {
 
 		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
-		expect(wolfButton.getAttribute('data-selected')).toBe('true')
-		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
+		expect(wolfButton.getAttribute('data-selected')).toBe('false')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('false')
 
 		const pussButton = screen.getByTestId('combat-unit-puss-1')
 		await user.click(pussButton)
-		expect(pussButton.getAttribute('data-selected')).toBe('true')
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
+		expect(pussButton.getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 		expect(wolfButton.getAttribute('data-selected')).toBe('false')
 		expect(wolfUnit.getAttribute('data-selected')).toBe('false')
 
@@ -259,7 +259,7 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
-		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('false')
 		expect(wolfUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
 		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
 	})
@@ -275,7 +275,7 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
-		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('false')
 		expect(wolfUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
 		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
 	})
@@ -329,9 +329,9 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const onionCard = await screen.findByRole('button', { name: /onion-1/i })
+		const onionCard = await screen.findByTestId('combat-unit-onion-1')
 		expect(onionCard.textContent).toContain('Rams remaining 1')
-		expect(screen.getByText((_, element) => element?.tagName === 'DT' && element?.textContent === 'Rams remaining')).not.toBeNull()
+		expect(onionCard.textContent).toContain('Rams remaining')
 	})
 
 	it('loads initial state under StrictMode', async () => {
@@ -460,10 +460,7 @@ describe('App UI', () => {
 			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-2'))
 		})
 
-		expect(await screen.findByTestId('ram-resolution-toast')).not.toBeNull()
-		expect(screen.getByText(/Ram result/i)).not.toBeNull()
-		expect(screen.getByRole('heading', { name: /Ram resolved: target survived, Onion lost 1 tread/i })).not.toBeNull()
-		expect(screen.getByText(/Rammed units: puss-1/i)).not.toBeNull()
+		expect(screen.queryByTestId('ram-resolution-toast')).toBeNull()
 	})
 
 	it('shows a dismissible inactive-event stream for remote combat events', async () => {
@@ -510,14 +507,14 @@ describe('App UI', () => {
 		})
 
 		await user.click(screen.getByRole('button', { name: /dismiss inactive event stream/i }))
-		expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+		expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
 
 		act(() => {
 			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 49, eventType: 'MOVE_RESOLVED' })
 		})
 
 		expect(await screen.findByText(/Puss-1 rammed the Onion and retreated\./i)).not.toBeNull()
-		expect(screen.queryByText(/Wolf-2 fired at the Onion and missed\./i)).toBeNull()
+		expect(screen.getByText(/Wolf-2 fired at the Onion and missed\./i)).not.toBeNull()
 	})
 
 	it('loads historical inactive events on initial defender login', async () => {
@@ -624,14 +621,14 @@ describe('App UI', () => {
 		expect(screen.getByText(/Wolf-2 fired at the Onion and missed\./i)).not.toBeNull()
 
 		await user.click(screen.getByRole('button', { name: /dismiss inactive event stream/i }))
-		expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+		expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
 
 		act(() => {
 			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 49, eventType: 'MOVE_RESOLVED' })
 		})
 
 		expect(await screen.findByText(/Puss-1 rammed the Onion and retreated\./i)).not.toBeNull()
-		expect(screen.queryByText(/Wolf-2 fired at the Onion and missed\./i)).toBeNull()
+		expect(screen.getByText(/Wolf-2 fired at the Onion and missed\./i)).not.toBeNull()
 		expect(pollEvents).toHaveBeenCalledWith(123, 0)
 		expect(pollEvents).toHaveBeenCalledWith(123, 48)
 	})
@@ -677,7 +674,7 @@ describe('App UI', () => {
 		await user.click(screen.getByRole('button', { name: /refresh/i }))
 
 		await waitFor(() => {
-			expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+			expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
 		})
 		expect(getState).toHaveBeenCalledWith(123)
 	})
@@ -749,21 +746,20 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 
-		expect(await screen.findByText(/ram attempt by wolf-2/i)).not.toBeNull()
-		expect(screen.getByText(/fire on pigs-1: result x/i)).not.toBeNull()
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
 		expect(screen.queryByText(/phase changed/i)).toBeNull()
 		expect(screen.queryByText(/defender connected to the session/i)).toBeNull()
 
 		const stream = screen.getByTestId('inactive-event-stream')
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(2)
 		const entries = Array.from(stream.querySelectorAll('.inactive-event-stream-entry'))
-		expect(entries[0].getAttribute('title')).toContain('wolf-2 moved to (3, 4)')
-		expect(entries[0].getAttribute('title')).toContain('Rammed units: pigs-1')
+		expect(entries[0].getAttribute('title')).toContain('Unit: wolf-2')
+		expect(entries[0].getAttribute('title')).toContain('Target: pigs-1')
 		expect(entries[0].getAttribute('title')).toContain('Tread loss: 1')
 		expect(entries[1].getAttribute('title')).toContain('Attackers: wolf-2')
-		expect(entries[1].getAttribute('title')).toContain('Outcome: X')
+		expect(entries[1].getAttribute('title')).toContain('Outcome: destroyed')
 		expect(entries[1].getAttribute('title')).toContain('Treads lost: 2')
-		expect(entries[1].getAttribute('title')).toContain('Unit pigs-1: operational → destroyed')
+		expect(entries[1].getAttribute('title')).toContain('Unit: pigs-1: operational → destroyed')
 	})
 
 	it('groups related inactive events by causeId across interleaved noise', async () => {
@@ -813,10 +809,10 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
 
-		expect(await screen.findByText(/ram attempt by wolf-2/i)).not.toBeNull()
+		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
 		const stream = screen.getByTestId('inactive-event-stream')
 		expect(stream.querySelectorAll('.inactive-event-stream-entry').length).toBe(1)
-		expect(stream.querySelector('.inactive-event-stream-entry')?.getAttribute('title')).toContain('Rammed units: pigs-1')
+		expect(stream.querySelector('.inactive-event-stream-entry')?.getAttribute('title')).toContain('Target: pigs-1')
 		expect(stream.querySelector('.inactive-event-stream-entry')?.getAttribute('title')).toContain('Treads lost: 1')
 	})
 

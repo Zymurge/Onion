@@ -9,10 +9,12 @@ import type { GameSessionViewState } from '#web/lib/gameSessionTypes'
 function createSnapshot(): GameSnapshot {
 	return {
 		gameId: 123,
+		mode: 'fire',
 		phase: 'DEFENDER_COMBAT',
 		scenarioName: 'Display state invariant scenario',
 		turnNumber: 8,
 		lastEventSeq: 47,
+		selectedUnitId: null,
 		authoritativeState: {
 			onion: {
 				id: 'onion-live',
@@ -69,19 +71,74 @@ function createSessionState(snapshot: GameSnapshot): GameSessionViewState {
 }
 
 describe('useBattlefieldDisplayState', () => {
-	it('rejects stacked defenders when canonical stack roster data is missing', () => {
-		expect(() => {
-			renderHook(() =>
-				useBattlefieldDisplayState({
-					combatBaseSnapshot: null,
-					activeMode: 'fire',
-					lastRefreshAt: null,
-					selectedCombatTargetId: null,
-					selectedUnitIds: [],
-					sessionState: createSessionState(createSnapshot()),
-					activeSessionBinding: null,
-				}),
-			)
-		}).toThrow('missing canonical stackRoster data')
+	it('returns error if stacked defenders are present but stackRoster is missing', () => {
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				activeMode: 'fire',
+				lastRefreshAt: null,
+				selectedCombatTargetId: null,
+				selectedUnitIds: [],
+				sessionState: createSessionState(createSnapshot()),
+				activeSessionBinding: null,
+			})
+		)
+		expect(result.current.error).toMatch(/missing canonical stackRoster data/)
+		// Game state should still be present
+		expect(result.current.clientSnapshot).toBeTruthy()
+	})
+
+	it('returns error if stackRoster is present but inconsistent with unit positions', () => {
+		const snapshot = createSnapshot()
+		snapshot.authoritativeState.stackRoster = {
+			groupsById: {
+				'LittlePigs:3,9': {
+					groupName: 'LittlePigs',
+					unitType: 'LittlePigs',
+					position: { q: 3, r: 9 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				activeMode: 'fire',
+				lastRefreshAt: null,
+				selectedCombatTargetId: null,
+				selectedUnitIds: [],
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+		expect(String(result.current.error)).toMatch(/invalid stack roster/)
+		expect(result.current.clientSnapshot).toBeTruthy()
+	})
+
+	it('returns no error for valid stackRoster and unit positions', () => {
+		const snapshot = createSnapshot()
+		snapshot.authoritativeState.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'LittlePigs',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				activeMode: 'fire',
+				lastRefreshAt: null,
+				selectedCombatTargetId: null,
+				selectedUnitIds: [],
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+		expect(result.current.error).toBeFalsy()
+		expect(result.current.clientSnapshot).toBeTruthy()
 	})
 })

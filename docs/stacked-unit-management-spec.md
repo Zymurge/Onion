@@ -197,7 +197,7 @@ The helper should be the only place that knows how to move between `unitsById`, 
     - Combat and ramming validation are covered by tests for both committed and rejected paths.
   - Test-first order: extend combat and phase-guard tests first, confirm they fail against the current engine, then implement the shared action-availability checks and combat resolution changes.
 
-- [ ] **Phase 2b: Stack-roster assignment and naming lifecycle management**
+- [x] **Phase 2b: Stack-roster assignment and naming lifecycle management**
   - Purpose: Implement the section 1b/1c stack roster rules as durable game behavior so group names and member names come from authoritative state instead of UI-only fallback wording.
   - Scope: `Assign finalized stack names at end of movement`, `Carry names forward across stack splits and merges`, `Keep a monotonic stack-name counter for the life of the game`, `Persist groups and units as a bundled roster element`, and `Expose canonical member names plus finalized stack names to downstream projection helpers and left-rail selection surfaces`.
   - Definition of Done:
@@ -240,7 +240,7 @@ The six original UI/UX tasks are consolidated into four development-ready tasks 
   *Implementation Notes:* Reuse the existing unit/stack projection helpers and the same wording in all visible surfaces so the active player and inactive viewers do not see different identities for the same stack.  
   *Test-first order:* add or update map, dialog, and message rendering tests before changing the display logic.
 
-- [ ] **Stack selection and action input for move/combat**  
+- [x] **Stack selection and action input for move/combat**  
   *Purpose:* Let the player choose which units in a stack are participating in a move or combat action without introducing a special stack editor.  
   *Scope:* Selection panels, unit toggles, keyboard/mouse interaction, and move/combat action submission.  
   *Acceptance Criteria:*  
@@ -254,7 +254,7 @@ The six original UI/UX tasks are consolidated into four development-ready tasks 
   *Implementation Notes:* Keep the selection model additive and reversible during planning so a player can adjust the unit set before committing.  
   *Test-first order:* add or update selection and eligibility tests before wiring the action submission path.
 
-- [ ] **Split-attack preview and temporary group rendering**  
+- [x] **Split-attack preview and temporary group rendering**  
   *Purpose:* Make stacked combat understandable while the player is planning multiple attacks from the same stack.  
   *Scope:* Combat planning previews, temporary group labels, and post-commit cleanup of preview state.  
   *Acceptance Criteria:*  
@@ -266,7 +266,7 @@ The six original UI/UX tasks are consolidated into four development-ready tasks 
   *Implementation Notes:* Treat the preview as a transient presentation layer over the existing stack state rather than a persisted object.  
   *Test-first order:* add focused combat-planning UI tests for the preview state, then implement the rendering and cleanup logic.
 
-- [ ] **Illegal stacking feedback and blocked actions**  
+- [x] **Illegal stacking feedback and blocked actions**  
   *Purpose:* Prevent invalid stack creation or movement from feeling ambiguous to the player.  
   *Scope:* Movement blocking, validation messaging, tooltips, and map-level feedback for overstack and mixed-stack attempts.  
   *Acceptance Criteria:*  
@@ -278,7 +278,7 @@ The six original UI/UX tasks are consolidated into four development-ready tasks 
   *Implementation Notes:* Prefer shared validation messaging so the UI can surface the same reason the engine rejected the move.  
   *Test-first order:* add or update illegal-move and tooltip tests before wiring the feedback path.
 
-- [ ] Fix: Left rail defenders list during defender turn shows all groups as attack 1. That attack used in combar is also fixed at 1. Should be the combined attack of the stack.
+- [x] Fix: Left rail defenders list during defender turn shows all groups as attack 1. That attack used in combar is also fixed at 1. Should be the combined attack of the stack.
 
 ### Testing
 

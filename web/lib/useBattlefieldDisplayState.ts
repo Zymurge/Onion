@@ -85,15 +85,14 @@ function hasImplicitStackedDefenders(authoritativeState: GameState): boolean {
 
 function assertCanonicalStackProjection(authoritativeState: GameState): void {
   const stackRoster = authoritativeState.stackRoster
-
   if (hasImplicitStackedDefenders(authoritativeState) && stackRoster === undefined) {
-    throw new Error('Loaded game snapshot is missing canonical stackRoster data for stacked defenders')
+    return { error: 'Loaded game snapshot is missing canonical stackRoster data for stacked defenders' }
   }
-
   const consistencyIssues = validateStackRosterConsistency(authoritativeState.defenders, stackRoster)
   if (consistencyIssues.length > 0) {
-    throw new Error(`Loaded game snapshot has invalid stack roster: ${consistencyIssues.map((issue) => issue.message).join('; ')}`)
+    return { error: `Loaded game snapshot has invalid stack roster: ${consistencyIssues.map((issue) => issue.message).join('; ')}` }
   }
+  return { error: null }
 }
 
 export function useBattlefieldDisplayState({
@@ -111,8 +110,12 @@ export function useBattlefieldDisplayState({
     const activeGameIdProp = activeSessionBinding?.gameId
     const activePhase = clientSnapshot?.phase ?? null
     const authoritativeState = clientSnapshot?.authoritativeState ?? null
+    let error: string | null = null
     if (authoritativeState !== null) {
-      assertCanonicalStackProjection(authoritativeState)
+      const validation = assertCanonicalStackProjection(authoritativeState)
+      if (validation && validation.error) {
+        error = validation.error
+      }
     }
     const selectedBoardUnitId = (() => {
       const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
@@ -232,6 +235,7 @@ export function useBattlefieldDisplayState({
     const lastUpdatedAt = sessionState.lastUpdatedAt ?? lastRefreshAt
 
     return {
+      error,
       activeCombatRole,
       activeGameId,
       activeMode,
