@@ -153,6 +153,13 @@ Unit colors are determined by the active side in the current phase.
 
 ## Turn Handoff Contract (Three-Phase State Machine)
 
+### Frontend State Boundary
+
+- Server snapshot is the authoritative backend game state and comes only from session sync.
+- Interaction state owns local selection, targeting, prompts, and dismissal state.
+- Derived view state is computed from the snapshot plus interaction state and stays pure.
+- Sync state owns connection status, refresh bookkeeping, and event sequencing.
+
 The Onion web client implements a three-phase contract for turn handoff and acknowledgement:
 
 1. **Inactive Phase**: The player is not active. The right rail displays the inactive event stream. All board and control interactions are locked.
@@ -164,7 +171,7 @@ The Onion web client implements a three-phase contract for turn handoff and ackn
 
 3. **Active Phase**: After acknowledgement, the player can interact with the board and controls as normal for their turn.
 
-Transitions are tracked in the UI shell using `turnGateSnapshot` (authoritative state and pending acknowledgement) and `acknowledgedActiveTurnKey` (last acknowledged turn).
+Transitions are tracked in the UI shell using session snapshot data plus `acknowledgedActiveTurnKey` (last acknowledged turn). There is no separate snapshot-shaped turn-gate model; acknowledgement remains a small UI-shell concern.
 
 All UI behaviors are covered by regression tests, including the acknowledgement gate and visual/interactive state.
 

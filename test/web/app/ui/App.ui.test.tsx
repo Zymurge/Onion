@@ -95,6 +95,7 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 			'wolf-2': 4,
 			'puss-1': 3,
 		},
+		victoryObjectives: [],
 		scenarioMap: {
 			width: 8,
 			height: 8,

@@ -44,6 +44,7 @@ describe('http game client adapter contract', () => {
 					'onion-1': 0,
 					'wolf-2': 0,
 				},
+				victoryObjectives: [],
 				scenarioMap: {
 					width: 15,
 					height: 22,
@@ -93,6 +94,7 @@ describe('http game client adapter contract', () => {
 						'wolf-2': 0,
 					},
 				gameId: 123,
+				escapeHexes: undefined,
 				phase: 'DEFENDER_COMBAT',
 				scenarioMap: {
 					width: 15,
@@ -100,9 +102,11 @@ describe('http game client adapter contract', () => {
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
 				},
+				victoryObjectives: [],
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
 				lastEventSeq: 47,
+				winner: undefined,
 			},
 			session: { role: 'defender' },
 		})
@@ -150,6 +154,7 @@ describe('http game client adapter contract', () => {
 					movementRemainingByUnit: {
 						'onion-1': 0,
 					},
+				victoryObjectives: [],
 				scenarioMap: {
 					width: 15,
 					height: 22,
@@ -228,6 +233,24 @@ describe('http game client adapter contract', () => {
 		const fetchImpl = vi
 			.fn()
 			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
+				movementRemainingByUnit: { 'onion-1': 0 },
+				victoryObjectives: [],
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				escapeHexes: [{ q: 9, r: 5 }],
+				eventSeq: 47,
+			}))
+			.mockResolvedValueOnce(jsonResponse({
 				ok: true,
 				seq: 49,
 				events: [
@@ -247,6 +270,8 @@ describe('http game client adapter contract', () => {
 			fetchImpl,
 		})
 
+		await client.getState(123)
+
 		await expect(client.submitAction(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 9, r: 5 } })).resolves.toMatchObject({
 			winner: 'onion',
 			lastEventSeq: 50,
@@ -263,6 +288,27 @@ describe('http game client adapter contract', () => {
 
 		const fetchImpl = vi
 			.fn()
+			.mockResolvedValueOnce(jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'ONION_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 3,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
+				movementRemainingByUnit: { 'onion-1': 0 },
+				victoryObjectives: [
+					{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true, completed: true },
+					{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', required: true, completed: false },
+				],
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				escapeHexes: [{ q: 0, r: 9 }],
+				eventSeq: 14,
+			}))
 			.mockResolvedValueOnce(jsonResponse({
 				gameId: 123,
 				role: 'defender',
@@ -291,13 +337,15 @@ describe('http game client adapter contract', () => {
 			fetchImpl,
 		})
 
+		await client.getState(123)
+
 		const snapshot = await client.submitAction(123, { type: 'FIRE', attackers: ['main'], targetId: 'swamp-1' })
 
 		expect(snapshot.victoryObjectives).toEqual([
 			{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true, completed: true },
 			{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', required: true, completed: false },
 		])
-		expect(fetchImpl).toHaveBeenCalledTimes(1)
+		expect(fetchImpl).toHaveBeenCalledTimes(2)
 	})
 
 	it('sends stack fire actions to the backend as FIRE commands', async () => {
@@ -317,6 +365,7 @@ describe('http game client adapter contract', () => {
 				turnNumber: 8,
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 4 },
+				victoryObjectives: [],
 				scenarioMap: {
 					width: 15,
 					height: 22,
@@ -388,6 +437,7 @@ describe('http game client adapter contract', () => {
 				turnNumber: 8,
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 4 },
+				victoryObjectives: [],
 				scenarioMap: {
 					width: 15,
 					height: 22,

@@ -47,6 +47,7 @@ function createSnapshot(): GameSnapshot {
 			'pigs-1': 3,
 			'pigs-2': 3,
 		},
+		victoryObjectives: [],
 		scenarioMap: {
 			width: 8,
 			height: 8,

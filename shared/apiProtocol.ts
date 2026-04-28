@@ -224,7 +224,7 @@ export type ScenarioMapSnapshot = {
 export type GameStateResponse = {
 	gameId: number
 	scenarioId: string
-	scenarioName?: string
+	scenarioName: string
 	role: 'onion' | 'defender'
 	phase: string
 	turnNumber: number
@@ -235,7 +235,7 @@ export type GameStateResponse = {
 	}
 	state: GameState
 	movementRemainingByUnit: Record<string, number>
-	victoryObjectives?: VictoryObjectiveState[]
+	victoryObjectives: VictoryObjectiveState[]
 	escapeHexes?: VictoryEscapeHex[]
 	/**
 	 * Canonical scenario map snapshot. Must always be present and valid.

@@ -35,7 +35,7 @@ export type RamResolution = MoveResolution
 export type ServerGameSnapshot = {
 	gameId: number
 	phase: TurnPhase
-	scenarioName?: string
+	scenarioName: string
 	turnNumber?: number
 	winner?: 'onion' | 'defender' | null
 	lastEventSeq: number
@@ -48,7 +48,7 @@ export type ServerGameSnapshot = {
 	authoritativeState?: GameState
 	movementRemainingByUnit?: Record<string, number>
 	scenarioMap?: ScenarioMapSnapshot
-	victoryObjectives?: Array<{
+	victoryObjectives: Array<{
 		id: string
 		label: string
 		kind: 'destroy-unit' | 'escape-map'

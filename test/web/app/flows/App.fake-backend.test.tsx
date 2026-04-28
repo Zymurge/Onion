@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useMemo } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -18,6 +18,7 @@ function createSnapshot({ overrides = {} }: { overrides?: Partial<GameSnapshot> 
 		scenarioName: 'Fake Test Scenario',
 		turnNumber: 1,
 		lastEventSeq: 1,
+		victoryObjectives: [],
 		...overrides,
 	}
 }
@@ -344,5 +345,73 @@ describe('App fake backend vertical slice', () => {
 		})
 		expect(screen.getByTestId('combat-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
+	})
+
+	it('rebuilds from the backend after a committed move and keeps the committed snapshot on reload', async () => {
+		const session: GameSessionContext = { role: 'defender' }
+		const backend = createFakeGameBackend({
+			initialSnapshot: {
+				...createAppShellSnapshot(),
+				phase: 'DEFENDER_MOVE',
+				scenarioName: 'Move reload baseline snapshot',
+				lastEventSeq: 80,
+			},
+			session,
+		})
+		const client = createGameClient(backend.requestTransport)
+		const user = userEvent.setup()
+
+		const { unmount } = render(<App gameClient={client} gameId={123} />)
+
+		await user.click(await screen.findByRole('button', { name: /begin turn/i }))
+		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
+		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		await user.click(wolfButton)
+		expect(wolfButton.getAttribute('data-selected')).toBe('true')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
+
+		await act(async () => {
+			await user.pointer([{ target: screen.getByTestId('hex-cell-4-6'), keys: '[MouseRight]' }])
+		})
+
+		await waitFor(() => {
+			expect(backend.getSubmittedActions()).toContainEqual({
+				gameId: 123,
+				action: { type: 'MOVE', movers: ['wolf-2'], to: { q: 4, r: 6 } },
+			})
+		})
+
+		backend.seedSnapshot(
+			{
+				...createAppShellSnapshot(),
+				phase: 'DEFENDER_MOVE',
+				scenarioName: 'Move reload committed snapshot',
+				lastEventSeq: 81,
+				authoritativeState: {
+					...createAppShellSnapshot().authoritativeState,
+					defenders: {
+						...createAppShellSnapshot().authoritativeState.defenders,
+						'wolf-2': {
+							...createAppShellSnapshot().authoritativeState.defenders['wolf-2'],
+							position: { q: 4, r: 6 },
+						},
+					},
+				},
+				movementRemainingByUnit: {
+					...createAppShellSnapshot().movementRemainingByUnit,
+					'wolf-2': 3,
+				},
+			},
+			session,
+		)
+
+		unmount()
+		render(<App gameClient={client} gameId={123} />)
+
+		await waitFor(() => {
+			expect(screen.getByText('Move reload committed snapshot')).not.toBeNull()
+		})
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('combat-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 	})
 })

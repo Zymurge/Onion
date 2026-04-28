@@ -306,7 +306,7 @@ The sequence below is intended to be handed to agents one step at a time. Each s
 - Step 4 completed: display derivation now uses shared normalization helpers and no longer duplicates weapon-selection parsing.
 - Step 5 completed: commit translation now runs through explicit builders.
 - Step 6 completed: App shell now composes session, interaction, and display layers without inline action construction.
-- Step 7 remains next: add and harden reload/reconnect regression coverage.
+- Step 7 completed: add and harden reload/reconnect regression coverage.
 
 ### Step 1. Freeze Vocabulary And Ownership
 

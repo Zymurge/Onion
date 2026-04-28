@@ -35,6 +35,7 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 			ramsThisTurn: 0,
 		},
 		movementRemainingByUnit: { 'onion-1': 3 },
+		victoryObjectives: [],
 		scenarioMap: {
 			width: 3,
 			height: 3,
@@ -265,6 +266,7 @@ describe('useBattlefieldInteractionState', () => {
 				ramsThisTurn: 0,
 			},
 			movementRemainingByUnit: { 'wolf-2': 4 },
+			victoryObjectives: [],
 			scenarioMap: {
 				width: 3,
 				height: 3,

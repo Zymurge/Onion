@@ -119,25 +119,25 @@ function mapServerSnapshot(
 
 function mapActionSnapshot(
 	response: ActionSuccessResponse,
-	currentSnapshot: ServerGameSnapshot | null,
+	currentSnapshot: ServerGameSnapshot,
 	gameId: number,
 ): ServerGameSnapshot {
 	const responseEvents = Array.isArray(response.events) ? response.events : []
 	const phaseChange = [...responseEvents].reverse().find((event) => event.type === 'PHASE_CHANGED')
-	const nextPhase = typeof phaseChange?.to === 'string' ? normalizePhase(phaseChange.to) : currentSnapshot?.phase ?? 'DEFENDER_MOVE'
+	const nextPhase = typeof phaseChange?.to === 'string' ? normalizePhase(phaseChange.to) : currentSnapshot.phase
 
 	return {
 		gameId,
 		phase: nextPhase,
-		winner: response.winner ?? currentSnapshot?.winner,
-		scenarioName: currentSnapshot?.scenarioName,
-		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : currentSnapshot?.turnNumber,
-		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : currentSnapshot?.lastEventSeq ?? 0,
-		authoritativeState: response.state ?? currentSnapshot?.authoritativeState,
-		movementRemainingByUnit: response.movementRemainingByUnit ?? currentSnapshot?.movementRemainingByUnit,
-		scenarioMap: currentSnapshot?.scenarioMap,
-		victoryObjectives: response.victoryObjectives ?? currentSnapshot?.victoryObjectives,
-		escapeHexes: response.escapeHexes ?? currentSnapshot?.escapeHexes,
+		winner: response.winner ?? currentSnapshot.winner,
+		scenarioName: currentSnapshot.scenarioName,
+		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : currentSnapshot.turnNumber,
+		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : currentSnapshot.lastEventSeq,
+		authoritativeState: response.state ?? currentSnapshot.authoritativeState,
+		movementRemainingByUnit: response.movementRemainingByUnit ?? currentSnapshot.movementRemainingByUnit,
+		scenarioMap: currentSnapshot.scenarioMap,
+		victoryObjectives: response.victoryObjectives ?? currentSnapshot.victoryObjectives,
+		escapeHexes: response.escapeHexes ?? currentSnapshot.escapeHexes,
 		combatResolution: buildCombatResolution(responseEvents),
 		ramResolution: buildRamResolution(responseEvents),
 	}
@@ -169,6 +169,10 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 			return envelope
 		},
 		async submitAction(gameId: number, action: GameAction) {
+			if (currentSnapshot === null) {
+				throw new GameClientSeamError('transport', 'Cannot submit action before loading game state')
+			}
+
 			if (action.type === 'end-phase') {
 				const result = await requestJson<ActionSuccessResponse>({
 					baseUrl,
