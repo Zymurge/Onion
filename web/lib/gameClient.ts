@@ -38,27 +38,44 @@ export type RamResolution = {
 	details: string[]
 }
 
-export type GameSnapshot = {
+export type ServerGameSnapshot = {
 	gameId: number
 	phase: TurnPhase
-	selectedUnitId: string | null
-	mode: ActionMode
 	scenarioName?: string
 	turnNumber?: number
+	winner?: 'onion' | 'defender' | null
 	lastEventSeq: number
+	scenarioId?: string
+	role?: 'onion' | 'defender'
+	players?: {
+		onion: string | null
+		defender: string | null
+	}
 	authoritativeState?: GameState
 	movementRemainingByUnit?: Record<string, number>
 	scenarioMap?: ScenarioMapSnapshot
+	victoryObjectives?: Array<{
+		id: string
+		label: string
+		kind: 'destroy-unit' | 'escape-map'
+		required: boolean
+		completed: boolean
+		unitId?: string
+		unitType?: string
+	}>
+	escapeHexes?: Array<{ q: number; r: number }>
 	combatResolution?: CombatResolution
 	ramResolution?: RamResolution
 }
+
+export type GameSnapshot = ServerGameSnapshot
 
 export type GameSessionContext = {
 	role: 'onion' | 'defender'
 }
 
 export type GameStateEnvelope = {
-	snapshot: GameSnapshot
+	snapshot: ServerGameSnapshot
 	session: GameSessionContext
 }
 
@@ -89,7 +106,7 @@ export type GameClientTransport = GameRequestTransport & {
 
 export type GameClient = {
 	getState(gameId: number): Promise<GameStateEnvelope>
-	submitAction(gameId: number, action: GameAction): Promise<GameSnapshot>
+	submitAction(gameId: number, action: GameAction): Promise<ServerGameSnapshot>
 	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
 }
 
