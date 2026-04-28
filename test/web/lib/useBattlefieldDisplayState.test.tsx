@@ -5,16 +5,15 @@ import { describe, expect, it } from 'vitest'
 import { useBattlefieldDisplayState } from '#web/lib/useBattlefieldDisplayState'
 import type { GameSnapshot } from '#web/lib/gameClient'
 import type { GameSessionViewState } from '#web/lib/gameSessionTypes'
+import type { BattlefieldInteractionState } from '#web/lib/useBattlefieldInteractionState'
 
 function createSnapshot(): GameSnapshot {
 	return {
 		gameId: 123,
-		mode: 'fire',
 		phase: 'DEFENDER_COMBAT',
 		scenarioName: 'Display state invariant scenario',
 		turnNumber: 8,
 		lastEventSeq: 47,
-		selectedUnitId: null,
 		authoritativeState: {
 			onion: {
 				id: 'onion-live',
@@ -70,15 +69,29 @@ function createSessionState(snapshot: GameSnapshot): GameSessionViewState {
 	}
 }
 
+function createInteractionState(overrides: Partial<BattlefieldInteractionState> = {}): BattlefieldInteractionState {
+	return {
+		selectedUnitIds: [],
+		hasExplicitSelection: false,
+		selectedCombatTargetId: null,
+		activeMode: 'fire',
+		actionError: null,
+		combatBaseSnapshot: null,
+		pendingCombatResolution: null,
+		pendingRamResolution: null,
+		pendingRamPrompt: null,
+		lastRefreshAt: null,
+		isRefreshing: false,
+		...overrides,
+	}
+}
+
 describe('useBattlefieldDisplayState', () => {
 	it('returns error if stacked defenders are present but stackRoster is missing', () => {
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
 				combatBaseSnapshot: null,
-				activeMode: 'fire',
-				lastRefreshAt: null,
-				selectedCombatTargetId: null,
-				selectedUnitIds: [],
+				interactionState: createInteractionState(),
 				sessionState: createSessionState(createSnapshot()),
 				activeSessionBinding: null,
 			})
@@ -90,7 +103,8 @@ describe('useBattlefieldDisplayState', () => {
 
 	it('returns error if stackRoster is present but inconsistent with unit positions', () => {
 		const snapshot = createSnapshot()
-		snapshot.authoritativeState.stackRoster = {
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.stackRoster = {
 			groupsById: {
 				'LittlePigs:3,9': {
 					groupName: 'LittlePigs',
@@ -103,10 +117,7 @@ describe('useBattlefieldDisplayState', () => {
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
 				combatBaseSnapshot: null,
-				activeMode: 'fire',
-				lastRefreshAt: null,
-				selectedCombatTargetId: null,
-				selectedUnitIds: [],
+				interactionState: createInteractionState(),
 				sessionState: createSessionState(snapshot),
 				activeSessionBinding: null,
 			})
@@ -117,7 +128,8 @@ describe('useBattlefieldDisplayState', () => {
 
 	it('returns no error for valid stackRoster and unit positions', () => {
 		const snapshot = createSnapshot()
-		snapshot.authoritativeState.stackRoster = {
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.stackRoster = {
 			groupsById: {
 				'LittlePigs:4,4': {
 					groupName: 'LittlePigs',
@@ -130,10 +142,7 @@ describe('useBattlefieldDisplayState', () => {
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
 				combatBaseSnapshot: null,
-				activeMode: 'fire',
-				lastRefreshAt: null,
-				selectedCombatTargetId: null,
-				selectedUnitIds: [],
+				interactionState: createInteractionState(),
 				sessionState: createSessionState(snapshot),
 				activeSessionBinding: null,
 			})

@@ -16,7 +16,6 @@ import {
   parseRangeValue,
   parseWeaponStats,
   resolveBattlefieldStackMemberIds,
-  normalizeSelectionIds,
   resolveSelectionOwnerUnitId,
   stripWeaponSelectionId,
 } from './appViewHelpers'
@@ -25,19 +24,17 @@ import { buildCombatTargetOptions } from './combatPreview'
 import { buildRightRailStackSelectionViewModel } from './rightRailSelection'
 import type { GameSessionViewState } from './gameSessionTypes'
 import type { SessionBinding } from './sessionBinding'
-import type { Mode } from './battlefieldView'
 import type { GameState, TurnPhase } from '../../shared/types/index'
 import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
 import { validateStackRosterConsistency } from '../../shared/stackRoster'
+import type { BattlefieldInteractionState } from './useBattlefieldInteractionState'
+type StackSourceState = Parameters<typeof resolveBattlefieldStackMemberIds>[0]
 
 const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
 type UseBattlefieldDisplayStateOptions = {
   combatBaseSnapshot: ServerGameSnapshot | null
-  activeMode: Mode
-  lastRefreshAt: Date | null
-  selectedCombatTargetId: string | null
-  selectedUnitIds: string[] | null
+  interactionState: BattlefieldInteractionState
   sessionState: GameSessionViewState
   activeSessionBinding: SessionBinding | null
 }
@@ -83,7 +80,7 @@ function hasImplicitStackedDefenders(authoritativeState: GameState): boolean {
   return false
 }
 
-function assertCanonicalStackProjection(authoritativeState: GameState): void {
+function assertCanonicalStackProjection(authoritativeState: GameState): { error: string | null } {
   const stackRoster = authoritativeState.stackRoster
   if (hasImplicitStackedDefenders(authoritativeState) && stackRoster === undefined) {
     return { error: 'Loaded game snapshot is missing canonical stackRoster data for stacked defenders' }
@@ -97,23 +94,26 @@ function assertCanonicalStackProjection(authoritativeState: GameState): void {
 
 export function useBattlefieldDisplayState({
   combatBaseSnapshot,
-  activeMode,
-  lastRefreshAt,
-  selectedCombatTargetId,
-  selectedUnitIds,
+  interactionState,
   sessionState,
   activeSessionBinding,
 }: UseBattlefieldDisplayStateOptions) {
   return useMemo(() => {
     const clientSnapshot = combatBaseSnapshot ?? sessionState.snapshot
     const clientSession = sessionState.session
+    const {
+      activeMode,
+      lastRefreshAt,
+      selectedCombatTargetId,
+      selectedUnitIds,
+    } = interactionState
     const activeGameIdProp = activeSessionBinding?.gameId
     const activePhase = clientSnapshot?.phase ?? null
     const authoritativeState = clientSnapshot?.authoritativeState ?? null
     let error: string | null = null
     if (authoritativeState !== null) {
       const validation = assertCanonicalStackProjection(authoritativeState)
-      if (validation && validation.error) {
+      if (validation.error !== null) {
         error = validation.error
       }
     }
@@ -121,7 +121,8 @@ export function useBattlefieldDisplayState({
       const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
-    const selectedStackUnitIds = selectedBoardUnitId === null ? [] : resolveBattlefieldStackMemberIds(authoritativeState, selectedBoardUnitId)
+    const stackSourceState = authoritativeState as StackSourceState | null
+    const selectedStackUnitIds = selectedBoardUnitId === null ? [] : resolveBattlefieldStackMemberIds(stackSourceState, selectedBoardUnitId)
     const activeSelectedUnitIds = selectedUnitIds ?? []
     const headerHasSnapshot = clientSnapshot !== null
     const activeTurnNumber = clientSnapshot?.turnNumber ?? null
@@ -174,13 +175,13 @@ export function useBattlefieldDisplayState({
         : displayedDefenders
           .filter(isBattlefieldUnitCombatReady)
           .reduce(
-            (total, unit) => total + (parseRangeValue(parseAttackStats(unit.attack).damage) * countSelectedBattlefieldStackMembers(authoritativeState, unit.id, selectedCombatSelectionIds)),
+            (total, unit) => total + (parseRangeValue(parseAttackStats(unit.attack).damage) * countSelectedBattlefieldStackMembers(stackSourceState, unit.id, selectedCombatSelectionIds)),
             0,
           )
     const selectedCombatAttackGroupCount = !isCombatPhase
       ? 0
       : activeCombatRole === 'defender'
-        ? countSelectedBattlefieldStackGroups(authoritativeState, selectedCombatSelectionIds)
+        ? countSelectedBattlefieldStackGroups(stackSourceState, selectedCombatSelectionIds)
         : selectedCombatAttackerIds.length > 0 ? 1 : 0
     const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
     const selectedCombatAttackCount = selectedCombatAttackerIds.length
@@ -191,7 +192,7 @@ export function useBattlefieldDisplayState({
     })()
     const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
     const rightRailStackSelection = buildRightRailStackSelectionViewModel({
-      state: authoritativeState,
+      state: stackSourceState,
       inspectedUnitId: selectedInspectorUnitId,
       selectedStackUnitIds,
       activeSelectedUnitIds: selectedCombatSelectionIds,
@@ -281,11 +282,8 @@ export function useBattlefieldDisplayState({
     }
   }, [
     activeSessionBinding,
-    activeMode,
     combatBaseSnapshot,
-    lastRefreshAt,
-    selectedCombatTargetId,
-    selectedUnitIds,
+    interactionState,
     sessionState,
   ])
 }

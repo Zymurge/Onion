@@ -380,11 +380,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const displayState = useBattlefieldDisplayState({
     activeSessionBinding,
-    activeMode: battlefieldInteractionState.activeMode,
     combatBaseSnapshot: battlefieldInteractionState.combatBaseSnapshot,
-    lastRefreshAt: battlefieldInteractionState.lastRefreshAt,
-    selectedCombatTargetId: battlefieldInteractionState.selectedCombatTargetId,
-    selectedUnitIds: battlefieldInteractionState.selectedUnitIds,
+    interactionState: battlefieldInteractionState,
     sessionState,
   })
 
