@@ -16,6 +16,7 @@ import {
 } from '#shared/combatCalculator'
 import { ONION_STATIC_RULES } from '#shared/staticRules'
 import { isTargetAllowedByRules, resolveUnitTargetRules, resolveWeaponTargetRules } from '#shared/targetRules'
+import { buildStackRosterIndex } from '#shared/stackRoster'
 import { getReadyWeapons, getUnitDefense, getWeaponDefense, destroyWeapon } from '#server/engine/units'
 import type { GameUnit, OnionUnit, DefenderUnit, EngineGameState } from '#server/engine/units'
 
@@ -461,7 +462,15 @@ export function validateCombatAction(
   }
 
   if (target.kind === 'treads' && command.attackers.length > 1) {
-    return { ok: false, code: 'MULTI_ATTACK_TREAD_TARGET', error: 'Multiple attackers cannot target Onion treads in one attack' }
+    const rosterIndex = state.stackRoster === undefined ? null : buildStackRosterIndex(state.stackRoster)
+    const firstAttackerGroupId = rosterIndex?.getUnitGroup(command.attackers[0])?.groupId ?? null
+    const sameStackAttack =
+      firstAttackerGroupId !== null &&
+      command.attackers.every((attackerId) => rosterIndex?.getUnitGroup(attackerId)?.groupId === firstAttackerGroupId)
+
+    if (!sameStackAttack) {
+      return { ok: false, code: 'MULTI_ATTACK_TREAD_TARGET', error: 'Multiple attackers cannot target Onion treads in one attack' }
+    }
   }
 
   const seen = new Set<string>()

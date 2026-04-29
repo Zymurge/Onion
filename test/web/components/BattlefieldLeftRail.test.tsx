@@ -88,6 +88,86 @@ describe('BattlefieldLeftRail', () => {
     expect(screen.queryByText('Little Pigs 2')).toBeNull()
   })
 
+  it('shows the canonical stack name instead of the first member friendly name', () => {
+    const displayedDefenders: BattlefieldUnit[] = [
+      {
+        id: 'pigs-4',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 4',
+        status: 'operational',
+        q: 5,
+        r: 5,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+      {
+        id: 'pigs-5',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 5',
+        status: 'operational',
+        q: 5,
+        r: 5,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+    ]
+    const stackNaming = {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:5,5', groupName: 'Little Pigs group 5', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 5'],
+    }
+    const stackRoster = {
+      groupsById: {
+        'LittlePigs:5,5': {
+          groupName: 'Little Pigs 4',
+          unitType: 'LittlePigs',
+          position: { q: 5, r: 5 },
+          unitIds: ['pigs-4', 'pigs-5'],
+        },
+      },
+    }
+    const onion: BattlefieldOnionView = {
+      id: 'onion-1',
+      type: 'TheOnion',
+      q: 0,
+      r: 0,
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weapons: 'main: ready',
+      weaponDetails: [],
+    }
+
+    render(
+      <BattlefieldLeftRail
+        activeCombatRole="defender"
+        activeMode="fire"
+        activeSelectedUnitIds={[]}
+        displayedDefenders={displayedDefenders}
+        displayedOnion={onion}
+        isCombatPhase={false}
+        isMovementPhase
+        isSelectionLocked={false}
+        onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
+        readyWeaponDetails={[]}
+        selectedCombatAttackLabel="Attack 0"
+        stackNaming={stackNaming as any}
+        stackRoster={stackRoster as any}
+        onSelectUnit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('combat-unit-pigs-4').textContent).toContain('Little Pigs group 5')
+    expect(screen.getByTestId('combat-unit-pigs-4').textContent).not.toContain('Little Pigs 4')
+  })
+
   it('renders Little Pigs as a grouped move card with individually toggle-able members', () => {
     const onSelectUnit = vi.fn()
     const displayedDefenders: BattlefieldUnit[] = [

@@ -496,6 +496,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     selectedCombatTarget,
     selectedInspectorDefender,
     selectedInspectorOnion,
+    selectedInspectorLabel,
     selectedInspectorUnitId,
     rightRailStackPanel,
     escapeHexes,
@@ -858,10 +859,10 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           isInteractionLocked={inactiveEventControlsLocked}
           canDismissInactiveEventStream={sessionTurnActive}
           pendingRamPrompt={pendingRamPrompt}
-          selectedCombatAttackCount={selectedCombatAttackCount}
           selectedCombatAttackStrength={selectedCombatAttackStrength}
           selectedCombatTarget={selectedCombatTarget}
           selectedCombatTargetId={selectedCombatTargetId}
+          selectedInspectorLabel={selectedInspectorLabel}
           selectedInspectorDefender={selectedInspectorDefender}
           selectedInspectorOnion={selectedInspectorOnion}
           rightRailStackPanel={rightRailStackPanel}

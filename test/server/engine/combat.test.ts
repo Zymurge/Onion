@@ -455,7 +455,7 @@ describe('validateCombatAction', () => {
     expect(state.onion.weapons.find((weapon) => weapon.id === 'secondary_1')?.status).toBe('spent')
   })
 
-  it('rejects multi-attacker defender fire against Onion treads', () => {
+  it('rejects multi-attacker defender fire against Onion treads when the attackers are not in the same stack', () => {
     const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
     const d2 = makeDefender({ id: 'd2', position: { q: 0, r: 1 } })
     const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1, d2 } })
@@ -469,6 +469,36 @@ describe('validateCombatAction', () => {
     expect(result.ok).toBe(false)
     if (result.ok) return
     expect(result.code).toBe('MULTI_ATTACK_TREAD_TARGET')
+  })
+
+  it('accepts multi-attacker defender fire against Onion treads when the attackers are in the same stack', () => {
+    const d1 = makeDefender({ id: 'd1', type: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [makeWeapon({ attack: 2 })] })
+    const d2 = makeDefender({ id: 'd2', type: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [makeWeapon({ attack: 2 })] })
+    const state = makeState({
+      currentPhase: 'DEFENDER_COMBAT',
+      defenders: { d1, d2 },
+      stackRoster: {
+        groupsById: {
+          'LittlePigs:1,0': {
+            groupName: 'Little Pigs group 1',
+            unitType: 'LittlePigs',
+            position: { q: 1, r: 0 },
+            unitIds: ['d1', 'd2'],
+          },
+        },
+      },
+    })
+
+    const result = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['d1', 'd2'],
+      targetId: 'onion',
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.plan.target.kind).toBe('treads')
+    expect(result.plan.attackStrength).toBeGreaterThan(0)
   })
 
   it('accepts defender fire against an Onion subsystem', () => {

@@ -1,7 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { resolveBattlefieldDisplayName } from '../../../web/lib/appViewHelpers'
+import { resolveBattlefieldDisplayName, resolveBattlefieldFriendlyName } from '../../../web/lib/appViewHelpers'
 
 describe('resolveBattlefieldDisplayName', () => {
+  it('uses the roster group name when the unit belongs to a canonical stack', () => {
+    const stackRoster = {
+      groupsById: {
+        'LittlePigs:2,2': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 2, r: 2 },
+          unitIds: ['pigs-1', 'pigs-2'],
+        },
+      },
+    }
+
+    const label = resolveBattlefieldFriendlyName(
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        q: 2,
+        r: 2,
+        friendlyName: 'Little Pigs 1',
+      },
+      undefined,
+      stackRoster,
+    )
+
+    expect(label).toBe('Little Pigs group 1')
+  })
+
   it('resolves a group label from canonical stack naming for a grouped map occupant', () => {
     const stackNaming = {
       groupsInUse: [

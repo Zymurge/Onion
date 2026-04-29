@@ -4,6 +4,7 @@ import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldVi
 import { resolveInspectorStackCount } from '../lib/rightRailInspector'
 
 type BattlefieldInspectorPanelProps = {
+  selectedInspectorLabel: string | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
   selectedStackMemberCount: number
@@ -13,6 +14,7 @@ type BattlefieldInspectorPanelProps = {
 }
 
 export function BattlefieldInspectorPanel({
+  selectedInspectorLabel,
   selectedInspectorDefender,
   selectedInspectorOnion,
   selectedStackMemberCount,
@@ -26,7 +28,7 @@ export function BattlefieldInspectorPanel({
         <div className="selection-panel-header">
           <div>
             <p className="eyebrow">Inspector</p>
-            <h2>{resolveBattlefieldUnitName(selectedInspectorOnion.type, selectedInspectorOnion.id, selectedInspectorOnion.friendlyName)}</h2>
+            <h2>{selectedInspectorLabel ?? resolveBattlefieldUnitName(selectedInspectorOnion.type, selectedInspectorOnion.id, selectedInspectorOnion.friendlyName)}</h2>
           </div>
           <span className="mini-tag">Selected</span>
         </div>
@@ -68,7 +70,7 @@ export function BattlefieldInspectorPanel({
         <div className="selection-panel-header">
           <div>
             <p className="eyebrow">Inspector</p>
-            <h2>{resolveBattlefieldUnitName(selectedInspectorDefender.type, selectedInspectorDefender.id, selectedInspectorDefender.friendlyName)}</h2>
+            <h2>{selectedInspectorLabel ?? resolveBattlefieldUnitName(selectedInspectorDefender.type, selectedInspectorDefender.id, selectedInspectorDefender.friendlyName)}</h2>
           </div>
           <span className="mini-tag">Selected</span>
         </div>

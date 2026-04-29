@@ -15,6 +15,7 @@ import {
   parseAttackStats,
   parseRangeValue,
   parseWeaponStats,
+  resolveBattlefieldFriendlyName,
   resolveBattlefieldStackMemberIds,
   resolveSelectionOwnerUnitId,
   stripWeaponSelectionId,
@@ -149,6 +150,7 @@ export function useBattlefieldDisplayState({
       movementRemainingByUnit: movementRemainingSnapshot,
     } as ServerGameSnapshot, activePhase, activeTurnActive)
     const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
+    const stackNaming = authoritativeState?.stackNaming ?? null
     const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
     const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
     const readyDefenderUnitIds = new Set(
@@ -172,12 +174,14 @@ export function useBattlefieldDisplayState({
         ? (displayedOnion?.weaponDetails ?? [])
           .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
           .reduce((total, weapon) => total + weapon.attack, 0)
-        : displayedDefenders
-          .filter(isBattlefieldUnitCombatReady)
-          .reduce(
-            (total, unit) => total + (parseRangeValue(parseAttackStats(unit.attack).damage) * countSelectedBattlefieldStackMembers(stackSourceState, unit.id, selectedCombatSelectionIds)),
-            0,
-          )
+        : (() => {
+          const selectedUnitIdSet = new Set(selectedCombatSelectionIds)
+
+          return displayedDefenders
+            .filter(isBattlefieldUnitCombatReady)
+            .filter((unit) => selectedUnitIdSet.has(unit.id))
+            .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
+        })()
     const selectedCombatAttackGroupCount = !isCombatPhase
       ? 0
       : activeCombatRole === 'defender'
@@ -208,10 +212,14 @@ export function useBattlefieldDisplayState({
     }
     const selectedInspectorDefender =
       selectedInspectorOnion !== null ||
-      selectedInspectorUnitId === null ||
-      (isCombatPhase && activeCombatRole === 'defender')
+      selectedInspectorUnitId === null
         ? null
         : displayedDefenders.find((unit) => unit.id === selectedInspectorUnitId) ?? null
+    const selectedInspectorLabel = selectedInspectorOnion !== null
+      ? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackSourceState?.stackRoster ?? undefined)
+      : selectedInspectorDefender !== null
+        ? resolveBattlefieldFriendlyName(selectedInspectorDefender, stackNaming ?? undefined, stackSourceState?.stackRoster ?? undefined)
+        : null
     const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
       ? new Set<string>()
       : buildCombatRangeHexKeys(
@@ -223,6 +231,8 @@ export function useBattlefieldDisplayState({
       combatRangeHexKeys,
       displayedDefenders,
       displayedOnion,
+      stackRoster: stackSourceState?.stackRoster ?? null,
+      stackNaming,
       selectedUnitIds: activeCombatRole === 'defender' ? selectedCombatSelectionIds : activeSelectedUnitIds,
       selectedAttackStrength: selectedCombatAttackStrength,
       selectedAttackGroupCount: selectedCombatAttackGroupCount,
@@ -275,6 +285,7 @@ export function useBattlefieldDisplayState({
       selectedCombatTargetIdForRender,
       selectedInspectorDefender,
       selectedInspectorOnion,
+      selectedInspectorLabel,
       selectedInspectorUnitId,
       rightRailStackPanel,
       selectedStackUnitIds,

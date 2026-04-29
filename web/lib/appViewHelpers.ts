@@ -7,6 +7,8 @@ import type { LiveConnectionStatus } from './gameSessionTypes'
 import { buildFriendlyName } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot } from '../../shared/stackNaming'
+import { buildStackRosterIndex } from '../../shared/stackRoster'
+import type { StackRosterState } from '../../shared/types/index'
 import { resolveSelectionName } from './resolveSelectionName'
 
 export function resolveBattlefieldUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
@@ -77,6 +79,35 @@ export function resolveBattlefieldDisplayName(
     unitType: unit.type,
     friendlyName: unit.friendlyName,
   })
+}
+
+export function resolveBattlefieldFriendlyName(
+  unit: {
+    id: string
+    type: string
+    q: number
+    r: number
+    friendlyName?: string
+  },
+  stackNaming?: StackNamingSnapshot,
+  stackRoster?: StackRosterState,
+): string {
+  if (stackRoster !== undefined) {
+    const rosterGroup = buildStackRosterIndex(stackRoster).getUnitGroup(unit.id)
+    if (rosterGroup !== null && rosterGroup.unitIds.length > 1) {
+      return rosterGroup.groupName
+    }
+  }
+
+  if (stackNaming !== undefined) {
+    const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
+    const group = stackNaming.groupsInUse.find((entry) => entry.groupKey === groupKey)
+    if (group !== undefined) {
+      return resolveSelectionName({ kind: 'group', groupKey: group.groupKey, stackNaming })
+    }
+  }
+
+  return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)
 }
 
 type StackSourceUnit = {

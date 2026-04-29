@@ -569,7 +569,7 @@ export function relocateStackRosterUnits(
 		]),
 	]
 
-	if (destinationUnitIds.length > 1) {
+	if (destinationUnitIds.length > 1 || isStackRosterUnitType(input.unitType)) {
 		groupsById[destinationGroupId] = {
 			...(destinationGroup ?? {
 				groupName: input.destinationGroupName,

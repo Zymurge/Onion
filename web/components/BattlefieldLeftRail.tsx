@@ -7,6 +7,7 @@ import {
   parseAttackStats,
   parseRangeValue,
   resolveBattlefieldDisplayName,
+  resolveBattlefieldStackLabel,
   resolveBattlefieldUnitName,
   resolveBattlefieldWeaponName,
 } from '../lib/appViewHelpers'
@@ -72,19 +73,21 @@ function buildCombatGroupFromUnits(
   activeSelectedUnitIds: readonly string[],
   stackNaming: StackNamingSnapshot | undefined,
   stackRoster: StackRosterState | undefined,
-  groupName?: string,
+  groupKey?: string,
 ): DefenderCombatGroup {
   const anchorUnit = units[0]
   const baseAttackStats = parseAttackStats(anchorUnit.attack)
   const stackSize = units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
-  const label = groupName ?? resolveBattlefieldDisplayName({
-    id: anchorUnit.id,
-    type: anchorUnit.type,
-    q: anchorUnit.q,
-    r: anchorUnit.r,
-    friendlyName: anchorUnit.friendlyName,
-    squads: stackSize,
-  }, stackNaming)
+  const label = groupKey !== undefined
+    ? resolveBattlefieldStackLabel(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName, stackSize, groupKey, stackNaming)
+    : resolveBattlefieldDisplayName({
+      id: anchorUnit.id,
+      type: anchorUnit.type,
+      q: anchorUnit.q,
+      r: anchorUnit.r,
+      friendlyName: anchorUnit.friendlyName,
+      squads: stackSize,
+    }, stackNaming)
   const selectionState = {
     defenders: Object.fromEntries(
       units.map((unit) => [unit.id, {
@@ -149,7 +152,7 @@ function buildDefenderCombatGroups(
         consumedUnitIds.add(unit.id)
       }
 
-      selectionGroups.push(buildCombatGroupFromUnits(units, activeMode, activeSelectedUnitIds, stackNaming, stackRoster, rosterGroup.groupName))
+      selectionGroups.push(buildCombatGroupFromUnits(units, activeMode, activeSelectedUnitIds, stackNaming, stackRoster, rosterGroup.groupKey))
     }
   }
 
@@ -169,18 +172,20 @@ function buildMoveGroupFromUnits(
   activeSelectedUnitIds: readonly string[],
   stackNaming: StackNamingSnapshot | undefined,
   stackRoster: StackRosterState | undefined,
-  groupName?: string,
+  groupKey?: string,
 ): DefenderMoveGroup {
   const anchorUnit = units[0]
   const stackSize = units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
-  const label = groupName ?? resolveBattlefieldDisplayName({
-    id: anchorUnit.id,
-    type: anchorUnit.type,
-    q: anchorUnit.q,
-    r: anchorUnit.r,
-    friendlyName: anchorUnit.friendlyName,
-    squads: stackSize,
-  }, stackNaming)
+  const label = groupKey !== undefined
+    ? resolveBattlefieldStackLabel(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName, stackSize, groupKey, stackNaming)
+    : resolveBattlefieldDisplayName({
+      id: anchorUnit.id,
+      type: anchorUnit.type,
+      q: anchorUnit.q,
+      r: anchorUnit.r,
+      friendlyName: anchorUnit.friendlyName,
+      squads: stackSize,
+    }, stackNaming)
   const selectionState = {
     defenders: Object.fromEntries(
       units.map((unit) => [unit.id, {
@@ -242,7 +247,7 @@ function buildDefenderMoveGroups(
         consumedUnitIds.add(unit.id)
       }
 
-      selectionGroups.push(buildMoveGroupFromUnits(units, activeSelectedUnitIds, stackNaming, stackRoster, rosterGroup.groupName))
+      selectionGroups.push(buildMoveGroupFromUnits(units, activeSelectedUnitIds, stackNaming, stackRoster, rosterGroup.groupKey))
     }
   }
 
@@ -337,7 +342,7 @@ export function BattlefieldLeftRail({
               defenderCombatGroups.map((group) => {
                 const isSelected = group.selectedCount > 0
                 const isDisabled = group.isDestroyed || !group.isActionable
-                const isExpanded = group.members.length > 1 && group.selectedCount > 0
+                const isExpanded = group.members.length > 1 && group.selectedCount > 0 && !(activeCombatRole === 'defender' && isCombatPhase)
                 return (
                   <div
                     key={group.anchorUnit.id}

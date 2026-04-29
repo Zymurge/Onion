@@ -151,4 +151,5 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.error).toBeFalsy()
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
+
 })

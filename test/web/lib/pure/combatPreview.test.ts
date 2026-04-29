@@ -66,6 +66,91 @@ describe('buildCombatTargetOptions', () => {
 		})
 	})
 
+	it('collapses stacked Pigs targets into one canonical group card', () => {
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['3,2']),
+			displayedDefenders: [
+				{
+					id: 'pigs-1',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
+					status: 'operational',
+					q: 3,
+					r: 2,
+					move: 0,
+					weapons: 'main: ready',
+					attack: '1 / rng 1',
+					defense: 1,
+					squads: 1,
+					actionableModes: ['fire'],
+				},
+				{
+					id: 'pigs-2',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 2',
+					status: 'operational',
+					q: 3,
+					r: 2,
+					move: 0,
+					weapons: 'main: ready',
+					attack: '1 / rng 1',
+					defense: 1,
+					squads: 1,
+					actionableModes: ['fire'],
+				},
+			],
+			displayedOnion: {
+				id: 'onion-1',
+				type: 'TheOnion',
+				q: 0,
+				r: 1,
+				status: 'operational',
+				treads: 33,
+				movesAllowed: 0,
+				movesRemaining: 0,
+				rams: 0,
+				weapons: 'main: ready',
+				weaponDetails: [
+					{
+						id: 'main-1',
+						name: 'Main Battery',
+						attack: 4,
+						range: 4,
+						defense: 4,
+						status: 'ready',
+						individuallyTargetable: true,
+					},
+				],
+			},
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:3,2': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 3, r: 2 },
+						unitIds: ['pigs-1', 'pigs-2'],
+					},
+				},
+			},
+			selectedUnitIds: ['weapon:main-1'],
+			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: {
+				width: 8,
+				height: 8,
+				hexes: [{ q: 3, r: 2, t: 0 }],
+			},
+		})
+
+		expect(options).toHaveLength(1)
+		expect(options[0]).toMatchObject({
+			id: 'pigs-1',
+			label: 'Little Pigs group 1',
+			defense: 1,
+		})
+	})
+
 	it('filters AP targets to infantry only', () => {
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',

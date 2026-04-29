@@ -12,7 +12,10 @@ import {
 
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex, UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
-import { getDisplayDefense, getTerrainValueAt, isWeaponSelectionId, resolveBattlefieldUnitName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './appViewHelpers'
+import { getDisplayDefense, getTerrainValueAt, isWeaponSelectionId, resolveBattlefieldFriendlyName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './appViewHelpers'
+import { buildStackRosterIndex } from '../../shared/stackRoster'
+import type { StackRosterState } from '../../shared/types/index'
+import type { StackNamingSnapshot } from '../../shared/stackNaming'
 
 type CombatRole = 'onion' | 'defender'
 
@@ -35,6 +38,8 @@ type CombatPreviewInput = {
 	combatRangeHexKeys: ReadonlySet<string>
 	displayedDefenders: ReadonlyArray<BattlefieldUnit>
 	displayedOnion: BattlefieldOnionView | null
+	stackRoster?: StackRosterState | null
+	stackNaming?: StackNamingSnapshot | null
 	selectedUnitIds: ReadonlyArray<string>
 	selectedAttackStrength: number
 	selectedAttackGroupCount: number
@@ -141,11 +146,24 @@ function buildTargetModifiers(modifiers: ReadonlyArray<{ label: string }>, extra
 	return [...extraLabels, ...modifiers.map((modifier) => modifier.label)]
 }
 
+function resolveGroupedDefenderTargetId(groupUnitIds: ReadonlyArray<string>, displayedDefenders: ReadonlyArray<BattlefieldUnit>): string | null {
+	for (const groupUnitId of groupUnitIds) {
+		const candidate = displayedDefenders.find((unit) => unit.id === groupUnitId && unit.status !== 'destroyed')
+		if (candidate !== undefined) {
+			return candidate.id
+		}
+	}
+
+	return null
+}
+
 export function buildCombatTargetOptions({
 	activeCombatRole,
 	combatRangeHexKeys,
 	displayedDefenders,
 	displayedOnion,
+	stackRoster,
+	stackNaming,
 	selectedUnitIds,
 	selectedAttackStrength,
 	selectedAttackGroupCount,
@@ -156,6 +174,7 @@ export function buildCombatTargetOptions({
 	}
 
 	const selectedAttackerIds = getSelectedAttackerIds(activeCombatRole, selectedUnitIds)
+	const stackRosterIndex = stackRoster === undefined ? null : buildStackRosterIndex(stackRoster)
 
 	if (selectedAttackerIds.length === 0) {
 		return []
@@ -163,7 +182,7 @@ export function buildCombatTargetOptions({
 
 	if (activeCombatRole === 'onion') {
 		const selectedWeapons = getSelectedWeapons(displayedOnion!, selectedAttackerIds)
-		return displayedDefenders
+		const validDefenders = displayedDefenders
 			.filter((unit) => unit.status !== 'destroyed')
 			.filter((unit) => combatRangeHexKeys.has(`${unit.q},${unit.r}`))
 			.filter((unit) =>
@@ -181,28 +200,48 @@ export function buildCombatTargetOptions({
 					),
 				),
 			)
-			.map((unit) => {
-				const result = combatCalculator.calculateResult(
-					buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, unit, displayedScenarioMap),
-				)
-				const terrainType = getTerrainValueAt(displayedScenarioMap, unit.q, unit.r)
-				const defense = getDisplayDefense(unit.type, unit.squads, terrainType)
 
-				return {
+		const groupedTargets = new Map<string, BattlefieldUnit>()
+		for (const unit of validDefenders) {
+			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.id) ?? null
+			const groupId = rosterGroup !== null && rosterGroup.unitIds.length > 1 ? rosterGroup.groupId : unit.id
+			if (!groupedTargets.has(groupId)) {
+				groupedTargets.set(groupId, unit)
+			}
+		}
+
+		return [...groupedTargets.values()].map((unit) => {
+			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.id) ?? null
+			const targetId = rosterGroup !== null && rosterGroup.unitIds.length > 1
+				? resolveGroupedDefenderTargetId(rosterGroup.unitIds, validDefenders) ?? unit.id
+				: unit.id
+			const result = combatCalculator.calculateResult(
+				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, unit, displayedScenarioMap),
+			)
+			const terrainType = getTerrainValueAt(displayedScenarioMap, unit.q, unit.r)
+			const defense = getDisplayDefense(unit.type, unit.squads, terrainType)
+
+			return {
+				id: targetId,
+				kind: 'defender' as const,
+				q: unit.q,
+				r: unit.r,
+				status: unit.status,
+				label: resolveBattlefieldFriendlyName({
 					id: unit.id,
-					kind: 'defender' as const,
+					type: unit.type,
 					q: unit.q,
 					r: unit.r,
-					status: unit.status,
-					label: resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName),
-					defense,
-					modifiers: buildTargetModifiers(
-						result.modifiers,
-						selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
-					),
-					detail: `Defense: ${defense}`,
-				}
-			})
+					friendlyName: unit.friendlyName,
+				}, stackNaming ?? undefined, stackRoster ?? undefined),
+				defense,
+				modifiers: buildTargetModifiers(
+					result.modifiers,
+					selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
+				),
+				detail: `Defense: ${defense}`,
+			}
+		})
 	}
 
 	if (displayedOnion === null || !combatRangeHexKeys.has(`${displayedOnion.q},${displayedOnion.r}`)) {

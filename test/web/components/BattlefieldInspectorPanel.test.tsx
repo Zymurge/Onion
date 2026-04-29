@@ -34,6 +34,7 @@ describe('BattlefieldInspectorPanel', () => {
 
     render(
       <BattlefieldInspectorPanel
+        selectedInspectorLabel={null}
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={2}
@@ -66,6 +67,7 @@ describe('BattlefieldInspectorPanel', () => {
 
     render(
       <BattlefieldInspectorPanel
+        selectedInspectorLabel={null}
         selectedInspectorDefender={swamp}
         selectedInspectorOnion={null}
         selectedStackMemberCount={1}
@@ -98,6 +100,7 @@ describe('BattlefieldInspectorPanel', () => {
 
     render(
       <BattlefieldInspectorPanel
+        selectedInspectorLabel={null}
         selectedInspectorDefender={null}
         selectedInspectorOnion={onion}
         selectedStackMemberCount={4}

@@ -422,4 +422,61 @@ describe('stack roster', () => {
 			unitIds: ['pigs-2', 'pigs-3', 'pigs-1'],
 		})
 	})
+
+	it('keeps a stackable singleton destination so later movers can reform the stack', () => {
+		const initialRoster: StackRosterState = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group A',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+				},
+			},
+		}
+
+		const afterFirstMove = relocateStackRosterUnits(initialRoster, {
+			movedUnitIds: ['pigs-1'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 5, r: 4 },
+			destinationGroupName: 'Little Pigs group B',
+		})
+
+		expect(afterFirstMove.groupsById['LittlePigs:4,4']?.unitIds).toEqual(['pigs-2', 'pigs-3'])
+		expect(afterFirstMove.groupsById['LittlePigs:5,4']).toMatchObject({
+			groupName: 'Little Pigs group B',
+			unitType: 'LittlePigs',
+			position: { q: 5, r: 4 },
+			unitIds: ['pigs-1'],
+		})
+
+		const afterSecondMove = relocateStackRosterUnits(afterFirstMove, {
+			movedUnitIds: ['pigs-2'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 5, r: 4 },
+			destinationGroupName: 'Little Pigs group B',
+		})
+
+		expect(afterSecondMove.groupsById['LittlePigs:4,4']).toBeUndefined()
+		expect(afterSecondMove.groupsById['LittlePigs:5,4']).toMatchObject({
+			groupName: 'Little Pigs group B',
+			unitType: 'LittlePigs',
+			position: { q: 5, r: 4 },
+			unitIds: ['pigs-1', 'pigs-2'],
+		})
+
+		const afterThirdMove = relocateStackRosterUnits(afterSecondMove, {
+			movedUnitIds: ['pigs-3'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 5, r: 4 },
+			destinationGroupName: 'Little Pigs group B',
+		})
+
+		expect(afterThirdMove.groupsById['LittlePigs:5,4']).toMatchObject({
+			groupName: 'Little Pigs group B',
+			unitType: 'LittlePigs',
+			position: { q: 5, r: 4 },
+			unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+		})
+	})
 })

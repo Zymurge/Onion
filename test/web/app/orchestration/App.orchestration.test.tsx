@@ -332,6 +332,171 @@ describe('App orchestration (injected game client)', () => {
 		expect(onionCard.textContent).toContain('Moves 1')
 	})
 
+	it('does not multiply Little Pigs combat attack by stack size', async () => {
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'DEFENDER_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				defenders: {
+					...baseSnapshot.authoritativeState.defenders,
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Rifle',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-2': {
+						id: 'pigs-2',
+						type: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						status: 'operational' as const,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Rifle',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+				stackRoster: {
+					groupsById: {
+						'LittlePigs:4,4': {
+							groupName: 'Little Pigs group 1',
+							unitType: 'LittlePigs',
+							position: { q: 4, r: 4 },
+							unitIds: ['pigs-1', 'pigs-2'],
+						},
+					},
+				},
+			},
+		}
+		const session = { role: 'defender' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		fireEvent.click(await screen.findByTestId('combat-unit-pigs-1'))
+		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 2')
+	})
+
+	it('shows stacked defender targets as a canonical group in onion combat', async () => {
+		const user = userEvent.setup()
+		const baseSnapshot = createConnectedBattlefieldSnapshot()
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'ONION_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				onion: {
+					...baseSnapshot.authoritativeState.onion,
+					position: { q: 1, r: 2 },
+					weapons: [
+						{
+							id: 'main-1',
+							name: 'Main Battery',
+							attack: 4,
+							range: 2,
+							defense: 4,
+							status: 'ready' as const,
+							individuallyTargetable: true,
+						},
+					],
+				},
+				defenders: {
+					...baseSnapshot.authoritativeState.defenders,
+					'pigs-1': {
+						id: 'pigs-1',
+						type: 'LittlePigs',
+						position: { q: 2, r: 2 },
+						status: 'operational' as const,
+						squads: 1,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+					'pigs-2': {
+						id: 'pigs-2',
+						type: 'LittlePigs',
+						position: { q: 2, r: 2 },
+						status: 'operational' as const,
+						squads: 1,
+						weapons: [
+							{
+								id: 'main',
+								name: 'Main Gun',
+								attack: 1,
+								range: 1,
+								defense: 1,
+								status: 'ready' as const,
+								individuallyTargetable: false,
+							},
+						],
+					},
+				},
+				stackRoster: {
+					groupsById: {
+						'LittlePigs:2,2': {
+							groupName: 'Little Pigs group 1',
+							unitType: 'LittlePigs',
+							position: { q: 2, r: 2 },
+							unitIds: ['pigs-1', 'pigs-2'],
+						},
+					},
+				},
+			},
+			scenarioMap: {
+				...baseSnapshot.scenarioMap,
+				hexes: [{ q: 2, r: 2, t: 1 }],
+			},
+		}
+		const session = { role: 'onion' as const }
+
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		await user.click(await screen.findByTestId('combat-weapon-main-1'))
+		const targetList = await screen.findByTestId('combat-target-list')
+		expect(targetList.textContent).toContain('Little Pigs group 1')
+		expect(screen.getByTestId('combat-target-pigs-1').getAttribute('data-selected')).toBe('false')
+		expect(screen.queryByTestId('combat-target-pigs-2')).toBeNull()
+	})
+
 	it('falls back to onion tread allowance when remaining movement is not provided', async () => {
 		const snapshot = {
 			...createConnectedBattlefieldSnapshot(),
@@ -1325,7 +1490,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.queryByTestId('combat-confirmation-view')).toBeNull()
 	})
 
-	it('greys out spent stack members after one pig has fired', async () => {
+	it('shows the defender inspector for a selected stack during combat', async () => {
 		const baseSnapshot = createConnectedBattlefieldSnapshot()
 		const snapshot = {
 			...baseSnapshot,
@@ -1394,13 +1559,11 @@ describe('App orchestration (injected game client)', () => {
 		render(<App gameClient={client} gameId={123} />)
 		fireEvent.click(await screen.findByTestId('combat-unit-pigs-1'))
 
-		const spentMember = await screen.findByTestId('combat-stack-member-pigs-1')
-		const readyMember = await screen.findByTestId('combat-stack-member-pigs-2')
-
-		expect(spentMember.getAttribute('disabled')).not.toBeNull()
-		expect(spentMember.getAttribute('data-selected')).not.toBe('true')
-		expect(readyMember.getAttribute('data-selected')).toBe('true')
-		expect(readyMember.getAttribute('disabled')).toBeNull()
+		expect(screen.getByText('Inspector')).not.toBeNull()
+		expect(screen.getByText('LittlePigs group 1')).not.toBeNull()
+		expect(screen.getByText('Stack').parentElement?.querySelector('dd')?.textContent).toBe('2')
+		expect(screen.queryByTestId('combat-stack-member-pigs-1')).toBeNull()
+		expect(screen.queryByTestId('combat-stack-member-pigs-2')).toBeNull()
 	})
 
 	it('bases defender combat range on ready weapons rather than display summaries', async () => {
