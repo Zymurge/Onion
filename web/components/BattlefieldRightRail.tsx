@@ -8,6 +8,9 @@ import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldVi
 import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
 import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
+import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
+import { routeRightRailControl, type RightRailControlRequest } from '../lib/rightRailControlRouting'
+import logger from '../lib/logger'
 
 type RamPrompt = {
   unitId: string
@@ -85,6 +88,29 @@ export function BattlefieldRightRail({
   onClearStackSelection,
 }: BattlefieldRightRailProps) {
   const shouldShowCombatPanel = isCombatPhase && activeRole === activeCombatRole
+
+  function routeRightRailInteraction(request: InteractionRoutingRequest) {
+    const decision = routeInteraction(request, (trace) => {
+      logger.debug('[interaction-debug] right rail routed', {
+        ts: Date.now(),
+        ...trace,
+      })
+    })
+
+    return decision
+  }
+
+  function routeRightRailControlAction(request: RightRailControlRequest) {
+    const decision = routeRightRailControl(request, (trace) => {
+      logger.debug('[interaction-debug] right rail control routed', {
+        ts: Date.now(),
+        ...trace,
+      })
+    })
+
+    return decision
+  }
+
   const stackSelectionPanel = rightRailStackPanel.isVisible ? (
     <section className="selection-panel panel-subtle">
       <div className="selection-panel-header">
@@ -108,7 +134,30 @@ export function BattlefieldRightRail({
               disabled={isDisabled}
               data-selected={isSelected}
               data-testid={`stack-member-${unit.id}`}
-              onClick={() => onToggleStackMember(unit.id)}
+              onClick={() => {
+                const decision = routeRightRailInteraction({
+                  viewerRole: activeCombatRole ?? activeRole ?? 'defender',
+                  viewerActivity: shouldShowCombatPanel ? 'active' : 'inactive',
+                  phaseMode: isCombatPhase ? 'combat' : 'locked',
+                  surface: 'right-rail',
+                  gesture: 'primary',
+                  subjectRelation: 'self',
+                  subjectKind: 'stack',
+                  subjectCapability: {
+                    inspectable: true,
+                    moveEligible: false,
+                    attackerEligible: true,
+                    targetEligible: false,
+                  },
+                  interactionMode: {
+                    expandedStackEditor: true,
+                  },
+                })
+
+                if (decision.intent === 'toggle-actor') {
+                  onToggleStackMember(unit.id)
+                }
+              }}
             >
               <div className="weapon-card-name">{resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)}</div>
               <div className="weapon-card-stats">Toggle in stack</div>
@@ -121,7 +170,17 @@ export function BattlefieldRightRail({
           type="button"
           className="combat-confirm-button"
           disabled={isInteractionLocked}
-          onClick={onSelectAllStackMembers}
+          onClick={() => {
+            const decision = routeRightRailControlAction({
+              surface: 'right-rail',
+              control: 'select-all-stack-members',
+              enabled: !isInteractionLocked,
+            })
+
+            if (decision.intent === 'select-all-stack-members') {
+              onSelectAllStackMembers()
+            }
+          }}
         >
           Select all
         </button>
@@ -129,7 +188,17 @@ export function BattlefieldRightRail({
           type="button"
           className="combat-confirm-button combat-confirm-button-secondary"
           disabled={isInteractionLocked}
-          onClick={onClearStackSelection}
+          onClick={() => {
+            const decision = routeRightRailControlAction({
+              surface: 'right-rail',
+              control: 'clear-stack-selection',
+              enabled: !isInteractionLocked,
+            })
+
+            if (decision.intent === 'clear-stack-selection') {
+              onClearStackSelection()
+            }
+          }}
         >
           Clear
         </button>
@@ -184,10 +253,30 @@ export function BattlefieldRightRail({
             </div>
             <p className="summary-line">Choose whether to ram the occupied hex or continue the move without ramming.</p>
             <div className="combat-confirmation-actions">
-              <button className="combat-confirm-button" type="button" disabled={isInteractionLocked} onClick={onAttemptRam}>
+              <button className="combat-confirm-button" type="button" disabled={isInteractionLocked} onClick={() => {
+                const decision = routeRightRailControlAction({
+                  surface: 'right-rail',
+                  control: 'attempt-ram',
+                  enabled: !isInteractionLocked,
+                })
+
+                if (decision.intent === 'attempt-ram') {
+                  onAttemptRam()
+                }
+              }}>
                 Attempt ram
               </button>
-              <button className="combat-confirm-button combat-confirm-button-secondary" type="button" disabled={isInteractionLocked} onClick={onDeclineRam}>
+              <button className="combat-confirm-button combat-confirm-button-secondary" type="button" disabled={isInteractionLocked} onClick={() => {
+                const decision = routeRightRailControlAction({
+                  surface: 'right-rail',
+                  control: 'decline-ram',
+                  enabled: !isInteractionLocked,
+                })
+
+                if (decision.intent === 'decline-ram') {
+                  onDeclineRam()
+                }
+              }}>
                 Move without ram
               </button>
             </div>
@@ -235,7 +324,17 @@ export function BattlefieldRightRail({
               defenseStrength={selectedCombatTarget.defense}
               modifiers={selectedCombatTarget.modifiers}
               confirmLabel="Resolve combat"
-              onConfirm={onConfirmCombat}
+              onConfirm={() => {
+                const decision = routeRightRailControlAction({
+                  surface: 'right-rail',
+                  control: 'confirm-combat',
+                  enabled: !isInteractionLocked,
+                })
+
+                if (decision.intent === 'confirm-combat') {
+                  onConfirmCombat()
+                }
+              }}
               isDisabled={isInteractionLocked}
               dataTestId="combat-confirmation-view"
             />
@@ -245,7 +344,29 @@ export function BattlefieldRightRail({
               targets={combatTargetOptions}
               selectedTargetId={selectedCombatTargetId}
               isDisabled={isInteractionLocked}
-              onSelectTarget={onSelectCombatTarget}
+              onSelectTarget={(targetId) => {
+                const target = combatTargetOptions.find((option) => option.id === targetId) ?? null
+
+                const decision = routeRightRailInteraction({
+                  viewerRole: activeCombatRole ?? activeRole ?? 'defender',
+                  viewerActivity: shouldShowCombatPanel ? 'active' : 'inactive',
+                  phaseMode: 'combat',
+                  surface: 'right-rail',
+                  gesture: 'primary',
+                  subjectRelation: target?.kind === activeCombatRole ? 'self' : 'opponent',
+                  subjectKind: targetId.includes(':') ? 'subsystem' : 'unit',
+                  subjectCapability: {
+                    inspectable: true,
+                    moveEligible: false,
+                    attackerEligible: false,
+                    targetEligible: true,
+                  },
+                })
+
+                if (decision.intent === 'select-target') {
+                  onSelectCombatTarget(targetId)
+                }
+              }}
             />
           ) : (
             <p className="summary-line">No valid targets are currently in range.</p>

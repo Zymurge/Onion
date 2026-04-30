@@ -166,9 +166,10 @@ export function refreshStackNamingSnapshotFromRoster(
 	stackRoster: StackRosterState | undefined,
 	unitsById: ReadonlyArray<StackNamingSourceUnit>,
 ): StackNamingSnapshot {
-	const engine = createStackNamingEngine(seed)
 	const sourceUnitById = new Map(unitsById.map((unit) => [unit.id, unit]))
 	const activeGroupKeys: string[] = []
+	const rosterGroupsInUse: StackNamingGroupRecord[] = []
+	const rosterUsedGroupNames: string[] = []
 
 	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
 		const unitIds = group.unitIds ?? group.units?.map((unit) => unit.id) ?? []
@@ -183,9 +184,28 @@ export function refreshStackNamingSnapshotFromRoster(
 
 		const groupKey = buildStackGroupKey(group.unitType, group.position)
 		activeGroupKeys.push(groupKey)
-		engine.resolveGroupName(groupKey, group.unitType, firstUnit.id, firstUnit.friendlyName, unitIds.length)
+		const authoritativeGroupName = group.groupName.trim().length > 0
+			? group.groupName
+			: resolveStackLabel(group.unitType, firstUnit.id, firstUnit.friendlyName, unitIds.length)
+		rosterGroupsInUse.push({
+			groupKey,
+			groupName: authoritativeGroupName,
+			unitType: group.unitType,
+		})
+		rosterUsedGroupNames.push(authoritativeGroupName)
 	}
 
+	const engine = createStackNamingEngine({
+		...seed,
+		groupsInUse: [
+			...(seed?.groupsInUse ?? []),
+			...rosterGroupsInUse,
+		],
+		usedGroupNames: [
+			...(seed?.usedGroupNames ?? []),
+			...rosterUsedGroupNames,
+		],
+	})
 	engine.clearMissingGroups(activeGroupKeys)
 	return engine.snapshot()
 }

@@ -143,6 +143,26 @@ describe('normalizeInitialStateToGameState', () => {
     expect((pigGroups[0]?.unitIds ?? []).every((unitId) => gameState.defenders[unitId] !== undefined)).toBe(true)
   })
 
+  it('throws when an authored stack group name conflicts with canonical naming', () => {
+    const groupedInitialState = {
+      onion: validInitialState.onion,
+      defenders: {
+        'pigs-group-1': {
+          kind: 'stack-group',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 7 },
+          count: 3,
+          status: 'operational',
+          groupName: 'Little Pigs group 99',
+        },
+      },
+    }
+
+    const parsed = InitialStateSchema.parse(groupedInitialState as unknown as object)
+
+    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Conflicting stack group name')
+  })
+
   it('assigns Little Pigs ids and friendly names from a single ordinal sequence across stack groups', () => {
     const groupedInitialState = {
       onion: validInitialState.onion,

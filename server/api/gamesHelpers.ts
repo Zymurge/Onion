@@ -21,6 +21,100 @@ const SCENARIOS_DIR = resolveScenariosDir()
 const GAME_ID_RE = /^\d+$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void {
+  const stackRoster = matchState.stackRoster
+  const rosterGroups = Object.entries(stackRoster?.groupsById ?? {})
+  if (rosterGroups.length === 0) {
+    return
+  }
+
+  const canonicalStackNaming = refreshStackNamingSnapshotFromRoster(
+    undefined,
+    stackRoster,
+    Object.values(matchState.defenders)
+      .filter((unit) => typeof unit.id === 'string')
+      .map((unit) => ({
+        id: unit.id as string,
+        type: unit.type,
+        position: unit.position,
+        status: String(unit.status),
+        squads: unit.squads,
+        friendlyName: unit.friendlyName,
+      })),
+  )
+  const canonicalGroupNames = new Map(canonicalStackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
+  const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupKey, group.groupName]))
+
+  for (const [groupKey, group] of rosterGroups) {
+    const unitIds = group.unitIds ?? group.units?.map((unit) => unit.id) ?? []
+    if (unitIds.length <= 1) {
+      continue
+    }
+
+    const canonicalGroupName = canonicalGroupNames.get(groupKey)
+    if (canonicalGroupName === undefined) {
+      logger.debug(
+        {
+          groupKey,
+          groupName: group.groupName,
+          unitIds,
+          stackNaming: matchState.stackNaming,
+        },
+        'Missing canonical stack group name during validation',
+      )
+      throw new Error(`Missing canonical stack group name for ${groupKey}`)
+    }
+
+    if (group.groupName !== canonicalGroupName) {
+      logger.debug(
+        {
+          groupKey,
+          rosterGroupName: group.groupName,
+          canonicalGroupName,
+          unitIds,
+          canonicalStackNaming: canonicalStackNaming.groupsInUse,
+          persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [],
+        },
+        'Conflicting stack group name detected during validation',
+      )
+      throw new Error(`Conflicting stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${group.groupName}`)
+    }
+
+    const persistedGroupName = persistedGroupNames.get(groupKey)
+    if (persistedGroupName !== undefined && persistedGroupName !== canonicalGroupName) {
+      logger.debug(
+        {
+          groupKey,
+          canonicalGroupName,
+          persistedGroupName,
+          unitIds,
+          canonicalStackNaming: canonicalStackNaming.groupsInUse,
+          persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [],
+        },
+        'Persisted stack group name conflicts with canonical validation result',
+      )
+      throw new Error(`Conflicting persisted stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${persistedGroupName}`)
+    }
+  }
+
+  for (const [groupKey, persistedGroupName] of persistedGroupNames) {
+    const canonicalGroupName = canonicalGroupNames.get(groupKey)
+    if (canonicalGroupName !== undefined && canonicalGroupName !== persistedGroupName) {
+      logger.debug(
+        {
+          groupKey,
+          canonicalGroupName,
+          persistedGroupName,
+          canonicalStackNaming: canonicalStackNaming.groupsInUse,
+          persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [],
+        },
+        'Persisted stack group name conflicts after canonical lookup',
+      )
+      throw new Error(`Conflicting persisted stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${persistedGroupName}`)
+    }
+  }
+}
+
 export type VictoryObjective =
   | {
     id: string
@@ -154,6 +248,7 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 }
 
 export function buildEngineState(match: MatchRecord): EngineGameState {
+  assertCanonicalStackGroupNames(match.state)
   const stackNaming = refreshStackNamingSnapshotFromRoster(
     match.state.stackNaming,
     match.state.stackRoster,
@@ -591,6 +686,7 @@ export function logActionOutcome(
 }
 
 export function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
+  assertCanonicalStackGroupNames(match.state)
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)

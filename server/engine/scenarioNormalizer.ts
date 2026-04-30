@@ -28,7 +28,6 @@ function buildStackUnitIdBase(groupKey: string): string {
 /**
  * Normalize a scenario initialState into a valid EngineGameState.
  * Assumes initialState has already been validated by Zod.
- * Throws if required fields are missing or invalid.
  */
 export function normalizeInitialStateToGameState(initial: InitialState): EngineGameState {
   const onionDefinition = getUnitDefinition(initial.onion.type as any)
@@ -37,13 +36,12 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
     throw new Error(`Unknown onion type: ${initial.onion.type}`)
   }
 
-  // Assign onion ID and status
   const onion: OnionUnit & {
     missiles: number
     batteries: { main: number; secondary: number; ap: number }
   } = {
     id: 'onion-1',
-    type: initial.onion.type as any, // Cast for now; engine will check
+    type: initial.onion.type as any,
     friendlyName: buildFriendlyName(onionDefinition.friendlyNameTemplate ?? `${onionDefinition.name} {{ordinal}}`, 'onion-1'),
     position: initial.onion.position,
     treads: initial.onion.treads,
@@ -56,7 +54,6 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
     batteries: { ...initial.onion.batteries },
   }
 
-  // Assign defender IDs and fill defaults
   const defenders: Record<string, DefenderUnit> = {}
   const stackRoster: StackRosterState = { groupsById: {} }
   const stackNamingEngine = createStackNamingEngine()
@@ -92,12 +89,15 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
 
       const groupKey = buildStackGroupKey(def.unitType, def.position)
       const firstUnitFriendlyName = defenders[unitIds[0]]?.friendlyName
-      const resolvedGroupName = def.groupName?.trim().length
-        ? def.groupName
-        : stackNamingEngine.resolveGroupName(groupKey, def.unitType, unitIds[0], firstUnitFriendlyName, unitIds.length)
+      const canonicalGroupName = stackNamingEngine.resolveGroupName(groupKey, def.unitType, unitIds[0], firstUnitFriendlyName, unitIds.length)
+
+      if (def.groupName !== undefined && def.groupName.trim().length > 0 && def.groupName !== canonicalGroupName) {
+        logger.error({ key, groupKey, expected: canonicalGroupName, actual: def.groupName }, 'normalizeInitialStateToGameState: conflicting stack group name')
+        throw new Error(`Conflicting stack group name for ${key}: expected ${canonicalGroupName}, received ${def.groupName}`)
+      }
 
       stackRoster.groupsById[groupKey] = {
-        groupName: resolvedGroupName,
+        groupName: canonicalGroupName,
         unitType: def.unitType,
         position: def.position,
         unitIds,
@@ -117,6 +117,7 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
       logger.error({ type: def.type, key }, 'normalizeInitialStateToGameState: unknown defender type')
       throw new Error(`Unknown defender type: ${def.type}`)
     }
+
     defenders[key] = {
       id: key,
       type: def.type as any,

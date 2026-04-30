@@ -74,6 +74,19 @@ Each routed interaction is resolved from these dimensions:
 
 The long-term goal is to keep those dimensions in one pure policy boundary and keep UI components unaware of the full matrix.
 
+### Request Vocabulary
+
+The router should accept one normalized request shape instead of surface-specific branching:
+
+- viewer role: `onion` or `defender`
+- viewer activity: `active` or `inactive`
+- phase mode: `movement`, `combat`, or `locked` for locked/non-actionable phases
+- surface: `map`, `left-rail`, `right-rail`, or `header/control`
+- gesture: `primary`, `primary-additive`, or `secondary`
+- subject relation: `self`, `opponent`, `neutral/system`, or `background`
+- subject capability flags: `moveEligible`, `attackerEligible`, `targetEligible`, `inspectable`
+- interaction mode flags: `groupExpansionTarget` for collapsed group summary clicks and `expandedStackEditor` when the surface already implies subgroup-edit intent
+
 ### Base Matrix
 
 These rows apply regardless of whether the viewer is Onion or defender unless a later role-specific rule overrides them.
@@ -84,6 +97,8 @@ These rows apply regardless of whether the viewer is Onion or defender unless a 
 | Inactive | Any | Primary-additive click on any inspectable subject | Same as primary; no multi-select semantics |
 | Inactive | Any | Secondary click anywhere | No-op |
 | Inactive | Any | Primary click on background | Clear local inspection |
+| Locked / non-actionable | Any | Primary click on background | Clear local selection |
+| Locked / non-actionable | Any | Any other click | No-op |
 | Active | Movement | Primary click on self move-eligible source | Select mover |
 | Active | Movement | Primary click on self non-eligible source | Inspect subject only |
 | Active | Movement | Primary click on opponent or neutral subject | Inspect subject only |
@@ -91,11 +106,13 @@ These rows apply regardless of whether the viewer is Onion or defender unless a 
 | Active | Movement | Secondary click on reachable destination hex | Submit move, including any ram prompt branch |
 | Active | Movement | Secondary click on non-reachable hex | No-op or local illegal-move feedback only |
 | Active | Combat | Primary click on self attacker-eligible source | Select attacker source |
+| Active | Combat | Primary click on collapsed group summary | Expand group |
 | Active | Combat | Primary-additive click on self attacker-eligible source | Toggle attacker membership |
 | Active | Combat | Primary click on legal target | Select combat target |
 | Active | Combat | Primary click on inspectable but illegal target | Inspect subject only |
 | Active | Combat | Primary click on background | Clear local combat prep state and inspection |
 | Active | Combat | Secondary click on map or rail subject | No direct combat action; confirmation stays explicit in the right rail |
+| Any | Any | Header/control surface click | No-op |
 
 ### Role-Specific Combat Rules
 
@@ -112,6 +129,36 @@ The matrix needs a role dimension, but the intent is to keep it narrow. Most row
 | Defender | Active | Onion subsystem in the right rail | Select subsystem target if legal |
 | Onion or Defender | Inactive | Any inspectable subject | Inspect only |
 | Onion or Defender | Inactive | Right-rail stack member controls | Not shown; inactive players see only the grouped stack summary |
+
+### Shell Control Vocabulary
+
+Header controls are routed separately from battlefield map and rail interactions.
+
+- `refresh-session`
+- `advance-phase`
+- `acknowledge-turn`
+- `toggle-debug-diagnostics`
+
+The right rail also routes its remaining direct callbacks through a dedicated control vocabulary:
+
+- `confirm-combat`
+- `attempt-ram`
+- `decline-ram`
+- `select-all-stack-members`
+- `clear-stack-selection`
+
+The debug popup's Advance Phase button uses the same `advance-phase` control so the header and popup stay aligned.
+
+These controls stay actionable when their owning shell state says they should, even if the battlefield matrix is inactive or locked.
+
+### Initial State Contract
+
+Before the first click in a phase, the UI should already present the correct phase-scoped source list:
+
+- Onion active combat starts with the left-rail weapon list prepopulated.
+- Defender active combat starts with the left-rail unit list prepopulated.
+- Inactive phases start with all viewable units available on the map and in the inspector as passive selection candidates.
+- Initial state should not imply a selected actor or target unless the server snapshot already provided one.
 
 ### Surface Notes
 
@@ -137,7 +184,7 @@ The routing layer should resolve to a small set of intent types:
 
 Intent handlers may call existing interaction-hook methods, but the policy decision about which intent to fire should happen before those handlers run.
 
-For expanded right-rail stack editing, member clicks should resolve to `toggle-actor` with specialized request context such as `surface=right-rail-stack-editor` and `selectionScope=current-stack`. A separate `toggle-stack-member` intent is not required.
+For expanded right-rail stack editing, member clicks should resolve to `toggle-actor` with specialized request context such as `surface=right-rail` and `expandedStackEditor=true`. A separate `toggle-stack-member` intent is not required.
 
 ## Board Model
 

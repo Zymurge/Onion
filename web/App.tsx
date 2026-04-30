@@ -22,6 +22,7 @@ import { useBattlefieldDisplayState } from './lib/useBattlefieldDisplayState'
 import { buildCombatCommitAction, buildEndPhaseCommitAction } from './lib/commitActionBuilders'
 import { useInactiveEventStream } from './lib/useInactiveEventStream'
 import { buildAcknowledgementTurnKey } from './lib/turnKey'
+import { routeShellControl } from './lib/shellControlRouting'
 import type {
   GameRequestTransport,
   GameSessionController,
@@ -578,6 +579,28 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     setDebugPopupLayout,
   } = useDebugDiagnostics()
 
+  function runShellControl(control: 'refresh-session' | 'advance-phase' | 'acknowledge-turn' | 'toggle-debug-diagnostics', enabled: boolean, execute: () => void) {
+    const decision = routeShellControl(
+      {
+        surface: 'header/control',
+        control,
+        enabled,
+      },
+      (trace) => {
+        logger.debug('[app-debug] shell control routed', {
+          ts: Date.now(),
+          ...trace,
+        })
+      },
+    )
+
+    if (decision.intent === 'noop') {
+      return
+    }
+
+    execute()
+  }
+
   function handleConfirmCombat() {
     if (inactiveEventControlsLocked) {
       return
@@ -675,22 +698,21 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className="phase-advance-btn"
               disabled={inactiveEventControlsLocked}
               onClick={() => {
-                logger.debug('[app-debug] phase advance clicked', {
-                  ts: Date.now(),
-                  activeGameId: activeSessionBinding?.gameId ?? null,
-                  activeTurnOwner,
-                  inactiveEventControlsLocked,
-                  inactiveEventScreenLocked,
-                  inactiveEventWindowVisible,
-                  phaseAdvanceLabel,
-                  sessionPhase,
-                  sessionRole,
-                  sessionTurnActive,
+                runShellControl('advance-phase', !inactiveEventControlsLocked, () => {
+                  logger.debug('[app-debug] phase advance clicked', {
+                    ts: Date.now(),
+                    activeGameId: activeSessionBinding?.gameId ?? null,
+                    activeTurnOwner,
+                    inactiveEventControlsLocked,
+                    inactiveEventScreenLocked,
+                    inactiveEventWindowVisible,
+                    phaseAdvanceLabel,
+                    sessionPhase,
+                    sessionRole,
+                    sessionTurnActive,
+                  })
+                  void commitClientAction(buildEndPhaseCommitAction().action)
                 })
-                if (inactiveEventControlsLocked) {
-                  return
-                }
-                void commitClientAction(buildEndPhaseCommitAction().action)
               }}
             >
               {phaseAdvanceLabel}
@@ -702,21 +724,23 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               type="button"
               className={`phase-advance-btn begin-turn-btn${sessionTurnActive ? ' begin-turn-btn-ready' : ' disabled'}`}
               onClick={() => {
-                logger.debug('[app-debug] begin turn clicked', {
-                  ts: Date.now(),
-                  activeGameId: activeSessionBinding?.gameId ?? null,
-                  activeTurnOwner,
-                  inactiveEntryCount: inactiveEventStream.entries.length,
-                  inactiveDismissed: inactiveEventStream.isDismissed,
-                  inactiveEventControlsLocked,
-                  inactiveEventScreenLocked,
-                  inactiveEventWindowVisible,
-                  sessionPhase,
-                  sessionRole,
-                  sessionTurnActive,
+                runShellControl('acknowledge-turn', sessionTurnActive, () => {
+                  logger.debug('[app-debug] begin turn clicked', {
+                    ts: Date.now(),
+                    activeGameId: activeSessionBinding?.gameId ?? null,
+                    activeTurnOwner,
+                    inactiveEntryCount: inactiveEventStream.entries.length,
+                    inactiveDismissed: inactiveEventStream.isDismissed,
+                    inactiveEventControlsLocked,
+                    inactiveEventScreenLocked,
+                    inactiveEventWindowVisible,
+                    sessionPhase,
+                    sessionRole,
+                    sessionTurnActive,
+                  })
+                  inactiveEventStream.clearEntries()
+                  setAcknowledgedActiveTurnKey(currentActiveTurnKey)
                 })
-                inactiveEventStream.clearEntries()
-                setAcknowledgedActiveTurnKey(currentActiveTurnKey)
               }}
               aria-label="Begin turn"
               disabled={!sessionTurnActive}
@@ -741,16 +765,18 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className="refresh-btn"
               title="Refresh game state"
               onClick={() => {
-                logger.debug('[app-debug] refresh clicked', {
-                  ts: Date.now(),
-                  activeGameId: activeSessionBinding?.gameId ?? null,
-                  sessionPhase,
-                  sessionRole,
-                  sessionTurnActive,
-                  inactiveEventWindowVisible,
-                  inactiveEventControlsLocked,
+                runShellControl('refresh-session', !isRefreshing, () => {
+                  logger.debug('[app-debug] refresh clicked', {
+                    ts: Date.now(),
+                    activeGameId: activeSessionBinding?.gameId ?? null,
+                    sessionPhase,
+                    sessionRole,
+                    sessionTurnActive,
+                    inactiveEventWindowVisible,
+                    inactiveEventControlsLocked,
+                  })
+                  void handleRefresh()
                 })
-                void handleRefresh()
               }}
               aria-label="Refresh"
               disabled={isRefreshing}
@@ -761,7 +787,11 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className={`debug-toggle-btn${debugOpen ? ' active' : ''}`}
               title="Toggle debug diagnostics"
               aria-label="Toggle debug diagnostics"
-              onClick={() => setDebugOpen((value: boolean) => !value)}
+              onClick={() => {
+                runShellControl('toggle-debug-diagnostics', true, () => {
+                  setDebugOpen((value: boolean) => !value)
+                })
+              }}
             >
               Debug
             </button>
@@ -790,7 +820,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onClose={() => setDebugOpen(false)}
           lines={debugEntries}
           onAdvancePhase={() => {
-            void commitClientAction(buildEndPhaseCommitAction().action)
+            runShellControl('advance-phase', true, () => {
+              void commitClientAction(buildEndPhaseCommitAction().action)
+            })
           }}
         />
       )}

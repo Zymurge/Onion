@@ -28,5 +28,7 @@
         "awk": true
     },
     "github.copilot.chat.cli.forkSessions.enabled": true,
+    "github.copilot.chat.responsesApi.toolSearchTool.enabled": true,
+    "github.copilot.chat.localIndex.enabled": true,
     "npm.scriptRunner": "pnpm"
 }

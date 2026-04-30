@@ -823,7 +823,7 @@ describe('HexMapBoard', () => {
 		expect(onSelectCombatTarget).toHaveBeenCalledWith('puss-1')
 	})
 
-	it('selects the Onion treads as a combat target from a right-click during defender combat', () => {
+	it('selects the Onion treads from a right-click during defender combat', () => {
 		const onSelectCombatTarget = vi.fn()
 
 		render(

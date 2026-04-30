@@ -158,6 +158,13 @@ function toMovementValidation(result: SharedMoveValidationResult): MovementValid
 function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: string): void {
   const movedDefender = state.defenders[movedUnitId]
   if (movedDefender === undefined || movedDefender.status === 'destroyed') {
+    logger.debug(
+      {
+        movedUnitId,
+        reason: movedDefender === undefined ? 'missing-defender' : 'destroyed-defender',
+      },
+      'Refreshing stack naming after move for non-operational unit',
+    )
     state.stackNaming = refreshStackNamingSnapshotFromRoster(
       state.stackNaming,
       state.stackRoster,
@@ -177,11 +184,36 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
   const sourceGroup = rosterIndex.getUnitGroup(movedUnitId)
   const destinationGroupId = buildStackGroupKey(movedDefender.type, movedDefender.position)
   const destinationGroup = rosterIndex.groupsById[destinationGroupId] ?? null
+  const persistedDestinationName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+  const selectedNameSource = persistedDestinationName !== undefined
+    ? 'persisted-stack-naming'
+    : destinationGroup?.groupName !== undefined
+      ? 'destination-roster-group'
+      : sourceGroup?.groupName !== undefined
+        ? 'source-roster-group'
+        : movedDefender.friendlyName !== undefined
+          ? 'defender-friendly-name'
+          : 'unit-type-fallback'
   const movedGroupName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
     ?? destinationGroup?.groupName
     ?? sourceGroup?.groupName
     ?? movedDefender.friendlyName
     ?? movedDefender.type
+
+  logger.debug(
+    {
+      movedUnitId,
+      unitType: movedDefender.type,
+      sourceGroup: sourceGroup?.groupName ?? null,
+      destinationGroupId,
+      destinationGroup: destinationGroup?.groupName ?? null,
+      persistedDestinationName: persistedDestinationName ?? null,
+      selectedNameSource,
+      selectedName: movedGroupName,
+      destinationPosition: movedDefender.position,
+    },
+    'Selected destination stack name for move',
+  )
 
   state.stackRoster = relocateStackRosterUnits(state.stackRoster, {
     movedUnitIds: [movedUnitId],
@@ -201,6 +233,17 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
       squads: unit.squads,
       friendlyName: unit.friendlyName,
     })),
+  )
+
+  logger.debug(
+    {
+      movedUnitId,
+      destinationGroupId,
+      refreshedGroupName: state.stackNaming.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName ?? null,
+      refreshedGroupsInUse: state.stackNaming.groupsInUse,
+      usedGroupNames: state.stackNaming.usedGroupNames,
+    },
+    'Refreshed stack naming after move',
   )
 }
 

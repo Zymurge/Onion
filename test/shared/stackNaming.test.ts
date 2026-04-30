@@ -114,10 +114,17 @@ describe('stack naming', () => {
 			],
 		)
 
-		expect(snapshot.groupsInUse).toMatchObject([
-			{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-			{ groupKey: 'LittlePigs:5,5', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
-		])
+		expect(snapshot.groupsInUse).toHaveLength(2)
+		expect(snapshot.groupsInUse.find((group) => group.groupKey === 'LittlePigs:4,4')).toMatchObject({
+			groupKey: 'LittlePigs:4,4',
+			groupName: 'Little Pigs group 1',
+			unitType: 'LittlePigs',
+		})
+		expect(snapshot.groupsInUse.find((group) => group.groupKey === 'LittlePigs:5,5')).toMatchObject({
+			groupKey: 'LittlePigs:5,5',
+			groupName: 'Little Pigs group 2',
+			unitType: 'LittlePigs',
+		})
 		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
 		expect(snapshot.groupsInUse.some((group) => group.groupKey === 'BigBadWolf:7,7')).toBe(false)
 	})
@@ -151,10 +158,163 @@ describe('stack naming', () => {
 			],
 		)
 
-		expect(snapshot.groupsInUse).toMatchObject([
-			{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-		])
+		expect(snapshot.groupsInUse).toHaveLength(1)
+		expect(snapshot.groupsInUse[0]).toMatchObject({
+			groupKey: 'LittlePigs:4,4',
+			groupName: 'Little Pigs group 1',
+			unitType: 'LittlePigs',
+		})
 		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1'])
+	})
+
+	it.each([
+		{
+			name: 'split to empty',
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:4,7': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 7 },
+						unitIds: ['pigs-1'],
+					},
+					'LittlePigs:5,7': {
+						groupName: 'Little Pigs group 2',
+						unitType: 'LittlePigs',
+						position: { q: 5, r: 7 },
+						unitIds: ['pigs-3', 'pigs-4'],
+					},
+					'LittlePigs:5,8': {
+						groupName: 'Little Pigs group 3',
+						unitType: 'LittlePigs',
+						position: { q: 5, r: 8 },
+						unitIds: ['pigs-1', 'pigs-2'],
+					},
+				},
+			},
+			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 3' },
+				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 4' },
+			],
+			expected: [
+				{ groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2' },
+				{ groupKey: 'LittlePigs:5,8', groupName: 'Little Pigs group 3' },
+			],
+		},
+		{
+			name: 'split onto existing stack',
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:4,7': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 7 },
+						unitIds: ['pigs-1'],
+					},
+					'LittlePigs:5,7': {
+						groupName: 'Little Pigs group 2',
+						unitType: 'LittlePigs',
+						position: { q: 5, r: 7 },
+						unitIds: ['pigs-2', 'pigs-3', 'pigs-4', 'pigs-5'],
+					},
+				},
+			},
+			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 3' },
+				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 4' },
+				{ id: 'pigs-5', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 5' },
+			],
+			expected: [
+				{ groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2' },
+			],
+		},
+		{
+			name: 'whole stack move to empty',
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:4,7': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 7 },
+						unitIds: ['pigs-1', 'pigs-2'],
+					},
+					'LittlePigs:5,8': {
+						groupName: 'Little Pigs group 2',
+						unitType: 'LittlePigs',
+						position: { q: 5, r: 8 },
+						unitIds: ['pigs-3', 'pigs-4'],
+					},
+				},
+			},
+			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 3' },
+				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 4' },
+			],
+			expected: [
+				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
+				{ groupKey: 'LittlePigs:5,8', groupName: 'Little Pigs group 2' },
+			],
+		},
+		{
+			name: 'whole stack move onto existing stack',
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:4,7': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 7 },
+						unitIds: ['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4'],
+					},
+				},
+			},
+			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 3' },
+				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 4' },
+			],
+			expected: [
+				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
+			],
+		},
+		{
+			name: 'merge two preexisting groups',
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:4,7': {
+						groupName: 'Little Pigs group 2',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 7 },
+						unitIds: ['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4'],
+					},
+				},
+			},
+			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 3' },
+				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 4' },
+			],
+			expected: [
+				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 2' },
+			],
+		},
+	])('covers the stack move matrix for $name', ({ stackRoster, units, expected }) => {
+		const snapshot = refreshStackNamingSnapshotFromRoster(undefined, stackRoster, units)
+
+		expect(snapshot.groupsInUse).toHaveLength(expected.length)
+		for (const entry of expected) {
+			expect(snapshot.groupsInUse.find((group) => group.groupKey === entry.groupKey)).toMatchObject({
+				...entry,
+				unitType: 'LittlePigs',
+			})
+		}
 	})
 
 	it('retains the older group name when a merge resolves to the same group key', () => {

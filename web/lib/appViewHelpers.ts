@@ -39,11 +39,11 @@ export function resolveBattlefieldStackLabel(
   stackNaming?: StackNamingSnapshot,
 ): string {
   if (groupKey !== undefined) {
-    if (stackNaming !== undefined) {
-      return resolveSelectionName({ kind: 'group', groupKey, stackNaming })
+    if (stackNaming === undefined) {
+      throw new Error(`Missing stackNaming for grouped unit ${unitId ?? unitType} at ${groupKey}`)
     }
 
-    return resolveStackLabelFromSnapshot(stackNaming, groupKey, unitType, unitId, friendlyName, stackSize)
+    return resolveSelectionName({ kind: 'group', groupKey, stackNaming })
   }
 
   return resolveStackLabel(unitType, unitId, friendlyName, stackSize)
@@ -66,11 +66,10 @@ export function resolveBattlefieldDisplayName(
     if (group !== undefined) {
       return resolveSelectionName({ kind: 'group', groupKey: group.groupKey, stackNaming })
     }
-  }
 
-  const stackSize = getBattlefieldStackSize(unit)
-  if (stackSize > 1) {
-    return resolveStackLabel(unit.type, unit.id, unit.friendlyName, stackSize)
+    if (getBattlefieldStackSize(unit) > 1) {
+      throw new Error(`Missing stackNaming entry for grouped unit ${unit.id} at ${groupKey}`)
+    }
   }
 
   return resolveSelectionName({
@@ -92,19 +91,34 @@ export function resolveBattlefieldFriendlyName(
   stackNaming?: StackNamingSnapshot,
   stackRoster?: StackRosterState,
 ): string {
-  if (stackRoster !== undefined) {
-    const rosterGroup = buildStackRosterIndex(stackRoster).getUnitGroup(unit.id)
-    if (rosterGroup !== null && rosterGroup.unitIds.length > 1) {
-      return rosterGroup.groupName
-    }
-  }
+  const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
+  const rosterGroup = stackRoster === undefined ? null : buildStackRosterIndex(stackRoster).getUnitGroup(unit.id)
+  const hasGroupedRoster = rosterGroup !== null && rosterGroup.unitIds.length > 1
+  const namingGroup = stackNaming?.groupsInUse.find((entry) => entry.groupKey === groupKey) ?? null
+  const hasGroupedNaming = namingGroup !== null
 
-  if (stackNaming !== undefined) {
-    const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
-    const group = stackNaming.groupsInUse.find((entry) => entry.groupKey === groupKey)
-    if (group !== undefined) {
-      return resolveSelectionName({ kind: 'group', groupKey: group.groupKey, stackNaming })
+  if (hasGroupedRoster || hasGroupedNaming) {
+    if (stackRoster === undefined) {
+      throw new Error(`Missing stackRoster for grouped unit ${unit.id}`)
     }
+
+    if (stackNaming === undefined) {
+      throw new Error(`Missing stackNaming for grouped unit ${unit.id}`)
+    }
+
+    if (!hasGroupedRoster) {
+      throw new Error(`Missing roster group for grouped unit ${unit.id} at ${groupKey}`)
+    }
+
+    if (!hasGroupedNaming) {
+      throw new Error(`Missing stackNaming entry for grouped unit ${unit.id} at ${groupKey}`)
+    }
+
+    if (rosterGroup.groupName !== namingGroup.groupName) {
+      throw new Error(`Conflicting stacked-unit labels for ${unit.id}: roster=${rosterGroup.groupName}, naming=${namingGroup.groupName}`)
+    }
+
+    return resolveSelectionName({ kind: 'group', groupKey: namingGroup.groupKey, stackNaming })
   }
 
   return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)

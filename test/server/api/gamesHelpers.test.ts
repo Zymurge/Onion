@@ -788,4 +788,61 @@ describe('buildVictoryObjectiveStates', () => {
 
     expect((response.state.defenders['pigs-1'] as { squads?: number }).squads).toBeUndefined()
   })
+
+  it('throws when persisted stack group names disagree with canonical roster naming', () => {
+    expect(() => buildGameStateResponse(
+      {
+        gameId: 6,
+        scenarioId: 'scenario-6',
+        scenarioSnapshot: { name: 'Scenario 6', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        players: { onion: 'onion-1', defender: 'defender-1' },
+        phase: 'DEFENDER_MOVE',
+        turnNumber: 1,
+        winner: null,
+        state: {
+          onion: {
+            id: 'onion-1',
+            type: 'TheOnion',
+            position: { q: 0, r: 0 },
+            status: 'operational',
+            treads: 45,
+            batteries: { main: 1, secondary: 1, ap: 1 },
+            weapons: [],
+          },
+          defenders: {
+            'pigs-1': {
+              id: 'pigs-1',
+              type: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              status: 'operational',
+              squads: 2,
+              friendlyName: 'Little Pigs 1',
+              weapons: [],
+            },
+            'pigs-2': {
+              id: 'pigs-2',
+              type: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              status: 'operational',
+              squads: 2,
+              friendlyName: 'Little Pigs 2',
+              weapons: [],
+            },
+          },
+          stackRoster: {
+            groupsById: {
+              'LittlePigs:4,4': {
+                groupName: 'Little Pigs group 99',
+                unitType: 'LittlePigs',
+                position: { q: 4, r: 4 },
+                unitIds: ['pigs-1', 'pigs-2'],
+              },
+            },
+          },
+        },
+        events: [],
+      } as any,
+      'onion-user',
+    )).toThrow('Conflicting stack group name')
+  })
 })

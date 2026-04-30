@@ -14,6 +14,8 @@ import {
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex, type StackRosterState } from '../../shared/stackRoster'
 import type { Weapon } from '../../shared/types/index'
+import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
+import logger from '../lib/logger'
 
 type BattlefieldLeftRailProps = {
   activeCombatRole: 'onion' | 'defender' | null
@@ -278,6 +280,21 @@ export function BattlefieldLeftRail({
   stackRoster,
   onSelectUnit,
 }: BattlefieldLeftRailProps) {
+  function routeSourceSelection(request: InteractionRoutingRequest, unitId: string, additive: boolean) {
+    const decision = routeInteraction(request, (trace) => {
+      logger.debug('[interaction-debug] left rail routed', {
+        ts: Date.now(),
+        ...trace,
+      })
+    })
+
+    if (decision.intent === 'noop') {
+      return
+    }
+
+    onSelectUnit(unitId, additive || decision.intent === 'toggle-actor')
+  }
+
   const defenderCombatGroups = activeCombatRole === 'defender' && isCombatPhase
     ? buildDefenderCombatGroups(displayedDefenders, activeMode, activeSelectedUnitIds, stackNaming, stackRoster)
     : []
@@ -327,7 +344,25 @@ export function BattlefieldLeftRail({
                         }
 
                         event.stopPropagation()
-                        onSelectUnit(selectionId, event.ctrlKey || event.metaKey)
+                        routeSourceSelection(
+                          {
+                            viewerRole: activeCombatRole ?? 'onion',
+                            viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                            phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                            surface: 'left-rail',
+                            gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
+                            subjectRelation: 'self',
+                            subjectKind: 'weapon',
+                            subjectCapability: {
+                              inspectable: true,
+                              moveEligible: false,
+                              attackerEligible: true,
+                              targetEligible: false,
+                            },
+                          },
+                          selectionId,
+                          event.ctrlKey || event.metaKey,
+                        )
                       }}
                     >
                       <div className="weapon-card-name">{resolveBattlefieldWeaponName(weapon)}</div>
@@ -372,7 +407,25 @@ export function BattlefieldLeftRail({
                         }
 
                         event.stopPropagation()
-                        onSelectUnit(group.anchorUnit.id, event.ctrlKey || event.metaKey)
+                        routeSourceSelection(
+                          {
+                            viewerRole: activeCombatRole ?? 'defender',
+                            viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                            phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                            surface: 'left-rail',
+                            gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
+                            subjectRelation: 'self',
+                            subjectKind: 'stack',
+                            subjectCapability: {
+                              inspectable: true,
+                              moveEligible: false,
+                              attackerEligible: true,
+                              targetEligible: false,
+                            },
+                          },
+                          group.anchorUnit.id,
+                          event.ctrlKey || event.metaKey,
+                        )
                       }}
                     >
                       <div className="combat-stack-card-head">
@@ -405,7 +458,25 @@ export function BattlefieldLeftRail({
                                 }
 
                                 event.stopPropagation()
-                                onSelectUnit(member.selectionId, true)
+                                routeSourceSelection(
+                                  {
+                                    viewerRole: activeCombatRole ?? 'defender',
+                                    viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                                    phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                                    surface: 'left-rail',
+                                    gesture: 'primary-additive',
+                                    subjectRelation: 'self',
+                                    subjectKind: 'stack',
+                                    subjectCapability: {
+                                      inspectable: true,
+                                      moveEligible: false,
+                                      attackerEligible: true,
+                                      targetEligible: false,
+                                    },
+                                  },
+                                  member.selectionId,
+                                  true,
+                                )
                               }}
                             >
                               <div className="weapon-card-name">{member.label}</div>
@@ -445,7 +516,25 @@ export function BattlefieldLeftRail({
                   }
 
                   event.stopPropagation()
-                  onSelectUnit(displayedOnion.id, event.ctrlKey || event.metaKey)
+                  routeSourceSelection(
+                    {
+                      viewerRole: activeCombatRole ?? 'onion',
+                      viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                      phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                      surface: 'left-rail',
+                      gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
+                      subjectRelation: 'self',
+                      subjectKind: 'unit',
+                      subjectCapability: {
+                        inspectable: true,
+                        moveEligible: false,
+                        attackerEligible: true,
+                        targetEligible: false,
+                      },
+                    },
+                    displayedOnion.id,
+                    event.ctrlKey || event.metaKey,
+                  )
                 }}
               >
                 <h3>{resolveBattlefieldUnitName(displayedOnion.type, displayedOnion.id, displayedOnion.friendlyName)}</h3>
@@ -505,7 +594,25 @@ export function BattlefieldLeftRail({
                           }
 
                           event.stopPropagation()
-                          onSelectUnit(group.anchorUnit.id, event.ctrlKey || event.metaKey)
+                          routeSourceSelection(
+                            {
+                              viewerRole: activeCombatRole ?? 'defender',
+                              viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                              phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                              surface: 'left-rail',
+                              gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
+                              subjectRelation: 'self',
+                              subjectKind: 'stack',
+                              subjectCapability: {
+                                inspectable: true,
+                                moveEligible: true,
+                                attackerEligible: false,
+                                targetEligible: false,
+                              },
+                            },
+                            group.anchorUnit.id,
+                            event.ctrlKey || event.metaKey,
+                          )
                         }}
                       >
                         <div className="combat-stack-card-head">
@@ -534,7 +641,25 @@ export function BattlefieldLeftRail({
                                   }
 
                                   event.stopPropagation()
-                                  onSelectUnit(member.selectionId, true)
+                                  routeSourceSelection(
+                                    {
+                                      viewerRole: activeCombatRole ?? 'defender',
+                                      viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                                      phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                                      surface: 'left-rail',
+                                      gesture: 'primary-additive',
+                                      subjectRelation: 'self',
+                                      subjectKind: 'stack',
+                                      subjectCapability: {
+                                        inspectable: true,
+                                        moveEligible: true,
+                                        attackerEligible: false,
+                                        targetEligible: false,
+                                      },
+                                    },
+                                    member.selectionId,
+                                    true,
+                                  )
                                 }}
                               >
                                 <div className="weapon-card-name">{member.label}</div>

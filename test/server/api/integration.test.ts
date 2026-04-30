@@ -470,6 +470,42 @@ describe('Integration Phases (Modular)', () => {
     await runDefenderMovePhase(ctx)
   })
 
+  it('reproduces the swamp defender first-move stack-name regression at the API layer', async () => {
+    const ctx = await setupIntegrationGame('swamp-defender-first-move')
+    await runOnionMovePhase(ctx)
+    await runEndPhase(ctx, 'onion', 'ONION_MOVE', 'ONION_COMBAT')
+    await runOnionAttackPhase(ctx)
+    await runEndPhase(ctx, 'onion', 'ONION_COMBAT', 'DEFENDER_MOVE')
+
+    const before = await fetchGame(ctx, 'defender')
+    expect(before.phase).toBe('DEFENDER_MOVE')
+
+    const pigStackIds = Object.values(before.state.defenders as Record<string, any>)
+      .filter((defender: any) => defender.type === 'LittlePigs' && defender.position.q === 5 && defender.position.r === 7)
+      .map((defender: any) => defender.id)
+      .sort()
+    expect(pigStackIds).toEqual(['pigs-4', 'pigs-5'])
+
+    const moveTarget = { q: 5, r: 8 }
+
+    const moveCmd = { type: 'MOVE' as const, movers: pigStackIds, to: moveTarget }
+    const moveRes = await ctx.app.inject({
+      method: 'POST',
+      url: `/games/${ctx.gameId}/actions`,
+      headers: { authorization: `Bearer ${ctx.defenderUser.token}` },
+      payload: moveCmd,
+    })
+    expect(moveRes.statusCode).toBe(200)
+
+    const moveBody = moveRes.json()
+    expect(moveBody.ok).toBe(true)
+    applyActionToExpectedState(ctx.expectedState, moveCmd, moveBody)
+
+    const after = await fetchGame(ctx, 'defender')
+    expect(after.phase).toBe('DEFENDER_MOVE')
+    assertStateMatches(after.state, ctx.expectedState)
+  })
+
   it('DEFENDER_ATTACK phase test validates fire/combine behavior and expected state', async () => {
     const ctx = await setupIntegrationGame('phase-defender-attack')
     await runOnionMovePhase(ctx)

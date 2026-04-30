@@ -8,6 +8,8 @@ import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex, type StackRosterState } from '../../shared/stackRoster'
+import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
+import logger from '../lib/logger'
 import './HexMapBoard.css'
 
 import swampDestroyedSprite from '../assets/The Swamp - destroyed.png'
@@ -144,8 +146,12 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
   const zoomSliderRef = useRef<HTMLInputElement | null>(null)
   const previousZoomRef = useRef(1)
+  const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
   const activeCombatRole = phase === 'ONION_COMBAT' ? 'onion' : phase === 'DEFENDER_COMBAT' ? 'defender' : null
   const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
+  const resolvedViewerRole = viewerRole ?? (phase?.startsWith('DEFENDER') ? 'defender' : 'onion')
+  const resolvedViewerActivity = isSelectionLocked ? 'inactive' : 'active'
+  const resolvedPhaseMode = isMovementPhase ? 'movement' : isCombatPhase ? 'combat' : 'locked'
   const zoomLevel = zoomPercent / 100
 
   const selectedUnitSet = useMemo(() => {
@@ -366,6 +372,31 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
     return false
   }
 
+  function isCombatTargetSelectable(occupant: HexOccupant) {
+    const combatTargetId = getCombatTargetIdForOccupant(occupant)
+
+    if (activeCombatRole === 'onion' && occupant.id !== onion.id) {
+      return combatTargetIds === undefined || combatTargetIds.has(combatTargetId)
+    }
+
+    if (activeCombatRole === 'defender' && occupant.id === onion.id) {
+      return combatTargetIds === undefined || combatTargetIds.has(combatTargetId)
+    }
+
+    return false
+  }
+
+  function routeMapInteraction(request: InteractionRoutingRequest) {
+    const decision = routeInteraction(request, (trace) => {
+      logger.debug('[interaction-debug] map routed', {
+        ts: Date.now(),
+        ...trace,
+      })
+    })
+
+    return decision
+  }
+
   return (
     <div className="hex-map-shell panel-subtle">
       {moveError ? (
@@ -453,7 +484,25 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                       return
                     }
 
-                    onDeselect()
+                    const decision = routeMapInteraction({
+                      viewerRole: resolvedViewerRole,
+                      viewerActivity: resolvedViewerActivity,
+                      phaseMode: resolvedPhaseMode,
+                      surface: 'map',
+                      gesture: 'primary',
+                      subjectRelation: 'background',
+                      subjectKind: 'background',
+                      subjectCapability: {
+                        inspectable: false,
+                        moveEligible: false,
+                        attackerEligible: false,
+                        targetEligible: false,
+                      },
+                    })
+
+                    if (decision.intent === 'clear-local-selection') {
+                      onDeselect()
+                    }
                   }}
                   onContextMenu={(event) => {
                     event.preventDefault()
@@ -462,23 +511,39 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                       return
                     }
 
-                    if (cellOccupants.some((occupant) => selectCombatTarget(occupant))) {
+                    const validation = validateMoveTarget(coord)
+                    const destinationReachable = isReachable || validation?.valid === true
+                      const targetOccupant = cellOccupants[0]
+                    const decision = routeMapInteraction({
+                      viewerRole: resolvedViewerRole,
+                      viewerActivity: resolvedViewerActivity,
+                      phaseMode: resolvedPhaseMode,
+                      surface: 'map',
+                      gesture: 'secondary',
+                      subjectRelation: cellOccupants.length > 0 ? 'opponent' : 'background',
+                      subjectKind: 'hex',
+                      subjectCapability: {
+                        inspectable: cellOccupants.some((occupant) => occupant.status !== 'destroyed'),
+                        moveEligible: selectedIsEligible,
+                        attackerEligible: false,
+                          targetEligible: targetOccupant !== undefined ? isCombatTargetSelectable(targetOccupant) : false,
+                      },
+                      interactionMode: {
+                        destinationReachable,
+                      },
+                    })
+
+                      if (decision.intent === 'select-target' && targetOccupant !== undefined) {
+                        selectCombatTarget(targetOccupant)
+                        return
+                      }
+
+                    if (decision.intent === 'submit-move' && canSubmitMove && selectedIsEligible) {
+                      onMoveUnit(selectedOccupant.id, coord)
                       return
                     }
 
-                    if (!selectedIsEligible || !canSubmitMove) {
-                      return
-                    }
-                    if (isReachable) {
-                      onMoveUnit(selectedOccupant.id, coord)
-                      return
-                    }
-                    const validation = validateMoveTarget(coord)
-                    if (validation?.valid) {
-                      onMoveUnit(selectedOccupant.id, coord)
-                      return
-                    }
-                    if (canSubmitMove && selectedIsEligible) {
+                    if (decision.intent === 'show-illegal-local-feedback' && canSubmitMove && selectedIsEligible) {
                       const message = validation?.error ?? 'Illegal move'
                       setMoveError(message)
                     }
@@ -615,7 +680,44 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
 
                               event.stopPropagation()
 
-                              onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
+                              const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
+                              const decision = routeMapInteraction({
+                                viewerRole: resolvedViewerRole,
+                                viewerActivity: resolvedViewerActivity,
+                                phaseMode: resolvedPhaseMode,
+                                surface: 'map',
+                                gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
+                                subjectRelation: occupant.type === 'Swamp'
+                                  ? 'neutral/system'
+                                  : occupant.id === onion.id
+                                    ? resolvedViewerRole === 'onion'
+                                      ? 'self'
+                                      : 'opponent'
+                                    : resolvedViewerRole === 'defender'
+                                      ? 'self'
+                                      : 'opponent',
+                                subjectKind: rosterGroup !== null ? 'stack' : 'unit',
+                                subjectCapability: {
+                                  inspectable: occupant.status !== 'destroyed' || occupant.type === 'Swamp',
+                                  moveEligible: isMovementPhase && occupant.status === 'operational' && (occupant.id === onion.id ? onion.movesRemaining > 0 : 'move' in occupant && occupant.move > 0),
+                                  attackerEligible: isCombatPhase && occupant.status === 'operational' && (occupant.id === onion.id
+                                    ? resolvedViewerRole === 'onion' && (occupant.weaponDetails ?? []).some((weapon) => weapon.status === 'ready')
+                                    : resolvedViewerRole === 'defender' && 'actionableModes' in occupant && occupant.actionableModes.includes('fire')),
+                                  targetEligible: false,
+                                },
+                                interactionMode: rosterGroup !== null ? { groupExpansionTarget: true } : undefined,
+                              })
+
+                              if (decision.intent === 'clear-local-selection') {
+                                onDeselect()
+                                return
+                              }
+
+                              if (decision.intent === 'noop') {
+                                return
+                              }
+
+                              onSelectUnit(occupant.id, event.ctrlKey || event.metaKey || decision.intent === 'toggle-actor')
                             }}
                           >
                             <rect

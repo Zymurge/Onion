@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { resolveWebRuntimeConfig } from './lib/appBootstrap'
 import { getWebLoggerLevel, setWebLoggerLevel } from './lib/logger'
 
@@ -22,9 +23,11 @@ Object.assign(window, {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App
-      runtimeConfig={runtimeConfig}
-      showConnectionGate={runtimeConfig.apiBaseUrl !== null || runtimeConfig.gameId !== null}
-    />
+    <AppErrorBoundary>
+      <App
+        runtimeConfig={runtimeConfig}
+        showConnectionGate={runtimeConfig.apiBaseUrl !== null || runtimeConfig.gameId !== null}
+      />
+    </AppErrorBoundary>
   </StrictMode>,
 )

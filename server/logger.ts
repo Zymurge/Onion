@@ -12,8 +12,8 @@ function getInitialLevel(): LogLevel {
   if (envLevel === 'debug' || envLevel === 'info' || envLevel === 'warn' || envLevel === 'error') {
     return envLevel
   }
-
-  return 'info'
+  // Default to 'warn' if not set
+  return 'warn'
 }
 
 function formatLogPayload(args: unknown[]): string {
@@ -78,7 +78,13 @@ class SimpleLogger {
   }
 }
 
+
 const logger = new SimpleLogger(getInitialLevel())
+
+// Log the log level on startup
+if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'test') {
+  logger.info(`Logger initialized at level: ${logger.level}`)
+}
 
 export function setLoggerLevel(level: 'debug' | 'info'): void {
   logger.level = level

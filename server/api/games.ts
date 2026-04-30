@@ -148,6 +148,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       }
       const { scenarioId, role } = parsed.data
       logger.info({ scenarioId, role }, 'Creating new game match')
+      logger.debug({ scenarioId, role, body: req.body }, 'Game creation request body')
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for game creation')
@@ -162,13 +163,16 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         try {
           const parsedState = InitialStateSchema.parse(scenarioSnapshot.initialState)
           state = normalizeInitialStateToGameState(parsedState)
-		  assertScenarioStateFitsMap(scenarioMap, scenarioSnapshot, state)
+          assertScenarioStateFitsMap(scenarioMap, scenarioSnapshot, state)
+          logger.debug({ state }, 'Parsed and normalized initial game state')
         } catch (err) {
           logger.error({ err }, 'Invalid scenario initialState')
+          logger.debug({ scenarioSnapshot }, 'Scenario snapshot for failed initialState')
           return reply.status(400).send({ ok: false, error: 'Invalid scenario initialState', code: 'INVALID_SCENARIO' })
         }
       } else {
         state = { ...INITIAL_STATE }
+        logger.debug({ state }, 'Default initial game state used')
       }
       const players: { onion: string | null; defender: string | null } = {
         onion: null,
@@ -188,6 +192,8 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       })
       return reply.status(201).send({ gameId: created.gameId, role })
     } catch (err) {
+      logger.warn({ err }, '500 error during game creation')
+      logger.debug({ err, reqBody: req.body }, 'Troubleshooting info for game creation 500')
       logger.error({ err }, 'Failed to create game match')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
@@ -339,7 +345,20 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       logger.debug({ gameId: match.gameId }, 'Game state fetched')
       return reply.send(buildGameStateResponse(match, userId))
     } catch (err) {
-      logger.error({ err }, 'Error fetching game state')
+      // Structured, non-duplicative error logging by level
+      const errorInfo = {
+        type: typeof err,
+        isError: err instanceof Error,
+        message: err && typeof err === 'object' && 'message' in err ? (err as any).message : String(err),
+        stack: err && typeof err === 'object' && 'stack' in err ? (err as any).stack : undefined,
+      };
+      // Warn: always log the problem summary
+      logger.warn({ message: errorInfo.message }, '500 error during game state fetch')
+      // Info: add context (params, user, etc) if info level enabled
+      logger.info({ params: req.params, user: extractUserId(req.headers.authorization) }, 'Request context for 500 error')
+      // Debug: add deep details if debug enabled
+      logger.debug({ errorType: errorInfo.type, isError: errorInfo.isError, stack: errorInfo.stack, headers: req.headers }, 'Debug details for 500 error')
+
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })
