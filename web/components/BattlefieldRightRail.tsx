@@ -88,6 +88,7 @@ export function BattlefieldRightRail({
   onClearStackSelection,
 }: BattlefieldRightRailProps) {
   const shouldShowCombatPanel = isCombatPhase && activeRole === activeCombatRole
+  const shouldShowInspectorPanel = selectedInspectorOnion !== null || selectedInspectorDefender !== null || !shouldShowCombatPanel
 
   function routeRightRailInteraction(request: InteractionRoutingRequest) {
     const decision = routeInteraction(request, (trace) => {
@@ -216,6 +217,18 @@ export function BattlefieldRightRail({
     rightRailStackPanel,
   })
 
+  const inspectorPanel = shouldShowInspectorPanel ? (
+    <BattlefieldInspectorPanel
+      selectedInspectorLabel={selectedInspectorLabel}
+      selectedInspectorDefender={selectedInspectorDefender}
+      selectedInspectorOnion={selectedInspectorOnion}
+      selectedStackMemberCount={rightRailStackPanel.selectedStackMembers.length}
+      activeSelectedUnitCount={activeSelectedUnitCount}
+      victoryObjectives={victoryObjectives}
+      escapeHexes={escapeHexes}
+    />
+  ) : null
+
   return (
     <aside className="panel rail rail-right">
       {showInactiveEventStream ? (
@@ -224,6 +237,7 @@ export function BattlefieldRightRail({
           errorMessage={inactiveEventStream.errorMessage}
           isLoading={inactiveEventStream.isLoading}
           canDismiss={canDismissInactiveEventStream}
+          onDismiss={inactiveEventStream.clearEntries}
           onDismissError={inactiveEventStream.clearErrorMessage}
         />
       ) : null}
@@ -283,28 +297,7 @@ export function BattlefieldRightRail({
           </div>
         </section>
       ) : null}
-      {selectedInspectorOnion !== null ? (
-        <BattlefieldInspectorPanel
-          selectedInspectorLabel={selectedInspectorLabel}
-          selectedInspectorDefender={null}
-          selectedInspectorOnion={selectedInspectorOnion}
-          selectedStackMemberCount={0}
-          activeSelectedUnitCount={activeSelectedUnitCount}
-          victoryObjectives={victoryObjectives}
-          escapeHexes={escapeHexes}
-        />
-      ) : null}
-      {selectedInspectorDefender !== null ? (
-        <BattlefieldInspectorPanel
-          selectedInspectorLabel={selectedInspectorLabel}
-          selectedInspectorDefender={selectedInspectorDefender}
-          selectedInspectorOnion={null}
-          selectedStackMemberCount={rightRailStackPanel.selectedStackMembers.length}
-          activeSelectedUnitCount={activeSelectedUnitCount}
-          victoryObjectives={victoryObjectives}
-          escapeHexes={escapeHexes}
-        />
-      ) : null}
+      {inspectorPanel}
       {shouldShowCombatPanel && selectedInspectorOnion === null ? (
         <section className="section-block panel-subtle">
           <div className="card-head">
@@ -372,25 +365,7 @@ export function BattlefieldRightRail({
             <p className="summary-line">No valid targets are currently in range.</p>
           )}
         </section>
-      ) : isCombatPhase ? (
-        <section className="selection-panel panel-subtle">
-          <div className="selection-panel-header">
-            <div>
-              <p className="eyebrow">Inspector</p>
-            </div>
-          </div>
-          <div className="empty-state">Select a unit on the map or in the rail to inspect it here.</div>
-        </section>
-      ) : (
-        <section className="selection-panel panel-subtle">
-          <div className="selection-panel-header">
-            <div>
-              <p className="eyebrow">Inspector</p>
-            </div>
-          </div>
-          <div className="empty-state">Select a unit on the map or in the rail to inspect it here.</div>
-        </section>
-      )}
+      ) : null}
     </aside>
   )
 }

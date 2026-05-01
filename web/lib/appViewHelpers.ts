@@ -230,6 +230,32 @@ export function countSelectedBattlefieldStackGroups(
   return selectedGroupKeys.size
 }
 
+export function resolveBattlefieldStacksExpandable({
+  activeRole,
+  activeTurnActive,
+  isCombatPhase,
+  isMovementPhase,
+}: {
+  activeRole: 'onion' | 'defender' | null
+  activeTurnActive: boolean
+  isCombatPhase: boolean
+  isMovementPhase: boolean
+}): boolean {
+  return activeTurnActive && activeRole === 'defender' && (isCombatPhase || isMovementPhase)
+}
+
+export function shouldExpandBattlefieldStackGroup({
+  memberCount,
+  selectedCount,
+  stacksExpandable,
+}: {
+  memberCount: number
+  selectedCount: number
+  stacksExpandable: boolean
+}): boolean {
+  return memberCount > 1 && selectedCount > 0 && stacksExpandable
+}
+
 export function buildClientStackSelection(
   state: StackSourceState | null | undefined,
   anchorUnitId: string | null,

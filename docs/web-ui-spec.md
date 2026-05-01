@@ -130,6 +130,23 @@ The matrix needs a role dimension, but the intent is to keep it narrow. Most row
 | Onion or Defender | Inactive | Any inspectable subject | Inspect only |
 | Onion or Defender | Inactive | Right-rail stack member controls | Not shown; inactive players see only the grouped stack summary |
 
+### Stack Expansion Visibility Matrix
+
+Stack expansion is a view-state capability, not a rail-local special case. Surfaces that can render grouped units should receive a shared `stacksExpandable` flag derived from role, phase, and viewer activity.
+
+| Viewer role | Viewer activity | Phase mode | stacksExpandable |
+| --- | --- | --- | --- |
+| Defender | Active | Movement | true |
+| Defender | Active | Combat | true |
+| Defender | Active | Locked | false |
+| Defender | Inactive | Any | false |
+| Onion | Active | Any | false |
+| Onion | Inactive | Any | false |
+
+- When `stacksExpandable` is false, grouped units remain collapsed summaries.
+- When `stacksExpandable` is true, a grouped unit expands only after the group itself is selected, and the revealed members are immediately in toggleable subgroup-edit state.
+- Onion never sees per-member stack expansion in the left rail.
+
 ### Shell Control Vocabulary
 
 Header controls are routed separately from battlefield map and rail interactions.

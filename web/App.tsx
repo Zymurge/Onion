@@ -490,6 +490,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     onionWeapons,
     phaseAdvanceLabel,
     readyWeaponDetails,
+    stacksExpandable,
     selectedCombatAttackerIds,
     selectedCombatAttackCount,
     selectedCombatAttackLabel,
@@ -830,6 +831,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       <main className="battlefield-grid" onClick={handleDeselectUnit}>
         <BattlefieldLeftRail
           activeCombatRole={activeCombatRole}
+          activeRole={activeRole}
+          activeTurnActive={activeTurnActive}
           activeMode={activeMode}
           activeSelectedUnitIds={activeSelectedUnitIds}
           displayedDefenders={displayedDefenders}
@@ -837,6 +840,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           isCombatPhase={isCombatPhase}
           isMovementPhase={isMovementPhase}
           isSelectionLocked={inactiveEventScreenLocked}
+          stacksExpandable={stacksExpandable}
           onionWeapons={onionWeapons}
           readyWeaponDetails={readyWeaponDetails}
           selectedCombatAttackLabel={selectedCombatAttackLabel}

@@ -133,6 +133,16 @@ describe('buildCombatTargetOptions', () => {
 					},
 				},
 			},
+			stackNaming: {
+				groupsInUse: [
+					{
+						unitType: 'LittlePigs',
+						groupKey: 'LittlePigs:3,2',
+						groupName: 'Little Pigs group 1',
+					},
+				],
+				usedGroupNames: ['Little Pigs group 1'],
+			},
 			selectedUnitIds: ['weapon:main-1'],
 			selectedAttackStrength: 4,
 			selectedAttackGroupCount: 1,

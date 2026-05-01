@@ -16,7 +16,7 @@ import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
 import { buildStackRosterIndex, relocateStackRosterUnits } from '#shared/stackRoster'
-import { buildStackGroupKey, refreshStackNamingSnapshotFromRoster } from '#shared/stackNaming'
+import { buildStackGroupKey, createStackNamingEngine, refreshStackNamingSnapshotFromRoster } from '#shared/stackNaming'
 
 /**
  * Result of validating a movement command.
@@ -184,9 +184,33 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
   const sourceGroup = rosterIndex.getUnitGroup(movedUnitId)
   const destinationGroupId = buildStackGroupKey(movedDefender.type, movedDefender.position)
   const destinationGroup = rosterIndex.groupsById[destinationGroupId] ?? null
+  const sourceGroupUnitCount = sourceGroup?.unitIds?.length ?? sourceGroup?.units?.length ?? 0
+  const sourceRemainingUnitCount = Math.max(sourceGroupUnitCount - 1, 0)
+  const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? 0
+  const destinationResultUnitCount = destinationGroupUnitCount + 1
   const persistedDestinationName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+  const shouldAllocateFreshDestinationName =
+    destinationResultUnitCount > 1
+    && persistedDestinationName === undefined
+    && destinationGroupUnitCount === 1
+    && (
+      destinationGroup?.groupName === undefined
+      || sourceGroup?.groupName !== destinationGroup.groupName
+      || sourceRemainingUnitCount > 1
+    )
+  const allocatedDestinationName = shouldAllocateFreshDestinationName
+    ? createStackNamingEngine(state.stackNaming).resolveGroupName(
+        destinationGroupId,
+        movedDefender.type,
+        movedDefender.id,
+        movedDefender.friendlyName,
+        destinationResultUnitCount,
+      )
+    : undefined
   const selectedNameSource = persistedDestinationName !== undefined
     ? 'persisted-stack-naming'
+    : allocatedDestinationName !== undefined
+      ? 'allocated-destination-group'
     : destinationGroup?.groupName !== undefined
       ? 'destination-roster-group'
       : sourceGroup?.groupName !== undefined
@@ -195,6 +219,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
           ? 'defender-friendly-name'
           : 'unit-type-fallback'
   const movedGroupName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+    ?? allocatedDestinationName
     ?? destinationGroup?.groupName
     ?? sourceGroup?.groupName
     ?? movedDefender.friendlyName

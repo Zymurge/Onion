@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { BattlefieldInspectorPanel } from '#web/components/BattlefieldInspectorPanel'
@@ -40,13 +40,14 @@ describe('BattlefieldInspectorPanel', () => {
         selectedStackMemberCount={2}
         activeSelectedUnitCount={2}
         victoryObjectives={[
-          { id: 'obj-1', label: 'Survive', completed: true, required: true },
+          { id: 'obj-1', label: 'Survive', kind: 'destroy-unit', completed: true, required: true },
         ]}
         escapeHexes={[{ q: 3, r: 5 }]}
       />,
     )
 
-    expect(screen.getByText('Little Pigs 1')).not.toBeNull()
+    const inspector = screen.getByTestId('battlefield-inspector')
+    expect(within(inspector).getByTestId('battlefield-inspector-subject-pigs-1').textContent).toBe('Little Pigs 1')
     expect(getLabeledValue('Stack')).toBe('2')
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
   })
@@ -73,14 +74,15 @@ describe('BattlefieldInspectorPanel', () => {
         selectedStackMemberCount={1}
         activeSelectedUnitCount={1}
         victoryObjectives={[
-          { id: 'obj-1', label: 'Survive', completed: true, required: true },
+          { id: 'obj-1', label: 'Survive', kind: 'destroy-unit', completed: true, required: true },
         ]}
         escapeHexes={[{ q: 3, r: 5 }]}
       />,
     )
 
-    expect(screen.getByText(/victory conditions/i)).not.toBeNull()
-    expect(screen.getByText(/escape hexes/i)).not.toBeNull()
+    const inspector = screen.getByTestId('battlefield-inspector')
+    expect(within(inspector).getByText(/victory conditions/i)).not.toBeNull()
+    expect(within(inspector).getByText(/escape hexes/i)).not.toBeNull()
   })
 
   it('renders onion inspector stats and keeps stack count fixed at one', () => {
@@ -110,7 +112,8 @@ describe('BattlefieldInspectorPanel', () => {
       />,
     )
 
-    expect(screen.getByText('TheOnion')).not.toBeNull()
+    const inspector = screen.getByTestId('battlefield-inspector')
+    expect(within(inspector).getByTestId('battlefield-inspector-subject-onion-1').textContent).toBe('TheOnion')
     expect(getLabeledValue('Stack')).toBe('1')
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
   })

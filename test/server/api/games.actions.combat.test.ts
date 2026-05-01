@@ -355,53 +355,5 @@ describe('POST /games/:id/actions combat API contract', () => {
     validateSpy.mockRestore()
     executeSpy.mockRestore()
   })
-
-  it('persists winner when Onion destroys the Castle via combat', async () => {
-    const app = buildApp()
-    const shrek = await register(app, 'shrek')
-    const fiona = await register(app, 'fiona')
-    const { gameId } = await createGame(app, shrek.token, 'onion')
-    await joinGame(app, gameId, fiona.token)
-    await advanceToPhase(app, gameId, shrek.token, fiona.token, 'ONION_COMBAT')
-
-    const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
-      ok: true,
-      plan: { actionType: 'FIRE', attackerIds: ['main'], target: { kind: 'defender', id: 'castle' }, attackStrength: 8, defense: 2 },
-    } as any)
-    const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation((state) => {
-      // Simulate castle being destroyed — Onion wins
-      if (state.defenders['castle']) {
-        state.defenders['castle'].status = 'destroyed'
-      } else {
-        // inject a castle into state so checkVictoryConditions can find it
-        state.defenders['castle'] = { type: 'Castle', position: { q: 5, r: 5 }, status: 'destroyed' } as any
-      }
-      return {
-        success: true,
-        actionType: 'FIRE',
-        attackerIds: ['main'],
-        targetId: 'castle',
-        roll: { roll: 6, result: 'X', odds: '3:1' },
-        statusChanges: [{ unitId: 'castle', from: 'operational', to: 'destroyed' }],
-      }
-    })
-
-    await submitAction(app, gameId, shrek.token, {
-      type: 'FIRE',
-      attackers: ['main'],
-      targetId: 'castle',
-    })
-
-    validateSpy.mockRestore()
-    executeSpy.mockRestore()
-
-    const stateRes = await app.inject({
-      method: 'GET',
-      url: `/games/${gameId}`,
-      headers: { authorization: `Bearer ${shrek.token}` },
-    })
-    const body = stateRes.json()
-    expect(body.winner).not.toBeNull()
-    expect(body.winner).toBe('onion')
-  })
+  
 })

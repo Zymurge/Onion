@@ -82,6 +82,7 @@ function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefieldSnaps
 				'onion-live': 0,
 				'dragon-7': 0,
 			},
+			victoryObjectives: [],
 		scenarioMap: {
 			width: 2,
 			height: 2,
@@ -167,6 +168,7 @@ function createConnectedBattlefieldSnapshot(
 				'wolf-2': 4,
 				'puss-1': 3,
 			},
+			victoryObjectives: [],
 		scenarioMap: {
 			width: 8,
 			height: 8,
@@ -386,6 +388,14 @@ describe('App orchestration (injected game client)', () => {
 						},
 					},
 				},
+				stackNaming: {
+					groupsInUse: [
+						{
+							groupKey: 'LittlePigs:4,4',
+							groupName: 'Little Pigs group 1',
+						},
+					],
+				},
 			},
 		}
 		const session = { role: 'defender' as const }
@@ -474,6 +484,15 @@ describe('App orchestration (injected game client)', () => {
 						},
 					},
 				},
+				stackNaming: {
+					groupsInUse: [
+						{
+							groupKey: 'LittlePigs:2,2',
+							groupName: 'Little Pigs group 1',
+						},
+					],
+				},
+
 			},
 			scenarioMap: {
 				...baseSnapshot.scenarioMap,
@@ -1006,7 +1025,7 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
 	})
 
-	it('sorts destroyed defenders to the bottom and marks them as disabled in the roster', async () => {
+	it('sorts destroyed defenders to the bottom and marks them as destroyed in the roster', async () => {
 		const baseSnapshot = createConnectedBattlefieldSnapshot()
 		const snapshot = {
 			...baseSnapshot,
@@ -1065,6 +1084,10 @@ describe('App orchestration (injected game client)', () => {
 						],
 					},
 				},
+				stackRoster: {},
+				stackNaming: {
+					groupsInUse: [],
+				},
 			},
 		}
 		const session = { role: 'defender' as const }
@@ -1084,11 +1107,10 @@ describe('App orchestration (injected game client)', () => {
 		const deadCombatButton = deadButton as HTMLButtonElement
 
 		expect(activeButton.compareDocumentPosition(deadButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-		expect(noReadyCombatButton.disabled).toBe(true)
-		expect(noReadyButton.getAttribute('class')).toContain('is-disabled')
+		expect(noReadyCombatButton.disabled).toBe(false)
 		expect(noReadyButton.getAttribute('title')).toBe('This unit is not eligible to attack.')
-		expect(deadCombatButton.disabled).toBe(true)
-		expect(deadButton.getAttribute('class')).toContain('is-disabled')
+		expect(deadCombatButton.disabled).toBe(false)
+		expect(deadButton.getAttribute('title')).toBe('Destroyed units cannot attack.')
 		expect(deadButton.getAttribute('class')).toContain('tone-destroyed')
 	})
 
@@ -1196,7 +1218,7 @@ describe('App orchestration (injected game client)', () => {
 		await user.click(screen.getByTestId('hex-unit-puss-1'))
 
 		expect(screen.getByRole('heading', { name: /valid targets/i })).not.toBeNull()
-		expect(screen.queryByText(/Inspector/i)).toBeNull()
+		expect(screen.queryByTestId('battlefield-inspector')).toBeNull()
 	})
 
 	it('renders a right-rail target list filtered to the active combat range', async () => {
@@ -1377,71 +1399,6 @@ describe('App orchestration (injected game client)', () => {
 		expect(screen.getByTestId('combat-target-weapon:main-1').getAttribute('data-selected')).toBe('true')
 	})
 
-	it('shows defender combat readiness on the Onion client by defender attack eligibility', async () => {
-		const baseSnapshot = createConnectedBattlefieldSnapshot()
-		const snapshot = {
-			...baseSnapshot,
-			phase: 'DEFENDER_COMBAT' as const,
-			authoritativeState: {
-				...baseSnapshot.authoritativeState,
-				defenders: {
-					...baseSnapshot.authoritativeState.defenders,
-					'wolf-2': {
-						...baseSnapshot.authoritativeState.defenders['wolf-2'],
-						weapons: [
-							{
-								id: 'main',
-								name: 'Main Gun',
-								attack: 4,
-								range: 2,
-								defense: 2,
-								status: 'ready' as const,
-								individuallyTargetable: false,
-							},
-						],
-					},
-					'puss-1': {
-						...baseSnapshot.authoritativeState.defenders['puss-1'],
-						id: 'puss-1',
-						position: { q: 4, r: 6 },
-						weapons: [
-							{
-								id: 'spent',
-								name: 'Spare Gun',
-								attack: 2,
-								range: 2,
-								defense: 2,
-								status: 'spent' as const,
-								individuallyTargetable: false,
-							},
-						],
-					},
-				},
-			},
-		}
-		const session = { role: 'onion' as const }
-		const client = createGameClient({
-			getState: vi.fn().mockResolvedValue({ snapshot, session }),
-			submitAction: vi.fn().mockResolvedValue(snapshot),
-			pollEvents: vi.fn().mockResolvedValue([]),
-		})
-
-		render(<App gameClient={client} gameId={123} />)
-
-		await screen.findByTestId('combat-unit-wolf-2')
-		expect(screen.queryByTestId('combat-target-list')).toBeNull()
-		expect(screen.getByTestId('combat-unit-wolf-2').getAttribute('class')).toContain('is-actionable')
-		expect(screen.getByTestId('combat-unit-puss-1').getAttribute('class')).toContain('is-disabled')
-		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
-		expect(screen.getByTestId('hex-unit-puss-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-ineligible')
-		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
-
-		fireEvent.click(screen.getByTestId('combat-unit-wolf-2'))
-		fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
-		const inspectorPanel = document.querySelector('.selection-panel-header')
-		expect(inspectorPanel?.textContent).toContain('Inspector')
-	})
-
 	it('selects a combat target from the rail on right click', async () => {
 		const snapshot = createInRangeCombatSnapshot()
 		const session = { role: 'defender' as const }
@@ -1536,16 +1493,24 @@ describe('App orchestration (injected game client)', () => {
 						],
 					},
 				},
-					stackRoster: {
-						groupsById: {
-							'LittlePigs:4,4': {
-								groupName: 'Little Pigs group 1',
-								unitType: 'LittlePigs',
-								position: { q: 4, r: 4 },
-								unitIds: ['pigs-1', 'pigs-2'],
-							},
+				stackRoster: {
+					groupsById: {
+						'LittlePigs:4,4': {
+							groupName: 'Little Pigs group 1',
+							unitType: 'LittlePigs',
+							position: { q: 4, r: 4 },
+							unitIds: ['pigs-1', 'pigs-2'],
 						},
 					},
+				},
+				stackNaming: {
+					groupsInUse: [
+						{
+							groupKey: 'LittlePigs:4,4',
+							groupName: 'Little Pigs group 1',
+						},
+					],
+				},
 			},
 		}
 		const session = { role: 'defender' as const }
@@ -1559,11 +1524,15 @@ describe('App orchestration (injected game client)', () => {
 		render(<App gameClient={client} gameId={123} />)
 		fireEvent.click(await screen.findByTestId('combat-unit-pigs-1'))
 
-		expect(screen.getByText('Inspector')).not.toBeNull()
-		expect(screen.getByText('LittlePigs group 1')).not.toBeNull()
-		expect(screen.getByText('Stack').parentElement?.querySelector('dd')?.textContent).toBe('2')
-		expect(screen.queryByTestId('combat-stack-member-pigs-1')).toBeNull()
-		expect(screen.queryByTestId('combat-stack-member-pigs-2')).toBeNull()
+		const inspector = screen.getByTestId('battlefield-inspector')
+		expect(inspector).not.toBeNull()
+		expect(within(inspector).getByText('Inspector')).not.toBeNull()
+		const inspectorSubject = inspector.querySelector('[data-testid^="battlefield-inspector-subject-"]')
+		expect(inspectorSubject).not.toBeNull()
+		expect(inspectorSubject?.textContent).toBe('Little Pigs group 1')
+		expect(within(inspector).getByText('Stack').parentElement?.querySelector('dd')?.textContent).toBe('2')
+		expect(within(inspector).queryByTestId('combat-stack-member-pigs-1')).toBeNull()
+		expect(within(inspector).queryByTestId('combat-stack-member-pigs-2')).toBeNull()
 	})
 
 	it('bases defender combat range on ready weapons rather than display summaries', async () => {

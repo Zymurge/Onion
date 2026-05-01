@@ -174,7 +174,7 @@ export function buildCombatTargetOptions({
 	}
 
 	const selectedAttackerIds = getSelectedAttackerIds(activeCombatRole, selectedUnitIds)
-	const stackRosterIndex = stackRoster === undefined ? null : buildStackRosterIndex(stackRoster)
+	const stackRosterIndex = stackRoster === undefined || stackRoster === null ? null : buildStackRosterIndex(stackRoster)
 
 	if (selectedAttackerIds.length === 0) {
 		return []

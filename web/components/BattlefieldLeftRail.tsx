@@ -10,6 +10,7 @@ import {
   resolveBattlefieldStackLabel,
   resolveBattlefieldUnitName,
   resolveBattlefieldWeaponName,
+  shouldExpandBattlefieldStackGroup,
 } from '../lib/appViewHelpers'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex, type StackRosterState } from '../../shared/stackRoster'
@@ -19,6 +20,8 @@ import logger from '../lib/logger'
 
 type BattlefieldLeftRailProps = {
   activeCombatRole: 'onion' | 'defender' | null
+  activeRole: 'onion' | 'defender' | null
+  activeTurnActive: boolean
   activeMode: Mode
   activeSelectedUnitIds: string[]
   displayedDefenders: ReadonlyArray<BattlefieldUnit>
@@ -26,6 +29,7 @@ type BattlefieldLeftRailProps = {
   isCombatPhase: boolean
   isMovementPhase: boolean
   isSelectionLocked: boolean
+  stacksExpandable: boolean
   onionWeapons: {
     operationalWeapons: number
     operationalMissiles: number
@@ -80,8 +84,9 @@ function buildCombatGroupFromUnits(
   const anchorUnit = units[0]
   const baseAttackStats = parseAttackStats(anchorUnit.attack)
   const stackSize = units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
-  const label = groupKey !== undefined
-    ? resolveBattlefieldStackLabel(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName, stackSize, groupKey, stackNaming)
+  const resolvedGroupKey = units.length > 1 ? groupKey : undefined
+  const label = resolvedGroupKey !== undefined
+    ? resolveBattlefieldStackLabel(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName, stackSize, resolvedGroupKey, stackNaming)
     : resolveBattlefieldDisplayName({
       id: anchorUnit.id,
       type: anchorUnit.type,
@@ -178,8 +183,9 @@ function buildMoveGroupFromUnits(
 ): DefenderMoveGroup {
   const anchorUnit = units[0]
   const stackSize = units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
-  const label = groupKey !== undefined
-    ? resolveBattlefieldStackLabel(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName, stackSize, groupKey, stackNaming)
+  const resolvedGroupKey = units.length > 1 ? groupKey : undefined
+  const label = resolvedGroupKey !== undefined
+    ? resolveBattlefieldStackLabel(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName, stackSize, resolvedGroupKey, stackNaming)
     : resolveBattlefieldDisplayName({
       id: anchorUnit.id,
       type: anchorUnit.type,
@@ -266,6 +272,8 @@ function buildDefenderMoveGroups(
 
 export function BattlefieldLeftRail({
   activeCombatRole,
+  activeRole,
+  activeTurnActive,
   activeMode,
   activeSelectedUnitIds,
   displayedDefenders,
@@ -273,6 +281,7 @@ export function BattlefieldLeftRail({
   isCombatPhase,
   isMovementPhase,
   isSelectionLocked,
+  stacksExpandable,
   onionWeapons,
   readyWeaponDetails,
   selectedCombatAttackLabel,
@@ -280,6 +289,9 @@ export function BattlefieldLeftRail({
   stackRoster,
   onSelectUnit,
 }: BattlefieldLeftRailProps) {
+  const viewerRole = activeRole ?? activeCombatRole ?? 'defender'
+  const viewerActivity = activeTurnActive ? 'active' : 'inactive'
+
   function routeSourceSelection(request: InteractionRoutingRequest, unitId: string, additive: boolean) {
     const decision = routeInteraction(request, (trace) => {
       logger.debug('[interaction-debug] left rail routed', {
@@ -346,17 +358,17 @@ export function BattlefieldLeftRail({
                         event.stopPropagation()
                         routeSourceSelection(
                           {
-                            viewerRole: activeCombatRole ?? 'onion',
-                            viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                            viewerRole,
+                            viewerActivity,
                             phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
                             surface: 'left-rail',
                             gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
-                            subjectRelation: 'self',
+                            subjectRelation: viewerRole === 'onion' ? 'self' : 'opponent',
                             subjectKind: 'weapon',
                             subjectCapability: {
                               inspectable: true,
                               moveEligible: false,
-                              attackerEligible: true,
+                              attackerEligible: activeTurnActive && viewerRole === 'onion',
                               targetEligible: false,
                             },
                           },
@@ -376,8 +388,12 @@ export function BattlefieldLeftRail({
             ) : defenderCombatGroups.length > 0 ? (
               defenderCombatGroups.map((group) => {
                 const isSelected = group.selectedCount > 0
-                const isDisabled = group.isDestroyed || !group.isActionable
-                const isExpanded = group.members.length > 1 && group.selectedCount > 0 && !(activeCombatRole === 'defender' && isCombatPhase)
+                const isCombatActionable = activeTurnActive && viewerRole === 'defender' && group.isActionable
+                const isExpanded = shouldExpandBattlefieldStackGroup({
+                  memberCount: group.members.length,
+                  selectedCount: group.selectedCount,
+                  stacksExpandable,
+                })
                 return (
                   <div
                     key={group.anchorUnit.id}
@@ -390,17 +406,25 @@ export function BattlefieldLeftRail({
                       className={[
                         'attacker-card-button',
                         isSelected ? 'is-selected' : '',
-                        group.isActionable ? 'is-actionable' : '',
-                        isDisabled ? 'is-disabled' : '',
+                        isCombatActionable ? 'is-actionable' : '',
+                        isSelectionLocked ? 'is-disabled' : '',
                         `tone-${statusTone(group.anchorUnit.status)}`,
                       ].join(' ')}
                       aria-pressed={isSelected}
-                      disabled={isSelectionLocked || isDisabled}
+                      disabled={isSelectionLocked}
                       data-selected={isSelected}
                       data-testid={`combat-unit-${group.anchorUnit.id}`}
-                      title={group.isDestroyed ? 'Destroyed units cannot attack.' : !group.isActionable ? 'This unit is not eligible to attack.' : undefined}
+                      title={
+                        activeTurnActive && viewerRole === 'defender'
+                          ? group.isDestroyed
+                            ? 'Destroyed units cannot attack.'
+                            : !group.isActionable
+                              ? 'This unit is not eligible to attack.'
+                              : undefined
+                          : undefined
+                      }
                       onClick={(event) => {
-                        if (isSelectionLocked || isDisabled) {
+                        if (isSelectionLocked) {
                           event.preventDefault()
                           event.stopPropagation()
                           return
@@ -409,17 +433,17 @@ export function BattlefieldLeftRail({
                         event.stopPropagation()
                         routeSourceSelection(
                           {
-                            viewerRole: activeCombatRole ?? 'defender',
-                            viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                            viewerRole,
+                            viewerActivity,
                             phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
                             surface: 'left-rail',
                             gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
-                            subjectRelation: 'self',
+                            subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
                             subjectKind: 'stack',
                             subjectCapability: {
                               inspectable: true,
                               moveEligible: false,
-                              attackerEligible: true,
+                              attackerEligible: isCombatActionable,
                               targetEligible: false,
                             },
                           },
@@ -440,7 +464,7 @@ export function BattlefieldLeftRail({
                           const isMemberSelected = activeSelectedUnitIds.includes(member.selectionId)
                           const memberUnit = displayedDefenders.find((unit) => unit.id === member.selectionId)
                           const isMemberActionable = memberUnit?.actionableModes.includes(activeMode) === true
-                          const isMemberDisabled = isSelectionLocked || !isMemberActionable
+                          const isMemberDisabled = isSelectionLocked || (activeTurnActive && viewerRole === 'defender' && !isMemberActionable)
                           return (
                             <button
                               key={member.selectionId}
@@ -460,17 +484,17 @@ export function BattlefieldLeftRail({
                                 event.stopPropagation()
                                 routeSourceSelection(
                                   {
-                                    viewerRole: activeCombatRole ?? 'defender',
-                                    viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                                    viewerRole,
+                                    viewerActivity,
                                     phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
                                     surface: 'left-rail',
                                     gesture: 'primary-additive',
-                                    subjectRelation: 'self',
+                                    subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
                                     subjectKind: 'stack',
                                     subjectCapability: {
                                       inspectable: true,
                                       moveEligible: false,
-                                      attackerEligible: true,
+                                      attackerEligible: activeTurnActive && viewerRole === 'defender' && isMemberActionable,
                                       targetEligible: false,
                                     },
                                   },
@@ -518,17 +542,17 @@ export function BattlefieldLeftRail({
                   event.stopPropagation()
                   routeSourceSelection(
                     {
-                      viewerRole: activeCombatRole ?? 'onion',
-                      viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                      viewerRole,
+                      viewerActivity,
                       phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
                       surface: 'left-rail',
                       gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
-                      subjectRelation: 'self',
+                      subjectRelation: viewerRole === 'onion' ? 'self' : 'opponent',
                       subjectKind: 'unit',
                       subjectCapability: {
                         inspectable: true,
-                        moveEligible: false,
-                        attackerEligible: true,
+                        moveEligible: activeTurnActive && viewerRole === 'onion',
+                        attackerEligible: false,
                         targetEligible: false,
                       },
                     },
@@ -564,7 +588,12 @@ export function BattlefieldLeftRail({
               <div className="defender-list">
                 {defenderMoveGroups.map((group) => {
                   const isSelected = group.selectedCount > 0
-                  const isExpanded = group.members.length > 1
+                  const isMoveActionable = activeTurnActive && viewerRole === 'defender' && !group.isDestroyed
+                  const isExpanded = shouldExpandBattlefieldStackGroup({
+                    memberCount: group.members.length,
+                    selectedCount: group.selectedCount,
+                    stacksExpandable,
+                  })
                   return (
                     <div
                       key={group.anchorUnit.id}
@@ -578,16 +607,16 @@ export function BattlefieldLeftRail({
                           'defender-card-button',
                           'slim-weapon-card',
                           isSelected ? 'is-selected' : '',
-                          'is-actionable',
-                          group.isDestroyed ? 'is-disabled' : '',
+                          isMoveActionable ? 'is-actionable' : '',
+                          isSelectionLocked ? 'is-disabled' : '',
                           `tone-${statusTone(group.anchorUnit.status)}`,
                         ].join(' ')}
                         aria-pressed={isSelected}
-                        disabled={isSelectionLocked || group.isDestroyed}
+                        disabled={isSelectionLocked}
                         data-selected={isSelected}
                         data-testid={`combat-unit-${group.anchorUnit.id}`}
                         onClick={(event) => {
-                          if (isSelectionLocked || group.isDestroyed) {
+                          if (isSelectionLocked) {
                             event.preventDefault()
                             event.stopPropagation()
                             return
@@ -596,16 +625,16 @@ export function BattlefieldLeftRail({
                           event.stopPropagation()
                           routeSourceSelection(
                             {
-                              viewerRole: activeCombatRole ?? 'defender',
-                              viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                              viewerRole,
+                              viewerActivity,
                               phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
                               surface: 'left-rail',
                               gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
-                              subjectRelation: 'self',
+                              subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
                               subjectKind: 'stack',
                               subjectCapability: {
                                 inspectable: true,
-                                moveEligible: true,
+                                moveEligible: isMoveActionable,
                                 attackerEligible: false,
                                 targetEligible: false,
                               },
@@ -643,16 +672,16 @@ export function BattlefieldLeftRail({
                                   event.stopPropagation()
                                   routeSourceSelection(
                                     {
-                                      viewerRole: activeCombatRole ?? 'defender',
-                                      viewerActivity: isCombatPhase || isMovementPhase ? 'active' : 'inactive',
+                                      viewerRole,
+                                      viewerActivity,
                                       phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
                                       surface: 'left-rail',
                                       gesture: 'primary-additive',
-                                      subjectRelation: 'self',
+                                      subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
                                       subjectKind: 'stack',
                                       subjectCapability: {
                                         inspectable: true,
-                                        moveEligible: true,
+                                        moveEligible: isMoveActionable,
                                         attackerEligible: false,
                                         targetEligible: false,
                                       },

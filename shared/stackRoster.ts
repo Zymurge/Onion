@@ -576,7 +576,7 @@ export function relocateStackRosterUnits(
 				unitType: input.unitType,
 				position: input.destinationPosition,
 			}),
-			groupName: destinationGroup?.groupName ?? input.destinationGroupName,
+			groupName: input.destinationGroupName,
 			unitType: input.unitType,
 			position: input.destinationPosition,
 			unitIds: destinationUnitIds,

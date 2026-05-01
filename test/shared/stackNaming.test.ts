@@ -8,6 +8,15 @@ import {
 	resolveStackLabelFromSnapshot,
 	resolveStackUnitName,
 } from '#shared/stackNaming'
+import type { StackRosterGroupState, StackRosterState } from '#shared/types/index'
+
+function createStackRoster(groupsById: Record<string, StackRosterGroupState | undefined>): StackRosterState {
+	return {
+		groupsById: Object.fromEntries(
+			Object.entries(groupsById).filter((entry): entry is [string, StackRosterGroupState] => entry[1] !== undefined),
+		),
+	}
+}
 
 describe('stack naming', () => {
 	it('resolves canonical unit names from unit definitions', () => {
@@ -170,8 +179,7 @@ describe('stack naming', () => {
 	it.each([
 		{
 			name: 'split to empty',
-			stackRoster: {
-				groupsById: {
+			stackRoster: createStackRoster({
 					'LittlePigs:4,7': {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
@@ -190,8 +198,7 @@ describe('stack naming', () => {
 						position: { q: 5, r: 8 },
 						unitIds: ['pigs-1', 'pigs-2'],
 					},
-				},
-			},
+				}),
 			units: [
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 1' },
 				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 2' },
@@ -205,8 +212,7 @@ describe('stack naming', () => {
 		},
 		{
 			name: 'split onto existing stack',
-			stackRoster: {
-				groupsById: {
+			stackRoster: createStackRoster({
 					'LittlePigs:4,7': {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
@@ -219,8 +225,7 @@ describe('stack naming', () => {
 						position: { q: 5, r: 7 },
 						unitIds: ['pigs-2', 'pigs-3', 'pigs-4', 'pigs-5'],
 					},
-				},
-			},
+				}),
 			units: [
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
 				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
@@ -234,8 +239,7 @@ describe('stack naming', () => {
 		},
 		{
 			name: 'whole stack move to empty',
-			stackRoster: {
-				groupsById: {
+			stackRoster: createStackRoster({
 					'LittlePigs:4,7': {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
@@ -248,8 +252,7 @@ describe('stack naming', () => {
 						position: { q: 5, r: 8 },
 						unitIds: ['pigs-3', 'pigs-4'],
 					},
-				},
-			},
+				}),
 			units: [
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
 				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
@@ -263,16 +266,14 @@ describe('stack naming', () => {
 		},
 		{
 			name: 'whole stack move onto existing stack',
-			stackRoster: {
-				groupsById: {
+			stackRoster: createStackRoster({
 					'LittlePigs:4,7': {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 7 },
 						unitIds: ['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4'],
 					},
-				},
-			},
+				}),
 			units: [
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
 				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
@@ -285,16 +286,14 @@ describe('stack naming', () => {
 		},
 		{
 			name: 'merge two preexisting groups',
-			stackRoster: {
-				groupsById: {
+			stackRoster: createStackRoster({
 					'LittlePigs:4,7': {
 						groupName: 'Little Pigs group 2',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 7 },
 						unitIds: ['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4'],
 					},
-				},
-			},
+				}),
 			units: [
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
 				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },

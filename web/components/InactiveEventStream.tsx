@@ -4,11 +4,12 @@ type InactiveEventStreamProps = {
 	entries: ReadonlyArray<TimelineEvent>
 	errorMessage: string | null
 	isLoading: boolean
+	canDismiss?: boolean
 	onDismiss: () => void
 	onDismissError: () => void
 }
 
-export function InactiveEventStream({ entries, errorMessage, isLoading, onDismiss, onDismissError }: InactiveEventStreamProps) {
+export function InactiveEventStream({ entries, errorMessage, isLoading, canDismiss = true, onDismiss, onDismissError }: InactiveEventStreamProps) {
 	const showLoading = isLoading && entries.length === 0
 	const showError = errorMessage !== null
 
@@ -21,6 +22,7 @@ export function InactiveEventStream({ entries, errorMessage, isLoading, onDismis
 					type="button"
 					onClick={onDismiss}
 					aria-label="Dismiss inactive event stream"
+					disabled={!canDismiss}
 				>
 					Dismiss
 				</button>

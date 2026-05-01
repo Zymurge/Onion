@@ -839,10 +839,18 @@ describe('buildVictoryObjectiveStates', () => {
               },
             },
           },
+          stackNaming: {
+            groupsInUse: [
+              {
+                groupKey: 'LittlePigs:4,4',
+                groupName: '--CONFLICTING NAME---',
+              },
+            ],
+          },
         },
         events: [],
       } as any,
       'onion-user',
-    )).toThrow('Conflicting stack group name')
+    )).toThrow('Conflicting persisted stack group name for LittlePigs:4,4')
   })
 })

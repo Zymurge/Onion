@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { resolveBattlefieldDisplayName, resolveBattlefieldFriendlyName } from '../../../web/lib/appViewHelpers'
+import {
+  resolveBattlefieldDisplayName,
+  resolveBattlefieldFriendlyName,
+  resolveBattlefieldStacksExpandable,
+  shouldExpandBattlefieldStackGroup,
+} from '../../../web/lib/appViewHelpers'
 
 describe('resolveBattlefieldDisplayName', () => {
   it('throws when grouped unit metadata is incomplete', () => {
@@ -90,5 +95,24 @@ describe('resolveBattlefieldDisplayName', () => {
     })
 
     expect(label).toBe('Puss 1')
+  })
+
+  it.each([
+    ['defender active movement can expand', { activeRole: 'defender', activeTurnActive: true, isCombatPhase: false, isMovementPhase: true }, true],
+    ['defender active combat can expand', { activeRole: 'defender', activeTurnActive: true, isCombatPhase: true, isMovementPhase: false }, true],
+    ['defender inactive cannot expand', { activeRole: 'defender', activeTurnActive: false, isCombatPhase: true, isMovementPhase: false }, false],
+    ['onion active cannot expand', { activeRole: 'onion', activeTurnActive: true, isCombatPhase: false, isMovementPhase: true }, false],
+    ['locked defender cannot expand', { activeRole: 'defender', activeTurnActive: true, isCombatPhase: false, isMovementPhase: false }, false],
+  ])('%s', (_, input, expected) => {
+    expect(resolveBattlefieldStacksExpandable(input as any)).toBe(expected)
+  })
+
+  it.each([
+    ['collapsed when expansion is disallowed', { memberCount: 3, selectedCount: 3, stacksExpandable: false }, false],
+    ['collapsed when the group is not selected', { memberCount: 3, selectedCount: 0, stacksExpandable: true }, false],
+    ['collapsed for single units', { memberCount: 1, selectedCount: 1, stacksExpandable: true }, false],
+    ['expanded for selected expandable groups', { memberCount: 3, selectedCount: 3, stacksExpandable: true }, true],
+  ])('%s', (_, input, expected) => {
+    expect(shouldExpandBattlefieldStackGroup(input)).toBe(expected)
   })
 })

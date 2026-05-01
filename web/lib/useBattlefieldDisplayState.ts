@@ -15,6 +15,7 @@ import {
   parseAttackStats,
   parseRangeValue,
   parseWeaponStats,
+  resolveBattlefieldStacksExpandable,
   resolveBattlefieldFriendlyName,
   resolveBattlefieldStackMemberIds,
   resolveSelectionOwnerUnitId,
@@ -138,6 +139,12 @@ export function useBattlefieldDisplayState({
     const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
     const activeCombatRole: 'onion' | 'defender' | null = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
     const isMovementPhase = activePhase === 'ONION_MOVE' || activePhase === 'DEFENDER_MOVE' || activePhase === 'GEV_SECOND_MOVE'
+    const stacksExpandable = resolveBattlefieldStacksExpandable({
+      activeRole,
+      activeTurnActive,
+      isCombatPhase,
+      isMovementPhase,
+    })
     const displayedScenarioMap = buildScenarioMap(clientSnapshot)
     const victoryObjectives = clientSnapshot?.victoryObjectives ?? []
     const escapeHexes = clientSnapshot?.escapeHexes ?? []
@@ -274,6 +281,7 @@ export function useBattlefieldDisplayState({
       onionWeapons,
       phaseAdvanceLabel,
       readyWeaponDetails,
+      stacksExpandable,
       victoryObjectives,
       escapeHexes,
       selectedCombatAttackerIds,
