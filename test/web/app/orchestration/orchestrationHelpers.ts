@@ -471,3 +471,6 @@ export function createTestClient(
 		pollEvents: overrides.pollEvents ?? vi.fn().mockResolvedValue([]),
 	})
 }
+
+// Re-export building blocks that tests may need directly
+export { createMoveGameState }

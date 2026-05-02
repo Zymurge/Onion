@@ -13,6 +13,7 @@ import {
 	createDeferred,
 	createGroupedInRangeCombatSnapshot,
 	createInRangeCombatSnapshot,
+	createMoveGameState,
 	createSnapshotWithTreads,
 	createTestClient,
 } from './orchestrationHelpers'
@@ -99,10 +100,7 @@ describe('App orchestration (injected game client)', () => {
 			const snapshot = {
 				...createConnectedBattlefieldSnapshot(),
 				phase: 'ONION_MOVE' as const,
-				authoritativeState: {
-					...baseOrchestrationSnapshot.authoritativeState,
-					onion: { ...baseOrchestrationSnapshot.authoritativeState.onion, treads: 16 },
-				},
+				authoritativeState: createMoveGameState(16),
 				movementRemainingByUnit: undefined,
 			}
 			const session = { role: 'onion' as const }
