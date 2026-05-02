@@ -644,7 +644,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   }
 
   return (
-    <div className={`shell${inactiveEventScreenLocked ? ' inactive-event-screen-locked' : ''}`} data-phase={shellPhase}>
+    <div
+      className={`shell${inactiveEventScreenLocked ? ' inactive-event-screen-locked' : ''}`}
+      data-phase={shellPhase}
+      data-testid="app-shell"
+    >
+      {headerHasSnapshot ? <span data-testid="app-ready" hidden aria-hidden="true" /> : null}
       {displayError ? (
         <ErrorOverlay
           message={displayError}
