@@ -2,7 +2,7 @@ import { vi } from 'vitest'
 import type { DefenderUnit, HexPos, StackRosterState, UnitStatus, Weapon } from '#shared/types/index'
 import type { GameState } from '#shared/types/index'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
-import { buildStackGroupKey, refreshStackNamingSnapshot } from '#shared/stackNaming'
+import { buildStackGroupKey, refreshStackNamingSnapshotFromRoster } from '#shared/stackNaming'
 import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import { getAllUnitDefinitions } from '#shared/unitDefinitions'
 import { createMoveGameState } from '#shared/moveFixtures'
@@ -444,7 +444,7 @@ export function buildDefenderTree(opts: {
 		groupsById: { ...autoRoster.groupsById, ...stackRosterGroupsById },
 	}
 
-	const stackNaming = refreshStackNamingSnapshot(undefined, allSourceUnits)
+	const stackNaming = refreshStackNamingSnapshotFromRoster(undefined, stackRoster, allSourceUnits)
 
 	return { defenders, stackRoster, stackNaming }
 }
@@ -466,15 +466,19 @@ export function createTestClient(
 	snapshot: AuthoritativeBattlefieldSnapshot,
 	session: { role: 'onion' | 'defender' },
 	overrides: {
-		getState?: ReturnType<typeof vi.fn>
-		submitAction?: ReturnType<typeof vi.fn>
-		pollEvents?: ReturnType<typeof vi.fn>
+		getState?: GameClient['getState']
+		submitAction?: GameClient['submitAction']
+		pollEvents?: GameClient['pollEvents']
 	} = {},
 ): GameClient {
+	const defaultGetState: GameClient['getState'] = async () => ({ snapshot, session })
+	const defaultSubmitAction: GameClient['submitAction'] = async () => snapshot
+	const defaultPollEvents: GameClient['pollEvents'] = async () => []
+
 	return createGameClient({
-		getState: overrides.getState ?? vi.fn().mockResolvedValue({ snapshot, session }),
-		submitAction: overrides.submitAction ?? vi.fn().mockResolvedValue(snapshot),
-		pollEvents: overrides.pollEvents ?? vi.fn().mockResolvedValue([]),
+		getState: overrides.getState ?? defaultGetState,
+		submitAction: overrides.submitAction ?? defaultSubmitAction,
+		pollEvents: overrides.pollEvents ?? defaultPollEvents,
 	})
 }
 
