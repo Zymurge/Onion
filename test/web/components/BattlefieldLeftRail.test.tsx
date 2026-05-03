@@ -498,7 +498,7 @@ describe('BattlefieldLeftRail', () => {
         activeRole="defender"
         activeTurnActive={true}
         activeMode="fire"
-        activeSelectedUnitIds={['pigs-1', 'pigs-2', 'pigs-3']}
+        activeSelectedUnitIds={['pigs-1', 'pigs-2']}
         displayedDefenders={displayedDefenders}
         displayedOnion={onion}
         isCombatPhase
@@ -518,6 +518,7 @@ describe('BattlefieldLeftRail', () => {
     expect(screen.getByTestId('combat-stack-member-pigs-1')).not.toBeNull()
     expect(screen.getByTestId('combat-stack-member-pigs-2')).not.toBeNull()
     expect(screen.getByTestId('combat-stack-member-pigs-3')).not.toBeNull()
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Attack: 2')
 
     fireEvent.click(screen.getByTestId('combat-stack-member-pigs-2'))
     expect(onSelectUnit).toHaveBeenCalledWith('pigs-2', true)
@@ -615,6 +616,178 @@ describe('BattlefieldLeftRail', () => {
     )
 
     expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 3')
+  })
+
+  it('shows 0/2 when every defender in a combat stack has already fired', () => {
+    const displayedDefenders: BattlefieldUnit[] = [
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 1',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: spent',
+        weaponDetails: [
+          { id: 'pigs-1-main', name: 'Main Gun', attack: 1, range: 1, defense: 0, status: 'spent', individuallyTargetable: false },
+        ],
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+      {
+        id: 'pigs-2',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 2',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: spent',
+        weaponDetails: [
+          { id: 'pigs-2-main', name: 'Main Gun', attack: 1, range: 1, defense: 0, status: 'spent', individuallyTargetable: false },
+        ],
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+    ]
+    const stackNaming = {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 1'],
+    }
+    const stackRoster = {
+      groupsById: {
+        'LittlePigs:4,4': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 4 },
+          unitIds: ['pigs-1', 'pigs-2'],
+        },
+      },
+    }
+    const onion: BattlefieldOnionView = {
+      id: 'onion-1',
+      type: 'TheOnion',
+      q: 0,
+      r: 0,
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weapons: 'main: ready',
+      weaponDetails: [],
+    }
+
+    render(
+      <BattlefieldLeftRail
+        activeCombatRole="defender"
+        activeRole="defender"
+        activeTurnActive={true}
+        activeMode="fire"
+        activeSelectedUnitIds={[]}
+        displayedDefenders={displayedDefenders}
+        displayedOnion={onion}
+        isCombatPhase
+        isMovementPhase={false}
+        isSelectionLocked={false}
+        stacksExpandable
+        onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
+        readyWeaponDetails={[]}
+        selectedCombatAttackLabel="Attack 0"
+        stackNaming={stackNaming as any}
+        stackRoster={stackRoster as any}
+        onSelectUnit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('0/2')
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Attack: 0')
+  })
+
+  it('shows the selected subset attack when only part of a defender stack is selected', () => {
+    const displayedDefenders: BattlefieldUnit[] = [
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 1',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+      {
+        id: 'pigs-2',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 2',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+    ]
+    const stackNaming = {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 1'],
+    }
+    const stackRoster = {
+      groupsById: {
+        'LittlePigs:4,4': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 4 },
+          unitIds: ['pigs-1', 'pigs-2'],
+        },
+      },
+    }
+    const onion: BattlefieldOnionView = {
+      id: 'onion-1',
+      type: 'TheOnion',
+      q: 0,
+      r: 0,
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weapons: 'main: ready',
+      weaponDetails: [],
+    }
+
+    render(
+      <BattlefieldLeftRail
+        activeCombatRole="defender"
+        activeRole="defender"
+        activeTurnActive={true}
+        activeMode="fire"
+        activeSelectedUnitIds={['pigs-1']}
+        displayedDefenders={displayedDefenders}
+        displayedOnion={onion}
+        isCombatPhase
+        isMovementPhase={false}
+        isSelectionLocked={false}
+        stacksExpandable
+        onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
+        readyWeaponDetails={[]}
+        selectedCombatAttackLabel="Attack 1"
+        stackNaming={stackNaming as any}
+        stackRoster={stackRoster as any}
+        onSelectUnit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('1/2')
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Attack: 1')
   })
 
   it('keeps grouped defender stacks collapsed for inactive viewers', () => {
@@ -778,7 +951,7 @@ describe('BattlefieldLeftRail', () => {
     )
 
     const groupButton = screen.getByTestId('combat-unit-pigs-1')
-    expect(groupButton).not.toHaveAttribute('disabled')
+    expect(groupButton.hasAttribute('disabled')).toBe(false)
 
     fireEvent.click(groupButton)
     expect(onSelectUnit).toHaveBeenCalledWith('pigs-1', false)

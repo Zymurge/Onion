@@ -5,7 +5,6 @@ import {
   buildLiveDefenders,
   buildLiveOnion,
   buildScenarioMap,
-  countSelectedBattlefieldStackMembers,
   countSelectedBattlefieldStackGroups,
   formatLiveConnectionStatus,
   getPhaseAdvanceLabel,
@@ -170,6 +169,7 @@ export function useBattlefieldDisplayState({
       : activeCombatRole === 'defender'
         ? Array.from(new Set(activeSelectedUnitIds.filter((selectionId) => readyDefenderUnitIds.has(resolveSelectionOwnerUnitId(selectionId)))))
         : activeSelectedUnitIds
+    const stackRoster = stackSourceState?.stackRoster === undefined ? undefined : stackSourceState.stackRoster as import('../../shared/types/index').StackRosterState
     const selectedAttackSelectionIds = isCombatPhase ? selectedCombatSelectionIds : activeSelectedUnitIds
     const selectedCombatAttackerIds = !isCombatPhase
       ? []
@@ -221,9 +221,9 @@ export function useBattlefieldDisplayState({
         ? null
         : displayedDefenders.find((unit) => unit.id === selectedInspectorUnitId) ?? null
     const selectedInspectorLabel = selectedInspectorOnion !== null
-      ? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackSourceState?.stackRoster ?? undefined)
+      ? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackRoster)
       : selectedInspectorDefender !== null
-        ? resolveBattlefieldFriendlyName(selectedInspectorDefender, stackNaming ?? undefined, stackSourceState?.stackRoster ?? undefined)
+        ? resolveBattlefieldFriendlyName(selectedInspectorDefender, stackNaming ?? undefined, stackRoster)
         : null
     const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
       ? new Set<string>()
@@ -236,7 +236,7 @@ export function useBattlefieldDisplayState({
       combatRangeHexKeys,
       displayedDefenders,
       displayedOnion,
-      stackRoster: stackSourceState?.stackRoster ?? null,
+      stackRoster: stackRoster ?? null,
       stackNaming,
       selectedUnitIds: activeCombatRole === 'defender' ? selectedCombatSelectionIds : activeSelectedUnitIds,
       selectedAttackStrength: selectedCombatAttackStrength,

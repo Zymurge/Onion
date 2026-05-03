@@ -157,6 +157,13 @@ function resolveGroupedDefenderTargetId(groupUnitIds: ReadonlyArray<string>, dis
 	return null
 }
 
+function resolveGroupedDefenderStackSize(groupUnitIds: ReadonlyArray<string>, displayedDefenders: ReadonlyArray<BattlefieldUnit>): number {
+	return groupUnitIds.reduce((total, groupUnitId) => {
+		const candidate = displayedDefenders.find((unit) => unit.id === groupUnitId)
+		return total + (candidate?.squads ?? 1)
+	}, 0)
+}
+
 export function buildCombatTargetOptions({
 	activeCombatRole,
 	combatRangeHexKeys,
@@ -212,14 +219,20 @@ export function buildCombatTargetOptions({
 
 		return [...groupedTargets.values()].map((unit) => {
 			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.id) ?? null
+			const stackSize = rosterGroup !== null && rosterGroup.unitIds.length > 1
+				? resolveGroupedDefenderStackSize(rosterGroup.unitIds, validDefenders)
+				: unit.squads
+			const terrainType = getTerrainValueAt(displayedScenarioMap, unit.q, unit.r)
+			const defense = getDisplayDefense(unit.type, stackSize, terrainType)
 			const targetId = rosterGroup !== null && rosterGroup.unitIds.length > 1
 				? resolveGroupedDefenderTargetId(rosterGroup.unitIds, validDefenders) ?? unit.id
 				: unit.id
 			const result = combatCalculator.calculateResult(
-				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, unit, displayedScenarioMap),
+				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, {
+					...unit,
+					squads: stackSize,
+				}, displayedScenarioMap),
 			)
-			const terrainType = getTerrainValueAt(displayedScenarioMap, unit.q, unit.r)
-			const defense = getDisplayDefense(unit.type, unit.squads, terrainType)
 
 			return {
 				id: targetId,

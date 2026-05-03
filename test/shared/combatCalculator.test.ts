@@ -84,8 +84,26 @@ describe('combatCalculator', () => {
 		const result = calculator.calculateResult(input)
 
 		expect(result.attackStrength).toBe(8)
+		expect(result.defenseStrength).toBe(3)
+		expect(result.odds).toBe('2:1')
+	})
+
+	it('uses Little Pigs stack size for defense strength', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': { type: 'LittlePigs', squads: 2 },
+				},
+			},
+		}
+
+		const result = calculator.calculateResult(input)
+
 		expect(result.defenseStrength).toBe(2)
-		expect(result.odds).toBe('4:1')
+		expect(result.odds).toBe('2:1')
 	})
 
 	it('returns the ridgeline defense modifier for eligible target units', () => {

@@ -650,7 +650,7 @@ describe('combat', () => {
 		render(<App gameClient={client} gameId={123} />)
 		const groupButton = await screen.findByTestId('combat-unit-pigs-1')
 		expect(groupButton.textContent).toContain('Attack: 2')
-		expect(groupButton.textContent).toContain('0/2')
+		expect(groupButton.textContent).toContain('2/2')
 	})
 
 	it('renders onion weapon targets in defender combat', async () => {
