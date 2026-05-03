@@ -30,14 +30,14 @@ function createSnapshot(): GameSnapshot {
 					type: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					status: 'operational',
-					weapons: [],
+					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
 				},
 				'pigs-2': {
 					id: 'pigs-2',
 					type: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					status: 'operational',
-					weapons: [],
+					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
 				},
 			},
 			ramsThisTurn: 0,
@@ -100,6 +100,38 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.error).toMatch(/missing canonical stackRoster data/)
 		// Game state should still be present
 		expect(result.current.clientSnapshot).toBeTruthy()
+	})
+
+	it('keeps the attack total populated during defender movement when defenders are selected', () => {
+		const snapshot = createSnapshot()
+		snapshot.phase = 'DEFENDER_MOVE'
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.stackNaming = {
+			groupsInUse: [
+				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+			],
+			usedGroupNames: ['Little Pigs group 1'],
+		}
+		authoritativeState.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds: ['pigs-1', 'pigs-2'] }),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+
+		expect(result.current.selectedCombatAttackLabel).toBe('Attack 2')
 	})
 
 	it('returns error if stackRoster is present but inconsistent with unit positions', () => {

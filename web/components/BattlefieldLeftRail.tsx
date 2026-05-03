@@ -4,6 +4,7 @@ import {
   buildWeaponSelectionId,
   countSelectedBattlefieldStackMembers,
   getBattlefieldStackSize,
+  isBattlefieldUnitCombatReady,
   parseAttackStats,
   parseRangeValue,
   resolveBattlefieldDisplayName,
@@ -50,6 +51,7 @@ type DefenderCombatGroupMember = {
 type DefenderCombatGroup = {
   anchorUnit: BattlefieldUnit
   attackStrength: number
+  attackReadyCount: number
   isActionable: boolean
   isDestroyed: boolean
   label: string
@@ -66,6 +68,8 @@ type DefenderMoveGroupMember = {
 
 type DefenderMoveGroup = {
   anchorUnit: BattlefieldUnit
+  attackStrength: number
+  attackReadyCount: number
   isDestroyed: boolean
   label: string
   members: DefenderMoveGroupMember[]
@@ -125,6 +129,7 @@ function buildCombatGroupFromUnits(
   return {
     anchorUnit,
     attackStrength: units.reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0),
+    attackReadyCount: units.filter(isBattlefieldUnitCombatReady).length,
     isActionable: units.some((unit) => unit.actionableModes.includes(activeMode)),
     isDestroyed: units.every((unit) => unit.status === 'destroyed'),
     label,
@@ -223,6 +228,8 @@ function buildMoveGroupFromUnits(
 
   return {
     anchorUnit,
+    attackStrength: units.reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0),
+    attackReadyCount: units.length,
     isDestroyed: anchorUnit.status === 'destroyed',
     label,
     members,
@@ -299,7 +306,6 @@ export function BattlefieldLeftRail({
         ...trace,
       })
     })
-
     if (decision.intent === 'noop') {
       return
     }
@@ -454,7 +460,7 @@ export function BattlefieldLeftRail({
                     >
                       <div className="combat-stack-card-head">
                         <div className="weapon-card-name">{group.label}</div>
-                        {group.members.length > 1 ? <span className="mini-tag">{group.selectedCount}/{group.members.length}</span> : null}
+                        {group.members.length > 1 ? <span className="mini-tag">{group.attackReadyCount}/{group.members.length}</span> : null}
                       </div>
                       <div className="weapon-card-stats">Attack: {group.attackStrength} &nbsp;·&nbsp; Range: {group.range}</div>
                     </button>
@@ -522,7 +528,10 @@ export function BattlefieldLeftRail({
         activeCombatRole === 'onion' ? (
           <section className="section-block">
             <div className="card-head">
-              <p className="eyebrow">Onion</p>
+              <div>
+                <p className="eyebrow">Onion</p>
+              </div>
+              <span className="mini-tag mini-tag-live" data-testid="combat-attack-total">{selectedCombatAttackLabel}</span>
             </div>
             {displayedOnion ? (
               <button
@@ -583,6 +592,7 @@ export function BattlefieldLeftRail({
             <div className="card-head">
               <p className="eyebrow">Defenders</p>
               <span className="mini-tag">{displayedDefenders.length} tracked</span>
+              <span className="mini-tag mini-tag-live" data-testid="combat-attack-total">{selectedCombatAttackLabel}</span>
             </div>
             {defenderMoveGroups.length > 0 ? (
               <div className="defender-list">
@@ -646,9 +656,9 @@ export function BattlefieldLeftRail({
                       >
                         <div className="combat-stack-card-head">
                           <div className="weapon-card-name">{group.label}</div>
-                          {group.members.length > 1 ? <span className="mini-tag">{group.selectedCount}/{group.members.length}</span> : null}
+                          {group.members.length > 1 ? <span className="mini-tag">{group.attackReadyCount}/{group.members.length}</span> : null}
                         </div>
-                        <div className="weapon-card-stats">Move: {group.moveAllowance}</div>
+                        <div className="weapon-card-stats">Move: {group.moveAllowance} &nbsp;·&nbsp; Attack: {group.attackStrength}</div>
                       </button>
                       {isExpanded ? (
                         <div className="combat-stack-member-list">

@@ -170,25 +170,23 @@ export function useBattlefieldDisplayState({
       : activeCombatRole === 'defender'
         ? Array.from(new Set(activeSelectedUnitIds.filter((selectionId) => readyDefenderUnitIds.has(resolveSelectionOwnerUnitId(selectionId)))))
         : activeSelectedUnitIds
+    const selectedAttackSelectionIds = isCombatPhase ? selectedCombatSelectionIds : activeSelectedUnitIds
     const selectedCombatAttackerIds = !isCombatPhase
       ? []
       : activeCombatRole === 'onion'
-        ? selectedCombatSelectionIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
+        ? selectedAttackSelectionIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId)
         : [...selectedCombatSelectionIds]
-    const selectedCombatAttackStrength = !isCombatPhase
-      ? 0
-      : activeCombatRole === 'onion'
-        ? (displayedOnion?.weaponDetails ?? [])
-          .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
-          .reduce((total, weapon) => total + weapon.attack, 0)
-        : (() => {
-          const selectedUnitIdSet = new Set(selectedCombatSelectionIds)
+    const selectedCombatAttackStrength = activeCombatRole === 'onion'
+      ? (displayedOnion?.weaponDetails ?? [])
+        .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
+        .reduce((total, weapon) => total + weapon.attack, 0)
+      : (() => {
+        const selectedUnitIdSet = new Set(selectedAttackSelectionIds.map(resolveSelectionOwnerUnitId))
 
-          return displayedDefenders
-            .filter(isBattlefieldUnitCombatReady)
-            .filter((unit) => selectedUnitIdSet.has(unit.id))
-            .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
-        })()
+        return displayedDefenders
+          .filter((unit) => selectedUnitIdSet.has(unit.id))
+          .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
+      })()
     const selectedCombatAttackGroupCount = !isCombatPhase
       ? 0
       : activeCombatRole === 'defender'
