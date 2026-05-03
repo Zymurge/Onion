@@ -16,6 +16,7 @@ import {
   parseWeaponStats,
   resolveBattlefieldStacksExpandable,
   resolveBattlefieldFriendlyName,
+  resolveBattlefieldWeaponName,
   resolveBattlefieldStackMemberIds,
   resolveSelectionOwnerUnitId,
   stripWeaponSelectionId,
@@ -187,6 +188,15 @@ export function useBattlefieldDisplayState({
           .filter((unit) => selectedUnitIdSet.has(unit.id))
           .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
       })()
+    const selectedCombatAttackMemberLabels = activeCombatRole === 'onion'
+      ? selectedCombatAttackerIds
+        .map((weaponId) => displayedOnion?.weaponDetails?.find((weapon) => weapon.id === weaponId) ?? null)
+        .filter((weapon): weapon is NonNullable<typeof weapon> => weapon !== null)
+        .map((weapon) => resolveBattlefieldWeaponName(weapon))
+      : selectedCombatAttackerIds
+        .map((unitId) => displayedDefenders.find((unit) => unit.id === unitId) ?? null)
+        .filter((unit): unit is NonNullable<typeof unit> => unit !== null)
+        .map((unit) => resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRoster))
     const selectedCombatAttackGroupCount = !isCombatPhase
       ? 0
       : activeCombatRole === 'defender'
@@ -284,6 +294,7 @@ export function useBattlefieldDisplayState({
       escapeHexes,
       selectedCombatAttackerIds,
       selectedCombatAttackCount,
+      selectedCombatAttackMemberLabels,
       selectedCombatAttackGroupCount,
       selectedCombatAttackLabel,
       selectedCombatAttackStrength,

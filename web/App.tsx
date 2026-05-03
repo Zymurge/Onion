@@ -493,6 +493,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     stacksExpandable,
     selectedCombatAttackerIds,
     selectedCombatAttackCount,
+    selectedCombatAttackMemberLabels,
     selectedCombatAttackLabel,
     selectedCombatAttackStrength,
     selectedCombatTarget,
@@ -901,11 +902,14 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           canDismissInactiveEventStream={sessionTurnActive}
           pendingRamPrompt={pendingRamPrompt}
           selectedCombatAttackStrength={selectedCombatAttackStrength}
+          selectedCombatAttackerIds={selectedCombatAttackerIds}
+          selectedCombatAttackMemberLabels={selectedCombatAttackMemberLabels}
           selectedCombatTarget={selectedCombatTarget}
           selectedCombatTargetId={selectedCombatTargetId}
           selectedInspectorLabel={selectedInspectorLabel}
           selectedInspectorDefender={selectedInspectorDefender}
           selectedInspectorOnion={selectedInspectorOnion}
+          readyWeaponDetails={readyWeaponDetails}
           rightRailStackPanel={rightRailStackPanel}
           escapeHexes={escapeHexes}
           victoryObjectives={victoryObjectives}

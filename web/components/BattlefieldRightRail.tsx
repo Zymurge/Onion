@@ -7,6 +7,7 @@ import { buildRightRailCombatPanelViewModel } from '../lib/rightRailCombatPanel'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
+import type { Weapon } from '../../shared/types/index'
 import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { routeRightRailControl, type RightRailControlRequest } from '../lib/rightRailControlRouting'
@@ -28,11 +29,14 @@ type BattlefieldRightRailProps = {
   canDismissInactiveEventStream: boolean
   pendingRamPrompt: RamPrompt | null
   selectedCombatAttackStrength: number
+  selectedCombatAttackerIds: ReadonlyArray<string>
+  selectedCombatAttackMemberLabels: ReadonlyArray<string>
   selectedCombatTarget: CombatTargetOption | null
   selectedCombatTargetId: string | null
   selectedInspectorLabel: string | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
+  readyWeaponDetails: ReadonlyArray<Weapon>
   rightRailStackPanel: {
     isVisible: boolean
     selectedStackMembers: ReadonlyArray<BattlefieldUnit | BattlefieldOnionView>
@@ -69,11 +73,14 @@ export function BattlefieldRightRail({
   canDismissInactiveEventStream,
   pendingRamPrompt,
   selectedCombatAttackStrength,
+  selectedCombatAttackerIds,
+  selectedCombatAttackMemberLabels,
   selectedCombatTarget,
   selectedCombatTargetId,
   selectedInspectorLabel,
   selectedInspectorDefender,
   selectedInspectorOnion,
+  readyWeaponDetails,
   rightRailStackPanel,
   victoryObjectives,
   escapeHexes,
@@ -88,7 +95,7 @@ export function BattlefieldRightRail({
   onClearStackSelection,
 }: BattlefieldRightRailProps) {
   const shouldShowCombatPanel = isCombatPhase && activeRole === activeCombatRole
-  const shouldShowInspectorPanel = selectedInspectorOnion !== null || selectedInspectorDefender !== null || !shouldShowCombatPanel
+  const shouldShowInspectorPanel = !shouldShowCombatPanel && (selectedInspectorOnion !== null || selectedInspectorDefender !== null)
 
   function routeRightRailInteraction(request: InteractionRoutingRequest) {
     const decision = routeInteraction(request, (trace) => {
@@ -297,41 +304,41 @@ export function BattlefieldRightRail({
           </div>
         </section>
       ) : null}
-      {inspectorPanel}
       {shouldShowCombatPanel && selectedInspectorOnion === null ? (
         <section className="section-block panel-subtle">
           <div className="card-head">
             <div>
               <p className="eyebrow">Combat</p>
-              <h2 title="Pick a target from the list. The list only includes targets currently in the active attack range.">
-                Valid Targets
+              <h2 title="Build the attack from the selected units or weapons, then pick a target from the list below.">
+                Attack Planning
               </h2>
             </div>
-            <span className="mini-tag">{combatPanel.combatTargetCountLabel}</span>
           </div>
-          {stackSelectionPanel}
-          {combatPanel.hasSelectedTarget && selectedCombatTarget !== null ? (
-            <CombatConfirmationView
-              title={combatPanel.selectedCombatTargetTitle ?? `Confirm attack on ${selectedCombatTarget.label}`}
-              attackStrength={selectedCombatAttackStrength}
-              defenseStrength={selectedCombatTarget.defense}
-              modifiers={selectedCombatTarget.modifiers}
-              confirmLabel="Resolve combat"
-              onConfirm={() => {
-                const decision = routeRightRailControlAction({
-                  surface: 'right-rail',
-                  control: 'confirm-combat',
-                  enabled: !isInteractionLocked,
-                })
+          <CombatConfirmationView
+            title={combatPanel.hasSelectedTarget && selectedCombatTarget !== null
+              ? combatPanel.selectedCombatTargetTitle ?? `Confirm attack on ${selectedCombatTarget.label}`
+              : 'Build attack'}
+            attackStrength={selectedCombatAttackStrength}
+            attackMemberCount={selectedCombatAttackerIds.length}
+            attackMemberLabels={selectedCombatAttackMemberLabels}
+            defenseStrength={selectedCombatTarget?.defense}
+            modifiers={selectedCombatTarget?.modifiers}
+            confirmLabel="Resolve combat"
+            onConfirm={() => {
+              const decision = routeRightRailControlAction({
+                surface: 'right-rail',
+                control: 'confirm-combat',
+                enabled: !isInteractionLocked,
+              })
 
-                if (decision.intent === 'confirm-combat') {
-                  onConfirmCombat()
-                }
-              }}
-              isDisabled={isInteractionLocked}
-              dataTestId="combat-confirmation-view"
-            />
-          ) : null}
+              if (decision.intent === 'confirm-combat') {
+                onConfirmCombat()
+              }
+            }}
+            isConfirmReady={selectedCombatTarget !== null && selectedCombatTarget.isDisabled !== true && selectedCombatAttackStrength > 0}
+            isDisabled={isInteractionLocked}
+            dataTestId="combat-confirmation-view"
+          />
           {combatPanel.hasCombatTargets ? (
             <CombatTargetList
               targets={combatTargetOptions}
@@ -364,8 +371,10 @@ export function BattlefieldRightRail({
           ) : (
             <p className="summary-line">No valid targets are currently in range.</p>
           )}
+          {stackSelectionPanel}
         </section>
       ) : null}
+      {inspectorPanel}
     </aside>
   )
 }

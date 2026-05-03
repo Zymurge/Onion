@@ -4,16 +4,32 @@ import logger from '../lib/logger'
 type CombatConfirmationViewProps = {
   title: string
   attackStrength: number
-  defenseStrength: number
-  modifiers: string[]
+  attackMemberCount?: number
+  attackMemberLabels?: string[]
+  defenseStrength?: number
+  modifiers?: string[]
   confirmLabel?: string
   onConfirm?: () => void
+  isConfirmReady?: boolean
   isDisabled?: boolean
   dataTestId?: string
 }
 
-export function CombatConfirmationView({ title, attackStrength, defenseStrength, modifiers, confirmLabel, onConfirm, isDisabled = false, dataTestId }: CombatConfirmationViewProps) {
+export function CombatConfirmationView({
+  title,
+  attackStrength,
+  attackMemberCount,
+  attackMemberLabels = [],
+  defenseStrength,
+  modifiers = [],
+  confirmLabel,
+  onConfirm,
+  isConfirmReady = true,
+  isDisabled = false,
+  dataTestId,
+}: CombatConfirmationViewProps) {
   const odds = calculateCombatOdds(attackStrength, defenseStrength)
+  const hasTarget = defenseStrength !== undefined
 
   return (
     <article className="combat-confirmation-view" data-testid={dataTestId}>
@@ -21,7 +37,6 @@ export function CombatConfirmationView({ title, attackStrength, defenseStrength,
         <div>
           <h3>{title}</h3>
         </div>
-        <span className="mini-tag mini-tag-live">confirmation</span>
       </div>
 
       <div className="combat-confirmation-stats">
@@ -30,34 +45,40 @@ export function CombatConfirmationView({ title, attackStrength, defenseStrength,
           <strong>{attackStrength}</strong>
         </div>
         <div className="combat-confirmation-stat">
-          <span className="stat-label-small">Defense</span>
-          <strong>{defenseStrength}</strong>
+          <span className="stat-label-small">Attackers</span>
+          <strong>{attackMemberCount ?? 0}</strong>
         </div>
-        <div className="combat-confirmation-stat">
-          <span className="stat-label-small">Attack:Defense ratio</span>
-          <strong>{odds}</strong>
-        </div>
+        {hasTarget ? (
+          <div className="combat-confirmation-stat">
+            <span className="stat-label-small">Defense</span>
+            <strong>{defenseStrength}</strong>
+          </div>
+        ) : null}
+        {hasTarget ? (
+          <div className="combat-confirmation-stat">
+            <span className="stat-label-small">Odds</span>
+            <strong>{odds}</strong>
+          </div>
+        ) : null}
       </div>
 
-      <div className="combat-confirmation-modifiers">
-        <span className="stat-label-small">Relevant modifiers</span>
-        {modifiers.length > 0 ? (
+      {attackMemberLabels.length > 0 ? (
+        <div className="combat-confirmation-section">
+          <span className="stat-label-small">Attack composition</span>
           <ul className="combat-confirmation-modifier-list">
-            {modifiers.map((modifier) => (
-              <li key={modifier}>{modifier}</li>
+            {attackMemberLabels.map((label) => (
+              <li key={label}>{label}</li>
             ))}
           </ul>
-        ) : (
-          <p className="summary-line">No additional modifiers.</p>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {onConfirm ? (
         <div className="combat-confirmation-actions">
           <button
             className="combat-confirm-button"
             type="button"
-            disabled={isDisabled}
+            disabled={isDisabled || !isConfirmReady}
             onClick={(event) => {
               event.stopPropagation()
 

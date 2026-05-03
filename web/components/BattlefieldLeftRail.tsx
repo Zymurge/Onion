@@ -360,7 +360,6 @@ export function BattlefieldLeftRail({
                 Attacker Selection
               </h2>
             </div>
-            <span className="mini-tag mini-tag-live" data-testid="combat-attack-total">{selectedCombatAttackLabel}</span>
           </div>
 
           <div className="attacker-selection-list">
@@ -555,7 +554,6 @@ export function BattlefieldLeftRail({
               <div>
                 <p className="eyebrow">Onion</p>
               </div>
-              <span className="mini-tag mini-tag-live" data-testid="combat-attack-total">{selectedCombatAttackLabel}</span>
             </div>
             {displayedOnion ? (
               <button
@@ -616,7 +614,6 @@ export function BattlefieldLeftRail({
             <div className="card-head">
               <p className="eyebrow">Defenders</p>
               <span className="mini-tag">{displayedDefenders.length} tracked</span>
-              <span className="mini-tag mini-tag-live" data-testid="combat-attack-total">{selectedCombatAttackLabel}</span>
             </div>
             {defenderMoveGroups.length > 0 ? (
               <div className="defender-list">

@@ -615,7 +615,6 @@ describe('BattlefieldLeftRail', () => {
       />,
     )
 
-    expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 3')
   })
 
   it('shows 0/2 when every defender in a combat stack has already fired', () => {

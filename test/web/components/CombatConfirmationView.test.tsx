@@ -11,6 +11,7 @@ describe('CombatConfirmationView', () => {
       <CombatConfirmationView
         title="Confirm attack on Puss"
         attackStrength={4}
+        attackMemberCount={2}
         defenseStrength={4}
         modifiers={['Ridgeline cover: +1 defense', 'Stacked defense: 1 squad']}
         dataTestId="combat-confirmation-view"
@@ -18,14 +19,16 @@ describe('CombatConfirmationView', () => {
     )
 
     expect(screen.getByTestId('combat-confirmation-view')).not.toBeNull()
-    expect(screen.queryByText(/^Combat$/i)).toBeNull()
-    expect(screen.getByText(/Attack:Defense ratio/i)).not.toBeNull()
+    expect(screen.getByText(/^Attack$/i)).not.toBeNull()
+    expect(screen.getAllByText(/^4$/i)).toHaveLength(2)
+    expect(screen.getByText(/^Attackers$/i)).not.toBeNull()
+    expect(screen.getByText(/^2$/i)).not.toBeNull()
+    expect(screen.getByText(/^Defense$/i)).not.toBeNull()
+    expect(screen.getByText(/^Odds$/i)).not.toBeNull()
     expect(screen.getByText(/^1:1$/i)).not.toBeNull()
-    expect(screen.getByText(/Ridgeline cover: \+1 defense/i)).not.toBeNull()
-    expect(screen.getByText(/Stacked defense: 1 squad/i)).not.toBeNull()
   })
 
-  it('shows a no-modifiers message when none are present', () => {
+  it('ignores modifiers in the compact summary', () => {
     render(
       <CombatConfirmationView
         title="Confirm attack on Wolf"
@@ -36,8 +39,13 @@ describe('CombatConfirmationView', () => {
       />,
     )
 
+    expect(screen.getByText(/^Attack$/i)).not.toBeNull()
+    expect(screen.getByText(/^3$/i)).not.toBeNull()
+    expect(screen.getByText(/^Attackers$/i)).not.toBeNull()
+    expect(screen.getByText(/^0$/i)).not.toBeNull()
+    expect(screen.getByText(/^Defense$/i)).not.toBeNull()
+    expect(screen.getByText(/^Odds$/i)).not.toBeNull()
     expect(screen.getByText(/^3:1$/i)).not.toBeNull()
-    expect(screen.getByText(/No additional modifiers/i)).not.toBeNull()
   })
 
   it('renders a confirm button when a handler is provided', () => {
@@ -85,9 +93,14 @@ describe('CombatConfirmationView', () => {
       />,
     )
 
+    expect(screen.getByText(/^Attack$/i)).not.toBeNull()
+    expect(screen.getByText(/^5$/i)).not.toBeNull()
+    expect(screen.getByText(/^Attackers$/i)).not.toBeNull()
+    expect(screen.getByText(/^0$/i)).not.toBeNull()
+    expect(screen.getByText(/^Defense$/i)).not.toBeNull()
+    expect(screen.getByText(/^Odds$/i)).not.toBeNull()
     expect(screen.getByText(/^2:1$/i)).not.toBeNull()
     expect(screen.getByText(/Confirm attack on Wolf/i)).not.toBeNull()
-    expect(screen.getByText(/^confirmation$/i)).not.toBeNull()
     expect(screen.queryByRole('button', { name: /confirm attack/i })).toBeNull()
   })
 
