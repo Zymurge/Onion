@@ -626,6 +626,11 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     if (!combatAction.ok) {
+      setActionError(
+        combatAction.reason === 'missing-stack-selection'
+          ? 'Loaded game snapshot is missing stack data for the selected unit.'
+          : 'Unable to resolve combat from the current selection.',
+      )
       return
     }
 

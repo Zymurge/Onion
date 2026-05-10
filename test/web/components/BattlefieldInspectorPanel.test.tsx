@@ -34,7 +34,7 @@ describe('BattlefieldInspectorPanel', () => {
 
     render(
       <BattlefieldInspectorPanel
-        selectedInspectorLabel={null}
+        selectedInspectorLabel={defender.friendlyName}
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={2}
@@ -68,7 +68,7 @@ describe('BattlefieldInspectorPanel', () => {
 
     render(
       <BattlefieldInspectorPanel
-        selectedInspectorLabel={null}
+        selectedInspectorLabel={swamp.friendlyName}
         selectedInspectorDefender={swamp}
         selectedInspectorOnion={null}
         selectedStackMemberCount={1}
@@ -89,6 +89,7 @@ describe('BattlefieldInspectorPanel', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
+      friendlyName: 'TheOnion',
       q: 0,
       r: 0,
       status: 'operational',
@@ -102,7 +103,7 @@ describe('BattlefieldInspectorPanel', () => {
 
     render(
       <BattlefieldInspectorPanel
-        selectedInspectorLabel={null}
+        selectedInspectorLabel={onion.friendlyName}
         selectedInspectorDefender={null}
         selectedInspectorOnion={onion}
         selectedStackMemberCount={4}
@@ -116,5 +117,35 @@ describe('BattlefieldInspectorPanel', () => {
     expect(within(inspector).getByTestId('battlefield-inspector-subject-onion-1').textContent).toBe('TheOnion')
     expect(getLabeledValue('Stack')).toBe('1')
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
+  })
+
+  it('throws when the selected unit has no resolved inspector label', () => {
+    const defender: BattlefieldUnit = {
+      id: 'pigs-1',
+      type: 'LittlePigs',
+      friendlyName: 'Little Pigs 1',
+      status: 'operational',
+      q: 4,
+      r: 4,
+      move: 3,
+      weapons: 'main: ready',
+      attack: '1 / rng 1',
+      actionableModes: ['fire', 'combined'],
+      squads: 1,
+    }
+
+    expect(() => {
+      render(
+        <BattlefieldInspectorPanel
+          selectedInspectorLabel={null}
+          selectedInspectorDefender={defender}
+          selectedInspectorOnion={null}
+          selectedStackMemberCount={2}
+          activeSelectedUnitCount={2}
+          victoryObjectives={[]}
+          escapeHexes={[]}
+        />,
+      )
+    }).toThrow('Missing inspector label for selected unit pigs-1')
   })
 })

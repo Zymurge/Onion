@@ -18,6 +18,7 @@ function createSnapshot(): GameSnapshot {
 			onion: {
 				id: 'onion-live',
 				type: 'TheOnion',
+				friendlyName: 'TheOnion',
 				position: { q: 1, r: 1 },
 				treads: 27,
 				status: 'operational',
@@ -28,6 +29,7 @@ function createSnapshot(): GameSnapshot {
 				'pigs-1': {
 					id: 'pigs-1',
 					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
 					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
@@ -35,6 +37,7 @@ function createSnapshot(): GameSnapshot {
 				'pigs-2': {
 					id: 'pigs-2',
 					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 2',
 					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],

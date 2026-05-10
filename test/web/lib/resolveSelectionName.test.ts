@@ -13,14 +13,13 @@ describe('resolveSelectionName', () => {
     expect(name).toBe('Bravo')
   })
 
-  it('falls back to the group key when the snapshot has no matching group', () => {
+  it('throws when a group label is missing from snapshot metadata', () => {
     const stackNaming = {
       groupsInUse: [],
       usedGroupNames: [],
     }
 
-    const name = resolveSelectionName({ kind: 'group', groupKey: 'G1', stackNaming })
-    expect(name).toBe('G1')
+    expect(() => resolveSelectionName({ kind: 'group', groupKey: 'G1', stackNaming })).toThrow('Missing stack label for group G1')
   })
 
   it('returns friendlyName for unit selections', () => {
@@ -28,19 +27,7 @@ describe('resolveSelectionName', () => {
     expect(name).toBe('Piglet 2')
   })
 
-  it('builds friendly name from type and id', () => {
-    const name = resolveSelectionName({ kind: 'unit', unitId: 'Infantry', unitType: 'Infantry' })
-    expect(typeof name).toBe('string')
-    expect(name.length).toBeGreaterThan(0)
-  })
-
-  it('returns unitId if nothing else', () => {
-    const name = resolveSelectionName({ kind: 'unit', unitId: 'U2' })
-    expect(name).toBe('U2')
-  })
-
-  it('returns empty string if no info', () => {
-    const name = resolveSelectionName({ kind: 'unit' })
-    expect(name).toBe('')
+  it('throws when unit friendly name is missing', () => {
+    expect(() => resolveSelectionName({ kind: 'unit', unitId: 'U2' })).toThrow('Missing friendly name for unit U2')
   })
 })

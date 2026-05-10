@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { parseAttackStats, parseWeaponStats, resolveBattlefieldUnitName } from '../lib/appViewHelpers'
+import { parseAttackStats, parseWeaponStats } from '../lib/appViewHelpers'
 import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import { resolveInspectorStackCount } from '../lib/rightRailInspector'
@@ -30,7 +30,11 @@ export function BattlefieldInspectorPanel({
   }
 
   const selectedUnit = selectedInspectorOnion ?? selectedInspectorDefender
-  const selectedLabel = selectedUnit !== null ? selectedInspectorLabel ?? resolveBattlefieldUnitName(selectedUnit.type, selectedUnit.id, selectedUnit.friendlyName) : null
+  if (selectedUnit !== null && selectedInspectorLabel === null) {
+    throw new Error(`Missing inspector label for selected unit ${selectedUnit.id}`)
+  }
+
+  const selectedLabel = selectedUnit !== null ? selectedInspectorLabel : null
   const subjectDataTestId = selectedUnit !== null ? `battlefield-inspector-subject-${selectedUnit.id}` : undefined
 
   if (selectedInspectorOnion !== null) {

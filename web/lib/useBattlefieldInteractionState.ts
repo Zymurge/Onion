@@ -288,7 +288,11 @@ export function useBattlefieldInteractionState({
     })
 
     if (!moveAction.ok) {
-      setActionError('Select at least one stack member before submitting the move.')
+      setActionError(
+        moveAction.reason === 'missing-stack-selection'
+          ? 'Loaded game snapshot is missing stack data for the selected unit.'
+          : 'Select at least one stack member before submitting the move.',
+      )
       return
     }
 

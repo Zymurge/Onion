@@ -397,6 +397,23 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
     return decision
   }
 
+  function resolveCanonicalOccupant(occupants: HexOccupant[]): HexOccupant | undefined {
+  for (const occupant of occupants) {
+    const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
+
+    if (rosterGroup === null) {
+      return occupant
+    }
+
+    const anchorUnitId = rosterGroup.unitIds.find((unitId) => occupants.some((candidate) => candidate.id === unitId))
+    if (anchorUnitId !== undefined) {
+      return occupants.find((candidate) => candidate.id === anchorUnitId) ?? occupant
+    }
+  }
+
+  return occupants[0]
+  }
+
   return (
     <div className="hex-map-shell panel-subtle">
       {moveError ? (
@@ -513,7 +530,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
 
                     const validation = validateMoveTarget(coord)
                     const destinationReachable = isReachable || validation?.valid === true
-                      const targetOccupant = cellOccupants[0]
+                    const targetOccupant = resolveCanonicalOccupant(cellOccupants)
                     const decision = routeMapInteraction({
                       viewerRole: resolvedViewerRole,
                       viewerActivity: resolvedViewerActivity,

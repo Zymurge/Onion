@@ -1,14 +1,14 @@
 import type { GameAction } from './gameClient'
 import {
-  buildClientStackSelection,
   buildCombatTargetActionId,
   isWeaponSelectionId,
 } from './appViewHelpers'
 import { buildRightRailStackSubmissionAction } from './rightRailSelection'
+import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
 
 type StackSourceState = Parameters<typeof buildRightRailStackSubmissionAction>[0]['state']
 
-type CommitActionFailureReason = 'empty-selection' | 'missing-target'
+type CommitActionFailureReason = 'empty-selection' | 'missing-target' | 'missing-stack-selection'
 
 type CommitActionResult<TAction extends GameAction> =
   | { ok: true; action: TAction }
@@ -31,6 +31,28 @@ type CombatCommitActionInput = {
 }
 
 type EndPhaseCommitAction = Extract<GameAction, { type: 'end-phase' }>
+
+const UNIT_DEFINITIONS = getAllUnitDefinitions()
+
+function resolveUnitType(state: StackSourceState, unitId: string | null): string | null {
+  if (unitId === null) {
+    return null
+  }
+
+  if (state.onion?.id === unitId) {
+    return state.onion.type ?? 'TheOnion'
+  }
+
+  return state.defenders?.[unitId]?.type ?? null
+}
+
+function isStackableUnitType(unitType: string | null): boolean {
+  if (unitType === null) {
+    return false
+  }
+
+  return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+}
 
 function buildMovePayload(
   state: StackSourceState,
@@ -57,9 +79,7 @@ function buildMovePayload(
     return stackSubmission
   }
 
-  const stackSelection = buildClientStackSelection(state, unitId, selectedBoardUnitIds)
-
-  if (stackSelection === null) {
+  if (!isStackableUnitType(resolveUnitType(state, unitId))) {
     return {
       ok: true,
       action: {
@@ -72,13 +92,8 @@ function buildMovePayload(
   }
 
   return {
-    ok: true,
-    action: {
-      type: 'MOVE',
-      movers: stackSelection.selectedUnitIds,
-      to,
-      ...(attemptRam === undefined ? {} : { attemptRam }),
-    },
+    ok: false,
+    reason: 'missing-stack-selection',
   }
 }
 
@@ -113,13 +128,20 @@ function buildCombatPayload(
     }
   }
 
+  if (!isStackableUnitType(resolveUnitType(state, anchorUnitId ?? selectedUnitIds[0] ?? null))) {
+    return {
+      ok: true,
+      action: {
+        type: 'FIRE',
+        attackers: [...selectedUnitIds],
+        targetId: translatedTargetId,
+      },
+    }
+  }
+
   return {
-    ok: true,
-    action: {
-      type: 'FIRE',
-      attackers: [...selectedUnitIds],
-      targetId: translatedTargetId,
-    },
+    ok: false,
+    reason: 'missing-stack-selection',
   }
 }
 

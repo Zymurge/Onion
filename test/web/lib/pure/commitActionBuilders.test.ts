@@ -26,6 +26,15 @@ function createStackState() {
   }
 }
 
+function createBrokenStackState() {
+  return {
+    defenders: {
+      'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+      'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+    },
+  }
+}
+
 describe('commitActionBuilders', () => {
   describe('buildEndPhaseCommitAction', () => {
     it('returns the end-phase action directly', () => {
@@ -88,6 +97,20 @@ describe('commitActionBuilders', () => {
         reason: 'empty-selection',
       })
     })
+
+    it('rejects stackable move submissions when stack data is missing instead of inferring movers', () => {
+      const state = createBrokenStackState()
+
+      expect(buildMoveCommitAction({
+        state,
+        unitId: 'pigs-1',
+        selectedUnitIds: ['pigs-1'],
+        to: { q: 5, r: 4 },
+      })).toEqual({
+        ok: false,
+        reason: 'missing-stack-selection',
+      })
+    })
   })
 
   describe('buildCombatCommitAction', () => {
@@ -138,6 +161,20 @@ describe('commitActionBuilders', () => {
       })).toEqual({
         ok: false,
         reason: 'missing-target',
+      })
+    })
+
+    it('rejects stackable combat submissions when stack data is missing instead of inferring attackers', () => {
+      const state = createBrokenStackState()
+
+      expect(buildCombatCommitAction({
+        state,
+        anchorUnitId: 'pigs-1',
+        selectedUnitIds: ['pigs-1'],
+        targetId: 'onion-1:treads',
+      })).toEqual({
+        ok: false,
+        reason: 'missing-stack-selection',
       })
     })
   })
