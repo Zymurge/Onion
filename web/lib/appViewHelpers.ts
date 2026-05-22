@@ -4,12 +4,22 @@ import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView'
 import type { ServerGameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
-import { buildFriendlyName } from '../../shared/unitDefinitions'
+import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
 import { resolveSelectionName } from './resolveSelectionName'
+
+const UNIT_DEFINITIONS = getAllUnitDefinitions()
+
+function isStackableUnitType(unitType: string | undefined): boolean {
+  if (unitType === undefined) {
+    return false
+  }
+
+  return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+}
 
 export function resolveBattlefieldUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
   return resolveSelectionName({
@@ -156,7 +166,15 @@ export function resolveBattlefieldStackMemberIds(state: StackSourceState | null 
     return [unitId]
   }
 
-  const rosterGroups = Object.values(state.stackRoster?.groupsById ?? {})
+  if (!isStackableUnitType(selectedUnit.type)) {
+    return [unitId]
+  }
+
+  if (state.stackRoster === undefined) {
+    throw new Error(`Missing stackRoster for grouped unit ${unitId}`)
+  }
+
+  const rosterGroups = Object.values(state.stackRoster.groupsById ?? {})
   for (const group of rosterGroups) {
     const unitIds = group.unitIds ?? []
     if (!unitIds.includes(unitId)) {
@@ -171,7 +189,7 @@ export function resolveBattlefieldStackMemberIds(state: StackSourceState | null 
     return [unitId]
   }
 
-  return [unitId]
+  throw new Error(`Missing stackRoster entry for grouped unit ${unitId}`)
 }
 
 export function buildStackMemberSelectionId(unitId: string, memberIndex: number): string {

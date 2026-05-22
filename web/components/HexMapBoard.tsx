@@ -7,8 +7,10 @@ import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { buildStackRosterIndex, type StackRosterState } from '../../shared/stackRoster'
+import { buildStackRosterIndex } from '../../shared/stackRoster'
+import type { StackRosterState } from '../../shared/types/index'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
+import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
 import logger from '../lib/logger'
 import './HexMapBoard.css'
 
@@ -16,6 +18,8 @@ import swampDestroyedSprite from '../assets/The Swamp - destroyed.png'
 import swampIntactSprite from '../assets/The Swamp - intact.png'
 
 type HexOccupant = BattlefieldUnit | BattlefieldOnionView
+
+const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
 type HexMapBoardProps = {
   scenarioMap: {
@@ -89,6 +93,33 @@ function getUnitMarkerText(occupant: HexOccupant, stackNaming?: StackNamingSnaps
   return resolveBattlefieldDisplayName(occupant, stackNaming)
 }
 
+function isStackableUnitType(unitType: string): boolean {
+  return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+}
+
+function hasStackedOccupants(defenders: BattlefieldUnit[]): boolean {
+  const stackedCountsByPosition = new Map<string, number>()
+
+  for (const defender of defenders) {
+    if (!isStackableUnitType(defender.type)) {
+      continue
+    }
+
+    if ((defender.squads ?? 1) > 1) {
+      return true
+    }
+
+    const key = `${defender.type}:${defender.q},${defender.r}`
+    const nextCount = (stackedCountsByPosition.get(key) ?? 0) + 1
+    stackedCountsByPosition.set(key, nextCount)
+    if (nextCount > 1) {
+      return true
+    }
+  }
+
+  return false
+}
+
 function buildMoveValidationState(
   phase: string | null,
   onion: BattlefieldOnionView,
@@ -140,6 +171,11 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const stackRosterIndex = useMemo(() => stackRoster === undefined ? null : buildStackRosterIndex(stackRoster), [stackRoster])
+
+  if (stackRosterIndex === null && hasStackedOccupants(defenders)) {
+    throw new Error('Missing stackRoster for grouped defenders')
+  }
+
   const escapePatternId = useId().replaceAll(':', '')
   const [moveError, setMoveError] = useState<string | null>(null)
   const [zoomPercent, setZoomPercent] = useState(100)
@@ -174,7 +210,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
       return resolveSelectionOwnerUnitId(directSelection)
     }
 
-    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onion.id : ''
+    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onion.id : null
   }, [onion.id, selectedUnitIds])
 
   occupantMap.set(hexKey(onion), [onion])
@@ -187,7 +223,9 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
   }
 
   const selectedOccupant =
-    selectedPrimaryUnitId === onion.id
+    selectedPrimaryUnitId === null
+      ? null
+      : selectedPrimaryUnitId === onion.id
       ? onion
       : defenders.find((unit) => unit.id === selectedPrimaryUnitId) ?? null
   const selectedAllowance = selectedOccupant
@@ -561,7 +599,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                     }
 
                     if (decision.intent === 'show-illegal-local-feedback' && canSubmitMove && selectedIsEligible) {
-                      const message = validation?.error ?? 'Illegal move'
+                      const message = validation !== null && validation.valid === false ? validation.error : 'Illegal move'
                       setMoveError(message)
                     }
                   }}

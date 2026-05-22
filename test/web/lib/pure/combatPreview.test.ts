@@ -19,7 +19,7 @@ describe('buildCombatTargetOptions', () => {
 					weapons: 'main: ready',
 					attack: '1 / rng 1',
 					defense: 2,
-					squads: 2,
+					squads: 1,
 					actionableModes: ['fire'],
 				},
 			],
@@ -58,12 +58,12 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options).toHaveLength(1)
-		expect(options[0]).toMatchObject({
-			id: 'near-1',
-			label: 'Little Pigs 1',
-			defense: 3,
-			modifiers: expect.arrayContaining(['Ridgeline cover: +1 defense']),
-		})
+			expect(options[0]).toMatchObject({
+				id: 'near-1',
+				label: 'Little Pigs 1',
+				defense: 2,
+				modifiers: expect.arrayContaining(['Ridgeline cover: +1 defense']),
+			})
 	})
 
 	it('collapses stacked Pigs targets into one canonical group card', () => {
@@ -161,6 +161,64 @@ describe('buildCombatTargetOptions', () => {
 		})
 	})
 
+	it('throws when stacked defenders are missing canonical roster data', () => {
+		expect(() => buildCombatTargetOptions({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['3,2']),
+			displayedDefenders: [
+				{
+					id: 'pigs-1',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
+					status: 'operational',
+					q: 3,
+					r: 2,
+					move: 0,
+					weapons: 'main: ready',
+					attack: '1 / rng 1',
+					defense: 1,
+					squads: 1,
+					actionableModes: ['fire'],
+				},
+				{
+					id: 'pigs-2',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 2',
+					status: 'operational',
+					q: 3,
+					r: 2,
+					move: 0,
+					weapons: 'main: ready',
+					attack: '1 / rng 1',
+					defense: 1,
+					squads: 1,
+					actionableModes: ['fire'],
+				},
+			],
+			displayedOnion: {
+				id: 'onion-1',
+				type: 'TheOnion',
+				q: 0,
+				r: 1,
+				status: 'operational',
+				treads: 33,
+				movesAllowed: 0,
+				movesRemaining: 0,
+				rams: 0,
+				weapons: 'main: ready',
+				weaponDetails: [],
+			},
+			selectedUnitIds: ['weapon:main-1'],
+			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: {
+				width: 8,
+				height: 8,
+				hexes: [{ q: 3, r: 2, t: 0 }],
+			},
+		})).toThrow('Missing stackRoster for grouped defenders')
+	})
+
 	it('filters AP targets to infantry only', () => {
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',
@@ -181,6 +239,7 @@ describe('buildCombatTargetOptions', () => {
 				{
 					id: 'pigs-1',
 					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
 					status: 'operational',
 					q: 1,
 					r: 1,
@@ -188,7 +247,7 @@ describe('buildCombatTargetOptions', () => {
 					weapons: 'rifle: ready',
 					attack: '1 / rng 1',
 					defense: 2,
-					squads: 2,
+					squads: 1,
 					actionableModes: ['fire'],
 				},
 			],
@@ -291,6 +350,7 @@ describe('buildCombatTargetOptions', () => {
 				{
 					id: 'pigs-1',
 					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
 					status: 'operational',
 					q: 1,
 					r: 1,
@@ -298,7 +358,7 @@ describe('buildCombatTargetOptions', () => {
 					weapons: 'rifle: ready',
 					attack: '1 / rng 1',
 					defense: 2,
-					squads: 2,
+					squads: 1,
 					targetRules: { allowedAttackerUnitTypes: ['BigBadWolf'] },
 					actionableModes: ['fire'],
 				},

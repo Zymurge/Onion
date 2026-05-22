@@ -5,7 +5,11 @@ export function resolveInspectorStackCount(
   selectedStackMemberCount: number,
 ): number {
   if (selectedInspectorDefender.type === 'LittlePigs') {
-    return selectedStackMemberCount > 0 ? selectedStackMemberCount : (selectedInspectorDefender.squads ?? 1)
+    if (selectedStackMemberCount <= 0) {
+      throw new Error(`Missing stack member count for grouped unit ${selectedInspectorDefender.id}`)
+    }
+
+    return selectedStackMemberCount
   }
 
   return 1

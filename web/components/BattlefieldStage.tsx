@@ -1,6 +1,6 @@
 import { HexMapBoard } from './HexMapBoard'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
-import type { StackRosterState } from '../../shared/stackRoster'
+import type { StackRosterState } from '../../shared/types/index'
 
 type BattlefieldStageProps = {
   activePhase: string | null

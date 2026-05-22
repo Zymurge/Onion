@@ -64,6 +64,50 @@
 		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()
 	})
 
+	it('throws when stacked defenders are rendered without canonical roster data', () => {
+		const littlePigsStack: BattlefieldUnit[] = [
+			{
+				id: 'pigs-1',
+				type: 'LittlePigs',
+				friendlyName: 'Little Pigs 1',
+				status: 'operational',
+				q: 2,
+				r: 2,
+				move: 3,
+				weapons: 'main: ready',
+				attack: '1 / rng 1',
+				actionableModes: ['fire', 'combined'],
+			},
+			{
+				id: 'pigs-2',
+				type: 'LittlePigs',
+				friendlyName: 'Little Pigs 2',
+				status: 'operational',
+				q: 2,
+				r: 2,
+				move: 3,
+				weapons: 'main: ready',
+				attack: '1 / rng 1',
+				actionableModes: ['fire', 'combined'],
+			},
+		]
+
+		expect(() => {
+			render(
+				<HexMapBoard
+					scenarioMap={scenarioMap}
+					defenders={littlePigsStack}
+					onion={onion}
+					phase="DEFENDER_COMBAT"
+					selectedUnitIds={[]}
+					onSelectUnit={vi.fn()}
+					onDeselect={vi.fn()}
+					onMoveUnit={vi.fn()}
+				/>,
+			)
+		}).toThrow('Missing stackRoster for grouped defenders')
+	})
+
 	it('applies dim marker styling to inspectable yellow markers', () => {
 		const inspectableUnit: BattlefieldUnit = {
 			...defenders[1],
@@ -198,6 +242,7 @@ const sparseScenarioMap = {
 const onion: BattlefieldOnionView = {
 	id: 'onion-1',
 	type: 'TheOnion',
+	friendlyName: 'The Onion',
 	q: 0,
 	r: 0,
 	status: 'operational',
@@ -215,6 +260,7 @@ const defenders: BattlefieldUnit[] = [
 	{
 		id: 'puss-1',
 		type: 'Puss',
+		friendlyName: 'Puss',
 		status: 'operational',
 		q: 1,
 		r: 1,
@@ -226,6 +272,7 @@ const defenders: BattlefieldUnit[] = [
 	{
 		id: 'wolf-2',
 		type: 'BigBadWolf',
+		friendlyName: 'Big Bad Wolf',
 		status: 'operational',
 		q: 1,
 		r: 2,
@@ -275,12 +322,23 @@ describe('HexMapBoard', () => {
 				actionableModes: ['fire', 'combined'],
 			},
 		]
+		const stackRoster = {
+			groupsById: {
+				'LittlePigs:2,2': {
+					groupName: 'Little Pigs group',
+					unitType: 'LittlePigs',
+					position: { q: 2, r: 2 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
 
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={stackedDefenders}
 				onion={onion}
+				stackRoster={stackRoster as any}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -290,7 +348,7 @@ describe('HexMapBoard', () => {
 		)
 
 		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs 1')
-		expect(screen.getByTestId('hex-unit-pigs-2').textContent).toContain('Little Pigs 2')
+		expect(screen.queryByTestId('hex-unit-pigs-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()
 	})
@@ -579,6 +637,7 @@ describe('HexMapBoard', () => {
 					{
 						id: 'wolf-2',
 						type: 'BigBadWolf',
+						friendlyName: 'Big Bad Wolf',
 						status: 'operational',
 						q: 4,
 						r: 4,

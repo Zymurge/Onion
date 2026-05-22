@@ -45,7 +45,7 @@ export type BattlefieldOnionView = {
   friendlyName?: string
   q: number
   r: number
-  status: string
+  status: UnitStatus
   treads: number
   movesAllowed: number
   movesRemaining: number

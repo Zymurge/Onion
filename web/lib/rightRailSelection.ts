@@ -21,7 +21,7 @@ export type RightRailStackSelectionViewModel = RightRailStackSelectionModel & {
   selectedStackSelectionCount: number
 }
 
-type StackSelectionFailureReason = 'missing-anchor' | 'not-a-stack' | 'empty-selection'
+type StackSelectionFailureReason = 'missing-anchor' | 'not-a-stack' | 'empty-selection' | 'missing-stack-selection'
 
 type StackSelectionResult =
   | { ok: true; selection: StackActionSelection }
@@ -102,7 +102,14 @@ function buildValidatedStackSelection(
     return { ok: false, reason: 'missing-anchor' }
   }
 
-  const availableUnitIds = uniqueIds(resolveBattlefieldStackSelectionIds(state, anchorUnitId))
+  let availableUnitIds: string[]
+
+  try {
+    availableUnitIds = uniqueIds(resolveBattlefieldStackSelectionIds(state, anchorUnitId))
+  } catch {
+    return { ok: false, reason: 'missing-stack-selection' }
+  }
+
   if (availableUnitIds.length <= 1) {
     return { ok: false, reason: 'not-a-stack' }
   }

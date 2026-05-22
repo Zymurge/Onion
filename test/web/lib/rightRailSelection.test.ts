@@ -256,6 +256,26 @@ describe('rightRailSelection', () => {
         reason: 'empty-selection',
       })
     })
+
+    it('rejects stackable submissions when stack metadata is missing instead of inferring members', () => {
+      const state = {
+        defenders: {
+          'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+          'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
+        },
+      }
+
+      expect(buildRightRailStackSubmissionAction({
+        kind: 'move',
+        state: state as any,
+        anchorUnitId: 'pigs-1',
+        selectedUnitIds: ['pigs-1'],
+        to: { q: 5, r: 4 },
+      })).toEqual({
+        ok: false,
+        reason: 'missing-stack-selection',
+      })
+    })
   })
 
   describe('stack selection mutation helpers', () => {

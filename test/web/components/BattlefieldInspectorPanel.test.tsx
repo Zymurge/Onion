@@ -148,4 +148,34 @@ describe('BattlefieldInspectorPanel', () => {
       )
     }).toThrow('Missing inspector label for selected unit pigs-1')
   })
+
+  it('throws when a grouped defender is missing a selected stack member count', () => {
+    const defender: BattlefieldUnit = {
+      id: 'pigs-1',
+      type: 'LittlePigs',
+      friendlyName: 'Little Pigs 1',
+      status: 'operational',
+      q: 4,
+      r: 4,
+      move: 3,
+      weapons: 'main: ready',
+      attack: '1 / rng 1',
+      actionableModes: ['fire', 'combined'],
+      squads: 1,
+    }
+
+    expect(() => {
+      render(
+        <BattlefieldInspectorPanel
+          selectedInspectorLabel={defender.friendlyName}
+          selectedInspectorDefender={defender}
+          selectedInspectorOnion={null}
+          selectedStackMemberCount={0}
+          activeSelectedUnitCount={0}
+          victoryObjectives={[]}
+          escapeHexes={[]}
+        />,
+      )
+    }).toThrow('Missing stack member count for grouped unit pigs-1')
+  })
 })
