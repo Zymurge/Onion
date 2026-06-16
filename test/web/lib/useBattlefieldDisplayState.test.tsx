@@ -187,4 +187,37 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
 
+	it('throws when a defender snapshot is missing a friendly name', () => {
+		const snapshot = createSnapshot()
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.defenders['pigs-1'] = {
+			id: 'pigs-1',
+			type: 'LittlePigs',
+			position: { q: 4, r: 4 },
+			status: 'operational',
+			weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+		}
+		authoritativeState.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1'],
+				},
+			},
+		}
+
+		expect(() =>
+			renderHook(() =>
+				useBattlefieldDisplayState({
+					combatBaseSnapshot: null,
+					interactionState: createInteractionState(),
+					sessionState: createSessionState(snapshot),
+					activeSessionBinding: null,
+				}),
+			),
+		).toThrow(/Missing friendly name for unit pigs-1/)
+	})
+
 })

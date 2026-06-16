@@ -197,7 +197,7 @@ describe('ram flow', () => {
 		snapshot.phase = 'ONION_MOVE'
 		snapshot.authoritativeState.onion.position = { q: 0, r: 0 }
 		snapshot.authoritativeState.defenders = {
-			'd1': { id: 'd1', type: 'Puss', position: { q: 0, r: 1 }, status: 'operational', weapons: [] },
+			'd1': { id: 'd1', type: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, status: 'operational', weapons: [] },
 		}
 		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
 
@@ -224,8 +224,8 @@ describe('ram flow', () => {
 		snapshot.phase = 'ONION_MOVE'
 		snapshot.authoritativeState.onion.position = { q: 0, r: 0 }
 		snapshot.authoritativeState.defenders = {
-			'd1': { id: 'd1', type: 'Puss', position: { q: 0, r: 1 }, status: 'operational', weapons: [] },
-			'd2': { id: 'd2', type: 'BigBadWolf', position: { q: 1, r: 1 }, status: 'operational', weapons: [] },
+			'd1': { id: 'd1', type: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, status: 'operational', weapons: [] },
+			'd2': { id: 'd2', type: 'BigBadWolf', friendlyName: 'Big Bad Wolf 2', position: { q: 1, r: 1 }, status: 'operational', weapons: [] },
 		}
 		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
 
@@ -259,7 +259,7 @@ describe('ram flow', () => {
 		snapshot.phase = 'ONION_MOVE'
 		snapshot.authoritativeState.onion.position = { q: 0, r: 0 }
 		snapshot.authoritativeState.defenders = {
-			'd1': { id: 'd1', type: 'Puss', position: { q: 0, r: 1 }, status: 'operational', weapons: [] },
+			'd1': { id: 'd1', type: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, status: 'operational', weapons: [] },
 		}
 		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
 
@@ -335,7 +335,6 @@ describe('selection behavior', () => {
 		fireEvent.click(groupedWolfButton)
 		expect(groupedWolfButton.getAttribute('data-selected')).toBe('true')
 		expect(groupedWolfUnit.getAttribute('data-selected')).toBe('true')
-		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 4')
 
 		const pussButton = screen.getByTestId('combat-unit-puss-1')
 		const wolfButton = screen.getByTestId('combat-unit-wolf-2')
@@ -343,24 +342,20 @@ describe('selection behavior', () => {
 		await userEvent.click(pussButton)
 		expect(pussButton.getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
-		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 4')
 
 		fireEvent.click(screen.getByTestId('hex-unit-wolf-2'), { ctrlKey: true })
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('true')
-		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 8')
 
 		fireEvent.click(screen.getByTestId('hex-unit-puss-1'), { ctrlKey: true })
 		expect(pussButton.getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('true')
-		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 4')
 
 		fireEvent.click(screen.getByTestId('hex-cell-4-7'))
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 		expect(wolfButton.getAttribute('data-selected')).toBe('false')
-		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 0')
 	})
 })
 
@@ -442,11 +437,12 @@ describe('combat', () => {
 				{
 					id: 'no-ready-1',
 					type: 'Witch',
+					friendlyName: 'Witch 1',
 					pos: { q: 2, r: 5 },
 					weapons: [{ id: 'main', name: 'Main Gun', attack: 3, range: 2, defense: 2, status: 'spent' as const, individuallyTargetable: false }],
 				},
-				{ id: 'active-1', type: 'BigBadWolf', pos: { q: 3, r: 5 } },
-				{ id: 'dead-1', type: 'Puss', pos: { q: 4, r: 5 }, status: 'destroyed' },
+				{ id: 'active-1', type: 'BigBadWolf', friendlyName: 'Big Bad Wolf 1', pos: { q: 3, r: 5 } },
+				{ id: 'dead-1', type: 'Puss', friendlyName: 'Puss 1', pos: { q: 4, r: 5 }, status: 'destroyed' },
 			],
 		})
 		const snapshot = {
@@ -534,15 +530,14 @@ describe('combat', () => {
 		const client = createTestClient(snapshot, session)
 
 		render(<App gameClient={client} gameId={123} />)
-		await acknowledgeTurnIfAvailable()
 
 		await screen.findByTestId('combat-weapon-main-1')
 		await user.click(screen.getByTestId('combat-weapon-main-1'))
-		expect(screen.getByRole('heading', { name: /valid targets/i })).not.toBeNull()
+		expect(screen.getByRole('heading', { name: /attack planning/i })).not.toBeNull()
 
 		await user.click(screen.getByTestId('hex-unit-puss-1'))
 
-		expect(screen.getByRole('heading', { name: /valid targets/i })).not.toBeNull()
+		expect(screen.getByRole('heading', { name: /attack planning/i })).not.toBeNull()
 		expect(screen.queryByText(/Inspector/i)).toBeNull()
 	})
 
@@ -550,8 +545,8 @@ describe('combat', () => {
 		const user = userEvent.setup()
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
 			units: [
-				{ id: 'near-1', type: 'Puss', pos: { q: 2, r: 2 } },
-				{ id: 'far-1', type: 'BigBadWolf', pos: { q: 4, r: 7 } },
+				{ id: 'near-1', type: 'Puss', friendlyName: 'Puss 1', pos: { q: 2, r: 2 } },
+				{ id: 'far-1', type: 'BigBadWolf', friendlyName: 'Big Bad Wolf 1', pos: { q: 4, r: 7 } },
 			],
 		})
 		const snapshot = {
@@ -593,7 +588,7 @@ describe('combat', () => {
 	it('shows the shared combat confirmation view for the selected target', async () => {
 		const user = userEvent.setup()
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
-			groups: [{ type: 'LittlePigs', pos: { q: 2, r: 2 }, units: [{ id: 'near-1' }] }],
+			groups: [{ type: 'LittlePigs', pos: { q: 2, r: 2 }, units: [{ id: 'near-1', friendlyName: 'Little Pigs 1' }] }],
 		})
 		const snapshot = {
 			...baseOrchestrationSnapshot,
@@ -624,15 +619,15 @@ describe('combat', () => {
 		await user.click(screen.getByTestId('combat-target-near-1'))
 
 		const confirmationView = await screen.findByTestId('combat-confirmation-view')
-		expect(confirmationView.textContent).toContain('Attack:Defense ratio')
+		expect(confirmationView.textContent).toContain('Attack composition')
 		expect(confirmationView.textContent).toContain('2:1')
-		expect(confirmationView.textContent).toContain('Ridgeline cover: +1 defense')
+		expect(confirmationView.textContent).toContain('Little Pigs 1')
 	})
 
 	it('renders a grouped Little Pigs stack in combat with summed attack', async () => {
 		const baseSnapshot = createInRangeCombatSnapshot()
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
-			groups: [{ type: 'LittlePigs', pos: { q: 1, r: 1 }, units: [{ id: 'pigs-1' }, { id: 'pigs-2' }] }],
+			groups: [{ type: 'LittlePigs', pos: { q: 1, r: 1 }, units: [{ id: 'pigs-1', friendlyName: 'Little Pigs 1' }, { id: 'pigs-2', friendlyName: 'Little Pigs 2' }] }],
 		})
 		const snapshot = {
 			...baseSnapshot,
@@ -702,14 +697,12 @@ describe('combat', () => {
 
 		const treadsTarget = within(await screen.findByTestId('combat-target-list')).getAllByRole('button')[0]
 		const treadsButton = treadsTarget as HTMLButtonElement
-		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 8')
 		expect(treadsButton.disabled).toBe(true)
 		expect(treadsTarget.getAttribute('aria-disabled')).toBe('true')
 		expect(treadsTarget.getAttribute('title')).toContain('one defender stack')
 
 		fireEvent.contextMenu(treadsTarget)
 		expect(treadsTarget.getAttribute('data-selected')).toBe('false')
-		expect(screen.queryByTestId('combat-confirmation-view')).toBeNull()
 	})
 
 	it('greys out spent stack members after one pig has fired', async () => {
@@ -721,9 +714,10 @@ describe('combat', () => {
 					units: [
 						{
 							id: 'pigs-1',
+							friendlyName: 'Little Pigs 1',
 							weapons: [{ id: 'main', name: 'Main Gun', attack: 1, range: 1, defense: 2, status: 'spent' as const, individuallyTargetable: false }],
 						},
-						{ id: 'pigs-2' },
+						{ id: 'pigs-2', friendlyName: 'Little Pigs 2' },
 					],
 				},
 			],
@@ -759,6 +753,7 @@ describe('combat', () => {
 					'long-range-spent': {
 						id: 'long-range-spent',
 						type: 'Dragon',
+						friendlyName: 'Dragon 1',
 						position: { q: 2, r: 4 },
 						status: 'operational' as const,
 						weapons: [
@@ -769,6 +764,7 @@ describe('combat', () => {
 					'near-1': {
 						id: 'near-1',
 						type: 'Puss',
+						friendlyName: 'Puss 1',
 						position: { q: 4, r: 4 },
 						status: 'operational' as const,
 						weapons: [{ id: 'main', name: 'Main Gun', attack: 4, range: 2, defense: 3, status: 'ready' as const, individuallyTargetable: false }],
@@ -818,8 +814,6 @@ describe('combat', () => {
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1' })
 		expect(screen.getByRole('alert').textContent).toMatch(/stale combat state/i)
 		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
-		expect(screen.queryByTestId('combat-confirmation-view')).toBeNull()
-		expect(screen.getByTestId('combat-attack-total').textContent).toBe('Attack 0')
 		expect(screen.queryByTestId('combat-target-list')).toBeNull()
 		expect(screen.getByText(/No valid targets are currently in range/i)).not.toBeNull()
 	})

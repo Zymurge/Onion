@@ -9,6 +9,7 @@ import { buildAcknowledgementTurnKey } from '../../../../web/lib/turnKey'
 import { createGameClient, type GameSnapshot } from '../../../../web/lib/gameClient'
 import { clearApiProtocolTraffic, requestJson } from '../../../../shared/apiProtocol'
 import type { GameState } from '../../../../shared/types/index'
+import { buildStackRosterFromUnits } from '../../../../shared/stackRoster'
 import type { LiveEventSource, LiveSessionSignal } from '../../../../web/lib/gameSessionTypes'
 
 type LoadedBattlefieldSnapshot = GameSnapshot & {
@@ -32,6 +33,7 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 			onion: {
 				id: 'onion-1',
 				type: 'TheOnion',
+					friendlyName: 'The Onion',
 				position: { q: 0, r: 1 },
 				treads: 33,
 				status: 'operational',
@@ -56,6 +58,7 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
 					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
@@ -73,6 +76,7 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
+					friendlyName: 'Puss 1',
 					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
@@ -89,6 +93,24 @@ function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
 				},
 			},
 			ramsThisTurn: 0,
+			stackRoster: buildStackRosterFromUnits([
+				{
+					id: 'wolf-2',
+					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
+					position: { q: 3, r: 6 },
+					status: 'operational',
+					weapons: [],
+				},
+				{
+					id: 'puss-1',
+					type: 'Puss',
+					friendlyName: 'Puss 1',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [],
+				},
+			]),
 		},
 		movementRemainingByUnit: {
 			'onion-1': 0,
@@ -289,8 +311,8 @@ describe('App UI', () => {
 		expect(await screen.findByTestId('combat-unit-onion-1')).not.toBeNull()
 		expect(screen.queryByTestId('combat-unit-wolf-2')).toBeNull()
 		expect(screen.queryByTestId('combat-unit-puss-1')).toBeNull()
-		expect(screen.queryByText(/unit details/i)).toBeNull()
-		expect(screen.getByText('Select a unit on the map or in the rail to inspect it here.')).not.toBeNull()
+		expect(screen.queryByTestId('battlefield-inspector-subject-onion-1')).toBeNull()
+		expect(screen.queryByText('Select a unit on the map or in the rail to inspect it here.')).toBeNull()
 	})
 
 	it('does not reopen Onion movement range after moves are exhausted', async () => {

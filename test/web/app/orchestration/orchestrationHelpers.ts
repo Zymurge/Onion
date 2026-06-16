@@ -52,6 +52,7 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 			onion: {
 				id: 'onion-live',
 				type: 'TheOnion',
+					friendlyName: 'The Onion',
 				position: { q: 1, r: 1 },
 				treads: 27,
 				status: 'operational',
@@ -76,6 +77,7 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 				'dragon-7': {
 					id: 'dragon-7',
 					type: 'Dragon',
+					friendlyName: 'Dragon 7',
 					position: { q: 0, r: 1 },
 					status: 'operational',
 					weapons: [
@@ -130,6 +132,7 @@ export function createConnectedBattlefieldSnapshot(
 			onion: {
 				id: 'onion-1',
 				type: 'TheOnion',
+					friendlyName: 'The Onion',
 				position: { q: 0, r: 1 },
 				treads: 33,
 				status: 'operational',
@@ -154,6 +157,7 @@ export function createConnectedBattlefieldSnapshot(
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
 					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
@@ -171,6 +175,7 @@ export function createConnectedBattlefieldSnapshot(
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
+					friendlyName: 'Puss 1',
 					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
@@ -218,6 +223,7 @@ export function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot 
 			...createConnectedBattlefieldSnapshot().authoritativeState,
 			onion: {
 				...createConnectedBattlefieldSnapshot().authoritativeState.onion,
+						friendlyName: 'The Onion',
 				weapons: [
 					{
 						id: 'main-1',
@@ -243,6 +249,7 @@ export function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot 
 				...createConnectedBattlefieldSnapshot().authoritativeState.defenders,
 				'wolf-2': {
 					...createConnectedBattlefieldSnapshot().authoritativeState.defenders['wolf-2'],
+						friendlyName: 'Big Bad Wolf 2',
 					position: { q: 1, r: 1 },
 				},
 			},
@@ -405,6 +412,7 @@ export function buildDefenderTree(opts: {
 			defenders[member.id] = {
 				id: member.id,
 				type: group.type,
+				friendlyName: member.friendlyName,
 				position: group.pos,
 				status: member.status ?? 'operational',
 				weapons: member.weapons ?? getDefaultWeapons(group.type),

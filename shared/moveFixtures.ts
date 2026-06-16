@@ -5,6 +5,7 @@ export function createMoveGameState(treads: number): GameState {
 		onion: {
 			id: 'onion-1',
 			type: 'TheOnion',
+			friendlyName: 'The Onion',
 			position: { q: 0, r: 1 },
 			treads,
 			status: 'operational',
@@ -29,6 +30,7 @@ export function createMoveGameState(treads: number): GameState {
 			'wolf-2': {
 				id: 'wolf-2',
 				type: 'BigBadWolf',
+				friendlyName: 'Big Bad Wolf 2',
 				position: { q: 6, r: 6 },
 				status: 'operational',
 				weapons: [
@@ -46,6 +48,7 @@ export function createMoveGameState(treads: number): GameState {
 			'puss-1': {
 				id: 'puss-1',
 				type: 'Puss',
+				friendlyName: 'Puss 1',
 				position: { q: 6, r: 4 },
 				status: 'operational',
 				weapons: [

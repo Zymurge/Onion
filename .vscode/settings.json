@@ -10,6 +10,7 @@
     "files.watcherExclude": {
         "dist/**": true
     },
+    "chat.tools.compressOutput.enabled": true,
     "chat.tools.terminal.autoApprove": {
         "pnpm": true,
         "npx vitest": true,
@@ -27,6 +28,8 @@
         "tee": true,
         "awk": true
     },
+    "chat.utilityModel": "copilot/gpt-5.4-mini",
+    "chat.utilitySmallModel": "copilot/gpt-5-mini",
     "github.copilot.chat.cli.forkSessions.enabled": true,
     "github.copilot.chat.responsesApi.toolSearchTool.enabled": true,
     "github.copilot.chat.localIndex.enabled": true,

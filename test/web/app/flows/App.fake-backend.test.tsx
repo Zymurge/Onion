@@ -9,6 +9,7 @@ import { createFakeGameBackend } from '../../../../web/lib/fakeGameBackend'
 import { createGameSessionController } from '../../../../web/lib/gameSessionController'
 import { createGameClient, type GameSnapshot, type GameSessionContext } from '../../../../web/lib/gameClient'
 import type { GameState } from '#shared/types/index'
+import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import { useGameSession } from '../../../../web/lib/useGameSession'
 
 function createSnapshot({ overrides = {} }: { overrides?: Partial<GameSnapshot> } = {}): GameSnapshot {
@@ -68,6 +69,7 @@ function createAppShellSnapshot(): GameSnapshot & {
 			onion: {
 				id: 'onion-1',
 				type: 'TheOnion',
+					friendlyName: 'The Onion',
 				position: { q: 0, r: 1 },
 				treads: 33,
 				status: 'operational',
@@ -92,6 +94,7 @@ function createAppShellSnapshot(): GameSnapshot & {
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
 					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
@@ -109,6 +112,7 @@ function createAppShellSnapshot(): GameSnapshot & {
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
+					friendlyName: 'Puss 1',
 					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
@@ -125,6 +129,24 @@ function createAppShellSnapshot(): GameSnapshot & {
 				},
 			},
 			ramsThisTurn: 0,
+				stackRoster: buildStackRosterFromUnits([
+					{
+						id: 'wolf-2',
+						type: 'BigBadWolf',
+						friendlyName: 'Big Bad Wolf 2',
+						position: { q: 3, r: 6 },
+						status: 'operational',
+						weapons: [],
+					},
+					{
+						id: 'puss-1',
+						type: 'Puss',
+						friendlyName: 'Puss 1',
+						position: { q: 4, r: 4 },
+						status: 'operational',
+						weapons: [],
+					},
+				]),
 		},
 		movementRemainingByUnit: {
 			'onion-1': 0,

@@ -119,12 +119,13 @@ export function useBattlefieldDisplayState({
         error = validation.error
       }
     }
+    const hasValidationError = error !== null
     const selectedBoardUnitId = (() => {
       const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
     const stackSourceState = authoritativeState as StackSourceState | null
-    const selectedStackUnitIds = selectedBoardUnitId === null ? [] : resolveBattlefieldStackMemberIds(stackSourceState, selectedBoardUnitId)
+    const selectedStackUnitIds = selectedBoardUnitId === null || hasValidationError ? [] : resolveBattlefieldStackMemberIds(stackSourceState, selectedBoardUnitId)
     const activeSelectedUnitIds = selectedUnitIds ?? []
     const headerHasSnapshot = clientSnapshot !== null
     const activeTurnNumber = clientSnapshot?.turnNumber ?? null
@@ -151,12 +152,12 @@ export function useBattlefieldDisplayState({
 
     const scenarioMapSnapshot = clientSnapshot === null ? null : buildScenarioMap(clientSnapshot)
     const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
-    const displayedDefenders = authoritativeState === null ? [] : buildLiveDefenders({
+    const displayedDefenders = authoritativeState === null || hasValidationError ? [] : buildLiveDefenders({
       authoritativeState,
       scenarioMap: scenarioMapSnapshot,
       movementRemainingByUnit: movementRemainingSnapshot,
     } as ServerGameSnapshot, activePhase, activeTurnActive)
-    const displayedOnion = clientSnapshot === null ? null : buildLiveOnion(clientSnapshot, activePhase)
+    const displayedOnion = clientSnapshot === null || hasValidationError ? null : buildLiveOnion(clientSnapshot, activePhase)
     const stackNaming = authoritativeState?.stackNaming ?? null
     const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
     const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
@@ -165,7 +166,7 @@ export function useBattlefieldDisplayState({
         .filter(isBattlefieldUnitCombatReady)
         .map((unit) => unit.id),
     )
-    const selectedCombatSelectionIds = !isCombatPhase
+    const selectedCombatSelectionIds = hasValidationError || !isCombatPhase
       ? []
       : activeCombatRole === 'defender'
         ? Array.from(new Set(activeSelectedUnitIds.filter((selectionId) => readyDefenderUnitIds.has(resolveSelectionOwnerUnitId(selectionId)))))
@@ -188,7 +189,9 @@ export function useBattlefieldDisplayState({
           .filter((unit) => selectedUnitIdSet.has(unit.id))
           .reduce((total, unit) => total + parseRangeValue(parseAttackStats(unit.attack).damage), 0)
       })()
-    const selectedCombatAttackMemberLabels = activeCombatRole === 'onion'
+    const selectedCombatAttackMemberLabels = hasValidationError
+      ? []
+      : activeCombatRole === 'onion'
       ? selectedCombatAttackerIds
         .map((weaponId) => displayedOnion?.weaponDetails?.find((weapon) => weapon.id === weaponId) ?? null)
         .filter((weapon): weapon is NonNullable<typeof weapon> => weapon !== null)
@@ -210,7 +213,17 @@ export function useBattlefieldDisplayState({
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
     const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
-    const rightRailStackSelection = buildRightRailStackSelectionViewModel({
+    const rightRailStackSelection = hasValidationError
+      ? {
+        anchorUnitId: null,
+        groupId: null,
+        memberUnitIds: [],
+        selectedUnitIds: [],
+        selectedCount: 0,
+        selectedStackMembers: [],
+        selectedStackSelectionCount: 0,
+      }
+      : buildRightRailStackSelectionViewModel({
       state: stackSourceState,
       inspectedUnitId: selectedInspectorUnitId,
       selectedStackUnitIds,
