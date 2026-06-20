@@ -67,6 +67,11 @@ describe('buildCombatTargetOptions', () => {
 	})
 
 	it('collapses stacked Pigs targets into one canonical group card', () => {
+		const unitsById = {
+			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', status: 'operational', q: 3, r: 2 },
+			'pigs-2': { id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', status: 'operational', q: 3, r: 2 },
+		}
+
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',
 			combatRangeHexKeys: new Set(['3,2']),
@@ -132,6 +137,7 @@ describe('buildCombatTargetOptions', () => {
 						unitIds: ['pigs-1', 'pigs-2'],
 					},
 				},
+				unitsById,
 			},
 			stackNaming: {
 				groupsInUse: [

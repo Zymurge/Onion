@@ -124,6 +124,24 @@ describe('useBattlefieldDisplayState', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
+			unitsById: {
+				'pigs-1': {
+					id: 'pigs-1',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+				'pigs-2': {
+					id: 'pigs-2',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 2',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+			},
 		}
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
@@ -149,6 +167,24 @@ describe('useBattlefieldDisplayState', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
+			unitsById: {
+				'pigs-1': {
+					id: 'pigs-1',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+				'pigs-2': {
+					id: 'pigs-2',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 2',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+			},
 		}
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
@@ -172,6 +208,24 @@ describe('useBattlefieldDisplayState', () => {
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+			unitsById: {
+				'pigs-1': {
+					id: 'pigs-1',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+				'pigs-2': {
+					id: 'pigs-2',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 2',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
 				},
 			},
 		}

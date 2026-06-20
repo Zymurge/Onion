@@ -11,14 +11,20 @@ import {
   toggleRightRailStackMemberSelection,
 } from '#web/lib/rightRailSelection'
 
-function createStackState() {
+function createUnitsById() {
   return {
-    defenders: {
-      'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-      'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
-      'pigs-3': { id: 'pigs-3', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'destroyed' },
-      'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
-    },
+    'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+    'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
+    'pigs-3': { id: 'pigs-3', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'destroyed' },
+    'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+  }
+}
+
+function createStackState() {
+  const unitsById = createUnitsById()
+
+  return {
+    defenders: unitsById,
     stackRoster: {
       groupsById: {
         'stack-a': {
@@ -28,6 +34,7 @@ function createStackState() {
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
         },
       },
+      unitsById,
     },
   }
 }

@@ -527,6 +527,10 @@ describe('executeUnitMovement', () => {
           unitIds: ['p1', 'p2'],
         },
       },
+      unitsById: {
+        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+      },
     }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))
@@ -563,6 +567,11 @@ describe('executeUnitMovement', () => {
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2', 'p3'],
         },
+      },
+      unitsById: {
+        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 1 },
       },
     }
 
@@ -627,12 +636,22 @@ describe('executeUnitMovement', () => {
     }
     state.stackRoster = {
       groupsById: {
-        'merged-group': {
+        'LittlePigs:0,0': {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2'],
         },
+        'LittlePigs:2,0': {
+          groupName: 'Little Pigs group 2',
+          unitType: 'LittlePigs',
+          position: { q: 2, r: 0 },
+          unitIds: ['p3', 'p4'],
+        },
+      },
+      unitsById: {
+        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
       },
     }
 
@@ -686,6 +705,13 @@ describe('executeUnitMovement', () => {
           position: { q: 4, r: 0 },
           unitIds: ['p5'],
         },
+      },
+      unitsById: {
+        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 2 },
+        p4: { id: 'p4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 2 },
+        p5: { id: 'p5', status: 'operational', friendlyName: 'Little Pigs 5', squads: 2 },
       },
     }
 

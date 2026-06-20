@@ -450,6 +450,7 @@ export function buildDefenderTree(opts: {
 	const autoRoster = buildStackRosterFromUnits(allSourceUnits)
 	const stackRoster: StackRosterState = {
 		groupsById: { ...autoRoster.groupsById, ...stackRosterGroupsById },
+		unitsById: { ...autoRoster.unitsById, ...Object.fromEntries(Object.values(defenders).map((defender) => [defender.id, defender])) },
 	}
 
 	const stackNaming = refreshStackNamingSnapshotFromRoster(undefined, stackRoster, allSourceUnits)

@@ -40,6 +40,7 @@
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
+			unitsById: Object.fromEntries(littlePigsStack.map((unit) => [unit.id, { id: unit.id, status: unit.status, friendlyName: unit.friendlyName }])),
 		}
 
 		render(
@@ -331,6 +332,7 @@ describe('HexMapBoard', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
+			unitsById: Object.fromEntries(stackedDefenders.map((unit) => [unit.id, { id: unit.id, status: unit.status, friendlyName: unit.friendlyName }])),
 		}
 
 		render(

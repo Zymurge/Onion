@@ -553,10 +553,7 @@ describe('buildVictoryObjectiveStates', () => {
                 groupName: 'Little Pigs group 1',
                 unitType: 'LittlePigs',
                 position: { q: 4, r: 4 },
-                units: [
-                  { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
-                  { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
-                ],
+                unitIds: ['pigs-1', 'pigs-2'],
               },
             },
           },

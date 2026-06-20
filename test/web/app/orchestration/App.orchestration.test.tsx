@@ -19,9 +19,13 @@ import {
 } from './orchestrationHelpers'
 
 async function acknowledgeTurnIfAvailable() {
-	const beginTurnButton = await screen.findByRole('button', { name: /begin turn/i })
-	if (beginTurnButton !== null && beginTurnButton.getAttribute('disabled') === null) {
-		await userEvent.click(beginTurnButton)
+	try {
+		const beginTurnButton = await screen.findByRole('button', { name: /begin turn/i })
+		if (beginTurnButton.getAttribute('disabled') === null) {
+			await userEvent.click(beginTurnButton)
+		}
+	} catch {
+		return
 	}
 }
 

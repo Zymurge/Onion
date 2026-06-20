@@ -6,8 +6,16 @@ import {
   shouldExpandBattlefieldStackGroup,
 } from '../../../web/lib/appViewHelpers'
 
+function createUnitsById() {
+  return {
+    'pigs-1': { id: 'pigs-1', type: 'LittlePigs', q: 2, r: 2, friendlyName: 'Little Pigs 1', status: 'operational' },
+    'pigs-2': { id: 'pigs-2', type: 'LittlePigs', q: 2, r: 2, friendlyName: 'Little Pigs 2', status: 'operational' },
+  }
+}
+
 describe('resolveBattlefieldDisplayName', () => {
   it('throws when grouped unit metadata is incomplete', () => {
+    const unitsById = createUnitsById()
     const stackRoster = {
       groupsById: {
         'LittlePigs:2,2': {
@@ -17,6 +25,7 @@ describe('resolveBattlefieldDisplayName', () => {
           unitIds: ['pigs-1', 'pigs-2'],
         },
       },
+      unitsById,
     }
 
     expect(() => resolveBattlefieldFriendlyName(
@@ -33,6 +42,7 @@ describe('resolveBattlefieldDisplayName', () => {
   })
 
   it('throws when grouped unit labels conflict between roster and naming', () => {
+    const unitsById = createUnitsById()
     const stackNaming = {
       groupsInUse: [
         { groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
@@ -49,6 +59,7 @@ describe('resolveBattlefieldDisplayName', () => {
           unitIds: ['pigs-1', 'pigs-2'],
         },
       },
+      unitsById,
     }
 
     expect(() => resolveBattlefieldFriendlyName(

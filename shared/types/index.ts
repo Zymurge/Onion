@@ -26,12 +26,13 @@ export type StackRosterGroupState = {
   groupName: string
   unitType: string
   position: HexPos
-  unitIds?: string[]
+  unitIds: string[]
   units?: StackRosterUnitState[]
 }
 
 export type StackRosterState = {
   groupsById: Record<string, StackRosterGroupState>
+  unitsById?: Record<string, StackRosterUnitState>
 }
 
 export type { TargetRules } from '../targetRules.js'
