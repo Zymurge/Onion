@@ -2,11 +2,10 @@ import type { GameAction } from './gameClient'
 import {
   buildCombatTargetActionId,
   isWeaponSelectionId,
+  type WebStackSourceState,
 } from './appViewHelpers'
-import { buildRightRailStackSubmissionAction } from './rightRailSelection'
+import { buildRightRailCombatSubmissionAction, buildRightRailMoveSubmissionAction } from './rightRailSelection'
 import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
-
-type StackSourceState = Parameters<typeof buildRightRailStackSubmissionAction>[0]['state']
 
 type CommitActionFailureReason = 'empty-selection' | 'missing-target' | 'missing-stack-selection'
 
@@ -15,7 +14,7 @@ type CommitActionResult<TAction extends GameAction> =
   | { ok: false; reason: CommitActionFailureReason }
 
 type MoveCommitActionInput = {
-  state: StackSourceState
+  state: WebStackSourceState
   unitId: string
   selectedUnitIds: readonly string[]
   to: { q: number; r: number }
@@ -23,7 +22,7 @@ type MoveCommitActionInput = {
 }
 
 type CombatCommitActionInput = {
-  state: StackSourceState
+  state: WebStackSourceState
   anchorUnitId: string | null
   selectedUnitIds: readonly string[]
   targetId: string | null
@@ -34,7 +33,7 @@ type EndPhaseCommitAction = Extract<GameAction, { type: 'end-phase' }>
 
 const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
-function resolveUnitType(state: StackSourceState, unitId: string | null): string | null {
+function resolveUnitType(state: WebStackSourceState, unitId: string | null): string | null {
   if (unitId === null) {
     return null
   }
@@ -55,21 +54,22 @@ function isStackableUnitType(unitType: string | null): boolean {
 }
 
 function buildMovePayload(
-  state: StackSourceState,
+  state: WebStackSourceState,
   unitId: string,
   selectedUnitIds: readonly string[],
   to: { q: number; r: number },
   attemptRam?: boolean,
 ): CommitActionResult<Extract<GameAction, { type: 'MOVE' }>> {
   const selectedBoardUnitIds = selectedUnitIds.filter((selectionId) => !isWeaponSelectionId(selectionId))
-  const stackSubmission = buildRightRailStackSubmissionAction({
-    kind: 'move',
+  const stackSubmission = buildRightRailMoveSubmissionAction({
     state,
     anchorUnitId: unitId,
     selectedUnitIds: selectedBoardUnitIds,
     to,
     ...(attemptRam === undefined ? {} : { attemptRam }),
-  })
+  }) as
+    | { ok: true; action: Extract<GameAction, { type: 'MOVE' }> }
+    | { ok: false; reason: CommitActionFailureReason }
 
   if (!stackSubmission.ok && stackSubmission.reason === 'empty-selection') {
     return stackSubmission
@@ -98,20 +98,21 @@ function buildMovePayload(
 }
 
 function buildCombatPayload(
-  state: StackSourceState,
+  state: WebStackSourceState,
   anchorUnitId: string | null,
   selectedUnitIds: readonly string[],
   targetId: string,
   onionId?: string,
 ): CommitActionResult<Extract<GameAction, { type: 'FIRE' }>> {
   const translatedTargetId = buildCombatTargetActionId(targetId, onionId)
-  const stackSubmission = buildRightRailStackSubmissionAction({
-    kind: 'combat',
+  const stackSubmission = buildRightRailCombatSubmissionAction({
     state,
     anchorUnitId,
     selectedUnitIds,
     targetId: translatedTargetId,
-  })
+  }) as
+    | { ok: true; action: Extract<GameAction, { type: 'FIRE' }> }
+    | { ok: false; reason: CommitActionFailureReason }
 
   if (!stackSubmission.ok && stackSubmission.reason === 'empty-selection') {
     return stackSubmission

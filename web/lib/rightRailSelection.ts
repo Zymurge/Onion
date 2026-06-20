@@ -1,10 +1,8 @@
 import type { GameAction, StackActionSelection } from './gameClient'
-import { normalizeSelectionIds, parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
+import { normalizeSelectionIds, parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId, type WebStackSourceState } from './appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
-
-type StackSourceState = Parameters<typeof resolveBattlefieldStackMemberIds>[0]
 
 type RightRailStackMemberView = BattlefieldUnit | BattlefieldOnionView
 
@@ -27,15 +25,15 @@ type StackSelectionResult =
   | { ok: true; selection: StackActionSelection }
   | { ok: false; reason: StackSelectionFailureReason }
 
-type RightRailStackActionResult<TAction extends GameAction> =
-  | { ok: true; action: TAction }
-  | { ok: false; reason: StackSelectionFailureReason | 'missing-target' }
+// type RightRailStackActionResult<TAction extends GameAction> =
+//   | { ok: true; action: TAction }
+//   | { ok: false; reason: StackSelectionFailureReason | 'missing-target' }
 
 type RightRailStackSubmissionFailureReason = StackSelectionFailureReason | 'missing-target'
 
 type RightRailMoveSubmissionInput = {
   kind: 'move'
-  state: StackSourceState
+  state: WebStackSourceState
   anchorUnitId: string | null
   selectedUnitIds: readonly string[]
   to: { q: number; r: number }
@@ -44,7 +42,7 @@ type RightRailMoveSubmissionInput = {
 
 type RightRailCombatSubmissionInput = {
   kind: 'combat'
-  state: StackSourceState
+  state: WebStackSourceState
   anchorUnitId: string | null
   selectedUnitIds: readonly string[]
   targetId: string | null
@@ -55,6 +53,14 @@ export type RightRailStackSubmissionInput = RightRailMoveSubmissionInput | Right
 export type RightRailStackSubmissionResult =
   | { ok: true; action: Extract<GameAction, { type: 'MOVE' }> | Extract<GameAction, { type: 'FIRE' }> }
   | { ok: false; reason: RightRailStackSubmissionFailureReason }
+
+export type RightRailMoveSubmissionResult =
+  | { ok: true; action: Extract<GameAction, { type: 'MOVE' }> }
+  | { ok: false; reason: Exclude<RightRailStackSubmissionFailureReason, 'missing-anchor'> }
+
+export type RightRailCombatSubmissionResult =
+  | { ok: true; action: Extract<GameAction, { type: 'FIRE' }> }
+  | { ok: false; reason: Exclude<RightRailStackSubmissionFailureReason, 'missing-anchor'> }
 
 function uniqueIds(unitIds: readonly string[]): string[] {
   return Array.from(new Set(unitIds))
@@ -85,7 +91,7 @@ export function clearRightRailStackSelection(): string[] {
   return []
 }
 
-function findGroupIdForUnit(state: StackSourceState, unitId: string | null): string | null {
+function findGroupIdForUnit(state: WebStackSourceState, unitId: string | null): string | null {
   if (unitId === null) {
     return null
   }
@@ -94,7 +100,7 @@ function findGroupIdForUnit(state: StackSourceState, unitId: string | null): str
 }
 
 function buildValidatedStackSelection(
-  state: StackSourceState,
+  state: WebStackSourceState,
   anchorUnitId: string | null,
   selectedUnitIds: readonly string[],
 ): StackSelectionResult {
@@ -150,7 +156,7 @@ export function buildRightRailStackSelectionModel({
   selectedStackUnitIds,
   activeSelectedUnitIds,
 }: {
-  state: StackSourceState
+  state: WebStackSourceState
   inspectedUnitId: string | null
   selectedStackUnitIds: readonly string[]
   activeSelectedUnitIds: readonly string[]
@@ -182,7 +188,7 @@ export function buildRightRailStackSelectionViewModel({
   displayedDefenders,
   displayedOnion,
 }: {
-  state: StackSourceState
+  state: WebStackSourceState
   inspectedUnitId: string | null
   selectedStackUnitIds: readonly string[]
   activeSelectedUnitIds: readonly string[]
@@ -216,57 +222,75 @@ export function buildRightRailStackSelectionViewModel({
   }
 }
 
-export function buildRightRailMoveAction({
+export const buildRightRailMoveAction = ({
   state,
   anchorUnitId,
   selectedUnitIds,
   to,
   attemptRam,
 }: {
-  state: StackSourceState
+  state: WebStackSourceState
   anchorUnitId: string | null
   selectedUnitIds: readonly string[]
   to: { q: number; r: number }
   attemptRam?: boolean
-}): RightRailStackActionResult<Extract<GameAction, { type: 'MOVE' }>> {
-  const submissionResult = buildRightRailStackSubmissionAction({
-    kind: 'move',
-    state,
-    anchorUnitId,
-    selectedUnitIds,
-    to,
-    attemptRam,
-  })
+}): RightRailMoveSubmissionResult => buildRightRailMoveSubmissionAction({ state, anchorUnitId, selectedUnitIds, to, attemptRam })
 
-  return submissionResult.ok
-    ? submissionResult
-    : submissionResult
-}
-
-export function buildRightRailCombatAction({
+export const buildRightRailCombatAction = ({
   state,
   anchorUnitId,
   selectedUnitIds,
   targetId,
 }: {
-  state: StackSourceState
+  state: WebStackSourceState
   anchorUnitId: string | null
   selectedUnitIds: readonly string[]
   targetId: string | null
-}): RightRailStackActionResult<Extract<GameAction, { type: 'FIRE' }>> {
-  const submissionResult = buildRightRailStackSubmissionAction({
-    kind: 'combat',
-    state,
-    anchorUnitId,
-    selectedUnitIds,
-    targetId,
-  })
+}): RightRailCombatSubmissionResult => buildRightRailCombatSubmissionAction({ state, anchorUnitId, selectedUnitIds, targetId })
 
-  return submissionResult.ok
-    ? submissionResult
-    : submissionResult
+export function buildRightRailMoveSubmissionAction(input: Omit<RightRailMoveSubmissionInput, 'kind'>): RightRailMoveSubmissionResult {
+  const selectionResult = buildValidatedStackSelection(input.state, input.anchorUnitId, input.selectedUnitIds)
+  if (!selectionResult.ok) {
+    return selectionResult.reason === 'missing-anchor'
+      ? { ok: false, reason: 'missing-stack-selection' }
+       : (selectionResult as RightRailMoveSubmissionResult)
+  }
+
+  return {
+    ok: true,
+    action: {
+      type: 'MOVE',
+      movers: selectionResult.selection.selectedUnitIds,
+      to: input.to,
+      ...(input.attemptRam === undefined ? {} : { attemptRam: input.attemptRam }),
+    },
+  }
 }
 
+export function buildRightRailCombatSubmissionAction(input: Omit<RightRailCombatSubmissionInput, 'kind'>): RightRailCombatSubmissionResult {
+  const selectionResult = buildValidatedStackSelection(input.state, input.anchorUnitId, input.selectedUnitIds)
+  if (!selectionResult.ok) {
+    return selectionResult.reason === 'missing-anchor'
+      ? { ok: false, reason: 'missing-stack-selection' }
+      : { ok: false, reason: selectionResult.reason }
+  }
+
+  if (input.targetId === null || input.targetId.trim().length === 0) {
+    return { ok: false, reason: 'missing-target' }
+  }
+
+  return {
+    ok: true,
+    action: {
+      type: 'FIRE',
+      attackers: selectionResult.selection.selectedUnitIds,
+      targetId: input.targetId,
+    },
+  }
+}
+
+export function buildRightRailStackSubmissionAction(input: RightRailMoveSubmissionInput): RightRailMoveSubmissionResult
+export function buildRightRailStackSubmissionAction(input: RightRailCombatSubmissionInput): RightRailCombatSubmissionResult
 export function buildRightRailStackSubmissionAction(input: RightRailStackSubmissionInput): RightRailStackSubmissionResult {
   const selectionResult = buildValidatedStackSelection(input.state, input.anchorUnitId, input.selectedUnitIds)
   if (!selectionResult.ok) {

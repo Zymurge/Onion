@@ -12,6 +12,7 @@ import {
   resolveBattlefieldUnitName,
   resolveBattlefieldWeaponName,
   shouldExpandBattlefieldStackGroup,
+  type WebStackSourceState,
 } from '../lib/appViewHelpers'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
@@ -100,7 +101,7 @@ function buildCombatGroupFromUnits(
       friendlyName: anchorUnit.friendlyName,
       squads: stackSize,
     }, stackNaming)
-  const selectionState = {
+  const selectionState: WebStackSourceState = {
     defenders: Object.fromEntries(
       units.map((unit) => [unit.id, {
         id: unit.id,
@@ -112,7 +113,7 @@ function buildCombatGroupFromUnits(
     ),
     ...(stackRoster === undefined ? {} : { stackRoster }),
   }
-  const selectedCount = countSelectedBattlefieldStackMembers(selectionState as any, anchorUnit.id, activeSelectedUnitIds)
+  const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.id, activeSelectedUnitIds)
   const attackReadyCount = displayedUnits.filter((unit) => getReadyUnitAttackStrength(unit) > 0).length
   const members = units.length > 1
     ? units.map((unit) => ({
@@ -202,7 +203,7 @@ function buildMoveGroupFromUnits(
       friendlyName: anchorUnit.friendlyName,
       squads: stackSize,
     }, stackNaming)
-  const selectionState = {
+  const selectionState: WebStackSourceState = {
     defenders: Object.fromEntries(
       units.map((unit) => [unit.id, {
         id: unit.id,
@@ -214,7 +215,7 @@ function buildMoveGroupFromUnits(
     ),
     ...(stackRoster === undefined ? {} : { stackRoster }),
   }
-  const selectedCount = countSelectedBattlefieldStackMembers(selectionState as any, anchorUnit.id, activeSelectedUnitIds)
+  const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.id, activeSelectedUnitIds)
   const attackReadyCount = displayedUnits.filter((unit) => getReadyUnitAttackStrength(unit) > 0).length
   const members = units.length > 1
     ? units.map((unit) => ({
@@ -359,6 +360,7 @@ export function BattlefieldLeftRail({
               >
                 Attacker Selection
               </h2>
+                    <p className="summary-line">{selectedCombatAttackLabel}</p>
             </div>
           </div>
 

@@ -28,6 +28,19 @@ Done when:
 - Unit records carry stable unit id, canonical friendly name, and only the minimal state needed downstream.
 - Any compatibility `defenders` or derived stack views are clearly downstream projections rather than the source of truth.
 
+Current status: Completed. The canonical `StackRosterState` shape is implemented and covered by shared tests.
+
+Canonical shape (example):
+
+```typeScript
+StackRosterState = {
+    groupsById: Record<string, { groupName: string; unitType: string; position: { q:number; r:number }; unitIds: string[] }>
+    unitsById?: Record<string, { id: string; status: string; friendlyName?: string; squads?: number; weapons?: any }>
+}
+```
+
+Notes: prefer `unitsById` in fixtures and snapshots; helpers provide conversion functions when only unit lists are available.
+
 Validation:
 
 - Shared type and snapshot-shape tests prove the bundle exists on new snapshots.
@@ -51,6 +64,9 @@ Done when:
 - One helper owns split, merge, and retirement mutations.
 - Callers no longer need to infer stack membership from co-location.
 - Group-name retention and retirement rules are enforced in helper code rather than reimplemented by callers.
+
+Current status: Implemented in `shared/stackRoster.ts`.
+The module now exports builders and mutators: `buildStackRosterIndex`, `relocateStackRosterUnits`, `moveStackRosterGroup`, `splitStackRosterGroup`, `mergeStackRosterGroups`, `retireStackRosterGroup`.
 
 Validation:
 
@@ -86,6 +102,8 @@ Validation:
 - Focused engine movement tests cover empty-group retirement.
 - Focused engine movement tests cover repeated turns without name reuse.
 
+Current status: Implemented. The engine's `reconcileStackStateAfterMove()` uses the shared roster helpers to perform end-of-move reconciliation and then refreshes the naming snapshot.
+
 Suggested ownership:
 
 - Engine movement-resolution and state-reconciliation code.
@@ -109,6 +127,8 @@ Validation:
 - Shared naming tests cover allocation order.
 - Shared naming tests cover load normalization.
 - Shared naming tests prove member names remain stable while group names change.
+
+Current status: Implemented in `shared/stackNaming.ts`. The naming engine enforces monotonic allocation, snapshot merging, and `clearMissingGroups` semantics.
 
 Suggested ownership:
 
@@ -134,6 +154,10 @@ Validation:
 - Projection tests cover left-rail member rows and finalized stack labels.
 - Negative tests prove stack-aware views fail when canonical roster data is absent.
 
+Current status: Mostly implemented. Server snapshots are emitting the canonical roster and naming state; web projection helpers were updated to prefer `unitsById`. A small number of projection tests were adjusted to include canonical inputs.
+
+Migration note: update any snapshot producers to include `stackRoster.unitsById` when they previously serialized only `groupsById` or relied on `defenders` co-location.
+
 Suggested ownership:
 
 - Server snapshot assembly plus shared/web projection helpers.
@@ -155,6 +179,36 @@ Validation:
 
 - Regression tests prove no synthetic member renumbering appears in stack UI data.
 - Negative tests prove stack-aware projections refuse to proceed when canonical roster inputs are incomplete.
+
+Current status: In progress. Most compatibility fallbacks were removed; however, a repo-wide grep and selective test review is recommended to identify any remaining position-based membership inference.
+
+Migration checklist (practical steps):
+
+- Update fixtures and tests to include `stackRoster.unitsById` and `group.unitIds` rather than inline `units` or relying on `position` inference.
+- Use `buildStackRosterFromUnits()` in tests that generate roster from defender lists.
+- Prefer `buildStackRosterIndex()` in code that needs `getUnitGroup()`/`getGroupUnits()` views.
+- Replace `defenders`-based co-location logic with `stackRoster` queries; where compatibility is required, add explicit adapters with tests.
+- Run full test-suite and add focused negative tests that expect failures when `stackRoster` is missing.
+
+Files to inspect first:
+
+- `shared/stackRoster.ts` (helpers and index builders)
+- `shared/stackNaming.ts` (engine and snapshot merge)
+- `server/engine/movement.ts` (reconciliation patch points)
+- `server/*` snapshot assembly code paths
+- `test/**` fixtures that reference `stackRoster` and `defenders`
+
+PR checklist for merging `feature/stacking`:
+
+- Ensure all tests pass (`pnpm test` / `npx vitest run`).
+- Remove any temporary debug traces (none remain in shared modules).
+- Add a short migration note to `docs/stacked-unit-management-spec.md` and this checklist documenting the required fixture changes.
+- Create the PR with clear description of the contract change and listing tests that were updated.
+
+If you want, I can now:
+
+- update `docs/stacked-unit-management-spec.md` with a short migration paragraph, and
+- add an integration test exercising move+merge+name-allocation.
 
 Suggested ownership:
 

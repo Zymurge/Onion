@@ -19,6 +19,7 @@ import {
   resolveBattlefieldWeaponName,
   resolveBattlefieldStackMemberIds,
   resolveSelectionOwnerUnitId,
+  type WebStackSourceState,
   stripWeaponSelectionId,
 } from './appViewHelpers'
 import { buildCombatRangeHexKeys } from './combatRange'
@@ -30,7 +31,6 @@ import type { GameState, TurnPhase } from '../../shared/types/index'
 import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
 import { validateStackRosterConsistency } from '../../shared/stackRoster'
 import type { BattlefieldInteractionState } from './useBattlefieldInteractionState'
-type StackSourceState = Parameters<typeof resolveBattlefieldStackMemberIds>[0]
 
 const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
@@ -124,7 +124,7 @@ export function useBattlefieldDisplayState({
       const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
-    const stackSourceState = authoritativeState as StackSourceState | null
+    const stackSourceState = authoritativeState as WebStackSourceState | null
     const selectedStackUnitIds = selectedBoardUnitId === null || hasValidationError ? [] : resolveBattlefieldStackMemberIds(stackSourceState, selectedBoardUnitId)
     const activeSelectedUnitIds = selectedUnitIds ?? []
     const headerHasSnapshot = clientSnapshot !== null
@@ -213,7 +213,7 @@ export function useBattlefieldDisplayState({
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
     const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null
-    const rightRailStackSelection = hasValidationError
+    const rightRailStackSelection = hasValidationError || stackSourceState === null
       ? {
         anchorUnitId: null,
         groupId: null,
@@ -224,13 +224,13 @@ export function useBattlefieldDisplayState({
         selectedStackSelectionCount: 0,
       }
       : buildRightRailStackSelectionViewModel({
-      state: stackSourceState,
-      inspectedUnitId: selectedInspectorUnitId,
-      selectedStackUnitIds,
-      activeSelectedUnitIds: selectedCombatSelectionIds,
-      displayedDefenders,
-      displayedOnion,
-    })
+        state: stackSourceState,
+        inspectedUnitId: selectedInspectorUnitId,
+        selectedStackUnitIds,
+        activeSelectedUnitIds: selectedCombatSelectionIds,
+        displayedDefenders,
+        displayedOnion,
+      })
     const rightRailStackPanel: RightRailStackPanelViewModel = {
       isVisible: rightRailStackSelection.selectedStackMembers.length > 1 && !(isCombatPhase && activeCombatRole === 'defender'),
       selectedStackMembers: rightRailStackSelection.selectedStackMembers,

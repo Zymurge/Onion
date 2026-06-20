@@ -4,9 +4,9 @@ import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView'
 import type { ServerGameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
-import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
+import { buildFriendlyName, getAllUnitDefinitions } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot } from '../../shared/stackNaming'
+import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
 import { resolveSelectionName } from './resolveSelectionName'
@@ -142,7 +142,8 @@ type StackSourceUnit = {
   squads?: number
 }
 
-type StackSourceState = {
+/** Canonical web-facing source state for stack membership resolution. */
+export type WebStackSourceState = {
   onion?: StackSourceUnit | null
   defenders?: Record<string, StackSourceUnit>
   stackRoster?: {
@@ -152,7 +153,7 @@ type StackSourceState = {
   }
 }
 
-export function resolveBattlefieldStackMemberIds(state: StackSourceState | null | undefined, unitId: string): string[] {
+export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | null | undefined, unitId: string): string[] {
   if (state === null || state === undefined) {
     return [unitId]
   }
@@ -216,12 +217,12 @@ export function resolveSelectionOwnerUnitId(selectionId: string): string {
   return parseStackMemberSelectionId(selectionId)?.unitId ?? selectionId
 }
 
-export function resolveBattlefieldStackSelectionIds(state: StackSourceState | null | undefined, unitId: string): string[] {
+export function resolveBattlefieldStackSelectionIds(state: WebStackSourceState | null | undefined, unitId: string): string[] {
   return resolveBattlefieldStackMemberIds(state, unitId)
 }
 
 export function countSelectedBattlefieldStackMembers(
-  state: StackSourceState | null | undefined,
+  state: WebStackSourceState | null | undefined,
   unitId: string,
   selectedUnitIds: ReadonlyArray<string>,
 ): number {
@@ -234,7 +235,7 @@ export function countSelectedBattlefieldStackMembers(
 }
 
 export function countSelectedBattlefieldStackGroups(
-  state: StackSourceState | null | undefined,
+  state: WebStackSourceState | null | undefined,
   selectedUnitIds: ReadonlyArray<string>,
 ): number {
   const selectedGroupKeys = new Set<string>()
@@ -275,7 +276,7 @@ export function shouldExpandBattlefieldStackGroup({
 }
 
 export function buildClientStackSelection(
-  state: StackSourceState | null | undefined,
+  state: WebStackSourceState | null | undefined,
   anchorUnitId: string | null,
   selectedUnitIds: string[],
 ): StackActionSelection | null {
