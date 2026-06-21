@@ -15,7 +15,7 @@ import { spendUnitMovement } from '#shared/unitMovement'
 import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
-import { buildStackRosterIndex, relocateStackRosterUnits } from '#shared/stackRoster'
+import { buildStackRosterIndex, relocateStackRosterUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
 import { buildStackGroupKey, createStackNamingEngine, refreshStackNamingSnapshotFromRoster } from '#shared/stackNaming'
 
 /**
@@ -165,18 +165,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
       },
       'Refreshing stack naming after move for non-operational unit',
     )
-    state.stackNaming = refreshStackNamingSnapshotFromRoster(
-      state.stackNaming,
-      state.stackRoster,
-      Object.values(state.defenders).map((unit) => ({
-        id: unit.id,
-        type: unit.type,
-        position: unit.position,
-        status: unit.status,
-        squads: unit.squads,
-        friendlyName: unit.friendlyName,
-      })),
-    )
+    state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming)
     return
   }
 
@@ -247,18 +236,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     destinationGroupName: movedGroupName,
   })
 
-  state.stackNaming = refreshStackNamingSnapshotFromRoster(
-    state.stackNaming,
-    state.stackRoster,
-    Object.values(state.defenders).map((unit) => ({
-      id: unit.id,
-      type: unit.type,
-      position: unit.position,
-      status: unit.status,
-      squads: unit.squads,
-      friendlyName: unit.friendlyName,
-    })),
-  )
+  state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming)
 
   logger.debug(
     {

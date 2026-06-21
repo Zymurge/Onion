@@ -11,8 +11,9 @@ import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenario
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, TurnPhase } from '#shared/types/index'
 import { buildFriendlyName } from '#shared/unitDefinitions'
-import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot, refreshStackNamingSnapshotFromRoster } from '#shared/stackNaming'
+import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot } from '#shared/stackNaming'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
+import { refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import type { EngineGameState } from '#server/engine/units'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
@@ -28,20 +29,7 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
     return
   }
 
-  const canonicalStackNaming = refreshStackNamingSnapshotFromRoster(
-    undefined,
-    stackRoster,
-    Object.values(matchState.defenders)
-      .filter((unit) => typeof unit.id === 'string')
-      .map((unit) => ({
-        id: unit.id as string,
-        type: unit.type,
-        position: unit.position,
-        status: String(unit.status),
-        squads: unit.squads,
-        friendlyName: unit.friendlyName,
-      })),
-  )
+  const canonicalStackNaming = refreshStackRosterNamingSnapshot(stackRoster)
   const canonicalGroupNames = new Map(canonicalStackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
   const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupKey, group.groupName]))
 
@@ -249,20 +237,7 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 
 export function buildEngineState(match: MatchRecord): EngineGameState {
   assertCanonicalStackGroupNames(match.state)
-  const stackNaming = refreshStackNamingSnapshotFromRoster(
-    match.state.stackNaming,
-    match.state.stackRoster,
-    Object.values(match.state.defenders)
-      .filter((unit) => typeof unit.id === 'string')
-      .map((unit) => ({
-        id: unit.id as string,
-        type: unit.type,
-        position: unit.position,
-        status: String(unit.status),
-        squads: unit.squads,
-        friendlyName: unit.friendlyName,
-      })),
-  )
+  const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming)
   return {
     ...structuredClone(match.state),
     stackRoster: structuredClone(match.state.stackRoster) ?? { groupsById: {} },

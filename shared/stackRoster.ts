@@ -1,4 +1,4 @@
-import { buildStackGroupKey } from './stackNaming.js'
+import { buildStackGroupKey, refreshStackNamingSnapshotFromRoster, type StackNamingSnapshot, type StackNamingSourceUnit } from './stackNaming.js'
 import { getAllUnitDefinitions } from './unitDefinitions.js'
 import type { DefenderUnit, HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from './types/index.js'
 
@@ -158,6 +158,38 @@ function resolveCanonicalUnitsById(stackRoster: StackRosterState | undefined): R
 	}
 
 	return unitsById
+}
+
+export function buildStackRosterNamingSourceUnits(stackRoster: StackRosterState | undefined): StackNamingSourceUnit[] {
+	const canonicalUnitsById = resolveCanonicalUnitsById(stackRoster)
+	const sourceUnits: StackNamingSourceUnit[] = []
+
+	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
+		for (const unitId of resolveGroupUnitIds(group)) {
+			const unit = canonicalUnitsById[unitId]
+			if (unit === undefined) {
+				continue
+			}
+
+			sourceUnits.push({
+				id: unit.id,
+				type: group.unitType,
+				position: group.position,
+				status: unit.status,
+				friendlyName: unit.friendlyName,
+				squads: unit.squads,
+			})
+		}
+	}
+
+	return sourceUnits
+}
+
+export function refreshStackRosterNamingSnapshot(
+	stackRoster: StackRosterState | undefined,
+	seed: StackNamingSnapshot | undefined = undefined,
+): StackNamingSnapshot {
+	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster))
 }
 
 function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterGroupBuilder[] {

@@ -2,8 +2,8 @@ import { vi } from 'vitest'
 import type { DefenderUnit, HexPos, StackRosterState, UnitStatus, Weapon } from '#shared/types/index'
 import type { GameState } from '#shared/types/index'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
-import { buildStackGroupKey, refreshStackNamingSnapshotFromRoster } from '#shared/stackNaming'
-import { buildStackRosterFromUnits } from '#shared/stackRoster'
+import { buildStackGroupKey } from '#shared/stackNaming'
+import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
 import { getAllUnitDefinitions } from '#shared/unitDefinitions'
 import { createMoveGameState } from '#shared/moveFixtures'
 import { createGameClient, type GameClient, type GameSnapshot } from '#web/lib/gameClient'
@@ -453,7 +453,7 @@ export function buildDefenderTree(opts: {
 		unitsById: { ...autoRoster.unitsById, ...Object.fromEntries(Object.values(defenders).map((defender) => [defender.id, defender])) },
 	}
 
-	const stackNaming = refreshStackNamingSnapshotFromRoster(undefined, stackRoster, allSourceUnits)
+	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster)
 
 	return { defenders, stackRoster, stackNaming }
 }

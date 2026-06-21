@@ -4,6 +4,7 @@ import {
 	buildStackGroupKey,
 	buildStackRosterFromUnits,
 	buildStackRosterIndex,
+	refreshStackRosterNamingSnapshot,
 	expandStackRosterGroups,
 	mergeStackRosterGroups,
 	moveStackRosterGroup,
@@ -290,6 +291,37 @@ describe('stack roster', () => {
 
 		expect(() => buildStackRosterIndex(unitIdsOnlyRoster)).not.toThrow()
 		expect(buildStackRosterIndex(unitIdsOnlyRoster).groupsById['LittlePigs:4,4']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
+	})
+
+	it('refreshes stack naming from the roster-owned adapter', () => {
+		const roster: StackRosterState = {
+			groupsById: {
+				'g-a': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+				'g-b': {
+					groupName: 'Little Pigs group 2',
+					unitType: 'LittlePigs',
+					position: { q: 5, r: 4 },
+					unitIds: ['pigs-3'],
+				},
+			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
+				'pigs-3': { id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3' },
+			},
+		}
+
+		expect(refreshStackRosterNamingSnapshot(roster)).toMatchObject({
+			groupsInUse: [
+				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+			],
+			usedGroupNames: ['Little Pigs group 1'],
+		})
 	})
 
 	it('validates canonical consistency between defenders and group membership', () => {
