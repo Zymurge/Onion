@@ -436,4 +436,5 @@ describe('App fake backend vertical slice', () => {
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('combat-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 	})
+
 })

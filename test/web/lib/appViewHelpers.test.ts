@@ -5,11 +5,12 @@ import {
   resolveBattlefieldStacksExpandable,
   shouldExpandBattlefieldStackGroup,
 } from '../../../web/lib/appViewHelpers'
+import { UnitStatus } from '#shared/types/index'
 
 function createUnitsById() {
   return {
-    'pigs-1': { id: 'pigs-1', type: 'LittlePigs', q: 2, r: 2, friendlyName: 'Little Pigs 1', status: 'operational' },
-    'pigs-2': { id: 'pigs-2', type: 'LittlePigs', q: 2, r: 2, friendlyName: 'Little Pigs 2', status: 'operational' },
+    'pigs-1': { id: 'pigs-1', type: 'LittlePigs', q: 2, r: 2, friendlyName: 'Little Pigs 1', status: 'operational' as UnitStatus },
+    'pigs-2': { id: 'pigs-2', type: 'LittlePigs', q: 2, r: 2, friendlyName: 'Little Pigs 2', status: 'operational' as UnitStatus },
   }
 }
 
@@ -73,6 +74,35 @@ describe('resolveBattlefieldDisplayName', () => {
       stackNaming,
       stackRoster,
     )).toThrow('Conflicting stacked-unit labels for pigs-1')
+  })
+
+  it('throws when grouped unit roster membership is missing from the canonical roster', () => {
+    const stackNaming = {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 1'],
+    }
+
+    const stackRoster = {
+      groupsById: {},
+      unitsById: {
+        'pigs-1': { id: 'pigs-1', status: 'operational' as UnitStatus, friendlyName: 'Little Pigs 1' },
+        'pigs-2': { id: 'pigs-2', status: 'operational' as UnitStatus, friendlyName: 'Little Pigs 2' },
+      },
+    }
+
+    expect(() => resolveBattlefieldFriendlyName(
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        q: 2,
+        r: 2,
+        friendlyName: 'Little Pigs 1',
+      },
+      stackNaming,
+      stackRoster,
+    )).toThrow('Missing roster group for grouped unit pigs-1')
   })
 
   it('resolves a group label from canonical stack naming for a grouped map occupant', () => {

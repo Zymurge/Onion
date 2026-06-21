@@ -136,6 +136,7 @@ describe('normalizeInitialStateToGameState', () => {
 
     const stackRoster = (gameState as unknown as { stackRoster?: { groupsById?: Record<string, { unitType: string; unitIds: string[] }> } }).stackRoster
     expect(stackRoster?.groupsById).toBeDefined()
+    expect((stackRoster as { unitsById?: Record<string, { id: string }> } | undefined)?.unitsById).toBeDefined()
 
     const pigGroups = Object.values(stackRoster?.groupsById ?? {}).filter((group) => group.unitType === 'LittlePigs')
     expect(pigGroups).toHaveLength(1)
