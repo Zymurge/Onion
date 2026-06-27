@@ -83,7 +83,7 @@ const logger = new SimpleLogger(getInitialLevel())
 
 // Log the log level on startup
 if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'test') {
-  logger.info(`Logger initialized at level: ${logger.level}`)
+  logger.warn(`Logger initialized at level: ${logger.level}`)
 }
 
 export function setLoggerLevel(level: 'debug' | 'info'): void {

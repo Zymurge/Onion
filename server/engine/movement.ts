@@ -16,8 +16,7 @@ import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
 import { buildStackRosterIndex, relocateStackRosterUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
-import { buildStackGroupKey, createStackNamingEngine, refreshStackNamingSnapshotFromRoster } from '#shared/stackNaming'
-
+import { buildStackGroupKey, createStackNamingEngine } from '#shared/stackNaming'
 /**
  * Result of validating a movement command.
  */
