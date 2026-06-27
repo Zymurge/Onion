@@ -343,6 +343,27 @@ export function useBattlefieldInteractionState({
       return
     }
 
+    let nextStackSelection: string[] | null = null
+    if (!additive) {
+      try {
+        nextStackSelection = resolveBattlefieldStackSelectionIds(
+          clientSnapshot?.authoritativeState as Parameters<typeof resolveBattlefieldStackSelectionIds>[0],
+          selectionOwnerUnitId,
+        )
+      } catch (error) {
+        debugLog('handleSelectUnit selection resolution failed', {
+          unitId,
+          selectionOwnerUnitId,
+          additive,
+          error,
+        })
+
+        const errorMessage = error instanceof Error ? error.message : 'Failed to resolve stack selection.'
+        setActionError(errorMessage)
+        return
+      }
+    }
+
     clearPendingCombatResolution(false)
     setPendingRamPrompt(null)
 
@@ -357,9 +378,8 @@ export function useBattlefieldInteractionState({
       const baseSelection = currentSelection ?? []
 
       if (!additive) {
-        const stackMemberIds = resolveBattlefieldStackSelectionIds(clientSnapshot?.authoritativeState as Parameters<typeof resolveBattlefieldStackSelectionIds>[0], selectionOwnerUnitId)
         setHasExplicitSelection(true)
-        return stackMemberIds
+        return nextStackSelection ?? [selectionOwnerUnitId]
       }
 
       setHasExplicitSelection(true)
