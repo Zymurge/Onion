@@ -198,12 +198,21 @@ function resolveAttackStrength(staticRules: CombatStaticRules, liveState: Combat
 	}, 0)
 }
 
-function resolveDefenseStrength(staticRules: CombatStaticRules, liveState: CombatLiveState, targetId: string): number {
+function resolveDefenseStrength(
+	staticRules: CombatStaticRules,
+	liveState: CombatLiveState,
+	targetId: string,
+	attackStrength: number,
+): number {
 	const target = getCombatant(staticRules, liveState, targetId)
 	const definition = getUnitDefinitionByType(staticRules, target.type)
 
 	if (definition.type === 'TheOnion') {
-		const weaponId = target.weaponId ?? 'main'
+		if (target.weaponId === undefined) {
+			return attackStrength
+		}
+
+		const weaponId = target.weaponId
 		const weapon = target.weapons?.find((candidate) => candidate.id === weaponId) ?? definition.weapons.find((candidate) => candidate.id === weaponId)
 		if (weapon === undefined) {
 			throw new Error(`Unknown target weapon '${weaponId}' for unit type '${definition.type}'`)
@@ -213,7 +222,11 @@ function resolveDefenseStrength(staticRules: CombatStaticRules, liveState: Comba
 	}
 
 	if (definition.type === 'LittlePigs') {
-		const stackSize = target.squads ?? definition.defense
+		if (typeof target.squads !== 'number') {
+			throw new Error(`Little Pigs target '${targetId}' is missing squads in the live combat state`)
+		}
+
+		const stackSize = target.squads
 		return stackSize + getTerrainDefenseBonus(staticRules, target)
 	}
 
@@ -252,7 +265,7 @@ function resolveModifiers(staticRules: CombatStaticRules, liveState: CombatLiveS
 
 function calculateResultFromRules(staticRules: CombatStaticRules, input: CombatCalculatorInput): CombatCalculatorResult {
 	const attackStrength = resolveAttackStrength(staticRules, input.combatState, input.attackerGroupIds)
-	const defenseStrength = resolveDefenseStrength(staticRules, input.combatState, input.targetId)
+	const defenseStrength = resolveDefenseStrength(staticRules, input.combatState, input.targetId, attackStrength)
 	const modifiers = resolveModifiers(staticRules, input.combatState, input.targetId)
 
 	return {

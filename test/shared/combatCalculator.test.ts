@@ -238,6 +238,45 @@ describe('combatCalculator', () => {
 		expect(result.odds).toBe('1:1')
 	})
 
+	it('treats Onion targets without a weapon id as tread attacks at 1:1 odds', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': {
+						type: 'TheOnion',
+						weapons: [
+							{ id: 'main', name: 'Main Battery', attack: 4, range: 3, defense: 6, status: 'ready', individuallyTargetable: true },
+						],
+					},
+				},
+			},
+		}
+
+		const result = calculator.calculateResult(input)
+
+		expect(result.attackStrength).toBe(4)
+		expect(result.defenseStrength).toBe(4)
+		expect(result.odds).toBe('1:1')
+	})
+
+	it('throws when a Little Pigs target is missing squads in live combat state', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': { type: 'LittlePigs' },
+				},
+			},
+		}
+
+		expect(() => calculator.calculateResult(input)).toThrow("Little Pigs target 'target-1' is missing squads in the live combat state")
+	})
+
 	it('uses terrain-eligible live combat state when calculating ridgeline cover', () => {
 		const input: CombatCalculatorInput = {
 			attackerGroupIds: ['attack-1'],
