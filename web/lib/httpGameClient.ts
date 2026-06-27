@@ -91,6 +91,10 @@ function buildError(result: ApiFailure): GameClientSeamError {
 	return new GameClientSeamError('transport', result.message)
 }
 
+function buildUnsupportedActionError(actionType: GameAction['type']): GameClientSeamError {
+	return new GameClientSeamError('transport', `Action '${actionType}' is not supported by the HTTP game transport`)
+}
+
 function mapServerSnapshot(
 	response: GameStateResponse,
 	gameId: number,
@@ -169,6 +173,14 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 			return envelope
 		},
 		async submitAction(gameId: number, action: GameAction) {
+			switch (action.type) {
+				case 'select-unit':
+				case 'set-mode':
+					throw buildUnsupportedActionError(action.type)
+				default:
+					break
+			}
+
 			if (currentSnapshot === null) {
 				throw new GameClientSeamError('transport', 'Cannot submit action before loading game state')
 			}
@@ -254,11 +266,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 				return envelope.snapshot
 			}
 
-			return currentSnapshot ?? {
-				gameId,
-				phase: 'DEFENDER_MOVE',
-				lastEventSeq: 0,
-			}
+			throw buildUnsupportedActionError(action.type)
 		},
 	}
 

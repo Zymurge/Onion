@@ -164,6 +164,51 @@ describe('http game request transport contract', () => {
 		)
 	})
 
+	it('rejects local-only actions instead of silently returning a snapshot', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi.fn().mockResolvedValueOnce(
+			jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_MOVE',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: [] },
+				movementRemainingByUnit: { 'wolf-2': 4 },
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				eventSeq: 47,
+			}),
+		)
+
+		const transport = createHttpGameRequestTransport({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			token: 'stub.token',
+		})
+
+		await transport.getState(123)
+
+		await expect(transport.submitAction(123, { type: 'select-unit', unitId: 'wolf-2' })).rejects.toMatchObject({
+			kind: 'transport',
+			message: "Action 'select-unit' is not supported by the HTTP game transport",
+		})
+		await expect(transport.submitAction(123, { type: 'set-mode', mode: 'fire' })).rejects.toMatchObject({
+			kind: 'transport',
+			message: "Action 'set-mode' is not supported by the HTTP game transport",
+		})
+		expect(fetchImpl).toHaveBeenCalledTimes(1)
+	})
+
 	it('normalizes not found failures from the request transport seam', async () => {
 		const fetchImpl = vi.fn().mockResolvedValue({
 			ok: false,

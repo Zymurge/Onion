@@ -135,6 +135,52 @@ describe('http game client adapter contract', () => {
 		)
 	})
 
+	it('rejects local-only actions through the client adapter', async () => {
+		const jsonResponse = (body: unknown, status = 200) => ({
+			ok: true,
+			status,
+			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		})
+
+		const fetchImpl = vi.fn().mockResolvedValueOnce(
+			jsonResponse({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_MOVE',
+				scenarioName: "The Siege of Shrek's Swamp",
+				turnNumber: 8,
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
+				movementRemainingByUnit: { 'onion-1': 0 },
+				victoryObjectives: [],
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				eventSeq: 47,
+			}),
+		)
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			token: 'stub.token',
+		})
+
+		await client.getState(123)
+
+		await expect(client.submitAction(123, { type: 'select-unit', unitId: 'wolf-2' })).rejects.toMatchObject({
+			kind: 'transport',
+			message: "Action 'select-unit' is not supported by the HTTP game transport",
+		})
+		await expect(client.submitAction(123, { type: 'set-mode', mode: 'combined' })).rejects.toMatchObject({
+			kind: 'transport',
+			message: "Action 'set-mode' is not supported by the HTTP game transport",
+		})
+		expect(fetchImpl).toHaveBeenCalledTimes(1)
+	})
+
 	it('refreshes authoritative server state without carrying UI-local snapshot fields', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,
