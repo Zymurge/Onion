@@ -275,6 +275,44 @@ describe('useInactiveEventStream', () => {
 		)
 	})
 
+	it('classifies a surviving ram from structured move payload fields even when detail text has no regex keywords', async () => {
+		const pollEvents = vi.fn().mockResolvedValue([
+			createEvent({
+				seq: 1,
+				type: 'MOVE_RESOLVED',
+				timestamp: 't1',
+				turnNumber: 3,
+				unitFriendlyName: 'Rammy',
+				rammedUnitFriendlyNames: ['Puss 1'],
+				rammedUnitIds: ['puss-1'],
+			}),
+		])
+
+		const { result } = renderHook(() =>
+			useInactiveEventStream({
+				activeGameId: 123,
+				activeTurnActive: false,
+				currentTurnNumber: 3,
+				lastAppliedEventSeq: 10,
+				pollEvents,
+			}),
+		)
+
+		await waitFor(() => {
+			expect(pollEvents).toHaveBeenCalledWith(123, 0)
+			expect(result.current.entries).toHaveLength(1)
+		})
+
+		expect(result.current.entries[0]).toMatchObject({
+			summary: 'Ram on Puss 1 - survived',
+			details: expect.arrayContaining([
+				'Unit: Rammy',
+				'Target: Puss 1',
+				'Result: survived',
+			]),
+		})
+	})
+
 	it('formats standalone inactive events and structured detail values', async () => {
 		const pollEvents = vi.fn().mockResolvedValue([
 			createEvent({ seq: 1, type: 'PHASE_CHANGED', timestamp: 't1', turnNumber: 3, to: 'DEFENDER_MOVE' }),
@@ -324,6 +362,36 @@ describe('useInactiveEventStream', () => {
 				'Odds: left: 1, right: 2',
 			]),
 		)
+	})
+
+	it('suppresses phase changes and the current join/connect wording, but does not suppress unrelated gameplay summaries', async () => {
+		const pollEvents = vi.fn().mockResolvedValue([
+			createEvent({ seq: 1, type: 'PHASE_CHANGED', timestamp: 't1', turnNumber: 3, to: 'DEFENDER_MOVE' }),
+			createEvent({ seq: 2, type: 'PLAYER_CONNECTED', timestamp: 't2', turnNumber: 3 }),
+			createEvent({ seq: 3, type: 'CUSTOM_EVENT', timestamp: 't3', turnNumber: 3, summary: 'Opponent connected to the session' }),
+			createEvent({ seq: 4, type: 'CUSTOM_EVENT', timestamp: 't4', turnNumber: 3, summary: 'Witch used reconnect beacon on the swamp relay' }),
+			createEvent({ seq: 5, type: 'UNIT_MOVED', timestamp: 't5', turnNumber: 3, unitFriendlyName: 'Puss 1', to: { q: 3, r: 4 } }),
+		])
+
+		const { result } = renderHook(() =>
+			useInactiveEventStream({
+				activeGameId: 123,
+				activeTurnActive: false,
+				currentTurnNumber: 3,
+				lastAppliedEventSeq: 10,
+				pollEvents,
+			}),
+		)
+
+		await waitFor(() => {
+			expect(pollEvents).toHaveBeenCalledWith(123, 0)
+			expect(result.current.entries).toHaveLength(2)
+		})
+
+		expect(result.current.entries.map((entry) => entry.summary)).toEqual([
+			'Witch used reconnect beacon on the swamp relay',
+			'Move by Puss 1',
+		])
 	})
 
 	it('stays idle while the active turn is still live', async () => {

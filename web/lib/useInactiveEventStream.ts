@@ -125,16 +125,25 @@ function isOnionTarget(targetId: unknown): boolean {
 	return /^onion(?:-\d+)?$/i.test(targetId) || targetId.endsWith(':treads') || /^(main|secondary_|ap_|missile_)/.test(targetId)
 }
 
+function isConnectionNoiseSummary(summary: string): boolean {
+	return /\b(join(?:ed|ing)?|connect(?:ed|ing|ion)?)\b/i.test(summary)
+}
+
 function isNoiseEvent(event: InactiveEventPayload): boolean {
 	if (event.type === 'PHASE_CHANGED') {
 		return true
 	}
 
+	// Connection/session chatter is intentionally hidden from the inactive stream.
+	// We keep a regex here because upstream event types and fallback summaries are not
+	// yet normalized into one explicit connection-event family, but the pattern is
+	// deliberately narrow so gameplay text like "reconnect beacon" does not get
+	// suppressed by accident.
 	if (/join|connect/i.test(event.type)) {
 		return true
 	}
 
-	return isNonEmptyString(event.summary) && /join|connect/i.test(event.summary)
+	return isNonEmptyString(event.summary) && isConnectionNoiseSummary(event.summary)
 }
 
 function getEventCauseId(event: InactiveEventPayload): string | null {
@@ -231,6 +240,18 @@ function resolveRamTargetLabel(event: InactiveEventPayload, relatedEvents: Reado
 	}
 
 	return 'unknown'
+}
+
+function hasRamResolutionPayload(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): boolean {
+	const resolvedEvent = relatedEvents.find((relatedEvent) => relatedEvent.type === 'MOVE_RESOLVED') ?? event
+
+	return (
+		(Array.isArray(resolvedEvent.rammedUnitIds) && resolvedEvent.rammedUnitIds.length > 0)
+		|| (Array.isArray(resolvedEvent.rammedUnitFriendlyNames) && resolvedEvent.rammedUnitFriendlyNames.length > 0)
+		|| (Array.isArray(resolvedEvent.destroyedUnitIds) && resolvedEvent.destroyedUnitIds.length > 0)
+		|| (Array.isArray(resolvedEvent.destroyedUnitFriendlyNames) && resolvedEvent.destroyedUnitFriendlyNames.length > 0)
+		|| (typeof resolvedEvent.treadDamage === 'number' && resolvedEvent.treadDamage > 0)
+	)
 }
 
 function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload> = [event]): string[] {
@@ -337,9 +358,7 @@ function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: Readonl
 
 	if (event.type === 'MOVE_RESOLVED' || MOVE_EVENT_TYPES.has(event.type)) {
 		const mover = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
-		const moveDetails = relatedEvents.flatMap((relatedEvent) => buildEventDetails(relatedEvent))
-		const ramDetails = moveDetails.filter((detail) => /rammed|destroyed|tread loss/i.test(detail))
-		if (ramDetails.length > 0) {
+		if (hasRamResolutionPayload(event, relatedEvents)) {
 			const rammedUnit = resolveRamTargetLabel(event, relatedEvents)
 			const result = resolveRamOutcomeLabel(event, relatedEvents)
 			return `Ram on ${rammedUnit} - ${result}`
