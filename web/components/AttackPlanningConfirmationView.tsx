@@ -1,13 +1,11 @@
 import { calculateCombatOdds } from '../lib/combatOdds'
 import logger from '../lib/logger'
 
-type CombatConfirmationViewProps = {
+type BaseAttackPlanningConfirmationViewProps = {
   title: string
   attackStrength: number
   attackMemberCount?: number
   attackMemberLabels?: string[]
-  defenseStrength?: number
-  modifiers?: string[]
   confirmLabel?: string
   onConfirm?: () => void
   isConfirmReady?: boolean
@@ -15,21 +13,36 @@ type CombatConfirmationViewProps = {
   dataTestId?: string
 }
 
-export function CombatConfirmationView({
+type AttackPlanningViewProps = BaseAttackPlanningConfirmationViewProps & {
+  mode: 'build'
+}
+
+type AttackConfirmationViewProps = BaseAttackPlanningConfirmationViewProps & {
+  mode: 'confirm'
+  defenseStrength: number
+  modifiers?: string[]
+}
+
+export type AttackPlanningConfirmationViewProps = AttackPlanningViewProps | AttackConfirmationViewProps
+
+export function AttackPlanningConfirmationView({
   title,
   attackStrength,
   attackMemberCount,
   attackMemberLabels = [],
-  defenseStrength,
-  modifiers = [],
   confirmLabel,
   onConfirm,
   isConfirmReady = true,
   isDisabled = false,
   dataTestId,
-}: CombatConfirmationViewProps) {
-  const odds = calculateCombatOdds(attackStrength, defenseStrength)
-  const hasTarget = defenseStrength !== undefined
+  ...modeProps
+}: AttackPlanningConfirmationViewProps) {
+  if (modeProps.mode === 'confirm' && modeProps.defenseStrength === undefined) {
+    throw new Error('AttackPlanningConfirmationView requires defenseStrength in confirm mode')
+  }
+
+  const hasTarget = modeProps.mode === 'confirm'
+  const odds = hasTarget ? calculateCombatOdds(attackStrength, modeProps.defenseStrength) : null
 
   return (
     <article className="combat-confirmation-view" data-testid={dataTestId}>
@@ -51,7 +64,7 @@ export function CombatConfirmationView({
         {hasTarget ? (
           <div className="combat-confirmation-stat">
             <span className="stat-label-small">Defense</span>
-            <strong>{defenseStrength}</strong>
+            <strong>{modeProps.defenseStrength}</strong>
           </div>
         ) : null}
         {hasTarget ? (

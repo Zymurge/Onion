@@ -1,4 +1,4 @@
-import { CombatConfirmationView } from './CombatConfirmationView'
+import { AttackPlanningConfirmationView } from './AttackPlanningConfirmationView'
 import { CombatTargetList } from './CombatTargetList'
 import { BattlefieldInspectorPanel } from './BattlefieldInspectorPanel'
 import { InactiveEventStream } from './InactiveEventStream'
@@ -224,6 +224,18 @@ export function BattlefieldRightRail({
     rightRailStackPanel,
   })
 
+  const attackPlanningConfirmationProps = selectedCombatTarget !== null
+    ? {
+        mode: 'confirm' as const,
+        title: combatPanel.selectedCombatTargetTitle ?? `Confirm attack on ${selectedCombatTarget.label}`,
+        defenseStrength: selectedCombatTarget.defense,
+        modifiers: selectedCombatTarget.modifiers,
+      }
+    : {
+        mode: 'build' as const,
+        title: 'Build attack',
+      }
+
   const inspectorPanel = shouldShowInspectorPanel ? (
     <BattlefieldInspectorPanel
       selectedInspectorLabel={selectedInspectorLabel}
@@ -314,15 +326,11 @@ export function BattlefieldRightRail({
               </h2>
             </div>
           </div>
-          <CombatConfirmationView
-            title={combatPanel.hasSelectedTarget && selectedCombatTarget !== null
-              ? combatPanel.selectedCombatTargetTitle ?? `Confirm attack on ${selectedCombatTarget.label}`
-              : 'Build attack'}
+          <AttackPlanningConfirmationView
+            {...attackPlanningConfirmationProps}
             attackStrength={selectedCombatAttackStrength}
             attackMemberCount={selectedCombatAttackerIds.length}
             attackMemberLabels={selectedCombatAttackMemberLabels}
-            defenseStrength={selectedCombatTarget?.defense}
-            modifiers={selectedCombatTarget?.modifiers}
             confirmLabel="Resolve combat"
             onConfirm={() => {
               const decision = routeRightRailControlAction({
