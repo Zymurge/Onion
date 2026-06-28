@@ -6,7 +6,7 @@ import logger from '#server/logger'
  * movement mechanics like Onion ramming and GEV second moves.
  */
 
-import type { HexPos, PlayerRole, Command } from '#shared/types/index'
+import type { HexPos, PlayerRole, SingleUnitMoveCommand } from '#shared/types/index'
 import { isInBounds } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
 import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
@@ -15,8 +15,8 @@ import { spendUnitMovement } from '#shared/unitMovement'
 import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
-import { refreshStackNamingSnapshot } from '#shared/stackNaming'
-
+import { buildStackRosterIndex, relocateStackRosterUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
+import { buildStackGroupKey, createStackNamingEngine } from '#shared/stackNaming'
 /**
  * Result of validating a movement command.
  */
@@ -127,7 +127,7 @@ function toMoveMapSnapshot(map: GameMap, state: EngineGameState, movingUnitId: s
 function validateMovePlan(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE' }>
+  command: SingleUnitMoveCommand
 ): MovementValidation {
   return toMovementValidation(validateSharedMove(toMoveMapSnapshot(map, state, command.unitId), state, command))
 }
@@ -152,6 +152,101 @@ function toMovementValidation(result: SharedMoveValidationResult): MovementValid
       capabilities: result.capabilities,
     },
   }
+}
+
+function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: string): void {
+  const movedDefender = state.defenders[movedUnitId]
+  if (movedDefender === undefined || movedDefender.status === 'destroyed') {
+    logger.debug(
+      {
+        movedUnitId,
+        reason: movedDefender === undefined ? 'missing-defender' : 'destroyed-defender',
+      },
+      'Refreshing stack naming after move for non-operational unit',
+    )
+    state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming)
+    return
+  }
+
+  const rosterIndex = buildStackRosterIndex(state.stackRoster)
+  const sourceGroup = rosterIndex.getUnitGroup(movedUnitId)
+  const destinationGroupId = buildStackGroupKey(movedDefender.type, movedDefender.position)
+  const destinationGroup = rosterIndex.groupsById[destinationGroupId] ?? null
+  const sourceGroupUnitCount = sourceGroup?.unitIds?.length ?? sourceGroup?.units?.length ?? 0
+  const sourceRemainingUnitCount = Math.max(sourceGroupUnitCount - 1, 0)
+  const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? 0
+  const destinationResultUnitCount = destinationGroupUnitCount + 1
+  const persistedDestinationName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+  const shouldAllocateFreshDestinationName =
+    destinationResultUnitCount > 1
+    && persistedDestinationName === undefined
+    && destinationGroupUnitCount === 1
+    && (
+      destinationGroup?.groupName === undefined
+      || sourceGroup?.groupName !== destinationGroup.groupName
+      || sourceRemainingUnitCount > 1
+    )
+  const allocatedDestinationName = shouldAllocateFreshDestinationName
+    ? createStackNamingEngine(state.stackNaming).resolveGroupName(
+        destinationGroupId,
+        movedDefender.type,
+        movedDefender.id,
+        movedDefender.friendlyName,
+        destinationResultUnitCount,
+      )
+    : undefined
+  const selectedNameSource = persistedDestinationName !== undefined
+    ? 'persisted-stack-naming'
+    : allocatedDestinationName !== undefined
+      ? 'allocated-destination-group'
+    : destinationGroup?.groupName !== undefined
+      ? 'destination-roster-group'
+      : sourceGroup?.groupName !== undefined
+        ? 'source-roster-group'
+        : movedDefender.friendlyName !== undefined
+          ? 'defender-friendly-name'
+          : 'unit-type-fallback'
+  const movedGroupName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+    ?? allocatedDestinationName
+    ?? destinationGroup?.groupName
+    ?? sourceGroup?.groupName
+    ?? movedDefender.friendlyName
+    ?? movedDefender.type
+
+  logger.debug(
+    {
+      movedUnitId,
+      unitType: movedDefender.type,
+      sourceGroup: sourceGroup?.groupName ?? null,
+      destinationGroupId,
+      destinationGroup: destinationGroup?.groupName ?? null,
+      persistedDestinationName: persistedDestinationName ?? null,
+      selectedNameSource,
+      selectedName: movedGroupName,
+      destinationPosition: movedDefender.position,
+    },
+    'Selected destination stack name for move',
+  )
+
+  state.stackRoster = relocateStackRosterUnits(state.stackRoster, {
+    movedUnitIds: [movedUnitId],
+    unitType: movedDefender.type,
+    destinationPosition: movedDefender.position,
+    destinationGroupName: movedGroupName,
+  })
+
+  state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming)
+
+  logger.debug(
+    {
+      movedUnitId,
+      destinationGroupId,
+      refreshedGroupName: state.stackNaming.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName ?? null,
+      refreshedGroupsInUse: state.stackNaming.groupsInUse,
+      usedGroupNames: state.stackNaming.usedGroupNames,
+    },
+    'Refreshed stack naming after move',
+  )
 }
 
 function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementResult {
@@ -189,7 +284,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
     unit.treads = Math.max(0, unit.treads - treadDamage)
   }
 
-  state.stackNaming = refreshStackNamingSnapshot(state.stackNaming, Object.values(state.defenders))
+  reconcileStackStateAfterMove(state, plan.unitId)
 
   return {
     success: true,
@@ -205,12 +300,12 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
 export function validateUnitMovement(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE' }>
+  command: SingleUnitMoveCommand
 ): MovementValidation
 export function validateUnitMovement(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE' }>
+  command: SingleUnitMoveCommand
 ): MovementValidation {
   return validateMovePlan(map, state, command)
 }
@@ -236,7 +331,7 @@ export function validateUnitMovement(
 export function executeOnionMovement(
   map: GameMap,
   state: EngineGameState,
-  command: Extract<Command, { type: 'MOVE' }>
+  command: SingleUnitMoveCommand
 ): MovementResult {
   logger.debug({ position: state.onion.position, command }, '[executeOnionMovement] called')
   if (command.unitId !== state.onion.id) {

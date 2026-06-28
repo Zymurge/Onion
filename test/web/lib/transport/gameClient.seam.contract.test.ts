@@ -20,7 +20,7 @@ describe('game client seam contract', () => {
 	}
 	const session: GameStateEnvelope['session'] = { role: 'defender' }
 
-	const action: GameAction = { type: 'MOVE', unitId: 'wolf-2', to: { q: 2, r: 4 } }
+	const action: GameAction = { type: 'MOVE', movers: ['wolf-2'], to: { q: 2, r: 4 } }
 
 	it('loads the current state through the seam', async () => {
 		const transport: GameRequestTransport = {

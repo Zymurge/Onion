@@ -1,12 +1,12 @@
 import { vi } from 'vitest'
-import type { DefenderUnit, HexPos, StackRosterState, UnitStatus, Weapon } from '../../../../shared/types/index'
-import type { GameState } from '../../../../shared/types/index'
-import type { StackNamingSnapshot } from '../../../../shared/stackNaming'
-import { buildStackGroupKey, refreshStackNamingSnapshot } from '../../../../shared/stackNaming'
-import { buildStackRosterFromUnits } from '../../../../shared/stackRoster'
-import { getAllUnitDefinitions } from '../../../../shared/unitDefinitions'
-import { createMoveGameState } from '../../../../shared/moveFixtures'
-import { createGameClient, type GameClient, type GameSnapshot } from '../../../../web/lib/gameClient'
+import type { DefenderUnit, HexPos, StackRosterState, UnitStatus, Weapon } from '#shared/types/index'
+import type { GameState } from '#shared/types/index'
+import type { StackNamingSnapshot } from '#shared/stackNaming'
+import { buildStackGroupKey } from '#shared/stackNaming'
+import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
+import { getAllUnitDefinitions } from '#shared/unitDefinitions'
+import { createMoveGameState } from '#shared/moveFixtures'
+import { createGameClient, type GameClient, type GameSnapshot } from '#web/lib/gameClient'
 
 // ---- Shared type alias ----
 
@@ -52,6 +52,7 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 			onion: {
 				id: 'onion-live',
 				type: 'TheOnion',
+					friendlyName: 'The Onion',
 				position: { q: 1, r: 1 },
 				treads: 27,
 				status: 'operational',
@@ -76,6 +77,7 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 				'dragon-7': {
 					id: 'dragon-7',
 					type: 'Dragon',
+					friendlyName: 'Dragon 7',
 					position: { q: 0, r: 1 },
 					status: 'operational',
 					weapons: [
@@ -91,6 +93,8 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 					],
 				},
 			},
+			stackRoster: { groupsById: {}, },
+    		stackNaming: { groupsInUse: [], usedGroupNames: [] },
 			ramsThisTurn: 0,
 		},
 		movementRemainingByUnit: {
@@ -103,6 +107,7 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 			cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 1 }],
 			hexes: [{ q: 1, r: 1, t: 1 }],
 		},
+		victoryObjectives: [],
 	}
 }
 
@@ -127,6 +132,7 @@ export function createConnectedBattlefieldSnapshot(
 			onion: {
 				id: 'onion-1',
 				type: 'TheOnion',
+					friendlyName: 'The Onion',
 				position: { q: 0, r: 1 },
 				treads: 33,
 				status: 'operational',
@@ -151,6 +157,7 @@ export function createConnectedBattlefieldSnapshot(
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
 					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
@@ -168,6 +175,7 @@ export function createConnectedBattlefieldSnapshot(
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
+					friendlyName: 'Puss 1',
 					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
@@ -183,6 +191,8 @@ export function createConnectedBattlefieldSnapshot(
 					],
 				},
 			},
+			stackRoster: { groupsById: {}, },
+    		stackNaming: { groupsInUse: [], usedGroupNames: [] },
 			ramsThisTurn: 0,
 		},
 		movementRemainingByUnit: {
@@ -196,6 +206,7 @@ export function createConnectedBattlefieldSnapshot(
 			cells: Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, q) => ({ q, r }))).flat(),
 			hexes: [{ q: 1, r: 1, t: 1 }],
 		},
+		victoryObjectives: [],
 		...overrides,
 	}
 }
@@ -212,6 +223,7 @@ export function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot 
 			...createConnectedBattlefieldSnapshot().authoritativeState,
 			onion: {
 				...createConnectedBattlefieldSnapshot().authoritativeState.onion,
+						friendlyName: 'The Onion',
 				weapons: [
 					{
 						id: 'main-1',
@@ -237,6 +249,7 @@ export function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot 
 				...createConnectedBattlefieldSnapshot().authoritativeState.defenders,
 				'wolf-2': {
 					...createConnectedBattlefieldSnapshot().authoritativeState.defenders['wolf-2'],
+						friendlyName: 'Big Bad Wolf 2',
 					position: { q: 1, r: 1 },
 				},
 			},
@@ -399,6 +412,7 @@ export function buildDefenderTree(opts: {
 			defenders[member.id] = {
 				id: member.id,
 				type: group.type,
+				friendlyName: member.friendlyName,
 				position: group.pos,
 				status: member.status ?? 'operational',
 				weapons: member.weapons ?? getDefaultWeapons(group.type),
@@ -436,9 +450,10 @@ export function buildDefenderTree(opts: {
 	const autoRoster = buildStackRosterFromUnits(allSourceUnits)
 	const stackRoster: StackRosterState = {
 		groupsById: { ...autoRoster.groupsById, ...stackRosterGroupsById },
+		unitsById: { ...autoRoster.unitsById, ...Object.fromEntries(Object.values(defenders).map((defender) => [defender.id, defender])) },
 	}
 
-	const stackNaming = refreshStackNamingSnapshot(undefined, allSourceUnits)
+	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster)
 
 	return { defenders, stackRoster, stackNaming }
 }
@@ -460,15 +475,19 @@ export function createTestClient(
 	snapshot: AuthoritativeBattlefieldSnapshot,
 	session: { role: 'onion' | 'defender' },
 	overrides: {
-		getState?: ReturnType<typeof vi.fn>
-		submitAction?: ReturnType<typeof vi.fn>
-		pollEvents?: ReturnType<typeof vi.fn>
+		getState?: GameClient['getState']
+		submitAction?: GameClient['submitAction']
+		pollEvents?: GameClient['pollEvents']
 	} = {},
 ): GameClient {
+	const defaultGetState: GameClient['getState'] = async () => ({ snapshot, session })
+	const defaultSubmitAction: GameClient['submitAction'] = async () => snapshot
+	const defaultPollEvents: GameClient['pollEvents'] = async () => []
+
 	return createGameClient({
-		getState: overrides.getState ?? vi.fn().mockResolvedValue({ snapshot, session }),
-		submitAction: overrides.submitAction ?? vi.fn().mockResolvedValue(snapshot),
-		pollEvents: overrides.pollEvents ?? vi.fn().mockResolvedValue([]),
+		getState: overrides.getState ?? defaultGetState,
+		submitAction: overrides.submitAction ?? defaultSubmitAction,
+		pollEvents: overrides.pollEvents ?? defaultPollEvents,
 	})
 }
 

@@ -9,10 +9,11 @@ import type { GameStateResponse, VictoryEscapeHex, VictoryObjectiveState } from 
 import { hexKey } from '#shared/hex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
-import type { Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
+import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, TurnPhase } from '#shared/types/index'
 import { buildFriendlyName } from '#shared/unitDefinitions'
-import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot, refreshStackNamingSnapshot } from '#shared/stackNaming'
+import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot } from '#shared/stackNaming'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
+import { refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import type { EngineGameState } from '#server/engine/units'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
@@ -20,6 +21,87 @@ import { resolveScenariosDir } from '#server/api/scenarioPaths'
 const SCENARIOS_DIR = resolveScenariosDir()
 const GAME_ID_RE = /^\d+$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void {
+  const stackRoster = matchState.stackRoster
+  const rosterGroups = Object.entries(stackRoster?.groupsById ?? {})
+  if (rosterGroups.length === 0) {
+    return
+  }
+
+  const canonicalStackNaming = refreshStackRosterNamingSnapshot(stackRoster)
+  const canonicalGroupNames = new Map(canonicalStackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
+  const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupKey, group.groupName]))
+
+  for (const [groupKey, group] of rosterGroups) {
+    const unitIds = group.unitIds ?? group.units?.map((unit) => unit.id) ?? []
+    if (unitIds.length <= 1) {
+      continue
+    }
+
+    const canonicalGroupName = canonicalGroupNames.get(groupKey)
+    if (canonicalGroupName === undefined) {
+      logger.debug(
+        {
+          groupKey,
+          groupName: group.groupName,
+          unitIds,
+          stackNaming: matchState.stackNaming,
+        },
+        'Missing canonical stack group name during validation',
+      )
+      throw new Error(`Missing canonical stack group name for ${groupKey}`)
+    }
+
+    if (group.groupName !== canonicalGroupName) {
+      logger.debug(
+        {
+          groupKey,
+          rosterGroupName: group.groupName,
+          canonicalGroupName,
+          unitIds,
+          canonicalStackNaming: canonicalStackNaming.groupsInUse,
+          persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [],
+        },
+        'Conflicting stack group name detected during validation',
+      )
+      throw new Error(`Conflicting stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${group.groupName}`)
+    }
+
+    const persistedGroupName = persistedGroupNames.get(groupKey)
+    if (persistedGroupName !== undefined && persistedGroupName !== canonicalGroupName) {
+      logger.debug(
+        {
+          groupKey,
+          canonicalGroupName,
+          persistedGroupName,
+          unitIds,
+          canonicalStackNaming: canonicalStackNaming.groupsInUse,
+          persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [],
+        },
+        'Persisted stack group name conflicts with canonical validation result',
+      )
+      throw new Error(`Conflicting persisted stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${persistedGroupName}`)
+    }
+  }
+
+  for (const [groupKey, persistedGroupName] of persistedGroupNames) {
+    const canonicalGroupName = canonicalGroupNames.get(groupKey)
+    if (canonicalGroupName !== undefined && canonicalGroupName !== persistedGroupName) {
+      logger.debug(
+        {
+          groupKey,
+          canonicalGroupName,
+          persistedGroupName,
+          canonicalStackNaming: canonicalStackNaming.groupsInUse,
+          persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [],
+        },
+        'Persisted stack group name conflicts after canonical lookup',
+      )
+      throw new Error(`Conflicting persisted stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${persistedGroupName}`)
+    }
+  }
+}
 
 export type VictoryObjective =
   | {
@@ -154,19 +236,8 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 }
 
 export function buildEngineState(match: MatchRecord): EngineGameState {
-  const stackNaming = refreshStackNamingSnapshot(
-    match.state.stackNaming,
-    Object.values(match.state.defenders)
-      .filter((unit) => typeof unit.id === 'string')
-      .map((unit) => ({
-        id: unit.id as string,
-        type: unit.type,
-        position: unit.position,
-        status: String(unit.status),
-        squads: unit.squads,
-        friendlyName: unit.friendlyName,
-      }))
-  )
+  assertCanonicalStackGroupNames(match.state)
+  const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming)
   return {
     ...structuredClone(match.state),
     stackRoster: structuredClone(match.state.stackRoster) ?? { groupsById: {} },
@@ -300,6 +371,7 @@ export function buildCombatEvents(
   command: Extract<Command, { type: 'FIRE' }>,
   result: any,
   state: GameState,
+  phase?: TurnPhase,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
@@ -311,6 +383,7 @@ export function buildCombatEvents(
     seq: seq++,
     type: 'FIRE_RESOLVED',
     timestamp,
+    ...(phase === undefined ? {} : { phase }),
     attackers: command.attackers,
     attackerFriendlyNames,
     targetId: result.targetId,
@@ -325,6 +398,7 @@ export function buildCombatEvents(
       seq: seq++,
       type: 'ONION_TREADS_LOST',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       amount: result.treadsLost,
       remaining: state.onion.treads,
     })
@@ -335,6 +409,7 @@ export function buildCombatEvents(
       seq: seq++,
       type: 'ONION_BATTERY_DESTROYED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       weaponId: result.destroyedWeaponId,
       weaponFriendlyName: resolveWeaponFriendlyName(state, result.destroyedWeaponId),
       weaponType: getWeaponTypeFromId(result.destroyedWeaponId),
@@ -346,6 +421,7 @@ export function buildCombatEvents(
       seq: seq++,
       type: 'UNIT_STATUS_CHANGED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitId: statusChange.unitId,
       unitFriendlyName: resolveUnitFriendlyName(state, statusChange.unitId),
       from: statusChange.from,
@@ -358,6 +434,7 @@ export function buildCombatEvents(
       seq: seq++,
       type: 'UNIT_SQUADS_LOST',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitId: result.targetId,
       unitFriendlyName: resolveUnitFriendlyName(state, result.targetId),
       amount: result.squadsLost,
@@ -370,9 +447,10 @@ export function buildCombatEvents(
 export function buildMoveEvents(
   startSeq: number,
   moveUnitId: string,
-  command: Extract<Command, { type: 'MOVE' }>,
+  command: SingleUnitMoveCommand,
   result: any,
   state: GameState,
+  phase?: TurnPhase,
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
@@ -385,6 +463,7 @@ export function buildMoveEvents(
       seq: seq++,
       type: isOnionMove ? 'ONION_MOVED' : 'UNIT_MOVED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitFriendlyName: moveUnitFriendlyName,
       ...(isOnionMove ? { to: command.to } : { unitId: canonicalMoveUnitId, to: command.to }),
     },
@@ -398,6 +477,7 @@ export function buildMoveEvents(
       seq: seq++,
       type: 'MOVE_RESOLVED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitId: canonicalMoveUnitId,
       unitFriendlyName: moveUnitFriendlyName,
       rammedUnitIds,
@@ -421,6 +501,7 @@ export function buildMoveEvents(
       seq: seq++,
       type: 'ONION_TREADS_LOST',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       amount: result.treadDamage,
       remaining: state.onion.treads,
     })
@@ -431,6 +512,7 @@ export function buildMoveEvents(
       seq: seq++,
       type: 'UNIT_STATUS_CHANGED',
       timestamp,
+      ...(phase === undefined ? {} : { phase }),
       unitId: destroyedId,
       unitFriendlyName: resolveUnitFriendlyName(state, destroyedId),
       from: 'operational',
@@ -579,9 +661,11 @@ export function logActionOutcome(
 }
 
 export function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
+  assertCanonicalStackGroupNames(match.state)
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
+  const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
   const role: GameStateResponse['role'] = match.players.onion === userId ? 'onion' : 'defender'
   const winner: GameStateResponse['winner'] =
     match.winner === null
@@ -628,7 +712,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
   return {
     gameId: match.gameId,
     scenarioId: match.scenarioId,
-    scenarioName: scenarioSnapshot?.displayName ?? scenarioSnapshot?.name,
+    scenarioName,
     role,
     phase: match.phase,
     turnNumber: match.turnNumber,

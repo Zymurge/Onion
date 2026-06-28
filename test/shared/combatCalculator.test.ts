@@ -84,8 +84,26 @@ describe('combatCalculator', () => {
 		const result = calculator.calculateResult(input)
 
 		expect(result.attackStrength).toBe(8)
+		expect(result.defenseStrength).toBe(3)
+		expect(result.odds).toBe('2:1')
+	})
+
+	it('uses Little Pigs stack size for defense strength', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': { type: 'LittlePigs', squads: 2 },
+				},
+			},
+		}
+
+		const result = calculator.calculateResult(input)
+
 		expect(result.defenseStrength).toBe(2)
-		expect(result.odds).toBe('4:1')
+		expect(result.odds).toBe('2:1')
 	})
 
 	it('returns the ridgeline defense modifier for eligible target units', () => {
@@ -218,6 +236,45 @@ describe('combatCalculator', () => {
 		expect(result.attackStrength).toBe(4)
 		expect(result.defenseStrength).toBe(4)
 		expect(result.odds).toBe('1:1')
+	})
+
+	it('treats Onion targets without a weapon id as tread attacks at 1:1 odds', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': {
+						type: 'TheOnion',
+						weapons: [
+							{ id: 'main', name: 'Main Battery', attack: 4, range: 3, defense: 6, status: 'ready', individuallyTargetable: true },
+						],
+					},
+				},
+			},
+		}
+
+		const result = calculator.calculateResult(input)
+
+		expect(result.attackStrength).toBe(4)
+		expect(result.defenseStrength).toBe(4)
+		expect(result.odds).toBe('1:1')
+	})
+
+	it('throws when a Little Pigs target is missing squads in live combat state', () => {
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { type: 'Puss' },
+					'target-1': { type: 'LittlePigs' },
+				},
+			},
+		}
+
+		expect(() => calculator.calculateResult(input)).toThrow("Stack target 'target-1' of type 'LittlePigs' is missing squads in the live combat state")
 	})
 
 	it('uses terrain-eligible live combat state when calculating ridgeline cover', () => {

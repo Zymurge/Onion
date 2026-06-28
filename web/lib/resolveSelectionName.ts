@@ -1,4 +1,3 @@
-import { buildFriendlyName } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 
 type UnitSelectionNameInput = {
@@ -29,12 +28,20 @@ export type SelectionNameInput = UnitSelectionNameInput | GroupSelectionNameInpu
  */
 export function resolveSelectionName(input: SelectionNameInput): string {
   if (input.kind === 'group') {
-    return input.stackNaming.groupsInUse.find((group) => group.groupKey === input.groupKey)?.groupName ?? input.groupKey
+    const group = input.stackNaming.groupsInUse.find((candidate) => candidate.groupKey === input.groupKey)
+    if (group === undefined) {
+      throw new Error(`Missing stack label for group ${input.groupKey}`)
+    }
+
+    return group.groupName
   }
 
-  const { unitId, unitType, friendlyName } = input
+  const { unitId, friendlyName } = input
 
-  if (friendlyName) return friendlyName
-  if (unitType && unitId) return buildFriendlyName(unitType, unitId)
-  return unitId || ''
+  const resolvedFriendlyName = friendlyName?.trim()
+  if (resolvedFriendlyName !== undefined && resolvedFriendlyName.length > 0) {
+    return resolvedFriendlyName
+  }
+
+  throw new Error(`Missing friendly name for unit ${unitId ?? 'unknown unit'}`)
 }

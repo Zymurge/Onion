@@ -18,6 +18,16 @@ break down into features/tasks as needed.
 ## Features / Work Items
 
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
+- [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability.
+  - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.
+  - [ ] Replace tooltip-only detail exposure with explicit accessible disclosure patterns where details are important to gameplay comprehension.
+  - [ ] Known issue: `InactiveEventStream` currently exposes event details only through the row `title` tooltip, which is not a sufficient keyboard/screen-reader interaction path.
+- [ ] Make Onion tread targeting a first-class explicit target across web, API, and server contracts instead of aliasing generic Onion targeting to treads.
+  - [ ] Preserve the existing special tread rules while making the target identity explicit: tread targeting still uses its special defense-strength logic, tread-damage resolution, and defender stack-limit rules.
+  - [ ] Current coupling is favorable but real: the web already carries a synthetic `onion-id:treads` identity through target selection and downstream UI state, then translates it back to the plain Onion id at submit time.
+  - [ ] Main migration risk is the cross-layer target contract, not the combat math. Server validation/execution already distinguishes tread vs weapon targets internally, but external request/event semantics still use generic Onion ids for tread attacks.
+  - [ ] Review and update all places that currently depend on the alias behavior: web target generation and selection state, combat submit helpers, API target parsing/validation, emitted combat events, friendly target naming, and inactive/combat result formatting.
+  - [ ] Expect the largest affected surface to be tests and integration fixtures. Favor a TDD migration because the change is likely to touch many expectations around target ids, target labels, multi-attacker tread restrictions, and emitted event payloads.
 
 ## Done
 

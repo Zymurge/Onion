@@ -1,9 +1,6 @@
-import type { EventEnvelope, GameState, TurnPhase } from '../../shared/types/index'
-import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
+import type { GameState, TurnPhase } from '../../shared/types/index'
 import type { GameRequestTransport } from './gameSessionTypes'
-import type { RamResolution } from './moveResolution'
-
-export type { RamResolution } from './moveResolution'
+import type { RamResolution as MoveResolution } from './moveResolution'
 
 export type ScenarioMapSnapshot = {
 	width: number
@@ -16,12 +13,16 @@ export type GamePhase = 'onion' | 'defender'
 
 export type ActionMode = 'fire' | 'combined' | 'end-phase'
 
+export type StackActionSelection = {
+	anchorUnitId: string
+	availableUnitIds: string[]
+	selectedUnitIds: string[]
+}
+
 export type CombatResolution = {
 	actionType: 'FIRE'
 	attackers: string[]
-	attackerFriendlyNames?: string[]
 	targetId: string
-	targetFriendlyName?: string
 	outcome: 'NE' | 'D' | 'X'
 	outcomeLabel: 'Hit' | 'Miss'
 	roll?: number
@@ -29,37 +30,42 @@ export type CombatResolution = {
 	details: string[]
 }
 
+export type RamResolution = MoveResolution
+
 export type ServerGameSnapshot = {
 	gameId: number
 	phase: TurnPhase
-	winner?: 'onion' | 'defender' | null
-	scenarioName?: string
+	scenarioName: string
 	turnNumber?: number
+	winner?: 'onion' | 'defender' | null
 	lastEventSeq: number
+	scenarioId?: string
+	role?: 'onion' | 'defender'
+	players?: {
+		onion: string | null
+		defender: string | null
+	}
 	authoritativeState?: GameState
 	movementRemainingByUnit?: Record<string, number>
 	scenarioMap?: ScenarioMapSnapshot
-	victoryObjectives?: VictoryObjectiveState[]
-	escapeHexes?: VictoryEscapeHex[]
+	victoryObjectives: Array<{
+		id: string
+		label: string
+		kind: 'destroy-unit' | 'escape-map'
+		required: boolean
+		completed: boolean
+		unitId?: string
+		unitType?: string
+	}>
+	escapeHexes?: Array<{ q: number; r: number }>
 	combatResolution?: CombatResolution
 	ramResolution?: RamResolution[]
 }
 
-// Transitional compatibility alias for older local fixtures.
-// Authoritative transport and session seams must use ServerGameSnapshot instead.
-export type GameSnapshot = ServerGameSnapshot & {
-	selectedUnitId?: string | null
-	mode?: ActionMode
-}
+export type GameSnapshot = ServerGameSnapshot
 
 export type GameSessionContext = {
 	role: 'onion' | 'defender'
-}
-
-export type StackActionSelection = {
-	anchorUnitId: string
-	availableUnitIds: string[]
-	selectedUnitIds: string[]
 }
 
 export type GameStateEnvelope = {
@@ -70,15 +76,17 @@ export type GameStateEnvelope = {
 export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
-	| { type: 'MOVE'; unitId: string; to: { q: number; r: number }; attemptRam?: boolean }
-	| { type: 'MOVE_STACK'; selection: StackActionSelection; to: { q: number; r: number }; attemptRam?: boolean }
+	| { type: 'MOVE'; movers: string[]; to: { q: number; r: number }; attemptRam?: boolean }
 	| { type: 'FIRE'; attackers: string[]; targetId: string }
-	| { type: 'FIRE_STACK'; attackers: string[]; targetId: string; selection: StackActionSelection }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 
-export type GameEvent = EventEnvelope & {
+export type GameEvent = {
+	seq: number
+	type: string
 	summary?: string
+	timestamp: string
+	[key: string]: unknown
 }
 
 export type GameClientError = {

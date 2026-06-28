@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useMemo } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -9,15 +9,17 @@ import { createFakeGameBackend } from '../../../../web/lib/fakeGameBackend'
 import { createGameSessionController } from '../../../../web/lib/gameSessionController'
 import { createGameClient, type GameSnapshot, type GameSessionContext } from '../../../../web/lib/gameClient'
 import type { GameState } from '#shared/types/index'
+import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import { useGameSession } from '../../../../web/lib/useGameSession'
 
-function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
+function createSnapshot({ overrides = {} }: { overrides?: Partial<GameSnapshot> } = {}): GameSnapshot {
 	return {
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
 		scenarioName: 'Fake Test Scenario',
 		turnNumber: 1,
 		lastEventSeq: 1,
+		victoryObjectives: [],
 		...overrides,
 	}
 }
@@ -57,14 +59,17 @@ function createAppShellSnapshot(): GameSnapshot & {
 
 	return {
 		...createSnapshot({
-			phase: 'DEFENDER_COMBAT',
-			lastEventSeq: 80,
-			scenarioName: 'App shell baseline snapshot',
+			overrides: {
+				phase: 'DEFENDER_COMBAT',
+				lastEventSeq: 80,
+				scenarioName: 'App shell baseline snapshot',
+			}
 		}),
 		authoritativeState: {
 			onion: {
 				id: 'onion-1',
 				type: 'TheOnion',
+					friendlyName: 'The Onion',
 				position: { q: 0, r: 1 },
 				treads: 33,
 				status: 'operational',
@@ -89,6 +94,7 @@ function createAppShellSnapshot(): GameSnapshot & {
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
 					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
@@ -106,6 +112,7 @@ function createAppShellSnapshot(): GameSnapshot & {
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
+					friendlyName: 'Puss 1',
 					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
@@ -122,6 +129,24 @@ function createAppShellSnapshot(): GameSnapshot & {
 				},
 			},
 			ramsThisTurn: 0,
+				stackRoster: buildStackRosterFromUnits([
+					{
+						id: 'wolf-2',
+						type: 'BigBadWolf',
+						friendlyName: 'Big Bad Wolf 2',
+						position: { q: 3, r: 6 },
+						status: 'operational',
+						weapons: [],
+					},
+					{
+						id: 'puss-1',
+						type: 'Puss',
+						friendlyName: 'Puss 1',
+						position: { q: 4, r: 4 },
+						status: 'operational',
+						weapons: [],
+					},
+				]),
 		},
 		movementRemainingByUnit: {
 			'onion-1': 0,
@@ -151,9 +176,11 @@ describe('App fake backend vertical slice', () => {
 		const session: GameSessionContext = { role: 'defender' }
 		const backend = createFakeGameBackend({
 			initialSnapshot: createSnapshot({
-				phase: 'DEFENDER_COMBAT',
-				lastEventSeq: 47,
-				scenarioName: 'Initial fake backend snapshot',
+				overrides: {
+					phase: 'DEFENDER_COMBAT',
+					lastEventSeq: 47,
+					scenarioName: 'Initial fake backend snapshot',
+				}
 			}),
 			session,
 		})
@@ -179,9 +206,11 @@ describe('App fake backend vertical slice', () => {
 		const session: GameSessionContext = { role: 'defender' }
 		const backend = createFakeGameBackend({
 			initialSnapshot: createSnapshot({
-				phase: 'DEFENDER_COMBAT',
-				lastEventSeq: 61,
-				scenarioName: 'Connection transition snapshot',
+				overrides: {
+					phase: 'DEFENDER_COMBAT',
+					lastEventSeq: 61,
+					scenarioName: 'Connection transition snapshot',
+				}
 			}),
 			session,
 		})
@@ -214,9 +243,11 @@ describe('App fake backend vertical slice', () => {
 		const session: GameSessionContext = { role: 'defender' }
 		const backend = createFakeGameBackend({
 			initialSnapshot: createSnapshot({
-				phase: 'DEFENDER_COMBAT',
-				lastEventSeq: 70,
-				scenarioName: 'Reconnect baseline snapshot',
+				overrides: {
+					phase: 'DEFENDER_COMBAT',
+					lastEventSeq: 70,
+					scenarioName: 'Reconnect baseline snapshot',
+				}
 			}),
 			session,
 		})
@@ -237,9 +268,11 @@ describe('App fake backend vertical slice', () => {
 
 			backend.queueRefresh(
 				createSnapshot({
-					phase: 'ONION_MOVE',
-					lastEventSeq: 71,
-					scenarioName: 'Reconnect refreshed snapshot',
+					overrides: {
+						phase: 'ONION_MOVE',
+						lastEventSeq: 71,
+						scenarioName: 'Reconnect refreshed snapshot',
+					}
 				}),
 				session,
 			)
@@ -310,6 +343,7 @@ describe('App fake backend vertical slice', () => {
 
 		const { unmount } = render(<App gameClient={client} gameId={123} />)
 
+		await user.click(await screen.findByRole('button', { name: /begin turn/i }))
 		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
 		await user.click(wolfButton)
 		expect(wolfButton.getAttribute('data-selected')).toBe('true')
@@ -334,4 +368,73 @@ describe('App fake backend vertical slice', () => {
 		expect(screen.getByTestId('combat-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
 	})
+
+	it('rebuilds from the backend after a committed move and keeps the committed snapshot on reload', async () => {
+		const session: GameSessionContext = { role: 'defender' }
+		const backend = createFakeGameBackend({
+			initialSnapshot: {
+				...createAppShellSnapshot(),
+				phase: 'DEFENDER_MOVE',
+				scenarioName: 'Move reload baseline snapshot',
+				lastEventSeq: 80,
+			},
+			session,
+		})
+		const client = createGameClient(backend.requestTransport)
+		const user = userEvent.setup()
+
+		const { unmount } = render(<App gameClient={client} gameId={123} />)
+
+		await user.click(await screen.findByRole('button', { name: /begin turn/i }))
+		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
+		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
+		await user.click(wolfButton)
+		expect(wolfButton.getAttribute('data-selected')).toBe('true')
+		expect(wolfUnit.getAttribute('data-selected')).toBe('true')
+
+		await act(async () => {
+			await user.pointer([{ target: screen.getByTestId('hex-cell-4-6'), keys: '[MouseRight]' }])
+		})
+
+		await waitFor(() => {
+			expect(backend.getSubmittedActions()).toContainEqual({
+				gameId: 123,
+				action: { type: 'MOVE', movers: ['wolf-2'], to: { q: 4, r: 6 } },
+			})
+		})
+
+		backend.seedSnapshot(
+			{
+				...createAppShellSnapshot(),
+				phase: 'DEFENDER_MOVE',
+				scenarioName: 'Move reload committed snapshot',
+				lastEventSeq: 81,
+				authoritativeState: {
+					...createAppShellSnapshot().authoritativeState,
+					defenders: {
+						...createAppShellSnapshot().authoritativeState.defenders,
+						'wolf-2': {
+							...createAppShellSnapshot().authoritativeState.defenders['wolf-2'],
+							position: { q: 4, r: 6 },
+						},
+					},
+				},
+				movementRemainingByUnit: {
+					...createAppShellSnapshot().movementRemainingByUnit,
+					'wolf-2': 3,
+				},
+			},
+			session,
+		)
+
+		unmount()
+		render(<App gameClient={client} gameId={123} />)
+
+		await waitFor(() => {
+			expect(screen.getByText('Move reload committed snapshot')).not.toBeNull()
+		})
+		expect(screen.getByTestId('hex-unit-wolf-2').getAttribute('data-selected')).toBe('false')
+		expect(screen.getByTestId('combat-unit-wolf-2').getAttribute('data-selected')).toBe('false')
+	})
+
 })

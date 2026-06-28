@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
 import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
-import type { GameAction, GameSnapshot } from './gameClient'
+import type { GameAction, ServerGameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
 import { isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
 import { buildMoveCommitAction } from './commitActionBuilders'
@@ -13,7 +13,7 @@ import logger from './logger'
 type UseBattlefieldInteractionStateOptions = {
   activeSessionController: GameSessionController | null
   activeTurnActive: boolean
-  clientSnapshot: GameSnapshot | null
+  clientSnapshot: ServerGameSnapshot | null
   clientSnapshotPhase: TurnPhase | null
   isControlledSession: boolean
   isInteractionLocked: boolean
@@ -26,11 +26,25 @@ type RamPrompt = {
   targetLabel: string
 }
 
+export type BattlefieldInteractionState = {
+  selectedUnitIds: string[] | null
+  hasExplicitSelection: boolean
+  selectedCombatTargetId: string | null
+  activeMode: Mode
+  actionError: string | null
+  combatBaseSnapshot: ServerGameSnapshot | null
+  pendingCombatResolution: ServerGameSnapshot['combatResolution'] | null
+  pendingRamResolution: ServerGameSnapshot['ramResolution'] | null
+  pendingRamPrompt: RamPrompt | null
+  lastRefreshAt: Date | null
+  isRefreshing: boolean
+}
+
 function isCombatSnapshotPhase(phase: TurnPhase | null): boolean {
   return phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
 }
 
-function buildMoveMapSnapshot(snapshot: GameSnapshot, movingUnitId: string): MoveMapSnapshot | null {
+function buildMoveMapSnapshot(snapshot: ServerGameSnapshot, movingUnitId: string): MoveMapSnapshot | null {
   const authoritativeState = snapshot.authoritativeState
   const scenarioMap = snapshot.scenarioMap
 
@@ -56,7 +70,7 @@ function buildMoveMapSnapshot(snapshot: GameSnapshot, movingUnitId: string): Mov
   }
 }
 
-function buildRamPrompt(snapshot: GameSnapshot | null, unitId: string, to: { q: number; r: number }): RamPrompt | null {
+function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to: { q: number; r: number }): RamPrompt | null {
   if (snapshot === null || snapshot.authoritativeState === undefined || snapshot.scenarioMap === undefined) {
     return null
   }
@@ -129,11 +143,12 @@ export function useBattlefieldInteractionState({
   const [selectedCombatTargetId, setSelectedCombatTargetId] = useState<string | null>(null)
   const [activeMode, setActiveMode] = useState<Mode>('fire')
   const [actionError, setActionError] = useState<string | null>(null)
-  const [, setPendingCombatSnapshot] = useState<GameSnapshot | null>(null)
-  const [pendingCombatResolution, setPendingCombatResolution] = useState<GameSnapshot['combatResolution'] | null>(null)
-  const [pendingRamResolution, setPendingRamResolution] = useState<GameSnapshot['ramResolution'] | null>(null)
+  const [, setPendingCombatSnapshot] = useState<ServerGameSnapshot | null>(null)
+  const [pendingCombatResolution, setPendingCombatResolution] = useState<ServerGameSnapshot['combatResolution'] | null>(null)
+  const [pendingRamResolution, setPendingRamResolution] = useState<ServerGameSnapshot['ramResolution'] | null>(null)
+  const [combatBaseSnapshot, setCombatBaseSnapshot] = useState<ServerGameSnapshot | null>(null)
+
   const [pendingRamPrompt, setPendingRamPrompt] = useState<RamPrompt | null>(null)
-  const [combatBaseSnapshot, setCombatBaseSnapshot] = useState<GameSnapshot | null>(null)
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -200,7 +215,7 @@ export function useBattlefieldInteractionState({
         clearPendingCombatResolution(false)
       }
 
-      setPendingRamResolution(nextSnapshot?.ramResolution?.length ? nextSnapshot.ramResolution : null)
+      setPendingRamResolution(nextSnapshot?.ramResolution ?? null)
       if (nextSnapshot !== null && !isCombatSnapshotPhase(nextSnapshot.phase)) {
         setSelectedCombatTargetId(null)
       }
@@ -265,7 +280,7 @@ export function useBattlefieldInteractionState({
     setPendingRamPrompt(null)
 
     const moveAction = buildMoveCommitAction({
-      state: clientSnapshot?.authoritativeState ?? null,
+      state: clientSnapshot?.authoritativeState as Parameters<typeof buildMoveCommitAction>[0]['state'],
       unitId: prompt.unitId,
       selectedUnitIds: selectedUnitIds ?? [],
       to: prompt.to,
@@ -273,7 +288,11 @@ export function useBattlefieldInteractionState({
     })
 
     if (!moveAction.ok) {
-      setActionError('Select at least one stack member before submitting the move.')
+      setActionError(
+        moveAction.reason === 'missing-stack-selection'
+          ? 'Loaded game snapshot is missing stack data for the selected unit.'
+          : 'Select at least one stack member before submitting the move.',
+      )
       return
     }
 
@@ -324,6 +343,27 @@ export function useBattlefieldInteractionState({
       return
     }
 
+    let nextStackSelection: string[] | null = null
+    if (!additive) {
+      try {
+        nextStackSelection = resolveBattlefieldStackSelectionIds(
+          clientSnapshot?.authoritativeState as Parameters<typeof resolveBattlefieldStackSelectionIds>[0],
+          selectionOwnerUnitId,
+        )
+      } catch (error) {
+        debugLog('handleSelectUnit selection resolution failed', {
+          unitId,
+          selectionOwnerUnitId,
+          additive,
+          error,
+        })
+
+        const errorMessage = error instanceof Error ? error.message : 'Failed to resolve stack selection.'
+        setActionError(errorMessage)
+        return
+      }
+    }
+
     clearPendingCombatResolution(false)
     setPendingRamPrompt(null)
 
@@ -338,9 +378,8 @@ export function useBattlefieldInteractionState({
       const baseSelection = currentSelection ?? []
 
       if (!additive) {
-        const stackMemberIds = resolveBattlefieldStackSelectionIds(clientSnapshot?.authoritativeState ?? null, selectionOwnerUnitId)
         setHasExplicitSelection(true)
-        return stackMemberIds
+        return nextStackSelection ?? [selectionOwnerUnitId]
       }
 
       setHasExplicitSelection(true)
@@ -463,7 +502,7 @@ export function useBattlefieldInteractionState({
 
     setActionError(null)
     const moveAction = buildMoveCommitAction({
-      state: clientSnapshot?.authoritativeState ?? null,
+      state: clientSnapshot?.authoritativeState as Parameters<typeof buildMoveCommitAction>[0]['state'],
       unitId,
       selectedUnitIds: selectedUnitIds ?? [],
       to,
@@ -524,7 +563,22 @@ export function useBattlefieldInteractionState({
     }, 800)
   }
 
+  const interactionState: BattlefieldInteractionState = {
+    selectedUnitIds,
+    hasExplicitSelection,
+    selectedCombatTargetId,
+    activeMode,
+    actionError,
+    combatBaseSnapshot,
+    pendingCombatResolution,
+    pendingRamResolution,
+    pendingRamPrompt,
+    lastRefreshAt,
+    isRefreshing,
+  }
+
   return {
+    interactionState,
     actionError,
     combatBaseSnapshot,
     commitClientAction,

@@ -4,8 +4,11 @@ import {
 	buildStackGroupKey,
 	buildStackRosterFromUnits,
 	buildStackRosterIndex,
+	refreshStackRosterNamingSnapshot,
 	expandStackRosterGroups,
 	mergeStackRosterGroups,
+	moveStackRosterGroup,
+	relocateStackRosterUnits,
 	retireStackRosterGroup,
 	splitStackRosterGroup,
 	validateStackRoster,
@@ -21,6 +24,7 @@ describe('stack roster', () => {
 					groupName: ' ',
 					unitType: ' ',
 					position: { q: Number.NaN, r: 1 },
+					unitIds: [''],
 					units: [
 						{ id: '', status: 'operational', friendlyName: 'Bad Unit' },
 					],
@@ -29,6 +33,7 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs group 9',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
+					unitIds: ['shared-id'],
 					units: [
 						{ id: 'shared-id', status: 'operational', friendlyName: 'Little Pigs 1' },
 					],
@@ -37,6 +42,7 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs group 10',
 					unitType: 'LittlePigs',
 					position: { q: 5, r: 5 },
+					unitIds: ['shared-id'],
 					units: [
 						{ id: 'shared-id', status: 'operational', friendlyName: 'Little Pigs 2' },
 					],
@@ -45,8 +51,12 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs group 11',
 					unitType: 'LittlePigs',
 					position: { q: 6, r: 6 },
+					unitIds: [],
 					units: [],
 				},
+			},
+			unitsById: {
+				'shared-id': { id: 'shared-id', status: 'operational', friendlyName: 'Little Pigs 1' },
 			},
 		}
 
@@ -71,19 +81,19 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
-					units: [
-						{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
-						{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
-					],
+					unitIds: ['pigs-1', 'pigs-2'],
 				},
 				'stack-2': {
 					groupName: 'Little Pigs group 2',
 					unitType: 'LittlePigs',
 					position: { q: 5, r: 5 },
-					units: [
-						{ id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3' },
-					],
+					unitIds: ['pigs-3'],
 				},
+			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
+				'pigs-3': { id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3' },
 			},
 		}
 
@@ -124,8 +134,11 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
-					units: [{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' }],
+					unitIds: ['pigs-1'],
 				},
+			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
 			},
 		}
 
@@ -156,11 +169,13 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
-					units: [
-						{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined },
-						{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined },
-					],
+					unitIds: ['pigs-1', 'pigs-2'],
 				},
+			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined, squads: 1 },
+				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined, squads: 1 },
+				'wolf-1': { id: 'wolf-1', status: 'operational', friendlyName: 'Big Bad Wolf 1', weapons: undefined, targetRules: undefined, squads: 1 },
 			},
 		})
 	})
@@ -171,7 +186,13 @@ describe('stack roster', () => {
 			{ id: 'puss-1', type: 'Puss', position: { q: 3, r: 5 }, status: 'operational', friendlyName: 'Puss 1' },
 		])
 
-		expect(roster).toEqual({ groupsById: {} })
+		expect(roster).toEqual({
+			groupsById: {},
+			unitsById: {
+				'wolf-1': { id: 'wolf-1', status: 'operational', friendlyName: 'Big Bad Wolf 1', weapons: undefined, targetRules: undefined, squads: undefined },
+				'puss-1': { id: 'puss-1', status: 'operational', friendlyName: 'Puss 1', weapons: undefined, targetRules: undefined, squads: undefined },
+			},
+		})
 	})
 
 	it('preserves explicit grouped units without squashing them back into squads', () => {
@@ -186,15 +207,16 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
-					units: [
-						{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined },
-						{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined },
-					],
+					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined, squads: undefined },
+				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined, squads: undefined },
+			},
 		})
-		expect(roster.groupsById['LittlePigs:4,4']?.units).toHaveLength(2)
-		expect(roster.groupsById['LittlePigs:4,4']?.units?.every((unit) => Object.hasOwn(unit, 'squads') === false)).toBe(true)
+		expect(roster.groupsById['LittlePigs:4,4']?.unitIds).toHaveLength(2)
+		expect(roster.unitsById?.['pigs-1']?.squads).toBeUndefined()
 	})
 
 	it('throws when a roster group has the wrong json shape', () => {
@@ -204,7 +226,7 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
-					units: null as unknown as never,
+					unitIds: null as unknown as never,
 				},
 			},
 		})).toThrow('Invalid stack roster group shape for bad')
@@ -217,8 +239,12 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
-					units: [{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' }, null as unknown as never],
+					unitIds: ['pigs-1', 'pigs-2'],
 				},
+			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+				'pigs-2': null as unknown as never,
 			},
 		})).toThrow('Invalid stack roster unit shape for bad')
 	})
@@ -236,11 +262,13 @@ describe('stack roster', () => {
 					groupName: 'Little Pigs 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
-					units: [
-						{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined },
-						{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined },
-					],
+					unitIds: ['pigs-1', 'pigs-2'],
 				},
+			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined, squads: undefined },
+				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined, squads: undefined },
+				'wolf-1': { id: 'wolf-1', status: 'destroyed', friendlyName: 'Big Bad Wolf 1', weapons: undefined, targetRules: undefined, squads: undefined },
 			},
 		})
 	})
@@ -255,10 +283,45 @@ describe('stack roster', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
+			},
 		} as unknown as StackRosterState
 
 		expect(() => buildStackRosterIndex(unitIdsOnlyRoster)).not.toThrow()
 		expect(buildStackRosterIndex(unitIdsOnlyRoster).groupsById['LittlePigs:4,4']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
+	})
+
+	it('refreshes stack naming from the roster-owned adapter', () => {
+		const roster: StackRosterState = {
+			groupsById: {
+				'g-a': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+				'g-b': {
+					groupName: 'Little Pigs group 2',
+					unitType: 'LittlePigs',
+					position: { q: 5, r: 4 },
+					unitIds: ['pigs-3'],
+				},
+			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
+				'pigs-3': { id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3' },
+			},
+		}
+
+		expect(refreshStackRosterNamingSnapshot(roster)).toMatchObject({
+			groupsInUse: [
+				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+			],
+			usedGroupNames: ['Little Pigs group 1'],
+		})
 	})
 
 	it('validates canonical consistency between defenders and group membership', () => {
@@ -368,5 +431,113 @@ describe('stack roster', () => {
 		const retired = retireStackRosterGroup(split, 'g-c')
 		expect(retired.groupsById['g-c']).toBeUndefined()
 		expect(retired.groupsById['g-a']?.unitIds).toEqual(['pigs-1', 'pigs-3'])
+	})
+
+	it('moves a single selected member without inventing a new group name', () => {
+		const initialRoster: StackRosterState = {
+			groupsById: {
+				'g-a': {
+					groupName: 'Little Pigs group A',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+				},
+			},
+		}
+
+		const moved = moveStackRosterGroup(initialRoster, {
+			sourceGroupId: 'g-a',
+			destinationGroupId: 'g-b',
+			destinationGroupName: 'Little Pigs group B',
+			movedUnitIds: ['pigs-1'],
+			destinationPosition: { q: 5, r: 4 },
+		})
+
+		expect(moved.groupsById['g-a']?.unitIds).toEqual(['pigs-2', 'pigs-3'])
+		expect(moved.groupsById['g-b']).toBeUndefined()
+	})
+
+	it('merges an ungrouped moved unit into an existing destination stack', () => {
+		const initialRoster: StackRosterState = {
+			groupsById: {
+				'LittlePigs:5,4': {
+					groupName: 'Little Pigs group B',
+					unitType: 'LittlePigs',
+					position: { q: 5, r: 4 },
+					unitIds: ['pigs-2', 'pigs-3'],
+				},
+			},
+		}
+
+		const moved = relocateStackRosterUnits(initialRoster, {
+			movedUnitIds: ['pigs-1'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 5, r: 4 },
+			destinationGroupName: 'Little Pigs group B',
+		})
+
+		expect(moved.groupsById['LittlePigs:5,4']).toMatchObject({
+			groupName: 'Little Pigs group B',
+			unitType: 'LittlePigs',
+			position: { q: 5, r: 4 },
+			unitIds: ['pigs-2', 'pigs-3', 'pigs-1'],
+		})
+	})
+
+	it('keeps a stackable singleton destination so later movers can reform the stack', () => {
+		const initialRoster: StackRosterState = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group A',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+				},
+			},
+		}
+
+		const afterFirstMove = relocateStackRosterUnits(initialRoster, {
+			movedUnitIds: ['pigs-1'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 5, r: 4 },
+			destinationGroupName: 'Little Pigs group B',
+		})
+
+		expect(afterFirstMove.groupsById['LittlePigs:4,4']?.unitIds).toEqual(['pigs-2', 'pigs-3'])
+		expect(afterFirstMove.groupsById['LittlePigs:5,4']).toMatchObject({
+			groupName: 'Little Pigs group B',
+			unitType: 'LittlePigs',
+			position: { q: 5, r: 4 },
+			unitIds: ['pigs-1'],
+		})
+
+		const afterSecondMove = relocateStackRosterUnits(afterFirstMove, {
+			movedUnitIds: ['pigs-2'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 5, r: 4 },
+			destinationGroupName: 'Little Pigs group B',
+		})
+
+		expect(afterSecondMove.groupsById['LittlePigs:4,4']).toBeUndefined()
+		expect(afterSecondMove.groupsById['LittlePigs:5,4']).toMatchObject({
+			groupName: 'Little Pigs group B',
+			unitType: 'LittlePigs',
+			position: { q: 5, r: 4 },
+			unitIds: ['pigs-1', 'pigs-2'],
+		})
+
+		const afterThirdMove = relocateStackRosterUnits(afterSecondMove, {
+			movedUnitIds: ['pigs-3'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 5, r: 4 },
+			destinationGroupName: 'Little Pigs group B',
+		})
+
+		expect(afterThirdMove.groupsById['LittlePigs:5,4']).toMatchObject({
+			groupName: 'Little Pigs group B',
+			unitType: 'LittlePigs',
+			position: { q: 5, r: 4 },
+			unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+		})
 	})
 })

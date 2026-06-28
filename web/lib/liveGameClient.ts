@@ -1,5 +1,5 @@
-import { createGameClient, type GameAction, type GameClient, type GameSnapshot } from './gameClient'
-import { createHttpGameClient, createHttpGameRequestTransport } from './httpGameClient'
+import { createGameClient, type GameAction, type GameClient } from './gameClient'
+import { createHttpGameRequestTransport } from './httpGameClient'
 import type { LiveConnectionStatus as LiveConnectionStatusType } from './gameSessionTypes'
 import { createLiveEventSource, type LiveEventSourceOptions } from './liveEventSource'
 
@@ -41,15 +41,7 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 		fetchImpl: options.fetchImpl,
 		token: options.token,
 	})
-	const compatibilityClient = createHttpGameClient({
-		baseUrl: options.baseUrl,
-		fetchImpl: options.fetchImpl,
-		token: options.token,
-	})
-	const client = createGameClient({
-		...requestTransport,
-		pollEvents: compatibilityClient.pollEvents,
-	})
+	const client = createGameClient(requestTransport)
 	const liveEventSource = createLiveEventSource({
 		baseUrl: options.baseUrl,
 		token: options.token,
@@ -137,7 +129,7 @@ export function createLiveGameClient(options: LiveGameClientOptions): LiveGameCl
 				lastEventSeq: snapshot.lastEventSeq,
 				lastEventType: null,
 			})
-			return snapshot as GameSnapshot
+			return snapshot
 		},
 		async pollEvents(gameId: number, afterSeq: number) {
 			return client.pollEvents(gameId, afterSeq)

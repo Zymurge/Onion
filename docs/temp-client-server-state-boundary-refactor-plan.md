@@ -306,7 +306,7 @@ The sequence below is intended to be handed to agents one step at a time. Each s
 - Step 4 completed: display derivation now uses shared normalization helpers and no longer duplicates weapon-selection parsing.
 - Step 5 completed: commit translation now runs through explicit builders.
 - Step 6 completed: App shell now composes session, interaction, and display layers without inline action construction.
-- Step 7 remains next: add and harden reload/reconnect regression coverage.
+- Step 7 completed: add and harden reload/reconnect regression coverage.
 
 ### Step 1. Freeze Vocabulary And Ownership
 
@@ -589,3 +589,19 @@ The refactor is successful when all of the following are true:
 ## Immediate Next Step
 
 The first implementation task should be Step 2: remove UI-local fields from the snapshot contract and transport cache. That step creates the strongest boundary improvement with the least ambiguity and sets up every later simplification.
+
+## Boundary Drift And Repair Plan
+
+The intended model in this plan is a strict split: backend state is authoritative, browser interaction state is transient, and the UI derives everything else from those two inputs. The codebase drifted away from that target in a few places. The current client snapshot type still mixes server data with UI-local fields, the HTTP transport still synthesizes fallback snapshot state, and the app/test fixtures have had to keep up with that mixed model instead of enforcing the stricter boundary.
+
+That drift is why we are not fully at the planned end state yet. The browser still tolerates a fabricated initial snapshot and still carries local fields in the same snapshot-shaped object as server data. The result is that the code is part authoritative-server model and part transitional compatibility layer.
+
+The repair sequence is:
+
+1. Split the snapshot contract into an authoritative server snapshot and a transient client/session state shape.
+2. Remove transport fallback/merge logic so the client stops inventing placeholder server state.
+3. Move any remaining UI-local fields out of snapshot-shaped types and into interaction state.
+4. Keep derived battlefield state pure and recomputable from server snapshot plus interaction state.
+5. Retire the compatibility shims and update permanent docs once the split is complete.
+
+That is the shortest path back to the boundary described above and the clearest way to prevent more mixed-model drift.

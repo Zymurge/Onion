@@ -2,6 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import { useBattlefieldInteractionState } from '#web/lib/useBattlefieldInteractionState'
 import type { GameSessionController } from '#web/lib/gameSessionTypes'
 import type { GameSnapshot } from '#web/lib/gameClient'
@@ -35,6 +36,7 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 			ramsThisTurn: 0,
 		},
 		movementRemainingByUnit: { 'onion-1': 3 },
+		victoryObjectives: [],
 		scenarioMap: {
 			width: 3,
 			height: 3,
@@ -54,7 +56,6 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 		...overrides,
 	}
 }
-
 function createController() {
 	return {
 		subscribe: vi.fn(),
@@ -64,6 +65,66 @@ function createController() {
 		submitAction: vi.fn(),
 		dispose: vi.fn(),
 	} satisfies GameSessionController
+}
+
+function createGroupedDefenderSnapshot(options?: {
+	includeStackRoster?: boolean
+	includeRosterEntryForSecondUnit?: boolean
+}): GameSnapshot {
+	const defenders = {
+		'pigs-1': {
+			id: 'pigs-1',
+			type: 'LittlePigs',
+			position: { q: 1, r: 1 },
+			status: 'operational' as const,
+			friendlyName: 'Little Pigs 1',
+			weapons: [],
+			squads: 1,
+		},
+		'pigs-2': {
+			id: 'pigs-2',
+			type: 'LittlePigs',
+			position: { q: 1, r: 1 },
+			status: 'operational' as const,
+			friendlyName: 'Little Pigs 2',
+			weapons: [],
+			squads: 1,
+		},
+	}
+
+	const stackRoster = options?.includeStackRoster === false
+		? undefined
+		: options?.includeRosterEntryForSecondUnit === false
+			? {
+				groupsById: {
+					'LittlePigs:1,1': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 1, r: 1 },
+						unitIds: ['pigs-1'],
+					},
+				},
+			}
+			: buildStackRosterFromUnits(Object.values(defenders))
+
+	return createSnapshot({
+		phase: 'DEFENDER_MOVE',
+		authoritativeState: {
+			onion: {
+				id: 'onion-1',
+				type: 'TheOnion',
+				position: { q: 0, r: 0 },
+				treads: 33,
+				status: 'operational',
+				weapons: [],
+				batteries: { main: 1, secondary: 0, ap: 0 },
+			},
+			defenders,
+			ramsThisTurn: 0,
+			...(stackRoster === undefined ? {} : { stackRoster }),
+		},
+		movementRemainingByUnit: { 'pigs-1': 3, 'pigs-2': 3 },
+	})
 }
 
 describe('useBattlefieldInteractionState', () => {
@@ -105,13 +166,43 @@ describe('useBattlefieldInteractionState', () => {
 		await waitFor(() => {
 			expect(submitAction).toHaveBeenCalledWith({
 				type: 'MOVE',
-				unitId: 'onion-1',
+				movers: ['onion-1'],
 				to: { q: 0, r: 1 },
 				attemptRam: false,
 			})
 		})
 		expect(result.current.pendingRamPrompt).toBeNull()
 		expect(result.current.selectedUnitIds).toEqual([])
+	})
+
+	it('exposes a single interaction state model', async () => {
+		const controller = createController()
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: createSnapshot(),
+				clientSnapshotPhase: 'ONION_MOVE',
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		expect(result.current.interactionState).toMatchObject({
+			selectedUnitIds: null,
+			hasExplicitSelection: false,
+			selectedCombatTargetId: null,
+			activeMode: 'fire',
+			actionError: null,
+			combatBaseSnapshot: null,
+			pendingCombatResolution: null,
+			pendingRamResolution: null,
+			pendingRamPrompt: null,
+			lastRefreshAt: null,
+			isRefreshing: false,
+		})
 	})
 
 	it('falls back to refresh completion when no controller is connected', async () => {
@@ -170,7 +261,7 @@ describe('useBattlefieldInteractionState', () => {
 		await waitFor(() => {
 			expect(submitAction).toHaveBeenCalledWith({
 				type: 'MOVE',
-				unitId: 'onion-1',
+				movers: ['onion-1'],
 				to: { q: 1, r: 1 },
 			})
 		})
@@ -236,6 +327,7 @@ describe('useBattlefieldInteractionState', () => {
 				ramsThisTurn: 0,
 			},
 			movementRemainingByUnit: { 'wolf-2': 4 },
+			victoryObjectives: [],
 			scenarioMap: {
 				width: 3,
 				height: 3,
@@ -272,8 +364,14 @@ describe('useBattlefieldInteractionState', () => {
 			await result.current.handleMoveUnit('wolf-2', { q: 2, r: 2 })
 		})
 
-		expect(result.current.actionError).toBe('Select at least one stack member before submitting the move.')
-		expect(submitAction).not.toHaveBeenCalled()
+		await waitFor(() => {
+			expect(submitAction).toHaveBeenCalledWith({
+				type: 'MOVE',
+				movers: ['wolf-2'],
+				to: { q: 2, r: 2 },
+			})
+		})
+		expect(result.current.actionError).toBeNull()
 	})
 
 	it('keeps state unchanged when selection and movement are locked', async () => {
@@ -313,6 +411,72 @@ describe('useBattlefieldInteractionState', () => {
 		expect(result.current.actionError).toBeNull()
 		expect(result.current.pendingRamPrompt).toBeNull()
 		expect(submitAction).not.toHaveBeenCalled()
+	})
+
+	it('does not throw out of handleSelectUnit when grouped-unit stack metadata is missing', async () => {
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: createController(),
+				activeTurnActive: true,
+				clientSnapshot: createGroupedDefenderSnapshot({ includeStackRoster: false }),
+				clientSnapshotPhase: 'DEFENDER_MOVE',
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		expect(() => {
+			act(() => {
+				result.current.handleSelectUnit('pigs-1')
+			})
+		}).not.toThrow()
+	})
+
+	it('surfaces selection resolution failures via actionError and keeps the prior selection unchanged', async () => {
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: createController(),
+				activeTurnActive: true,
+				clientSnapshot: createGroupedDefenderSnapshot({ includeStackRoster: false }),
+				clientSnapshotPhase: 'DEFENDER_MOVE',
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			result.current.setSelectedUnitIds(['def-1'])
+		})
+
+		await act(async () => {
+			result.current.handleSelectUnit('pigs-1')
+		})
+
+		expect(result.current.actionError).toBe('Missing stackRoster for grouped unit pigs-1')
+		expect(result.current.selectedUnitIds).toEqual(['def-1'])
+	})
+
+	it('expands grouped defender selection to canonical member ids when stack metadata is present', async () => {
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: createController(),
+				activeTurnActive: true,
+				clientSnapshot: createGroupedDefenderSnapshot(),
+				clientSnapshotPhase: 'DEFENDER_MOVE',
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			result.current.handleSelectUnit('pigs-1')
+		})
+
+		expect(result.current.actionError).toBeNull()
+		expect(result.current.selectedUnitIds).toEqual(['pigs-1', 'pigs-2'])
 	})
 
 	it('refreshes after a failed combat commit', async () => {

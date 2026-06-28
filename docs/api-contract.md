@@ -279,7 +279,7 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 #### Move Onion
 
 ```json
-{ "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
+{ "type": "MOVE", "movers": [string, ...], "to": { "q": number, "r": number } }
 ```
 
 Ramming is resolved as part of `MOVE` path execution (up to 2 rams per
@@ -302,7 +302,7 @@ Combat uses a single `FIRE` command shape for both Onion and defender attacks.
 #### Move a unit
 
 ```json
-{ "type": "MOVE", "unitId": string, "to": { "q": number, "r": number } }
+{ "type": "MOVE", "movers": [string, ...], "to": { "q": number, "r": number } }
 ```
 
 ---

@@ -1,4 +1,4 @@
-import { buildStackGroupKey } from './stackNaming.js'
+import { buildStackGroupKey, refreshStackNamingSnapshotFromRoster, type StackNamingSnapshot, type StackNamingSourceUnit } from './stackNaming.js'
 import { getAllUnitDefinitions } from './unitDefinitions.js'
 import type { DefenderUnit, HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from './types/index.js'
 
@@ -50,6 +50,21 @@ export type SplitStackRosterGroupInput = {
 	newPosition?: HexPos
 }
 
+export type MoveStackRosterGroupInput = {
+	sourceGroupId: string
+	destinationGroupId: string
+	destinationGroupName: string
+	movedUnitIds: string[]
+	destinationPosition: HexPos
+}
+
+export type RelocateStackRosterUnitsInput = {
+	movedUnitIds: string[]
+	unitType: string
+	destinationPosition: HexPos
+	destinationGroupName: string
+}
+
 export type StackRosterUnitView = StackRosterUnitState & {
 	groupId: string
 	groupKey: string
@@ -76,7 +91,7 @@ type StackRosterGroupBuilder = {
 	groupName: string
 	unitType: string
 	position: HexPos
-	units: Array<Omit<StackRosterUnitState, 'squads'>>
+	unitIds: string[]
 }
 
 function isStackRosterGroupState(candidate: unknown): candidate is StackRosterGroupState {
@@ -107,11 +122,86 @@ function isStackRosterUnitType(unitType: string): boolean {
 }
 
 function resolveGroupUnitIds(group: StackRosterGroupState): string[] {
-	if (Array.isArray(group.unitIds)) {
+	if (Array.isArray(group.unitIds) && group.unitIds.length > 0) {
 		return [...group.unitIds]
 	}
 
 	return (group.units ?? []).map((unit) => unit.id)
+}
+
+function buildCanonicalUnitsById(units: ReadonlyArray<StackRosterSourceUnit>): Record<string, StackRosterUnitState> {
+	return Object.fromEntries(
+		units.map((unit) => [
+			unit.id,
+			{
+				id: unit.id,
+				status: unit.status,
+				friendlyName: unit.friendlyName ?? unit.id,
+				weapons: unit.weapons,
+				targetRules: unit.targetRules,
+				squads: unit.squads,
+			},
+		]),
+	)
+}
+
+function resolveCanonicalUnitsById(stackRoster: StackRosterState | undefined): Record<string, StackRosterUnitState> {
+	if (stackRoster?.unitsById !== undefined) {
+		return { ...stackRoster.unitsById }
+	}
+
+	// If the canonical `unitsById` map is absent, derive canonical units
+	// from the declared `unitIds` and any inline `units` present in groups.
+	// Prefer inline unit detail when available, but fall back to minimal
+	// canonical shapes for ids that only appear in `unitIds`.
+	const unitsById: Record<string, StackRosterUnitState> = {}
+	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
+		const unitIds = resolveGroupUnitIds(group)
+		const inlineUnits = new Map<string, StackRosterUnitState>((group.units ?? []).map((u) => [u.id, u]))
+		for (const id of unitIds) {
+			const inline = inlineUnits.get(id)
+			if (inline !== undefined) {
+				unitsById[id] = { ...inline }
+			} else if (unitsById[id] === undefined) {
+				// minimal canonical fallback
+				unitsById[id] = { id, status: 'operational', friendlyName: id }
+			}
+		}
+	}
+
+	return unitsById
+}
+
+export function buildStackRosterNamingSourceUnits(stackRoster: StackRosterState | undefined): StackNamingSourceUnit[] {
+	const canonicalUnitsById = resolveCanonicalUnitsById(stackRoster)
+	const sourceUnits: StackNamingSourceUnit[] = []
+
+	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
+		for (const unitId of resolveGroupUnitIds(group)) {
+			const unit = canonicalUnitsById[unitId]
+			if (unit === undefined) {
+				continue
+			}
+
+			sourceUnits.push({
+				id: unit.id,
+				type: group.unitType,
+				position: group.position,
+				status: unit.status,
+				friendlyName: unit.friendlyName,
+				squads: unit.squads,
+			})
+		}
+	}
+
+	return sourceUnits
+}
+
+export function refreshStackRosterNamingSnapshot(
+	stackRoster: StackRosterState | undefined,
+	seed: StackNamingSnapshot | undefined = undefined,
+): StackNamingSnapshot {
+	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster))
 }
 
 function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterGroupBuilder[] {
@@ -124,22 +214,13 @@ function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>)
 
 		const groupId = buildStackGroupKey(unit.type, unit.position)
 		const existingGroup = groupedUnits.get(groupId)
-		const nextUnits = existingGroup?.units ?? []
+		const nextUnitIds = existingGroup?.unitIds ?? []
 		groupedUnits.set(groupId, {
 			groupId,
 			groupName: existingGroup?.groupName ?? unit.friendlyName ?? unit.type,
 			unitType: unit.type,
 			position: unit.position,
-			units: [
-				...nextUnits,
-				{
-					id: unit.id,
-					status: unit.status,
-					friendlyName: unit.friendlyName ?? unit.id,
-					weapons: unit.weapons,
-					targetRules: unit.targetRules,
-				},
-			],
+			unitIds: [...nextUnitIds, unit.id],
 		})
 	}
 
@@ -148,17 +229,18 @@ function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>)
 
 export function buildStackRosterFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterState {
 	const groupsById: Record<string, StackRosterGroupState> = {}
+	const unitsById = buildCanonicalUnitsById(units)
 
 	for (const group of buildRosterGroupsFromUnits(units)) {
 		groupsById[group.groupId] = {
 			groupName: group.groupName,
 			unitType: group.unitType,
 			position: group.position,
-			units: group.units,
+			unitIds: group.unitIds,
 		}
 	}
 
-	return { groupsById }
+	return { groupsById, unitsById }
 }
 
 function isValidPosition(position: HexPos): boolean {
@@ -168,6 +250,7 @@ function isValidPosition(position: HexPos): boolean {
 export function validateStackRoster(stackRoster: StackRosterState | undefined): StackRosterValidationIssue[] {
 	const issues: StackRosterValidationIssue[] = []
 	const seenUnitIds = new Set<string>()
+	const unitsById = resolveCanonicalUnitsById(stackRoster)
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		if (group.groupName.trim().length === 0) {
@@ -182,9 +265,7 @@ export function validateStackRoster(stackRoster: StackRosterState | undefined): 
 			issues.push({ code: 'INVALID_POSITION', message: `Group ${groupId} must have a valid position`, groupId })
 		}
 
-		const groupUnitIds = Array.isArray(group.unitIds)
-			? group.unitIds
-			: (group.units ?? []).map((unit) => unit.id)
+		const groupUnitIds = resolveGroupUnitIds(group)
 
 		if (groupUnitIds.length === 0) {
 			issues.push({ code: 'EMPTY_GROUP', message: `Group ${groupId} must contain at least one unit`, groupId })
@@ -201,6 +282,10 @@ export function validateStackRoster(stackRoster: StackRosterState | undefined): 
 			} else {
 				seenUnitIds.add(unitId)
 			}
+
+			if (unitsById[unitId] === undefined) {
+				issues.push({ code: 'EMPTY_UNIT_ID', message: `Group ${groupId} references missing canonical unit ${unitId}`, groupId, unitId })
+			}
 		}
 	}
 
@@ -211,16 +296,31 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 	const groupsById: Record<string, StackRosterGroupView> = {}
 	const unitsById: Record<string, StackRosterUnitView> = {}
 	const groupIdsByUnitId = new Map<string, string>()
+	const canonicalUnitsById = resolveCanonicalUnitsById(stackRoster)
+	
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		const normalizedGroup = normalizeStackRosterGroup(groupId, group)
-		const normalizedUnits = normalizedGroup.units ?? []
-		if (normalizedUnits.some((unit) => unit === null || typeof unit !== 'object' || typeof unit.id !== 'string' || typeof unit.status !== 'string')) {
-			throw new Error(`Invalid stack roster unit shape for ${groupId}`)
-		}
+		const groupUnitIds = resolveGroupUnitIds(normalizedGroup)
 
 		const groupKey = buildStackGroupKey(normalizedGroup.unitType, normalizedGroup.position)
-		const units = normalizedUnits.map((unit) => {
+		const units = groupUnitIds.map((unitId) => {
+			// Distinguish between missing canonical mapping (undefined) and an explicit but invalid entry (null or bad)
+			let unit = canonicalUnitsById[unitId]
+			if (unit === undefined) {
+				// canonical map missing this unit: try to recover from the group's inline units
+				const inline = (normalizedGroup.units ?? []).find((u) => (u as any).id === unitId) as StackRosterUnitState | undefined
+				if (inline !== undefined) {
+					unit = { ...inline }
+				} else {
+					// fallback to a minimal canonical shape when genuinely missing
+					unit = { id: unitId, status: 'operational', friendlyName: unitId }
+				}
+			} else if (unit === null || typeof unit !== 'object' || typeof (unit as any).id !== 'string' || typeof (unit as any).status !== 'string') {
+				// canonical entry exists but is invalid -> preserve previous strict behavior and throw
+				throw new Error(`Invalid stack roster unit shape for ${groupId}`)
+			}
+
 			const unitView: StackRosterUnitView = {
 				...unit,
 				groupId,
@@ -234,15 +334,11 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 			return unitView
 		})
 
-		for (const unitId of normalizedGroup.unitIds ?? []) {
-			groupIdsByUnitId.set(unitId, groupId)
-		}
-
 		groupsById[groupId] = {
 			...normalizedGroup,
 			groupId,
 			groupKey,
-			unitIds: normalizedGroup.unitIds ?? units.map((unit) => unit.id),
+			unitIds: groupUnitIds,
 			units,
 		}
 	}
@@ -359,13 +455,18 @@ export function expandStackRosterGroups(
 		}),
 	)
 
-	return { groupsById }
+	const unitsById = Object.fromEntries(
+		Object.values(groupsById).flatMap((group) => group.units.map((unit) => [unit.id, unit] as const)),
+	)
+
+	return { groupsById, unitsById }
 }
 
 export function retireStackRosterGroup(stackRoster: StackRosterState | undefined, groupId: string): StackRosterState {
 	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	const unitsById = resolveCanonicalUnitsById(stackRoster)
 	delete groupsById[groupId]
-	return { groupsById }
+	return { groupsById, unitsById }
 }
 
 export function mergeStackRosterGroups(
@@ -374,6 +475,7 @@ export function mergeStackRosterGroups(
 	sourceGroupIds: string[],
 ): StackRosterState {
 	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	const unitsById = resolveCanonicalUnitsById(stackRoster)
 	const targetGroup = groupsById[targetGroupId]
 	if (targetGroup === undefined) {
 		throw new Error(`Cannot merge into missing target group ${targetGroupId}`)
@@ -404,7 +506,7 @@ export function mergeStackRosterGroups(
 		units: undefined,
 	}
 
-	return { groupsById }
+	return { groupsById, unitsById }
 }
 
 export function splitStackRosterGroup(
@@ -412,6 +514,7 @@ export function splitStackRosterGroup(
 	input: SplitStackRosterGroupInput,
 ): StackRosterState {
 	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	const unitsById = resolveCanonicalUnitsById(stackRoster)
 	const sourceGroup = groupsById[input.groupId]
 	if (sourceGroup === undefined) {
 		throw new Error(`Cannot split missing group ${input.groupId}`)
@@ -441,7 +544,6 @@ export function splitStackRosterGroup(
 	}
 
 	groupsById[input.newGroupId] = {
-		groupId: input.newGroupId,
 		groupName: input.newGroupName,
 		unitType: sourceGroup.unitType,
 		position: input.newPosition ?? sourceGroup.position,
@@ -449,5 +551,132 @@ export function splitStackRosterGroup(
 		units: undefined,
 	}
 
-	return { groupsById }
+	return { groupsById, unitsById }
+}
+
+export function moveStackRosterGroup(
+	stackRoster: StackRosterState | undefined,
+	input: MoveStackRosterGroupInput,
+): StackRosterState {
+	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	const unitsById = resolveCanonicalUnitsById(stackRoster)
+	const sourceGroup = groupsById[input.sourceGroupId]
+	if (sourceGroup === undefined) {
+		throw new Error(`Cannot move from missing group ${input.sourceGroupId}`)
+	}
+
+	const movedIdSet = new Set(input.movedUnitIds)
+	if (movedIdSet.size === 0) {
+		throw new Error('Cannot move group without moved members')
+	}
+
+	const sourceUnitIds = resolveGroupUnitIds(sourceGroup)
+	for (const movedUnitId of movedIdSet) {
+		if (!sourceUnitIds.includes(movedUnitId)) {
+			throw new Error(`Cannot move missing group member ${movedUnitId}`)
+		}
+	}
+
+	const remainingUnitIds = sourceUnitIds.filter((unitId) => !movedIdSet.has(unitId))
+	if (remainingUnitIds.length > 1) {
+		groupsById[input.sourceGroupId] = {
+			...sourceGroup,
+			unitIds: remainingUnitIds,
+			units: undefined,
+		}
+	} else {
+		delete groupsById[input.sourceGroupId]
+	}
+
+	const destinationGroup = groupsById[input.destinationGroupId]
+	const movedUnitIds = [...movedIdSet]
+	if (destinationGroup !== undefined) {
+		const destinationUnitIds = [...new Set([...(destinationGroup.unitIds ?? destinationGroup.units?.map((unit) => unit.id) ?? []), ...movedUnitIds])]
+		groupsById[input.destinationGroupId] = {
+			...destinationGroup,
+			position: input.destinationPosition,
+			unitIds: destinationUnitIds,
+			units: undefined,
+		}
+	} else if (movedUnitIds.length > 1) {
+		groupsById[input.destinationGroupId] = {
+			groupName: input.destinationGroupName,
+			unitType: sourceGroup.unitType,
+			position: input.destinationPosition,
+			unitIds: movedUnitIds,
+			units: undefined,
+		}
+	}
+
+	return { groupsById, unitsById }
+}
+
+export function relocateStackRosterUnits(
+	stackRoster: StackRosterState | undefined,
+	input: RelocateStackRosterUnitsInput,
+): StackRosterState {
+	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
+	const unitsById = resolveCanonicalUnitsById(stackRoster)
+	const movedIdSet = new Set(input.movedUnitIds)
+	if (movedIdSet.size === 0) {
+		throw new Error('Cannot relocate units without moved members')
+	}
+
+	
+
+	const destinationGroupId = buildStackGroupKey(input.unitType, input.destinationPosition)
+	const destinationSourceOverlap = Object.values(groupsById).some((group) => {
+		return group.unitType === input.unitType
+			&& group.position.q === input.destinationPosition.q
+			&& group.position.r === input.destinationPosition.r
+			&& resolveGroupUnitIds(group).some((unitId) => movedIdSet.has(unitId))
+	})
+	if (destinationSourceOverlap) {
+		return { groupsById, unitsById }
+	}
+
+	for (const [groupId, group] of Object.entries(groupsById)) {
+		const groupUnitIds = resolveGroupUnitIds(group)
+		if (groupUnitIds.every((unitId) => !movedIdSet.has(unitId))) {
+			continue
+		}
+
+		const remainingUnitIds = groupUnitIds.filter((unitId) => !movedIdSet.has(unitId))
+		if (remainingUnitIds.length > 1) {
+			groupsById[groupId] = {
+				...group,
+				unitIds: remainingUnitIds,
+				units: undefined,
+			}
+		} else {
+			delete groupsById[groupId]
+		}
+	}
+
+	const destinationGroup = groupsById[destinationGroupId]
+	const destinationUnitIds = [
+		...new Set([
+			...(destinationGroup ? resolveGroupUnitIds(destinationGroup) : []),
+			...input.movedUnitIds,
+		]),
+	]
+
+	if (destinationUnitIds.length > 1 || isStackRosterUnitType(input.unitType)) {
+		groupsById[destinationGroupId] = {
+			...(destinationGroup ?? {
+				groupName: input.destinationGroupName,
+				unitType: input.unitType,
+				position: input.destinationPosition,
+			}),
+			groupName: input.destinationGroupName,
+			unitType: input.unitType,
+			position: input.destinationPosition,
+			unitIds: destinationUnitIds,
+			units: undefined,
+		}
+	} else {
+		delete groupsById[destinationGroupId]
+	}
+
+	return { groupsById, unitsById }
 }

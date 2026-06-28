@@ -26,6 +26,15 @@ function createStackState() {
   }
 }
 
+function createBrokenStackState() {
+  return {
+    defenders: {
+      'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+      'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+    },
+  }
+}
+
 describe('commitActionBuilders', () => {
   describe('buildEndPhaseCommitAction', () => {
     it('returns the end-phase action directly', () => {
@@ -37,7 +46,7 @@ describe('commitActionBuilders', () => {
   })
 
   describe('buildMoveCommitAction', () => {
-    it('builds a MOVE_STACK action when the active unit is a stack and members are selected', () => {
+    it('builds a MOVE action with movers when the active unit is a stack and members are selected', () => {
       const state = createStackState()
 
       expect(buildMoveCommitAction({
@@ -49,19 +58,15 @@ describe('commitActionBuilders', () => {
       })).toEqual({
         ok: true,
         action: {
-          type: 'MOVE_STACK',
-          selection: {
-            anchorUnitId: 'pigs-1',
-            availableUnitIds: ['pigs-1', 'pigs-2'],
-            selectedUnitIds: ['pigs-2', 'pigs-1'],
-          },
+          type: 'MOVE',
+          movers: ['pigs-2', 'pigs-1'],
           to: { q: 5, r: 4 },
           attemptRam: true,
         },
       })
     })
 
-    it('builds a MOVE action when the active unit is not a stack', () => {
+    it('builds a MOVE action with a single mover when the active unit is not a stack', () => {
       const state = createStackState()
 
       expect(buildMoveCommitAction({
@@ -73,7 +78,7 @@ describe('commitActionBuilders', () => {
         ok: true,
         action: {
           type: 'MOVE',
-          unitId: 'wolf-1',
+          movers: ['wolf-1'],
           to: { q: 5, r: 4 },
         },
       })
@@ -92,10 +97,24 @@ describe('commitActionBuilders', () => {
         reason: 'empty-selection',
       })
     })
+
+    it('rejects stackable move submissions when stack data is missing instead of inferring movers', () => {
+      const state = createBrokenStackState()
+
+      expect(buildMoveCommitAction({
+        state,
+        unitId: 'pigs-1',
+        selectedUnitIds: ['pigs-1'],
+        to: { q: 5, r: 4 },
+      })).toEqual({
+        ok: false,
+        reason: 'missing-stack-selection',
+      })
+    })
   })
 
   describe('buildCombatCommitAction', () => {
-    it('builds a FIRE_STACK action when the active unit is a stack and members are selected', () => {
+    it('builds a FIRE action when the active unit is a stack and members are selected', () => {
       const state = createStackState()
 
       expect(buildCombatCommitAction({
@@ -106,14 +125,9 @@ describe('commitActionBuilders', () => {
       })).toEqual({
         ok: true,
         action: {
-          type: 'FIRE_STACK',
+          type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1:treads',
-          selection: {
-            anchorUnitId: 'pigs-1',
-            availableUnitIds: ['pigs-1', 'pigs-2'],
-            selectedUnitIds: ['pigs-2'],
-          },
         },
       })
     })
@@ -147,6 +161,20 @@ describe('commitActionBuilders', () => {
       })).toEqual({
         ok: false,
         reason: 'missing-target',
+      })
+    })
+
+    it('rejects stackable combat submissions when stack data is missing instead of inferring attackers', () => {
+      const state = createBrokenStackState()
+
+      expect(buildCombatCommitAction({
+        state,
+        anchorUnitId: 'pigs-1',
+        selectedUnitIds: ['pigs-1'],
+        targetId: 'onion-1:treads',
+      })).toEqual({
+        ok: false,
+        reason: 'missing-stack-selection',
       })
     })
   })

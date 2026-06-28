@@ -11,6 +11,7 @@ services:
       PORT: 3000
       NODE_ENV: production
       SCENARIOS_DIR: /app/scenarios
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
     depends_on:
       db:
         condition: service_healthy

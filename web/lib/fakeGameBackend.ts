@@ -3,7 +3,7 @@ import type {
   LiveEventSource,
   LiveSessionSignal,
 } from './gameSessionTypes'
-import type { GameSnapshot, GameSessionContext, GameAction } from './gameClient'
+import type { GameAction, GameSessionContext, ServerGameSnapshot } from './gameClient'
 
 /**
  * Fake backend for deterministic controller and app tests.
@@ -18,13 +18,13 @@ import type { GameSnapshot, GameSessionContext, GameAction } from './gameClient'
  */
 
 export function createFakeGameBackend(options: {
-  initialSnapshot: GameSnapshot
+  initialSnapshot: ServerGameSnapshot
   session: GameSessionContext
 }) {
   // Internal state
   let currentSnapshot = options.initialSnapshot
   let currentSession: GameSessionContext = options.session
-  let refreshQueue: Array<{ snapshot: GameSnapshot; session: GameSessionContext }> = []
+  let refreshQueue: Array<{ snapshot: ServerGameSnapshot; session: GameSessionContext }> = []
   let failNextRefresh: Error | null = null
   let submittedActions: Array<{ gameId: number; action: GameAction }> = []
   const liveListeners = new Set<(signal: LiveSessionSignal) => void>()
@@ -101,11 +101,11 @@ export function createFakeGameBackend(options: {
     liveEventSource,
 
     // Manipulation
-    seedSnapshot(snapshot: GameSnapshot, session: GameSessionContext) {
+    seedSnapshot(snapshot: ServerGameSnapshot, session: GameSessionContext) {
       currentSnapshot = snapshot
       currentSession = session
     },
-    queueRefresh(snapshot: GameSnapshot, session: GameSessionContext) {
+    queueRefresh(snapshot: ServerGameSnapshot, session: GameSessionContext) {
       refreshQueue.push({ snapshot, session })
     },
     failNextRefreshWith(error: Error) {

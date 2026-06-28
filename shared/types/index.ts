@@ -1,5 +1,3 @@
-import type { StackNamingSnapshot } from '../stackNaming.js'
-
 export type TurnPhase =
   | 'ONION_MOVE'
   | 'ONION_COMBAT'
@@ -15,9 +13,32 @@ export type PlayerRole = 'onion' | 'defender'
 
 export type OnionWeaponType = 'main' | 'secondary' | 'ap' | 'missile'
 
+export type StackRosterUnitState = {
+  id: string
+  status: UnitStatus
+  friendlyName?: string
+  weapons?: Weapon[]
+  targetRules?: TargetRules
+  squads?: number
+}
+
+export type StackRosterGroupState = {
+  groupName: string
+  unitType: string
+  position: HexPos
+  unitIds: string[]
+  units?: StackRosterUnitState[]
+}
+
+export type StackRosterState = {
+  groupsById: Record<string, StackRosterGroupState>
+  unitsById?: Record<string, StackRosterUnitState>
+}
+
 export type { TargetRules } from '../targetRules.js'
 
 import type { TargetRules } from '../targetRules.js'
+import type { StackNamingSnapshot } from '../stackNaming.js'
 
 export interface HexPos {
   q: number
@@ -27,77 +48,50 @@ export interface HexPos {
 export interface Weapon {
   id: string
   name: string
-  friendlyNameTemplate?: string
-  friendlyName?: string
   attack: number
   range: number
   defense: number
   status: WeaponStatus
   individuallyTargetable: boolean
+  friendlyName?: string
+  friendlyNameTemplate?: string
   /** Optional target restrictions for this weapon. */
   targetRules?: TargetRules
-}
-
-export interface StackRosterUnitState {
-  id: string
-  status: UnitStatus
-  friendlyName: string
-  weapons?: Weapon[]
-  targetRules?: TargetRules
-}
-
-export interface StackRosterGroupState {
-  groupId?: string
-  groupName: string
-  unitType: string
-  position: HexPos
-  unitIds?: string[]
-  units?: StackRosterUnitState[]
-}
-
-export interface StackRosterState {
-  groupsById: Record<string, StackRosterGroupState>
 }
 
 export interface DefenderUnit {
   id?: string
   type: string
+  friendlyName?: string
   position: HexPos
   status: UnitStatus
   weapons?: Weapon[]
   squads?: number
   targetRules?: TargetRules
-  friendlyName?: string
-}
-
-export interface GameUnitState {
-  id?: string
-  type?: string
-  position: HexPos
-  status?: UnitStatus
-  weapons?: Weapon[]
-  targetRules?: TargetRules
-  friendlyName?: string
-}
-
-export interface GameOnionState extends GameUnitState {
-  treads: number
-  missiles?: number
-  batteries?: {
-    main: number
-    secondary: number
-    ap: number
-  }
 }
 
 export interface GameState {
-  onion: GameOnionState
+  onion: {
+    id?: string
+    type?: string
+    friendlyName?: string
+    position: HexPos
+    treads: number
+    missiles?: number
+    status?: UnitStatus
+    weapons?: Weapon[]
+    targetRules?: TargetRules
+    batteries?: {
+      main: number
+      secondary: number
+      ap: number
+    }
+  }
   defenders: Record<string, DefenderUnit>
-  stackRoster?: StackRosterState
   stackNaming?: StackNamingSnapshot
+  stackRoster?: StackRosterState
   ramsThisTurn?: number
   movementSpent?: Record<string, number>
-  combatSpent?: Record<string, number>
 }
 
 export interface EventEnvelope {
@@ -105,18 +99,15 @@ export interface EventEnvelope {
   type: string
   timestamp: string
   causeId?: string
-  phase?: TurnPhase
-  turnNumber?: number
-  friendlyName?: string
-  unitFriendlyName?: string
-  weaponFriendlyName?: string
-  attackerFriendlyNames?: string[]
-  targetFriendlyName?: string
   [key: string]: unknown
 }
 
+export type MoveCommand = { type: 'MOVE'; movers: string[]; to: HexPos; attemptRam?: boolean }
+
+export type SingleUnitMoveCommand = { type: 'MOVE'; unitId: string; to: HexPos; attemptRam?: boolean }
+
 export type Command =
-  | { type: 'MOVE'; unitId: string; to: HexPos; attemptRam?: boolean }
+  | MoveCommand
   | { type: 'FIRE'; attackers: string[]; targetId: string }
   | { type: 'END_PHASE' }
 

@@ -2,12 +2,24 @@ import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitM
 import type { TargetRules, TurnPhase, UnitStatus, Weapon } from '../../shared/types/index'
 import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView'
-import type { GameSnapshot, StackActionSelection } from './gameClient'
+import type { ServerGameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
-import { buildFriendlyName } from '../../shared/unitDefinitions'
+import { buildFriendlyName, getAllUnitDefinitions } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot } from '../../shared/stackNaming'
+import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming'
+import { buildStackRosterIndex } from '../../shared/stackRoster'
+import type { StackRosterState } from '../../shared/types/index'
 import { resolveSelectionName } from './resolveSelectionName'
+
+const UNIT_DEFINITIONS = getAllUnitDefinitions()
+
+function isStackableUnitType(unitType: string | undefined): boolean {
+  if (unitType === undefined) {
+    return false
+  }
+
+  return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+}
 
 export function resolveBattlefieldUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
   return resolveSelectionName({
@@ -37,11 +49,11 @@ export function resolveBattlefieldStackLabel(
   stackNaming?: StackNamingSnapshot,
 ): string {
   if (groupKey !== undefined) {
-    if (stackNaming !== undefined) {
-      return resolveSelectionName({ kind: 'group', groupKey, stackNaming })
+    if (stackNaming === undefined) {
+      throw new Error(`Missing stackNaming for grouped unit ${unitId ?? unitType} at ${groupKey}`)
     }
 
-    return resolveStackLabelFromSnapshot(stackNaming, groupKey, unitType, unitId, friendlyName, stackSize)
+    return resolveSelectionName({ kind: 'group', groupKey, stackNaming })
   }
 
   return resolveStackLabel(unitType, unitId, friendlyName, stackSize)
@@ -64,11 +76,10 @@ export function resolveBattlefieldDisplayName(
     if (group !== undefined) {
       return resolveSelectionName({ kind: 'group', groupKey: group.groupKey, stackNaming })
     }
-  }
 
-  const stackSize = getBattlefieldStackSize(unit)
-  if (stackSize > 1) {
-    return resolveStackLabel(unit.type, unit.id, unit.friendlyName, stackSize)
+    if (getBattlefieldStackSize(unit) > 1) {
+      throw new Error(`Missing stackNaming entry for grouped unit ${unit.id} at ${groupKey}`)
+    }
   }
 
   return resolveSelectionName({
@@ -79,6 +90,50 @@ export function resolveBattlefieldDisplayName(
   })
 }
 
+export function resolveBattlefieldFriendlyName(
+  unit: {
+    id: string
+    type: string
+    q: number
+    r: number
+    friendlyName?: string
+  },
+  stackNaming?: StackNamingSnapshot,
+  stackRoster?: StackRosterState,
+): string {
+  const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
+  const rosterGroup = stackRoster === undefined ? null : buildStackRosterIndex(stackRoster).getUnitGroup(unit.id)
+  const hasGroupedRoster = rosterGroup !== null && rosterGroup.unitIds.length > 1
+  const namingGroup = stackNaming?.groupsInUse.find((entry) => entry.groupKey === groupKey) ?? null
+  const hasGroupedNaming = namingGroup !== null
+
+  if (hasGroupedRoster || hasGroupedNaming) {
+    if (stackRoster === undefined) {
+      throw new Error(`Missing stackRoster for grouped unit ${unit.id}`)
+    }
+
+    if (stackNaming === undefined) {
+      throw new Error(`Missing stackNaming for grouped unit ${unit.id}`)
+    }
+
+    if (!hasGroupedRoster) {
+      throw new Error(`Missing roster group for grouped unit ${unit.id} at ${groupKey}`)
+    }
+
+    if (!hasGroupedNaming) {
+      throw new Error(`Missing stackNaming entry for grouped unit ${unit.id} at ${groupKey}`)
+    }
+
+    if (rosterGroup.groupName !== namingGroup.groupName) {
+      throw new Error(`Conflicting stacked-unit labels for ${unit.id}: roster=${rosterGroup.groupName}, naming=${namingGroup.groupName}`)
+    }
+
+    return resolveSelectionName({ kind: 'group', groupKey: namingGroup.groupKey, stackNaming })
+  }
+
+  return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)
+}
+
 type StackSourceUnit = {
   id: string
   type: string
@@ -87,7 +142,8 @@ type StackSourceUnit = {
   squads?: number
 }
 
-type StackSourceState = {
+/** Canonical web-facing source state for stack membership resolution. */
+export type WebStackSourceState = {
   onion?: StackSourceUnit | null
   defenders?: Record<string, StackSourceUnit>
   stackRoster?: {
@@ -97,7 +153,7 @@ type StackSourceState = {
   }
 }
 
-export function resolveBattlefieldStackMemberIds(state: StackSourceState | null | undefined, unitId: string): string[] {
+export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | null | undefined, unitId: string): string[] {
   if (state === null || state === undefined) {
     return [unitId]
   }
@@ -111,7 +167,15 @@ export function resolveBattlefieldStackMemberIds(state: StackSourceState | null 
     return [unitId]
   }
 
-  const rosterGroups = Object.values(state.stackRoster?.groupsById ?? {})
+  if (!isStackableUnitType(selectedUnit.type)) {
+    return [unitId]
+  }
+
+  if (state.stackRoster === undefined) {
+    throw new Error(`Missing stackRoster for grouped unit ${unitId}`)
+  }
+
+  const rosterGroups = Object.values(state.stackRoster.groupsById ?? {})
   for (const group of rosterGroups) {
     const unitIds = group.unitIds ?? []
     if (!unitIds.includes(unitId)) {
@@ -126,15 +190,7 @@ export function resolveBattlefieldStackMemberIds(state: StackSourceState | null 
     return [unitId]
   }
 
-  const matchingUnits = Object.values(state.defenders ?? {}).filter((unit) => {
-    if (unit.status === 'destroyed') {
-      return false
-    }
-
-    return unit.type === selectedUnit.type && unit.position.q === selectedUnit.position.q && unit.position.r === selectedUnit.position.r
-  })
-
-  return matchingUnits.length > 0 ? matchingUnits.map((unit) => unit.id) : [unitId]
+  throw new Error(`Missing stackRoster entry for grouped unit ${unitId}`)
 }
 
 export function buildStackMemberSelectionId(unitId: string, memberIndex: number): string {
@@ -161,32 +217,12 @@ export function resolveSelectionOwnerUnitId(selectionId: string): string {
   return parseStackMemberSelectionId(selectionId)?.unitId ?? selectionId
 }
 
-function buildVirtualStackMemberSelectionIds(state: StackSourceState | null | undefined, unitId: string): string[] {
-  const selectedUnit = state?.defenders?.[unitId]
-  if (selectedUnit === undefined) {
-    return []
-  }
-
-  const stackSize = getBattlefieldStackSize(selectedUnit)
-  if (stackSize <= 1) {
-    return []
-  }
-
-  return Array.from({ length: stackSize }, (_, index) => buildStackMemberSelectionId(unitId, index + 1))
-}
-
-export function resolveBattlefieldStackSelectionIds(state: StackSourceState | null | undefined, unitId: string): string[] {
-  const stackedUnitIds = resolveBattlefieldStackMemberIds(state, unitId)
-  if (stackedUnitIds.length > 1) {
-    return stackedUnitIds
-  }
-
-  const virtualSelectionIds = buildVirtualStackMemberSelectionIds(state, unitId)
-  return virtualSelectionIds.length > 0 ? virtualSelectionIds : stackedUnitIds
+export function resolveBattlefieldStackSelectionIds(state: WebStackSourceState | null | undefined, unitId: string): string[] {
+  return resolveBattlefieldStackMemberIds(state, unitId)
 }
 
 export function countSelectedBattlefieldStackMembers(
-  state: StackSourceState | null | undefined,
+  state: WebStackSourceState | null | undefined,
   unitId: string,
   selectedUnitIds: ReadonlyArray<string>,
 ): number {
@@ -195,16 +231,11 @@ export function countSelectedBattlefieldStackMembers(
     return stackedUnitIds.filter((memberId) => selectedUnitIds.includes(memberId)).length
   }
 
-  const virtualSelectionIds = buildVirtualStackMemberSelectionIds(state, unitId)
-  if (virtualSelectionIds.length > 0) {
-    return virtualSelectionIds.filter((selectionId) => selectedUnitIds.includes(selectionId)).length
-  }
-
   return selectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unitId) ? 1 : 0
 }
 
 export function countSelectedBattlefieldStackGroups(
-  state: StackSourceState | null | undefined,
+  state: WebStackSourceState | null | undefined,
   selectedUnitIds: ReadonlyArray<string>,
 ): number {
   const selectedGroupKeys = new Set<string>()
@@ -218,8 +249,34 @@ export function countSelectedBattlefieldStackGroups(
   return selectedGroupKeys.size
 }
 
+export function resolveBattlefieldStacksExpandable({
+  activeRole,
+  activeTurnActive,
+  isCombatPhase,
+  isMovementPhase,
+}: {
+  activeRole: 'onion' | 'defender' | null
+  activeTurnActive: boolean
+  isCombatPhase: boolean
+  isMovementPhase: boolean
+}): boolean {
+  return activeTurnActive && activeRole === 'defender' && (isCombatPhase || isMovementPhase)
+}
+
+export function shouldExpandBattlefieldStackGroup({
+  memberCount,
+  selectedCount,
+  stacksExpandable,
+}: {
+  memberCount: number
+  selectedCount: number
+  stacksExpandable: boolean
+}): boolean {
+  return memberCount > 1 && selectedCount > 0 && stacksExpandable
+}
+
 export function buildClientStackSelection(
-  state: StackSourceState | null | undefined,
+  state: WebStackSourceState | null | undefined,
   anchorUnitId: string | null,
   selectedUnitIds: string[],
 ): StackActionSelection | null {
@@ -477,7 +534,7 @@ export function getActionableModes(status: UnitStatus | undefined, weapons: Read
   return hasReadyWeapon ? ['fire', 'combined'] : []
 }
 
-export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldUnit[] {
+export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldUnit[] {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
@@ -540,7 +597,7 @@ export function buildLiveDefenders(snapshot: GameSnapshot, activePhase: TurnPhas
     })
 }
 
-export function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
+export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
@@ -571,7 +628,7 @@ export function buildLiveOnion(snapshot: GameSnapshot, activePhase: TurnPhase | 
   }
 }
 
-export function buildScenarioMap(snapshot: GameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
+export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
   if (snapshot === null) {
     return null
   }

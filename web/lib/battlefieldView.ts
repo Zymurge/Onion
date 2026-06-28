@@ -45,7 +45,7 @@ export type BattlefieldOnionView = {
   friendlyName?: string
   q: number
   r: number
-  status: string
+  status: UnitStatus
   treads: number
   movesAllowed: number
   movesRemaining: number
@@ -71,26 +71,8 @@ export type TerrainHex = {
   t: number
 }
 
-export function unitCode(unitType: string): string {
-  switch (unitType) {
-    case 'TheOnion':
-      return 'ON'
-    case 'BigBadWolf':
-      return 'BW'
-    case 'LittlePigs':
-      return 'LP'
-    case 'Puss':
-      return 'PU'
-    case 'Witch':
-      return 'WI'
-    case 'Swamp':
-      return 'SW'
-    default:
-      return '??'
-  }
-}
 
-export function statusTone(status: UnitStatus | string): string {
+export function statusTone(status: UnitStatus): string {
   switch (status) {
     case 'operational':
       return 'ready'

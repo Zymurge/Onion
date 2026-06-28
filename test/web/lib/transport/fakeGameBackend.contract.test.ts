@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createFakeGameBackend } from '#web/lib/fakeGameBackend'
 import { createGameSessionController } from '#web/lib/gameSessionController'
 import type { GameSessionContext, GameSnapshot } from '#web/lib/gameClient'
+import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
 
 function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	return {
@@ -12,6 +13,78 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 		turnNumber: 8,
 		lastEventSeq: 47,
 		...overrides,
+	}
+}
+
+function createStackSnapshot(phase: 'DEFENDER_MOVE' | 'DEFENDER_COMBAT', turnNumber: number, lastEventSeq: number): GameSnapshot {
+	const stackRoster = buildStackRosterFromUnits([
+		{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
+		{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+	])
+
+	return {
+		gameId: 123,
+		phase,
+		scenarioName: phase === 'DEFENDER_MOVE' ? 'Stack move snapshot' : 'Stack combat snapshot',
+		turnNumber,
+		lastEventSeq,
+		victoryObjectives: [],
+		authoritativeState: {
+			onion: {
+				id: 'onion-1',
+				type: 'TheOnion',
+				position: { q: 0, r: 1 },
+				treads: 33,
+				status: 'operational',
+				weapons: [],
+				batteries: { main: 1, secondary: 0, ap: 0 },
+			},
+			defenders: {
+				'wolf-2': {
+					id: 'wolf-2',
+					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
+					position: { q: 3, r: 6 },
+					status: 'operational',
+					weapons: [],
+				},
+				'puss-1': {
+					id: 'puss-1',
+					type: 'Puss',
+					friendlyName: 'Puss 1',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [],
+				},
+				'pigs-1': {
+					id: 'pigs-1',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [],
+				},
+				'pigs-2': {
+					id: 'pigs-2',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 2',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [],
+				},
+			},
+			stackRoster,
+			stackNaming: refreshStackRosterNamingSnapshot(stackRoster),
+			ramsThisTurn: 0,
+			movementSpent: {},
+		},
+		movementRemainingByUnit: {
+			'onion-1': 0,
+			'wolf-2': 4,
+			'puss-1': 3,
+			'pigs-1': 3,
+			'pigs-2': 3,
+		},
 	}
 }
 
@@ -117,6 +190,47 @@ describe('createFakeGameBackend', () => {
 
 			expect(controller.getSnapshot().snapshot?.scenarioName).toBe('Controller refreshed snapshot')
 			expect(controller.getSnapshot().lastAppliedEventSeq).toBe(22)
+		} finally {
+			vi.useRealTimers()
+			controller.dispose()
+		}
+	})
+
+	it('refreshes a stacked Little Pigs snapshot across move and combat phases', async () => {
+		const session: GameSessionContext = { role: 'defender' }
+		const backend = createFakeGameBackend({
+			initialSnapshot: createStackSnapshot('DEFENDER_MOVE', 2, 50),
+			session,
+		})
+		const controller = createGameSessionController({
+			gameId: 123,
+			requestTransport: backend.requestTransport,
+			liveEventSource: backend.liveEventSource,
+			liveRefreshQuietWindowMs: 5,
+		})
+
+		vi.useFakeTimers()
+		try {
+			await controller.load()
+			expect(controller.getSnapshot().snapshot?.phase).toBe('DEFENDER_MOVE')
+
+			const moveState = controller.getSnapshot().snapshot as GameSnapshot & { authoritativeState?: { stackRoster?: { groupsById?: Record<string, { groupName: string; unitIds: string[] }> } } }
+			expect(moveState.authoritativeState?.stackRoster?.groupsById?.['LittlePigs:4,4']).toMatchObject({
+				groupName: 'Little Pigs 1',
+				unitIds: ['pigs-1', 'pigs-2'],
+			})
+
+			backend.queueRefresh(createStackSnapshot('DEFENDER_COMBAT', 2, 51), session)
+			backend.emitLiveSignal({ kind: 'event', gameId: 123, eventSeq: 51, eventType: 'PHASE_CHANGED' })
+
+			await vi.advanceTimersByTimeAsync(5)
+
+			expect(controller.getSnapshot().snapshot?.phase).toBe('DEFENDER_COMBAT')
+			const combatState = controller.getSnapshot().snapshot as GameSnapshot & { authoritativeState?: { stackRoster?: { groupsById?: Record<string, { groupName: string; unitIds: string[] }> } } }
+			expect(combatState.authoritativeState?.stackRoster?.groupsById?.['LittlePigs:4,4']).toMatchObject({
+				groupName: 'Little Pigs 1',
+				unitIds: ['pigs-1', 'pigs-2'],
+			})
 		} finally {
 			vi.useRealTimers()
 			controller.dispose()

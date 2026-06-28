@@ -70,7 +70,7 @@ function formatValueList(value: unknown): string {
 function formatFriendlyName(value: unknown): string {
 	const raw = formatRawValue(value)
 	return raw.length > 0 ? raw : ''
-}
+	}
 
 function formatCoordinate(value: unknown): string {
 	if (value === null || value === undefined || typeof value !== 'object') {
@@ -117,7 +117,6 @@ function formatDetailValue(value: unknown): string {
 	return String(value)
 }
 
-
 function isOnionTarget(targetId: unknown): boolean {
 	if (!isNonEmptyString(targetId)) {
 		return false
@@ -126,16 +125,25 @@ function isOnionTarget(targetId: unknown): boolean {
 	return /^onion(?:-\d+)?$/i.test(targetId) || targetId.endsWith(':treads') || /^(main|secondary_|ap_|missile_)/.test(targetId)
 }
 
+function isConnectionNoiseSummary(summary: string): boolean {
+	return /\b(join(?:ed|ing)?|connect(?:ed|ing|ion)?)\b/i.test(summary)
+}
+
 function isNoiseEvent(event: InactiveEventPayload): boolean {
 	if (event.type === 'PHASE_CHANGED') {
 		return true
 	}
 
+	// Connection/session chatter is intentionally hidden from the inactive stream.
+	// We keep a regex here because upstream event types and fallback summaries are not
+	// yet normalized into one explicit connection-event family, but the pattern is
+	// deliberately narrow so gameplay text like "reconnect beacon" does not get
+	// suppressed by accident.
 	if (/join|connect/i.test(event.type)) {
 		return true
 	}
 
-	return isNonEmptyString(event.summary) && /join|connect/i.test(event.summary)
+	return isNonEmptyString(event.summary) && isConnectionNoiseSummary(event.summary)
 }
 
 function getEventCauseId(event: InactiveEventPayload): string | null {
@@ -234,6 +242,18 @@ function resolveRamTargetLabel(event: InactiveEventPayload, relatedEvents: Reado
 	return 'unknown'
 }
 
+function hasRamResolutionPayload(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): boolean {
+	const resolvedEvent = relatedEvents.find((relatedEvent) => relatedEvent.type === 'MOVE_RESOLVED') ?? event
+
+	return (
+		(Array.isArray(resolvedEvent.rammedUnitIds) && resolvedEvent.rammedUnitIds.length > 0)
+		|| (Array.isArray(resolvedEvent.rammedUnitFriendlyNames) && resolvedEvent.rammedUnitFriendlyNames.length > 0)
+		|| (Array.isArray(resolvedEvent.destroyedUnitIds) && resolvedEvent.destroyedUnitIds.length > 0)
+		|| (Array.isArray(resolvedEvent.destroyedUnitFriendlyNames) && resolvedEvent.destroyedUnitFriendlyNames.length > 0)
+		|| (typeof resolvedEvent.treadDamage === 'number' && resolvedEvent.treadDamage > 0)
+	)
+}
+
 function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload> = [event]): string[] {
 	switch (event.type) {
 		case 'ONION_MOVED':
@@ -280,6 +300,9 @@ function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyA
 			details.push(`Unit: ${moveName || 'Unknown'}`)
 			details.push(`Target: ${ramTarget}`)
 			details.push(`Result: ${resolveRamOutcomeLabel(event, relatedEvents)}`)
+			if (typeof event.treadDamage === 'number' && event.treadDamage > 0) {
+				details.push(`Tread loss: ${event.treadDamage}`)
+			}
 			return details
 		}
 		case 'ONION_TREADS_LOST': {
@@ -297,15 +320,15 @@ function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyA
 			return [weaponName.length > 0 ? `Battery destroyed: ${weaponName}` : 'Battery destroyed']
 		}
 		case 'UNIT_STATUS_CHANGED': {
-			const unitName = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
+			const unitId = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const from = formatRawValue(event.from)
 			const to = formatRawValue(event.to)
-			return unitName.length > 0 && from.length > 0 && to.length > 0 ? [`Unit: ${unitName}: ${from} → ${to}`] : ['Unit status changed']
+			return unitId.length > 0 && from.length > 0 && to.length > 0 ? [`Unit: ${unitId}: ${from} → ${to}`] : ['Unit status changed']
 		}
 		case 'UNIT_SQUADS_LOST': {
-			const unitName = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
+			const unitId = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const amount = typeof event.amount === 'number' ? String(event.amount) : formatDetailValue(event.amount)
-			return unitName.length > 0 ? [`Squads lost for ${unitName}: ${amount}`] : [`Squads lost: ${amount}`]
+			return unitId.length > 0 ? [`Squads lost for ${unitId}: ${amount}`] : [`Squads lost: ${amount}`]
 		}
 		case 'GAME_OVER': {
 			const winner = formatRawValue((event as { winner?: unknown }).winner)
@@ -317,15 +340,9 @@ function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyA
 }
 
 function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
-	if (event.type === 'MOVE_RESOLVED') {
-		const rammedUnit = resolveRamTargetLabel(event, relatedEvents)
-		const result = resolveRamOutcomeLabel(event, relatedEvents)
-		return `Ram on ${rammedUnit} - ${result}`
-	}
-
 	if (event.type === 'FIRE_RESOLVED') {
-		const fragments: string[] = []
 		const target = formatFriendlyName(event.targetFriendlyName) || formatRawValue(event.targetId)
+		const fragments: string[] = []
 		if (target.length > 0) {
 			fragments.push(`Fire on ${target}`)
 		} else {
@@ -339,19 +356,12 @@ function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: Readonl
 		return fragments.join(': ')
 	}
 
-	if (event.type === 'GAME_OVER') {
-		const winner = formatRawValue((event as { winner?: unknown }).winner)
-		return winner.length > 0 ? `Game over: ${winner} wins` : 'Game over'
-	}
-
 	if (event.type === 'MOVE_RESOLVED' || MOVE_EVENT_TYPES.has(event.type)) {
 		const mover = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
-		const rammedUnit = resolveRamTargetLabel(event, relatedEvents)
-		const moveDetails = relatedEvents.flatMap((relatedEvent) => buildEventDetails(relatedEvent))
-		const ramDetails = moveDetails.filter((detail) => /^(target|result):/i.test(detail))
-		if (ramDetails.length > 0) {
-			const resolvedEvent = relatedEvents.find((relatedEvent) => relatedEvent.type === 'MOVE_RESOLVED') ?? event
-			return `Ram on ${rammedUnit} - ${resolveRamOutcomeLabel(resolvedEvent, relatedEvents)}`
+		if (hasRamResolutionPayload(event, relatedEvents)) {
+			const rammedUnit = resolveRamTargetLabel(event, relatedEvents)
+			const result = resolveRamOutcomeLabel(event, relatedEvents)
+			return `Ram on ${rammedUnit} - ${result}`
 		}
 
 		if (mover.length > 0) {
@@ -377,10 +387,10 @@ function formatEventSummary(event: InactiveEventPayload) {
 			return unitId.length > 0 && from.length > 0 && to.length > 0 ? `Unit: ${unitId}: ${from} → ${to}` : 'Unit status changed'
 		}
 		case 'MOVE_RESOLVED': {
-			const unitName = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
+			const unitId = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
 			const fragments: string[] = []
-			if (unitName.length > 0) {
-				fragments.push(`Move resolved for ${unitName}`)
+			if (unitId.length > 0) {
+				fragments.push(`Move resolved for ${unitId}`)
 			} else {
 				fragments.push('Move resolved')
 			}
@@ -400,8 +410,8 @@ function formatEventSummary(event: InactiveEventPayload) {
 			return fragments.join(', ')
 		}
 		case 'FIRE_RESOLVED': {
-			const targetName = formatFriendlyName(event.targetFriendlyName) || formatRawValue(event.targetId)
-			return targetName.length > 0 ? `Fire resolved on target ${targetName}` : 'Fire resolved'
+			const targetId = formatRawValue(event.targetId)
+			return targetId.length > 0 ? `Fire resolved on target ${targetId}` : 'Fire resolved'
 		}
 		case 'ONION_TREADS_LOST': {
 			return typeof event.amount === 'number' ? `The Onion lost ${event.amount} treads` : 'The Onion lost treads'
@@ -409,6 +419,10 @@ function formatEventSummary(event: InactiveEventPayload) {
 		case 'ONION_BATTERY_DESTROYED': {
 			const weaponType = humanizeIdentifier(event.weaponType)
 			return weaponType.length > 0 ? `The Onion lost the ${weaponType} battery` : 'The Onion lost a battery'
+		}
+		case 'GAME_OVER': {
+			const winner = formatRawValue((event as { winner?: unknown }).winner)
+			return winner.length > 0 ? `Game over: ${winner} wins` : 'Game over'
 		}
 		default:
 			return event.type.replace(/_/g, ' ').toLowerCase()
@@ -512,20 +526,6 @@ function buildTimelineEvents(events: ReadonlyArray<InactiveEventPayload>): Timel
 	return timelineEntries
 }
 
-function trimInactiveWindowEvents(events: ReadonlyArray<InactiveEventPayload>): ReadonlyArray<InactiveEventPayload> {
-	const defenderHandoffIndex = events.findIndex((event) => event.type === 'PHASE_CHANGED' && event.to === 'DEFENDER_MOVE')
-	if (defenderHandoffIndex !== -1) {
-		return events.slice(defenderHandoffIndex + 1)
-	}
-
-	const phaseChangeIndex = events.findIndex((event) => event.type === 'PHASE_CHANGED')
-	if (phaseChangeIndex === -1) {
-		return events
-	}
-
-	return events.slice(phaseChangeIndex + 1)
-}
-
 function toTimelineEvents(events: ReadonlyArray<GameEvent>): TimelineEvent[] {
 	return buildTimelineEvents(events as ReadonlyArray<InactiveEventPayload>)
 }
@@ -547,7 +547,8 @@ export function useInactiveEventStream({
 	const latestAppliedEventSeqRef = useRef<number | null>(lastAppliedEventSeq)
 	const queuedRefreshRef = useRef(false)
 	const lastGameIdRef = useRef<number | null>(null)
-	const previousActiveTurnActiveRef = useRef(activeTurnActive)
+	const lastActiveTurnActiveRef = useRef<boolean | null>(null)
+	const windowStartSeqRef = useRef<number | null>(null)
 
 	useEffect(() => {
 		latestAppliedEventSeqRef.current = lastAppliedEventSeq
@@ -556,6 +557,8 @@ export function useInactiveEventStream({
 	useEffect(() => {
 		if (lastGameIdRef.current !== activeGameId) {
 			lastGameIdRef.current = activeGameId
+			lastActiveTurnActiveRef.current = activeTurnActive
+			windowStartSeqRef.current = null
 			setEntries([])
 			setIsDismissed(false)
 			setIsLoading(false)
@@ -565,10 +568,12 @@ export function useInactiveEventStream({
 			inFlightAfterSeqRef.current = null
 			queuedRefreshRef.current = false
 		}
-	}, [activeGameId])
+	}, [activeGameId, activeTurnActive, currentTurnNumber])
 
 	useEffect(() => {
-		if (previousActiveTurnActiveRef.current === true && activeTurnActive === false) {
+		const previousActiveTurnActive = lastActiveTurnActiveRef.current
+		if (previousActiveTurnActive === true && activeTurnActive === false) {
+			windowStartSeqRef.current = lastAppliedEventSeq
 			setEntries([])
 			setIsDismissed(false)
 			setIsLoading(false)
@@ -579,19 +584,17 @@ export function useInactiveEventStream({
 			queuedRefreshRef.current = false
 		}
 
-		previousActiveTurnActiveRef.current = activeTurnActive
-	}, [activeTurnActive])
+		lastActiveTurnActiveRef.current = activeTurnActive
+	}, [activeTurnActive, lastAppliedEventSeq])
 
 	useEffect(() => {
 		if (
 			lastAppliedEventSeq === null ||
 			activeTurnActive ||
 			activeGameId === null ||
-			currentTurnNumber === null ||
 			pollEvents === undefined
 		) {
 			setIsLoading(false)
-			setErrorMessage(null)
 			return
 		}
 
@@ -600,7 +603,7 @@ export function useInactiveEventStream({
 			return
 		}
 
-		const afterSeq = loadedThroughSeq ?? 0
+		const afterSeq = loadedThroughSeq ?? windowStartSeqRef.current ?? 0
 		if (inFlightAfterSeqRef.current === afterSeq) {
 			queuedRefreshRef.current = true
 			return
@@ -623,16 +626,24 @@ export function useInactiveEventStream({
 					return undefined
 				}
 
-				const unseenEvents = events.filter((event) => !seenSeqsRef.current.has(event.seq))
-				const currentTurnEvents = unseenEvents.filter((event) => event.turnNumber === currentTurnNumber)
-				const visibleEvents = activeTurnActive ? currentTurnEvents : trimInactiveWindowEvents(currentTurnEvents)
+				const unseenEvents = events.filter((event) => {
+					if (seenSeqsRef.current.has(event.seq)) {
+						return false
+					}
+
+					if (currentTurnNumber !== null && event.turnNumber !== undefined && event.turnNumber !== currentTurnNumber) {
+						return false
+					}
+
+					return true
+				})
 				for (const event of unseenEvents) {
 					seenSeqsRef.current.add(event.seq)
 				}
 
-				if (visibleEvents.length > 0) {
+				if (unseenEvents.length > 0) {
 					setEntries((currentEntries) => {
-						const nextEntries = currentEntries.concat(toTimelineEvents(visibleEvents))
+						const nextEntries = currentEntries.concat(toTimelineEvents(unseenEvents))
 						nextEntries.sort((left, right) => left.seq - right.seq)
 						return nextEntries
 					})

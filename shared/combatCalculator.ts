@@ -198,12 +198,21 @@ function resolveAttackStrength(staticRules: CombatStaticRules, liveState: Combat
 	}, 0)
 }
 
-function resolveDefenseStrength(staticRules: CombatStaticRules, liveState: CombatLiveState, targetId: string): number {
+function resolveDefenseStrength(
+	staticRules: CombatStaticRules,
+	liveState: CombatLiveState,
+	targetId: string,
+	attackStrength: number,
+): number {
 	const target = getCombatant(staticRules, liveState, targetId)
 	const definition = getUnitDefinitionByType(staticRules, target.type)
 
 	if (definition.type === 'TheOnion') {
-		const weaponId = target.weaponId ?? 'main'
+		if (target.weaponId === undefined) {
+			return attackStrength
+		}
+
+		const weaponId = target.weaponId
 		const weapon = target.weapons?.find((candidate) => candidate.id === weaponId) ?? definition.weapons.find((candidate) => candidate.id === weaponId)
 		if (weapon === undefined) {
 			throw new Error(`Unknown target weapon '${weaponId}' for unit type '${definition.type}'`)
@@ -212,8 +221,18 @@ function resolveDefenseStrength(staticRules: CombatStaticRules, liveState: Comba
 		return weapon.defense
 	}
 
-	if (definition.type === 'LittlePigs') {
-		return definition.defense + getTerrainDefenseBonus(staticRules, target)
+	// If the unit type supports stacking, require a squads count on the
+	// live combatant state and use it as the defense baseline. This makes the
+	// logic generic across all stackable infantry types rather than hardcoding
+	// specific unit names.
+	const maxStacks = (definition.abilities?.maxStacks ?? 1)
+	if (maxStacks > 1) {
+		if (typeof target.squads !== 'number') {
+			throw new Error(`Stack target '${targetId}' of type '${definition.type}' is missing squads in the live combat state`)
+		}
+
+		const stackSize = target.squads
+		return stackSize + getTerrainDefenseBonus(staticRules, target)
 	}
 
 	return definition.defense + getTerrainDefenseBonus(staticRules, target)
@@ -251,7 +270,7 @@ function resolveModifiers(staticRules: CombatStaticRules, liveState: CombatLiveS
 
 function calculateResultFromRules(staticRules: CombatStaticRules, input: CombatCalculatorInput): CombatCalculatorResult {
 	const attackStrength = resolveAttackStrength(staticRules, input.combatState, input.attackerGroupIds)
-	const defenseStrength = resolveDefenseStrength(staticRules, input.combatState, input.targetId)
+	const defenseStrength = resolveDefenseStrength(staticRules, input.combatState, input.targetId, attackStrength)
 	const modifiers = resolveModifiers(staticRules, input.combatState, input.targetId)
 
 	return {

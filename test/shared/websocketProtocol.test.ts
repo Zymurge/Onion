@@ -20,6 +20,12 @@ describe('websocketProtocol definitions', () => {
 			command: Command
 			requestId?: string
 		}>()
+		expectTypeOf<Extract<Command, { type: 'MOVE' }>>().toMatchTypeOf<{
+			type: 'MOVE'
+			movers: string[]
+			to: { q: number; r: number }
+			attemptRam?: boolean
+		}>()
 		expectTypeOf<WebSocketClientResumeMessage>().toMatchTypeOf<{
 			kind: 'RESUME'
 			afterSeq: number

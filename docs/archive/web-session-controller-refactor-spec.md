@@ -300,9 +300,9 @@ The canonical source for model-selection guidance and workstream prompt text is 
 
 Consult that file before assigning work so model choice stays consistent with current cost and complexity guidance, including:
 
-1. when to use `GPT-5.4`
-2. when to use `GPT-5.3-Codex`
-3. when `GPT-5.4 mini` is appropriate as a lower-cost implementation model
+1. when to use `gpt-5.4`
+2. when to use `gpt-5.3-codex`
+3. when `gpt-5.4-mini` is appropriate as a lower-cost implementation model
 4. when to escalate from lower-cost models for architecture or state-machine work
 5. the current copyable prompt text for each refactor workstream
 
@@ -415,7 +415,7 @@ Done criteria:
 3. run Agent 3 after Agent 2 is stable enough to wire into the app
 4. run Agent 4 after Agent 2 contract names are stable
 
-Before assigning any of those workstreams, check `.copilot/agent.md` for the latest model guidance and `GPT-5.4 mini` caveats so lower-cost models are only used where the contract is already stable.
+Before assigning any of those workstreams, check `.copilot/agent.md` for the latest model guidance and `gpt-5.4-mini` caveats so lower-cost models are only used where the contract is already stable.
 
 If agent concurrency must be maximized while reducing merge risk:
 

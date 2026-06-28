@@ -7,13 +7,19 @@ import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { buildStackRosterIndex, type StackRosterState } from '../../shared/stackRoster'
+import { buildStackRosterIndex } from '../../shared/stackRoster'
+import type { StackRosterState } from '../../shared/types/index'
+import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
+import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
+import logger from '../lib/logger'
 import './HexMapBoard.css'
 
 import swampDestroyedSprite from '../assets/The Swamp - destroyed.png'
 import swampIntactSprite from '../assets/The Swamp - intact.png'
 
 type HexOccupant = BattlefieldUnit | BattlefieldOnionView
+
+const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
 type HexMapBoardProps = {
   scenarioMap: {
@@ -87,6 +93,33 @@ function getUnitMarkerText(occupant: HexOccupant, stackNaming?: StackNamingSnaps
   return resolveBattlefieldDisplayName(occupant, stackNaming)
 }
 
+function isStackableUnitType(unitType: string): boolean {
+  return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+}
+
+function hasStackedOccupants(defenders: BattlefieldUnit[]): boolean {
+  const stackedCountsByPosition = new Map<string, number>()
+
+  for (const defender of defenders) {
+    if (!isStackableUnitType(defender.type)) {
+      continue
+    }
+
+    if ((defender.squads ?? 1) > 1) {
+      return true
+    }
+
+    const key = `${defender.type}:${defender.q},${defender.r}`
+    const nextCount = (stackedCountsByPosition.get(key) ?? 0) + 1
+    stackedCountsByPosition.set(key, nextCount)
+    if (nextCount > 1) {
+      return true
+    }
+  }
+
+  return false
+}
+
 function buildMoveValidationState(
   phase: string | null,
   onion: BattlefieldOnionView,
@@ -138,14 +171,23 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
   const stackRosterIndex = useMemo(() => stackRoster === undefined ? null : buildStackRosterIndex(stackRoster), [stackRoster])
+
+  if (stackRosterIndex === null && hasStackedOccupants(defenders)) {
+    throw new Error('Missing stackRoster for grouped defenders')
+  }
+
   const escapePatternId = useId().replaceAll(':', '')
   const [moveError, setMoveError] = useState<string | null>(null)
   const [zoomPercent, setZoomPercent] = useState(100)
   const scrollViewportRef = useRef<HTMLDivElement | null>(null)
   const zoomSliderRef = useRef<HTMLInputElement | null>(null)
   const previousZoomRef = useRef(1)
+  const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
   const activeCombatRole = phase === 'ONION_COMBAT' ? 'onion' : phase === 'DEFENDER_COMBAT' ? 'defender' : null
   const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
+  const resolvedViewerRole = viewerRole ?? (phase?.startsWith('DEFENDER') ? 'defender' : 'onion')
+  const resolvedViewerActivity = isSelectionLocked ? 'inactive' : 'active'
+  const resolvedPhaseMode = isMovementPhase ? 'movement' : isCombatPhase ? 'combat' : 'locked'
   const zoomLevel = zoomPercent / 100
 
   const selectedUnitSet = useMemo(() => {
@@ -168,7 +210,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
       return resolveSelectionOwnerUnitId(directSelection)
     }
 
-    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onion.id : ''
+    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onion.id : null
   }, [onion.id, selectedUnitIds])
 
   occupantMap.set(hexKey(onion), [onion])
@@ -181,7 +223,9 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
   }
 
   const selectedOccupant =
-    selectedPrimaryUnitId === onion.id
+    selectedPrimaryUnitId === null
+      ? null
+      : selectedPrimaryUnitId === onion.id
       ? onion
       : defenders.find((unit) => unit.id === selectedPrimaryUnitId) ?? null
   const selectedAllowance = selectedOccupant
@@ -366,6 +410,48 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
     return false
   }
 
+  function isCombatTargetSelectable(occupant: HexOccupant) {
+    const combatTargetId = getCombatTargetIdForOccupant(occupant)
+
+    if (activeCombatRole === 'onion' && occupant.id !== onion.id) {
+      return combatTargetIds === undefined || combatTargetIds.has(combatTargetId)
+    }
+
+    if (activeCombatRole === 'defender' && occupant.id === onion.id) {
+      return combatTargetIds === undefined || combatTargetIds.has(combatTargetId)
+    }
+
+    return false
+  }
+
+  function routeMapInteraction(request: InteractionRoutingRequest) {
+    const decision = routeInteraction(request, (trace) => {
+      logger.debug('[interaction-debug] map routed', {
+        ts: Date.now(),
+        ...trace,
+      })
+    })
+
+    return decision
+  }
+
+  function resolveCanonicalOccupant(occupants: HexOccupant[]): HexOccupant | undefined {
+  for (const occupant of occupants) {
+    const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
+
+    if (rosterGroup === null) {
+      return occupant
+    }
+
+    const anchorUnitId = rosterGroup.unitIds.find((unitId) => occupants.some((candidate) => candidate.id === unitId))
+    if (anchorUnitId !== undefined) {
+      return occupants.find((candidate) => candidate.id === anchorUnitId) ?? occupant
+    }
+  }
+
+  return occupants[0]
+  }
+
   return (
     <div className="hex-map-shell panel-subtle">
       {moveError ? (
@@ -453,7 +539,25 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                       return
                     }
 
-                    onDeselect()
+                    const decision = routeMapInteraction({
+                      viewerRole: resolvedViewerRole,
+                      viewerActivity: resolvedViewerActivity,
+                      phaseMode: resolvedPhaseMode,
+                      surface: 'map',
+                      gesture: 'primary',
+                      subjectRelation: 'background',
+                      subjectKind: 'background',
+                      subjectCapability: {
+                        inspectable: false,
+                        moveEligible: false,
+                        attackerEligible: false,
+                        targetEligible: false,
+                      },
+                    })
+
+                    if (decision.intent === 'clear-local-selection') {
+                      onDeselect()
+                    }
                   }}
                   onContextMenu={(event) => {
                     event.preventDefault()
@@ -462,24 +566,40 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                       return
                     }
 
-                    if (cellOccupants.some((occupant) => selectCombatTarget(occupant))) {
+                    const validation = validateMoveTarget(coord)
+                    const destinationReachable = isReachable || validation?.valid === true
+                    const targetOccupant = resolveCanonicalOccupant(cellOccupants)
+                    const decision = routeMapInteraction({
+                      viewerRole: resolvedViewerRole,
+                      viewerActivity: resolvedViewerActivity,
+                      phaseMode: resolvedPhaseMode,
+                      surface: 'map',
+                      gesture: 'secondary',
+                      subjectRelation: cellOccupants.length > 0 ? 'opponent' : 'background',
+                      subjectKind: 'hex',
+                      subjectCapability: {
+                        inspectable: cellOccupants.some((occupant) => occupant.status !== 'destroyed'),
+                        moveEligible: selectedIsEligible,
+                        attackerEligible: false,
+                          targetEligible: targetOccupant !== undefined ? isCombatTargetSelectable(targetOccupant) : false,
+                      },
+                      interactionMode: {
+                        destinationReachable,
+                      },
+                    })
+
+                      if (decision.intent === 'select-target' && targetOccupant !== undefined) {
+                        selectCombatTarget(targetOccupant)
+                        return
+                      }
+
+                    if (decision.intent === 'submit-move' && canSubmitMove && selectedIsEligible) {
+                      onMoveUnit(selectedOccupant.id, coord)
                       return
                     }
 
-                    if (!selectedIsEligible || !canSubmitMove) {
-                      return
-                    }
-                    if (isReachable) {
-                      onMoveUnit(selectedOccupant.id, coord)
-                      return
-                    }
-                    const validation = validateMoveTarget(coord)
-                    if (validation?.valid) {
-                      onMoveUnit(selectedOccupant.id, coord)
-                      return
-                    }
-                    if (canSubmitMove && selectedIsEligible) {
-                      const message = validation?.error ?? 'Illegal move'
+                    if (decision.intent === 'show-illegal-local-feedback' && canSubmitMove && selectedIsEligible) {
+                      const message = validation !== null && validation.valid === false ? validation.error : 'Illegal move'
                       setMoveError(message)
                     }
                   }}
@@ -615,7 +735,44 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
 
                               event.stopPropagation()
 
-                              onSelectUnit(occupant.id, event.ctrlKey || event.metaKey)
+                              const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
+                              const decision = routeMapInteraction({
+                                viewerRole: resolvedViewerRole,
+                                viewerActivity: resolvedViewerActivity,
+                                phaseMode: resolvedPhaseMode,
+                                surface: 'map',
+                                gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
+                                subjectRelation: occupant.type === 'Swamp'
+                                  ? 'neutral/system'
+                                  : occupant.id === onion.id
+                                    ? resolvedViewerRole === 'onion'
+                                      ? 'self'
+                                      : 'opponent'
+                                    : resolvedViewerRole === 'defender'
+                                      ? 'self'
+                                      : 'opponent',
+                                subjectKind: rosterGroup !== null ? 'stack' : 'unit',
+                                subjectCapability: {
+                                  inspectable: occupant.status !== 'destroyed' || occupant.type === 'Swamp',
+                                  moveEligible: isMovementPhase && occupant.status === 'operational' && (occupant.id === onion.id ? onion.movesRemaining > 0 : 'move' in occupant && occupant.move > 0),
+                                  attackerEligible: isCombatPhase && occupant.status === 'operational' && (occupant.id === onion.id
+                                    ? resolvedViewerRole === 'onion' && (occupant.weaponDetails ?? []).some((weapon) => weapon.status === 'ready')
+                                    : resolvedViewerRole === 'defender' && 'actionableModes' in occupant && occupant.actionableModes.includes('fire')),
+                                  targetEligible: false,
+                                },
+                                interactionMode: rosterGroup !== null ? { groupExpansionTarget: true } : undefined,
+                              })
+
+                              if (decision.intent === 'clear-local-selection') {
+                                onDeselect()
+                                return
+                              }
+
+                              if (decision.intent === 'noop') {
+                                return
+                              }
+
+                              onSelectUnit(occupant.id, event.ctrlKey || event.metaKey || decision.intent === 'toggle-actor')
                             }}
                           >
                             <rect

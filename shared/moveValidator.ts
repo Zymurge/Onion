@@ -1,4 +1,4 @@
-import type { Command, GameState, HexPos, TurnPhase } from './types/index.js'
+import type { GameState, HexPos, SingleUnitMoveCommand, TurnPhase } from './types/index.js'
 import { calculateRamming } from './rammingCalculator.js'
 import { findMovePath, type MoveMapSnapshot } from './movePlanner.js'
 import {
@@ -166,12 +166,17 @@ function getCapabilities(unitType: string): MoveCapabilities {
 
 function collectRammedUnits(state: MoveValidationState, path: HexPos[], movingUnitId: string): Array<{ unitId: string; unitType: string }> {
 	const rammedUnits: Array<{ unitId: string; unitType: string }> = []
+	const seenTargets = new Set<string>()
 
 	for (const position of path) {
 		for (const [defenderId, defender] of Object.entries(state.defenders)) {
 			if (defenderId === movingUnitId || defender.id === movingUnitId) continue
 			if (defender.status === 'destroyed') continue
 			if (defender.position.q !== position.q || defender.position.r !== position.r) continue
+
+			const targetKey = `${defender.position.q},${defender.position.r}:${defender.type}`
+			if (seenTargets.has(targetKey)) continue
+			seenTargets.add(targetKey)
 
 			rammedUnits.push({ unitId: defender.id ?? defenderId, unitType: defender.type })
 		}
@@ -183,7 +188,7 @@ function collectRammedUnits(state: MoveValidationState, path: HexPos[], movingUn
 export function validateMove(
 	map: MoveMapSnapshot,
 	state: MoveValidationState,
-	command: Extract<Command, { type: 'MOVE' }>,
+	command: SingleUnitMoveCommand,
 ): MoveValidationResult {
 	const resolved = resolveUnit(state, command.unitId)
 	if (!resolved) {

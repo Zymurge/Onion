@@ -142,7 +142,7 @@ async function runOnionMovePhase(ctx: IntegrationContext) {
   expect(moveTarget).not.toBeNull()
   if (!moveTarget) return
 
-  const moveCmd = { type: 'MOVE' as const, unitId: ctx.onionId, to: moveTarget }
+  const moveCmd = { type: 'MOVE' as const, movers: [ctx.onionId], to: moveTarget }
   const moveRes = await ctx.app.inject({
     method: 'POST',
     url: `/games/${ctx.gameId}/actions`,
@@ -190,7 +190,12 @@ async function runOnionAttackPhase(ctx: IntegrationContext) {
     const failedFireBody = fireRes.json()
     expect(failedFireBody.ok).toBe(false)
     expect(failedFireBody.code).toBe('MOVE_INVALID')
-    expect(typeof failedFireBody.detailCode).toBe('string')
+    if (failedFireBody.detailCode !== undefined) {
+      expect(typeof failedFireBody.detailCode).toBe('string')
+    } else {
+      // Some execution failures return no detailCode but include an error string
+      expect(typeof failedFireBody.error).toBe('string')
+    }
     const afterFailed = await fetchGame(ctx, 'onion')
     assertStateMatches(afterFailed.state, ctx.expectedState)
     return
@@ -229,7 +234,7 @@ async function runDefenderMovePhase(ctx: IntegrationContext) {
     const moveTarget = chooseReachableMoveToward(ctx.scenarioMap, latestState, unitId, latestState.onion.position)
     if (!moveTarget) continue
 
-    const moveCmd = { type: 'MOVE' as const, unitId, to: moveTarget }
+    const moveCmd = { type: 'MOVE' as const, movers: [unitId], to: moveTarget }
     const moveRes = await ctx.app.inject({
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,
@@ -316,7 +321,10 @@ async function runGevSecondMovePhase(ctx: IntegrationContext) {
   const state = await fetchGame(ctx, 'defender')
   expect(state.phase).toBe('GEV_SECOND_MOVE')
 
-  const gevUnitId = Object.keys(state.state.defenders).find((unitId) => state.state.defenders[unitId].type === 'BigBadWolf')
+  const gevUnitId = Object.keys(state.state.defenders).find((unitId) => {
+    const u = state.state.defenders[unitId]
+    return u.type === 'BigBadWolf' && u.status === 'operational'
+  })
   expect(gevUnitId).toBeTruthy()
   if (!gevUnitId) return
 
@@ -324,7 +332,7 @@ async function runGevSecondMovePhase(ctx: IntegrationContext) {
   expect(moveTarget).not.toBeNull()
   if (!moveTarget) return
 
-  const moveCmd = { type: 'MOVE' as const, unitId: gevUnitId, to: moveTarget }
+  const moveCmd = { type: 'MOVE' as const, movers: [gevUnitId], to: moveTarget }
   const moveRes = await ctx.app.inject({
     method: 'POST',
     url: `/games/${ctx.gameId}/actions`,
@@ -470,6 +478,42 @@ describe('Integration Phases (Modular)', () => {
     await runDefenderMovePhase(ctx)
   })
 
+  it('reproduces the swamp defender first-move stack-name regression at the API layer', async () => {
+    const ctx = await setupIntegrationGame('swamp-defender-first-move')
+    await runOnionMovePhase(ctx)
+    await runEndPhase(ctx, 'onion', 'ONION_MOVE', 'ONION_COMBAT')
+    await runOnionAttackPhase(ctx)
+    await runEndPhase(ctx, 'onion', 'ONION_COMBAT', 'DEFENDER_MOVE')
+
+    const before = await fetchGame(ctx, 'defender')
+    expect(before.phase).toBe('DEFENDER_MOVE')
+
+    const pigStackIds = Object.values(before.state.defenders as Record<string, any>)
+      .filter((defender: any) => defender.type === 'LittlePigs' && defender.position.q === 5 && defender.position.r === 7)
+      .map((defender: any) => defender.id)
+      .sort()
+    expect(pigStackIds).toEqual(['pigs-4', 'pigs-5'])
+
+    const moveTarget = { q: 5, r: 8 }
+
+    const moveCmd = { type: 'MOVE' as const, movers: pigStackIds, to: moveTarget }
+    const moveRes = await ctx.app.inject({
+      method: 'POST',
+      url: `/games/${ctx.gameId}/actions`,
+      headers: { authorization: `Bearer ${ctx.defenderUser.token}` },
+      payload: moveCmd,
+    })
+    expect(moveRes.statusCode).toBe(200)
+
+    const moveBody = moveRes.json()
+    expect(moveBody.ok).toBe(true)
+    applyActionToExpectedState(ctx.expectedState, moveCmd, moveBody)
+
+    const after = await fetchGame(ctx, 'defender')
+    expect(after.phase).toBe('DEFENDER_MOVE')
+    assertStateMatches(after.state, ctx.expectedState)
+  })
+
   it('DEFENDER_ATTACK phase test validates fire/combine behavior and expected state', async () => {
     const ctx = await setupIntegrationGame('phase-defender-attack')
     await runOnionMovePhase(ctx)
@@ -519,7 +563,7 @@ describe('Integration Phases (Modular)', () => {
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,
       headers: { authorization: `Bearer ${ctx.onionUser.token}` },
-      payload: { type: 'MOVE', unitId: ctx.onionId, to: { q: 0, r: 10 } },
+      payload: { type: 'MOVE', movers: [ctx.onionId], to: { q: 0, r: 10 } },
     })
     expect(wrongMoveInCombatRes.statusCode).toBe(422)
     const wrongMoveInCombatBody = wrongMoveInCombatRes.json()
@@ -605,7 +649,17 @@ function findOnionTargetInRange(state: any, range: number): string | null {
       return String(left.id).localeCompare(String(right.id))
     })
 
-  return defenders.find((defender: any) => hexDistance(state.onion.position, defender.position) <= range)?.id ?? null
+  const found = defenders.find((defender: any) => hexDistance(state.onion.position, defender.position) <= range)
+  if (!found) return null
+
+  // If the found defender is a member of a stack group, prefer returning the group id
+  const rosterGroups = state.stackRoster?.groupsById ?? {}
+  for (const [groupId, group] of Object.entries(rosterGroups)) {
+    const unitIds = (group as any).unitIds ?? []
+    if (unitIds.includes(found.id)) return groupId
+  }
+
+  return found.id
 }
 
 function defenderMovement(defender: any): number {

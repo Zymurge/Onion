@@ -1,22 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { isUnitMoveEligible, statusTone, type BattlefieldOnionView, type BattlefieldUnit, unitCode } from '#web/lib/battlefieldView'
+import { isUnitMoveEligible, statusTone, type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
 
 describe('battlefieldView helpers', () => {
-	it('classifies unit codes and status tones', () => {
-		expect(unitCode('TheOnion')).toBe('ON')
-		expect(unitCode('BigBadWolf')).toBe('BW')
-		expect(unitCode('LittlePigs')).toBe('LP')
-		expect(unitCode('Puss')).toBe('PU')
-		expect(unitCode('Witch')).toBe('WI')
-		expect(unitCode('Swamp')).toBe('SW')
-		expect(unitCode('Unknown')).toBe('??')
-
+	it('classifies status tones', () => {
 		expect(statusTone('operational')).toBe('ready')
 		expect(statusTone('disabled')).toBe('dim')
 		expect(statusTone('recovering')).toBe('recovering')
 		expect(statusTone('destroyed')).toBe('destroyed')
-		expect(statusTone('queued')).toBeUndefined()
 	})
 
 	it('checks move eligibility for onion and defender views', () => {

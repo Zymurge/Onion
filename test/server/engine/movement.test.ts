@@ -13,6 +13,7 @@ import type { GameMap } from '#server/engine/map'
 import type { MovementPlan } from '#server/engine/movement'
 import type { DefenderUnit, OnionUnit, EngineGameState } from '#server/engine/units'
 import logger from '#server/logger'
+import { buildStackRosterFromUnits } from '#shared/stackRoster'
 
 let infoSpy: any, warnSpy: any, errorSpy: any;
 
@@ -59,12 +60,14 @@ function makeOnion(overrides: Partial<OnionUnit> = {}): OnionUnit {
 }
 
 function makeState(overrides: Partial<EngineGameState> = {}): EngineGameState {
+  const defenders = overrides.defenders ?? {}
   return {
     onion: makeOnion(),
-    defenders: {},
+    defenders,
     ramsThisTurn: 0,
     currentPhase: 'ONION_MOVE',
     turn: 1,
+    stackRoster: overrides.stackRoster ?? buildStackRosterFromUnits(Object.values(defenders)),
     ...overrides,
   }
 }
@@ -515,19 +518,81 @@ describe('executeUnitMovement', () => {
       groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group'],
     }
+    state.stackRoster = {
+      groupsById: {
+        'LittlePigs:0,0': {
+          groupName: 'Little Pigs group',
+          unitType: 'LittlePigs',
+          position: { q: 0, r: 0 },
+          unitIds: ['p1', 'p2'],
+        },
+      },
+      unitsById: {
+        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+      },
+    }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))
 
     expect(result.success).toBe(true)
     expect(state.defenders.p1.position).toEqual({ q: 1, r: 0 })
-    expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.groupsInUse).toEqual([
-      { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-      { groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
-    ])
+    expect(state.stackRoster?.groupsById['LittlePigs:0,0']).toBeUndefined()
+    expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.groupsInUse).toEqual([])
     expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.usedGroupNames).toEqual([
       'Little Pigs group 1',
-      'Little Pigs group 2',
     ])
+  })
+
+  it('reforms a stack as sequential movers arrive on the same destination hex', () => {
+    const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
+    const p2 = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 0, r: 0 } })
+    const p3 = makeDefender({ id: 'p3', type: 'LittlePigs', squads: 1, position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2, p3 } }) as EngineGameState & {
+      stackNaming?: {
+        groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
+        usedGroupNames: string[]
+      }
+    }
+
+    state.stackNaming = {
+      groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
+      usedGroupNames: ['Little Pigs group'],
+    }
+    state.stackRoster = {
+      groupsById: {
+        'LittlePigs:0,0': {
+          groupName: 'Little Pigs group',
+          unitType: 'LittlePigs',
+          position: { q: 0, r: 0 },
+          unitIds: ['p1', 'p2', 'p3'],
+        },
+      },
+      unitsById: {
+        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 1 },
+      },
+    }
+
+    expect(executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 5, r: 4 } })).success).toBe(true)
+    expect(state.stackRoster?.groupsById['LittlePigs:5,4']).toMatchObject({
+      groupName: 'Little Pigs group',
+      unitIds: ['p1'],
+    })
+
+    expect(executeUnitMovement(state, makePlan({ unitId: 'p2', from: { q: 0, r: 0 }, to: { q: 5, r: 4 } })).success).toBe(true)
+    expect(state.stackRoster?.groupsById['LittlePigs:5,4']).toMatchObject({
+      groupName: 'Little Pigs group',
+      unitIds: ['p1', 'p2'],
+    })
+
+    expect(executeUnitMovement(state, makePlan({ unitId: 'p3', from: { q: 0, r: 0 }, to: { q: 5, r: 4 } })).success).toBe(true)
+    expect(state.stackRoster?.groupsById['LittlePigs:5,4']).toMatchObject({
+      groupName: 'Little Pigs group 1',
+      unitIds: ['p1', 'p2', 'p3'],
+    })
+    expect(state.stackRoster?.groupsById['LittlePigs:0,0']).toBeUndefined()
   })
 
   it('retires a stacked group when the last unit in it is destroyed', () => {
@@ -543,6 +608,7 @@ describe('executeUnitMovement', () => {
       groupsInUse: [{ groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group 1'],
     }
+    state.stackRoster = { groupsById: {} }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'onion', from: { q: 0, r: 0 }, to: { q: 2, r: 0 } }))
 
@@ -568,6 +634,26 @@ describe('executeUnitMovement', () => {
       ],
       usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
     }
+    state.stackRoster = {
+      groupsById: {
+        'LittlePigs:0,0': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 0, r: 0 },
+          unitIds: ['p1', 'p2'],
+        },
+        'LittlePigs:2,0': {
+          groupName: 'Little Pigs group 2',
+          unitType: 'LittlePigs',
+          position: { q: 2, r: 0 },
+          unitIds: ['p3', 'p4'],
+        },
+      },
+      unitsById: {
+        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+      },
+    }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p2', from: { q: 2, r: 0 }, to: { q: 0, r: 0 } }))
 
@@ -577,5 +663,71 @@ describe('executeUnitMovement', () => {
       { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
     ])
     expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+  })
+
+  it('allocates a fresh group name when a move reforms a stack on top of a singleton placeholder with a stale ordinal', () => {
+    const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 }, friendlyName: 'Little Pigs 1' })
+    const p2 = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 }, friendlyName: 'Little Pigs 2' })
+    const p3 = makeDefender({ id: 'p3', type: 'LittlePigs', squads: 2, position: { q: 2, r: 0 }, friendlyName: 'Little Pigs 3' })
+    const p4 = makeDefender({ id: 'p4', type: 'LittlePigs', squads: 2, position: { q: 2, r: 0 }, friendlyName: 'Little Pigs 4' })
+    const p5 = makeDefender({ id: 'p5', type: 'LittlePigs', squads: 2, position: { q: 4, r: 0 }, friendlyName: 'Little Pigs 5' })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2, p3, p4, p5 } }) as EngineGameState & {
+      stackNaming?: {
+        groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
+        usedGroupNames: string[]
+      }
+    }
+
+    state.stackNaming = {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupKey: 'LittlePigs:2,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+    }
+    state.stackRoster = {
+      groupsById: {
+        'LittlePigs:0,0': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 0, r: 0 },
+          unitIds: ['p1', 'p2'],
+        },
+        'LittlePigs:2,0': {
+          groupName: 'Little Pigs group 2',
+          unitType: 'LittlePigs',
+          position: { q: 2, r: 0 },
+          unitIds: ['p3', 'p4'],
+        },
+        'LittlePigs:4,0': {
+          groupName: 'Little Pigs group 2',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 0 },
+          unitIds: ['p5'],
+        },
+      },
+      unitsById: {
+        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 2 },
+        p4: { id: 'p4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 2 },
+        p5: { id: 'p5', status: 'operational', friendlyName: 'Little Pigs 5', squads: 2 },
+      },
+    }
+
+    const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 4, r: 0 } }))
+
+    expect(result.success).toBe(true)
+    expect(state.stackRoster?.groupsById['LittlePigs:4,0']).toMatchObject({
+      groupName: 'Little Pigs group 3',
+      unitIds: ['p5', 'p1'],
+    })
+    expect(state.stackNaming?.groupsInUse).toEqual(
+      expect.arrayContaining([
+        { groupKey: 'LittlePigs:2,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+        { groupKey: 'LittlePigs:4,0', groupName: 'Little Pigs group 3', unitType: 'LittlePigs' },
+      ]),
+    )
+    expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'])
   })
 })

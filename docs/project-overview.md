@@ -81,6 +81,8 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 - **Phase 1 — CLI**: Built with **Node.js** and **TypeScript** as a simple REST-driven command-line client. It uses prompt-driven commands plus a minimal offset-grid text map to prove end-to-end gameplay with two human players in two shell instances.
 - **Phase 2+ — Web UI**: React SPA sharing TypeScript types with the engine. Reuses the existing hex-grid JS implementation once reviewed.
 
+The web client keeps the backend-authoritative snapshot, local interaction state, derived battlefield view state, and sync state separate. `App.tsx` composes those layers; selection, targeting, and prompt state stay client-local, while the derived battlefield view stays pure and recomputable from the snapshot plus interaction state.
+
 ---
 **Status:**
 

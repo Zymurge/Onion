@@ -438,7 +438,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       if (!session.gameId) {
         return { message: 'No game is loaded. Use: game load <gameId>' }
       }
-      const result = await submitAction(session, session.gameId, { type: 'MOVE', unitId: command.unitId, to: command.to })
+      const result = await submitAction(session, session.gameId, { type: 'MOVE', movers: [command.unitId], to: command.to })
       if (!result.ok) return { message: formatApiError(result) }
       session.gameState = result.data.state
       session.events = result.data.events

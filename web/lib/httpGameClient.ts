@@ -54,25 +54,6 @@ function normalizePhase(phase: unknown): TurnPhase {
 	const upperPhase = phase.toUpperCase()
 	return TURN_PHASES.includes(upperPhase as TurnPhase) ? (upperPhase as TurnPhase) : 'DEFENDER_MOVE'
 }
-
-function createInitialSnapshot(gameId: number): ServerGameSnapshot {
-	return {
-		gameId,
-		phase: 'DEFENDER_MOVE',
-		scenarioName: undefined,
-		turnNumber: undefined,
-		lastEventSeq: 0,
-		movementRemainingByUnit: {},
-	}
-}
-
-function mergeSnapshot(base: ServerGameSnapshot, next: Partial<ServerGameSnapshot>): ServerGameSnapshot {
-	return {
-		...base,
-		...next,
-	}
-}
-
 function requireScenarioMap(response: GameStateResponse) {
 	if (response.scenarioMap === undefined || response.scenarioMap === null) {
 		throw new GameClientSeamError('transport', 'Missing scenario map in game state response')
@@ -110,28 +91,30 @@ function buildError(result: ApiFailure): GameClientSeamError {
 	return new GameClientSeamError('transport', result.message)
 }
 
+function buildUnsupportedActionError(actionType: GameAction['type']): GameClientSeamError {
+	return new GameClientSeamError('transport', `Action '${actionType}' is not supported by the HTTP game transport`)
+}
+
 function mapServerSnapshot(
 	response: GameStateResponse,
-	currentSnapshot: ServerGameSnapshot | null,
 	gameId: number,
 ): GameStateEnvelope {
-	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
 	const scenarioMap = requireScenarioMap(response)
-	const stackRoster = requireStackRoster(response)
+	requireStackRoster(response)
 	return {
-		snapshot: mergeSnapshot(fallback, {
+		snapshot: {
 			gameId: response.gameId ?? gameId,
 			phase: normalizePhase(response.phase),
-			winner: response.winner ?? fallback.winner,
-			scenarioName: response.scenarioName ?? fallback.scenarioName,
-			turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
-			lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : fallback.lastEventSeq,
-			authoritativeState: response.state ?? fallback.authoritativeState,
-			movementRemainingByUnit: response.movementRemainingByUnit ?? fallback.movementRemainingByUnit,
+			winner: response.winner,
+			scenarioName: response.scenarioName,
+			turnNumber: response.turnNumber,
+			lastEventSeq: response.eventSeq,
+			authoritativeState: response.state,
+			movementRemainingByUnit: response.movementRemainingByUnit,
 			scenarioMap,
-			victoryObjectives: response.victoryObjectives ?? fallback.victoryObjectives,
-			escapeHexes: response.escapeHexes ?? fallback.escapeHexes,
-		}),
+			victoryObjectives: response.victoryObjectives,
+			escapeHexes: response.escapeHexes,
+		},
 		session: {
 			role: response.role,
 		},
@@ -140,27 +123,28 @@ function mapServerSnapshot(
 
 function mapActionSnapshot(
 	response: ActionSuccessResponse,
-	currentSnapshot: ServerGameSnapshot | null,
+	currentSnapshot: ServerGameSnapshot,
 	gameId: number,
 ): ServerGameSnapshot {
-	const fallback = currentSnapshot ?? createInitialSnapshot(gameId)
 	const responseEvents = Array.isArray(response.events) ? response.events : []
 	const phaseChange = [...responseEvents].reverse().find((event) => event.type === 'PHASE_CHANGED')
-	const nextPhase = typeof phaseChange?.to === 'string' ? normalizePhase(phaseChange.to) : fallback.phase
+	const nextPhase = typeof phaseChange?.to === 'string' ? normalizePhase(phaseChange.to) : currentSnapshot.phase
 
-	return mergeSnapshot(fallback, {
+	return {
 		gameId,
 		phase: nextPhase,
-		winner: response.winner ?? fallback.winner,
-		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : fallback.turnNumber,
-		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : fallback.lastEventSeq,
-		authoritativeState: response.state ?? fallback.authoritativeState,
-		movementRemainingByUnit: response.movementRemainingByUnit ?? fallback.movementRemainingByUnit,
-		victoryObjectives: response.victoryObjectives ?? fallback.victoryObjectives,
-		escapeHexes: response.escapeHexes ?? fallback.escapeHexes,
+		winner: response.winner ?? currentSnapshot.winner,
+		scenarioName: currentSnapshot.scenarioName,
+		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : currentSnapshot.turnNumber,
+		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : currentSnapshot.lastEventSeq,
+		authoritativeState: response.state ?? currentSnapshot.authoritativeState,
+		movementRemainingByUnit: response.movementRemainingByUnit ?? currentSnapshot.movementRemainingByUnit,
+		scenarioMap: currentSnapshot.scenarioMap,
+		victoryObjectives: response.victoryObjectives ?? currentSnapshot.victoryObjectives,
+		escapeHexes: response.escapeHexes ?? currentSnapshot.escapeHexes,
 		combatResolution: buildCombatResolution(responseEvents),
 		ramResolution: buildRamResolution(responseEvents),
-	})
+	}
 }
 function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 	requestTransport: GameRequestTransport
@@ -184,11 +168,23 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 				throw buildError(result)
 			}
 
-			const envelope = mapServerSnapshot(result.data, currentSnapshot, gameId)
+			const envelope = mapServerSnapshot(result.data, gameId)
 			currentSnapshot = envelope.snapshot
 			return envelope
 		},
 		async submitAction(gameId: number, action: GameAction) {
+			switch (action.type) {
+				case 'select-unit':
+				case 'set-mode':
+					throw buildUnsupportedActionError(action.type)
+				default:
+					break
+			}
+
+			if (currentSnapshot === null) {
+				throw new GameClientSeamError('transport', 'Cannot submit action before loading game state')
+			}
+
 			if (action.type === 'end-phase') {
 				const result = await requestJson<ActionSuccessResponse>({
 					baseUrl,
@@ -215,7 +211,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					token: options.token,
 					body: {
 						type: 'MOVE',
-						unitId: action.unitId,
+						movers: action.movers,
 						to: action.to,
 						...(action.attemptRam === undefined ? {} : { attemptRam: action.attemptRam }),
 					},
@@ -265,13 +261,12 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					throw buildError(result)
 				}
 
-				const envelope = mapServerSnapshot(result.data, currentSnapshot, gameId)
+				const envelope = mapServerSnapshot(result.data, gameId)
 				currentSnapshot = envelope.snapshot
 				return envelope.snapshot
 			}
 
-			currentSnapshot = currentSnapshot ?? createInitialSnapshot(gameId)
-			return currentSnapshot
+			throw buildUnsupportedActionError(action.type)
 		},
 	}
 
@@ -291,9 +286,10 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 		const events = result.data.events ?? []
 		const lastEvent = events.at(-1)
 		if (lastEvent !== undefined && currentSnapshot !== null) {
-			currentSnapshot = mergeSnapshot(currentSnapshot, {
+			currentSnapshot = {
+				...currentSnapshot,
 				lastEventSeq: lastEvent.seq,
-			})
+			}
 		}
 
 		return events

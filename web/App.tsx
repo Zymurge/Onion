@@ -21,6 +21,8 @@ import { useBattlefieldInteractionState } from './lib/useBattlefieldInteractionS
 import { useBattlefieldDisplayState } from './lib/useBattlefieldDisplayState'
 import { buildCombatCommitAction, buildEndPhaseCommitAction } from './lib/commitActionBuilders'
 import { useInactiveEventStream } from './lib/useInactiveEventStream'
+import { buildAcknowledgementTurnKey } from './lib/turnKey'
+import { routeShellControl } from './lib/shellControlRouting'
 import type {
   GameRequestTransport,
   GameSessionController,
@@ -191,7 +193,6 @@ function createRequestTransportFromGameClient(
  *   3. Active phase: After acknowledgement, player can interact with the board and controls.
  *
  * State is tracked via:
- *   - `turnGateSnapshot`: Tracks the authoritative game/turn/phase and whether acknowledgement is pending.
  *   - `acknowledgedActiveTurnKey`: Records the last acknowledged turn key.
  *   - `inactiveEventAcknowledgementPending`: True if the UI is waiting for the user to acknowledge the new turn.
  *
@@ -200,17 +201,6 @@ function createRequestTransportFromGameClient(
 function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectionGate = false }: AppProps) {
   const [connectedSession, setConnectedSession] = useState<SessionBinding | null>(null)
   const [acknowledgedActiveTurnKey, setAcknowledgedActiveTurnKey] = useState<string | null>(null)
-  const [turnGateSnapshot, setTurnGateSnapshot] = useState<{
-    activeGameId: number | null
-    pendingAcknowledgementTurnKey: string | null
-    sessionTurnActive: boolean
-    turnKnown: boolean
-  }>({
-    activeGameId: null,
-    pendingAcknowledgementTurnKey: null,
-    sessionTurnActive: false,
-    turnKnown: false,
-  })
   const [dismissedGameOverToastKey, setDismissedGameOverToastKey] = useState<string | null>(null)
   const previousDebugStateRef = useRef<{
     activeGameId: number | null
@@ -223,11 +213,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     sessionRole: 'onion' | 'defender' | null
     sessionTurnActive: boolean
     loggedAtMs: number
-  } | null>(null)
-  const previousTurnGateRef = useRef<{
-    activeGameId: number | null
-    sessionTurnActive: boolean
-    turnKnown: boolean
   } | null>(null)
   const previousSessionReloadRef = useRef<{
     activeGameId: number | null
@@ -303,22 +288,15 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const activeTurnOwner = getPhaseOwner(sessionPhase)
   const sessionTurnActive = sessionState.snapshot !== null && sessionRole !== null && activeTurnOwner === sessionRole
   const activeGameIdForGate = activeSessionBinding?.gameId ?? null
-  const currentActiveTurnKey =
-    sessionTurnKnown &&
-    sessionTurnActive &&
-    activeGameIdForGate !== null &&
-    sessionTurnNumber !== null &&
-    sessionPhase !== null &&
-    sessionRole !== null
-      ? `${activeGameIdForGate}:${sessionTurnNumber}:${sessionRole}:${sessionPhase}`
-      : null
+  const currentActiveTurnKey = buildAcknowledgementTurnKey({
+    activeGameId: activeGameIdForGate,
+    currentTurnNumber: sessionTurnNumber,
+    sessionRole,
+    sessionTurnActive: sessionTurnKnown && sessionTurnActive,
+  })
 
   const pendingAcknowledgementTurnKey =
-    currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
-      ? turnGateSnapshot.pendingAcknowledgementTurnKey === currentActiveTurnKey
-        ? currentActiveTurnKey
-        : null
-      : null
+    currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey ? currentActiveTurnKey : null
 
   const inactiveEventStream = useInactiveEventStream({
     activeGameId: activeGameIdForGate,
@@ -327,53 +305,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     lastAppliedEventSeq: sessionState.lastAppliedEventSeq,
     pollEvents: activeSessionBinding?.requestTransport.pollEvents,
   })
-
-  useEffect(() => {
-    setTurnGateSnapshot((current) => {
-      const previousTurnGate = previousTurnGateRef.current
-      const shouldPromptForAcknowledgement =
-        currentActiveTurnKey !== null &&
-        previousTurnGate?.turnKnown === true &&
-        previousTurnGate?.activeGameId === activeGameIdForGate &&
-        previousTurnGate.sessionTurnActive === false &&
-        sessionTurnActive
-
-      const nextPendingAcknowledgementTurnKey =
-        currentActiveTurnKey !== null && acknowledgedActiveTurnKey !== currentActiveTurnKey
-          ? shouldPromptForAcknowledgement || current.pendingAcknowledgementTurnKey === currentActiveTurnKey
-            ? currentActiveTurnKey
-            : null
-          : null
-
-      if (
-        current.activeGameId === activeGameIdForGate &&
-        current.pendingAcknowledgementTurnKey === nextPendingAcknowledgementTurnKey &&
-        current.sessionTurnActive === sessionTurnActive &&
-        current.turnKnown === sessionTurnKnown
-      ) {
-        return current
-      }
-
-      return {
-        activeGameId: activeGameIdForGate,
-        pendingAcknowledgementTurnKey: nextPendingAcknowledgementTurnKey,
-        sessionTurnActive,
-        turnKnown: sessionTurnKnown,
-      }
-    })
-
-    previousTurnGateRef.current = {
-      activeGameId: activeGameIdForGate,
-      sessionTurnActive,
-      turnKnown: sessionTurnKnown,
-    }
-  }, [
-    acknowledgedActiveTurnKey,
-    activeGameIdForGate,
-    currentActiveTurnKey,
-    sessionTurnActive,
-    sessionTurnKnown,
-  ])
 
   const inactiveEventAcknowledgementPending =
     currentActiveTurnKey !== null &&
@@ -394,13 +325,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     isSelectionLocked: inactiveEventScreenLocked,
   })
 
+  const battlefieldInteractionState = interactionState.interactionState
+
   const displayState = useBattlefieldDisplayState({
     activeSessionBinding,
-    activeMode: interactionState.activeMode,
-    combatBaseSnapshot: interactionState.combatBaseSnapshot,
-    lastRefreshAt: interactionState.lastRefreshAt,
-    selectedCombatTargetId: interactionState.selectedCombatTargetId,
-    selectedUnitIds: interactionState.selectedUnitIds,
+    combatBaseSnapshot: battlefieldInteractionState.combatBaseSnapshot,
+    interactionState: battlefieldInteractionState,
     sessionState,
   })
 
@@ -533,6 +463,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   } = interactionState
 
   const {
+    error: displayError,
     activeCombatRole,
     activeGameId,
     activeMode,
@@ -559,13 +490,16 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     onionWeapons,
     phaseAdvanceLabel,
     readyWeaponDetails,
+    stacksExpandable,
     selectedCombatAttackerIds,
     selectedCombatAttackCount,
+    selectedCombatAttackMemberLabels,
     selectedCombatAttackLabel,
     selectedCombatAttackStrength,
     selectedCombatTarget,
     selectedInspectorDefender,
     selectedInspectorOnion,
+    selectedInspectorLabel,
     selectedInspectorUnitId,
     rightRailStackPanel,
     escapeHexes,
@@ -638,7 +572,6 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const isControlledSession = activeSessionBinding !== null
   const shouldShowGameOverToast = sessionWinner !== null && sessionWinnerToastKey !== null && dismissedGameOverToastKey !== sessionWinnerToastKey
-  const rightRailStackMemberIds = rightRailStackPanel.selectedStackMembers.map((m) => m.id)
 
   const {
     debugEntries,
@@ -647,6 +580,28 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     setDebugOpen,
     setDebugPopupLayout,
   } = useDebugDiagnostics()
+
+  function runShellControl(control: 'refresh-session' | 'advance-phase' | 'acknowledge-turn' | 'toggle-debug-diagnostics', enabled: boolean, execute: () => void) {
+    const decision = routeShellControl(
+      {
+        surface: 'header/control',
+        control,
+        enabled,
+      },
+      (trace) => {
+        logger.debug('[app-debug] shell control routed', {
+          ts: Date.now(),
+          ...trace,
+        })
+      },
+    )
+
+    if (decision.intent === 'noop') {
+      return
+    }
+
+    execute()
+  }
 
   function handleConfirmCombat() {
     if (inactiveEventControlsLocked) {
@@ -658,7 +613,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     const combatAction = buildCombatCommitAction({
-      state: clientSnapshot?.authoritativeState ?? null,
+      state: clientSnapshot?.authoritativeState as Parameters<typeof buildCombatCommitAction>[0]['state'],
       anchorUnitId: activeCombatRole === 'defender' ? selectedInspectorUnitId : null,
       selectedUnitIds: selectedCombatAttackerIds,
       targetId: selectedCombatTarget.id,
@@ -671,6 +626,11 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     if (!combatAction.ok) {
+      setActionError(
+        combatAction.reason === 'missing-stack-selection'
+          ? 'Loaded game snapshot is missing stack data for the selected unit.'
+          : 'Unable to resolve combat from the current selection.',
+      )
       return
     }
 
@@ -690,7 +650,19 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   }
 
   return (
-    <div className={`shell${inactiveEventScreenLocked ? ' inactive-event-screen-locked' : ''}`} data-phase={shellPhase}>
+    <div
+      className={`shell${inactiveEventScreenLocked ? ' inactive-event-screen-locked' : ''}`}
+      data-phase={shellPhase}
+      data-testid="app-shell"
+    >
+      {headerHasSnapshot ? <span data-testid="app-ready" hidden aria-hidden="true" /> : null}
+      {displayError ? (
+        <ErrorOverlay
+          message={displayError}
+          placement="map"
+          onDismiss={() => { /* no-op for now, could add dismiss logic if desired */ }}
+        />
+      ) : null}
       {actionError ? <ErrorOverlay message={actionError} placement="app" onDismiss={() => setActionError(null)} /> : null}
       {pendingCombatResolution && selectedCombatTarget !== null ? (
         <CombatResolutionToast
@@ -738,22 +710,21 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className="phase-advance-btn"
               disabled={inactiveEventControlsLocked}
               onClick={() => {
-                logger.debug('[app-debug] phase advance clicked', {
-                  ts: Date.now(),
-                  activeGameId: activeSessionBinding?.gameId ?? null,
-                  activeTurnOwner,
-                  inactiveEventControlsLocked,
-                  inactiveEventScreenLocked,
-                  inactiveEventWindowVisible,
-                  phaseAdvanceLabel,
-                  sessionPhase,
-                  sessionRole,
-                  sessionTurnActive,
+                runShellControl('advance-phase', !inactiveEventControlsLocked, () => {
+                  logger.debug('[app-debug] phase advance clicked', {
+                    ts: Date.now(),
+                    activeGameId: activeSessionBinding?.gameId ?? null,
+                    activeTurnOwner,
+                    inactiveEventControlsLocked,
+                    inactiveEventScreenLocked,
+                    inactiveEventWindowVisible,
+                    phaseAdvanceLabel,
+                    sessionPhase,
+                    sessionRole,
+                    sessionTurnActive,
+                  })
+                  void commitClientAction(buildEndPhaseCommitAction().action)
                 })
-                if (inactiveEventControlsLocked) {
-                  return
-                }
-                void commitClientAction(buildEndPhaseCommitAction().action)
               }}
             >
               {phaseAdvanceLabel}
@@ -765,21 +736,23 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               type="button"
               className={`phase-advance-btn begin-turn-btn${sessionTurnActive ? ' begin-turn-btn-ready' : ' disabled'}`}
               onClick={() => {
-                logger.debug('[app-debug] begin turn clicked', {
-                  ts: Date.now(),
-                  activeGameId: activeSessionBinding?.gameId ?? null,
-                  activeTurnOwner,
-                  inactiveEntryCount: inactiveEventStream.entries.length,
-                  inactiveDismissed: inactiveEventStream.isDismissed,
-                  inactiveEventControlsLocked,
-                  inactiveEventScreenLocked,
-                  inactiveEventWindowVisible,
-                  sessionPhase,
-                  sessionRole,
-                  sessionTurnActive,
+                runShellControl('acknowledge-turn', sessionTurnActive, () => {
+                  logger.debug('[app-debug] begin turn clicked', {
+                    ts: Date.now(),
+                    activeGameId: activeSessionBinding?.gameId ?? null,
+                    activeTurnOwner,
+                    inactiveEntryCount: inactiveEventStream.entries.length,
+                    inactiveDismissed: inactiveEventStream.isDismissed,
+                    inactiveEventControlsLocked,
+                    inactiveEventScreenLocked,
+                    inactiveEventWindowVisible,
+                    sessionPhase,
+                    sessionRole,
+                    sessionTurnActive,
+                  })
+                  inactiveEventStream.clearEntries()
+                  setAcknowledgedActiveTurnKey(currentActiveTurnKey)
                 })
-                inactiveEventStream.clearEntries()
-                setAcknowledgedActiveTurnKey(currentActiveTurnKey)
               }}
               aria-label="Begin turn"
               disabled={!sessionTurnActive}
@@ -804,16 +777,18 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className="refresh-btn"
               title="Refresh game state"
               onClick={() => {
-                logger.debug('[app-debug] refresh clicked', {
-                  ts: Date.now(),
-                  activeGameId: activeSessionBinding?.gameId ?? null,
-                  sessionPhase,
-                  sessionRole,
-                  sessionTurnActive,
-                  inactiveEventWindowVisible,
-                  inactiveEventControlsLocked,
+                runShellControl('refresh-session', !isRefreshing, () => {
+                  logger.debug('[app-debug] refresh clicked', {
+                    ts: Date.now(),
+                    activeGameId: activeSessionBinding?.gameId ?? null,
+                    sessionPhase,
+                    sessionRole,
+                    sessionTurnActive,
+                    inactiveEventWindowVisible,
+                    inactiveEventControlsLocked,
+                  })
+                  void handleRefresh()
                 })
-                void handleRefresh()
               }}
               aria-label="Refresh"
               disabled={isRefreshing}
@@ -824,7 +799,11 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
               className={`debug-toggle-btn${debugOpen ? ' active' : ''}`}
               title="Toggle debug diagnostics"
               aria-label="Toggle debug diagnostics"
-              onClick={() => setDebugOpen((value: boolean) => !value)}
+              onClick={() => {
+                runShellControl('toggle-debug-diagnostics', true, () => {
+                  setDebugOpen((value: boolean) => !value)
+                })
+              }}
             >
               Debug
             </button>
@@ -853,7 +832,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onClose={() => setDebugOpen(false)}
           lines={debugEntries}
           onAdvancePhase={() => {
-            void commitClientAction(buildEndPhaseCommitAction().action)
+            runShellControl('advance-phase', true, () => {
+              void commitClientAction(buildEndPhaseCommitAction().action)
+            })
           }}
         />
       )}
@@ -861,6 +842,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       <main className="battlefield-grid" onClick={handleDeselectUnit}>
         <BattlefieldLeftRail
           activeCombatRole={activeCombatRole}
+          activeRole={activeRole}
+          activeTurnActive={activeTurnActive}
           activeMode={activeMode}
           activeSelectedUnitIds={activeSelectedUnitIds}
           displayedDefenders={displayedDefenders}
@@ -868,6 +851,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           isCombatPhase={isCombatPhase}
           isMovementPhase={isMovementPhase}
           isSelectionLocked={inactiveEventScreenLocked}
+          stacksExpandable={stacksExpandable}
           onionWeapons={onionWeapons}
           readyWeaponDetails={readyWeaponDetails}
           selectedCombatAttackLabel={selectedCombatAttackLabel}
@@ -922,12 +906,15 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           isInteractionLocked={inactiveEventControlsLocked}
           canDismissInactiveEventStream={sessionTurnActive}
           pendingRamPrompt={pendingRamPrompt}
-          selectedCombatAttackCount={selectedCombatAttackCount}
           selectedCombatAttackStrength={selectedCombatAttackStrength}
+          selectedCombatAttackerIds={selectedCombatAttackerIds}
+          selectedCombatAttackMemberLabels={selectedCombatAttackMemberLabels}
           selectedCombatTarget={selectedCombatTarget}
           selectedCombatTargetId={selectedCombatTargetId}
+          selectedInspectorLabel={selectedInspectorLabel}
           selectedInspectorDefender={selectedInspectorDefender}
           selectedInspectorOnion={selectedInspectorOnion}
+          readyWeaponDetails={readyWeaponDetails}
           rightRailStackPanel={rightRailStackPanel}
           escapeHexes={escapeHexes}
           victoryObjectives={victoryObjectives}
@@ -937,8 +924,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onAttemptRam={() => handleResolveRamPrompt(true)}
           onDeclineRam={() => handleResolveRamPrompt(false)}
           onSelectCombatTarget={setSelectedCombatTargetId}
-          onToggleStackMember={(unitId) => handleSelectStackMember(unitId, rightRailStackMemberIds)}
-          onSelectAllStackMembers={() => handleSelectAllStackMembers(rightRailStackMemberIds)}
+          onToggleStackMember={(unitId) => handleSelectStackMember(unitId, rightRailStackPanel.selectedStackMemberIds)}
+          onSelectAllStackMembers={() => handleSelectAllStackMembers(rightRailStackPanel.selectedStackMemberIds)}
           onClearStackSelection={handleClearStackSelection}
         />
       </main>

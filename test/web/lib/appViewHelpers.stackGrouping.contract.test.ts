@@ -66,4 +66,15 @@ describe('appViewHelpers stack-grouping contract', () => {
 
     expect(countSelectedBattlefieldStackGroups(state as any, ['pigs-1', 'pigs-2', 'wolf-1'])).toBe(2)
   })
+
+  it('throws when stackable unit membership is requested without a stack roster', () => {
+    const state = {
+      defenders: {
+        'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+        'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
+      },
+    }
+
+    expect(() => resolveBattlefieldStackMemberIds(state as any, 'pigs-1')).toThrow('Missing stackRoster for grouped unit pigs-1')
+  })
 })

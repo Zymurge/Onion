@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '#web/App'
 import type { GameClient, GameSnapshot } from '#web/lib/gameClient'
+import { buildStackRosterFromUnits } from '#shared/stackRoster'
 
 const createHttpGameRequestTransport = vi.hoisted(() => vi.fn())
 const createLiveEventSource = vi.hoisted(() => vi.fn())
@@ -43,6 +44,7 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 			onion: {
 				id: 'onion-1',
 				type: 'TheOnion',
+					friendlyName: 'The Onion',
 				position: { q: 0, r: 1 },
 				treads: 33,
 				status: 'operational',
@@ -67,6 +69,7 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 				'wolf-2': {
 					id: 'wolf-2',
 					type: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
 					position: { q: 3, r: 6 },
 					status: 'operational',
 					weapons: [
@@ -84,6 +87,7 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 				'puss-1': {
 					id: 'puss-1',
 					type: 'Puss',
+					friendlyName: 'Puss 1',
 					position: { q: 4, r: 4 },
 					status: 'operational',
 					weapons: [
@@ -100,6 +104,24 @@ function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapsh
 				},
 			},
 			ramsThisTurn: 0,
+				stackRoster: buildStackRosterFromUnits([
+					{
+						id: 'wolf-2',
+						type: 'BigBadWolf',
+						friendlyName: 'Big Bad Wolf 2',
+						position: { q: 3, r: 6 },
+						status: 'operational',
+						weapons: [],
+					},
+					{
+						id: 'puss-1',
+						type: 'Puss',
+						friendlyName: 'Puss 1',
+						position: { q: 4, r: 4 },
+						status: 'operational',
+						weapons: [],
+					},
+				]),
 		},
 		movementRemainingByUnit: {
 			'onion-1': 0,
