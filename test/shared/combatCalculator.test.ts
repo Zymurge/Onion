@@ -274,7 +274,7 @@ describe('combatCalculator', () => {
 			},
 		}
 
-		expect(() => calculator.calculateResult(input)).toThrow("Little Pigs target 'target-1' is missing squads in the live combat state")
+		expect(() => calculator.calculateResult(input)).toThrow("Stack target 'target-1' of type 'LittlePigs' is missing squads in the live combat state")
 	})
 
 	it('uses terrain-eligible live combat state when calculating ridgeline cover', () => {

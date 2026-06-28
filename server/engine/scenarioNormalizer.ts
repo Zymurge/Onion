@@ -101,13 +101,6 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
         unitType: def.unitType,
         position: def.position,
         unitIds,
-        units: unitIds.map((unitId) => ({
-          id: unitId,
-          status: defenders[unitId].status,
-          friendlyName: defenders[unitId].friendlyName ?? unitId,
-          weapons: defenders[unitId].weapons,
-          targetRules: defenders[unitId].targetRules,
-        })),
       }
       continue
     }
@@ -135,24 +128,7 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
   return {
     onion,
     defenders,
-    stackRoster: {
-      groupsById: stackRoster.groupsById,
-      unitsById: Object.fromEntries(
-        Object.values(stackRoster.groupsById).flatMap((group) =>
-          group.unitIds.map((unitId) => {
-            const defender = defenders[unitId]
-            return [unitId, {
-              id: unitId,
-              status: defender.status,
-              friendlyName: defender.friendlyName ?? unitId,
-              weapons: defender.weapons,
-              targetRules: defender.targetRules,
-              squads: defender.squads,
-            }]
-          }),
-        ),
-      ),
-    },
+    stackRoster,
     stackNaming: stackNamingEngine.snapshot(),
     ramsThisTurn: 0,
     currentPhase: 'ONION_MOVE',

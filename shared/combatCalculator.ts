@@ -221,9 +221,14 @@ function resolveDefenseStrength(
 		return weapon.defense
 	}
 
-	if (definition.type === 'LittlePigs') {
+	// If the unit type supports stacking, require a squads count on the
+	// live combatant state and use it as the defense baseline. This makes the
+	// logic generic across all stackable infantry types rather than hardcoding
+	// specific unit names.
+	const maxStacks = (definition.abilities?.maxStacks ?? 1)
+	if (maxStacks > 1) {
 		if (typeof target.squads !== 'number') {
-			throw new Error(`Little Pigs target '${targetId}' is missing squads in the live combat state`)
+			throw new Error(`Stack target '${targetId}' of type '${definition.type}' is missing squads in the live combat state`)
 		}
 
 		const stackSize = target.squads

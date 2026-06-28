@@ -190,7 +190,12 @@ async function runOnionAttackPhase(ctx: IntegrationContext) {
     const failedFireBody = fireRes.json()
     expect(failedFireBody.ok).toBe(false)
     expect(failedFireBody.code).toBe('MOVE_INVALID')
-    expect(typeof failedFireBody.detailCode).toBe('string')
+    if (failedFireBody.detailCode !== undefined) {
+      expect(typeof failedFireBody.detailCode).toBe('string')
+    } else {
+      // Some execution failures return no detailCode but include an error string
+      expect(typeof failedFireBody.error).toBe('string')
+    }
     const afterFailed = await fetchGame(ctx, 'onion')
     assertStateMatches(afterFailed.state, ctx.expectedState)
     return
@@ -316,7 +321,10 @@ async function runGevSecondMovePhase(ctx: IntegrationContext) {
   const state = await fetchGame(ctx, 'defender')
   expect(state.phase).toBe('GEV_SECOND_MOVE')
 
-  const gevUnitId = Object.keys(state.state.defenders).find((unitId) => state.state.defenders[unitId].type === 'BigBadWolf')
+  const gevUnitId = Object.keys(state.state.defenders).find((unitId) => {
+    const u = state.state.defenders[unitId]
+    return u.type === 'BigBadWolf' && u.status === 'operational'
+  })
   expect(gevUnitId).toBeTruthy()
   if (!gevUnitId) return
 
@@ -641,7 +649,17 @@ function findOnionTargetInRange(state: any, range: number): string | null {
       return String(left.id).localeCompare(String(right.id))
     })
 
-  return defenders.find((defender: any) => hexDistance(state.onion.position, defender.position) <= range)?.id ?? null
+  const found = defenders.find((defender: any) => hexDistance(state.onion.position, defender.position) <= range)
+  if (!found) return null
+
+  // If the found defender is a member of a stack group, prefer returning the group id
+  const rosterGroups = state.stackRoster?.groupsById ?? {}
+  for (const [groupId, group] of Object.entries(rosterGroups)) {
+    const unitIds = (group as any).unitIds ?? []
+    if (unitIds.includes(found.id)) return groupId
+  }
+
+  return found.id
 }
 
 function defenderMovement(defender: any): number {

@@ -150,10 +150,22 @@ function resolveCanonicalUnitsById(stackRoster: StackRosterState | undefined): R
 		return { ...stackRoster.unitsById }
 	}
 
+	// If the canonical `unitsById` map is absent, derive canonical units
+	// from the declared `unitIds` and any inline `units` present in groups.
+	// Prefer inline unit detail when available, but fall back to minimal
+	// canonical shapes for ids that only appear in `unitIds`.
 	const unitsById: Record<string, StackRosterUnitState> = {}
 	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
-		for (const unit of group.units ?? []) {
-			unitsById[unit.id] = { ...unit }
+		const unitIds = resolveGroupUnitIds(group)
+		const inlineUnits = new Map<string, StackRosterUnitState>((group.units ?? []).map((u) => [u.id, u]))
+		for (const id of unitIds) {
+			const inline = inlineUnits.get(id)
+			if (inline !== undefined) {
+				unitsById[id] = { ...inline }
+			} else if (unitsById[id] === undefined) {
+				// minimal canonical fallback
+				unitsById[id] = { id, status: 'operational', friendlyName: id }
+			}
 		}
 	}
 

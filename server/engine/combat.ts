@@ -167,14 +167,28 @@ function buildCombatCalculatorInput(
       }
     }
 
+    // Defender target may be a stack group id or an individual unit id. If
+    // it's a group id, synthesize a combatant with squads derived from the
+    // stack roster. Otherwise use the explicit defender entry.
     const defender = state.defenders[target.id]
     if (defender) {
       units[target.id] = {
         type: defender.type,
         squads: defender.squads,
         terrainType: getTerrainTypeAt(map, defender.position),
-          weapons: defender.weapons,
+        weapons: defender.weapons,
+      }
+    } else {
+      const group = state.stackRoster?.groupsById?.[target.id]
+      if (group) {
+        const unitIds = group.unitIds ?? (group.units ?? []).map((u: any) => u.id)
+        units[target.id] = {
+          type: group.unitType,
+          squads: unitIds.length,
+          terrainType: getTerrainTypeAt(map, group.position),
+          weapons: undefined,
         }
+      }
     }
 
     return {
@@ -358,10 +372,44 @@ export function validateCombatAction(
   }
 
   if (state.currentPhase === 'ONION_COMBAT') {
-    const target = state.defenders[command.targetId]
-    if (!target) {
-      return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
+    const explicitTarget = state.defenders[command.targetId]
+    const rosterIndex = state.stackRoster === undefined ? null : buildStackRosterIndex(state.stackRoster)
+
+    // If the command targets an individual unit that is part of a stack group,
+    // reject the action: stacks must be targeted as a whole (group id).
+    if (explicitTarget && rosterIndex && rosterIndex.getUnitGroup(command.targetId) !== null) {
+      return { ok: false, code: 'INVALID_TARGET', error: `Individual stack members cannot be targeted; target the stack group instead` }
     }
+
+    // Resolve either an individual defender or a stack group target.
+    let target: any = explicitTarget
+    let isGroupTarget = false
+    if (!target) {
+      const group = state.stackRoster?.groupsById?.[command.targetId]
+      if (!group) {
+        return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
+      }
+
+      // Build a synthetic target representation for the stack group using
+      // defender member data when available.
+      const memberIds = group.unitIds ?? (group.units ?? []).map((u: any) => u.id)
+      const members = memberIds.map((id) => state.defenders[id]).filter(Boolean)
+      const allDestroyed = members.length > 0 && members.every((m: any) => m.status === 'destroyed')
+      const squads = memberIds.length
+      const representative = members[0]
+
+      target = {
+        id: command.targetId,
+        type: group.unitType,
+        position: group.position,
+        status: allDestroyed ? 'destroyed' : (representative?.status ?? 'operational'),
+        squads,
+        weapons: representative?.weapons,
+        targetRules: representative?.targetRules,
+      }
+      isGroupTarget = true
+    }
+
     if (target.status === 'destroyed') {
       return { ok: false, code: 'NO_TARGET', error: 'Target is already destroyed' }
     }
