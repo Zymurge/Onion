@@ -51,6 +51,7 @@ export type ApiProtocolTrafficEntry = {
 	status?: number
 	requestBody?: unknown
 	responseBody?: unknown
+	rawResponseBody?: unknown
 	message?: string
 }
 
@@ -109,7 +110,7 @@ function formatJsonPayloadLines(value: unknown): string[] {
 	return serialized.split('\n').map((line) => `  ${line}`)
 }
 
-function appendFormattedPayload(lines: string[], label: 'request' | 'response', value: unknown): void {
+function appendFormattedPayload(lines: string[], label: string, value: unknown): void {
 	const payloadLines = formatJsonPayloadLines(value)
 	if (payloadLines.length === 0) {
 		return
@@ -117,6 +118,15 @@ function appendFormattedPayload(lines: string[], label: 'request' | 'response', 
 
 	lines.push(`${label}:`)
 	lines.push(...payloadLines)
+}
+
+function appendFormattedTextPayload(lines: string[], label: string, value: string): void {
+	if (value.trim().length === 0) {
+		return
+	}
+
+	lines.push(`${label}:`)
+	lines.push(...value.split('\n').map((line) => `  ${line}`))
 }
 
 function pushApiProtocolTraffic(entry: Omit<ApiProtocolTrafficEntry, 'id' | 'timestamp'>) {
@@ -181,6 +191,14 @@ export function formatApiProtocolTrafficEntry(entry: ApiProtocolTrafficEntry): s
 
 	if (entry.message !== undefined) {
 		lines.push(`message: ${entry.message}`)
+	}
+
+	if (entry.rawResponseBody !== undefined) {
+		if (typeof entry.rawResponseBody === 'string') {
+			appendFormattedTextPayload(lines, 'raw-response', entry.rawResponseBody)
+		} else {
+			appendFormattedPayload(lines, 'raw-response', entry.rawResponseBody)
+		}
 	}
 
 	appendFormattedPayload(lines, 'request', entry.requestBody)
@@ -288,6 +306,7 @@ export async function requestJson<T>(options: {
 	body?: unknown
 	token?: string
 	fetchImpl?: typeof fetch
+	captureRawResponseBody?: boolean
 }): Promise<ApiResult<T>> {
 	const fetchImpl = options.fetchImpl ?? fetch
 	const requestBody = options.body === undefined ? undefined : JSON.stringify(options.body)
@@ -320,7 +339,16 @@ export async function requestJson<T>(options: {
 		}
 	}
 
-	const parsed = await parseBody(response)
+	const rawText = await response.text()
+	const parsed = rawText.length === 0
+		? null
+		: (() => {
+			try {
+				return JSON.parse(rawText) as unknown
+			} catch {
+				return rawText
+			}
+		})()
 	if (!response.ok) {
 		const errorBody = typeof parsed === 'object' && parsed !== null ? (parsed as ApiErrorBody) : parsed
 		pushApiProtocolTraffic({
@@ -329,6 +357,7 @@ export async function requestJson<T>(options: {
 			path: options.path,
 			status: response.status,
 			responseBody: errorBody,
+			...(options.captureRawResponseBody ? { rawResponseBody: rawText } : {}),
 		})
 		return {
 			ok: false,
@@ -347,6 +376,7 @@ export async function requestJson<T>(options: {
 		path: options.path,
 		status: response.status,
 		responseBody: parsed,
+		...(options.captureRawResponseBody ? { rawResponseBody: rawText } : {}),
 	})
 
 	return {

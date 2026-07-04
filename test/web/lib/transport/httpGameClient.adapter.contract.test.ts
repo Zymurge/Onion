@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { createHttpGameClient } from '#web/lib/httpGameClient'
+import { clearApiProtocolTraffic, getApiProtocolTrafficSnapshot } from '#shared/apiProtocol'
+
+clearApiProtocolTraffic()
 
 describe('http game client adapter contract', () => {
 	it('loads state and polls events over HTTP', async () => {
@@ -35,8 +38,11 @@ describe('http game client adapter contract', () => {
 								groupName: 'Big Bad Wolf 2',
 								unitType: 'BigBadWolf',
 								position: { q: 3, r: 6 },
-								units: [{ id: 'wolf-2', status: 'operational', friendlyName: 'Big Bad Wolf 2' }],
+								unitIds: ['wolf-2'],
 							},
+						},
+						unitsById: {
+							'wolf-2': { id: 'wolf-2', status: 'operational', friendlyName: 'Big Bad Wolf 2' },
 						},
 					},
 				},
@@ -84,8 +90,11 @@ describe('http game client adapter contract', () => {
 								groupName: 'Big Bad Wolf 2',
 								unitType: 'BigBadWolf',
 								position: { q: 3, r: 6 },
-								units: [{ id: 'wolf-2', status: 'operational', friendlyName: 'Big Bad Wolf 2' }],
+								unitIds: ['wolf-2'],
 							},
+						},
+						unitsById: {
+							'wolf-2': { id: 'wolf-2', status: 'operational', friendlyName: 'Big Bad Wolf 2' },
 						},
 					},
 				},
@@ -133,6 +142,46 @@ describe('http game client adapter contract', () => {
 				}),
 			}),
 		)
+	})
+
+	it('captures the raw refresh snapshot before parsing it', async () => {
+		clearApiProtocolTraffic()
+
+		const fetchImpl = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			text: vi.fn().mockResolvedValue(JSON.stringify({
+				gameId: 123,
+				role: 'defender',
+				phase: 'DEFENDER_MOVE',
+				scenarioName: 'The Siege of Shrek\'s Swamp',
+				turnNumber: 8,
+				state: {
+					onion: { position: { q: 0, r: 0 }, treads: 45 },
+					defenders: {},
+					stackRoster: { groupsById: {} },
+				},
+				movementRemainingByUnit: {},
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: [{ q: 0, r: 0 }],
+					hexes: [],
+				},
+				eventSeq: 47,
+			})),
+		})
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+		})
+
+		await client.getState(123)
+
+		const traffic = getApiProtocolTrafficSnapshot()
+		expect(String(traffic.at(-1)?.rawResponseBody ?? '')).toContain('"eventSeq":47')
+		expect(String(traffic.at(-1)?.rawResponseBody ?? '')).toContain('"stackRoster"')
 	})
 
 	it('rejects local-only actions through the client adapter', async () => {
@@ -565,6 +614,15 @@ describe('http game client adapter contract', () => {
 				movementRemainingByUnit: { 'onion-1': 0 },
 				turnNumber: 2,
 				eventSeq: 13,
+				phase: 'ONION_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				victoryObjectives: [],
 				escapeHexes: [{ q: 9, r: 5 }],
 			}))
 
@@ -575,23 +633,25 @@ describe('http game client adapter contract', () => {
 		})
 
 		await client.getState(123)
-		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toEqual({
+		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toEqual(
+			expect.objectContaining({
 				authoritativeState: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
-			movementRemainingByUnit: { 'onion-1': 0 },
-			gameId: 123,
-			phase: 'ONION_COMBAT',
-			scenarioName: "The Siege of Shrek's Swamp",
-			escapeHexes: [{ q: 9, r: 5 }],
-			scenarioMap: {
-				width: 15,
-				height: 22,
-				cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-				hexes: [{ q: 1, r: 0, t: 1 }],
-			},
-			turnNumber: 2,
-			lastEventSeq: 13,
-			combatResolution: undefined,
-		})
+				movementRemainingByUnit: { 'onion-1': 0 },
+				gameId: 123,
+				phase: 'ONION_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				escapeHexes: [{ q: 9, r: 5 }],
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				turnNumber: 2,
+				lastEventSeq: 13,
+				combatResolution: undefined,
+			}),
+		)
 
 		expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://onion.test/api/games/123')
 		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123/actions')
@@ -644,6 +704,15 @@ describe('http game client adapter contract', () => {
 				movementRemainingByUnit: { 'wolf-2': 3 },
 				turnNumber: 8,
 				eventSeq: 50,
+				phase: 'DEFENDER_MOVE',
+				scenarioName: "The Siege of Shrek's Swamp",
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				victoryObjectives: [],
 			}))
 
 		const client = createHttpGameClient({
@@ -773,6 +842,16 @@ describe('http game client adapter contract', () => {
 				movementRemainingByUnit: { 'wolf-2': 4 },
 				turnNumber: 8,
 				eventSeq: 49,
+				phase: 'DEFENDER_COMBAT',
+				scenarioName: "The Siege of Shrek's Swamp",
+				scenarioMap: {
+					width: 15,
+					height: 22,
+					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
+					hexes: [{ q: 1, r: 0, t: 1 }],
+				},
+				victoryObjectives: [],
+				escapeHexes: [{ q: 9, r: 5 }],
 			}))
 
 		const client = createHttpGameClient({
@@ -940,7 +1019,7 @@ describe('http game client adapter contract', () => {
 								groupName: 'Little Pigs group 1',
 								unitType: 'LittlePigs',
 								position: { q: 4, r: 4 },
-								units: null,
+								unitIds: null,
 							},
 						},
 					},

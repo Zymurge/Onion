@@ -33,5 +33,21 @@
     "github.copilot.chat.cli.forkSessions.enabled": true,
     "github.copilot.chat.responsesApi.toolSearchTool.enabled": true,
     "github.copilot.chat.localIndex.enabled": true,
-    "npm.scriptRunner": "pnpm"
+    "vitest.rootConfig": "vitest.config.ts",
+    "vitest.configSearchPatternInclude": "vitest.config.ts",
+    "vitest.configSearchPatternExclude": "{**/node_modules/**,**/vendor/**,**/.*/**,**/*.d.ts,vitest.integration.config.ts,vitest.node.config.ts,web/vitest.config.ts}",
+    "npm.scriptRunner": "pnpm",
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "driver": "PostgreSQL",
+            "name": "Container Local",
+            "database": "localhost",
+            "username": "onion",
+            "password": "onionpass",
+            "connectString": "postgres://onion:onionpass@localhost:5432/onion"
+        }
+    ]
 }

@@ -1,4 +1,4 @@
-import { buildFriendlyName, getAllUnitDefinitions } from './unitDefinitions.js'
+import { buildFriendlyName, getAllUnitDefinitions, isUnitTypeStackable } from './unitDefinitions.js'
 import type { StackRosterState } from './types/index.js'
 
 type StackNamingGroupRecord = {
@@ -50,16 +50,6 @@ function createUniqueName(baseName: string, usedNames: Set<string>): string {
 	return candidate
 }
 
-function normalizeGroupName(groupName: string): string {
-	const trimmedGroupName = groupName.trim()
-	const groupMatch = /^(.*\sgroup)(?:\s+(\d+))?$/i.exec(trimmedGroupName)
-	if (groupMatch === null) {
-		return trimmedGroupName
-	}
-
-	return groupMatch[2] === undefined ? `${trimmedGroupName} 1` : trimmedGroupName
-}
-
 export function resolveStackUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
 	const explicitFriendlyName = friendlyName?.trim()
 	if (explicitFriendlyName !== undefined && explicitFriendlyName.length > 0) {
@@ -86,7 +76,7 @@ export function resolveStackLabel(
 		return unitName
 	}
 
-	if (stackSize > 1) {
+	if (stackSize > 1 || isUnitTypeStackable(unitType)) {
 		return `${stripOrdinalSuffix(unitName)} group`
 	}
 
@@ -109,16 +99,8 @@ export class StackNamingEngine {
 	private readonly groupsInUse: Map<string, StackNamingGroupRecord>
 
 	constructor(seed?: StackNamingSeed) {
-		this.usedGroupNames = new Set((seed?.usedGroupNames ?? []).map(normalizeGroupName))
-		this.groupsInUse = new Map(
-			(seed?.groupsInUse ?? []).map((record) => [
-				record.groupKey,
-				{
-					...record,
-					groupName: normalizeGroupName(record.groupName),
-				},
-			]),
-		)
+		this.usedGroupNames = new Set(seed?.usedGroupNames ?? [])
+		this.groupsInUse = new Map((seed?.groupsInUse ?? []).map((record) => [record.groupKey, { ...record }]))
 	}
 
 	resolveUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
@@ -171,9 +153,13 @@ export function refreshStackNamingSnapshotFromRoster(
 	const rosterGroupsInUse: StackNamingGroupRecord[] = []
 	const rosterUsedGroupNames: string[] = []
 
-	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
-		const unitIds = group.unitIds ?? group.units?.map((unit) => unit.id) ?? []
-		if (unitIds.length <= 1) {
+	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
+		const unitIds = [...group.unitIds]
+		if (unitIds.length === 0) {
+			continue
+		}
+
+		if (!isUnitTypeStackable(group.unitType) && unitIds.length <= 1) {
 			continue
 		}
 

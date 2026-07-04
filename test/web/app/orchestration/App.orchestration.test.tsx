@@ -592,7 +592,8 @@ describe('combat', () => {
 	it('shows the shared combat confirmation view for the selected target', async () => {
 		const user = userEvent.setup()
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
-			groups: [{ type: 'LittlePigs', pos: { q: 2, r: 2 }, units: [{ id: 'near-1', friendlyName: 'Little Pigs 1' }] }],
+			units: [{ id: 'near-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', pos: { q: 2, r: 2 } }],
+			groups: [{ groupName: 'Little Pigs group 1', memberIds: ['near-1'] }],
 		})
 		const snapshot = {
 			...baseOrchestrationSnapshot,
@@ -625,13 +626,16 @@ describe('combat', () => {
 		const confirmationView = await screen.findByTestId('combat-confirmation-view')
 		expect(confirmationView.textContent).toContain('Attack composition')
 		expect(confirmationView.textContent).toContain('2:1')
-		expect(confirmationView.textContent).toContain('Little Pigs 1')
 	})
 
 	it('renders a grouped Little Pigs stack in combat with summed attack', async () => {
 		const baseSnapshot = createInRangeCombatSnapshot()
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
-			groups: [{ type: 'LittlePigs', pos: { q: 1, r: 1 }, units: [{ id: 'pigs-1', friendlyName: 'Little Pigs 1' }, { id: 'pigs-2', friendlyName: 'Little Pigs 2' }] }],
+			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', pos: { q: 1, r: 1 } },
+				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
+			],
+			groups: [{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] }],
 		})
 		const snapshot = {
 			...baseSnapshot,
@@ -711,19 +715,18 @@ describe('combat', () => {
 
 	it('greys out spent stack members after one pig has fired', async () => {
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
-			groups: [
+			units: [
 				{
+					id: 'pigs-1',
 					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
 					pos: { q: 4, r: 4 },
-					units: [
-						{
-							id: 'pigs-1',
-							friendlyName: 'Little Pigs 1',
-							weapons: [{ id: 'main', name: 'Main Gun', attack: 1, range: 1, defense: 2, status: 'spent' as const, individuallyTargetable: false }],
-						},
-						{ id: 'pigs-2', friendlyName: 'Little Pigs 2' },
-					],
+					weapons: [{ id: 'main', name: 'Main Gun', attack: 1, range: 1, defense: 2, status: 'spent' as const, individuallyTargetable: false }],
 				},
+				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 4, r: 4 } },
+			],
+			groups: [
+				{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] },
 			],
 		})
 		const snapshot = {

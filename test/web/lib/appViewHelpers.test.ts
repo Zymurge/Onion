@@ -126,6 +126,42 @@ describe('resolveBattlefieldDisplayName', () => {
     expect(label).toBe('Little Pigs group')
   })
 
+  it('resolves a group label for a stackable singleton roster group', () => {
+    const unitsById = createUnitsById()
+    const stackNaming = {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 1'],
+    }
+
+    const stackRoster = {
+      groupsById: {
+        'LittlePigs:2,2': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 2, r: 2 },
+          unitIds: ['pigs-1'],
+        },
+      },
+      unitsById,
+    }
+
+    const label = resolveBattlefieldFriendlyName(
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        q: 2,
+        r: 2,
+        friendlyName: 'Little Pigs 1',
+      },
+      stackNaming,
+      stackRoster,
+    )
+
+    expect(label).toBe('Little Pigs group 1')
+  })
+
   it('falls back to the unit name for single units', () => {
     const label = resolveBattlefieldDisplayName({
       id: 'puss-1',

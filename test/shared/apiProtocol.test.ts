@@ -79,6 +79,26 @@ describe('apiProtocol traffic logging', () => {
 		expect(formatApiProtocolTrafficEntry(snapshot[1]).join('\n')).toContain('  "token": "(redacted)"')
 	})
 
+	it('captures the raw response body when requested before parsing', async () => {
+		await requestJson({
+			baseUrl: 'http://example.com',
+			path: 'games/123',
+			method: 'GET',
+			captureRawResponseBody: true,
+			fetchImpl: vi.fn().mockResolvedValue(
+				new Response(JSON.stringify({ ok: true, state: { marker: 'raw-snapshot' } }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}),
+			),
+		})
+
+		const snapshot = getApiProtocolTrafficSnapshot()
+		expect(snapshot.at(-1)?.rawResponseBody).toContain('raw-snapshot')
+		expect(formatApiProtocolTrafficEntry(snapshot.at(-1)!).join('\n')).toContain('raw-response:')
+		expect(formatApiProtocolTrafficEntry(snapshot.at(-1)!).join('\n')).toContain('raw-snapshot')
+	})
+
 	it('captures network failures as error traffic', async () => {
 		await requestJson({
 			baseUrl: 'http://example.com',

@@ -39,6 +39,28 @@ function createStackState() {
   }
 }
 
+function createSingletonStackState() {
+  const unitsById = {
+    'pigs-5': { id: 'pigs-5', type: 'LittlePigs', position: { q: 4, r: 8 }, status: 'operational' },
+    'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+  }
+
+  return {
+    defenders: unitsById,
+    stackRoster: {
+      groupsById: {
+        'LittlePigs:4,8': {
+          groupName: 'Little Pigs group 2',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 8 },
+          unitIds: ['pigs-5'],
+        },
+      },
+      unitsById,
+    },
+  }
+}
+
 describe('rightRailSelection', () => {
   describe('buildRightRailStackSelectionModel', () => {
     it('prefers explicit stack selection and reports the selected count within that stack', () => {
@@ -94,7 +116,7 @@ describe('rightRailSelection', () => {
   })
 
   describe('buildRightRailStackSelectionViewModel', () => {
-    it('returns canonical stack member views from the roster instead of raw local clustering', () => {
+    it('returns canonical stack member views from the roster', () => {
       const state = createStackState()
 
       expect(buildRightRailStackSelectionViewModel({
@@ -103,9 +125,9 @@ describe('rightRailSelection', () => {
         selectedStackUnitIds: ['pigs-1'],
         activeSelectedUnitIds: ['pigs-1', 'pigs-2'],
         displayedDefenders: [
-          { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-          { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
-          { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+          { id: 'pigs-1', type: 'LittlePigs', q: 4, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
+          { id: 'pigs-2', type: 'LittlePigs', q: 5, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
+          { id: 'wolf-1', type: 'BigBadWolf', q: 6, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
         ],
         displayedOnion: null,
       })).toEqual({
@@ -115,8 +137,8 @@ describe('rightRailSelection', () => {
         selectedUnitIds: ['pigs-1', 'pigs-2'],
         selectedCount: 2,
         selectedStackMembers: [
-          { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-          { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
+          { id: 'pigs-1', type: 'LittlePigs', q: 4, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
+          { id: 'pigs-2', type: 'LittlePigs', q: 5, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
         ],
         selectedStackSelectionCount: 2,
       })
@@ -153,6 +175,38 @@ describe('rightRailSelection', () => {
       })).toEqual({
         ok: false,
         reason: 'empty-selection',
+      })
+    })
+
+    it('rejects a stackable singleton group when no member is selected', () => {
+      const state = createSingletonStackState()
+
+      expect(buildRightRailMoveAction({
+        state,
+        anchorUnitId: 'pigs-5',
+        selectedUnitIds: [],
+        to: { q: 5, r: 8 },
+      })).toEqual({
+        ok: false,
+        reason: 'empty-selection',
+      })
+    })
+
+    it('accepts an explicitly selected stackable singleton member', () => {
+      const state = createSingletonStackState()
+
+      expect(buildRightRailMoveAction({
+        state,
+        anchorUnitId: 'pigs-5',
+        selectedUnitIds: ['pigs-5'],
+        to: { q: 5, r: 8 },
+      })).toEqual({
+        ok: true,
+        action: {
+          type: 'MOVE',
+          movers: ['pigs-5'],
+          to: { q: 5, r: 8 },
+        },
       })
     })
   })

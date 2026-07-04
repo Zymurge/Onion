@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
 import { StaleMatchStateError } from '#server/db/adapter'
 import type { DbAdapter, MatchRecord, PersistMatchProgressInput } from '#server/db/adapter'
+import logger from '#server/logger'
 
 /**
  * In-memory implementation of DbAdapter for testing and development.
@@ -70,6 +71,8 @@ export class InMemoryDb implements DbAdapter {
   async persistMatchProgress(input: PersistMatchProgressInput): Promise<void> {
     const m = this.matches.get(input.gameId)
     if (!m) throw new Error(`Match not found: ${input.gameId}`)
+
+    logger.debug({ gameId: input.gameId, expectedLastEventSeq: input.expectedLastEventSeq, phase: input.phase, turnNumber: input.turnNumber, events: input.events, state: input.state }, 'Persisting match progress (in-memory)')
 
     const currentLastSeq = m.events.at(-1)?.seq ?? 0
     if (currentLastSeq !== input.expectedLastEventSeq) {

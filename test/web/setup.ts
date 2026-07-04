@@ -4,6 +4,14 @@ import { JSDOM } from 'jsdom'
 
 import '@testing-library/jest-dom/vitest'
 
+function installGlobal<T>(key: string, value: T): void {
+	Object.defineProperty(globalThis, key, {
+		configurable: true,
+		value,
+		writable: true,
+	})
+}
+
 const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
@@ -15,16 +23,16 @@ if (typeof document === 'undefined') {
 	const globalScope = globalThis as any
 	const { window } = dom
 
-	globalScope.window = window
-	globalScope.document = window.document
-	globalScope.navigator = window.navigator
-	globalScope.HTMLElement = window.HTMLElement
-	globalScope.SVGElement = window.SVGElement
-	globalScope.Node = window.Node
-	globalScope.MutationObserver = window.MutationObserver
-	globalScope.getComputedStyle = window.getComputedStyle.bind(window)
-	globalScope.requestAnimationFrame = window.requestAnimationFrame.bind(window)
-	globalScope.cancelAnimationFrame = window.cancelAnimationFrame.bind(window)
+	installGlobal('window', window)
+	installGlobal('document', window.document)
+	installGlobal('navigator', window.navigator)
+	installGlobal('HTMLElement', window.HTMLElement)
+	installGlobal('SVGElement', window.SVGElement)
+	installGlobal('Node', window.Node)
+	installGlobal('MutationObserver', window.MutationObserver)
+	installGlobal('getComputedStyle', window.getComputedStyle.bind(window))
+	installGlobal('requestAnimationFrame', window.requestAnimationFrame?.bind(window) ?? ((callback: FrameRequestCallback) => setTimeout(() => callback(Date.now()), 0)))
+	installGlobal('cancelAnimationFrame', window.cancelAnimationFrame?.bind(window) ?? ((handle: number) => clearTimeout(handle)))
 }
 
 afterEach(() => {

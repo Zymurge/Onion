@@ -27,7 +27,6 @@ export type StackRosterGroupState = {
   unitType: string
   position: HexPos
   unitIds: string[]
-  units?: StackRosterUnitState[]
 }
 
 export type StackRosterState = {

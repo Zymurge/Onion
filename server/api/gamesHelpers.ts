@@ -9,11 +9,11 @@ import type { GameStateResponse, VictoryEscapeHex, VictoryObjectiveState } from 
 import { hexKey } from '#shared/hex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
-import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, TurnPhase } from '#shared/types/index'
+import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
 import { buildFriendlyName } from '#shared/unitDefinitions'
 import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot } from '#shared/stackNaming'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
-import { refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
+import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import type { EngineGameState } from '#server/engine/units'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
@@ -34,7 +34,7 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
   const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupKey, group.groupName]))
 
   for (const [groupKey, group] of rosterGroups) {
-    const unitIds = group.unitIds ?? group.units?.map((unit) => unit.id) ?? []
+		const unitIds = group.unitIds
     if (unitIds.length <= 1) {
       continue
     }
@@ -101,6 +101,52 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
       throw new Error(`Conflicting persisted stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${persistedGroupName}`)
     }
   }
+}
+
+function buildResponseStackRosterGroupsById(matchState: MatchRecord['state']): NonNullable<StackRosterState['groupsById']> {
+  return Object.fromEntries(
+    Object.entries(matchState.stackRoster?.groupsById ?? {}).flatMap(([groupId, group]) => {
+      if (!(getUnitDefinition(group.unitType)?.stackable === true)) {
+        return []
+      }
+
+		const unitIds = group.unitIds
+      if (unitIds.length === 0) {
+        return []
+      }
+
+      return [[
+        groupId,
+        {
+          groupName: group.groupName,
+          unitType: group.unitType,
+          position: group.position,
+          unitIds,
+        },
+      ]]
+    }),
+  )
+}
+
+function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state']): void {
+  const stackRoster: StackRosterState = { groupsById: buildResponseStackRosterGroupsById(matchState) }
+  const issues = validateStackRosterConsistency(matchState.defenders, stackRoster)
+  if (issues.length === 0) {
+    return
+  }
+
+  logger.debug(
+    {
+      issues,
+      stackRosterGroups: Object.keys(matchState.stackRoster?.groupsById ?? {}),
+      stackableDefenders: Object.values(matchState.defenders)
+        .filter((defender) => getUnitDefinition(defender.type)?.stackable === true)
+        .map((defender) => defender.id),
+    },
+    'Invalid stack roster detected during game state response validation',
+  )
+
+  throw new Error(`Invalid stack roster for response: ${issues.map((issue) => issue.message).join('; ')}`)
 }
 
 export type VictoryObjective =
@@ -662,6 +708,7 @@ export function logActionOutcome(
 
 export function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
   assertCanonicalStackGroupNames(match.state)
+  assertCanonicalStackRosterConsistency(match.state)
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
@@ -676,31 +723,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
           ? 'defender'
           : null
 
-  const stackRosterSource = match.state.stackRoster ?? { groupsById: {} }
-
-  const stackRosterGroupsById = Object.fromEntries(
-    Object.entries(stackRosterSource.groupsById ?? {}).flatMap(([groupId, group]) => {
-      const maxStacks = getUnitDefinition(group.unitType)?.abilities.maxStacks ?? 1
-      if (maxStacks <= 1) {
-        return []
-      }
-
-      const unitIds = group.unitIds ?? (group.units ?? []).map((unit) => unit.id)
-      if (unitIds.length === 0) {
-        return []
-      }
-
-      return [[
-        groupId,
-        {
-          groupName: group.groupName,
-          unitType: group.unitType,
-          position: group.position,
-          unitIds,
-        },
-      ]]
-    }),
-  )
+  const stackRosterGroupsById = buildResponseStackRosterGroupsById(match.state)
 
   const defenders = Object.fromEntries(
     Object.entries(match.state.defenders).map(([defenderId, defender]) => {

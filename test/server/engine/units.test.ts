@@ -272,6 +272,10 @@ describe('getUnitDefinition', () => {
       expect(weapons[0].attack).toBe(1)
       expect(weapons[0].range).toBe(1)
     })
+
+    it('is marked stackable', () => {
+      expect(getUnitDefinition('LittlePigs').stackable).toBe(true)
+    })
   })
 
   describe('Swamp (HQ)', () => {
@@ -293,6 +297,10 @@ describe('getUnitDefinition', () => {
 
     it('has a ramming profile', () => {
       expect(getUnitDefinition('Swamp').abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
+    })
+
+    it('is not marked stackable', () => {
+      expect(getUnitDefinition('Swamp').stackable).toBe(false)
     })
   })
 

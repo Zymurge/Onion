@@ -4,7 +4,7 @@ import type { GameState } from '#shared/types/index'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
 import { buildStackGroupKey } from '#shared/stackNaming'
 import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
-import { getAllUnitDefinitions } from '#shared/unitDefinitions'
+import { getAllUnitDefinitions, isUnitTypeStackable } from '#shared/unitDefinitions'
 import { createMoveGameState } from '#shared/moveFixtures'
 import { createGameClient, type GameClient, type GameSnapshot } from '#web/lib/gameClient'
 
@@ -343,19 +343,10 @@ export type UnitInput = {
 	friendlyName?: string
 }
 
-/** Minimal description of one member within a grouped defender stack. */
-export type GroupMemberInput = {
-	id: string
-	status?: UnitStatus
-	/** Explicit weapon list. Omit to get unit-definition defaults, all marked ready. */
-	weapons?: Weapon[]
-}
-
-/** Minimal description of a set of grouped defenders at the same hex (e.g. a LittlePigs stack). */
+/** Minimal description of a grouped defender stack. Members must already be listed in `units`. */
 export type GroupInput = {
-	type: string
-	pos: HexPos
-	units: GroupMemberInput[]
+	groupName: string
+	memberIds: string[]
 }
 
 /**
@@ -380,8 +371,8 @@ export type DefenderTree = {
  *
  * @param units  - Individual (non-grouped) defenders. Each needs at least `id`,
  *                 `type`, and `pos`; all other fields default to sensible values.
- * @param groups - Grouped defender stacks (stackable unit types sharing the same
- *                 hex, e.g. LittlePigs). Provide each member under `units`.
+ * @param groups - Grouped defender stacks. Provide the member defenders under
+ *                 `units`, then list their ids here alongside the stack name.
  *
  * The returned object contains `defenders`, `stackRoster`, and `stackNaming` and
  * can be spread directly into `authoritativeState`.
@@ -401,28 +392,12 @@ export function buildDefenderTree(opts: {
 			position: unit.pos,
 			status: unit.status ?? 'operational',
 			weapons: unit.weapons ?? getDefaultWeapons(unit.type),
-			squads: unit.squads,
+			squads: unit.squads ?? (isUnitTypeStackable(unit.type) ? 1 : undefined),
 			friendlyName: unit.friendlyName,
 		}
 	}
 
 	// ---- Grouped units ----
-	for (const group of groups) {
-		for (const member of group.units) {
-			defenders[member.id] = {
-				id: member.id,
-				type: group.type,
-				friendlyName: member.friendlyName,
-				position: group.pos,
-				status: member.status ?? 'operational',
-				weapons: member.weapons ?? getDefaultWeapons(group.type),
-				squads: 1,
-			}
-		}
-	}
-
-	// Build stack roster from all defender entries.
-	// buildStackRosterFromUnits only groups stackable types (maxStacks > 1).
 	const allSourceUnits = Object.values(defenders).map((d) => ({
 		id: d.id ?? '',
 		type: d.type,
@@ -433,24 +408,48 @@ export function buildDefenderTree(opts: {
 		friendlyName: d.friendlyName,
 	}))
 
-	// For groups input, also build explicit unitIds entries in the roster so
-	// the stack-member lookup in appViewHelpers can find members by id.
-	const stackRosterGroupsById: StackRosterState['groupsById'] = {}
+	const stackRoster = buildStackRosterFromUnits(allSourceUnits)
 	for (const group of groups) {
-		const groupId = buildStackGroupKey(group.type, group.pos)
-		stackRosterGroupsById[groupId] = {
-			groupName: group.type,
-			unitType: group.type,
-			position: group.pos,
-			unitIds: group.units.map((m) => m.id),
+		if (group.memberIds.length === 0) {
+			throw new Error(`Grouped defender stack '${group.groupName}' has no members`)
 		}
-	}
-	// Merge in any auto-derived groups for individually-listed stackable units
-	// (units input entries whose type has maxStacks > 1).
-	const autoRoster = buildStackRosterFromUnits(allSourceUnits)
-	const stackRoster: StackRosterState = {
-		groupsById: { ...autoRoster.groupsById, ...stackRosterGroupsById },
-		unitsById: { ...autoRoster.unitsById, ...Object.fromEntries(Object.values(defenders).map((defender) => [defender.id, defender])) },
+
+		const memberUnits = group.memberIds.map((memberId) => {
+			const member = defenders[memberId]
+			if (member === undefined) {
+				throw new Error(`Grouped defender stack '${group.groupName}' references missing defender '${memberId}'`)
+			}
+
+			return member
+		})
+
+		const firstMember = memberUnits[0]
+		if (!isUnitTypeStackable(firstMember.type)) {
+			throw new Error(`Grouped defender stack '${group.groupName}' must reference a stackable unit type, got '${firstMember.type}'`)
+		}
+
+		for (const member of memberUnits.slice(1)) {
+			if (member.type !== firstMember.type) {
+				throw new Error(`Grouped defender stack '${group.groupName}' mixes unit types '${firstMember.type}' and '${member.type}'`)
+			}
+
+			if (member.position.q !== firstMember.position.q || member.position.r !== firstMember.position.r) {
+				throw new Error(`Grouped defender stack '${group.groupName}' mixes positions for '${member.id}'`)
+			}
+		}
+
+		const groupKey = buildStackGroupKey(firstMember.type, firstMember.position)
+		stackRoster.groupsById[groupKey] = {
+			...(stackRoster.groupsById[groupKey] ?? {
+				unitType: firstMember.type,
+				position: firstMember.position,
+				unitIds: [],
+			}),
+			groupName: group.groupName,
+			unitType: firstMember.type,
+			position: firstMember.position,
+			unitIds: [...group.memberIds],
+		}
 	}
 
 	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster)

@@ -41,6 +41,8 @@ export interface UnitAbilities {
 export interface UnitDefinition {
   name: string
   type: UnitType
+  // Derived from abilities.maxStacks > 1.
+  stackable: boolean
   friendlyNameTemplate?: string
   movement: number
   defense: number

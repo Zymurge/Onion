@@ -101,6 +101,8 @@ describe('useBattlefieldDisplayState', () => {
 			})
 		)
 		expect(result.current.error).toMatch(/missing canonical stackRoster data/)
+		expect(result.current.error).toContain('stackableDefenders=pigs-1, pigs-2')
+		expect(result.current.error).toContain('stackRosterGroups=none')
 		// Game state should still be present
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
@@ -195,6 +197,70 @@ describe('useBattlefieldDisplayState', () => {
 			})
 		)
 		expect(String(result.current.error)).toMatch(/invalid stack roster/)
+		expect(String(result.current.error)).toContain('stackableDefenders=pigs-1, pigs-2')
+		expect(String(result.current.error)).toContain('stackRosterGroups=LittlePigs:3,9')
+		expect(result.current.clientSnapshot).toBeTruthy()
+	})
+
+	it('returns error if a stackable defender is missing from every roster group', () => {
+		const snapshot = createSnapshot()
+		snapshot.phase = 'DEFENDER_MOVE'
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.defenders['pigs-5'] = {
+			id: 'pigs-5',
+			type: 'LittlePigs',
+			friendlyName: 'Little Pigs 5',
+			position: { q: 4, r: 8 },
+			status: 'operational',
+			weapons: [{ id: 'pigs-5-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+		}
+		authoritativeState.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+			unitsById: {
+				'pigs-1': {
+					id: 'pigs-1',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+				'pigs-2': {
+					id: 'pigs-2',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 2',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+				'pigs-5': {
+					id: 'pigs-5',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 5',
+					position: { q: 4, r: 8 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-5-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+			},
+		}
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+
+		expect(String(result.current.error)).toContain('missing from stack roster groups')
+		expect(String(result.current.error)).toContain('pigs-5')
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
 
@@ -257,7 +323,7 @@ describe('useBattlefieldDisplayState', () => {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
-					unitIds: ['pigs-1'],
+					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
 		}

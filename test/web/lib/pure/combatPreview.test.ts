@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildCombatTargetOptions } from '#web/lib/combatPreview'
+import type { StackRosterUnitState } from '#shared/types/index'
 
 describe('buildCombatTargetOptions', () => {
 	it('builds shared combat preview data for ridgeline targets', () => {
+		const unitsById: Record<string, StackRosterUnitState> = {
+			'near-1': { id: 'near-1', friendlyName: 'Little Pigs 1', status: 'operational' },
+		}
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',
 			combatRangeHexKeys: new Set(['3,2']),
@@ -47,6 +51,27 @@ describe('buildCombatTargetOptions', () => {
 					},
 				],
 			},
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:3,2': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 3, r: 2 },
+						unitIds: ['near-1'],
+					},
+				},
+				unitsById,
+			},
+			stackNaming: {
+				groupsInUse: [
+					{
+						unitType: 'LittlePigs',
+						groupKey: 'LittlePigs:3,2',
+						groupName: 'Little Pigs group 1',
+					},
+				],
+				usedGroupNames: ['Little Pigs group 1'],
+			},
 			selectedUnitIds: ['weapon:main-1'],
 			selectedAttackStrength: 4,
 			selectedAttackGroupCount: 1,
@@ -60,16 +85,16 @@ describe('buildCombatTargetOptions', () => {
 		expect(options).toHaveLength(1)
 			expect(options[0]).toMatchObject({
 				id: 'near-1',
-				label: 'Little Pigs 1',
+				label: 'Little Pigs group 1',
 				defense: 2,
 				modifiers: expect.arrayContaining(['Ridgeline cover: +1 defense']),
 			})
 	})
 
 	it('collapses stacked Pigs targets into one canonical group card', () => {
-		const unitsById = {
-			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', status: 'operational', q: 3, r: 2 },
-			'pigs-2': { id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', status: 'operational', q: 3, r: 2 },
+		const unitsById: Record<string, StackRosterUnitState> = {
+			'pigs-1': { id: 'pigs-1', friendlyName: 'Little Pigs 1', status: 'operational' },
+			'pigs-2': { id: 'pigs-2', friendlyName: 'Little Pigs 2', status: 'operational' },
 		}
 
 		const options = buildCombatTargetOptions({
@@ -279,6 +304,33 @@ describe('buildCombatTargetOptions', () => {
 						individuallyTargetable: true,
 					},
 				],
+			},
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:1,1': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 1, r: 1 },
+						unitIds: ['pigs-1'],
+					},
+				},
+				unitsById: {
+					'pigs-1': {
+						id: 'pigs-1',
+						friendlyName: 'Little Pigs 1',
+						status: 'operational',
+					},
+				},
+			},
+			stackNaming: {
+				groupsInUse: [
+					{
+						unitType: 'LittlePigs',
+						groupKey: 'LittlePigs:1,1',
+						groupName: 'Little Pigs group 1',
+					},
+				],
+				usedGroupNames: ['Little Pigs group 1'],
 			},
 			selectedUnitIds: ['weapon:ap_1'],
 			selectedAttackStrength: 1,

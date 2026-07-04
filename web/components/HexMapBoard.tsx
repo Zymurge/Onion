@@ -10,7 +10,7 @@ import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
-import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
+import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 import logger from '../lib/logger'
 import './HexMapBoard.css'
 
@@ -18,8 +18,6 @@ import swampDestroyedSprite from '../assets/The Swamp - destroyed.png'
 import swampIntactSprite from '../assets/The Swamp - intact.png'
 
 type HexOccupant = BattlefieldUnit | BattlefieldOnionView
-
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
 type HexMapBoardProps = {
   scenarioMap: {
@@ -94,7 +92,7 @@ function getUnitMarkerText(occupant: HexOccupant, stackNaming?: StackNamingSnaps
 }
 
 function isStackableUnitType(unitType: string): boolean {
-  return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+  return isUnitTypeStackable(unitType)
 }
 
 function hasStackedOccupants(defenders: BattlefieldUnit[]): boolean {

@@ -15,6 +15,7 @@ function createStackRoster(groupsById: Record<string, StackRosterGroupState | un
 		groupsById: Object.fromEntries(
 			Object.entries(groupsById).filter((entry): entry is [string, StackRosterGroupState] => entry[1] !== undefined),
 		),
+		unitsById: {},
 	}
 }
 
@@ -37,23 +38,13 @@ describe('stack naming', () => {
 
 		expect(resolveStackLabel('LittlePigs', 'pigs-1', undefined, 3)).toBe('Little Pigs group')
 		expect(resolveStackLabel('LittlePigs', 'pigs-1', 'Little Pigs group 4', 3)).toBe('Little Pigs group 4')
-		expect(resolveStackLabel('LittlePigs', 'pigs-1', undefined, 1)).toBe('Little Pigs 1')
+		expect(resolveStackLabel('LittlePigs', 'pigs-1', undefined, 1)).toBe('Little Pigs group')
 		expect(engine.resolveGroupName('little-pigs:4,4', 'LittlePigs', 'pigs-1', undefined, 3)).toBe('Little Pigs group 1')
 		expect(engine.resolveGroupName('little-pigs:5,5', 'LittlePigs', 'pigs-2', undefined, 2)).toBe('Little Pigs group 2')
 		expect(engine.resolveGroupName('little-pigs:5,5', 'LittlePigs', 'pigs-2', undefined, 2)).toBe('Little Pigs group 2')
 
 		engine.releaseGroup('little-pigs:4,4')
 		expect(engine.resolveGroupName('little-pigs:6,6', 'LittlePigs', 'pigs-3', undefined, 4)).toBe('Little Pigs group 3')
-	})
-
-	it('upgrades legacy group names to ordinal form on load', () => {
-		const engine = createStackNamingEngine({
-			groupsInUse: [{ groupKey: 'little-pigs:4,4', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
-			usedGroupNames: ['Little Pigs group'],
-		})
-
-		expect(engine.resolveGroupName('little-pigs:4,4', 'LittlePigs', 'pigs-1', undefined, 3)).toBe('Little Pigs group 1')
-		expect(engine.resolveGroupName('little-pigs:5,5', 'LittlePigs', 'pigs-2', undefined, 2)).toBe('Little Pigs group 2')
 	})
 
 	it('reuses the same group name for the same key', () => {
@@ -90,29 +81,22 @@ describe('stack naming', () => {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 4 },
-						units: [
-							{ id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: [] },
-							{ id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: [] },
-						],
+						unitIds: ['pigs-1', 'pigs-2'],
 					},
 					'g-b': {
 						groupName: 'Little Pigs group 2',
 						unitType: 'LittlePigs',
 						position: { q: 5, r: 5 },
-						units: [
-							{ id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3', weapons: [] },
-							{ id: 'pigs-4', status: 'operational', friendlyName: 'Little Pigs 4', weapons: [] },
-						],
+						unitIds: ['pigs-3', 'pigs-4'],
 					},
 					'g-c': {
 						groupName: 'Big Bad Wolf group',
 						unitType: 'BigBadWolf',
 						position: { q: 7, r: 7 },
-						units: [
-							{ id: 'wolf-1', status: 'destroyed', friendlyName: 'Big Bad Wolf 1', weapons: [] },
-						],
+						unitIds: ['wolf-1'],
 					},
 				},
+				unitsById: {},
 			},
 			[
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', squads: 3, friendlyName: 'Little Pigs 1' },
@@ -134,11 +118,11 @@ describe('stack naming', () => {
 			groupName: 'Little Pigs group 2',
 			unitType: 'LittlePigs',
 		})
-		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group', 'Little Pigs group 1', 'Little Pigs group 2'])
 		expect(snapshot.groupsInUse.some((group) => group.groupKey === 'BigBadWolf:7,7')).toBe(false)
 	})
 
-	it('refreshes stack names from the authoritative roster and ignores singleton groups', () => {
+	it('refreshes stack names from the authoritative roster and keeps stackable singleton groups', () => {
 		const snapshot = refreshStackNamingSnapshotFromRoster(
 			{
 				groupsInUse: [{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
@@ -158,22 +142,35 @@ describe('stack naming', () => {
 						position: { q: 5, r: 4 },
 						unitIds: ['pigs-3'],
 					},
+					'g-c': {
+						groupName: 'Big Bad Wolf group',
+						unitType: 'BigBadWolf',
+						position: { q: 7, r: 4 },
+						unitIds: ['wolf-1'],
+					},
 				},
+				unitsById: {},
 			},
 			[
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
 				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2' },
 				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 3' },
+				{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 4 }, status: 'operational', friendlyName: 'Big Bad Wolf 1' },
 			],
 		)
 
-		expect(snapshot.groupsInUse).toHaveLength(1)
+		expect(snapshot.groupsInUse).toHaveLength(2)
 		expect(snapshot.groupsInUse[0]).toMatchObject({
 			groupKey: 'LittlePigs:4,4',
 			groupName: 'Little Pigs group 1',
 			unitType: 'LittlePigs',
 		})
-		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1'])
+		expect(snapshot.groupsInUse.find((group) => group.groupKey === 'LittlePigs:5,4')).toMatchObject({
+			groupKey: 'LittlePigs:5,4',
+			groupName: 'Little Pigs group 2',
+			unitType: 'LittlePigs',
+		})
+		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
 	})
 
 	it.each([
@@ -200,12 +197,14 @@ describe('stack naming', () => {
 					},
 				}),
 			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 1' },
 				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 2' },
 				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 3' },
 				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 4' },
 			],
 			expected: [
+				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
 				{ groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2' },
 				{ groupKey: 'LittlePigs:5,8', groupName: 'Little Pigs group 3' },
 			],
@@ -234,6 +233,7 @@ describe('stack naming', () => {
 				{ id: 'pigs-5', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 5' },
 			],
 			expected: [
+					{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
 				{ groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2' },
 			],
 		},
@@ -358,7 +358,7 @@ describe('stack naming', () => {
 	it('resolves stack labels from a seeded snapshot', () => {
 		const seeded = {
 			groupsInUse: [{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
-			usedGroupNames: ['Little Pigs group'],
+			usedGroupNames: ['Little Pigs group 1'],
 		}
 
 		expect(resolveStackLabelFromSnapshot(seeded, 'LittlePigs:4,4', 'LittlePigs', 'pigs-1', undefined, 3)).toBe('Little Pigs group 1')

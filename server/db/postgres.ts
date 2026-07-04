@@ -2,6 +2,7 @@ import type { Pool } from 'pg'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
 import { StaleMatchStateError } from '#server/db/adapter'
 import type { DbAdapter, MatchRecord, PersistMatchProgressInput } from '#server/db/adapter'
+import logger from '#server/logger'
 
 /**
  * PostgreSQL implementation of DbAdapter for production use.
@@ -142,6 +143,8 @@ export class PostgresDb implements DbAdapter {
 
   async persistMatchProgress(input: PersistMatchProgressInput): Promise<void> {
     const client = await this.pool.connect()
+
+    logger.debug({ gameId: input.gameId, expectedLastEventSeq: input.expectedLastEventSeq, phase: input.phase, turnNumber: input.turnNumber, events: input.events, state: input.state }, 'Persisting match progress (postgres)')
 
     try {
       await client.query('BEGIN')

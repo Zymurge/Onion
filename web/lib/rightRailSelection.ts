@@ -1,6 +1,7 @@
 import type { GameAction, StackActionSelection } from './gameClient'
 import { normalizeSelectionIds, parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId, type WebStackSourceState } from './appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
+import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
 
@@ -109,6 +110,7 @@ function buildValidatedStackSelection(
   }
 
   let availableUnitIds: string[]
+  const selectedUnit = state.defenders?.[anchorUnitId]
 
   try {
     availableUnitIds = uniqueIds(resolveBattlefieldStackSelectionIds(state, anchorUnitId))
@@ -116,7 +118,7 @@ function buildValidatedStackSelection(
     return { ok: false, reason: 'missing-stack-selection' }
   }
 
-  if (availableUnitIds.length <= 1) {
+  if (selectedUnit === undefined || !isUnitTypeStackable(selectedUnit.type)) {
     return { ok: false, reason: 'not-a-stack' }
   }
 

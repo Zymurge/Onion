@@ -514,6 +514,45 @@ describe('Integration Phases (Modular)', () => {
     assertStateMatches(after.state, ctx.expectedState)
   })
 
+  it('keeps the split-off LittlePigs destination group in both the move response and persisted game snapshot', async () => {
+    const ctx = await setupIntegrationGame('swamp-pigs-split-repro')
+    await runOnionMovePhase(ctx)
+    await runEndPhase(ctx, 'onion', 'ONION_MOVE', 'ONION_COMBAT')
+    await runOnionAttackPhase(ctx)
+    await runEndPhase(ctx, 'onion', 'ONION_COMBAT', 'DEFENDER_MOVE')
+
+    const before = await fetchGame(ctx, 'defender')
+    expect(before.phase).toBe('DEFENDER_MOVE')
+
+    const pigStackIds = Object.values(before.state.defenders as Record<string, any>)
+      .filter((defender: any) => defender.type === 'LittlePigs' && defender.position.q === 5 && defender.position.r === 7)
+      .map((defender: any) => defender.id)
+      .sort()
+
+    expect(pigStackIds).toEqual(['pigs-4', 'pigs-5'])
+
+    const moveCmd = { type: 'MOVE' as const, movers: ['pigs-4'], to: { q: 4, r: 8 } }
+    const moveRes = await ctx.app.inject({
+      method: 'POST',
+      url: `/games/${ctx.gameId}/actions`,
+      headers: { authorization: `Bearer ${ctx.defenderUser.token}` },
+      payload: moveCmd,
+    })
+
+    expect(moveRes.statusCode).toBe(200)
+    const moveBody = moveRes.json()
+    expect(moveBody.ok).toBe(true)
+
+    const moveStateGroup = moveBody.state?.stackRoster?.groupsById?.['LittlePigs:4,8']
+    expect(moveStateGroup).toBeTruthy()
+    expect(moveStateGroup?.unitIds).toEqual(['pigs-4'])
+
+    const after = await fetchGame(ctx, 'defender')
+    expect(after.phase).toBe('DEFENDER_MOVE')
+    expect(after.state.stackRoster?.groupsById?.['LittlePigs:4,8']).toBeTruthy()
+    expect(after.state.stackRoster?.groupsById?.['LittlePigs:4,8']?.unitIds).toEqual(['pigs-4'])
+  })
+
   it('DEFENDER_ATTACK phase test validates fire/combine behavior and expected state', async () => {
     const ctx = await setupIntegrationGame('phase-defender-attack')
     await runOnionMovePhase(ctx)

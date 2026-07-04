@@ -8,6 +8,7 @@ import { buildMoveCommitAction } from './commitActionBuilders'
 import { clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
 import type { TurnPhase } from '../../shared/types/index'
 import type { Mode } from './battlefieldView'
+import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 import logger from './logger'
 
 type UseBattlefieldInteractionStateOptions = {
@@ -24,6 +25,23 @@ type RamPrompt = {
   unitId: string
   to: { q: number; r: number }
   targetLabel: string
+}
+
+function summarizeStackState(
+  state: ServerGameSnapshot['authoritativeState'] | null | undefined,
+  unitId: string,
+  phase: TurnPhase | null = null,
+): string {
+  if (state === null || state === undefined) {
+    return `unitId=${unitId}, phase=${phase ?? 'unknown'}, snapshot=missing`
+  }
+
+  const stackableDefenderIds = Object.values(state.defenders)
+    .filter((defender) => isUnitTypeStackable(defender.type))
+    .map((defender) => defender.id)
+  const stackRosterGroupKeys = Object.keys(state.stackRoster?.groupsById ?? {})
+
+  return `unitId=${unitId}, phase=${phase ?? 'unknown'}, stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupKeys.join(', ') || 'none'}`
 }
 
 export type BattlefieldInteractionState = {
@@ -288,9 +306,10 @@ export function useBattlefieldInteractionState({
     })
 
     if (!moveAction.ok) {
+      const diagnosticSuffix = summarizeStackState(clientSnapshot?.authoritativeState, prompt.unitId, clientSnapshotPhase)
       setActionError(
         moveAction.reason === 'missing-stack-selection'
-          ? 'Loaded game snapshot is missing stack data for the selected unit.'
+          ? `Loaded game snapshot is missing stack data for the selected unit (${diagnosticSuffix}).`
           : 'Select at least one stack member before submitting the move.',
       )
       return
@@ -359,7 +378,8 @@ export function useBattlefieldInteractionState({
         })
 
         const errorMessage = error instanceof Error ? error.message : 'Failed to resolve stack selection.'
-        setActionError(errorMessage)
+        const diagnosticSuffix = summarizeStackState(clientSnapshot?.authoritativeState, selectionOwnerUnitId, clientSnapshotPhase)
+        setActionError(`${errorMessage} (${diagnosticSuffix})`)
         return
       }
     }

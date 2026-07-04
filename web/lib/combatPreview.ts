@@ -56,29 +56,6 @@ function isStackableUnitType(unitType: string): boolean {
 	return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
 }
 
-function hasStackedDefenders(displayedDefenders: ReadonlyArray<BattlefieldUnit>): boolean {
-	const stackedCountsByPosition = new Map<string, number>()
-
-	for (const unit of displayedDefenders) {
-		if (!isStackableUnitType(unit.type)) {
-			continue
-		}
-
-		if ((unit.squads ?? 1) > 1) {
-			return true
-		}
-
-		const groupKey = `${unit.type}:${unit.q},${unit.r}`
-		const nextCount = (stackedCountsByPosition.get(groupKey) ?? 0) + 1
-		stackedCountsByPosition.set(groupKey, nextCount)
-		if (nextCount > 1) {
-			return true
-		}
-	}
-
-	return false
-}
-
 function getStackedDefenderKeys(displayedDefenders: ReadonlyArray<BattlefieldUnit>): Set<string> {
 	const stackedCountsByPosition = new Map<string, number>()
 	const stackedKeys = new Set<string>()

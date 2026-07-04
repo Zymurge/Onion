@@ -87,11 +87,11 @@ export function getStopOnOccupiedHexFailure(input: {
 		return 'occupied-by-onion'
 	}
 
-	if (movingUnitType !== 'LittlePigs') {
+	if (getUnitDefinition(movingUnitType)?.stackable !== true) {
 		return 'occupied'
 	}
 
-	if (!occupants.every((occupant) => occupant.role === 'defender' && occupant.unitType === 'LittlePigs')) {
+	if (!occupants.every((occupant) => occupant.role === 'defender' && occupant.unitType === movingUnitType)) {
 		return 'mixed-stack'
 	}
 

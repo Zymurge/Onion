@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type Mode } from '../lib/battlefieldView'
 import {
   buildStackMemberSelectionId,
@@ -19,6 +20,7 @@ import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState, Weapon } from '../../shared/types/index'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import logger from '../lib/logger'
+import { ErrorOverlay } from './ErrorOverlay'
 
 type BattlefieldLeftRailProps = {
   activeCombatRole: 'onion' | 'defender' | null
@@ -76,6 +78,32 @@ type DefenderMoveGroup = {
   members: DefenderMoveGroupMember[]
   moveAllowance: number
   selectedCount: number
+}
+
+function buildRenderErrorMessage(
+  error: unknown,
+  context: {
+    activeCombatRole: 'onion' | 'defender' | null
+    activeMode: Mode
+    activeSelectedUnitIds: readonly string[]
+    displayedDefenders: ReadonlyArray<BattlefieldUnit>
+    isCombatPhase: boolean
+    isMovementPhase: boolean
+    stackRoster: StackRosterState | undefined
+  },
+): string {
+  const errorMessage = error instanceof Error ? error.message : 'Unexpected render error'
+  const detailMatch = /grouped unit ([^\s]+)/.exec(errorMessage)
+  const selectedUnitId = detailMatch?.[1] ?? 'unknown'
+  const displayedDefenderIds = context.displayedDefenders.map((unit) => unit.id).join(', ') || 'none'
+  const rosterGroupKeys = Object.keys(context.stackRoster?.groupsById ?? {}).join(', ') || 'none'
+  const phase = context.isCombatPhase
+    ? 'combat'
+    : context.isMovementPhase
+      ? 'movement'
+      : 'locked'
+
+  return `${errorMessage} (selectedUnitId=${selectedUnitId}, phase=${phase}, activeRole=${context.activeCombatRole ?? 'none'}, mode=${context.activeMode}, selectedUnitIds=${context.activeSelectedUnitIds.join(', ') || 'none'}, displayedDefenders=${displayedDefenderIds}, stackRosterGroups=${rosterGroupKeys})`
 }
 
 function buildCombatGroupFromUnits(
@@ -323,6 +351,38 @@ export function BattlefieldLeftRail({
 }: BattlefieldLeftRailProps) {
   const viewerRole = activeRole ?? activeCombatRole ?? 'defender'
   const viewerActivity = activeTurnActive ? 'active' : 'inactive'
+  const [dismissedRenderError, setDismissedRenderError] = useState<string | null>(null)
+
+  let renderError: string | null = null
+  let defenderCombatGroups: DefenderCombatGroup[] = []
+  let defenderMoveGroups: DefenderMoveGroup[] = []
+
+  try {
+    defenderCombatGroups = activeCombatRole === 'defender' && isCombatPhase
+      ? buildDefenderCombatGroups(displayedDefenders, activeMode, activeSelectedUnitIds, stackNaming, stackRoster)
+      : []
+    defenderMoveGroups = activeCombatRole === 'defender' && isMovementPhase
+      ? buildDefenderMoveGroups(displayedDefenders, activeSelectedUnitIds, stackNaming, stackRoster)
+      : []
+  } catch (error) {
+    renderError = buildRenderErrorMessage(error, {
+      activeCombatRole,
+      activeMode,
+      activeSelectedUnitIds,
+      displayedDefenders,
+      isCombatPhase,
+      isMovementPhase,
+      stackRoster,
+    })
+    logger.error(
+      {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : null,
+        renderError,
+      },
+      'Battlefield left rail render mismatch',
+    )
+  }
 
   function routeSourceSelection(request: InteractionRoutingRequest, unitId: string, additive: boolean) {
     const decision = routeInteraction(request, (trace) => {
@@ -338,15 +398,17 @@ export function BattlefieldLeftRail({
     onSelectUnit(unitId, additive || decision.intent === 'toggle-actor')
   }
 
-  const defenderCombatGroups = activeCombatRole === 'defender' && isCombatPhase
-    ? buildDefenderCombatGroups(displayedDefenders, activeMode, activeSelectedUnitIds, stackNaming, stackRoster)
-    : []
-  const defenderMoveGroups = activeCombatRole === 'defender' && isMovementPhase
-    ? buildDefenderMoveGroups(displayedDefenders, activeSelectedUnitIds, stackNaming, stackRoster)
-    : []
+  const visibleRenderError = renderError !== null && renderError !== dismissedRenderError ? renderError : null
 
   return (
     <aside className="panel rail rail-left">
+      {visibleRenderError !== null ? (
+        <ErrorOverlay
+          message={visibleRenderError}
+          placement="app"
+          onDismiss={() => setDismissedRenderError(visibleRenderError)}
+        />
+      ) : null}
       {isCombatPhase ? (
         <section className="section-block combat-scaffold">
           <div className="card-head">

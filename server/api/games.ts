@@ -18,10 +18,12 @@ import {
   buildEngineState,
   buildGameStateResponse,
   buildMoveEvents,
+  buildVictoryObjectiveStates,
   computeWinnerUserId,
   buildMovementRemainingByUnit,
   extractUserId,
   extractUserIdFromAuth,
+  getScenarioEscapeHexes,
   getScenarioMapSnapshot,
   logActionOutcome,
   logSentEvents,
@@ -74,13 +76,19 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       return
     }
 
+    logger.debug({ gameId, eventCount: events.length, eventTypes: events.map((e) => e.type), events }, 'Broadcasting game events')
     for (const event of events) {
       const payload: WebSocketServerEventMessage = { kind: 'EVENT', event }
       const serialized = serializeWsMessage(payload)
 
       for (const socket of sockets) {
         if (socket.readyState === 1) {
-          socket.send(serialized)
+          try {
+            socket.send(serialized)
+            logger.debug({ gameId, serialized, eventSeq: event.seq }, 'WS EVENT sent')
+          } catch (err) {
+            logger.warn({ gameId, err, eventSeq: event.seq }, 'Failed to send WS event')
+          }
         }
       }
     }
@@ -343,7 +351,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
 
       // Type assertion for scenarioSnapshot
       logger.debug({ gameId: match.gameId }, 'Game state fetched')
-      return reply.send(buildGameStateResponse(match, userId))
+      const snapshot = buildGameStateResponse(match, userId)
+      logger.debug({ gameId: match.gameId, snapshot }, 'Game state response')
+      return reply.send(snapshot)
     } catch (err) {
       // Structured, non-duplicative error logging by level
       const errorInfo = {
@@ -428,7 +438,13 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             const events = await db.getEvents(gameId, parsed.afterSeq)
             for (const event of events) {
               const eventMessage: WebSocketServerEventMessage = { kind: 'EVENT', event }
-              socket.send(serializeWsMessage(eventMessage))
+              try {
+                const serialized = serializeWsMessage(eventMessage)
+                logger.debug({ gameId, serialized, eventSeq: event.seq }, 'WS RESUME EVENT sent')
+                socket.send(serialized)
+              } catch (err) {
+                logger.warn({ gameId, err, eventSeq: event.seq }, 'Failed to send WS RESUME EVENT')
+              }
             }
           } catch (err) {
             const errorMessage: WebSocketServerErrorMessage = {
@@ -459,7 +475,13 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             kind: 'STATE_SNAPSHOT',
             snapshot: buildGameStateResponse(match, userId),
           }
-          socket.send(serializeWsMessage(snapshotMessage))
+          try {
+            const serialized = serializeWsMessage(snapshotMessage)
+            logger.debug({ gameId, serialized }, 'WS STATE_SNAPSHOT sent')
+            socket.send(serialized)
+          } catch (err) {
+            logger.warn({ gameId, err }, 'Failed to send WS STATE_SNAPSHOT')
+          }
         } catch (err) {
           const errorMessage: WebSocketServerErrorMessage = {
             kind: 'ERROR',
@@ -549,6 +571,26 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       let currentState = match.state
       const expectedLastEventSeq = match.events.at(-1)?.seq ?? 0
       const causeId = String(req.id)
+      const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+      const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+      const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
+      const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
+      function buildActionResponsePayload(state: GameState, phase: typeof match.phase, turnNumber: number, eventSeq: number, events: EventEnvelope[]) {
+        return {
+          ok: true,
+          seq: eventSeq,
+          events,
+          state,
+          movementRemainingByUnit: buildMovementRemainingByUnit(state, phase),
+          turnNumber,
+          eventSeq,
+          phase,
+          scenarioName,
+          scenarioMap,
+          victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber),
+          escapeHexes,
+        }
+      }
 
       if (command.type === 'END_PHASE') {
         logger.info({ gameId: match.gameId, phase: match.phase }, 'Advancing phase')
@@ -571,7 +613,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
-        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, result.phase), turnNumber, eventSeq })
+        const responsePayload = buildActionResponsePayload(currentState, result.phase, turnNumber, eventSeq, newEvents)
+        logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (END_PHASE)')
+        return reply.send(responsePayload)
       } else if (command.type === 'MOVE') {
         const moveUnitIds = [...new Set(command.movers)]
         if (moveUnitIds.length === 0) {
@@ -580,8 +624,6 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }
 
         logger.info({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Processing MOVE command')
-        const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
-        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
         const moveEvents: EventEnvelope[] = []
@@ -659,11 +701,11 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Move executed')
-        return reply.send({ ok: true, seq: newEvents[0].seq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
+        const responsePayload = buildActionResponsePayload(currentState, match.phase, turnNumber, eventSeq, newEvents)
+        logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (MOVE)')
+        return reply.send(responsePayload)
       } else if (command.type === 'FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
-        const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
-        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
         const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
         const validation = validateCombatAction(map, state, command)
@@ -713,7 +755,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
-        return reply.send({ ok: true, seq: eventSeq, events: newEvents, state: currentState, movementRemainingByUnit: buildMovementRemainingByUnit(currentState, match.phase), turnNumber, eventSeq })
+        const responsePayload = buildActionResponsePayload(currentState, match.phase, turnNumber, eventSeq, newEvents)
+        logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (FIRE)')
+        return reply.send(responsePayload)
       }
     } catch (err) {
       if (isStaleMatchStateError(err)) {

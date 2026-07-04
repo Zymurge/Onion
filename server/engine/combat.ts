@@ -181,7 +181,7 @@ function buildCombatCalculatorInput(
     } else {
       const group = state.stackRoster?.groupsById?.[target.id]
       if (group) {
-        const unitIds = group.unitIds ?? (group.units ?? []).map((u: any) => u.id)
+        const unitIds = group.unitIds
         units[target.id] = {
           type: group.unitType,
           squads: unitIds.length,
@@ -392,7 +392,7 @@ export function validateCombatAction(
 
       // Build a synthetic target representation for the stack group using
       // defender member data when available.
-      const memberIds = group.unitIds ?? (group.units ?? []).map((u: any) => u.id)
+      const memberIds = group.unitIds
       const members = memberIds.map((id) => state.defenders[id]).filter(Boolean)
       const allDestroyed = members.length > 0 && members.every((m: any) => m.status === 'destroyed')
       const squads = memberIds.length

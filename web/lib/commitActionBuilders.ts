@@ -5,7 +5,7 @@ import {
   type WebStackSourceState,
 } from './appViewHelpers'
 import { buildRightRailCombatSubmissionAction, buildRightRailMoveSubmissionAction } from './rightRailSelection'
-import { getAllUnitDefinitions } from '../../shared/unitDefinitions'
+import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 
 type CommitActionFailureReason = 'empty-selection' | 'missing-target' | 'missing-stack-selection'
 
@@ -31,8 +31,6 @@ type CombatCommitActionInput = {
 
 type EndPhaseCommitAction = Extract<GameAction, { type: 'end-phase' }>
 
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
-
 function resolveUnitType(state: WebStackSourceState, unitId: string | null): string | null {
   if (unitId === null) {
     return null
@@ -46,11 +44,7 @@ function resolveUnitType(state: WebStackSourceState, unitId: string | null): str
 }
 
 function isStackableUnitType(unitType: string | null): boolean {
-  if (unitType === null) {
-    return false
-  }
-
-  return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+  return isUnitTypeStackable(unitType)
 }
 
 function buildMovePayload(

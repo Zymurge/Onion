@@ -12,6 +12,7 @@ import type { GameMap } from '#server/engine/map'
 import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
 import { calculateRamming as calculateSharedRamming, resolveRammingOutcome } from '#shared/rammingCalculator'
 import { spendUnitMovement } from '#shared/unitMovement'
+import { isUnitTypeStackable } from '#shared/unitDefinitions'
 import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
@@ -176,11 +177,12 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
   const sourceRemainingUnitCount = Math.max(sourceGroupUnitCount - 1, 0)
   const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? 0
   const destinationResultUnitCount = destinationGroupUnitCount + 1
+  const isStackableDestination = isUnitTypeStackable(movedDefender.type)
   const persistedDestinationName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
   const shouldAllocateFreshDestinationName =
-    destinationResultUnitCount > 1
+    isStackableDestination
     && persistedDestinationName === undefined
-    && destinationGroupUnitCount === 1
+    && destinationGroupUnitCount <= 1
     && (
       destinationGroup?.groupName === undefined
       || sourceGroup?.groupName !== destinationGroup.groupName
@@ -228,12 +230,29 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     'Selected destination stack name for move',
   )
 
-  state.stackRoster = relocateStackRosterUnits(state.stackRoster, {
+  const relocateInput = {
     movedUnitIds: [movedUnitId],
     unitType: movedDefender.type,
     destinationPosition: movedDefender.position,
     destinationGroupName: movedGroupName,
-  })
+  }
+
+  // Debug: record roster state before relocation and the relocate input
+  try {
+    logger.debug({ movedUnitId, relocateInput, beforeGroups: Object.keys(state.stackRoster?.groupsById ?? {}) }, 'RelocateStackRosterUnits - before')
+  } catch (err) {
+    // swallow logging errors
+    logger.debug({ movedUnitId, err: String(err) }, 'RelocateStackRosterUnits - before(log-failed)')
+  }
+
+  state.stackRoster = relocateStackRosterUnits(state.stackRoster, relocateInput)
+
+  // Debug: record roster state after relocation for diagnosis
+  try {
+    logger.debug({ movedUnitId, relocateInput, afterGroups: Object.keys(state.stackRoster?.groupsById ?? {}), afterGroupsDetail: state.stackRoster?.groupsById }, 'RelocateStackRosterUnits - after')
+  } catch (err) {
+    logger.debug({ movedUnitId, err: String(err) }, 'RelocateStackRosterUnits - after(log-failed)')
+  }
 
   state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming)
 

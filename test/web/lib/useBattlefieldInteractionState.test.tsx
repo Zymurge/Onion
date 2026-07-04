@@ -454,7 +454,11 @@ describe('useBattlefieldInteractionState', () => {
 			result.current.handleSelectUnit('pigs-1')
 		})
 
-		expect(result.current.actionError).toBe('Missing stackRoster for grouped unit pigs-1')
+		expect(result.current.actionError).toMatch(/Missing stackRoster for grouped unit pigs-1/)
+		expect(result.current.actionError).toContain('unitId=pigs-1')
+		expect(result.current.actionError).toContain('phase=DEFENDER_MOVE')
+		expect(result.current.actionError).toContain('stackableDefenders=pigs-1, pigs-2')
+		expect(result.current.actionError).toContain('stackRosterGroups=none')
 		expect(result.current.selectedUnitIds).toEqual(['def-1'])
 	})
 

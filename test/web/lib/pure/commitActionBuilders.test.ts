@@ -35,6 +35,25 @@ function createBrokenStackState() {
   }
 }
 
+function createSingletonStackState() {
+  return {
+    defenders: {
+      'pigs-5': { id: 'pigs-5', type: 'LittlePigs', position: { q: 4, r: 8 }, status: 'operational' },
+      'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+    },
+    stackRoster: {
+      groupsById: {
+        'LittlePigs:4,8': {
+          groupName: 'Little Pigs group 2',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 8 },
+          unitIds: ['pigs-5'],
+        },
+      },
+    },
+  }
+}
+
 describe('commitActionBuilders', () => {
   describe('buildEndPhaseCommitAction', () => {
     it('returns the end-phase action directly', () => {
@@ -84,14 +103,15 @@ describe('commitActionBuilders', () => {
       })
     })
 
-    it('rejects empty stack submissions instead of defaulting back to a direct move', () => {
-      const state = createStackState()
-
+    it.each([
+      ['multi-unit stack', createStackState(), 'pigs-1', { q: 5, r: 4 }],
+      ['singleton stack', createSingletonStackState(), 'pigs-5', { q: 5, r: 8 }],
+    ])('rejects empty stack submissions for %s instead of defaulting back to a direct move', (_, state, unitId, to) => {
       expect(buildMoveCommitAction({
         state,
-        unitId: 'pigs-1',
+        unitId,
         selectedUnitIds: [],
-        to: { q: 5, r: 4 },
+        to,
       })).toEqual({
         ok: false,
         reason: 'empty-selection',
@@ -111,6 +131,7 @@ describe('commitActionBuilders', () => {
         reason: 'missing-stack-selection',
       })
     })
+
   })
 
   describe('buildCombatCommitAction', () => {

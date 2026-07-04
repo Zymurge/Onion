@@ -11,7 +11,7 @@ services:
       PORT: 3000
       NODE_ENV: production
       SCENARIOS_DIR: /app/scenarios
-      LOG_LEVEL: ${LOG_LEVEL:-warn}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
     depends_on:
       db:
         condition: service_healthy
@@ -19,10 +19,13 @@ services:
 
   db:
     image: postgres:16-alpine
+    container_name: onion-db
     environment:
       POSTGRES_USER: onion
       POSTGRES_PASSWORD: onionpass
       POSTGRES_DB: onion
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./server/db/migrations:/docker-entrypoint-initdb.d

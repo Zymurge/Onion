@@ -1,6 +1,8 @@
 import type { TargetRules, Weapon } from './types/index.js'
 import type { UnitDefinition, UnitType } from './engineTypes.js'
 
+type UnitDefinitionSource = Omit<UnitDefinition, 'stackable'>
+
 function makeWeapon(
   id: string,
   name: string,
@@ -32,7 +34,7 @@ export function buildFriendlyName(template: string, id: string): string {
   return template.replace(FRIENDLY_NAME_TEMPLATE_TOKEN, ordinal === null ? '' : String(ordinal)).replace(/\s+/g, ' ').trim()
 }
 
-const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
+const UNIT_DEFINITION_SOURCES: Record<UnitType, UnitDefinitionSource> = {
   Puss: {
     name: 'Puss',
     type: 'Puss',
@@ -155,6 +157,24 @@ const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 }
 
+const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = Object.fromEntries(
+  Object.entries(UNIT_DEFINITION_SOURCES).map(([unitType, definition]) => [
+    unitType,
+    {
+      ...definition,
+      stackable: definition.abilities.maxStacks > 1,
+    },
+  ]),
+) as Record<UnitType, UnitDefinition>
+
 export function getAllUnitDefinitions(): Record<UnitType, UnitDefinition> {
   return { ...UNIT_DEFINITIONS }
+}
+
+export function isUnitTypeStackable(unitType: string | null | undefined): boolean {
+  if (unitType === null || unitType === undefined) {
+    return false
+  }
+
+  return UNIT_DEFINITIONS[unitType as UnitType]?.stackable === true
 }

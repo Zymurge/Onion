@@ -4,21 +4,19 @@ import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView'
 import type { ServerGameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
-import { buildFriendlyName, getAllUnitDefinitions } from '../../shared/unitDefinitions'
+import { buildFriendlyName, isUnitTypeStackable } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
 import { resolveSelectionName } from './resolveSelectionName'
 
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
-
 function isStackableUnitType(unitType: string | undefined): boolean {
   if (unitType === undefined) {
     return false
   }
 
-  return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+  return isUnitTypeStackable(unitType)
 }
 
 export function resolveBattlefieldUnitName(unitType: string, unitId: string | undefined, friendlyName?: string): string {
@@ -103,11 +101,10 @@ export function resolveBattlefieldFriendlyName(
 ): string {
   const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
   const rosterGroup = stackRoster === undefined ? null : buildStackRosterIndex(stackRoster).getUnitGroup(unit.id)
-  const hasGroupedRoster = rosterGroup !== null && rosterGroup.unitIds.length > 1
+  const isStackable = isStackableUnitType(unit.type)
   const namingGroup = stackNaming?.groupsInUse.find((entry) => entry.groupKey === groupKey) ?? null
-  const hasGroupedNaming = namingGroup !== null
 
-  if (hasGroupedRoster || hasGroupedNaming) {
+  if (isStackable) {
     if (stackRoster === undefined) {
       throw new Error(`Missing stackRoster for grouped unit ${unit.id}`)
     }
@@ -116,11 +113,11 @@ export function resolveBattlefieldFriendlyName(
       throw new Error(`Missing stackNaming for grouped unit ${unit.id}`)
     }
 
-    if (!hasGroupedRoster) {
+    if (rosterGroup === null) {
       throw new Error(`Missing roster group for grouped unit ${unit.id} at ${groupKey}`)
     }
 
-    if (!hasGroupedNaming) {
+    if (namingGroup === null) {
       throw new Error(`Missing stackNaming entry for grouped unit ${unit.id} at ${groupKey}`)
     }
 

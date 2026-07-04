@@ -249,6 +249,63 @@ describe('BattlefieldLeftRail', () => {
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).not.toContain('Little Pigs group 1')
   })
 
+  it('shows a diagnostic error overlay instead of crashing when grouped move data is missing', () => {
+    const displayedDefenders: BattlefieldUnit[] = [
+      {
+        id: 'pigs-5',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 5',
+        status: 'operational',
+        q: 4,
+        r: 8,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+    ]
+    const onion: BattlefieldOnionView = {
+      id: 'onion-1',
+      type: 'TheOnion',
+      q: 0,
+      r: 0,
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weapons: 'main: ready',
+      weaponDetails: [],
+    }
+
+    render(
+      <BattlefieldLeftRail
+        activeCombatRole="defender"
+        activeRole="defender"
+        activeTurnActive={true}
+        activeMode="fire"
+        activeSelectedUnitIds={[]}
+        displayedDefenders={displayedDefenders}
+        displayedOnion={onion}
+        isCombatPhase={false}
+        isMovementPhase
+        isSelectionLocked={false}
+        stacksExpandable
+        onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
+        readyWeaponDetails={[]}
+        selectedCombatAttackLabel="Attack 0"
+        stackNaming={{ groupsInUse: [], usedGroupNames: [] } as any}
+        stackRoster={undefined}
+        onSelectUnit={vi.fn()}
+      />,
+    )
+
+    const alert = screen.getByRole('alert')
+    expect(alert.textContent).toContain('Missing stackRoster for grouped unit pigs-5')
+    expect(alert.textContent).toContain('selectedUnitId=pigs-5')
+    expect(alert.textContent).toContain('stackRosterGroups=none')
+  })
+
   it('renders Little Pigs as a grouped move card with individually toggle-able members', () => {
     const onSelectUnit = vi.fn()
     const displayedDefenders: BattlefieldUnit[] = [

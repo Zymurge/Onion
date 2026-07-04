@@ -12,7 +12,6 @@ import { requestJson, type ApiFailure, type EventsResponse, type GameStateRespon
 import type { GameState, TurnPhase } from '../../shared/types/index'
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
-import { buildStackRosterIndex } from '../../shared/stackRoster'
 
 type ActionSuccessResponse = {
 	ok: true
@@ -22,9 +21,12 @@ type ActionSuccessResponse = {
 	movementRemainingByUnit: Record<string, number>
 	turnNumber: number
 	eventSeq: number
+	phase: TurnPhase
+	scenarioName: string
+	scenarioMap: NonNullable<ServerGameSnapshot['scenarioMap']>
+	victoryObjectives: NonNullable<ServerGameSnapshot['victoryObjectives']>
+	escapeHexes?: ServerGameSnapshot['escapeHexes']
 	winner?: GameStateResponse['winner']
-	victoryObjectives?: GameStateResponse['victoryObjectives']
-	escapeHexes?: GameStateResponse['escapeHexes']
 }
 
 type HttpGameClientOptions = {
@@ -75,7 +77,11 @@ function requireStackRoster(response: GameStateResponse) {
 		throw new GameClientSeamError('transport', 'Missing stack roster in game state response')
 	}
 
-	buildStackRosterIndex(response.state.stackRoster)
+	for (const [groupId, group] of Object.entries(response.state.stackRoster.groupsById)) {
+		if (!Array.isArray(group.unitIds)) {
+			throw new GameClientSeamError('transport', `Invalid stack roster group shape for ${groupId}`)
+		}
+	}
 	return response.state.stackRoster
 }
 
@@ -89,10 +95,6 @@ function buildError(result: ApiFailure): GameClientSeamError {
 	}
 
 	return new GameClientSeamError('transport', result.message)
-}
-
-function buildUnsupportedActionError(actionType: GameAction['type']): GameClientSeamError {
-	return new GameClientSeamError('transport', `Action '${actionType}' is not supported by the HTTP game transport`)
 }
 
 function mapServerSnapshot(
@@ -123,25 +125,22 @@ function mapServerSnapshot(
 
 function mapActionSnapshot(
 	response: ActionSuccessResponse,
-	currentSnapshot: ServerGameSnapshot,
 	gameId: number,
 ): ServerGameSnapshot {
 	const responseEvents = Array.isArray(response.events) ? response.events : []
-	const phaseChange = [...responseEvents].reverse().find((event) => event.type === 'PHASE_CHANGED')
-	const nextPhase = typeof phaseChange?.to === 'string' ? normalizePhase(phaseChange.to) : currentSnapshot.phase
 
 	return {
 		gameId,
-		phase: nextPhase,
-		winner: response.winner ?? currentSnapshot.winner,
-		scenarioName: currentSnapshot.scenarioName,
-		turnNumber: typeof response.turnNumber === 'number' ? response.turnNumber : currentSnapshot.turnNumber,
-		lastEventSeq: typeof response.eventSeq === 'number' ? response.eventSeq : typeof response.seq === 'number' ? response.seq : currentSnapshot.lastEventSeq,
-		authoritativeState: response.state ?? currentSnapshot.authoritativeState,
-		movementRemainingByUnit: response.movementRemainingByUnit ?? currentSnapshot.movementRemainingByUnit,
-		scenarioMap: currentSnapshot.scenarioMap,
-		victoryObjectives: response.victoryObjectives ?? currentSnapshot.victoryObjectives,
-		escapeHexes: response.escapeHexes ?? currentSnapshot.escapeHexes,
+		phase: response.phase,
+		winner: response.winner,
+		scenarioName: response.scenarioName,
+		turnNumber: response.turnNumber,
+		lastEventSeq: response.eventSeq,
+		authoritativeState: response.state,
+		movementRemainingByUnit: response.movementRemainingByUnit,
+		scenarioMap: response.scenarioMap,
+		victoryObjectives: response.victoryObjectives,
+		escapeHexes: response.escapeHexes,
 		combatResolution: buildCombatResolution(responseEvents),
 		ramResolution: buildRamResolution(responseEvents),
 	}
@@ -153,8 +152,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 	const fetchImpl = options.fetchImpl ?? fetch
 	const baseUrl = trimTrailingSlash(options.baseUrl)
 	let currentSnapshot: ServerGameSnapshot | null = null
-
-	const requestTransport: GameRequestTransport = {
+	const requestTransport = {
 		async getState(gameId: number) {
 			const result = await requestJson<GameStateResponse>({
 				baseUrl,
@@ -162,6 +160,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 				method: 'GET',
 				token: options.token,
 				fetchImpl,
+				captureRawResponseBody: true,
 			})
 
 			if (!result.ok) {
@@ -173,20 +172,16 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 			return envelope
 		},
 		async submitAction(gameId: number, action: GameAction) {
-			switch (action.type) {
-				case 'select-unit':
-				case 'set-mode':
-					throw buildUnsupportedActionError(action.type)
-				default:
-					break
-			}
-
 			if (currentSnapshot === null) {
 				throw new GameClientSeamError('transport', 'Cannot submit action before loading game state')
 			}
 
-			if (action.type === 'end-phase') {
-				const result = await requestJson<ActionSuccessResponse>({
+			switch (action.type) {
+				case 'select-unit':
+				case 'set-mode':
+					throw new GameClientSeamError('transport', `Action '${action.type}' is not supported by the HTTP game transport`)
+				case 'end-phase': {
+					const result = await requestJson<ActionSuccessResponse>({
 					baseUrl,
 					path: `games/${gameId}/actions`,
 					method: 'POST',
@@ -199,21 +194,21 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					throw buildError(result)
 				}
 
-				currentSnapshot = mapActionSnapshot(result.data, currentSnapshot, gameId)
+				currentSnapshot = mapActionSnapshot(result.data, gameId)
 				return currentSnapshot
-			}
-
-			if (action.type === 'MOVE') {
-				const result = await requestJson<ActionSuccessResponse>({
+				}
+				case 'MOVE': {
+					const moveAction = action
+					const result = await requestJson<ActionSuccessResponse>({
 					baseUrl,
 					path: `games/${gameId}/actions`,
 					method: 'POST',
 					token: options.token,
 					body: {
 						type: 'MOVE',
-						movers: action.movers,
-						to: action.to,
-						...(action.attemptRam === undefined ? {} : { attemptRam: action.attemptRam }),
+						movers: moveAction.movers,
+						to: moveAction.to,
+						...(moveAction.attemptRam === undefined ? {} : { attemptRam: moveAction.attemptRam }),
 					},
 					fetchImpl,
 				})
@@ -222,20 +217,20 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					throw buildError(result)
 				}
 
-				currentSnapshot = mapActionSnapshot(result.data, currentSnapshot, gameId)
+				currentSnapshot = mapActionSnapshot(result.data, gameId)
 				return currentSnapshot
-			}
-
-			if (action.type === 'FIRE') {
-				const result = await requestJson<ActionSuccessResponse>({
+				}
+				case 'FIRE': {
+					const fireAction = action
+					const result = await requestJson<ActionSuccessResponse>({
 					baseUrl,
 					path: `games/${gameId}/actions`,
 					method: 'POST',
 					token: options.token,
 					body: {
 						type: 'FIRE',
-						attackers: action.attackers,
-						targetId: action.targetId,
+						attackers: fireAction.attackers,
+						targetId: fireAction.targetId,
 					},
 					fetchImpl,
 				})
@@ -244,17 +239,17 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					throw buildError(result)
 				}
 
-				currentSnapshot = mapActionSnapshot(result.data, currentSnapshot, gameId)
+				currentSnapshot = mapActionSnapshot(result.data, gameId)
 				return currentSnapshot
-			}
-
-			if (action.type === 'refresh') {
-				const result = await requestJson<GameStateResponse>({
+				}
+				case 'refresh': {
+					const result = await requestJson<GameStateResponse>({
 					baseUrl,
 					path: `games/${gameId}`,
 					method: 'GET',
 					token: options.token,
 					fetchImpl,
+					captureRawResponseBody: true,
 				})
 
 				if (!result.ok) {
@@ -262,13 +257,15 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 				}
 
 				const envelope = mapServerSnapshot(result.data, gameId)
-				currentSnapshot = envelope.snapshot
-				return envelope.snapshot
+					currentSnapshot = envelope.snapshot
+					return envelope.snapshot
+				}
+				default:
+					throw new GameClientSeamError('transport', 'Action is not supported by the HTTP game transport')
 			}
 
-			throw buildUnsupportedActionError(action.type)
 		},
-	}
+	} as GameRequestTransport
 
 	async function pollEvents(gameId: number, afterSeq: number) {
 		const result = await requestJson<EventsResponse>({

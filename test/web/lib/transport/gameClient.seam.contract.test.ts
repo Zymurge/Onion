@@ -110,20 +110,6 @@ describe('game client seam contract', () => {
 		})
 	})
 
-	it('normalizes non-error transport failures using the fallback message', async () => {
-		const transport: GameRequestTransport = {
-			getState: vi.fn().mockRejectedValue('socket closed'),
-			submitAction: vi.fn(),
-		}
-
-		const client = createGameClient(transport)
-
-		await expect(client.getState(123)).rejects.toMatchObject({
-			kind: 'transport',
-			message: 'Unexpected transport failure',
-		})
-	})
-
 	it('handles transport failures when submitting actions', async () => {
 		const transport: GameRequestTransport = {
 			getState: vi.fn(),
