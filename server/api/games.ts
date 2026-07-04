@@ -575,7 +575,8 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
       const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
       const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
-      function buildActionResponsePayload(state: GameState, phase: typeof match.phase, turnNumber: number, eventSeq: number, events: EventEnvelope[]) {
+      const matchPhase = match.phase
+      function buildActionResponsePayload(state: GameState, phase: typeof matchPhase, turnNumber: number, eventSeq: number, events: EventEnvelope[]) {
         return {
           ok: true,
           seq: eventSeq,
