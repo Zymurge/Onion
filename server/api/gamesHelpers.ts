@@ -29,7 +29,7 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
     return
   }
 
-  const canonicalStackNaming = refreshStackRosterNamingSnapshot(stackRoster)
+  const canonicalStackNaming = refreshStackRosterNamingSnapshot(stackRoster, undefined, matchState.defenders)
   const canonicalGroupNames = new Map(canonicalStackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
   const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupKey, group.groupName]))
 
@@ -283,7 +283,7 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 
 export function buildEngineState(match: MatchRecord): EngineGameState {
   assertCanonicalStackGroupNames(match.state)
-  const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming)
+  const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming, match.state.defenders)
   return {
     ...structuredClone(match.state),
     stackRoster: structuredClone(match.state.stackRoster) ?? { groupsById: {} },
@@ -751,6 +751,53 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     escapeHexes,
     scenarioMap,
     eventSeq: match.events.at(-1)?.seq ?? 0,
+  }
+}
+
+/**
+ * Build the canonical action response payload used by POST /games/:id/actions handlers.
+ * This consolidates the fields returned after executing an action so all endpoints
+ * produce an identical snapshot shape.
+ */
+export function buildActionResponse(
+  match: MatchRecord,
+  state: GameState,
+  phase: TurnPhase,
+  turnNumber: number,
+  eventSeq: number,
+  events: EventEnvelope[],
+): {
+  ok: true
+  seq: number
+  events: EventEnvelope[]
+  state: GameState
+  movementRemainingByUnit: Record<string, number>
+  turnNumber: number
+  eventSeq: number
+  phase: TurnPhase
+  scenarioName: string
+  scenarioMap: ScenarioMapSnapshot
+  victoryObjectives: VictoryObjectiveState[]
+  escapeHexes: VictoryEscapeHex[]
+} {
+  const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+  const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+  const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
+  const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
+
+  return {
+    ok: true,
+    seq: eventSeq,
+    events,
+    state,
+    movementRemainingByUnit: buildMovementRemainingByUnit(state, phase),
+    turnNumber,
+    eventSeq,
+    phase,
+    scenarioName,
+    scenarioMap,
+    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber),
+    escapeHexes,
   }
 }
 

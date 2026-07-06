@@ -17,6 +17,7 @@ import {
   buildCombatEvents,
   buildEngineState,
   buildGameStateResponse,
+  buildActionResponse,
   buildMoveEvents,
   buildVictoryObjectiveStates,
   computeWinnerUserId,
@@ -576,22 +577,6 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
       const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
       const matchPhase = match.phase
-      function buildActionResponsePayload(state: GameState, phase: typeof matchPhase, turnNumber: number, eventSeq: number, events: EventEnvelope[]) {
-        return {
-          ok: true,
-          seq: eventSeq,
-          events,
-          state,
-          movementRemainingByUnit: buildMovementRemainingByUnit(state, phase),
-          turnNumber,
-          eventSeq,
-          phase,
-          scenarioName,
-          scenarioMap,
-          victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber),
-          escapeHexes,
-        }
-      }
 
       if (command.type === 'END_PHASE') {
         logger.info({ gameId: match.gameId, phase: match.phase }, 'Advancing phase')
@@ -614,7 +599,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
-        const responsePayload = buildActionResponsePayload(currentState, result.phase, turnNumber, eventSeq, newEvents)
+        const responsePayload = buildActionResponse(match, currentState, result.phase, turnNumber, eventSeq, newEvents)
         logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (END_PHASE)')
         return reply.send(responsePayload)
       } else if (command.type === 'MOVE') {
@@ -702,7 +687,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Move executed')
-        const responsePayload = buildActionResponsePayload(currentState, match.phase, turnNumber, eventSeq, newEvents)
+        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents)
         logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (MOVE)')
         return reply.send(responsePayload)
       } else if (command.type === 'FIRE') {
@@ -756,7 +741,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
-        const responsePayload = buildActionResponsePayload(currentState, match.phase, turnNumber, eventSeq, newEvents)
+        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents)
         logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (FIRE)')
         return reply.send(responsePayload)
       }

@@ -153,20 +153,35 @@ function getCanonicalUnitsById(stackRoster: StackRosterState | undefined): Recor
 		return stackRoster.unitsById
 	}
 
-	if (Object.keys(stackRoster.groupsById).length === 0) {
-		return {}
-	}
-
-	throw new Error('Invalid stack roster shape: missing canonical unitsById')
+	// Allow response-style stack rosters that contain only `groupsById` (metadata-only)
+	// without embedded `unitsById`. In that case treat canonical units as empty.
+	return {}
 }
 
-export function buildStackRosterNamingSourceUnits(stackRoster: StackRosterState | undefined): StackNamingSourceUnit[] {
-	const canonicalUnitsById = getCanonicalUnitsById(stackRoster)
+export function buildStackRosterNamingSourceUnits(
+	stackRoster: StackRosterState | undefined,
+	defenders: Record<string, DefenderUnit> | undefined = undefined,
+): StackNamingSourceUnit[] {
+	const canonicalUnitsById = stackRoster?.unitsById ?? {}
 	const sourceUnits: StackNamingSourceUnit[] = []
 
 	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
 		for (const unitId of resolveGroupUnitIds(group)) {
-			const unit = canonicalUnitsById[unitId]
+			let unit = canonicalUnitsById[unitId]
+			if (unit === undefined && defenders !== undefined) {
+				const defender = defenders[unitId]
+				if (defender !== undefined) {
+					unit = {
+						id: defender.id ?? unitId,
+						status: defender.status,
+						friendlyName: defender.friendlyName ?? defender.id ?? unitId,
+						weapons: defender.weapons,
+						targetRules: defender.targetRules,
+						squads: defender.squads,
+					}
+				}
+			}
+
 			if (unit === undefined) {
 				continue
 			}
@@ -188,8 +203,9 @@ export function buildStackRosterNamingSourceUnits(stackRoster: StackRosterState 
 export function refreshStackRosterNamingSnapshot(
 	stackRoster: StackRosterState | undefined,
 	seed: StackNamingSnapshot | undefined = undefined,
+	defenders: Record<string, DefenderUnit> | undefined = undefined,
 ): StackNamingSnapshot {
-	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster))
+	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster, defenders))
 }
 
 function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterGroupBuilder[] {

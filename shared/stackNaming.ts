@@ -110,6 +110,13 @@ export class StackNamingEngine {
 	resolveGroupName(groupKey: string, unitType: string, unitId?: string, friendlyName?: string, stackSize = 1): string {
 		const existingRecord = this.groupsInUse.get(groupKey)
 		if (existingRecord !== undefined) {
+			if (/\sgroup(?:\s+\d+)?$/i.test(existingRecord.groupName)) {
+				const ordinalUsed = [...this.usedGroupNames].find((used) => /\sgroup\s+\d+$/.test(used) && stripOrdinalSuffix(used) === existingRecord.groupName)
+				if (ordinalUsed !== undefined) {
+					return ordinalUsed
+				}
+			}
+
 			return existingRecord.groupName
 		}
 
@@ -152,6 +159,7 @@ export function refreshStackNamingSnapshotFromRoster(
 	const activeGroupKeys: string[] = []
 	const rosterGroupsInUse: StackNamingGroupRecord[] = []
 	const rosterUsedGroupNames: string[] = []
+	const allocatedUsedGroupNames = new Set(seed?.usedGroupNames ?? [])
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		const unitIds = [...group.unitIds]
@@ -170,9 +178,13 @@ export function refreshStackNamingSnapshotFromRoster(
 
 		const groupKey = buildStackGroupKey(group.unitType, group.position)
 		activeGroupKeys.push(groupKey)
-		const authoritativeGroupName = group.groupName.trim().length > 0
+		const baseGroupName = group.groupName.trim().length > 0
 			? group.groupName
 			: resolveStackLabel(group.unitType, firstUnit.id, firstUnit.friendlyName, unitIds.length)
+		const authoritativeGroupName = /\sgroup(?:\s+\d+)?$/i.test(baseGroupName) && !/\sgroup\s+\d+$/i.test(baseGroupName)
+			? createUniqueName(baseGroupName, allocatedUsedGroupNames)
+			: baseGroupName
+		allocatedUsedGroupNames.add(authoritativeGroupName)
 		rosterGroupsInUse.push({
 			groupKey,
 			groupName: authoritativeGroupName,

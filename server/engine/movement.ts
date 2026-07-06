@@ -165,7 +165,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
       },
       'Refreshing stack naming after move for non-operational unit',
     )
-    state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming)
+    state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming, state.defenders)
     return
   }
 
@@ -179,6 +179,16 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
   const destinationResultUnitCount = destinationGroupUnitCount + 1
   const isStackableDestination = isUnitTypeStackable(movedDefender.type)
   const persistedDestinationName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+  const namingEngine = createStackNamingEngine(state.stackNaming)
+  if (sourceGroup !== null && sourceGroupUnitCount > 1 && !/\sgroup\s+\d+$/i.test(sourceGroup.groupName)) {
+    namingEngine.resolveGroupName(
+      `${sourceGroup.groupKey}:source-reserve`,
+      sourceGroup.unitType,
+      sourceGroup.units?.[0]?.id ?? movedUnitId,
+      undefined,
+      sourceGroupUnitCount,
+    )
+  }
   const shouldAllocateFreshDestinationName =
     isStackableDestination
     && persistedDestinationName === undefined
@@ -189,7 +199,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
       || sourceRemainingUnitCount > 1
     )
   const allocatedDestinationName = shouldAllocateFreshDestinationName
-    ? createStackNamingEngine(state.stackNaming).resolveGroupName(
+    ? namingEngine.resolveGroupName(
         destinationGroupId,
         movedDefender.type,
         movedDefender.id,
@@ -254,7 +264,11 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     logger.debug({ movedUnitId, err: String(err) }, 'RelocateStackRosterUnits - after(log-failed)')
   }
 
-  state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming)
+  state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming, state.defenders)
+  state.stackNaming = {
+    ...state.stackNaming,
+    usedGroupNames: state.stackNaming.usedGroupNames.filter((name) => !/\sgroup$/i.test(name)),
+  }
 
   logger.debug(
     {
