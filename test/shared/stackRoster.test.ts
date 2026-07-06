@@ -8,6 +8,7 @@ import {
 	expandStackRosterGroups,
 	mergeStackRosterGroups,
 	moveStackRosterGroup,
+	reconcileStackRosterMoveLifecycle,
 	relocateStackRosterUnits,
 	retireStackRosterGroup,
 	splitStackRosterGroup,
@@ -586,5 +587,107 @@ describe('stack roster', () => {
 			position: { q: 5, r: 4 },
 			unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
 		})
+	})
+
+	it('reconciles move lifecycle with deterministic split naming from a base seed name', () => {
+		const roster: StackRosterState = {
+			groupsById: {
+				'LittlePigs:0,0': {
+					groupName: 'Little Pigs group',
+					unitType: 'LittlePigs',
+					position: { q: 0, r: 0 },
+					unitIds: ['p1', 'p2'],
+				},
+			},
+			unitsById: {
+				p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+				p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+			},
+		}
+
+		const reconciled = reconcileStackRosterMoveLifecycle({
+			stackRoster: roster,
+			stackNaming: {
+				groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
+				usedGroupNames: ['Little Pigs group'],
+			},
+			defenders: {
+				p1: { id: 'p1', type: 'LittlePigs', position: { q: 1, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+			},
+			movedUnitId: 'p1',
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 1, r: 0 },
+			movedUnitFriendlyName: 'Little Pigs 1',
+		})
+
+		expect(reconciled.stackRoster.groupsById['LittlePigs:0,0']).toMatchObject({
+			groupName: 'Little Pigs group',
+			unitIds: ['p2'],
+		})
+		expect(reconciled.stackRoster.groupsById['LittlePigs:1,0']).toMatchObject({
+			groupName: 'Little Pigs group 2',
+			unitIds: ['p1'],
+		})
+		expect(reconciled.stackNaming.groupsInUse).toEqual([
+			{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+			{ groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+		])
+		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+	})
+
+	it('reconciles move lifecycle by preserving an existing destination stack name', () => {
+		const roster: StackRosterState = {
+			groupsById: {
+				'LittlePigs:0,0': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 0, r: 0 },
+					unitIds: ['p1', 'p2'],
+				},
+				'LittlePigs:4,0': {
+					groupName: 'Little Pigs group 2',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 0 },
+					unitIds: ['p5'],
+				},
+			},
+			unitsById: {
+				p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+				p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+				p5: { id: 'p5', status: 'operational', friendlyName: 'Little Pigs 5', squads: 2 },
+			},
+		}
+
+		const reconciled = reconcileStackRosterMoveLifecycle({
+			stackRoster: roster,
+			stackNaming: {
+				groupsInUse: [
+					{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+					{ groupKey: 'LittlePigs:4,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+				],
+				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+			},
+			defenders: {
+				p1: { id: 'p1', type: 'LittlePigs', position: { q: 4, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+				p5: { id: 'p5', type: 'LittlePigs', position: { q: 4, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 5', squads: 2 },
+			},
+			movedUnitId: 'p1',
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 4, r: 0 },
+			movedUnitFriendlyName: 'Little Pigs 1',
+		})
+
+		expect(reconciled.stackRoster.groupsById['LittlePigs:4,0']).toMatchObject({
+			groupName: 'Little Pigs group 2',
+			unitIds: ['p5', 'p1'],
+		})
+		expect(reconciled.stackNaming.groupsInUse).toEqual(
+			expect.arrayContaining([
+				{ groupKey: 'LittlePigs:4,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+			]),
+		)
+		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
 	})
 })

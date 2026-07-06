@@ -16,8 +16,7 @@ import { isUnitTypeStackable } from '#shared/unitDefinitions'
 import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
-import { buildStackRosterIndex, relocateStackRosterUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
-import { buildStackGroupKey, createStackNamingEngine } from '#shared/stackNaming'
+import { reconcileStackRosterMoveLifecycle, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
 /**
  * Result of validating a movement command.
  */
@@ -169,72 +168,23 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     return
   }
 
-  const rosterIndex = buildStackRosterIndex(state.stackRoster)
-  const sourceGroup = rosterIndex.getUnitGroup(movedUnitId)
-  const destinationGroupId = buildStackGroupKey(movedDefender.type, movedDefender.position)
-  const destinationGroup = rosterIndex.groupsById[destinationGroupId] ?? null
-  const sourceGroupUnitCount = sourceGroup?.unitIds?.length ?? sourceGroup?.units?.length ?? 0
-  const sourceRemainingUnitCount = Math.max(sourceGroupUnitCount - 1, 0)
-  const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? 0
-  const destinationResultUnitCount = destinationGroupUnitCount + 1
-  const isStackableDestination = isUnitTypeStackable(movedDefender.type)
-  const persistedDestinationName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
-  const namingEngine = createStackNamingEngine(state.stackNaming)
-  if (sourceGroup !== null && sourceGroupUnitCount > 1 && !/\sgroup\s+\d+$/i.test(sourceGroup.groupName)) {
-    namingEngine.resolveGroupName(
-      `${sourceGroup.groupKey}:source-reserve`,
-      sourceGroup.unitType,
-      sourceGroup.units?.[0]?.id ?? movedUnitId,
-      undefined,
-      sourceGroupUnitCount,
-    )
-  }
-  const shouldAllocateFreshDestinationName =
-    isStackableDestination
-    && persistedDestinationName === undefined
-    && destinationGroupUnitCount <= 1
-    && (
-      destinationGroup?.groupName === undefined
-      || sourceGroup?.groupName !== destinationGroup.groupName
-      || sourceRemainingUnitCount > 1
-    )
-  const allocatedDestinationName = shouldAllocateFreshDestinationName
-    ? namingEngine.resolveGroupName(
-        destinationGroupId,
-        movedDefender.type,
-        movedDefender.id,
-        movedDefender.friendlyName,
-        destinationResultUnitCount,
-      )
-    : undefined
-  const selectedNameSource = persistedDestinationName !== undefined
-    ? 'persisted-stack-naming'
-    : allocatedDestinationName !== undefined
-      ? 'allocated-destination-group'
-    : destinationGroup?.groupName !== undefined
-      ? 'destination-roster-group'
-      : sourceGroup?.groupName !== undefined
-        ? 'source-roster-group'
-        : movedDefender.friendlyName !== undefined
-          ? 'defender-friendly-name'
-          : 'unit-type-fallback'
-  const movedGroupName = state.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
-    ?? allocatedDestinationName
-    ?? destinationGroup?.groupName
-    ?? sourceGroup?.groupName
-    ?? movedDefender.friendlyName
-    ?? movedDefender.type
+  const reconciled = reconcileStackRosterMoveLifecycle({
+    stackRoster: state.stackRoster,
+    stackNaming: state.stackNaming,
+    defenders: state.defenders,
+    movedUnitId,
+    unitType: movedDefender.type,
+    destinationPosition: movedDefender.position,
+    movedUnitFriendlyName: movedDefender.friendlyName,
+  })
 
   logger.debug(
     {
       movedUnitId,
       unitType: movedDefender.type,
-      sourceGroup: sourceGroup?.groupName ?? null,
-      destinationGroupId,
-      destinationGroup: destinationGroup?.groupName ?? null,
-      persistedDestinationName: persistedDestinationName ?? null,
-      selectedNameSource,
-      selectedName: movedGroupName,
+      destinationGroupId: reconciled.destinationGroupId,
+      selectedNameSource: reconciled.selectedNameSource,
+      selectedName: reconciled.destinationGroupName,
       destinationPosition: movedDefender.position,
     },
     'Selected destination stack name for move',
@@ -244,7 +194,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     movedUnitIds: [movedUnitId],
     unitType: movedDefender.type,
     destinationPosition: movedDefender.position,
-    destinationGroupName: movedGroupName,
+    destinationGroupName: reconciled.destinationGroupName,
   }
 
   // Debug: record roster state before relocation and the relocate input
@@ -255,7 +205,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     logger.debug({ movedUnitId, err: String(err) }, 'RelocateStackRosterUnits - before(log-failed)')
   }
 
-  state.stackRoster = relocateStackRosterUnits(state.stackRoster, relocateInput)
+  state.stackRoster = reconciled.stackRoster
 
   // Debug: record roster state after relocation for diagnosis
   try {
@@ -264,17 +214,13 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     logger.debug({ movedUnitId, err: String(err) }, 'RelocateStackRosterUnits - after(log-failed)')
   }
 
-  state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming, state.defenders)
-  state.stackNaming = {
-    ...state.stackNaming,
-    usedGroupNames: state.stackNaming.usedGroupNames.filter((name) => !/\sgroup$/i.test(name)),
-  }
+  state.stackNaming = reconciled.stackNaming
 
   logger.debug(
     {
       movedUnitId,
-      destinationGroupId,
-      refreshedGroupName: state.stackNaming.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName ?? null,
+      destinationGroupId: reconciled.destinationGroupId,
+      refreshedGroupName: state.stackNaming.groupsInUse.find((entry) => entry.groupKey === reconciled.destinationGroupId)?.groupName ?? null,
       refreshedGroupsInUse: state.stackNaming.groupsInUse,
       usedGroupNames: state.stackNaming.usedGroupNames,
     },
