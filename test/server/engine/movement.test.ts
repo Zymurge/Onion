@@ -530,6 +530,8 @@ describe('executeUnitMovement', () => {
       unitsById: {
         p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
         p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 2 },
+        p4: { id: 'p4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 2 },
       },
     }
 
@@ -663,6 +665,8 @@ describe('executeUnitMovement', () => {
       unitsById: {
         p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
         p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
+        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 2 },
+        p4: { id: 'p4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 2 },
       },
     }
 
@@ -672,6 +676,7 @@ describe('executeUnitMovement', () => {
     expect(state.defenders.p2.position).toEqual({ q: 0, r: 0 })
     expect(state.stackNaming?.groupsInUse).toEqual([
       { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      { groupKey: 'LittlePigs:2,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
     ])
     expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
   })
@@ -740,6 +745,34 @@ describe('executeUnitMovement', () => {
       ]),
     )
     expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'])
+  })
+
+  it('fails fast when a move references grouped units missing canonical unitsById', () => {
+    const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
+    const p2 = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2 } })
+
+    state.stackNaming = {
+      groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
+      usedGroupNames: ['Little Pigs group 1'],
+    }
+    state.stackRoster = {
+      groupsById: {
+        'LittlePigs:0,0': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 0, r: 0 },
+          unitIds: ['p1', 'p2'],
+        },
+      },
+      unitsById: {
+        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+      },
+    }
+
+    expect(() => executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))).toThrow(
+      'Missing canonical stackRoster unitsById for grouped unit p2',
+    )
   })
 
   it('splits a unit from a multi-member group creating a new destination group while preserving the source group', () => {

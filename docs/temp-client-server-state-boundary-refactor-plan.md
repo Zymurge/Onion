@@ -308,6 +308,10 @@ The sequence below is intended to be handed to agents one step at a time. Each s
 - Step 6 completed: App shell now composes session, interaction, and display layers without inline action construction.
 - Step 7 completed: add and harden reload/reconnect regression coverage.
 
+## Snapshot Deprecation Policy
+
+As part of the state-boundary refactor, the project enforces a strict snapshot deprecation policy: any snapshot that does not conform to the canonical `stackRoster` bundle is deprecated and unsupported. There is no automated backward-compatibility or upgrade provided. Loaders should fail loudly and tests must use canonical snapshots.
+
 ### Step 1. Freeze Vocabulary And Ownership
 
 Goal:

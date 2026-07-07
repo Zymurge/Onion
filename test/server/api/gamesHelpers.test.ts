@@ -556,6 +556,10 @@ describe('buildVictoryObjectiveStates', () => {
                 unitIds: ['pigs-1', 'pigs-2'],
               },
             },
+            unitsById: {
+              'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+              'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 2 },
+            },
           },
         },
         events: [],
@@ -629,6 +633,10 @@ describe('buildVictoryObjectiveStates', () => {
                 unitIds: ['pigs-1', 'pigs-2'],
               },
             },
+            unitsById: {
+              'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+              'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
+            },
           },
         },
         events: [],
@@ -678,6 +686,9 @@ describe('buildVictoryObjectiveStates', () => {
                 position: { q: 6, r: 6 },
                 unitIds: ['wolf-1'],
               },
+            },
+            unitsById: {
+              'wolf-1': { id: 'wolf-1', status: 'operational', friendlyName: 'Big Bad Wolf 1' },
             },
           },
         },
@@ -774,6 +785,9 @@ describe('buildVictoryObjectiveStates', () => {
                 unitIds: ['pigs-1'],
               },
             },
+            unitsById: {
+              'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 3 },
+            },
           },
         },
         events: [],
@@ -832,6 +846,10 @@ describe('buildVictoryObjectiveStates', () => {
                 position: { q: 4, r: 4 },
                 unitIds: ['pigs-1', 'pigs-2'],
               },
+            },
+            unitsById: {
+              'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+              'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 2 },
             },
           },
           stackNaming: {
@@ -906,6 +924,10 @@ describe('buildVictoryObjectiveStates', () => {
                 position: { q: 4, r: 4 },
                 unitIds: ['pigs-1', 'pigs-2'],
               },
+            },
+            unitsById: {
+              'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
+              'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 2 },
             },
           },
         },

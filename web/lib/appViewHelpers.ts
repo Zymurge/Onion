@@ -143,11 +143,7 @@ type StackSourceUnit = {
 export type WebStackSourceState = {
   onion?: StackSourceUnit | null
   defenders?: Record<string, StackSourceUnit>
-  stackRoster?: {
-    groupsById?: Record<string, {
-      unitIds?: string[]
-    }>
-  }
+  stackRoster?: StackRosterState
 }
 
 export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | null | undefined, unitId: string): string[] {
@@ -172,11 +168,25 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
     throw new Error(`Missing stackRoster for grouped unit ${unitId}`)
   }
 
-  const rosterGroups = Object.values(state.stackRoster.groupsById ?? {})
-  for (const group of rosterGroups) {
-    const unitIds = group.unitIds ?? []
+  if (state.stackRoster.unitsById === undefined || state.stackRoster.unitsById === null) {
+    throw new Error(`Missing canonical stackRoster unitsById for grouped unit ${unitId}`)
+  }
+
+  for (const [groupId, group] of Object.entries(state.stackRoster.groupsById ?? {})) {
+    if (!Array.isArray(group.unitIds)) {
+      throw new Error(`Invalid stack roster group shape for ${groupId}`)
+    }
+
+    const unitIds = group.unitIds
     if (!unitIds.includes(unitId)) {
       continue
+    }
+
+    for (const memberId of unitIds) {
+      const canonicalUnit = state.stackRoster.unitsById[memberId]
+      if (canonicalUnit === null || typeof canonicalUnit !== 'object' || typeof canonicalUnit?.id !== 'string' || typeof canonicalUnit?.status !== 'string') {
+        throw new Error(`Invalid stack roster unit shape for ${groupId}`)
+      }
     }
 
     const activeMemberIds = unitIds.filter((memberId) => state.defenders?.[memberId]?.status !== 'destroyed')

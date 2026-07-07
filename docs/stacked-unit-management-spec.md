@@ -123,7 +123,19 @@ Contract rules:
 - Destroyed stacked units disappear from the active roster rather than remaining as zeroed-out placeholders.
 - For deterministic testing, when a stack must lose multiple units, the highest ordinal unit id is removed first.
 
-This contract applies to newly created games and new snapshots. Existing throwaway games do not need a migration path.
+This contract applies to newly created games and new snapshots.
+
+## Snapshot Deprecation Policy — NO BACKWARDS COMPATIBILITY
+
+**LOUD & CLEAR:** Any persisted or exported snapshot that does NOT conform to the canonical `stackRoster` bundle (missing `unitsById`, malformed `groupsById`, or other deviations from this contract) is DEPRECATED and UNSUPPORTED. The platform does NOT provide backward-compatibility or automatic upgrades for legacy snapshot shapes. Servers, tools, and clients will reject, fail to load, or treat such snapshots as invalid.
+
+Enforcement and recommended actions:
+
+- The server will refuse to accept or will mark as unsupported any incoming snapshot that does not include a valid `stackRoster` bundle.
+- There is no automatic migration provided by the platform — plan to export, re-create, or manually migrate persisted matches to the canonical format before loading them.
+- Tests and fixtures for ongoing development must use the canonical snapshot shape. Legacy fixtures should be migrated or removed.
+
+This policy intentionally removes silent fallback behavior, simplifies server/client logic, and makes the authoritative contract explicit for all consumers.
 
 ## 1d. Shared Stack-Roster Helper
 

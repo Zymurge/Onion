@@ -18,6 +18,10 @@ describe('appViewHelpers stack-grouping contract', () => {
             unitIds: ['pigs-1', 'pigs-2'],
           },
         },
+        unitsById: {
+          'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+          'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
+        },
       },
     }
 
@@ -38,6 +42,10 @@ describe('appViewHelpers stack-grouping contract', () => {
             position: { q: 4, r: 4 },
             unitIds: ['pigs-1', 'pigs-2'],
           },
+        },
+        unitsById: {
+          'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+          'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
         },
       },
     }
@@ -61,6 +69,11 @@ describe('appViewHelpers stack-grouping contract', () => {
             unitIds: ['pigs-1', 'pigs-2'],
           },
         },
+        unitsById: {
+          'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+          'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
+          'wolf-1': { id: 'wolf-1', status: 'operational', friendlyName: 'Big Bad Wolf 1' },
+        },
       },
     }
 
@@ -77,4 +90,28 @@ describe('appViewHelpers stack-grouping contract', () => {
 
     expect(() => resolveBattlefieldStackMemberIds(state as any, 'pigs-1')).toThrow('Missing stackRoster for grouped unit pigs-1')
   })
+
+    it('throws when grouped unit canonical membership omits unitsById records', () => {
+      const state = {
+        defenders: {
+          'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+          'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
+        },
+        stackRoster: {
+          groupsById: {
+            'stack-a': {
+              groupName: 'Little Pigs group 1',
+              unitType: 'LittlePigs',
+              position: { q: 4, r: 4 },
+              unitIds: ['pigs-1', 'pigs-2'],
+            },
+          },
+          unitsById: {
+            'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+          },
+        },
+      }
+
+      expect(() => resolveBattlefieldStackMemberIds(state as any, 'pigs-1')).toThrow('Invalid stack roster unit shape for stack-a')
+    })
 })

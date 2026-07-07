@@ -29,7 +29,7 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
     return
   }
 
-  const canonicalStackNaming = refreshStackRosterNamingSnapshot(stackRoster, undefined, matchState.defenders)
+  const canonicalStackNaming = refreshStackRosterNamingSnapshot(stackRoster, undefined)
   const canonicalGroupNames = new Map(canonicalStackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
   const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupKey, group.groupName]))
 
@@ -103,14 +103,14 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
   }
 }
 
-function buildResponseStackRosterGroupsById(matchState: MatchRecord['state']): NonNullable<StackRosterState['groupsById']> {
-  return Object.fromEntries(
+function buildResponseStackRoster(matchState: MatchRecord['state']): StackRosterState {
+  const groupsById = Object.fromEntries(
     Object.entries(matchState.stackRoster?.groupsById ?? {}).flatMap(([groupId, group]) => {
       if (!(getUnitDefinition(group.unitType)?.stackable === true)) {
         return []
       }
 
-		const unitIds = group.unitIds
+      const unitIds = group.unitIds
       if (unitIds.length === 0) {
         return []
       }
@@ -126,10 +126,38 @@ function buildResponseStackRosterGroupsById(matchState: MatchRecord['state']): N
       ]]
     }),
   )
+
+  // Build canonical unitsById for the response. Prefer persisted `stackRoster.unitsById` when available;
+  // otherwise synthesize from defenders for the unit ids referenced in groups.
+  const unitsById: Record<string, any> = {}
+  const persistedUnits = matchState.stackRoster?.unitsById ?? {}
+  for (const group of Object.values(groupsById)) {
+    for (const unitId of group.unitIds) {
+      if (persistedUnits && persistedUnits[unitId] !== undefined) {
+        unitsById[unitId] = persistedUnits[unitId]
+        continue
+      }
+
+      const defender = matchState.defenders?.[unitId]
+      if (defender !== undefined) {
+        const { squads: _squads, ...defWithoutSquads } = defender
+        unitsById[unitId] = {
+          id: defender.id ?? unitId,
+          status: defender.status,
+          friendlyName: defender.friendlyName ?? defender.id ?? unitId,
+          weapons: defender.weapons,
+          targetRules: defender.targetRules,
+          squads: defender.squads,
+        }
+      }
+    }
+  }
+
+  return { groupsById, unitsById }
 }
 
 function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state']): void {
-  const stackRoster: StackRosterState = { groupsById: buildResponseStackRosterGroupsById(matchState) }
+  const stackRoster: StackRosterState = buildResponseStackRoster(matchState)
   const issues = validateStackRosterConsistency(matchState.defenders, stackRoster)
   if (issues.length === 0) {
     return
@@ -283,7 +311,7 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 
 export function buildEngineState(match: MatchRecord): EngineGameState {
   assertCanonicalStackGroupNames(match.state)
-  const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming, match.state.defenders)
+  const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming)
   return {
     ...structuredClone(match.state),
     stackRoster: structuredClone(match.state.stackRoster) ?? { groupsById: {} },
@@ -723,7 +751,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
           ? 'defender'
           : null
 
-  const stackRosterGroupsById = buildResponseStackRosterGroupsById(match.state)
+  const stackRoster = buildResponseStackRoster(match.state)
 
   const defenders = Object.fromEntries(
     Object.entries(match.state.defenders).map(([defenderId, defender]) => {
@@ -744,7 +772,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     state: {
       ...match.state,
       defenders,
-      stackRoster: { groupsById: stackRosterGroupsById },
+      stackRoster,
     },
     movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
     victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber),
@@ -784,6 +812,36 @@ export function buildActionResponse(
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
+  // Ensure the response `state.stackRoster` includes canonical `unitsById`.
+  const responseStackRoster: StackRosterState | undefined = (() => {
+    const roster = state.stackRoster ?? { groupsById: {} }
+    const groupsById = roster.groupsById ?? {}
+    const unitsById: Record<string, any> = {}
+    const persistedUnits = roster.unitsById ?? {}
+
+    for (const group of Object.values(groupsById)) {
+      for (const unitId of group.unitIds) {
+        if (persistedUnits && persistedUnits[unitId] !== undefined) {
+          unitsById[unitId] = persistedUnits[unitId]
+          continue
+        }
+
+        const defender = state.defenders?.[unitId]
+        if (defender !== undefined) {
+          unitsById[unitId] = {
+            id: defender.id ?? unitId,
+            status: defender.status,
+            friendlyName: defender.friendlyName ?? defender.id ?? unitId,
+            weapons: defender.weapons,
+            targetRules: defender.targetRules,
+            squads: defender.squads,
+          }
+        }
+      }
+    }
+
+    return { groupsById, unitsById }
+  })()
 
   return {
     ok: true,

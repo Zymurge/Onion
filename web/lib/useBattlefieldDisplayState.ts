@@ -90,6 +90,38 @@ function assertCanonicalStackProjection(authoritativeState: GameState): { error:
       error: `Loaded game snapshot is missing canonical stackRoster data for stacked defenders (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupKeys.join(', ') || 'none'})`,
     }
   }
+
+  if (stackRoster !== undefined) {
+    if (stackRoster.groupsById === undefined || stackRoster.groupsById === null || typeof stackRoster.groupsById !== 'object') {
+      return {
+        error: `Loaded game snapshot is missing canonical stackRoster groupsById data (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=none)`,
+      }
+    }
+
+    if (stackRoster.unitsById === undefined || stackRoster.unitsById === null || typeof stackRoster.unitsById !== 'object') {
+      return {
+        error: `Loaded game snapshot is missing canonical stackRoster unitsById data (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${Object.keys(stackRoster.groupsById).join(', ') || 'none'})`,
+      }
+    }
+
+    for (const [groupId, group] of Object.entries(stackRoster.groupsById)) {
+      if (!Array.isArray(group.unitIds)) {
+        return {
+          error: `Loaded game snapshot has invalid stack roster group shape for ${groupId} (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${Object.keys(stackRoster.groupsById).join(', ') || 'none'})`,
+        }
+      }
+
+      for (const unitId of group.unitIds) {
+        const unit = stackRoster.unitsById[unitId]
+        if (unit === null || typeof unit !== 'object' || typeof unit?.id !== 'string' || typeof unit?.status !== 'string') {
+          return {
+            error: `Loaded game snapshot is missing canonical stackRoster unitsById for grouped unit ${unitId} (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${Object.keys(stackRoster.groupsById).join(', ') || 'none'})`,
+          }
+        }
+      }
+    }
+  }
+
   const consistencyIssues = validateStackRosterConsistency(authoritativeState.defenders, stackRoster)
   if (consistencyIssues.length > 0) {
     return {
@@ -163,7 +195,7 @@ export function useBattlefieldDisplayState({
       movementRemainingByUnit: movementRemainingSnapshot,
     } as ServerGameSnapshot, activePhase, activeTurnActive)
     const displayedOnion = clientSnapshot === null || hasValidationError ? null : buildLiveOnion(clientSnapshot, activePhase)
-    const stackNaming = authoritativeState?.stackNaming ?? null
+    const stackNaming = hasValidationError ? null : authoritativeState?.stackNaming ?? null
     const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
     const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
     const readyDefenderUnitIds = new Set(
@@ -176,7 +208,9 @@ export function useBattlefieldDisplayState({
       : activeCombatRole === 'defender'
         ? Array.from(new Set(activeSelectedUnitIds.filter((selectionId) => readyDefenderUnitIds.has(resolveSelectionOwnerUnitId(selectionId)))))
         : activeSelectedUnitIds
-    const stackRoster = stackSourceState?.stackRoster === undefined ? undefined : stackSourceState.stackRoster as import('../../shared/types/index').StackRosterState
+    const stackRoster = hasValidationError || stackSourceState?.stackRoster === undefined
+      ? undefined
+      : stackSourceState.stackRoster as import('../../shared/types/index').StackRosterState
     const selectedAttackSelectionIds = isCombatPhase ? selectedCombatSelectionIds : activeSelectedUnitIds
     const selectedCombatAttackerIds = !isCombatPhase
       ? []

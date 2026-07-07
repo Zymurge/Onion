@@ -202,6 +202,72 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
 
+	it('returns error if stackRoster is present but canonical unitsById is missing', () => {
+		const snapshot = createSnapshot()
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		} as any
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+
+		expect(String(result.current.error)).toMatch(/missing canonical stackRoster unitsById data/)
+		expect(String(result.current.error)).toContain('stackableDefenders=pigs-1, pigs-2')
+		expect(String(result.current.error)).toContain('stackRosterGroups=LittlePigs:4,4')
+	})
+
+	it('returns error if grouped unit is missing canonical unitsById entry', () => {
+		const snapshot = createSnapshot()
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+			unitsById: {
+				'pigs-1': {
+					id: 'pigs-1',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 1',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+			},
+		}
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+
+		expect(String(result.current.error)).toMatch(/missing canonical stackRoster unitsById for grouped unit pigs-2/)
+		expect(String(result.current.error)).toContain('stackableDefenders=pigs-1, pigs-2')
+		expect(String(result.current.error)).toContain('stackRosterGroups=LittlePigs:4,4')
+	})
+
 	it('returns error if a stackable defender is missing from every roster group', () => {
 		const snapshot = createSnapshot()
 		snapshot.phase = 'DEFENDER_MOVE'
@@ -324,6 +390,23 @@ describe('useBattlefieldDisplayState', () => {
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+			unitsById: {
+				'pigs-1': {
+					id: 'pigs-1',
+					type: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
+				},
+				'pigs-2': {
+					id: 'pigs-2',
+					type: 'LittlePigs',
+					friendlyName: 'Little Pigs 2',
+					position: { q: 4, r: 4 },
+					status: 'operational',
+					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
 				},
 			},
 		}

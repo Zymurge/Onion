@@ -241,6 +241,19 @@ describe('stack roster', () => {
 		})).toThrow('Invalid stack roster unit shape for bad')
 	})
 
+	it('throws when canonical unitsById is missing for roster groups', () => {
+		expect(() => buildStackRosterIndex({
+			groupsById: {
+				bad: {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1'],
+				},
+			},
+		} as unknown as StackRosterState)).toThrow('Missing canonical stack roster unitsById')
+	})
+
 	it('derives the minimal roster contract from defender units', () => {
 		const roster = buildStackRosterFromUnits([
 			{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
@@ -317,6 +330,22 @@ describe('stack roster', () => {
 		})
 	})
 
+	it('fails refresh when a grouped canonical unit is missing from unitsById', () => {
+		expect(() => refreshStackRosterNamingSnapshot({
+			groupsById: {
+				'g-a': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+			},
+		})).toThrow('Missing canonical stackRoster unitsById for grouped unit pigs-2')
+	})
+
 	it('validates canonical consistency between defenders and group membership', () => {
 		const issues = validateStackRosterConsistency(
 			{
@@ -376,23 +405,21 @@ describe('stack roster', () => {
 		)
 	})
 
-	it('projects deterministic expanded unit detail from canonical defenders plus unitIds', () => {
-		const projected = expandStackRosterGroups(
-			{
-				'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-				'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'disabled', friendlyName: 'Little Pigs 2' },
-			},
-			{
-				groupsById: {
-					'g-1': {
-						groupName: 'Little Pigs group 1',
-						unitType: 'LittlePigs',
-						position: { q: 4, r: 4 },
-						unitIds: ['pigs-2', 'missing-1', 'pigs-1'],
-					},
+	it('projects deterministic expanded unit detail from canonical unitsById plus unitIds', () => {
+		const projected = expandStackRosterGroups({
+			groupsById: {
+				'g-1': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-2', 'missing-1', 'pigs-1'],
 				},
 			},
-		)
+			unitsById: {
+				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+				'pigs-2': { id: 'pigs-2', status: 'disabled', friendlyName: 'Little Pigs 2' },
+			},
+		})
 
 		expect(projected.groupsById['g-1']).toEqual({
 			groupName: 'Little Pigs group 1',
@@ -611,10 +638,6 @@ describe('stack roster', () => {
 				groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
 				usedGroupNames: ['Little Pigs group'],
 			},
-			defenders: {
-				p1: { id: 'p1', type: 'LittlePigs', position: { q: 1, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
-				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
-			},
 			movedUnitId: 'p1',
 			unitType: 'LittlePigs',
 			destinationPosition: { q: 1, r: 0 },
@@ -667,11 +690,6 @@ describe('stack roster', () => {
 					{ groupKey: 'LittlePigs:4,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
 				],
 				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
-			},
-			defenders: {
-				p1: { id: 'p1', type: 'LittlePigs', position: { q: 4, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
-				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
-				p5: { id: 'p5', type: 'LittlePigs', position: { q: 4, r: 0 }, status: 'operational', friendlyName: 'Little Pigs 5', squads: 2 },
 			},
 			movedUnitId: 'p1',
 			unitType: 'LittlePigs',

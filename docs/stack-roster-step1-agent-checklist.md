@@ -158,6 +158,8 @@ Current status: Mostly implemented. Server snapshots are emitting the canonical 
 
 Migration note: update any snapshot producers to include `stackRoster.unitsById` when they previously serialized only `groupsById` or relied on `defenders` co-location.
 
+- **Snapshot Deprecation Policy:** any snapshot that does not include the canonical `stackRoster` bundle (`groupsById` + `unitsById`) is deprecated and unsupported. Agents and tools should fail loudly on unsupported snapshots.
+
 Suggested ownership:
 
 - Server snapshot assembly plus shared/web projection helpers.

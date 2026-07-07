@@ -164,14 +164,13 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
       },
       'Refreshing stack naming after move for non-operational unit',
     )
-    state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming, state.defenders)
+    state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming)
     return
   }
 
   const reconciled = reconcileStackRosterMoveLifecycle({
     stackRoster: state.stackRoster,
     stackNaming: state.stackNaming,
-    defenders: state.defenders,
     movedUnitId,
     unitType: movedDefender.type,
     destinationPosition: movedDefender.position,

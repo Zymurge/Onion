@@ -83,35 +83,40 @@ specializedAgents:
     optional: true
 ---
 
-# Copilot Agent (repository)
+## Copilot Agent (repository)
 
 This canonical, repository-scoped agent file is intentionally minimal. It defines repository-level model recommendations and operational approval metadata. Code-specific guidance, refactor plans, Github interaction, PR management and prompt bodies have been moved to specialized agents. (see `specializedAgents` in the frontmatter)
 
 Keep this file small so automation and agent tooling can quickly read model and permission metadata without loading large prompt bodies.
 
-## Approval (operational)
+### Approval (operational)
 
 The repository stores operational approval metadata in the document frontmatter (see top of file). This is intended for human reviewers and automation that consume approval metadata.
 
-## Copilot Model Recommendation Rules
+### GitHub Issue Interaction Rule
+
+- For issue operations (create, update, comment, label, close/reopen), always use the GitHub CLI (`gh`) for reliability.
+- Prefer terminal-driven issue workflows over agent issue tool adapters when both are available.
+
+### Copilot Model Recommendation Rules
 
 - Alert the user if a task seems too complex for the current model.
 - Recommend switching to a more advanced model for architecture, algorithms, or debugging.
 - Remind the user to use a cheaper model for repetitive or boilerplate tasks.
 - Use the following model cost multipliers and capability notes to guide recommendations:
 
-### Model costMultiplier semantics
+#### Model costMultiplier semantics
 
 - `costMultiplier` is a relative numeric indicator of expected run cost and capability. `0` indicates effectively free/preview, values <1 indicate lower-cost options, and values >=1 indicate standard or higher-cost models. Use these multipliers programmatically to prefer cheaper models for boilerplate or bulk tasks and escalate to higher-cost models for architecture or correctness-sensitive work.
 
 Refer to the `models` frontmatter mapping at the top of this file for canonical IDs, display names, and `costMultiplier` values.
 
-### gpt-5.4-mini Guidance
+#### gpt-5.4-mini Guidance
 
 - Treat `gpt-5.4-mini` as a capable low-cost implementation model, not a throwaway model.
 - It is appropriate for medium-complexity refactors, focused file edits, test scaffolding, and well-specified transport or UI wiring work.
 
-### Model Escalation Guidance
+#### Model Escalation Guidance
 
 - Escalate from `GPT-5.3-Codex` or `Claude Sonnet 4.6` to `GPT-5.4` if the work starts changing controller semantics, refresh correctness, or contract shape.
 - Escalate from `GPT-5.4 mini` if the task stops being mostly mechanical and starts involving architecture, concurrency, sequencing, or subtle correctness tradeoffs.

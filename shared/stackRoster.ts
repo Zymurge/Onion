@@ -69,7 +69,6 @@ export type RelocateStackRosterUnitsInput = {
 export type ReconcileStackRosterMoveLifecycleInput = {
 	stackRoster: StackRosterState | undefined
 	stackNaming: StackNamingSnapshot | undefined
-	defenders: Record<string, DefenderUnit> | undefined
 	movedUnitId: string
 	unitType: string
 	destinationPosition: HexPos
@@ -177,37 +176,28 @@ function getCanonicalUnitsById(stackRoster: StackRosterState | undefined): Recor
 		return stackRoster.unitsById
 	}
 
-	// Allow response-style stack rosters that contain only `groupsById` (metadata-only)
-	// without embedded `unitsById`. In that case treat canonical units as empty.
-	return {}
+	if (Object.keys(stackRoster.groupsById ?? {}).length === 0) {
+		return {}
+	}
+
+	throw new Error('Missing canonical stack roster unitsById')
 }
 
 export function buildStackRosterNamingSourceUnits(
 	stackRoster: StackRosterState | undefined,
-	defenders: Record<string, DefenderUnit> | undefined = undefined,
 ): StackNamingSourceUnit[] {
-	const canonicalUnitsById = stackRoster?.unitsById ?? {}
+	const canonicalUnitsById = getCanonicalUnitsById(stackRoster)
 	const sourceUnits: StackNamingSourceUnit[] = []
 
 	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
 		for (const unitId of resolveGroupUnitIds(group)) {
-			let unit = canonicalUnitsById[unitId]
-			if (unit === undefined && defenders !== undefined) {
-				const defender = defenders[unitId]
-				if (defender !== undefined) {
-					unit = {
-						id: defender.id ?? unitId,
-						status: defender.status,
-						friendlyName: defender.friendlyName ?? defender.id ?? unitId,
-						weapons: defender.weapons,
-						targetRules: defender.targetRules,
-						squads: defender.squads,
-					}
-				}
+			const unit = canonicalUnitsById[unitId]
+			if (unit === undefined) {
+				throw new Error(`Missing canonical stackRoster unitsById for grouped unit ${unitId}`)
 			}
 
-			if (unit === undefined) {
-				continue
+			if (unit === null || typeof unit !== 'object' || typeof unit.id !== 'string' || typeof unit.status !== 'string') {
+				throw new Error(`Invalid stack roster unit shape for ${group.groupName}`)
 			}
 
 			sourceUnits.push({
@@ -227,9 +217,8 @@ export function buildStackRosterNamingSourceUnits(
 export function refreshStackRosterNamingSnapshot(
 	stackRoster: StackRosterState | undefined,
 	seed: StackNamingSnapshot | undefined = undefined,
-	defenders: Record<string, DefenderUnit> | undefined = undefined,
 ): StackNamingSnapshot {
-	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster, defenders))
+	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster))
 }
 
 function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterGroupBuilder[] {
@@ -332,13 +321,12 @@ export function buildStackRosterIndex(stackRoster: StackRosterState | undefined)
 
 		const groupKey = buildStackGroupKey(normalizedGroup.unitType, normalizedGroup.position)
 		const units = groupUnitIds.map((unitId) => {
-			// Distinguish between missing canonical mapping (undefined) and an explicit but invalid entry (null or bad)
-			let unit = canonicalUnitsById[unitId]
+			const unit = canonicalUnitsById[unitId]
 			if (unit === undefined) {
-				// fallback to a minimal canonical shape when genuinely missing
-				unit = { id: unitId, status: 'operational', friendlyName: unitId }
-			} else if (unit === null || typeof unit !== 'object' || typeof (unit as any).id !== 'string' || typeof (unit as any).status !== 'string') {
-				// canonical entry exists but is invalid -> preserve previous strict behavior and throw
+				throw new Error(`Missing canonical stackRoster unitsById for grouped unit ${unitId}`)
+			}
+
+			if (unit === null || typeof unit !== 'object' || typeof (unit as any).id !== 'string' || typeof (unit as any).status !== 'string') {
 				throw new Error(`Invalid stack roster unit shape for ${groupId}`)
 			}
 
@@ -465,13 +453,11 @@ export function validateStackRosterConsistency(
 	return issues
 }
 
-export function expandStackRosterGroups(
-	defenders: Record<string, DefenderUnit> | undefined,
-	stackRoster: StackRosterState | undefined,
-): StackRosterState {
+export function expandStackRosterGroups(stackRoster: StackRosterState | undefined): StackRosterState {
 	const groupsById = Object.fromEntries(
 		Object.entries(stackRoster?.groupsById ?? {}).map(([groupId, group]) => {
-			const unitIds = resolveGroupUnitIds(group).filter((unitId) => defenders?.[unitId] !== undefined)
+			const canonicalUnitsById = getCanonicalUnitsById(stackRoster)
+			const unitIds = resolveGroupUnitIds(group).filter((unitId) => canonicalUnitsById[unitId] !== undefined)
 
 			return [
 				groupId,
@@ -488,18 +474,12 @@ export function expandStackRosterGroups(
 	const unitsById = Object.fromEntries(
 		Object.values(groupsById).flatMap((group) =>
 			group.unitIds.flatMap((unitId) => {
-				const defender = defenders?.[unitId]
-				if (defender === undefined) {
+				const canonicalUnit = stackRoster?.unitsById?.[unitId]
+				if (canonicalUnit === undefined) {
 					return []
 				}
 
-				return [[unitId, {
-					id: unitId,
-					status: defender.status,
-					friendlyName: defender.friendlyName ?? unitId,
-					weapons: defender.weapons,
-					targetRules: defender.targetRules,
-				}] as const]
+				return [[unitId, canonicalUnit] as const]
 			}),
 		),
 	)
@@ -794,7 +774,7 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 		destinationGroupName,
 	})
 
-	const stackNaming = pruneBareGroupNames(refreshStackRosterNamingSnapshot(stackRoster, input.stackNaming, input.defenders))
+	const stackNaming = pruneBareGroupNames(refreshStackRosterNamingSnapshot(stackRoster, input.stackNaming))
 
 	return {
 		stackRoster,
