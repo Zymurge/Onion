@@ -373,7 +373,7 @@ export function validateCombatAction(
 
   if (state.currentPhase === 'ONION_COMBAT') {
     const explicitTarget = state.defenders[command.targetId]
-    const rosterIndex = state.stackRoster === undefined ? null : buildStackRosterIndex(state.stackRoster)
+    const rosterIndex = state.stackRoster === undefined ? null : buildStackRosterIndex(state.stackRoster, state.defenders)
 
     // If the command targets an individual unit that is part of a stack group,
     // reject the action: stacks must be targeted as a whole (group id).
@@ -510,7 +510,7 @@ export function validateCombatAction(
   }
 
   if (target.kind === 'treads' && command.attackers.length > 1) {
-    const rosterIndex = state.stackRoster === undefined ? null : buildStackRosterIndex(state.stackRoster)
+    const rosterIndex = state.stackRoster === undefined ? null : buildStackRosterIndex(state.stackRoster, state.defenders)
     const firstAttackerGroupId = rosterIndex?.getUnitGroup(command.attackers[0])?.groupId ?? null
     const sameStackAttack =
       firstAttackerGroupId !== null &&

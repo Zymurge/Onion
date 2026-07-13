@@ -31,7 +31,6 @@ export type StackRosterGroupState = {
 
 export type StackRosterState = {
   groupsById: Record<string, StackRosterGroupState>
-  unitsById?: Record<string, StackRosterUnitState>
 }
 
 export type { TargetRules } from '../targetRules.js'

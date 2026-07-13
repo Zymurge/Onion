@@ -642,13 +642,13 @@ describe('executeUnitMovement', () => {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
-          unitIds: ['p1', 'p2'],
+          unitIds: ['p1'],
         },
         'LittlePigs:2,0': {
           groupName: 'Little Pigs group 2',
           unitType: 'LittlePigs',
           position: { q: 2, r: 0 },
-          unitIds: ['p3', 'p4'],
+          unitIds: ['p2'],
         },
       },
     }
@@ -659,7 +659,6 @@ describe('executeUnitMovement', () => {
     expect(state.defenders.p2.position).toEqual({ q: 0, r: 0 })
     expect(state.stackNaming?.groupsInUse).toEqual([
       { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-      { groupKey: 'LittlePigs:2,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
     ])
     expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
   })

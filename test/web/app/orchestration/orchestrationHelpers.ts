@@ -452,7 +452,7 @@ export function buildDefenderTree(opts: {
 		}
 	}
 
-	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster)
+	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster, undefined, defenders)
 
 	return { defenders, stackRoster, stackNaming }
 }

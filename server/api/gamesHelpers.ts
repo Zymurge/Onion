@@ -29,7 +29,7 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
     return
   }
 
-  const canonicalStackNaming = refreshStackRosterNamingSnapshot(stackRoster, undefined)
+  const canonicalStackNaming = refreshStackRosterNamingSnapshot(stackRoster, undefined, matchState.defenders)
   const canonicalGroupNames = new Map(canonicalStackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
   const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupKey, group.groupName]))
 
@@ -127,33 +127,7 @@ function buildResponseStackRoster(matchState: MatchRecord['state']): StackRoster
     }),
   )
 
-  // Build canonical unitsById for the response. Prefer persisted `stackRoster.unitsById` when available;
-  // otherwise synthesize from defenders for the unit ids referenced in groups.
-  const unitsById: Record<string, any> = {}
-  const persistedUnits = matchState.stackRoster?.unitsById ?? {}
-  for (const group of Object.values(groupsById)) {
-    for (const unitId of group.unitIds) {
-      if (persistedUnits && persistedUnits[unitId] !== undefined) {
-        unitsById[unitId] = persistedUnits[unitId]
-        continue
-      }
-
-      const defender = matchState.defenders?.[unitId]
-      if (defender !== undefined) {
-        const { squads: _squads, ...defWithoutSquads } = defender
-        unitsById[unitId] = {
-          id: defender.id ?? unitId,
-          status: defender.status,
-          friendlyName: defender.friendlyName ?? defender.id ?? unitId,
-          weapons: defender.weapons,
-          targetRules: defender.targetRules,
-          squads: defender.squads,
-        }
-      }
-    }
-  }
-
-  return { groupsById, unitsById }
+  return { groupsById }
 }
 
 function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state']): void {
@@ -311,7 +285,7 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 
 export function buildEngineState(match: MatchRecord): EngineGameState {
   assertCanonicalStackGroupNames(match.state)
-  const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming)
+  const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming, match.state.defenders)
   return {
     ...structuredClone(match.state),
     stackRoster: structuredClone(match.state.stackRoster) ?? { groupsById: {} },
@@ -812,35 +786,10 @@ export function buildActionResponse(
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
-  // Ensure the response `state.stackRoster` includes canonical `unitsById`.
   const responseStackRoster: StackRosterState | undefined = (() => {
     const roster = state.stackRoster ?? { groupsById: {} }
     const groupsById = roster.groupsById ?? {}
-    const unitsById: Record<string, any> = {}
-    const persistedUnits = roster.unitsById ?? {}
-
-    for (const group of Object.values(groupsById)) {
-      for (const unitId of group.unitIds) {
-        if (persistedUnits && persistedUnits[unitId] !== undefined) {
-          unitsById[unitId] = persistedUnits[unitId]
-          continue
-        }
-
-        const defender = state.defenders?.[unitId]
-        if (defender !== undefined) {
-          unitsById[unitId] = {
-            id: defender.id ?? unitId,
-            status: defender.status,
-            friendlyName: defender.friendlyName ?? defender.id ?? unitId,
-            weapons: defender.weapons,
-            targetRules: defender.targetRules,
-            squads: defender.squads,
-          }
-        }
-      }
-    }
-
-    return { groupsById, unitsById }
+    return { groupsById }
   })()
 
   return {

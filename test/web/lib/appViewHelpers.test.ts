@@ -37,6 +37,7 @@ describe('resolveBattlefieldDisplayName', () => {
       },
       undefined,
       stackRoster,
+      createUnitsById(),
     )).toThrow('Missing stackNaming for grouped unit pigs-1')
   })
 
@@ -69,6 +70,7 @@ describe('resolveBattlefieldDisplayName', () => {
       },
       stackNaming,
       stackRoster,
+      createUnitsById(),
     )).toThrow('Conflicting stacked-unit labels for pigs-1')
   })
 
@@ -94,6 +96,7 @@ describe('resolveBattlefieldDisplayName', () => {
       },
       stackNaming,
       stackRoster,
+      createUnitsById(),
     )).toThrow('Missing roster group for grouped unit pigs-1')
   })
 
@@ -147,6 +150,7 @@ describe('resolveBattlefieldDisplayName', () => {
       },
       stackNaming,
       stackRoster,
+      createUnitsById(),
     )
 
     expect(label).toBe('Little Pigs group 1')

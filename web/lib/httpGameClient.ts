@@ -77,9 +77,7 @@ function requireStackRoster(response: GameStateResponse) {
 		throw new GameClientSeamError('transport', 'Missing stack roster in game state response')
 	}
 
-	if (response.state.stackRoster.unitsById === undefined || response.state.stackRoster.unitsById === null) {
-		throw new GameClientSeamError('transport', 'Missing canonical stack roster unitsById in game state response')
-	}
+	const defenders = response.state.defenders ?? {}
 
 	for (const [groupId, group] of Object.entries(response.state.stackRoster.groupsById)) {
 		if (!Array.isArray(group.unitIds)) {
@@ -87,9 +85,9 @@ function requireStackRoster(response: GameStateResponse) {
 		}
 
 		for (const unitId of group.unitIds) {
-			const unit = response.state.stackRoster.unitsById[unitId]
-			if (unit === null || typeof unit !== 'object' || typeof unit?.id !== 'string' || typeof unit?.status !== 'string') {
-				throw new GameClientSeamError('transport', `Invalid stack roster unit shape for ${groupId}`)
+			const defender = defenders[unitId]
+			if (defender === undefined || defender === null || typeof defender !== 'object' || typeof defender?.status !== 'string') {
+				throw new GameClientSeamError('transport', `Missing stack roster defender ${unitId} for ${groupId}`)
 			}
 		}
 	}

@@ -8,7 +8,7 @@ import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
-import type { StackRosterState } from '../../shared/types/index'
+import type { DefenderUnit, StackRosterState } from '../../shared/types/index'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 import logger from '../lib/logger'
@@ -168,7 +168,25 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
 
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
-  const stackRosterIndex = useMemo(() => stackRoster === undefined ? null : buildStackRosterIndex(stackRoster), [stackRoster])
+  const stackRosterIndex = useMemo(() => {
+    if (stackRoster === undefined) {
+      return null
+    }
+
+    const defenderLookup = Object.fromEntries(
+      defenders.map((defender) => [defender.id, {
+        id: defender.id,
+        type: defender.type,
+        friendlyName: defender.friendlyName,
+        position: { q: defender.q, r: defender.r },
+        status: defender.status,
+        targetRules: defender.targetRules,
+        squads: defender.squads,
+      }]),
+    ) as Record<string, DefenderUnit>
+
+    return buildStackRosterIndex(stackRoster, defenderLookup)
+  }, [defenders, stackRoster])
 
   if (stackRosterIndex === null && hasStackedOccupants(defenders)) {
     throw new Error('Missing stackRoster for grouped defenders')

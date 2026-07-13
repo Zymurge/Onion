@@ -7,7 +7,6 @@ import type { LiveConnectionStatus } from './gameSessionTypes'
 import { buildFriendlyName, isUnitTypeStackable } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming'
-import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
 import { resolveSelectionName } from './resolveSelectionName'
 
@@ -98,9 +97,16 @@ export function resolveBattlefieldFriendlyName(
   },
   stackNaming?: StackNamingSnapshot,
   stackRoster?: StackRosterState,
+  defenders?: Record<string, StackSourceUnit>,
 ): string {
+  void defenders
   const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
-  const rosterGroup = stackRoster === undefined ? null : buildStackRosterIndex(stackRoster).getUnitGroup(unit.id)
+  const rosterGroup = stackRoster === undefined
+    ? null
+    : Object.entries(stackRoster.groupsById ?? {})
+      .map(([groupId, group]) => ({ groupId, group }))
+      .find(({ group }) => Array.isArray(group.unitIds) && group.unitIds.includes(unit.id))
+      ?.group ?? null
   const isStackable = isStackableUnitType(unit.type)
   const namingGroup = stackNaming?.groupsInUse.find((entry) => entry.groupKey === groupKey) ?? null
 
@@ -168,10 +174,6 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
     throw new Error(`Missing stackRoster for grouped unit ${unitId}`)
   }
 
-  if (state.stackRoster.unitsById === undefined || state.stackRoster.unitsById === null) {
-    throw new Error(`Missing canonical stackRoster unitsById for grouped unit ${unitId}`)
-  }
-
   for (const [groupId, group] of Object.entries(state.stackRoster.groupsById ?? {})) {
     if (!Array.isArray(group.unitIds)) {
       throw new Error(`Invalid stack roster group shape for ${groupId}`)
@@ -183,9 +185,9 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
     }
 
     for (const memberId of unitIds) {
-      const canonicalUnit = state.stackRoster.unitsById[memberId]
-      if (canonicalUnit === null || typeof canonicalUnit !== 'object' || typeof canonicalUnit?.id !== 'string' || typeof canonicalUnit?.status !== 'string') {
-        throw new Error(`Invalid stack roster unit shape for ${groupId}`)
+      const member = state.defenders?.[memberId]
+      if (member === undefined) {
+        throw new Error(`Missing stackRoster member ${memberId} for grouped unit ${unitId}`)
       }
     }
 

@@ -129,13 +129,16 @@ describe('stack roster', () => {
 
 		const serialized = JSON.stringify(roster)
 		const restored = JSON.parse(serialized) as StackRosterState
+		const defenders = {
+			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 1' },
+		}
 
 		expect(restored).toEqual(roster)
-		expect(buildStackRosterIndex(restored).groupsById['stack-1']?.groupName).toBe('Little Pigs group 1')
+		expect(buildStackRosterIndex(restored, defenders).groupsById['stack-1']?.groupName).toBe('Little Pigs group 1')
 	})
 
 	it('returns empty derived views for an empty roster', () => {
-		const rosterIndex = buildStackRosterIndex(undefined)
+		const rosterIndex = buildStackRosterIndex(undefined, undefined)
 
 		expect(rosterIndex.groupsById).toEqual({})
 		expect(rosterIndex.unitsById).toEqual({})
@@ -200,7 +203,7 @@ describe('stack roster', () => {
 					unitIds: null as unknown as never,
 				},
 			},
-		})).toThrow('Invalid stack roster group shape')
+		}, {})).toThrow('Invalid stack roster group shape')
 	})
 
 	it('throws when a defender unit entry has the wrong shape for a grouped unit', () => {
@@ -611,6 +614,10 @@ describe('stack roster', () => {
 				groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
 				usedGroupNames: ['Little Pigs group'],
 			},
+			defenders: {
+				p1: { id: 'p1', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
+				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
+			},
 			movedUnitId: 'p1',
 			unitType: 'LittlePigs',
 			destinationPosition: { q: 1, r: 0 },
@@ -658,6 +665,11 @@ describe('stack roster', () => {
 					{ groupKey: 'LittlePigs:4,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
 				],
 				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+			},
+			defenders: {
+				p1: { id: 'p1', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
+				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
+				p5: { id: 'p5', type: 'LittlePigs', position: { q: 4, r: 0 }, status: 'operational' },
 			},
 			movedUnitId: 'p1',
 			unitType: 'LittlePigs',

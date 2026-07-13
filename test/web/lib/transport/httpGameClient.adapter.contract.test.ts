@@ -1043,6 +1043,19 @@ describe('http game client adapter contract', () => {
 			fetchImpl,
 		})
 
+		await expect(client.getState(123)).resolves.toMatchObject({
+			snapshot: {
+				authoritativeState: {
+					stackRoster: {
+						groupsById: {
+							bad: {
+								groupName: 'Little Pigs group 1',
+							},
+						},
+					},
+				},
+			},
+		})
 		await expect(client.getState(123)).rejects.toThrow('Invalid stack roster group shape for bad')
 	})
 
@@ -1099,7 +1112,7 @@ describe('http game client adapter contract', () => {
 		await expect(client.getState(123)).rejects.toThrow(/missing.*pigs-2/i)
 	})
 
-	it('rejects stack roster payloads with malformed canonical unit entries', async () => {
+	it('accepts stack roster payloads that rely on defenders as canonical unit data', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,
 			status,
@@ -1149,6 +1162,19 @@ describe('http game client adapter contract', () => {
 			fetchImpl,
 		})
 
-		await expect(client.getState(123)).rejects.toThrow('Invalid stack roster unit shape for LittlePigs:4,4')
+		await expect(client.getState(123)).resolves.toMatchObject({
+			snapshot: {
+				authoritativeState: {
+					stackRoster: {
+						groupsById: {
+							'LittlePigs:4,4': {
+								groupName: 'Little Pigs group 1',
+								unitIds: ['pigs-1'],
+							},
+						},
+					},
+				},
+			},
+		})
 	})
 })

@@ -56,7 +56,6 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
 
   const defenders: Record<string, DefenderUnit> = {}
   const stackRoster: StackRosterState = { groupsById: {} }
-  const unitsById: Record<string, any> = {}
   const stackNamingEngine = createStackNamingEngine()
   const nextStackUnitOrdinalByBase = new Map<string, number>()
 
@@ -80,16 +79,6 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
           friendlyName: buildFriendlyName(defenderDefinition.friendlyNameTemplate ?? `${defenderDefinition.name} {{ordinal}}`, unitId),
           position: def.position,
           status: (def.status ?? 'operational') as DefenderUnit['status'],
-          weapons: defenderDefinition.weapons.map((weapon) => ({
-            ...weapon,
-            friendlyName: buildFriendlyName(weapon.friendlyNameTemplate ?? weapon.name, weapon.id),
-          })),
-        }
-        // also record canonical stack roster unit detail
-        unitsById[unitId] = {
-          id: unitId,
-          status: (def.status ?? 'operational') as string,
-          friendlyName: buildFriendlyName(defenderDefinition.friendlyNameTemplate ?? `${defenderDefinition.name} {{ordinal}}`, unitId),
           weapons: defenderDefinition.weapons.map((weapon) => ({
             ...weapon,
             friendlyName: buildFriendlyName(weapon.friendlyNameTemplate ?? weapon.name, weapon.id),
@@ -139,10 +128,7 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
   return {
     onion,
     defenders,
-    stackRoster: {
-      ...stackRoster,
-      unitsById,
-    },
+    stackRoster,
     stackNaming: stackNamingEngine.snapshot(),
     ramsThisTurn: 0,
     currentPhase: 'ONION_MOVE',

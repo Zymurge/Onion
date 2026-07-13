@@ -94,6 +94,7 @@ export function BattlefieldRightRail({
   onSelectAllStackMembers,
   onClearStackSelection,
 }: BattlefieldRightRailProps) {
+  void readyWeaponDetails
   const shouldShowCombatPanel = isCombatPhase && activeRole === activeCombatRole
   const shouldShowInspectorPanel = !shouldShowCombatPanel && (selectedInspectorOnion !== null || selectedInspectorDefender !== null)
 

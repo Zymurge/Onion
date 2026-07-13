@@ -212,7 +212,23 @@ export function buildCombatTargetOptions({
 	}
 
 	const selectedAttackerIds = getSelectedAttackerIds(activeCombatRole, selectedUnitIds)
-	const stackRosterIndex = stackRoster === undefined || stackRoster === null ? null : buildStackRosterIndex(stackRoster)
+	const stackRosterIndex = stackRoster === undefined || stackRoster === null
+		? null
+		: buildStackRosterIndex(
+			stackRoster,
+			Object.fromEntries(
+				displayedDefenders.map((unit) => [unit.id, {
+					id: unit.id,
+					type: unit.type,
+					friendlyName: unit.friendlyName,
+					position: { q: unit.q, r: unit.r },
+					status: unit.status,
+					weapons: unit.weapons,
+					targetRules: unit.targetRules,
+					squads: unit.squads,
+				}]),
+			),
+		)
 	const stackedDefenderKeys = getStackedDefenderKeys(displayedDefenders)
 
 	if (stackRosterIndex === null && stackedDefenderKeys.size > 0) {
