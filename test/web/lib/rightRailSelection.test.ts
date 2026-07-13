@@ -174,7 +174,7 @@ describe('rightRailSelection', () => {
         to: { q: 5, r: 4 },
       })).toEqual({
         ok: false,
-        reason: 'empty-selection',
+        reason: 'empty-stack-selection',
       })
     })
 
@@ -188,7 +188,7 @@ describe('rightRailSelection', () => {
         to: { q: 5, r: 8 },
       })).toEqual({
         ok: false,
-        reason: 'empty-selection',
+        reason: 'empty-stack-selection',
       })
     })
 
@@ -314,7 +314,7 @@ describe('rightRailSelection', () => {
         targetId: 'onion-1',
       })).toEqual({
         ok: false,
-        reason: 'empty-selection',
+        reason: 'empty-stack-selection',
       })
     })
 
@@ -334,7 +334,7 @@ describe('rightRailSelection', () => {
         to: { q: 5, r: 4 },
       })).toEqual({
         ok: false,
-        reason: 'missing-stack-selection',
+        reason: 'snapshot-missing-stack-selection',
       })
     })
   })

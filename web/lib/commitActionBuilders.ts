@@ -7,7 +7,7 @@ import {
 import { buildRightRailCombatSubmissionAction, buildRightRailMoveSubmissionAction } from './rightRailSelection'
 import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 
-type CommitActionFailureReason = 'empty-selection' | 'missing-target' | 'missing-stack-selection'
+type CommitActionFailureReason = 'empty-stack-selection' | 'missing-target' | 'snapshot-missing-stack-selection'
 
 type CommitActionResult<TAction extends GameAction> =
   | { ok: true; action: TAction }
@@ -65,7 +65,7 @@ function buildMovePayload(
     | { ok: true; action: Extract<GameAction, { type: 'MOVE' }> }
     | { ok: false; reason: CommitActionFailureReason }
 
-  if (!stackSubmission.ok && stackSubmission.reason === 'empty-selection') {
+  if (!stackSubmission.ok && stackSubmission.reason === 'empty-stack-selection') {
     return stackSubmission
   }
 
@@ -87,7 +87,7 @@ function buildMovePayload(
 
   return {
     ok: false,
-    reason: 'missing-stack-selection',
+    reason: 'snapshot-missing-stack-selection',
   }
 }
 
@@ -108,7 +108,7 @@ function buildCombatPayload(
     | { ok: true; action: Extract<GameAction, { type: 'FIRE' }> }
     | { ok: false; reason: CommitActionFailureReason }
 
-  if (!stackSubmission.ok && stackSubmission.reason === 'empty-selection') {
+  if (!stackSubmission.ok && stackSubmission.reason === 'empty-stack-selection') {
     return stackSubmission
   }
 
@@ -136,7 +136,7 @@ function buildCombatPayload(
 
   return {
     ok: false,
-    reason: 'missing-stack-selection',
+    reason: 'snapshot-missing-stack-selection',
   }
 }
 

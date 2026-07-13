@@ -20,7 +20,7 @@ export type RightRailStackSelectionViewModel = RightRailStackSelectionModel & {
   selectedStackSelectionCount: number
 }
 
-type StackSelectionFailureReason = 'missing-anchor' | 'not-a-stack' | 'empty-selection' | 'missing-stack-selection'
+type StackSelectionFailureReason = 'missing-anchor' | 'not-a-stack' | 'empty-stack-selection' | 'snapshot-missing-stack-selection'
 
 type StackSelectionResult =
   | { ok: true; selection: StackActionSelection }
@@ -115,7 +115,7 @@ function buildValidatedStackSelection(
   try {
     availableUnitIds = uniqueIds(resolveBattlefieldStackSelectionIds(state, anchorUnitId))
   } catch {
-    return { ok: false, reason: 'missing-stack-selection' }
+    return { ok: false, reason: 'snapshot-missing-stack-selection' }
   }
 
   if (selectedUnit === undefined || !isUnitTypeStackable(selectedUnit.type)) {
@@ -139,7 +139,7 @@ function buildValidatedStackSelection(
     }),
   )
   if (normalizedSelectedUnitIds.length === 0) {
-    return { ok: false, reason: 'empty-selection' }
+    return { ok: false, reason: 'empty-stack-selection' }
   }
 
   return {
@@ -254,7 +254,7 @@ export function buildRightRailMoveSubmissionAction(input: Omit<RightRailMoveSubm
   const selectionResult = buildValidatedStackSelection(input.state, input.anchorUnitId, input.selectedUnitIds)
   if (!selectionResult.ok) {
     return selectionResult.reason === 'missing-anchor'
-      ? { ok: false, reason: 'missing-stack-selection' }
+      ? { ok: false, reason: 'snapshot-missing-stack-selection' }
        : (selectionResult as RightRailMoveSubmissionResult)
   }
 
@@ -273,7 +273,7 @@ export function buildRightRailCombatSubmissionAction(input: Omit<RightRailCombat
   const selectionResult = buildValidatedStackSelection(input.state, input.anchorUnitId, input.selectedUnitIds)
   if (!selectionResult.ok) {
     return selectionResult.reason === 'missing-anchor'
-      ? { ok: false, reason: 'missing-stack-selection' }
+      ? { ok: false, reason: 'snapshot-missing-stack-selection' }
       : { ok: false, reason: selectionResult.reason }
   }
 

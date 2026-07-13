@@ -308,7 +308,7 @@ export function useBattlefieldInteractionState({
     if (!moveAction.ok) {
       const diagnosticSuffix = summarizeStackState(clientSnapshot?.authoritativeState, prompt.unitId, clientSnapshotPhase)
       setActionError(
-        moveAction.reason === 'missing-stack-selection'
+        moveAction.reason === 'snapshot-missing-stack-selection'
           ? `Loaded game snapshot is missing canonical stackRoster data for the selected unit (${diagnosticSuffix}).`
           : 'Select at least one stack member before submitting the move.',
       )

@@ -70,7 +70,7 @@ describe('commitActionBuilders', () => {
 
       expect(buildMoveCommitAction({
         state,
-        unitId: 'pigs-1',
+        unitId: 'Little Pigs:4,4',
         selectedUnitIds: ['pigs-2', 'pigs-1'],
         to: { q: 5, r: 4 },
         attemptRam: true,
@@ -114,7 +114,7 @@ describe('commitActionBuilders', () => {
         to,
       })).toEqual({
         ok: false,
-        reason: 'empty-selection',
+        reason: 'empty-stack-selection',
       })
     })
 
@@ -128,7 +128,7 @@ describe('commitActionBuilders', () => {
         to: { q: 5, r: 4 },
       })).toEqual({
         ok: false,
-        reason: 'missing-stack-selection',
+        reason: 'snapshot-missing-stack-selection',
       })
     })
 
@@ -195,7 +195,7 @@ describe('commitActionBuilders', () => {
         targetId: 'onion-1:treads',
       })).toEqual({
         ok: false,
-        reason: 'missing-stack-selection',
+        reason: 'snapshot-missing-stack-selection',
       })
     })
   })

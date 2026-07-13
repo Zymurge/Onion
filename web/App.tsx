@@ -620,14 +620,14 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       onionId: displayedOnion.id,
     })
 
-    if (!combatAction.ok && combatAction.reason === 'empty-selection') {
+    if (!combatAction.ok && combatAction.reason === 'empty-stack-selection') {
       setActionError('Select at least one stack member before resolving combat.')
       return
     }
 
     if (!combatAction.ok) {
       setActionError(
-        combatAction.reason === 'missing-stack-selection'
+        combatAction.reason === 'snapshot-missing-stack-selection'
           ? 'Loaded game snapshot is missing canonical stackRoster data for the selected unit.'
           : 'Unable to resolve combat from the current selection.',
       )

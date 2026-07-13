@@ -5,7 +5,7 @@ type BaseAttackPlanningConfirmationViewProps = {
   title: string
   attackStrength: number
   attackMemberCount?: number
-  attackMemberLabels?: string[]
+  attackMemberLabels?: ReadonlyArray<string>
   confirmLabel?: string
   onConfirm?: () => void
   isConfirmReady?: boolean
@@ -79,8 +79,8 @@ export function AttackPlanningConfirmationView({
         <div className="combat-confirmation-section">
           <span className="stat-label-small">Attack composition</span>
           <ul className="combat-confirmation-modifier-list">
-            {attackMemberLabels.map((label) => (
-              <li key={label}>{label}</li>
+            {attackMemberLabels.map((label, idx) => (
+              <li key={`${label}-${idx}`}>{label}</li>
             ))}
           </ul>
         </div>
