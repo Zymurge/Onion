@@ -51,8 +51,7 @@ describe('BattlefieldLeftRail', () => {
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],
         },
-      },
-      unitsById: createUnitsById(displayedDefenders),
+      }
     }
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
@@ -137,8 +136,7 @@ describe('BattlefieldLeftRail', () => {
           position: { q: 5, r: 5 },
           unitIds: ['pigs-4', 'pigs-5'],
         },
-      },
-      unitsById: createUnitsById(displayedDefenders),
+      }
     }
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
@@ -237,8 +235,7 @@ describe('BattlefieldLeftRail', () => {
               position: { q: 4, r: 8 },
               unitIds: ['pigs-1'],
             },
-          },
-          unitsById: createUnitsById(displayedDefenders),
+          }
         } as any}
         onSelectUnit={vi.fn()}
       />,
@@ -360,8 +357,7 @@ describe('BattlefieldLeftRail', () => {
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
         },
-      },
-      unitsById: createUnitsById(displayedDefenders),
+      }
     }
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
@@ -478,8 +474,7 @@ describe('BattlefieldLeftRail', () => {
               position: { q: 4, r: 4 },
               unitIds: ['pigs-1', 'pigs-2'],
             },
-          },
-          unitsById: createUnitsById(displayedDefenders),
+          }
         } as any}
         onSelectUnit={vi.fn()}
       />,
@@ -542,8 +537,7 @@ describe('BattlefieldLeftRail', () => {
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
         },
-      },
-      unitsById: createUnitsById(displayedDefenders),
+      }
     }
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
@@ -644,8 +638,7 @@ describe('BattlefieldLeftRail', () => {
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
         },
-      },
-      unitsById: createUnitsById(displayedDefenders),
+      }
     }
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
@@ -732,8 +725,7 @@ describe('BattlefieldLeftRail', () => {
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],
         },
-      },
-      unitsById: createUnitsById(displayedDefenders),
+      }
     }
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
@@ -816,8 +808,7 @@ describe('BattlefieldLeftRail', () => {
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],
         },
-      },
-      unitsById: createUnitsById(displayedDefenders),
+      }
     }
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
@@ -930,8 +921,7 @@ describe('BattlefieldLeftRail', () => {
               position: { q: 4, r: 4 },
               unitIds: ['pigs-1', 'pigs-2'],
             },
-          },
-          unitsById: createUnitsById(displayedDefenders),
+          }
         } as any}
         onSelectUnit={vi.fn()}
       />,
@@ -1014,8 +1004,7 @@ describe('BattlefieldLeftRail', () => {
               position: { q: 4, r: 4 },
               unitIds: ['pigs-1', 'pigs-2'],
             },
-          },
-          unitsById: createUnitsById(displayedDefenders),
+          }
         } as any}
         onSelectUnit={onSelectUnit}
       />,

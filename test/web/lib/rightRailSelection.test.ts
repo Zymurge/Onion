@@ -21,10 +21,8 @@ function createUnitsById() {
 }
 
 function createStackState() {
-  const unitsById = createUnitsById()
-
   return {
-    defenders: unitsById,
+    defenders: createUnitsById(),
     stackRoster: {
       groupsById: {
         'stack-a': {
@@ -34,19 +32,18 @@ function createStackState() {
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
         },
       },
-      unitsById,
     },
   }
 }
 
 function createSingletonStackState() {
-  const unitsById = {
+  const defenders = {
     'pigs-5': { id: 'pigs-5', type: 'LittlePigs', position: { q: 4, r: 8 }, status: 'operational' },
     'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
   }
 
   return {
-    defenders: unitsById,
+    defenders,
     stackRoster: {
       groupsById: {
         'LittlePigs:4,8': {
@@ -56,7 +53,6 @@ function createSingletonStackState() {
           unitIds: ['pigs-5'],
         },
       },
-      unitsById,
     },
   }
 }
