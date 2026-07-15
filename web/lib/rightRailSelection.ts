@@ -99,7 +99,7 @@ function findGroupIdForUnit(state: WebStackSourceState, unitId: string | null): 
 
   return buildStackRosterIndex(
     state.stackRoster as StackRosterState | undefined,
-    state.defenders as Record<string, DefenderUnit> | undefined,
+    state.defenders as DefenderMap | undefined,
   ).getUnitGroup(unitId)?.groupId ?? null
 }
 

@@ -60,15 +60,18 @@ export function resolveBattlefieldDisplayName(
   unit: {
     id: string
     type: string
-    q: number
-    r: number
+    position?: { q: number; r: number }
+    q?: number
+    r?: number
     friendlyName?: string
     squads?: number
   },
   stackNaming?: StackNamingSnapshot,
 ): string {
+  const position = unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
+
   if (stackNaming !== undefined) {
-    const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
+    const groupKey = buildStackGroupKey(unit.type, position)
     const group = stackNaming.groupsInUse.find((entry) => entry.groupKey === groupKey)
     if (group !== undefined) {
       return resolveSelectionName({ kind: 'group', groupKey: group.groupKey, stackNaming })
@@ -91,8 +94,9 @@ export function resolveBattlefieldFriendlyName(
   unit: {
     id: string
     type: string
-    q: number
-    r: number
+    position?: { q: number; r: number }
+    q?: number
+    r?: number
     friendlyName?: string
   },
   stackNaming?: StackNamingSnapshot,
@@ -100,7 +104,8 @@ export function resolveBattlefieldFriendlyName(
   defenders?: Record<string, StackSourceUnit>,
 ): string {
   void defenders
-  const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
+  const position = unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
+  const groupKey = buildStackGroupKey(unit.type, position)
   const rosterGroup = stackRoster === undefined
     ? null
     : Object.entries(stackRoster.groupsById ?? {})
@@ -137,7 +142,7 @@ export function resolveBattlefieldFriendlyName(
   return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)
 }
 
-type StackSourceUnit = {
+export type StackSourceUnit = {
   id: string
   type: string
   position: { q: number; r: number }
@@ -577,10 +582,12 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
         type: defender.type,
       friendlyName: resolveBattlefieldUnitName(defender.type, resolvedDefenderId, defender.friendlyName),
         status: defender.status,
+        position: defender.position,
         q: defender.position.q,
         r: defender.position.r,
         move: activePhase === null ? 0 : snapshotMovementRemaining ?? 0,
-        weapons: formatWeaponSummary(defender.weapons),
+        weapons: defender.weapons ?? [],
+        weaponSummary: formatWeaponSummary(defender.weapons),
         attack: formatAttackSummary(defender.weapons),
         weaponDetails: defender.weapons ?? [],
         targetRules: defender.targetRules,
@@ -624,8 +631,7 @@ export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPh
     id: onion.id ?? 'onion-1',
     type: onion.type ?? 'TheOnion',
     friendlyName: resolveBattlefieldUnitName(onion.type ?? 'TheOnion', onion.id ?? 'onion-1', onion.friendlyName),
-    q: onion.position.q,
-    r: onion.position.r,
+    position: onion.position,
     status: onion.status ?? 'operational',
     treads: onion.treads,
     movesAllowed,
@@ -679,8 +685,8 @@ export function buildCombatRangeSources(
     return (displayedOnion.weaponDetails ?? [])
       .filter((weapon) => weapon.status === 'ready' && selectedWeaponIds.has(weapon.id))
       .map((weapon) => ({
-        q: displayedOnion.q,
-        r: displayedOnion.r,
+        q: displayedOnion.position.q,
+        r: displayedOnion.position.r,
         range: weapon.range,
       }))
   }

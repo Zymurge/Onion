@@ -1,14 +1,14 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
 import { resolveBattlefieldDisplayName, resolveSelectionOwnerUnitId } from '../lib/appViewHelpers'
-import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
+import { getBattlefieldPosition, statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
-import type { DefenderUnit, StackRosterState } from '../../shared/types/index'
+import type { DefenderMap, StackRosterState } from '../../shared/types/index'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 import logger from '../lib/logger'
@@ -107,7 +107,7 @@ function hasStackedOccupants(defenders: BattlefieldUnit[]): boolean {
       return true
     }
 
-    const key = `${defender.type}:${defender.q},${defender.r}`
+    const key = `${defender.type}:${defender.position.q},${defender.position.r}`
     const nextCount = (stackedCountsByPosition.get(key) ?? 0) + 1
     stackedCountsByPosition.set(key, nextCount)
     if (nextCount > 1) {
@@ -143,7 +143,7 @@ function buildMoveValidationState(
     onion: {
       id: onion.id,
       type: onion.type,
-      position: { q: onion.q, r: onion.r },
+      position: getBattlefieldPosition(onion),
       status: onion.status,
       treads: onion.treads,
     },
@@ -151,7 +151,7 @@ function buildMoveValidationState(
       defenders.map((defender) => [defender.id, {
         id: defender.id,
         type: defender.type,
-        position: { q: defender.q, r: defender.r },
+        position: getBattlefieldPosition(defender),
         status: defender.status,
         squads: defender.squads,
       }]),
@@ -178,12 +178,12 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
         id: defender.id,
         type: defender.type,
         friendlyName: defender.friendlyName,
-        position: { q: defender.q, r: defender.r },
+        position: defender.position,
         status: defender.status,
         targetRules: defender.targetRules,
         squads: defender.squads,
       }]),
-    ) as Record<string, DefenderUnit>
+    ) as DefenderMap
 
     return buildStackRosterIndex(stackRoster, defenderLookup)
   }, [defenders, stackRoster])
@@ -229,10 +229,10 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
     return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onion.id : null
   }, [onion.id, selectedUnitIds])
 
-  occupantMap.set(hexKey(onion), [onion])
+  occupantMap.set(hexKey(getBattlefieldPosition(onion)), [onion])
   for (const defender of defenders) {
     if (!shouldRenderDefender(defender)) continue
-    const key = hexKey(defender)
+    const key = hexKey(getBattlefieldPosition(defender))
     const occupants = occupantMap.get(key) ?? []
     occupants.push(defender)
     occupantMap.set(key, occupants)
@@ -269,7 +269,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
     ? new Set(
         listReachableMoves({
           map: { ...scenarioMap, occupiedHexes },
-          from: { q: selectedOccupant.q, r: selectedOccupant.r },
+            from: getBattlefieldPosition(selectedOccupant),
           movementAllowance: selectedAllowance,
           movingRole: selectedOccupant.id === onion.id ? 'onion' : 'defender',
           movingUnitType: selectedOccupant.type,

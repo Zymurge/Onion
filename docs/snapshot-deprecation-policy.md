@@ -4,7 +4,7 @@ Effective immediately, any snapshot that does not adhere to the canonical `stack
 
 ## What is deprecated
 
-- Any snapshot lacking `stackRoster.unitsById`.
+- Any snapshot lacking the canonical `stackRoster` bundle (`groupsById`) or the associated naming snapshot.
 - Any snapshot with malformed `groupsById` (missing `groupName`, `unitType`, valid `position`, or `unitIds` array).
 - Any snapshot where `defenders` is relied upon as the canonical source of stack membership.
 

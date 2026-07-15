@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import type { DefenderUnit, HexPos, StackRosterState, UnitStatus, Weapon } from '#shared/types/index'
+import type { DefenderMap, HexPos, StackRosterState, UnitStatus, Weapon } from '#shared/types/index'
 import type { GameState } from '#shared/types/index'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
 import { buildStackGroupKey } from '#shared/stackNaming'
@@ -361,7 +361,7 @@ export type GroupInput = {
  * ```
  */
 export type DefenderTree = {
-	defenders: Record<string, DefenderUnit>
+	defenders: DefenderMap
 	stackRoster: StackRosterState
 	stackNaming: StackNamingSnapshot
 }
@@ -382,7 +382,7 @@ export function buildDefenderTree(opts: {
 	groups?: GroupInput[]
 }): DefenderTree {
 	const { units = [], groups = [] } = opts
-	const defenders: Record<string, DefenderUnit> = {}
+	const defenders: DefenderMap = {}
 
 	// ---- Individual units ----
 	for (const unit of units) {

@@ -35,11 +35,16 @@ Canonical shape (example):
 ```typeScript
 StackRosterState = {
     groupsById: Record<string, { groupName: string; unitType: string; position: { q:number; r:number }; unitIds: string[] }>
-    unitsById?: Record<string, { id: string; status: string; friendlyName?: string; squads?: number; weapons?: any }>
 }
 ```
 
-Notes: prefer `unitsById` in fixtures and snapshots; helpers provide conversion functions when only unit lists are available.
+Notes: fixtures and snapshots should include the canonical `groupsById` roster bundle and any per-unit records required by downstream consumers; helpers provide conversion functions when tests generate roster state from unit lists or `defenders`.
+
+Note on naming inputs: the naming snapshot refresher (`refreshStackNamingSnapshotFromRoster`)
+accepts a `ReadonlyArray<StackNamingSourceUnit>` (an array of per-unit source records,
+commonly built from `defenders`) and not a persisted roster map.
+Callers should use `buildStackRosterNamingSourceUnits` to adapt `defenders` into the
+`sourceUnits` array expected by the naming engine.
 
 Validation:
 
@@ -154,11 +159,11 @@ Validation:
 - Projection tests cover left-rail member rows and finalized stack labels.
 - Negative tests prove stack-aware views fail when canonical roster data is absent.
 
-Current status: Mostly implemented. Server snapshots are emitting the canonical roster and naming state; web projection helpers were updated to prefer `unitsById`. A small number of projection tests were adjusted to include canonical inputs.
+Current status: Mostly implemented. Server snapshots are emitting the canonical roster and naming state; web projection helpers were updated to consume the canonical roster bundle. A small number of projection tests were adjusted to include canonical inputs.
 
-Migration note: update any snapshot producers to include `stackRoster.unitsById` when they previously serialized only `groupsById` or relied on `defenders` co-location.
+Migration note: update any snapshot producers to emit `stackRoster.groupsById` and the naming snapshot when they previously serialized only `groupsById` or relied on `defenders` co-location.
 
-- **Snapshot Deprecation Policy:** any snapshot that does not include the canonical `stackRoster` bundle (`groupsById` + `unitsById`) is deprecated and unsupported. Agents and tools should fail loudly on unsupported snapshots.
+-- **Snapshot Deprecation Policy:** any snapshot that does not include the canonical roster bundle (`groupsById`) and the naming snapshot is deprecated and unsupported. Agents and tools should fail loudly on unsupported snapshots.
 
 Suggested ownership:
 
@@ -186,7 +191,7 @@ Current status: In progress. Most compatibility fallbacks were removed; however,
 
 Migration checklist (practical steps):
 
-- Update fixtures and tests to include `stackRoster.unitsById` and `group.unitIds` rather than inline `units` or relying on `position` inference.
+- Update fixtures and tests to include `stackRoster.groupsById` with `group.unitIds` rather than inline `units` or relying on `position` inference. Where per-unit fields are required for consumers, include those per-unit records in the snapshot or provide them via `defenders` in tests.
 - Use `buildStackRosterFromUnits()` in tests that generate roster from defender lists.
 - Prefer `buildStackRosterIndex()` in code that needs `getUnitGroup()`/`getGroupUnits()` views.
 - Replace `defenders`-based co-location logic with `stackRoster` queries; where compatibility is required, add explicit adapters with tests.

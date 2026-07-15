@@ -1,4 +1,4 @@
-import type { TargetRules, Weapon } from '../../shared/types/index'
+import type { DefenderUnit, HexPos, TargetRules, Weapon } from '../../shared/types/index'
 
 // Returns true if the unit is eligible to move for the given player and phase
 export function isUnitMoveEligible(
@@ -22,29 +22,31 @@ export function isUnitMoveEligible(
 export type Mode = 'fire' | 'combined' | 'end-phase'
 export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
 
-export type BattlefieldUnit = {
+export type BattlefieldUnitView = Omit<DefenderUnit, 'id'> & {
   id: string
-  type: string
-  friendlyName?: string
-  status: UnitStatus
+  position: DefenderUnit['position']
   q: number
   r: number
   move: number
-  weapons: string
   attack: string
-  defense?: number
-  squads?: number
+  // Derived display label for weapon state; the canonical weapon data stays
+  // in `weapons` and mirrors the defender record.
+  weaponSummary?: string
+  weapons: ReadonlyArray<Weapon> | string
   weaponDetails?: ReadonlyArray<Weapon>
-  targetRules?: TargetRules
+  defense?: number
   actionableModes: Mode[]
 }
+
+export type BattlefieldUnit = BattlefieldUnitView
 
 export type BattlefieldOnionView = {
   id: string
   type: string
   friendlyName?: string
-  q: number
-  r: number
+  position: { q: number; r: number }
+  // q: number
+  // r: number
   status: UnitStatus
   treads: number
   movesAllowed: number
@@ -69,6 +71,10 @@ export type TerrainHex = {
   q: number
   r: number
   t: number
+}
+
+export function getBattlefieldPosition(unit: { position?: HexPos; q?: number; r?: number }): HexPos {
+  return unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
 }
 
 

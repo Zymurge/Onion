@@ -57,7 +57,7 @@ export interface EngineGameState {
   /** The Onion super-unit */
   onion: OnionUnit
   /** All defender units, keyed by unit ID */
-  defenders: Record<string, DefenderUnit>
+  defenders: DefenderMap
   /** Persisted stack-name lifecycle state */
   stackNaming?: StackNamingSnapshot
   /** Persisted stack/group membership state */

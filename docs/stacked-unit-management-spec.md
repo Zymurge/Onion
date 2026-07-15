@@ -87,14 +87,13 @@ Recommended shape:
 ```ts
 type StackRoster = {
   groupsById: Record<string, StackGroupState>
-  unitsById: Record<string, StackUnitState>
 }
 
 type StackGroupState = {
   groupName: string
   unitType: string
   position: { q: number; r: number }
-  units: StackUnitState[]
+  unitIds: string[]
 }
 
 type StackUnitState = {
@@ -127,7 +126,7 @@ This contract applies to newly created games and new snapshots.
 
 ## Snapshot Deprecation Policy — NO BACKWARDS COMPATIBILITY
 
-**LOUD & CLEAR:** Any persisted or exported snapshot that does NOT conform to the canonical `stackRoster` bundle (missing `unitsById`, malformed `groupsById`, or other deviations from this contract) is DEPRECATED and UNSUPPORTED. The platform does NOT provide backward-compatibility or automatic upgrades for legacy snapshot shapes. Servers, tools, and clients will reject, fail to load, or treat such snapshots as invalid.
+**LOUD & CLEAR:** Any persisted or exported snapshot that does NOT conform to the canonical `stackRoster` bundle (missing `groupsById`, malformed `groupsById`, or other deviations from this contract) is DEPRECATED and UNSUPPORTED. The platform does NOT provide backward-compatibility or automatic upgrades for legacy snapshot shapes. Servers, tools, and clients will reject, fail to load, or treat such snapshots as invalid.
 
 Enforcement and recommended actions:
 
@@ -151,7 +150,13 @@ Responsibilities:
 - Preserve unit identity across regrouping by keeping unit records stable while updating group membership.
 - Return a derived view for UI surfaces that need both the group header and the contained member list.
 
-The helper should be the only place that knows how to move between `unitsById`, `groupsById`, and the naming snapshot.
+The helper should be the only place that knows how to move between persisted group records (`groupsById`), any per-unit source records, and the naming snapshot.
+
+Note on naming snapshot inputs: the naming helper consumes a flat array of per-unit
+source records (a `ReadonlyArray<StackNamingSourceUnit>`, commonly derived from
+`defenders`) rather than a persisted roster map. Use the shared adapter
+(`buildStackRosterNamingSourceUnits`) to construct the `sourceUnits` array when
+calling `refreshStackNamingSnapshotFromRoster` so intent and types are clear.
 
 ## 2. UI Exposure (Initial Plan)
 

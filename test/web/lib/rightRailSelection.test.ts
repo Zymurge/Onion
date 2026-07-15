@@ -10,8 +10,10 @@ import {
   selectRightRailStackMembers,
   toggleRightRailStackMemberSelection,
 } from '#web/lib/rightRailSelection'
+import { StackSourceUnit } from '#web/lib/appViewHelpers'
+import { GameState } from '#shared/types/index'
 
-function createUnitsById() {
+function createTestDefendersMap() : Record<string, StackSourceUnit> {
   return {
     'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
     'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
@@ -20,9 +22,9 @@ function createUnitsById() {
   }
 }
 
-function createStackState() {
+function createTestStackState() {
   return {
-    defenders: createUnitsById(),
+    defenders: createTestDefendersMap(),
     stackRoster: {
       groupsById: {
         'stack-a': {
@@ -60,7 +62,7 @@ function createSingletonStackState() {
 describe('rightRailSelection', () => {
   describe('buildRightRailStackSelectionModel', () => {
     it('prefers explicit stack selection and reports the selected count within that stack', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailStackSelectionModel({
         state,
@@ -77,7 +79,7 @@ describe('rightRailSelection', () => {
     })
 
     it('falls back to canonical stack membership from the inspected unit', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailStackSelectionModel({
         state,
@@ -94,7 +96,7 @@ describe('rightRailSelection', () => {
     })
 
     it('returns an empty model when there is no active inspected or selected stack', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailStackSelectionModel({
         state,
@@ -113,7 +115,7 @@ describe('rightRailSelection', () => {
 
   describe('buildRightRailStackSelectionViewModel', () => {
     it('returns canonical stack member views from the roster', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailStackSelectionViewModel({
         state,
@@ -143,7 +145,7 @@ describe('rightRailSelection', () => {
 
   describe('buildRightRailMoveAction', () => {
     it('builds a MOVE action from the selected members of the active stack', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailMoveAction({
         state,
@@ -161,7 +163,7 @@ describe('rightRailSelection', () => {
     })
 
     it('rejects empty stack move submissions instead of defaulting back to the full group', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailMoveAction({
         state,
@@ -209,7 +211,7 @@ describe('rightRailSelection', () => {
 
   describe('buildRightRailCombatAction', () => {
     it('builds a FIRE action from the selected stack members and target', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailCombatAction({
         state,
@@ -227,7 +229,7 @@ describe('rightRailSelection', () => {
     })
 
     it('rejects combat submission when the target is missing', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailCombatAction({
         state,
@@ -243,7 +245,7 @@ describe('rightRailSelection', () => {
 
   describe('buildRightRailStackSubmissionAction', () => {
     it('builds a MOVE payload from normalized selected ids without re-deriving selection defaults', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailStackSubmissionAction({
         kind: 'move',
@@ -262,7 +264,7 @@ describe('rightRailSelection', () => {
     })
 
     it('keeps a lone stack anchor selection scoped to that member', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailStackSubmissionAction({
         kind: 'move',
@@ -281,7 +283,7 @@ describe('rightRailSelection', () => {
     })
 
     it('maps reloaded stack-member ids to their corresponding stack members', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailStackSubmissionAction({
         kind: 'combat',
@@ -300,7 +302,7 @@ describe('rightRailSelection', () => {
     })
 
     it('rejects empty stack submissions instead of auto-filling the full group', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildRightRailStackSubmissionAction({
         kind: 'combat',

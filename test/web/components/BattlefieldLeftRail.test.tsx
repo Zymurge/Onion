@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { BattlefieldLeftRail } from '#web/components/BattlefieldLeftRail'
 import type { BattlefieldOnionView, BattlefieldUnit } from '#web/lib/battlefieldView'
 
-function createUnitsById(defenders: BattlefieldUnit[]) {
+function createDefendersMap(defenders: BattlefieldUnit[]) {
   return Object.fromEntries(defenders.map((unit) => [unit.id, { id: unit.id, status: unit.status, friendlyName: unit.friendlyName }]))
 }
 
@@ -56,8 +56,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -141,8 +143,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -196,8 +200,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -264,8 +270,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -362,8 +370,8 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: { 
+        q: 0, r: 0 },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -433,8 +441,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -542,8 +552,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -643,8 +655,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -730,8 +744,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -813,8 +829,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -880,8 +898,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,
@@ -963,8 +983,10 @@ describe('BattlefieldLeftRail', () => {
     const onion: BattlefieldOnionView = {
       id: 'onion-1',
       type: 'TheOnion',
-      q: 0,
-      r: 0,
+      position: {
+        q: 0,
+        r: 0,
+      },
       status: 'operational',
       treads: 33,
       movesAllowed: 3,

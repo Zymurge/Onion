@@ -17,7 +17,7 @@ export type StackRosterUnitState = {
   id: string
   status: UnitStatus
   friendlyName?: string
-  weapons?: Weapon[]
+  weapons?: ReadonlyArray<Weapon>
   targetRules?: TargetRules
   squads?: number
 }
@@ -57,35 +57,47 @@ export interface Weapon {
   targetRules?: TargetRules
 }
 
+export interface OnionUnit {
+  id?: string
+  type?: string
+  friendlyName?: string
+  position: HexPos
+  treads: number
+  missiles?: number
+  status?: UnitStatus
+  weapons?: Weapon[]
+  targetRules?: TargetRules
+  batteries?: {
+    main: number
+    secondary: number
+    ap: number
+  }
+}
+
 export interface DefenderUnit {
   id?: string
   type: string
   friendlyName?: string
   position: HexPos
   status: UnitStatus
-  weapons?: Weapon[]
+  weapons?: ReadonlyArray<Weapon>
   squads?: number
   targetRules?: TargetRules
 }
 
+// Canonical defender state is read-only at the type boundary; call sites
+// should build a new map rather than mutate this in place.
+export type DefenderMap = Readonly<Record<string, DefenderUnit>>
+
+/**
+ * The canonical game state bundle returned by the backend after each action.
+ * 
+ * This is the authoritative state of the game, including the onion, defenders,
+ * stack roster, and other relevant information.
+ */
 export interface GameState {
-  onion: {
-    id?: string
-    type?: string
-    friendlyName?: string
-    position: HexPos
-    treads: number
-    missiles?: number
-    status?: UnitStatus
-    weapons?: Weapon[]
-    targetRules?: TargetRules
-    batteries?: {
-      main: number
-      secondary: number
-      ap: number
-    }
-  }
-  defenders: Record<string, DefenderUnit>
+  onion: OnionUnit,
+  defenders: DefenderMap,
   stackNaming?: StackNamingSnapshot
   stackRoster?: StackRosterState
   ramsThisTurn?: number

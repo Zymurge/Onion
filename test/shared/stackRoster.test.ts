@@ -15,10 +15,11 @@ import {
 	validateStackRoster,
 	validateStackRosterConsistency,
 } from '#shared/stackRoster'
-import type { StackRosterState } from '#shared/types/index'
+import type { DefenderMap, StackRosterState } from '#shared/types/index'
 
 describe('stack roster', () => {
 	it('flags structural contract violations', () => {
+		const defenders: DefenderMap = {}
 		const roster: StackRosterState = {
 			groupsById: {
 				'bad-1': {
@@ -48,7 +49,7 @@ describe('stack roster', () => {
 			},
 		}
 
-		const issues = validateStackRoster(roster)
+		const issues = validateStackRoster(roster, defenders)
 
 		expect(issues).toEqual(
 			expect.arrayContaining([
@@ -102,7 +103,7 @@ describe('stack roster', () => {
 			unitType: 'LittlePigs',
 			position: { q: 4, r: 4 },
 		})
-		expect(rosterIndex.unitsById['pigs-2']).toMatchObject({
+		expect(rosterIndex.derivedUnitsById['pigs-2']).toMatchObject({
 			id: 'pigs-2',
 			groupId: 'stack-1',
 			groupKey: 'LittlePigs:4,4',
@@ -141,7 +142,7 @@ describe('stack roster', () => {
 		const rosterIndex = buildStackRosterIndex(undefined, undefined)
 
 		expect(rosterIndex.groupsById).toEqual({})
-		expect(rosterIndex.unitsById).toEqual({})
+		expect(rosterIndex.derivedUnitsById).toEqual({})
 		expect(rosterIndex.getGroupUnits('missing')).toEqual([])
 		expect(rosterIndex.getUnitGroup('missing')).toBeNull()
 	})

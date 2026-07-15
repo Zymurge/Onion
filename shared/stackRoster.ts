@@ -1,6 +1,6 @@
 import { buildStackGroupKey, createStackNamingEngine, refreshStackNamingSnapshotFromRoster, type StackNamingSnapshot, type StackNamingSourceUnit } from './stackNaming.js'
 import { getAllUnitDefinitions } from './unitDefinitions.js'
-import type { DefenderUnit, HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from './types/index.js'
+import type { DefenderMap, HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from './types/index.js'
 
 export { buildStackGroupKey } from './stackNaming.js'
 
@@ -69,7 +69,7 @@ export type RelocateStackRosterUnitsInput = {
 export type ReconcileStackRosterMoveLifecycleInput = {
 	stackRoster: StackRosterState | undefined
 	stackNaming: StackNamingSnapshot | undefined
-	defenders: Record<string, DefenderUnit> | undefined
+	defenders: DefenderMap | undefined
 	movedUnitId: string
 	unitType: string
 	destinationPosition: HexPos
@@ -106,7 +106,11 @@ export type StackRosterGroupView = StackRosterGroupState & {
 
 export type StackRosterIndex = {
 	groupsById: Record<string, StackRosterGroupView>
-	unitsById: Record<string, StackRosterUnitView>
+	// Derived convenience index: a runtime map of unitId -> UnitView. NOTE:
+	// this is a derived projection returned by `buildStackRosterIndex` and is
+	// not part of the persisted canonical roster bundle. Callers should not
+	// assume this projection exists on serialized snapshots.
+	derivedUnitsById: Record<string, StackRosterUnitView>
 	getGroupUnits(groupId: string): StackRosterUnitView[]
 	getUnitGroup(unitId: string): StackRosterGroupView | null
 }
@@ -151,20 +155,20 @@ function resolveGroupUnitIds(group: StackRosterGroupState): string[] {
 
 	return [...group.unitIds]
 }
-function buildDefenderLookup(defenders: Record<string, DefenderUnit> | undefined): Record<string, DefenderUnit> {
-	const lookup: Record<string, DefenderUnit> = {}
+function buildDefenderLookup(defenders: DefenderMap | undefined): DefenderMap {
+	const lookup: Record<string, DefenderMap[string]> = {}
 	for (const [defenderKey, defender] of Object.entries(defenders ?? {})) {
 		lookup[defenderKey] = defender
 		if (defender !== null && typeof defender === 'object' && typeof (defender as any).id === 'string') {
 			lookup[(defender as any).id] = defender
 		}
 	}
-	return lookup
+	return lookup as DefenderMap
 }
 
 export function buildStackRosterNamingSourceUnits(
 	stackRoster: StackRosterState | undefined,
-	defenders: Record<string, DefenderUnit> | undefined,
+	defenders: DefenderMap | undefined,
 ): StackNamingSourceUnit[] {
 	const defenderLookup = buildDefenderLookup(defenders)
 	const sourceUnits: StackNamingSourceUnit[] = []
@@ -194,11 +198,23 @@ export function buildStackRosterNamingSourceUnits(
 	return sourceUnits
 }
 
+// Helper: buildStackRosterNamingSourceUnits
+// -----------------
+// This function converts the `defenders` map (or other per-unit sources)
+// into the simple `StackNamingSourceUnit[]` shape expected by the naming
+// snapshot refresher. The naming engine works with a flat array of source
+// units rather than a persisted roster map, so callers should use this
+// adapter when they have canonical roster groups but need to derive naming
+// info from the per-unit records.
+
 export function refreshStackRosterNamingSnapshot(
 	stackRoster: StackRosterState | undefined,
 	seed: StackNamingSnapshot | undefined = undefined,
-	defenders: Record<string, DefenderUnit> | undefined = undefined,
+	defenders: DefenderMap | undefined = undefined,
 ): StackNamingSnapshot {
+	// buildStackRosterNamingSourceUnits returns the array-of-units that the
+	// naming engine expects (see StackNamingSourceUnit). This keeps the
+	// naming input clearly separated from the persisted roster bundle.
 	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster, defenders))
 }
 
@@ -246,7 +262,7 @@ function isValidPosition(position: HexPos): boolean {
 
 export function validateStackRoster(
 	stackRoster: StackRosterState | undefined,
-	defenders: Record<string, DefenderUnit> | undefined,
+	defenders: DefenderMap | undefined,
 ): StackRosterValidationIssue[] {
 	const issues: StackRosterValidationIssue[] = []
 	const seenUnitIds = new Set<string>()
@@ -294,10 +310,10 @@ export function validateStackRoster(
 
 export function buildStackRosterIndex(
 	stackRoster: StackRosterState | undefined,
-	defenders: Record<string, DefenderUnit> | undefined,
+	defenders: DefenderMap | undefined,
 ): StackRosterIndex {
 	const groupsById: Record<string, StackRosterGroupView> = {}
-	const unitsById: Record<string, StackRosterUnitView> = {}
+	const derivedUnitsById: Record<string, StackRosterUnitView> = {}
 	const groupIdsByUnitId = new Map<string, string>()
 	const defenderLookup = buildDefenderLookup(defenders)
 
@@ -334,7 +350,7 @@ export function buildStackRosterIndex(
 				position: normalizedGroup.position,
 			}
 
-			unitsById[unit.id] = unitView
+			derivedUnitsById[unit.id] = unitView
 			groupIdsByUnitId.set(unit.id, groupId)
 			return unitView
 		})
@@ -350,7 +366,7 @@ export function buildStackRosterIndex(
 
 	return {
 		groupsById,
-		unitsById,
+		derivedUnitsById,
 		getGroupUnits(groupId: string) {
 			return groupsById[groupId]?.units ?? []
 		},
@@ -366,7 +382,7 @@ export function buildStackRosterIndex(
 }
 
 export function validateStackRosterConsistency(
-	defenders: Record<string, DefenderUnit> | undefined,
+	defenders: DefenderMap | undefined,
 	stackRoster: StackRosterState | undefined,
 ): StackRosterConsistencyIssue[] {
 	const issues: StackRosterConsistencyIssue[] = []
@@ -451,7 +467,7 @@ export function validateStackRosterConsistency(
 
 export function expandStackRosterGroups(
 	stackRoster: StackRosterState | undefined,
-	defenders: Record<string, DefenderUnit> | undefined,
+	defenders: DefenderMap | undefined,
 ): StackRosterState {
 	const defenderLookup = buildDefenderLookup(defenders)
 	const groupsById = Object.fromEntries(
