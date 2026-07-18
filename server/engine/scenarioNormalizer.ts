@@ -54,7 +54,7 @@ export function normalizeInitialStateToGameState(initial: InitialState): EngineG
     batteries: { ...initial.onion.batteries },
   }
 
-  const defenders: DefenderMap = {}
+  const defenders: Record<string, DefenderUnit> = {}
   const stackRoster: StackRosterState = { groupsById: {} }
   const stackNamingEngine = createStackNamingEngine()
   const nextStackUnitOrdinalByBase = new Map<string, number>()
