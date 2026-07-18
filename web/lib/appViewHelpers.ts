@@ -101,9 +101,7 @@ export function resolveBattlefieldFriendlyName(
   },
   stackNaming?: StackNamingSnapshot,
   stackRoster?: StackRosterState,
-  defenders?: Record<string, StackSourceUnit>,
 ): string {
-  void defenders
   const position = unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
   const groupKey = buildStackGroupKey(unit.type, position)
   const rosterGroup = stackRoster === undefined
