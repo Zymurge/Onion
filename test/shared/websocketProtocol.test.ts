@@ -22,7 +22,7 @@ describe('websocketProtocol definitions', () => {
 		}>()
 		expectTypeOf<Extract<Command, { type: 'MOVE' }>>().toMatchTypeOf<{
 			type: 'MOVE'
-			movers: string[]
+			movers: ReadonlyArray<string>
 			to: { q: number; r: number }
 			attemptRam?: boolean
 		}>()

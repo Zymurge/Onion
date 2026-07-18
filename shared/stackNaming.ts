@@ -183,7 +183,7 @@ export function refreshStackNamingSnapshotFromRoster(
 	const rosterUsedGroupNames: string[] = []
 	const allocatedUsedGroupNames = new Set(seed?.usedGroupNames ?? [])
 
-	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
+	for (const [, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		const unitIds = [...group.unitIds]
 		if (unitIds.length === 0) {
 			continue

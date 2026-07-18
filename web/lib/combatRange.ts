@@ -9,7 +9,7 @@ export type CombatRangeSource = {
 export type CombatRangeBounds = {
   width: number
   height: number
-  cells: Array<{ q: number; r: number }>
+  cells: ReadonlyArray<{ q: number; r: number }>
 }
 
 function buildBoundsLookup(bounds: CombatRangeBounds | undefined): Set<string> | null {

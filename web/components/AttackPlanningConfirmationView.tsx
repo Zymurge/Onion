@@ -20,7 +20,7 @@ type AttackPlanningViewProps = BaseAttackPlanningConfirmationViewProps & {
 type AttackConfirmationViewProps = BaseAttackPlanningConfirmationViewProps & {
   mode: 'confirm'
   defenseStrength: number
-  modifiers?: string[]
+  modifiers?: ReadonlyArray<string>
 }
 
 export type AttackPlanningConfirmationViewProps = AttackPlanningViewProps | AttackConfirmationViewProps

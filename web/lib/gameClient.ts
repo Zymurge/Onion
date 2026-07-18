@@ -5,8 +5,8 @@ import type { RamResolution as MoveResolution } from './moveResolution'
 export type ScenarioMapSnapshot = {
 	width: number
 	height: number
-	cells: Array<{ q: number; r: number }>
-	hexes: Array<{ q: number; r: number; t: number }>
+	cells: ReadonlyArray<{ q: number; r: number }>
+	hexes: ReadonlyArray<{ q: number; r: number; t: number }>
 }
 
 export type GamePhase = 'onion' | 'defender'
@@ -15,19 +15,19 @@ export type ActionMode = 'fire' | 'combined' | 'end-phase'
 
 export type StackActionSelection = {
 	anchorUnitId: string
-	availableUnitIds: string[]
-	selectedUnitIds: string[]
+	availableUnitIds: ReadonlyArray<string>
+	selectedUnitIds: ReadonlyArray<string>
 }
 
 export type CombatResolution = {
 	actionType: 'FIRE'
-	attackers: string[]
+	attackers: ReadonlyArray<string>
 	targetId: string
 	outcome: 'NE' | 'D' | 'X'
 	outcomeLabel: 'Hit' | 'Miss'
 	roll?: number
 	odds?: string
-	details: string[]
+	details: ReadonlyArray<string>
 }
 
 export type RamResolution = MoveResolution
@@ -59,7 +59,7 @@ export type ServerGameSnapshot = {
 	}>
 	escapeHexes?: Array<{ q: number; r: number }>
 	combatResolution?: CombatResolution
-	ramResolution?: RamResolution[]
+	ramResolution?: ReadonlyArray<RamResolution>
 }
 
 export type GameSnapshot = ServerGameSnapshot
@@ -76,8 +76,8 @@ export type GameStateEnvelope = {
 export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
-	| { type: 'MOVE'; movers: string[]; to: { q: number; r: number }; attemptRam?: boolean }
-	| { type: 'FIRE'; attackers: string[]; targetId: string }
+	| { type: 'MOVE'; movers: ReadonlyArray<string>; to: { q: number; r: number }; attemptRam?: boolean }
+	| { type: 'FIRE'; attackers: ReadonlyArray<string>; targetId: string }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 

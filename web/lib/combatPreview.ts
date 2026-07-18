@@ -29,7 +29,7 @@ export type CombatTargetOption = {
 	label: string
 	detail: string
 	defense: number
-	modifiers: string[]
+	modifiers: ReadonlyArray<string>
 	isDisabled?: boolean
 	disabledTitle?: string
 }
@@ -44,7 +44,7 @@ type CombatPreviewInput = {
 	selectedUnitIds: ReadonlyArray<string>
 	selectedAttackStrength: number
 	selectedAttackGroupCount: number
-	displayedScenarioMap: { width: number; height: number; cells?: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null
+	displayedScenarioMap: { width: number; height: number; cells?: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex> } | null
 }
 
 const combatRules = ONION_STATIC_RULES

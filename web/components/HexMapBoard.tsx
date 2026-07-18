@@ -23,18 +23,18 @@ type HexMapBoardProps = {
   scenarioMap: {
     width: number
     height: number
-    cells: Array<{ q: number; r: number }>
-    hexes: TerrainHex[]
+    cells: ReadonlyArray<{ q: number; r: number }>
+    hexes: ReadonlyArray<TerrainHex>
   }
-  defenders: BattlefieldUnit[]
+  defenders: ReadonlyArray<BattlefieldUnit>
   onion: BattlefieldOnionView
   phase: string | null
   viewerRole?: 'onion' | 'defender' | null
-  selectedUnitIds: string[]
+  selectedUnitIds: ReadonlyArray<string>
   selectedCombatTargetId?: string | null
   combatRangeHexKeys?: ReadonlySet<string>
   combatTargetIds?: ReadonlySet<string>
-  escapeHexes?: Array<{ q: number; r: number }>
+  escapeHexes?: ReadonlyArray<{ q: number; r: number }>
   stackNaming?: StackNamingSnapshot
   stackRoster?: StackRosterState
   canSubmitMove?: boolean
@@ -95,7 +95,7 @@ function isStackableUnitType(unitType: string): boolean {
   return isUnitTypeStackable(unitType)
 }
 
-function hasStackedOccupants(defenders: BattlefieldUnit[]): boolean {
+function hasStackedOccupants(defenders: ReadonlyArray<BattlefieldUnit>): boolean {
   const stackedCountsByPosition = new Map<string, number>()
 
   for (const defender of defenders) {
@@ -121,7 +121,7 @@ function hasStackedOccupants(defenders: BattlefieldUnit[]): boolean {
 function buildMoveValidationState(
   phase: string | null,
   onion: BattlefieldOnionView,
-  defenders: BattlefieldUnit[],
+  defenders: ReadonlyArray<BattlefieldUnit>,
   selectedOccupant: HexOccupant,
   selectedAllowance: number,
 ): MoveValidationState | null {

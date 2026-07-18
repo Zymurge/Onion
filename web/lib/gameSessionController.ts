@@ -455,8 +455,8 @@ export function createGameSessionController(options: GameSessionControllerOption
 					gameId: options.gameId,
 					action,
 					version,
-					phase: nextSnapshot?.snapshot?.phase ?? null,
-					lastEventSeq: nextSnapshot?.snapshot?.lastEventSeq ?? null,
+					phase: nextSnapshot?.phase ?? null,
+					lastEventSeq: nextSnapshot?.lastEventSeq ?? null,
 				})
 
 				if (!shouldAcceptSnapshot(nextSnapshot.lastEventSeq, null, version)) {
@@ -464,7 +464,8 @@ export function createGameSessionController(options: GameSessionControllerOption
 						gameId: options.gameId,
 						action,
 						version,
-						responseSeq: nextSnapshot.lastEventSeq,
+						phase: nextSnapshot?.phase ?? null,
+						lastEventSeq: nextSnapshot?.lastEventSeq ?? null,
 					})
 					return null
 				}

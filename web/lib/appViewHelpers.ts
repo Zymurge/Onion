@@ -468,7 +468,7 @@ export function parseRangeValue(rangeText: string): number {
   return Number.isNaN(parsedRange) ? 0 : parsedRange
 }
 
-export function getTerrainValueAt(scenarioMap: { width: number; height: number; cells?: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
+export function getTerrainValueAt(scenarioMap: { width: number; height: number; cells?: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex> } | null | undefined, q: number, r: number): number | undefined {
   return scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t
 }
 
@@ -643,7 +643,7 @@ export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPh
   }
 }
 
-export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
+export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex> } | null {
   if (snapshot === null) {
     return null
   }

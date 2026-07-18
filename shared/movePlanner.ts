@@ -10,9 +10,9 @@ import {
 export type MoveMapSnapshot = {
 	width: number
 	height: number
-	cells: Array<{ q: number; r: number }>
-	hexes: Array<{ q: number; r: number; t: number }>
-	occupiedHexes?: Array<{
+	cells: ReadonlyArray<{ q: number; r: number }>
+	hexes: ReadonlyArray<{ q: number; r: number; t: number }>
+	occupiedHexes?: ReadonlyArray<{
 		q: number
 		r: number
 		role: 'onion' | 'defender'
