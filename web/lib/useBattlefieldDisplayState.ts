@@ -97,26 +97,10 @@ function assertCanonicalStackProjection(authoritativeState: GameState): { error:
         error: `Loaded game snapshot is missing canonical stackRoster groupsById data (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=none)`,
       }
     }
-
-    if (stackRoster.unitsById === undefined || stackRoster.unitsById === null || typeof stackRoster.unitsById !== 'object') {
-      return {
-        error: `Loaded game snapshot is missing canonical stackRoster unitsById data (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${Object.keys(stackRoster.groupsById).join(', ') || 'none'})`,
-      }
-    }
-
     for (const [groupId, group] of Object.entries(stackRoster.groupsById)) {
       if (!Array.isArray(group.unitIds)) {
         return {
           error: `Loaded game snapshot has invalid stack roster group shape for ${groupId} (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${Object.keys(stackRoster.groupsById).join(', ') || 'none'})`,
-        }
-      }
-
-      for (const unitId of group.unitIds) {
-        const unit = stackRoster.unitsById[unitId]
-        if (unit === null || typeof unit !== 'object' || typeof unit?.id !== 'string' || typeof unit?.status !== 'string') {
-          return {
-            error: `Loaded game snapshot is missing canonical stackRoster unitsById for grouped unit ${unitId} (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${Object.keys(stackRoster.groupsById).join(', ') || 'none'})`,
-          }
         }
       }
     }
@@ -238,7 +222,7 @@ export function useBattlefieldDisplayState({
       : selectedCombatAttackerIds
         .map((unitId) => displayedDefenders.find((unit) => unit.id === unitId) ?? null)
         .filter((unit): unit is NonNullable<typeof unit> => unit !== null)
-        .map((unit) => resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRoster))
+        .map((unit) => resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRoster, authoritativeState?.defenders))
     const selectedCombatAttackGroupCount = !isCombatPhase
       ? 0
       : activeCombatRole === 'defender'
@@ -283,9 +267,9 @@ export function useBattlefieldDisplayState({
         ? null
         : displayedDefenders.find((unit) => unit.id === selectedInspectorUnitId) ?? null
     const selectedInspectorLabel = selectedInspectorOnion !== null
-      ? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackRoster)
+      ? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackRoster, authoritativeState?.defenders)
       : selectedInspectorDefender !== null
-        ? resolveBattlefieldFriendlyName(selectedInspectorDefender, stackNaming ?? undefined, stackRoster)
+        ? resolveBattlefieldFriendlyName(selectedInspectorDefender, stackNaming ?? undefined, stackRoster, authoritativeState?.defenders)
         : null
     const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
       ? new Set<string>()

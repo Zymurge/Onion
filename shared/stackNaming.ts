@@ -23,6 +23,13 @@ export type StackNamingSourceUnit = {
 	friendlyName?: string
 }
 
+// NOTE: `StackNamingSourceUnit` represents a lightweight per-unit view
+// used by the naming engine to allocate or reconcile stack group labels.
+// This is intentionally a flat array input (see `refreshStackNamingSnapshotFromRoster`)
+// rather than a persisted roster map. Callers should pass an array of
+// source units (usually built from `defenders`) so the naming engine can
+// look up the first unit in each group to derive labels.
+
 const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
 function getUnitFriendlyNameTemplate(unitType: string): string | undefined {
@@ -150,18 +157,33 @@ export class StackNamingEngine {
 	}
 }
 
+/**
+ * Refresh the naming snapshot using the authoritative roster and a list of
+ * source units.
+ *
+ * Parameters:
+ * - `seed`: optional prior naming snapshot to merge with.
+ * - `stackRoster`: canonical roster (groupsById) to inspect for active groups.
+ * - `sourceUnits`: ReadonlyArray<StackNamingSourceUnit> — an array of per-unit
+ *   source records (commonly built from `defenders`) and not the persisted
+ *   roster map; it is a simple array used only for
+ *   naming resolution.
+ *
+ * Returns a fresh `StackNamingSnapshot` that merges seed state with roster
+ * derived group records and prunes names for missing groups.
+ */
 export function refreshStackNamingSnapshotFromRoster(
 	seed: StackNamingSnapshot | undefined,
 	stackRoster: StackRosterState | undefined,
-	unitsById: ReadonlyArray<StackNamingSourceUnit>,
+	sourceUnits: ReadonlyArray<StackNamingSourceUnit>,
 ): StackNamingSnapshot {
-	const sourceUnitById = new Map(unitsById.map((unit) => [unit.id, unit]))
+	const sourceUnitById = new Map(sourceUnits.map((unit) => [unit.id, unit]))
 	const activeGroupKeys: string[] = []
 	const rosterGroupsInUse: StackNamingGroupRecord[] = []
 	const rosterUsedGroupNames: string[] = []
 	const allocatedUsedGroupNames = new Set(seed?.usedGroupNames ?? [])
 
-	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
+	for (const [, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		const unitIds = [...group.unitIds]
 		if (unitIds.length === 0) {
 			continue

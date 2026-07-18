@@ -12,6 +12,7 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 		scenarioName: 'Fake backend contract snapshot',
 		turnNumber: 8,
 		lastEventSeq: 47,
+		victoryObjectives: [],
 		...overrides,
 	}
 }
@@ -21,6 +22,41 @@ function createStackSnapshot(phase: 'DEFENDER_MOVE' | 'DEFENDER_COMBAT', turnNum
 		{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
 		{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2' },
 	])
+
+	const defenders = {
+		'wolf-2': {
+			id: 'wolf-2',
+			type: 'BigBadWolf',
+			friendlyName: 'Big Bad Wolf 2',
+			position: { q: 3, r: 6 },
+			status: 'operational',
+			weapons: [],
+		},
+		'puss-1': {
+			id: 'puss-1',
+			type: 'Puss',
+			friendlyName: 'Puss 1',
+			position: { q: 4, r: 4 },
+			status: 'operational',
+			weapons: [],
+		},
+		'pigs-1': {
+			id: 'pigs-1',
+			type: 'LittlePigs',
+			friendlyName: 'Little Pigs 1',
+			position: { q: 4, r: 4 },
+			status: 'operational',
+			weapons: [],
+		},
+		'pigs-2': {
+			id: 'pigs-2',
+			type: 'LittlePigs',
+			friendlyName: 'Little Pigs 2',
+			position: { q: 4, r: 4 },
+			status: 'operational',
+			weapons: [],
+		}
+	 } as Record<string, any>
 
 	return {
 		gameId: 123,
@@ -39,42 +75,9 @@ function createStackSnapshot(phase: 'DEFENDER_MOVE' | 'DEFENDER_COMBAT', turnNum
 				weapons: [],
 				batteries: { main: 1, secondary: 0, ap: 0 },
 			},
-			defenders: {
-				'wolf-2': {
-					id: 'wolf-2',
-					type: 'BigBadWolf',
-					friendlyName: 'Big Bad Wolf 2',
-					position: { q: 3, r: 6 },
-					status: 'operational',
-					weapons: [],
-				},
-				'puss-1': {
-					id: 'puss-1',
-					type: 'Puss',
-					friendlyName: 'Puss 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [],
-				},
-				'pigs-1': {
-					id: 'pigs-1',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [],
-				},
-				'pigs-2': {
-					id: 'pigs-2',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 2',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [],
-				},
-			},
+			defenders,
 			stackRoster,
-			stackNaming: refreshStackRosterNamingSnapshot(stackRoster),
+			stackNaming: refreshStackRosterNamingSnapshot( stackRoster, undefined, defenders ),
 			ramsThisTurn: 0,
 			movementSpent: {},
 		},

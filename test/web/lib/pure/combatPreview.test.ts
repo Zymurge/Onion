@@ -5,9 +5,6 @@ import type { StackRosterUnitState } from '#shared/types/index'
 
 describe('buildCombatTargetOptions', () => {
 	it('builds shared combat preview data for ridgeline targets', () => {
-		const unitsById: Record<string, StackRosterUnitState> = {
-			'near-1': { id: 'near-1', friendlyName: 'Little Pigs 1', status: 'operational' },
-		}
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',
 			combatRangeHexKeys: new Set(['3,2']),
@@ -59,8 +56,7 @@ describe('buildCombatTargetOptions', () => {
 						position: { q: 3, r: 2 },
 						unitIds: ['near-1'],
 					},
-				},
-				unitsById,
+				}
 			},
 			stackNaming: {
 				groupsInUse: [
@@ -92,10 +88,6 @@ describe('buildCombatTargetOptions', () => {
 	})
 
 	it('collapses stacked Pigs targets into one canonical group card', () => {
-		const unitsById: Record<string, StackRosterUnitState> = {
-			'pigs-1': { id: 'pigs-1', friendlyName: 'Little Pigs 1', status: 'operational' },
-			'pigs-2': { id: 'pigs-2', friendlyName: 'Little Pigs 2', status: 'operational' },
-		}
 
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',
@@ -161,8 +153,7 @@ describe('buildCombatTargetOptions', () => {
 						position: { q: 3, r: 2 },
 						unitIds: ['pigs-1', 'pigs-2'],
 					},
-				},
-				unitsById,
+				}
 			},
 			stackNaming: {
 				groupsInUse: [
@@ -313,14 +304,7 @@ describe('buildCombatTargetOptions', () => {
 						position: { q: 1, r: 1 },
 						unitIds: ['pigs-1'],
 					},
-				},
-				unitsById: {
-					'pigs-1': {
-						id: 'pigs-1',
-						friendlyName: 'Little Pigs 1',
-						status: 'operational',
-					},
-				},
+				}
 			},
 			stackNaming: {
 				groupsInUse: [

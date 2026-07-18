@@ -120,7 +120,7 @@ describe('checkVictoryConditions', () => {
 })
 
 describe('advancePhase', () => {
-  function makeState(phase: EngineGameState['currentPhase'] = 'ONION_MOVE', defenders: Record<string, DefenderUnit> = {}): EngineGameState {
+  function makeState(phase: EngineGameState['currentPhase'] = 'ONION_MOVE', defenders: DefenderMap = {}): EngineGameState {
     return {
       onion: makeOnion(),
       defenders,

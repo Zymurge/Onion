@@ -527,12 +527,6 @@ describe('executeUnitMovement', () => {
           unitIds: ['p1', 'p2'],
         },
       },
-      unitsById: {
-        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
-        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
-        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 2 },
-        p4: { id: 'p4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 2 },
-      },
     }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))
@@ -580,11 +574,6 @@ describe('executeUnitMovement', () => {
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2', 'p3'],
         },
-      },
-      unitsById: {
-        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
-        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
-        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 1 },
       },
     }
 
@@ -653,20 +642,14 @@ describe('executeUnitMovement', () => {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
-          unitIds: ['p1', 'p2'],
+          unitIds: ['p1'],
         },
         'LittlePigs:2,0': {
           groupName: 'Little Pigs group 2',
           unitType: 'LittlePigs',
           position: { q: 2, r: 0 },
-          unitIds: ['p3', 'p4'],
+          unitIds: ['p2'],
         },
-      },
-      unitsById: {
-        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
-        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
-        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 2 },
-        p4: { id: 'p4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 2 },
       },
     }
 
@@ -676,7 +659,6 @@ describe('executeUnitMovement', () => {
     expect(state.defenders.p2.position).toEqual({ q: 0, r: 0 })
     expect(state.stackNaming?.groupsInUse).toEqual([
       { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-      { groupKey: 'LittlePigs:2,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
     ])
     expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
   })
@@ -722,13 +704,6 @@ describe('executeUnitMovement', () => {
           unitIds: ['p5'],
         },
       },
-      unitsById: {
-        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
-        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
-        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 2 },
-        p4: { id: 'p4', status: 'operational', friendlyName: 'Little Pigs 4', squads: 2 },
-        p5: { id: 'p5', status: 'operational', friendlyName: 'Little Pigs 5', squads: 2 },
-      },
     }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 4, r: 0 } }))
@@ -747,10 +722,9 @@ describe('executeUnitMovement', () => {
     expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'])
   })
 
-  it('fails fast when a move references grouped units missing canonical unitsById', () => {
+  it('fails fast when a move references a grouped unit absent from defenders', () => {
     const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const p2 = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1 } })
 
     state.stackNaming = {
       groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
@@ -762,16 +736,13 @@ describe('executeUnitMovement', () => {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
-          unitIds: ['p1', 'p2'],
+          unitIds: ['p1', 'p2-missing'],
         },
-      },
-      unitsById: {
-        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
       },
     }
 
     expect(() => executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))).toThrow(
-      'Missing canonical stackRoster unitsById for grouped unit p2',
+      /missing.*p2-missing/i,
     )
   })
 
@@ -798,11 +769,6 @@ describe('executeUnitMovement', () => {
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2', 'p3'],
         },
-      },
-      unitsById: {
-        p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
-        p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 2 },
-        p3: { id: 'p3', status: 'operational', friendlyName: 'Little Pigs 3', squads: 2 },
       },
     }
 
@@ -851,12 +817,6 @@ describe('executeUnitMovement', () => {
           unitIds: ['b1'],
         },
       },
-      unitsById: {
-        a1: { id: 'a1', status: 'operational', friendlyName: 'Little Pigs A1', squads: 2 },
-        a2: { id: 'a2', status: 'operational', friendlyName: 'Little Pigs A2', squads: 2 },
-        a3: { id: 'a3', status: 'operational', friendlyName: 'Little Pigs A3', squads: 2 },
-        b1: { id: 'b1', status: 'operational', friendlyName: 'Little Pigs B1', squads: 2 },
-      },
     }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'a1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))
@@ -894,10 +854,6 @@ describe('executeUnitMovement', () => {
           unitIds: ['p1', 'p2'],
         },
       },
-      unitsById: {
-        p1: { id: 'p1', status: 'operational', friendlyName: 'Pig 1', squads: 2 },
-        p2: { id: 'p2', status: 'operational', friendlyName: 'Pig 2', squads: 2 },
-      },
     }
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 4, r: 8 } }))
@@ -929,10 +885,6 @@ describe('executeUnitMovement', () => {
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2'],
         },
-      },
-      unitsById: {
-        p1: { id: 'p1', status: 'operational', friendlyName: 'Pig 1', squads: 2 },
-        p2: { id: 'p2', status: 'operational', friendlyName: 'Pig 2', squads: 2 },
       },
     }
 

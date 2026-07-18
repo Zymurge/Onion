@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import type { DefenderUnit, HexPos, StackRosterState, UnitStatus, Weapon } from '#shared/types/index'
+import type { DefenderMap, DefenderUnit, HexPos, StackRosterState, UnitStatus, Weapon } from '#shared/types/index'
 import type { GameState } from '#shared/types/index'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
 import { buildStackGroupKey } from '#shared/stackNaming'
@@ -93,7 +93,7 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 					],
 				},
 			},
-			stackRoster: { groupsById: {}, unitsById: {}, },
+			stackRoster: { groupsById: {} },
     		stackNaming: { groupsInUse: [], usedGroupNames: [] },
 			ramsThisTurn: 0,
 		},
@@ -191,7 +191,7 @@ export function createConnectedBattlefieldSnapshot(
 					],
 				},
 			},
-			stackRoster: { groupsById: {}, unitsById: {}, },
+			stackRoster: { groupsById: {} },
     		stackNaming: { groupsInUse: [], usedGroupNames: [] },
 			ramsThisTurn: 0,
 		},
@@ -324,7 +324,7 @@ export const baseOrchestrationSnapshot: AuthoritativeBattlefieldSnapshot = creat
 
 const UNIT_DEFINITIONS = getAllUnitDefinitions()
 
-function getDefaultWeapons(unitType: string): Weapon[] {
+function getDefaultWeapons(unitType: string): ReadonlyArray<Weapon> {
 	const def = UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]
 	if (def === undefined) return []
 	// Clone each weapon and force status to ready so tests start in a clean combat state.
@@ -338,7 +338,7 @@ export type UnitInput = {
 	pos: HexPos
 	status?: UnitStatus
 	/** Explicit weapon list. Omit to get unit-definition defaults, all marked ready. */
-	weapons?: Weapon[]
+	weapons?: ReadonlyArray<Weapon>
 	squads?: number
 	friendlyName?: string
 }
@@ -346,7 +346,7 @@ export type UnitInput = {
 /** Minimal description of a grouped defender stack. Members must already be listed in `units`. */
 export type GroupInput = {
 	groupName: string
-	memberIds: string[]
+	memberIds: ReadonlyArray<string>
 }
 
 /**
@@ -361,7 +361,7 @@ export type GroupInput = {
  * ```
  */
 export type DefenderTree = {
-	defenders: Record<string, DefenderUnit>
+	defenders: DefenderMap
 	stackRoster: StackRosterState
 	stackNaming: StackNamingSnapshot
 }
@@ -378,8 +378,8 @@ export type DefenderTree = {
  * can be spread directly into `authoritativeState`.
  */
 export function buildDefenderTree(opts: {
-	units?: UnitInput[]
-	groups?: GroupInput[]
+	units?: ReadonlyArray<UnitInput>
+	groups?: ReadonlyArray<GroupInput>
 }): DefenderTree {
 	const { units = [], groups = [] } = opts
 	const defenders: Record<string, DefenderUnit> = {}
@@ -452,9 +452,9 @@ export function buildDefenderTree(opts: {
 		}
 	}
 
-	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster)
+	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster, undefined, defenders)
 
-	return { defenders, stackRoster, stackNaming }
+	return { defenders: defenders as DefenderMap, stackRoster, stackNaming }
 }
 
 // ---- Mock game-client factory ----

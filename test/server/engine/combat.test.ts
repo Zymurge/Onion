@@ -486,10 +486,6 @@ describe('validateCombatAction', () => {
             unitIds: ['d1', 'd2'],
           },
         },
-        unitsById: {
-          d1: { id: 'd1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 1 },
-          d2: { id: 'd2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 1 },
-        },
       },
     })
 

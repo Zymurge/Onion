@@ -6,7 +6,7 @@ import {
   buildMoveCommitAction,
 } from '#web/lib/commitActionBuilders'
 
-function createStackState() {
+function createTestStackState() {
   return {
     defenders: {
       'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
@@ -66,7 +66,7 @@ describe('commitActionBuilders', () => {
 
   describe('buildMoveCommitAction', () => {
     it('builds a MOVE action with movers when the active unit is a stack and members are selected', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildMoveCommitAction({
         state,
@@ -86,7 +86,7 @@ describe('commitActionBuilders', () => {
     })
 
     it('builds a MOVE action with a single mover when the active unit is not a stack', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildMoveCommitAction({
         state,
@@ -104,7 +104,7 @@ describe('commitActionBuilders', () => {
     })
 
     it.each([
-      ['multi-unit stack', createStackState(), 'pigs-1', { q: 5, r: 4 }],
+      ['multi-unit stack', createTestStackState(), 'pigs-1', { q: 5, r: 4 }],
       ['singleton stack', createSingletonStackState(), 'pigs-5', { q: 5, r: 8 }],
     ])('rejects empty stack submissions for %s instead of defaulting back to a direct move', (_, state, unitId, to) => {
       expect(buildMoveCommitAction({
@@ -136,7 +136,7 @@ describe('commitActionBuilders', () => {
 
   describe('buildCombatCommitAction', () => {
     it('builds a FIRE action when the active unit is a stack and members are selected', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildCombatCommitAction({
         state,
@@ -154,7 +154,7 @@ describe('commitActionBuilders', () => {
     })
 
     it('builds a FIRE action when the active unit is not a stack', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildCombatCommitAction({
         state,
@@ -172,7 +172,7 @@ describe('commitActionBuilders', () => {
     })
 
     it('rejects combat submissions when the target is missing', () => {
-      const state = createStackState()
+      const state = createTestStackState()
 
       expect(buildCombatCommitAction({
         state,

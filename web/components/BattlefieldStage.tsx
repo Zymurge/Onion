@@ -5,21 +5,21 @@ import type { StackRosterState } from '../../shared/types/index'
 type BattlefieldStageProps = {
   activePhase: string | null
   activeTurnActive: boolean
-  defenders: BattlefieldUnit[]
+  defenders: ReadonlyArray<BattlefieldUnit>
   onion: BattlefieldOnionView
   stackNaming?: import('../../shared/stackNaming').StackNamingSnapshot
   stackRoster?: StackRosterState
   scenarioMap: {
     width: number
     height: number
-    cells: Array<{ q: number; r: number }>
-    hexes: Array<{ q: number; r: number; t: number }>
+    cells: ReadonlyArray<{ q: number; r: number }>
+    hexes: ReadonlyArray<{ q: number; r: number; t: number }>
   }
   selectedCombatTargetId: string | null
-  selectedUnitIds: string[]
+  selectedUnitIds: ReadonlyArray<string>
   combatRangeHexKeys: ReadonlySet<string>
   combatTargetIds: ReadonlySet<string>
-  escapeHexes: Array<{ q: number; r: number }>
+  escapeHexes: ReadonlyArray<{ q: number; r: number }>
   canSubmitMove: boolean
   isSelectionLocked: boolean
   isInteractionLocked: boolean

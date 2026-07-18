@@ -3,7 +3,7 @@ import { normalizeSelectionIds, parseStackMemberSelectionId, resolveBattlefieldS
 import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
 import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
-import type { StackRosterState } from '../../shared/types/index'
+import type { StackRosterState, DefenderMap } from '../../shared/types/index'
 
 type RightRailStackMemberView = BattlefieldUnit | BattlefieldOnionView
 
@@ -97,7 +97,10 @@ function findGroupIdForUnit(state: WebStackSourceState, unitId: string | null): 
     return null
   }
 
-  return buildStackRosterIndex(state.stackRoster as StackRosterState | undefined).getUnitGroup(unitId)?.groupId ?? null
+  return buildStackRosterIndex(
+    state.stackRoster as StackRosterState | undefined,
+    state.defenders as DefenderMap | undefined,
+  ).getUnitGroup(unitId)?.groupId ?? null
 }
 
 function buildValidatedStackSelection(

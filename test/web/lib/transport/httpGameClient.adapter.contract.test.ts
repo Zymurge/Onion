@@ -41,9 +41,6 @@ describe('http game client adapter contract', () => {
 								unitIds: ['wolf-2'],
 							},
 						},
-						unitsById: {
-							'wolf-2': { id: 'wolf-2', status: 'operational', friendlyName: 'Big Bad Wolf 2' },
-						},
 					},
 				},
 				movementRemainingByUnit: {
@@ -92,9 +89,6 @@ describe('http game client adapter contract', () => {
 								position: { q: 3, r: 6 },
 								unitIds: ['wolf-2'],
 							},
-						},
-						unitsById: {
-							'wolf-2': { id: 'wolf-2', status: 'operational', friendlyName: 'Big Bad Wolf 2' },
 						},
 					},
 				},
@@ -159,7 +153,7 @@ describe('http game client adapter contract', () => {
 				state: {
 					onion: { position: { q: 0, r: 0 }, treads: 45 },
 					defenders: {},
-					stackRoster: { groupsById: {}, unitsById: {} },
+					stackRoster: { groupsById: {} },
 				},
 				movementRemainingByUnit: {},
 				scenarioMap: {
@@ -198,7 +192,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_MOVE',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 0 },
 				victoryObjectives: [],
 				scenarioMap: {
@@ -245,7 +239,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 					movementRemainingByUnit: {
 						'onion-1': 0,
 					},
@@ -263,7 +257,7 @@ describe('http game client adapter contract', () => {
 				ok: true,
 				seq: 48,
 				events: [],
-				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: {
 					'onion-1': 0,
 				},
@@ -276,7 +270,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: {
 					'onion-1': 0,
 				},
@@ -299,7 +293,7 @@ describe('http game client adapter contract', () => {
 		await client.submitAction(123, { type: 'end-phase' })
 
 		await expect(client.submitAction(123, { type: 'refresh' })).resolves.toEqual({
-				authoritativeState: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				authoritativeState: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
 			movementRemainingByUnit: { 'onion-1': 0 },
 			gameId: 123,
 			phase: 'DEFENDER_COMBAT',
@@ -333,7 +327,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 0 },
 				victoryObjectives: [],
 				scenarioMap: {
@@ -352,7 +346,7 @@ describe('http game client adapter contract', () => {
 					{ seq: 49, type: 'ONION_MOVED', timestamp: '2026-03-26T12:00:00.000Z' },
 					{ seq: 50, type: 'GAME_OVER', timestamp: '2026-03-26T12:00:00.000Z', winner: 'onion' },
 				],
-				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 0 },
 				turnNumber: 8,
 				eventSeq: 50,
@@ -389,7 +383,7 @@ describe('http game client adapter contract', () => {
 				phase: 'ONION_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 3,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 0 },
 				victoryObjectives: [
 					{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true, completed: true },
@@ -410,7 +404,7 @@ describe('http game client adapter contract', () => {
 				phase: 'ONION_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 3,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 0 },
 				scenarioMap: {
 					width: 15,
@@ -458,7 +452,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 4 },
 				victoryObjectives: [],
 				scenarioMap: {
@@ -475,7 +469,7 @@ describe('http game client adapter contract', () => {
 				events: [
 					{ seq: 48, type: 'FIRE_RESOLVED', timestamp: '2026-03-26T12:00:00.000Z', attackers: ['wolf-2', 'wolf-3'], targetId: 'onion-1', roll: 4, outcome: 'D', odds: '2:1' },
 				],
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 4 },
 				turnNumber: 8,
 				eventSeq: 48,
@@ -530,7 +524,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_MOVE',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 4 },
 				victoryObjectives: [],
 				scenarioMap: {
@@ -547,7 +541,7 @@ describe('http game client adapter contract', () => {
 				events: [
 					{ seq: 48, type: 'UNIT_MOVED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'wolf-2', to: { q: 5, r: 4 } },
 				],
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 3 },
 				turnNumber: 8,
 				eventSeq: 48,
@@ -594,7 +588,7 @@ describe('http game client adapter contract', () => {
 				phase: 'ONION_MOVE',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 2,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 3 },
 				scenarioMap: {
 					width: 15,
@@ -610,7 +604,7 @@ describe('http game client adapter contract', () => {
 				events: [
 					{ seq: 13, type: 'PHASE_CHANGED', timestamp: '2026-03-26T12:00:00.000Z', from: 'ONION_MOVE', to: 'ONION_COMBAT', turnNumber: 2 },
 				],
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 0 },
 				turnNumber: 2,
 				eventSeq: 13,
@@ -635,7 +629,7 @@ describe('http game client adapter contract', () => {
 		await client.getState(123)
 		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toEqual(
 			expect.objectContaining({
-				authoritativeState: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				authoritativeState: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 0 },
 				gameId: 123,
 				phase: 'ONION_COMBAT',
@@ -682,7 +676,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_MOVE',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 4 },
 				scenarioMap: {
 					width: 15,
@@ -700,7 +694,7 @@ describe('http game client adapter contract', () => {
 					{ seq: 49, type: 'ONION_TREADS_LOST', timestamp: '2026-03-26T12:00:00.000Z', amount: 1, remaining: 44 },
 					{ seq: 50, type: 'UNIT_STATUS_CHANGED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'd1', from: 'operational', to: 'destroyed' },
 				],
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 3 },
 				turnNumber: 8,
 				eventSeq: 50,
@@ -770,7 +764,7 @@ describe('http game client adapter contract', () => {
 				phase: 'ONION_MOVE',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 3 },
 				scenarioMap: {
 					width: 15,
@@ -784,7 +778,7 @@ describe('http game client adapter contract', () => {
 				ok: true,
 				seq: 48,
 				events: [],
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'onion-1': 2 },
 				turnNumber: 8,
 				eventSeq: 48,
@@ -821,7 +815,7 @@ describe('http game client adapter contract', () => {
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
-				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 4 },
 				scenarioMap: {
 					width: 15,
@@ -838,7 +832,7 @@ describe('http game client adapter contract', () => {
 					{ seq: 48, type: 'FIRE_RESOLVED', timestamp: '2026-03-26T12:00:00.000Z', attackers: ['wolf-2'], targetId: 'onion-1', roll: 6, outcome: 'X', odds: '2:1' },
 					{ seq: 49, type: 'ONION_TREADS_LOST', timestamp: '2026-03-26T12:00:00.000Z', amount: 3, remaining: 42 },
 				],
-				state: { onion: { position: { q: 0, r: 0 }, treads: 42 }, defenders: {}, stackRoster: { groupsById: {}, unitsById: {} } },
+				state: { onion: { position: { q: 0, r: 0 }, treads: 42 }, defenders: {}, stackRoster: { groupsById: {} } },
 				movementRemainingByUnit: { 'wolf-2': 4 },
 				turnNumber: 8,
 				eventSeq: 49,
@@ -927,7 +921,7 @@ describe('http game client adapter contract', () => {
 				state: {
 					onion: { position: { q: 0, r: 0 }, treads: 45 },
 					defenders: {},
-					stackRoster: { groupsById: {}, unitsById: {} },
+					stackRoster: { groupsById: {} },
 				},
 				movementRemainingByUnit: {},
 				eventSeq: 47,
@@ -941,7 +935,7 @@ describe('http game client adapter contract', () => {
 				state: {
 					onion: { position: { q: 0, r: 0 }, treads: 45 },
 					defenders: {},
-					stackRoster: { groupsById: {}, unitsById: {} },
+					stackRoster: { groupsById: {} },
 				},
 				movementRemainingByUnit: {},
 				scenarioMap: {
@@ -1032,9 +1026,6 @@ describe('http game client adapter contract', () => {
 								unitIds: null,
 							},
 						},
-						unitsById: {
-							'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
-						},
 					},
 				},
 				movementRemainingByUnit: {},
@@ -1052,11 +1043,23 @@ describe('http game client adapter contract', () => {
 			fetchImpl,
 		})
 
-		await expect(client.getState(123)).rejects.toThrow('Missing canonical stack roster unitsById in game state response')
+		await expect(client.getState(123)).resolves.toMatchObject({
+			snapshot: {
+				authoritativeState: {
+					stackRoster: {
+						groupsById: {
+							bad: {
+								groupName: 'Little Pigs group 1',
+							},
+						},
+					},
+				},
+			},
+		})
 		await expect(client.getState(123)).rejects.toThrow('Invalid stack roster group shape for bad')
 	})
 
-	it('rejects stack roster payloads that omit canonical unitsById for grouped members', async () => {
+	it('rejects grouped units absent from defenders in stack roster payload', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,
 			status,
@@ -1086,7 +1089,7 @@ describe('http game client adapter contract', () => {
 							groupName: 'Little Pigs group 1',
 							unitType: 'LittlePigs',
 							position: { q: 4, r: 4 },
-							unitIds: ['pigs-1'],
+							unitIds: ['pigs-1', 'pigs-2'],
 						},
 					},
 				},
@@ -1106,10 +1109,10 @@ describe('http game client adapter contract', () => {
 			fetchImpl,
 		})
 
-		await expect(client.getState(123)).rejects.toThrow('Missing canonical stack roster unitsById in game state response')
+		await expect(client.getState(123)).rejects.toThrow(/missing.*pigs-2/i)
 	})
 
-	it('rejects stack roster payloads with malformed canonical unit entries', async () => {
+	it('accepts stack roster payloads that rely on defenders as canonical unit data', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,
 			status,
@@ -1142,9 +1145,6 @@ describe('http game client adapter contract', () => {
 							unitIds: ['pigs-1'],
 						},
 					},
-					unitsById: {
-						'pigs-1': null,
-					},
 				},
 			},
 			movementRemainingByUnit: {},
@@ -1162,6 +1162,19 @@ describe('http game client adapter contract', () => {
 			fetchImpl,
 		})
 
-		await expect(client.getState(123)).rejects.toThrow('Invalid stack roster unit shape for LittlePigs:4,4')
+		await expect(client.getState(123)).resolves.toMatchObject({
+			snapshot: {
+				authoritativeState: {
+					stackRoster: {
+						groupsById: {
+							'LittlePigs:4,4': {
+								groupName: 'Little Pigs group 1',
+								unitIds: ['pigs-1'],
+							},
+						},
+					},
+				},
+			},
+		})
 	})
 })

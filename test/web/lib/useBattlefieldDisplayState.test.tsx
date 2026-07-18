@@ -125,25 +125,7 @@ describe('useBattlefieldDisplayState', () => {
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
-			},
-			unitsById: {
-				'pigs-1': {
-					id: 'pigs-1',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-				'pigs-2': {
-					id: 'pigs-2',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 2',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-			},
+			}
 		}
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
@@ -168,25 +150,7 @@ describe('useBattlefieldDisplayState', () => {
 					position: { q: 3, r: 9 },
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
-			},
-			unitsById: {
-				'pigs-1': {
-					id: 'pigs-1',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-				'pigs-2': {
-					id: 'pigs-2',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 2',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-			},
+			}
 		}
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
@@ -202,9 +166,11 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
 
-	it('returns error if stackRoster is present but canonical unitsById is missing', () => {
+	it('returns error if a grouped unit referenced by the stack roster is absent from defenders', () => {
 		const snapshot = createSnapshot()
 		const authoritativeState = snapshot.authoritativeState!
+		// Remove pigs-2 from defenders so the roster group references a unit that doesn't exist
+		delete (authoritativeState.defenders as any)['pigs-2']
 		authoritativeState.stackRoster = {
 			groupsById: {
 				'LittlePigs:4,4': {
@@ -225,33 +191,23 @@ describe('useBattlefieldDisplayState', () => {
 			})
 		)
 
-		expect(String(result.current.error)).toMatch(/missing canonical stackRoster unitsById data/)
-		expect(String(result.current.error)).toContain('stackableDefenders=pigs-1, pigs-2')
+		expect(String(result.current.error)).toMatch(/missing.*pigs-2/i)
 		expect(String(result.current.error)).toContain('stackRosterGroups=LittlePigs:4,4')
 	})
 
-	it('returns error if grouped unit is missing canonical unitsById entry', () => {
+	it('returns error if a specific grouped unit is absent from defenders', () => {
 		const snapshot = createSnapshot()
 		const authoritativeState = snapshot.authoritativeState!
+		// Group roster includes pigs-3 which is not present in defenders
 		authoritativeState.stackRoster = {
 			groupsById: {
 				'LittlePigs:4,4': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
-					unitIds: ['pigs-1', 'pigs-2'],
+					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
 				},
-			},
-			unitsById: {
-				'pigs-1': {
-					id: 'pigs-1',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-			},
+			}
 		}
 
 		const { result } = renderHook(() =>
@@ -263,8 +219,7 @@ describe('useBattlefieldDisplayState', () => {
 			})
 		)
 
-		expect(String(result.current.error)).toMatch(/missing canonical stackRoster unitsById for grouped unit pigs-2/)
-		expect(String(result.current.error)).toContain('stackableDefenders=pigs-1, pigs-2')
+		expect(String(result.current.error)).toMatch(/missing.*pigs-3/i)
 		expect(String(result.current.error)).toContain('stackRosterGroups=LittlePigs:4,4')
 	})
 
@@ -288,33 +243,7 @@ describe('useBattlefieldDisplayState', () => {
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
-			},
-			unitsById: {
-				'pigs-1': {
-					id: 'pigs-1',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-				'pigs-2': {
-					id: 'pigs-2',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 2',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-				'pigs-5': {
-					id: 'pigs-5',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 5',
-					position: { q: 4, r: 8 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-5-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-			},
+			}
 		}
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
@@ -341,25 +270,7 @@ describe('useBattlefieldDisplayState', () => {
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
-			},
-			unitsById: {
-				'pigs-1': {
-					id: 'pigs-1',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-				'pigs-2': {
-					id: 'pigs-2',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 2',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-			},
+			}
 		}
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
@@ -391,24 +302,7 @@ describe('useBattlefieldDisplayState', () => {
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
-			},
-			unitsById: {
-				'pigs-1': {
-					id: 'pigs-1',
-					type: 'LittlePigs',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-1-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-				'pigs-2': {
-					id: 'pigs-2',
-					type: 'LittlePigs',
-					friendlyName: 'Little Pigs 2',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [{ id: 'pigs-2-main', name: 'Main', attack: 1, range: 1, defense: 0, status: 'ready', individuallyTargetable: false }],
-				},
-			},
+			}
 		}
 
 		expect(() =>

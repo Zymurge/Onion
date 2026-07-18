@@ -4,7 +4,7 @@
 
 import type { HexPos, UnitStatus, TurnPhase, Weapon, TargetRules } from '#shared/types/index'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
-import type { StackRosterState } from '#shared/types/index'
+import type { DefenderMap, StackRosterState } from '#shared/types/index'
 import type { UnitDefinition, UnitType } from '#shared/engineTypes'
 import { getAllUnitDefinitions as getSharedUnitDefinitions } from '#shared/unitDefinitions'
 import logger from '#server/logger'
@@ -57,7 +57,7 @@ export interface EngineGameState {
   /** The Onion super-unit */
   onion: OnionUnit
   /** All defender units, keyed by unit ID */
-  defenders: Record<string, DefenderUnit>
+  defenders: DefenderMap
   /** Persisted stack-name lifecycle state */
   stackNaming?: StackNamingSnapshot
   /** Persisted stack/group membership state */

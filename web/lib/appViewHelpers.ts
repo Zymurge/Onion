@@ -7,7 +7,6 @@ import type { LiveConnectionStatus } from './gameSessionTypes'
 import { buildFriendlyName, isUnitTypeStackable } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming'
-import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState } from '../../shared/types/index'
 import { resolveSelectionName } from './resolveSelectionName'
 
@@ -61,15 +60,18 @@ export function resolveBattlefieldDisplayName(
   unit: {
     id: string
     type: string
-    q: number
-    r: number
+    position?: { q: number; r: number }
+    q?: number
+    r?: number
     friendlyName?: string
     squads?: number
   },
   stackNaming?: StackNamingSnapshot,
 ): string {
+  const position = unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
+
   if (stackNaming !== undefined) {
-    const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
+    const groupKey = buildStackGroupKey(unit.type, position)
     const group = stackNaming.groupsInUse.find((entry) => entry.groupKey === groupKey)
     if (group !== undefined) {
       return resolveSelectionName({ kind: 'group', groupKey: group.groupKey, stackNaming })
@@ -92,15 +94,22 @@ export function resolveBattlefieldFriendlyName(
   unit: {
     id: string
     type: string
-    q: number
-    r: number
+    position?: { q: number; r: number }
+    q?: number
+    r?: number
     friendlyName?: string
   },
   stackNaming?: StackNamingSnapshot,
   stackRoster?: StackRosterState,
 ): string {
-  const groupKey = buildStackGroupKey(unit.type, { q: unit.q, r: unit.r })
-  const rosterGroup = stackRoster === undefined ? null : buildStackRosterIndex(stackRoster).getUnitGroup(unit.id)
+  const position = unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
+  const groupKey = buildStackGroupKey(unit.type, position)
+  const rosterGroup = stackRoster === undefined
+    ? null
+    : Object.entries(stackRoster.groupsById ?? {})
+      .map(([groupId, group]) => ({ groupId, group }))
+      .find(({ group }) => Array.isArray(group.unitIds) && group.unitIds.includes(unit.id))
+      ?.group ?? null
   const isStackable = isStackableUnitType(unit.type)
   const namingGroup = stackNaming?.groupsInUse.find((entry) => entry.groupKey === groupKey) ?? null
 
@@ -131,7 +140,7 @@ export function resolveBattlefieldFriendlyName(
   return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)
 }
 
-type StackSourceUnit = {
+export type StackSourceUnit = {
   id: string
   type: string
   position: { q: number; r: number }
@@ -168,10 +177,6 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
     throw new Error(`Missing stackRoster for grouped unit ${unitId}`)
   }
 
-  if (state.stackRoster.unitsById === undefined || state.stackRoster.unitsById === null) {
-    throw new Error(`Missing canonical stackRoster unitsById for grouped unit ${unitId}`)
-  }
-
   for (const [groupId, group] of Object.entries(state.stackRoster.groupsById ?? {})) {
     if (!Array.isArray(group.unitIds)) {
       throw new Error(`Invalid stack roster group shape for ${groupId}`)
@@ -183,9 +188,9 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
     }
 
     for (const memberId of unitIds) {
-      const canonicalUnit = state.stackRoster.unitsById[memberId]
-      if (canonicalUnit === null || typeof canonicalUnit !== 'object' || typeof canonicalUnit?.id !== 'string' || typeof canonicalUnit?.status !== 'string') {
-        throw new Error(`Invalid stack roster unit shape for ${groupId}`)
+      const member = state.defenders?.[memberId]
+      if (member === undefined) {
+        throw new Error(`Missing stackRoster member ${memberId} for grouped unit ${unitId}`)
       }
     }
 
@@ -461,7 +466,7 @@ export function parseRangeValue(rangeText: string): number {
   return Number.isNaN(parsedRange) ? 0 : parsedRange
 }
 
-export function getTerrainValueAt(scenarioMap: { width: number; height: number; cells?: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null | undefined, q: number, r: number): number | undefined {
+export function getTerrainValueAt(scenarioMap: { width: number; height: number; cells?: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex> } | null | undefined, q: number, r: number): number | undefined {
   return scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t
 }
 
@@ -575,10 +580,12 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
         type: defender.type,
       friendlyName: resolveBattlefieldUnitName(defender.type, resolvedDefenderId, defender.friendlyName),
         status: defender.status,
+        position: defender.position,
         q: defender.position.q,
         r: defender.position.r,
         move: activePhase === null ? 0 : snapshotMovementRemaining ?? 0,
-        weapons: formatWeaponSummary(defender.weapons),
+        weapons: defender.weapons ?? [],
+        weaponSummary: formatWeaponSummary(defender.weapons),
         attack: formatAttackSummary(defender.weapons),
         weaponDetails: defender.weapons ?? [],
         targetRules: defender.targetRules,
@@ -622,8 +629,7 @@ export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPh
     id: onion.id ?? 'onion-1',
     type: onion.type ?? 'TheOnion',
     friendlyName: resolveBattlefieldUnitName(onion.type ?? 'TheOnion', onion.id ?? 'onion-1', onion.friendlyName),
-    q: onion.position.q,
-    r: onion.position.r,
+    position: onion.position,
     status: onion.status ?? 'operational',
     treads: onion.treads,
     movesAllowed,
@@ -635,7 +641,7 @@ export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPh
   }
 }
 
-export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: TerrainHex[] } | null {
+export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex> } | null {
   if (snapshot === null) {
     return null
   }
@@ -677,8 +683,8 @@ export function buildCombatRangeSources(
     return (displayedOnion.weaponDetails ?? [])
       .filter((weapon) => weapon.status === 'ready' && selectedWeaponIds.has(weapon.id))
       .map((weapon) => ({
-        q: displayedOnion.q,
-        r: displayedOnion.r,
+        q: displayedOnion.position.q,
+        r: displayedOnion.position.r,
         range: weapon.range,
       }))
   }

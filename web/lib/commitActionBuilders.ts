@@ -2,6 +2,7 @@ import type { GameAction } from './gameClient'
 import {
   buildCombatTargetActionId,
   isWeaponSelectionId,
+  resolveSelectionOwnerUnitId,
   type WebStackSourceState,
 } from './appViewHelpers'
 import { buildRightRailCombatSubmissionAction, buildRightRailMoveSubmissionAction } from './rightRailSelection'
@@ -55,9 +56,20 @@ function buildMovePayload(
   attemptRam?: boolean,
 ): CommitActionResult<Extract<GameAction, { type: 'MOVE' }>> {
   const selectedBoardUnitIds = selectedUnitIds.filter((selectionId) => !isWeaponSelectionId(selectionId))
+  const stackAnchorUnitId = (() => {
+    if (state.defenders?.[unitId] !== undefined) {
+      return unitId
+    }
+
+    const selectedOwnerUnitId = selectedBoardUnitIds
+      .map((selectionId) => resolveSelectionOwnerUnitId(selectionId))
+      .find((selectionOwnerId) => state.defenders?.[selectionOwnerId] !== undefined)
+
+    return selectedOwnerUnitId ?? unitId
+  })()
   const stackSubmission = buildRightRailMoveSubmissionAction({
     state,
-    anchorUnitId: unitId,
+    anchorUnitId: stackAnchorUnitId,
     selectedUnitIds: selectedBoardUnitIds,
     to,
     ...(attemptRam === undefined ? {} : { attemptRam }),

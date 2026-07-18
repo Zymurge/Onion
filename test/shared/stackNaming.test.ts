@@ -15,7 +15,6 @@ function createStackRoster(groupsById: Record<string, StackRosterGroupState | un
 		groupsById: Object.fromEntries(
 			Object.entries(groupsById).filter((entry): entry is [string, StackRosterGroupState] => entry[1] !== undefined),
 		),
-		unitsById: {},
 	}
 }
 
@@ -96,7 +95,6 @@ describe('stack naming', () => {
 						unitIds: ['wolf-1'],
 					},
 				},
-				unitsById: {},
 			},
 			[
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', squads: 3, friendlyName: 'Little Pigs 1' },
@@ -149,7 +147,6 @@ describe('stack naming', () => {
 						unitIds: ['wolf-1'],
 					},
 				},
-				unitsById: {},
 			},
 			[
 				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },

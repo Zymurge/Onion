@@ -17,7 +17,7 @@ export type StackRosterUnitState = {
   id: string
   status: UnitStatus
   friendlyName?: string
-  weapons?: Weapon[]
+  weapons?: ReadonlyArray<Weapon>
   targetRules?: TargetRules
   squads?: number
 }
@@ -26,17 +26,16 @@ export type StackRosterGroupState = {
   groupName: string
   unitType: string
   position: HexPos
-  unitIds: string[]
+  unitIds: ReadonlyArray<string>
 }
 
 export type StackRosterState = {
   groupsById: Record<string, StackRosterGroupState>
-  unitsById?: Record<string, StackRosterUnitState>
 }
 
+import type { TargetRules } from '../targetRules.js'
 export type { TargetRules } from '../targetRules.js'
 
-import type { TargetRules } from '../targetRules.js'
 import type { StackNamingSnapshot } from '../stackNaming.js'
 
 export interface HexPos {
@@ -58,35 +57,56 @@ export interface Weapon {
   targetRules?: TargetRules
 }
 
-export interface DefenderUnit {
-  id?: string
+/**
+ * The common attributes of a unit in the game, including its type, position, status, and optional properties like squads and friendly name.
+ * This interface is used to represent both onion and defender units in a unified way.
+ * 
+ * @property id The unique identifier of the unit.
+ * @property type The type of the unit (e.g., "TheOnion", "LittlePigs").
+ * @property position The hexagonal grid position of the unit, represented by q and r coordinates.
+ * @property status The current status of the unit, which can be "operational", "disabled", "recovering", or "destroyed".
+ * @property squads Optional number of squads in the unit (for defender units).
+ * @property friendlyName Optional human-readable name for the unit.
+ * @property weapons Optional array of weapons associated with the unit.
+ * @property targetRules Optional target rules that define how this unit can engage with other units. 
+ */
+export interface UnitBase {
+  id: string
   type: string
-  friendlyName?: string
   position: HexPos
   status: UnitStatus
-  weapons?: Weapon[]
-  squads?: number
+  friendlyName?: string
+  weapons?: ReadonlyArray<Weapon>
   targetRules?: TargetRules
 }
 
-export interface GameState {
-  onion: {
-    id?: string
-    type?: string
-    friendlyName?: string
-    position: HexPos
-    treads: number
-    missiles?: number
-    status?: UnitStatus
-    weapons?: Weapon[]
-    targetRules?: TargetRules
-    batteries?: {
-      main: number
-      secondary: number
-      ap: number
-    }
+export interface OnionUnit extends UnitBase {
+  treads: number
+  missiles?: number
+  batteries?: {
+    main: number
+    secondary: number
+    ap: number
   }
-  defenders: Record<string, DefenderUnit>
+}
+
+export interface DefenderUnit extends UnitBase {
+  squads?: number
+}
+
+// Canonical defender state is read-only at the type boundary; call sites
+// should build a new map rather than mutate this in place.
+export type DefenderMap = Readonly<Record<string, DefenderUnit>>
+
+/**
+ * The canonical game state bundle returned by the backend after each action.
+ * 
+ * This is the authoritative state of the game, including the onion, defenders,
+ * stack roster, and other relevant information.
+ */
+export interface GameState {
+  onion: OnionUnit,
+  defenders: DefenderMap,
   stackNaming?: StackNamingSnapshot
   stackRoster?: StackRosterState
   ramsThisTurn?: number
@@ -101,13 +121,13 @@ export interface EventEnvelope {
   [key: string]: unknown
 }
 
-export type MoveCommand = { type: 'MOVE'; movers: string[]; to: HexPos; attemptRam?: boolean }
+export type MoveCommand = { type: 'MOVE'; movers: ReadonlyArray<string>; to: HexPos; attemptRam?: boolean }
 
 export type SingleUnitMoveCommand = { type: 'MOVE'; unitId: string; to: HexPos; attemptRam?: boolean }
 
 export type Command =
   | MoveCommand
-  | { type: 'FIRE'; attackers: string[]; targetId: string }
+  | { type: 'FIRE'; attackers: ReadonlyArray<string>; targetId: string }
   | { type: 'END_PHASE' }
 
 export interface ActionOkResponse {

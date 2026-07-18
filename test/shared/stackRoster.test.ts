@@ -15,10 +15,11 @@ import {
 	validateStackRoster,
 	validateStackRosterConsistency,
 } from '#shared/stackRoster'
-import type { StackRosterState } from '#shared/types/index'
+import type { DefenderMap, StackRosterState } from '#shared/types/index'
 
 describe('stack roster', () => {
 	it('flags structural contract violations', () => {
+		const defenders: DefenderMap = {}
 		const roster: StackRosterState = {
 			groupsById: {
 				'bad-1': {
@@ -46,12 +47,9 @@ describe('stack roster', () => {
 					unitIds: [],
 				},
 			},
-			unitsById: {
-				'shared-id': { id: 'shared-id', status: 'operational', friendlyName: 'Little Pigs 1' },
-			},
 		}
 
-		const issues = validateStackRoster(roster)
+		const issues = validateStackRoster(roster, defenders)
 
 		expect(issues).toEqual(
 			expect.arrayContaining([
@@ -81,14 +79,14 @@ describe('stack roster', () => {
 					unitIds: ['pigs-3'],
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
-				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
-				'pigs-3': { id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3' },
-			},
+		}
+		const defenders = {
+			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 1' },
+			'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 2' },
+			'pigs-3': { id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 5 }, status: 'operational' as const, friendlyName: 'Little Pigs 3' },
 		}
 
-		const rosterIndex = buildStackRosterIndex(roster)
+		const rosterIndex = buildStackRosterIndex(roster, defenders)
 
 		expect(buildStackGroupKey('LittlePigs', { q: 4, r: 4 })).toBe('LittlePigs:4,4')
 		expect(rosterIndex.groupsById['stack-1']).toMatchObject({
@@ -105,7 +103,7 @@ describe('stack roster', () => {
 			unitType: 'LittlePigs',
 			position: { q: 4, r: 4 },
 		})
-		expect(rosterIndex.unitsById['pigs-2']).toMatchObject({
+		expect(rosterIndex.derivedUnitsById['pigs-2']).toMatchObject({
 			id: 'pigs-2',
 			groupId: 'stack-1',
 			groupKey: 'LittlePigs:4,4',
@@ -128,23 +126,23 @@ describe('stack roster', () => {
 					unitIds: ['pigs-1'],
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
-			},
 		}
 
 		const serialized = JSON.stringify(roster)
 		const restored = JSON.parse(serialized) as StackRosterState
+		const defenders = {
+			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 1' },
+		}
 
 		expect(restored).toEqual(roster)
-		expect(buildStackRosterIndex(restored).groupsById['stack-1']?.groupName).toBe('Little Pigs group 1')
+		expect(buildStackRosterIndex(restored, defenders).groupsById['stack-1']?.groupName).toBe('Little Pigs group 1')
 	})
 
 	it('returns empty derived views for an empty roster', () => {
-		const rosterIndex = buildStackRosterIndex(undefined)
+		const rosterIndex = buildStackRosterIndex(undefined, undefined)
 
 		expect(rosterIndex.groupsById).toEqual({})
-		expect(rosterIndex.unitsById).toEqual({})
+		expect(rosterIndex.derivedUnitsById).toEqual({})
 		expect(rosterIndex.getGroupUnits('missing')).toEqual([])
 		expect(rosterIndex.getUnitGroup('missing')).toBeNull()
 	})
@@ -163,11 +161,6 @@ describe('stack roster', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined, squads: 1 },
-				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined, squads: 1 },
-				'wolf-1': { id: 'wolf-1', status: 'operational', friendlyName: 'Big Bad Wolf 1', weapons: undefined, targetRules: undefined, squads: 1 },
-			},
 		})
 	})
 
@@ -179,10 +172,6 @@ describe('stack roster', () => {
 
 		expect(roster).toEqual({
 			groupsById: {},
-			unitsById: {
-				'wolf-1': { id: 'wolf-1', status: 'operational', friendlyName: 'Big Bad Wolf 1', weapons: undefined, targetRules: undefined, squads: undefined },
-				'puss-1': { id: 'puss-1', status: 'operational', friendlyName: 'Puss 1', weapons: undefined, targetRules: undefined, squads: undefined },
-			},
 		})
 	})
 
@@ -201,13 +190,8 @@ describe('stack roster', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined, squads: undefined },
-				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined, squads: undefined },
-			},
 		})
 		expect(roster.groupsById['LittlePigs:4,4']?.unitIds).toHaveLength(2)
-		expect(roster.unitsById?.['pigs-1']?.squads).toBeUndefined()
 	})
 
 	it('throws when a roster group has the wrong json shape', () => {
@@ -220,38 +204,42 @@ describe('stack roster', () => {
 					unitIds: null as unknown as never,
 				},
 			},
-			unitsById: {},
-		})).toThrow('Invalid stack roster group shape')
+		}, {})).toThrow('Invalid stack roster group shape')
 	})
 
-	it('throws when a roster unit entry has the wrong json shape', () => {
-		expect(() => buildStackRosterIndex({
-			groupsById: {
-				bad: {
-					groupName: 'Little Pigs group 1',
-					unitType: 'LittlePigs',
-					position: { q: 4, r: 4 },
-					unitIds: ['pigs-1', 'pigs-2'],
+	it('throws when a defender unit entry has the wrong shape for a grouped unit', () => {
+		expect(() => buildStackRosterIndex(
+			{
+				groupsById: {
+					bad: {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-1', 'pigs-2'],
+					},
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
+			{
+				'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const },
 				'pigs-2': null as unknown as never,
 			},
-		})).toThrow('Invalid stack roster unit shape for bad')
+		)).toThrow('Invalid stack roster unit shape for bad')
 	})
 
-	it('throws when canonical unitsById is missing for roster groups', () => {
-		expect(() => buildStackRosterIndex({
-			groupsById: {
-				bad: {
-					groupName: 'Little Pigs group 1',
-					unitType: 'LittlePigs',
-					position: { q: 4, r: 4 },
-					unitIds: ['pigs-1'],
+	it('throws when a grouped unit is missing from defenders', () => {
+		expect(() => buildStackRosterIndex(
+			{
+				groupsById: {
+					bad: {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-1'],
+					},
 				},
 			},
-		} as unknown as StackRosterState)).toThrow('Missing canonical stack roster unitsById')
+			{},
+		)).toThrow(/missing.*pigs-1/i)
 	})
 
 	it('derives the minimal roster contract from defender units', () => {
@@ -270,16 +258,11 @@ describe('stack roster', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1', weapons: undefined, targetRules: undefined, squads: undefined },
-				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2', weapons: undefined, targetRules: undefined, squads: undefined },
-				'wolf-1': { id: 'wolf-1', status: 'destroyed', friendlyName: 'Big Bad Wolf 1', weapons: undefined, targetRules: undefined, squads: undefined },
-			},
 		})
 	})
 
 	it('parses canonical group membership from unitIds-only records', () => {
-		const unitIdsOnlyRoster = {
+		const roster: StackRosterState = {
 			groupsById: {
 				'LittlePigs:4,4': {
 					groupName: 'Little Pigs group 1',
@@ -288,14 +271,14 @@ describe('stack roster', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
-				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
-			},
-		} as unknown as StackRosterState
+		}
+		const defenders = {
+			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const },
+			'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const },
+		}
 
-		expect(() => buildStackRosterIndex(unitIdsOnlyRoster)).not.toThrow()
-		expect(buildStackRosterIndex(unitIdsOnlyRoster).groupsById['LittlePigs:4,4']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
+		expect(() => buildStackRosterIndex(roster, defenders)).not.toThrow()
+		expect(buildStackRosterIndex(roster, defenders).groupsById['LittlePigs:4,4']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
 	})
 
 	it('refreshes stack naming from the roster-owned adapter', () => {
@@ -314,14 +297,14 @@ describe('stack roster', () => {
 					unitIds: ['pigs-3'],
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
-				'pigs-2': { id: 'pigs-2', status: 'operational', friendlyName: 'Little Pigs 2' },
-				'pigs-3': { id: 'pigs-3', status: 'operational', friendlyName: 'Little Pigs 3' },
-			},
+		}
+		const defenders = {
+			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 1' },
+			'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 2' },
+			'pigs-3': { id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 3' },
 		}
 
-		expect(refreshStackRosterNamingSnapshot(roster)).toMatchObject({
+		expect(refreshStackRosterNamingSnapshot(roster, undefined, defenders)).toMatchObject({
 			groupsInUse: [
 				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
 				{ groupKey: 'LittlePigs:5,4', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
@@ -330,20 +313,21 @@ describe('stack roster', () => {
 		})
 	})
 
-	it('fails refresh when a grouped canonical unit is missing from unitsById', () => {
-		expect(() => refreshStackRosterNamingSnapshot({
-			groupsById: {
-				'g-a': {
-					groupName: 'Little Pigs group 1',
-					unitType: 'LittlePigs',
-					position: { q: 4, r: 4 },
-					unitIds: ['pigs-1', 'pigs-2'],
+	it('fails refresh when a grouped unit is missing from defenders', () => {
+		expect(() => refreshStackRosterNamingSnapshot(
+			{
+				groupsById: {
+					'g-a': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-1', 'pigs-2'],
+					},
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
-			},
-		})).toThrow('Missing canonical stackRoster unitsById for grouped unit pigs-2')
+			undefined,
+			{ 'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const } },
+		)).toThrow(/missing.*pigs-2/i)
 	})
 
 	it('validates canonical consistency between defenders and group membership', () => {
@@ -405,21 +389,23 @@ describe('stack roster', () => {
 		)
 	})
 
-	it('projects deterministic expanded unit detail from canonical unitsById plus unitIds', () => {
-		const projected = expandStackRosterGroups({
-			groupsById: {
-				'g-1': {
-					groupName: 'Little Pigs group 1',
-					unitType: 'LittlePigs',
-					position: { q: 4, r: 4 },
-					unitIds: ['pigs-2', 'missing-1', 'pigs-1'],
+	it('filters group membership to only units present in defenders', () => {
+		const projected = expandStackRosterGroups(
+			{
+				groupsById: {
+					'g-1': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-2', 'missing-1', 'pigs-1'],
+					},
 				},
 			},
-			unitsById: {
-				'pigs-1': { id: 'pigs-1', status: 'operational', friendlyName: 'Little Pigs 1' },
-				'pigs-2': { id: 'pigs-2', status: 'disabled', friendlyName: 'Little Pigs 2' },
+			{
+				'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const },
+				'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'disabled' as const },
 			},
-		})
+		)
 
 		expect(projected.groupsById['g-1']).toEqual({
 			groupName: 'Little Pigs group 1',
@@ -445,7 +431,6 @@ describe('stack roster', () => {
 					unitIds: ['pigs-3'],
 				},
 			},
-			unitsById: {},
 		}
 		const merged = mergeStackRosterGroups(initialRoster, 'g-a', ['g-b'])
 		expect(merged.groupsById['g-a']?.unitIds).toEqual(['pigs-1', 'pigs-2', 'pigs-3'])
@@ -480,7 +465,6 @@ describe('stack roster', () => {
 					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
 				},
 			},
-			unitsById: {},
 		}
 		const moved = moveStackRosterGroup(initialRoster, {
 			sourceGroupId: 'g-a',
@@ -504,7 +488,6 @@ describe('stack roster', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
-			unitsById: {},
 		}
 		const moved = relocateStackRosterUnits(initialRoster, {
 			movedUnitIds: ['pigs-1'],
@@ -537,7 +520,6 @@ describe('stack roster', () => {
 					unitIds: ['pigs-2', 'pigs-3'],
 				},
 			},
-			unitsById: {},
 		}
 		const moved = relocateStackRosterUnits(initialRoster, {
 			movedUnitIds: ['pigs-1'],
@@ -564,7 +546,6 @@ describe('stack roster', () => {
 					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
 				},
 			},
-			unitsById: {},
 		}
 		const afterFirstMove = relocateStackRosterUnits(initialRoster, {
 			movedUnitIds: ['pigs-1'],
@@ -626,10 +607,6 @@ describe('stack roster', () => {
 					unitIds: ['p1', 'p2'],
 				},
 			},
-			unitsById: {
-				p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
-				p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
-			},
 		}
 
 		const reconciled = reconcileStackRosterMoveLifecycle({
@@ -637,6 +614,10 @@ describe('stack roster', () => {
 			stackNaming: {
 				groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
 				usedGroupNames: ['Little Pigs group'],
+			},
+			defenders: {
+				p1: { id: 'p1', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
+				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
 			},
 			movedUnitId: 'p1',
 			unitType: 'LittlePigs',
@@ -675,11 +656,6 @@ describe('stack roster', () => {
 					unitIds: ['p5'],
 				},
 			},
-			unitsById: {
-				p1: { id: 'p1', status: 'operational', friendlyName: 'Little Pigs 1', squads: 2 },
-				p2: { id: 'p2', status: 'operational', friendlyName: 'Little Pigs 2', squads: 3 },
-				p5: { id: 'p5', status: 'operational', friendlyName: 'Little Pigs 5', squads: 2 },
-			},
 		}
 
 		const reconciled = reconcileStackRosterMoveLifecycle({
@@ -690,6 +666,11 @@ describe('stack roster', () => {
 					{ groupKey: 'LittlePigs:4,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
 				],
 				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+			},
+			defenders: {
+				p1: { id: 'p1', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
+				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
+				p5: { id: 'p5', type: 'LittlePigs', position: { q: 4, r: 0 }, status: 'operational' },
 			},
 			movedUnitId: 'p1',
 			unitType: 'LittlePigs',

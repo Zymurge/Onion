@@ -39,15 +39,15 @@ function getPreferredLabel(event: CombatResolutionEvent, friendlyNameKey: string
 
 export type CombatResolution = {
 	actionType: 'FIRE'
-	attackers: string[]
-	attackerFriendlyNames?: string[]
+	attackers: ReadonlyArray<string>
+	attackerFriendlyNames?: ReadonlyArray<string>
 	targetId: string
 	targetFriendlyName?: string
 	outcome: 'NE' | 'D' | 'X'
 	outcomeLabel: 'Hit' | 'Miss'
 	roll?: number
 	odds?: string
-	details: string[]
+	details: ReadonlyArray<string>
 }
 
 export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEvent>): CombatResolution | undefined {

@@ -4,7 +4,7 @@ import type { CombatResolution } from '../lib/gameClient'
 type CombatResolutionToastProps = {
 	title: string
 	resolution: CombatResolution
-	modifiers: string[]
+	modifiers: ReadonlyArray<string>
 	onDismiss: () => void
 }
 

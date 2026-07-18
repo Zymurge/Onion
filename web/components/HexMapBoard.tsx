@@ -1,14 +1,14 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
 import { resolveBattlefieldDisplayName, resolveSelectionOwnerUnitId } from '../lib/appViewHelpers'
-import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
+import { getBattlefieldPosition, statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
-import type { StackRosterState } from '../../shared/types/index'
+import type { DefenderMap, StackRosterState } from '../../shared/types/index'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 import logger from '../lib/logger'
@@ -23,18 +23,18 @@ type HexMapBoardProps = {
   scenarioMap: {
     width: number
     height: number
-    cells: Array<{ q: number; r: number }>
-    hexes: TerrainHex[]
+    cells: ReadonlyArray<{ q: number; r: number }>
+    hexes: ReadonlyArray<TerrainHex>
   }
-  defenders: BattlefieldUnit[]
+  defenders: ReadonlyArray<BattlefieldUnit>
   onion: BattlefieldOnionView
   phase: string | null
   viewerRole?: 'onion' | 'defender' | null
-  selectedUnitIds: string[]
+  selectedUnitIds: ReadonlyArray<string>
   selectedCombatTargetId?: string | null
   combatRangeHexKeys?: ReadonlySet<string>
   combatTargetIds?: ReadonlySet<string>
-  escapeHexes?: Array<{ q: number; r: number }>
+  escapeHexes?: ReadonlyArray<{ q: number; r: number }>
   stackNaming?: StackNamingSnapshot
   stackRoster?: StackRosterState
   canSubmitMove?: boolean
@@ -95,7 +95,7 @@ function isStackableUnitType(unitType: string): boolean {
   return isUnitTypeStackable(unitType)
 }
 
-function hasStackedOccupants(defenders: BattlefieldUnit[]): boolean {
+function hasStackedOccupants(defenders: ReadonlyArray<BattlefieldUnit>): boolean {
   const stackedCountsByPosition = new Map<string, number>()
 
   for (const defender of defenders) {
@@ -107,7 +107,7 @@ function hasStackedOccupants(defenders: BattlefieldUnit[]): boolean {
       return true
     }
 
-    const key = `${defender.type}:${defender.q},${defender.r}`
+    const key = `${defender.type}:${defender.position.q},${defender.position.r}`
     const nextCount = (stackedCountsByPosition.get(key) ?? 0) + 1
     stackedCountsByPosition.set(key, nextCount)
     if (nextCount > 1) {
@@ -121,7 +121,7 @@ function hasStackedOccupants(defenders: BattlefieldUnit[]): boolean {
 function buildMoveValidationState(
   phase: string | null,
   onion: BattlefieldOnionView,
-  defenders: BattlefieldUnit[],
+  defenders: ReadonlyArray<BattlefieldUnit>,
   selectedOccupant: HexOccupant,
   selectedAllowance: number,
 ): MoveValidationState | null {
@@ -143,7 +143,7 @@ function buildMoveValidationState(
     onion: {
       id: onion.id,
       type: onion.type,
-      position: { q: onion.q, r: onion.r },
+      position: getBattlefieldPosition(onion),
       status: onion.status,
       treads: onion.treads,
     },
@@ -151,7 +151,7 @@ function buildMoveValidationState(
       defenders.map((defender) => [defender.id, {
         id: defender.id,
         type: defender.type,
-        position: { q: defender.q, r: defender.r },
+        position: getBattlefieldPosition(defender),
         status: defender.status,
         squads: defender.squads,
       }]),
@@ -168,7 +168,25 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
 
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()
-  const stackRosterIndex = useMemo(() => stackRoster === undefined ? null : buildStackRosterIndex(stackRoster), [stackRoster])
+  const stackRosterIndex = useMemo(() => {
+    if (stackRoster === undefined) {
+      return null
+    }
+
+    const defenderLookup = Object.fromEntries(
+      defenders.map((defender) => [defender.id, {
+        id: defender.id,
+        type: defender.type,
+        friendlyName: defender.friendlyName,
+        position: defender.position,
+        status: defender.status,
+        targetRules: defender.targetRules,
+        squads: defender.squads,
+      }]),
+    ) as DefenderMap
+
+    return buildStackRosterIndex(stackRoster, defenderLookup)
+  }, [defenders, stackRoster])
 
   if (stackRosterIndex === null && hasStackedOccupants(defenders)) {
     throw new Error('Missing stackRoster for grouped defenders')
@@ -211,10 +229,10 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
     return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onion.id : null
   }, [onion.id, selectedUnitIds])
 
-  occupantMap.set(hexKey(onion), [onion])
+  occupantMap.set(hexKey(getBattlefieldPosition(onion)), [onion])
   for (const defender of defenders) {
     if (!shouldRenderDefender(defender)) continue
-    const key = hexKey(defender)
+    const key = hexKey(getBattlefieldPosition(defender))
     const occupants = occupantMap.get(key) ?? []
     occupants.push(defender)
     occupantMap.set(key, occupants)
@@ -251,7 +269,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
     ? new Set(
         listReachableMoves({
           map: { ...scenarioMap, occupiedHexes },
-          from: { q: selectedOccupant.q, r: selectedOccupant.r },
+            from: getBattlefieldPosition(selectedOccupant),
           movementAllowance: selectedAllowance,
           movingRole: selectedOccupant.id === onion.id ? 'onion' : 'defender',
           movingUnitType: selectedOccupant.type,

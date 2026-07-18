@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type Mode } from '../lib/battlefieldView'
+import { getBattlefieldPosition, statusTone, type BattlefieldOnionView, type BattlefieldUnit, type Mode } from '../lib/battlefieldView'
 import {
   buildStackMemberSelectionId,
   buildWeaponSelectionId,
@@ -17,7 +17,7 @@ import {
 } from '../lib/appViewHelpers'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
-import type { StackRosterState, Weapon } from '../../shared/types/index'
+import type { DefenderMap, StackRosterState, Weapon } from '../../shared/types/index'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import logger from '../lib/logger'
 import { ErrorOverlay } from './ErrorOverlay'
@@ -80,6 +80,21 @@ type DefenderMoveGroup = {
   selectedCount: number
 }
 
+function buildDefenderLookup(units: ReadonlyArray<BattlefieldUnit>): DefenderMap {
+  return Object.fromEntries(
+    units.map((unit) => [unit.id, {
+      id: unit.id,
+      type: unit.type,
+      friendlyName: unit.friendlyName,
+      position: getBattlefieldPosition(unit),
+      status: unit.status,
+      weapons: unit.weapons,
+      targetRules: unit.targetRules,
+      squads: unit.squads,
+    }]),
+  )
+}
+
 function buildRenderErrorMessage(
   error: unknown,
   context: {
@@ -124,8 +139,7 @@ function buildCombatGroupFromUnits(
     : resolveBattlefieldDisplayName({
       id: anchorUnit.id,
       type: anchorUnit.type,
-      q: anchorUnit.q,
-      r: anchorUnit.r,
+      position: getBattlefieldPosition(anchorUnit),
       friendlyName: anchorUnit.friendlyName,
       squads: stackSize,
     }, stackNaming)
@@ -134,7 +148,7 @@ function buildCombatGroupFromUnits(
       units.map((unit) => [unit.id, {
         id: unit.id,
         type: unit.type,
-        position: { q: unit.q, r: unit.r },
+        position: getBattlefieldPosition(unit),
         status: unit.status,
         squads: unit.squads,
       }]),
@@ -177,7 +191,9 @@ function buildDefenderCombatGroups(
   stackNaming: StackNamingSnapshot | undefined,
   stackRoster: StackRosterState | undefined,
 ): DefenderCombatGroup[] {
-  const rosterIndex = stackRoster !== undefined ? buildStackRosterIndex(stackRoster) : null
+  const rosterIndex = stackRoster !== undefined
+    ? buildStackRosterIndex(stackRoster, buildDefenderLookup(displayedDefenders))
+    : null
   const selectionGroups: DefenderCombatGroup[] = []
   const consumedUnitIds = new Set<string>()
 
@@ -226,8 +242,7 @@ function buildMoveGroupFromUnits(
     : resolveBattlefieldDisplayName({
       id: anchorUnit.id,
       type: anchorUnit.type,
-      q: anchorUnit.q,
-      r: anchorUnit.r,
+      position: getBattlefieldPosition(anchorUnit),
       friendlyName: anchorUnit.friendlyName,
       squads: stackSize,
     }, stackNaming)
@@ -236,7 +251,7 @@ function buildMoveGroupFromUnits(
       units.map((unit) => [unit.id, {
         id: unit.id,
         type: unit.type,
-        position: { q: unit.q, r: unit.r },
+        position: getBattlefieldPosition(unit),
         status: unit.status,
         squads: unit.squads,
       }]),
@@ -297,7 +312,9 @@ function buildDefenderMoveGroups(
   stackNaming: StackNamingSnapshot | undefined,
   stackRoster: StackRosterState | undefined,
 ): DefenderMoveGroup[] {
-  const rosterIndex = stackRoster !== undefined ? buildStackRosterIndex(stackRoster) : null
+  const rosterIndex = stackRoster !== undefined
+    ? buildStackRosterIndex(stackRoster, buildDefenderLookup(displayedDefenders))
+    : null
   const selectionGroups: DefenderMoveGroup[] = []
   const consumedUnitIds = new Set<string>()
 
