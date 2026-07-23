@@ -221,7 +221,7 @@ async function runOnionAttackPhase(ctx: IntegrationContext) {
     expect(exhaustedRes.statusCode).toBe(422)
     const exhaustedBody = exhaustedRes.json()
     expect(exhaustedBody.code).toBe('MOVE_INVALID')
-    expect(['NO_TARGET', 'WEAPON_EXHAUSTED', 'ATTACKER_ALREADY_ACTED']).toContain(exhaustedBody.detailCode)
+    expect(['NO_TARGET', 'WEAPON_EXHAUSTED', 'NO_READY_WEAPONS']).toContain(exhaustedBody.detailCode)
   }
 }
 

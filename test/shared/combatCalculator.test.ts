@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { TerrainType } from '#shared/engineTypes'
-import { getAllUnitDefinitions } from '#shared/unitDefinitions'
+import { getUnitTypeCatalog } from '#shared/unitDefinitions'
 import {
 	createCombatCalculator,
 	type CombatCalculatorInput,
@@ -9,7 +9,7 @@ import {
 } from '#shared/combatCalculator'
 
 const staticRules = {
-	unitDefinitions: getAllUnitDefinitions(),
+	unitTypes: getUnitTypeCatalog(),
 	terrainRules: {
 		clear: { terrainType: 'clear' as TerrainType },
 		ridgeline: { terrainType: 'ridgeline' as TerrainType, defenseBonus: 1 },
@@ -20,12 +20,12 @@ const staticRules = {
 const calculator = createCombatCalculator(staticRules)
 
 const terrainAdeptRules = {
-	unitDefinitions: {
-		...getAllUnitDefinitions(),
+	unitTypes: {
+		...getUnitTypeCatalog(),
 		Puss: {
-			...getAllUnitDefinitions().Puss,
+			...getUnitTypeCatalog().Puss,
 			abilities: {
-				...getAllUnitDefinitions().Puss.abilities,
+				...getUnitTypeCatalog().Puss.abilities,
 				terrainRules: {
 					ridgeline: { canAccessCover: true },
 					clear: { canAccessCover: true },

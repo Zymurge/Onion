@@ -1,5 +1,4 @@
-import type { TerrainType, UnitDefinition } from './engineTypes.js'
-import type { Weapon } from './types/index.js'
+import type { TerrainType, UnitTypeBase, Weapon, WeaponType } from './types/index.js'
 
 /**
  * Shared combat rules contract.
@@ -49,7 +48,7 @@ export type CombatModifier = {
  * provided attacker group ids and target id.
  */
 export type CombatCombatantState = {
-	type: string
+	typeId: string
 	friendlyName?: string
 	squads?: number
 	terrainType?: TerrainType
@@ -76,7 +75,7 @@ export type CombatTerrainRule = {
  * Immutable static combat data passed into the calculator factory.
  */
 export type CombatStaticRules = {
-	unitDefinitions: Readonly<Record<string, UnitDefinition>>
+	unitTypes: Readonly<Record<string, UnitTypeBase>>
 	terrainRules: Readonly<Record<TerrainType, CombatTerrainRule>>
 }
 
@@ -103,10 +102,10 @@ export type CombatCalculator = {
 	calculateResult(input: CombatCalculatorInput): CombatCalculatorResult
 }
 
-function getUnitDefinitionByType(staticRules: CombatStaticRules, type: string): UnitDefinition {
-	const definition = Object.values(staticRules.unitDefinitions).find((candidate) => candidate.type === type)
+function getUnitDefinitionByType(staticRules: CombatStaticRules, typeId: string): UnitTypeBase {
+	const definition = Object.values(staticRules.unitTypes).find((candidate) => candidate.typeId === typeId)
 	if (definition === undefined) {
-		throw new Error(`Unit type '${type}' is not defined in the shared combat rules`)
+		throw new Error(`Unit type '${typeId}' is not defined in the shared combat rules`)
 	}
 
 	return definition
@@ -118,37 +117,43 @@ function getCombatant(staticRules: CombatStaticRules, liveState: CombatLiveState
 		throw new Error(`Combatant '${combatantId}' was not found in the live combat state`)
 	}
 
-	getUnitDefinitionByType(staticRules, combatant.type)
+	getUnitDefinitionByType(staticRules, combatant.typeId)
 	return combatant
 }
 
-function getWeaponAttack(definition: UnitDefinition, combatant: CombatCombatantState | undefined, weaponId: string): number {
+function findWeaponType(definition: UnitTypeBase, weaponTypeId: string): WeaponType | undefined {
+	return definition.weapons.find((candidate) => candidate.typeId === weaponTypeId || candidate.typeId.endsWith(`.${weaponTypeId}`))
+}
+
+function getWeaponAttack(definition: UnitTypeBase, combatant: CombatCombatantState | undefined, weaponId: string): number {
 	const liveWeapon = combatant?.weapons?.find((candidate) => candidate.id === weaponId)
 	if (liveWeapon !== undefined) {
-		return liveWeapon.attack
+		const staticWeapon = findWeaponType(definition, liveWeapon.typeId)
+		if (staticWeapon !== undefined) {
+			return staticWeapon.attack
+		}
 	}
 
-	const weapon = definition.weapons.find((candidate) => candidate.id === weaponId)
+	const weapon = findWeaponType(definition, weaponId)
 	if (weapon === undefined) {
-		throw new Error(`Weapon '${weaponId}' was not found on unit type '${definition.type}'`)
+		throw new Error(`Weapon '${weaponId}' was not found on unit type '${definition.typeId}'`)
 	}
 
 	return weapon.attack
 }
 
-function getBaseAttack(definition: UnitDefinition, combatant: CombatCombatantState, weaponIds?: ReadonlyArray<string>): number {
+function getBaseAttack(definition: UnitTypeBase, combatant: CombatCombatantState, weaponIds?: ReadonlyArray<string>): number {
 	if (weaponIds !== undefined && weaponIds.length > 0) {
 		return weaponIds.reduce((total, weaponId) => total + getWeaponAttack(definition, combatant, weaponId), 0)
 	}
 
 	if (combatant.weapons !== undefined) {
 		return combatant.weapons
-			.filter((weapon) => weapon.status === 'ready')
-			.reduce((total, weapon) => total + weapon.attack, 0)
+			.filter((weapon) => weapon.state === 'ready')
+			.reduce((total, weapon) => total + getWeaponAttack(definition, combatant, weapon.id), 0)
 	}
 
 	return definition.weapons
-		.filter((weapon) => weapon.status === 'ready')
 		.reduce((total, weapon) => total + weapon.attack, 0)
 }
 
@@ -160,7 +165,7 @@ function getTerrainRule(staticRules: CombatStaticRules, terrainType: TerrainType
 	return staticRules.terrainRules[terrainType]
 }
 
-function canUseTerrainCover(definition: UnitDefinition, terrainType: TerrainType): boolean {
+function canUseTerrainCover(definition: UnitTypeBase, terrainType: TerrainType): boolean {
 	return definition.abilities.terrainRules?.[terrainType]?.canAccessCover === true
 }
 
@@ -173,7 +178,7 @@ function getTerrainDefenseBonus(staticRules: CombatStaticRules, combatant: Comba
 		return 0
 	}
 
-	const definition = getUnitDefinitionByType(staticRules, combatant.type)
+	const definition = getUnitDefinitionByType(staticRules, combatant.typeId)
 	if (!canUseTerrainCover(definition, combatant.terrainType)) {
 		return 0
 	}
@@ -183,7 +188,7 @@ function getTerrainDefenseBonus(staticRules: CombatStaticRules, combatant: Comba
 		return 0
 	}
 
-	if (terrainRule.appliesToTypes !== undefined && !terrainRule.appliesToTypes.includes(combatant.type)) {
+	if (terrainRule.appliesToTypes !== undefined && !terrainRule.appliesToTypes.includes(combatant.typeId)) {
 		return 0
 	}
 
@@ -193,7 +198,7 @@ function getTerrainDefenseBonus(staticRules: CombatStaticRules, combatant: Comba
 function resolveAttackStrength(staticRules: CombatStaticRules, liveState: CombatLiveState, attackerGroupIds: ReadonlyArray<string>): number {
 	return attackerGroupIds.reduce((total, attackerId) => {
 		const attacker = getCombatant(staticRules, liveState, attackerId)
-		const definition = getUnitDefinitionByType(staticRules, attacker.type)
+		const definition = getUnitDefinitionByType(staticRules, attacker.typeId)
 		return total + getBaseAttack(definition, attacker, attacker.weaponIds)
 	}, 0)
 }
@@ -205,20 +210,23 @@ function resolveDefenseStrength(
 	attackStrength: number,
 ): number {
 	const target = getCombatant(staticRules, liveState, targetId)
-	const definition = getUnitDefinitionByType(staticRules, target.type)
+	const definition = getUnitDefinitionByType(staticRules, target.typeId)
 
-	if (definition.type === 'TheOnion') {
+	if (definition.role === 'onion') {
 		if (target.weaponId === undefined) {
 			return attackStrength
 		}
 
 		const weaponId = target.weaponId
-		const weapon = target.weapons?.find((candidate) => candidate.id === weaponId) ?? definition.weapons.find((candidate) => candidate.id === weaponId)
+		const liveWeapon = target.weapons?.find((candidate) => candidate.id === weaponId)
+		const weapon = liveWeapon === undefined
+			? findWeaponType(definition, weaponId)
+			: findWeaponType(definition, liveWeapon.typeId)
 		if (weapon === undefined) {
-			throw new Error(`Unknown target weapon '${weaponId}' for unit type '${definition.type}'`)
+			throw new Error(`Unknown target weapon '${weaponId}' for unit type '${definition.typeId}'`)
 		}
 
-		return weapon.defense
+		return weapon.defense ?? definition.defense
 	}
 
 	// If the unit type supports stacking, require a squads count on the
@@ -228,7 +236,7 @@ function resolveDefenseStrength(
 	const maxStacks = (definition.abilities?.maxStacks ?? 1)
 	if (maxStacks > 1) {
 		if (typeof target.squads !== 'number') {
-			throw new Error(`Stack target '${targetId}' of type '${definition.type}' is missing squads in the live combat state`)
+			throw new Error(`Stack target '${targetId}' of type '${definition.typeId}' is missing squads in the live combat state`)
 		}
 
 		const stackSize = target.squads
@@ -240,7 +248,7 @@ function resolveDefenseStrength(
 
 function resolveModifiers(staticRules: CombatStaticRules, liveState: CombatLiveState, targetId: string): ReadonlyArray<CombatModifier> {
 	const target = getCombatant(staticRules, liveState, targetId)
-	const definition = getUnitDefinitionByType(staticRules, target.type)
+	const definition = getUnitDefinitionByType(staticRules, target.typeId)
 	if (target.terrainType === undefined || !canUseTerrainCover(definition, target.terrainType)) {
 		return []
 	}
@@ -253,7 +261,7 @@ function resolveModifiers(staticRules: CombatStaticRules, liveState: CombatLiveS
 		return []
 	}
 
-	if (terrainRule.appliesToTypes !== undefined && !terrainRule.appliesToTypes.includes(target.type)) {
+	if (terrainRule.appliesToTypes !== undefined && !terrainRule.appliesToTypes.includes(target.typeId)) {
 		return []
 	}
 

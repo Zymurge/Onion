@@ -1,19 +1,85 @@
-import type { TargetRules, Weapon } from './types/index.js'
-import type { UnitDefinition, UnitType } from './engineTypes.js'
+import catalogConfig from './config/unitCatalog.json' with { type: 'json' }
+import type {
+  DefenderUnitType,
+  OnionUnitType,
+  PlayerRole,
+  TargetRules,
+  UnitAbilities,
+  UnitType,
+  UnitTypeBase,
+  UnitTypeCatalog,
+  Weapon,
+  WeaponType,
+  WeaponTypeCatalog,
+} from './types/index.js'
 
-type UnitDefinitionSource = Omit<UnitDefinition, 'stackable'>
+type ExternalWeaponType = Omit<WeaponType, 'typeId'>
+type ExternalUnitType = Omit<UnitTypeBase, 'typeId' | 'role' | 'stackable' | 'weapons'> & {
+  role: PlayerRole
+  weaponTypeIds: ReadonlyArray<string>
+  treads?: number
+  treadsPerMove?: number
+  ramsPerTurn?: number
+}
 
-function makeWeapon(
-  id: string,
-  name: string,
-  attack: number,
-  range: number,
-  defense: number,
-  individuallyTargetable = false,
-  targetRules?: TargetRules,
-  friendlyNameTemplate?: string,
-): Weapon {
-  return { id, name, attack, range, defense, status: 'ready', individuallyTargetable, targetRules, friendlyNameTemplate }
+type UnitCatalogConfig = {
+  unitTypes: Record<string, ExternalUnitType>
+  weaponTypes: Record<string, ExternalWeaponType>
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig {
+  if (!isRecord(value) || !isRecord(value.unitTypes) || !isRecord(value.weaponTypes)) {
+    throw new Error('Invalid unit catalog: unitTypes and weaponTypes must be objects')
+  }
+
+  for (const [unitTypeId, unitType] of Object.entries(value.unitTypes)) {
+    if (!isRecord(unitType) || unitType.role !== 'onion' && unitType.role !== 'defender') {
+      throw new Error(`Invalid unit catalog unit type: ${unitTypeId}`)
+    }
+
+    if (typeof unitType.name !== 'string' || typeof unitType.movement !== 'number' || typeof unitType.defense !== 'number') {
+      throw new Error(`Invalid unit catalog attributes for unit type: ${unitTypeId}`)
+    }
+
+    if (!Array.isArray(unitType.weaponTypeIds) || unitType.weaponTypeIds.some((weaponTypeId) => typeof weaponTypeId !== 'string')) {
+      throw new Error(`Invalid weapon references for unit type: ${unitTypeId}`)
+    }
+
+    for (const field of ['id', 'unitId', 'type', 'state', 'status']) {
+      if (field in unitType) {
+        throw new Error(`Dynamic field ${field} is not allowed in unit type configuration: ${unitTypeId}`)
+      }
+    }
+  }
+
+  for (const [weaponTypeId, weaponType] of Object.entries(value.weaponTypes)) {
+    if (!isRecord(weaponType) || typeof weaponType.name !== 'string' || typeof weaponType.attack !== 'number' || typeof weaponType.range !== 'number') {
+      throw new Error(`Invalid unit catalog weapon type: ${weaponTypeId}`)
+    }
+
+    if (!['main', 'secondary', 'ap', 'missile'].includes(weaponType.weaponClass as string)) {
+      throw new Error(`Invalid weapon class for weapon type: ${weaponTypeId}`)
+    }
+
+    for (const field of ['id', 'unitId', 'state', 'status']) {
+      if (field in weaponType) {
+        throw new Error(`Dynamic field ${field} is not allowed in weapon type configuration: ${weaponTypeId}`)
+      }
+    }
+  }
+
+  for (const [unitTypeId, unitType] of Object.entries(value.unitTypes)) {
+    const configuredUnitType = unitType as ExternalUnitType
+    for (const weaponTypeId of configuredUnitType.weaponTypeIds) {
+      if (!Object.hasOwn(value.weaponTypes, weaponTypeId)) {
+        throw new Error(`Unit type ${unitTypeId} references missing weapon type: ${weaponTypeId}`)
+      }
+    }
+  }
 }
 
 const FRIENDLY_NAME_TEMPLATE_TOKEN = /\{\{\s*ordinal\s*\}\}/g
@@ -34,141 +100,68 @@ export function buildFriendlyName(template: string, id: string): string {
   return template.replace(FRIENDLY_NAME_TEMPLATE_TOKEN, ordinal === null ? '' : String(ordinal)).replace(/\s+/g, ' ').trim()
 }
 
-const UNIT_DEFINITION_SOURCES: Record<UnitType, UnitDefinitionSource> = {
-  Puss: {
-    name: 'Puss',
-    type: 'Puss',
-    friendlyNameTemplate: 'Puss {{ordinal}}',
-    movement: 3,
-    defense: 3,
-    cost: 1,
-    abilities: { maxStacks: 1, isArmor: true, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
-    weapons: [makeWeapon('main', 'Main Gun', 4, 2, 3)],
-  },
-  BigBadWolf: {
-    name: 'Big Bad Wolf',
-    type: 'BigBadWolf',
-    friendlyNameTemplate: 'Big Bad Wolf {{ordinal}}',
-    movement: 4,
-    defense: 4,
-    cost: 1,
-    abilities: { maxStacks: 1, isArmor: true, secondMove: true, secondMoveAllowance: 3, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
-    weapons: [makeWeapon('main', 'Cannon', 2, 2, 4)],
-  },
-  Witch: {
-    name: 'Witch',
-    type: 'Witch',
-    friendlyNameTemplate: 'Witch {{ordinal}}',
-    movement: 2,
-    defense: 2,
-    cost: 1,
-    abilities: { maxStacks: 1, isArmor: true, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
-    weapons: [makeWeapon('main', 'Missile Launcher', 3, 4, 2)],
-  },
-  LordFarquaad: {
-    name: 'Lord Farquaad',
-    type: 'LordFarquaad',
-    friendlyNameTemplate: 'Lord Farquaad {{ordinal}}',
-    movement: 0,
-    defense: 0,
-    cost: 2,
-    abilities: { maxStacks: 1, immobile: true, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
-    weapons: [makeWeapon('main', 'Howitzer', 6, 8, 0)],
-  },
-  Pinocchio: {
-    name: 'Pinocchio',
-    type: 'Pinocchio',
-    friendlyNameTemplate: 'Pinocchio {{ordinal}}',
-    movement: 2,
-    defense: 3,
-    cost: 0.5,
-    abilities: { maxStacks: 1, isArmor: true, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
-    weapons: [makeWeapon('main', 'Light Gun', 2, 2, 3)],
-  },
-  Dragon: {
-    name: 'Dragon',
-    type: 'Dragon',
-    friendlyNameTemplate: 'Dragon {{ordinal}}',
-    movement: 5,
-    defense: 3,
-    cost: 2,
-    abilities: { maxStacks: 1, isArmor: true, ramProfile: { treadLoss: 2, destroyOnRollAtMost: 4 } },
-    weapons: [
-      makeWeapon('main_1', 'Heavy Gun A', 6, 3, 3),
-      makeWeapon('main_2', 'Heavy Gun B', 6, 3, 3),
-    ],
-  },
-  LittlePigs: {
-    name: 'Little Pigs',
-    type: 'LittlePigs',
-    friendlyNameTemplate: 'Little Pigs {{ordinal}}',
-    movement: 1,
-    defense: 1,
-    cost: 1,
-    abilities: {
-      maxStacks: 5,
-      ramProfile: { treadLoss: 0, destroyOnRollAtMost: 4 },
-      terrainRules: {
-        ridgeline: { canCross: true, canAccessCover: true },
-      },
-    },
-    weapons: [makeWeapon('rifle', 'Rifle', 1, 1, 1)],
-  },
-  Swamp: {
-    name: 'The Swamp',
-    type: 'Swamp',
-    friendlyNameTemplate: 'The Swamp',
-    movement: 0,
-    defense: 0,
-    abilities: { maxStacks: 1, immobile: true, ramProfile: { treadLoss: 1, destroyOnRollAtMost: 4 } },
-    weapons: [],
-  },
-  TheOnion: {
-    name: 'The Onion',
-    type: 'TheOnion',
-    friendlyNameTemplate: 'The Onion {{ordinal}}',
-    movement: 3,
-    defense: 0,
-    abilities: {
-      maxStacks: 1,
-      canRam: true,
-      ramCapacity: 2,
-      terrainRules: {
-        ridgeline: { canCross: true },
-      },
-    },
-    weapons: [
-      makeWeapon('main', 'Main Battery', 4, 3, 4, true, undefined, 'Main Battery'),
-      makeWeapon('secondary_1', 'Secondary Battery', 3, 2, 3, true, undefined, 'Secondary Battery {{ordinal}}'),
-      makeWeapon('secondary_2', 'Secondary Battery', 3, 2, 3, true, undefined, 'Secondary Battery {{ordinal}}'),
-      makeWeapon('secondary_3', 'Secondary Battery', 3, 2, 3, true, undefined, 'Secondary Battery {{ordinal}}'),
-      makeWeapon('secondary_4', 'Secondary Battery', 3, 2, 3, true, undefined, 'Secondary Battery {{ordinal}}'),
-      makeWeapon('ap_1', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs'] }, 'AP Gun {{ordinal}}'),
-      makeWeapon('ap_2', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs'] }, 'AP Gun {{ordinal}}'),
-      makeWeapon('ap_3', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs'] }, 'AP Gun {{ordinal}}'),
-      makeWeapon('ap_4', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs'] }, 'AP Gun {{ordinal}}'),
-      makeWeapon('ap_5', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs'] }, 'AP Gun {{ordinal}}'),
-      makeWeapon('ap_6', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs'] }, 'AP Gun {{ordinal}}'),
-      makeWeapon('ap_7', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs'] }, 'AP Gun {{ordinal}}'),
-      makeWeapon('ap_8', 'AP Gun', 1, 1, 1, true, { allowedTargetUnitTypes: ['LittlePigs'] }, 'AP Gun {{ordinal}}'),
-      makeWeapon('missile_1', 'Missile', 6, 5, 3, true, undefined, 'Missile {{ordinal}}'),
-      makeWeapon('missile_2', 'Missile', 6, 5, 3, true, undefined, 'Missile {{ordinal}}'),
-    ],
-  },
+assertCatalogConfig(catalogConfig)
+
+const WEAPON_TYPE_CATALOG: WeaponTypeCatalog = Object.fromEntries(
+  Object.entries(catalogConfig.weaponTypes).map(([typeId, weaponType]) => [typeId, { ...weaponType, typeId }]),
+) as WeaponTypeCatalog
+
+const UNIT_TYPE_CATALOG: UnitTypeCatalog = Object.fromEntries(
+  Object.entries(catalogConfig.unitTypes).map(([typeId, definition]) => {
+    const { weaponTypeIds, ...unitTypeAttributes } = definition
+    const weapons = weaponTypeIds.map((weaponTypeId) => WEAPON_TYPE_CATALOG[weaponTypeId])
+    const base = {
+      ...unitTypeAttributes,
+      typeId,
+      stackable: definition.abilities.maxStacks > 1,
+      weapons,
+    }
+
+    if (definition.role === 'onion') {
+      return [typeId, base as OnionUnitType]
+    }
+
+    return [typeId, base as DefenderUnitType]
+  }),
+) as UnitTypeCatalog
+
+const DEFAULT_ONION_UNIT_TYPE = Object.values(UNIT_TYPE_CATALOG).find((definition) => definition.role === 'onion')
+if (DEFAULT_ONION_UNIT_TYPE === undefined) {
+  throw new Error('Unit catalog must define an onion unit type')
 }
 
-const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = Object.fromEntries(
-  Object.entries(UNIT_DEFINITION_SOURCES).map(([unitType, definition]) => [
-    unitType,
-    {
-      ...definition,
-      stackable: definition.abilities.maxStacks > 1,
-    },
-  ]),
-) as Record<UnitType, UnitDefinition>
+export const DEFAULT_ONION_UNIT_TYPE_ID = DEFAULT_ONION_UNIT_TYPE.typeId
 
-export function getAllUnitDefinitions(): Record<UnitType, UnitDefinition> {
-  return { ...UNIT_DEFINITIONS }
+export function getUnitTypeCatalog(): UnitTypeCatalog {
+  return UNIT_TYPE_CATALOG
+}
+
+export function getWeaponTypeCatalog(): WeaponTypeCatalog {
+  return WEAPON_TYPE_CATALOG
+}
+
+export function getUnitDefinition(typeId: UnitType): UnitTypeBase | undefined {
+  return UNIT_TYPE_CATALOG[typeId]
+}
+
+export function getAllUnitDefinitions(): UnitTypeCatalog {
+  return getUnitTypeCatalog()
+}
+
+export function getWeaponType(typeId: string): WeaponType {
+  const weaponType = WEAPON_TYPE_CATALOG[typeId]
+  if (!weaponType) {
+    throw new Error(`Unknown weapon type: ${typeId}`)
+  }
+  return weaponType
+}
+
+export function getWeaponDefense(weaponTypeId: string): number {
+  const defense = getWeaponType(weaponTypeId).defense
+  if (defense === undefined) {
+    throw new Error(`Weapon type has no defense value: ${weaponTypeId}`)
+  }
+  return defense
 }
 
 export function isUnitTypeStackable(unitType: string | null | undefined): boolean {
@@ -176,5 +169,5 @@ export function isUnitTypeStackable(unitType: string | null | undefined): boolea
     return false
   }
 
-  return UNIT_DEFINITIONS[unitType as UnitType]?.stackable === true
+  return UNIT_TYPE_CATALOG[unitType as UnitType]?.stackable === true
 }

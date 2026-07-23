@@ -1,20 +1,19 @@
 import { buildStackGroupKey, createStackNamingEngine, refreshStackNamingSnapshotFromRoster, type StackNamingSnapshot, type StackNamingSourceUnit } from './stackNaming.js'
-import { getAllUnitDefinitions } from './unitDefinitions.js'
+import { getUnitTypeCatalog } from './unitDefinitions.js'
 import type { DefenderMap, HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from './types/index.js'
 
 export { buildStackGroupKey } from './stackNaming.js'
 
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
+const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
 
 type StackRosterSourceUnit = {
-	id: string
-	type: string
+	unitId: string
+	typeId: string
 	position: HexPos
-	status: StackRosterUnitState['status']
+	state: StackRosterUnitState['state']
 	friendlyName?: string
 	squads?: number
 	weapons?: StackRosterUnitState['weapons']
-	targetRules?: StackRosterUnitState['targetRules']
 }
 
 export type StackRosterValidationIssue = {
@@ -145,7 +144,7 @@ function normalizeStackRosterGroup(groupId: string, candidate: unknown): StackRo
 }
 
 function isStackRosterUnitType(unitType: string): boolean {
-	return UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.stackable === true
+	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]?.stackable === true
 }
 
 function resolveGroupUnitIds(group: StackRosterGroupState): string[] {
@@ -180,15 +179,15 @@ export function buildStackRosterNamingSourceUnits(
 				throw new Error(`Missing defender for grouped unit ${unitId}`)
 			}
 
-			if (unit === null || typeof unit !== 'object' || typeof unit.status !== 'string') {
+				if (unit === null || typeof unit !== 'object' || typeof unit.state !== 'string') {
 				throw new Error(`Invalid stack roster unit shape for ${group.groupName}`)
 			}
 
 			sourceUnits.push({
-				id: unit.id ?? unitId,
-				type: group.unitType,
+				unitId: unit.unitId,
+				typeId: group.unitType,
 				position: group.position,
-				status: unit.status,
+				state: unit.state,
 				friendlyName: unit.friendlyName,
 				squads: unit.squads,
 			})
@@ -222,19 +221,19 @@ function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>)
 	const groupedUnits = new Map<string, StackRosterGroupBuilder>()
 
 	for (const unit of units) {
-		if (!isStackRosterUnitType(unit.type)) {
+		if (!isStackRosterUnitType(unit.typeId)) {
 			continue
 		}
 
-		const groupId = buildStackGroupKey(unit.type, unit.position)
+		const groupId = buildStackGroupKey(unit.typeId, unit.position)
 		const existingGroup = groupedUnits.get(groupId)
 		const nextUnitIds = existingGroup?.unitIds ?? []
 		groupedUnits.set(groupId, {
 			groupId,
-			groupName: existingGroup?.groupName ?? unit.friendlyName ?? unit.type,
-			unitType: unit.type,
+			groupName: existingGroup?.groupName ?? unit.friendlyName ?? unit.typeId,
+			unitType: unit.typeId,
 			position: unit.position,
-			unitIds: [...nextUnitIds, unit.id],
+			unitIds: [...nextUnitIds, unit.unitId],
 		})
 	}
 
@@ -331,18 +330,17 @@ export function buildStackRosterIndex(
 			if (
 				unit === null || 
 				typeof unit !== 'object' || 
-				typeof unit.status !== 'string' ||
-				typeof unit.id !== 'string'
+				typeof unit.state !== 'string' ||
+				typeof unit.unitId !== 'string'
 			) {
 				throw new Error(`Invalid stack roster unit shape for ${groupId}`)
 			}
 
 			const unitView: StackRosterUnitView = {
-				id: unit.id ?? unitId,
-				status: unit.status,
+				unitId: unit.unitId,
+				state: unit.state,
 				friendlyName: unit.friendlyName,
 				weapons: unit.weapons,
-				targetRules: unit.targetRules,
 				squads: unit.squads,
 				groupId,
 				groupKey,
@@ -350,8 +348,8 @@ export function buildStackRosterIndex(
 				position: normalizedGroup.position,
 			}
 
-			derivedUnitsById[unit.id] = unitView
-			groupIdsByUnitId.set(unit.id, groupId)
+			derivedUnitsById[unit.unitId] = unitView
+			groupIdsByUnitId.set(unit.unitId, groupId)
 			return unitView
 		})
 
@@ -423,10 +421,10 @@ export function validateStackRosterConsistency(
 				continue
 			}
 
-			if (defender.type !== group.unitType) {
+			if (defender.typeId !== group.unitType) {
 				issues.push({
 					code: 'GROUP_MEMBER_TYPE_MISMATCH',
-					message: `Group ${groupId} expects ${group.unitType} but ${unitId} is ${defender.type}`,
+					message: `Group ${groupId} expects ${group.unitType} but ${unitId} is ${defender.typeId}`,
 					groupId,
 					unitId,
 				})
@@ -444,9 +442,9 @@ export function validateStackRosterConsistency(
 	}
 
 	for (const [defenderKey, defender] of Object.entries(defenders ?? {})) {
-		const defenderId = defender.id ?? defenderKey
+		const defenderId = defender.unitId ?? defenderKey
 
-		if (!isStackRosterUnitType(defender.type)) {
+		if (!isStackRosterUnitType(defender.typeId)) {
 			continue
 		}
 
@@ -456,7 +454,7 @@ export function validateStackRosterConsistency(
 
 		issues.push({
 			code: 'STACKABLE_DEFENDER_MISSING_GROUP',
-			message: `Defender ${defenderId} with stackable type ${defender.type} is missing from stack roster groups`,
+			message: `Defender ${defenderId} with stackable type ${defender.typeId} is missing from stack roster groups`,
 			groupId: defenderId,
 			unitId: defenderId,
 		})
@@ -719,7 +717,7 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 		namingEngine.resolveGroupName(
 			`${sourceGroup.groupKey}:source-reserve`,
 			sourceGroup.unitType,
-			sourceGroup.units?.[0]?.id ?? input.movedUnitId,
+			sourceGroup.units?.[0]?.unitId ?? input.movedUnitId,
 			undefined,
 			sourceGroupUnitCount,
 		)

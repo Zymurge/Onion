@@ -9,8 +9,9 @@ import type {
 	WebSocketServerEventMessage,
 	WebSocketServerMessage,
 	WebSocketServerSnapshotMessage,
+	WebSocketServerSessionInitMessage,
 } from '#shared/websocketProtocol'
-import type { Command, EventEnvelope, GameState } from '#shared/types/index'
+import type { Command, EventEnvelope, GameState, SessionInitPayload } from '#shared/types/index'
 import type { GameStateResponse } from '#shared/apiProtocol'
 
 describe('websocketProtocol definitions', () => {
@@ -34,6 +35,14 @@ describe('websocketProtocol definitions', () => {
 	})
 
 	it('describes server snapshot, event, and error messages', () => {
+		expectTypeOf<WebSocketServerSessionInitMessage>().toMatchTypeOf<{
+			kind: 'SESSION_INIT'
+			payload: SessionInitPayload
+		}>()
+		expectTypeOf<SessionInitPayload>().toMatchTypeOf<{
+			unitTypes: Record<string, unknown>
+			weaponTypes: Record<string, unknown>
+		}>()
 		expectTypeOf<WebSocketServerSnapshotMessage>().toMatchTypeOf<{
 			kind: 'STATE_SNAPSHOT'
 			snapshot: GameStateResponse
@@ -49,10 +58,12 @@ describe('websocketProtocol definitions', () => {
 			event: EventEnvelope
 		}>()
 		expectTypeOf<WebSocketServerMessage>().toMatchTypeOf<
+			| WebSocketServerSessionInitMessage
 			| WebSocketServerSnapshotMessage
 			| WebSocketServerEventMessage
 			| WebSocketServerErrorMessage
 		>()
+		expectTypeOf<Extract<WebSocketServerMessage, { kind: 'SESSION_INIT' }>>().toEqualTypeOf<WebSocketServerSessionInitMessage>()
 		expectTypeOf<WebSocketMessage>().toMatchTypeOf<WebSocketClientMessage | WebSocketServerMessage>()
 		expectTypeOf<GameStateResponse>().toMatchTypeOf<{
 			gameId: number

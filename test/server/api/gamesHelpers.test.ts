@@ -4,31 +4,23 @@ import { buildCombatEvents, buildMoveEvents, buildVictoryObjectiveStates, comput
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
 import { buildGameStateResponse } from '#server/api/gamesHelpers'
+import { DEFAULT_ONION_UNIT_TYPE_ID } from '#shared/unitDefinitions'
+import { makeDefender, makeGameState, makeOnion } from '../../shared/gameStateUtils.js'
 
 describe('buildCombatEvents', () => {
   it('derives friendly names from unit definitions when live state omits them', () => {
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 0, r: 0 },
-        status: 'operational',
+    const state: GameState = makeGameState({
+      onions: { 'onion-1': makeOnion({
         weapons: [
-          { id: 'secondary_3', name: 'Secondary Battery', attack: 3, range: 2, defense: 3, status: 'ready', individuallyTargetable: true },
+          { id: 'main_1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.main`, state: 'ready', friendlyName: 'Main Battery 1' },
+          { id: 'secondary_1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.secondary_1`, state: 'ready', friendlyName: 'Secondary Battery 1' },
+          { id: 'secondary_2', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.secondary_2`, state: 'ready', friendlyName: 'Secondary Battery 2' },
+          { id: 'secondary_3', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.secondary_3`, state: 'ready', friendlyName: 'Secondary Battery 3' },
+          { id: 'missile', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.missile_1`, state: 'ready', friendlyName: 'Missile Launcher 1', ammo: 3 },
         ],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 1, r: 1 },
-          status: 'operational',
-          weapons: [],
-        },
-      },
-    }
+      }) },
+      defenders: { 'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 }, weapons: [] }) },
+    })
 
     const events = buildCombatEvents(
       10,
@@ -58,7 +50,7 @@ describe('buildCombatEvents', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
-        type: 'TheOnion',
+        type: DEFAULT_ONION_UNIT_TYPE_ID,
         position: { q: 0, r: 0 },
         status: 'operational',
         weapons: [
@@ -69,10 +61,11 @@ describe('buildCombatEvents', () => {
       },
       defenders: {
         'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
+          role: 'defender',
+          unitId: 'pigs-1',
+          typeId: 'LittlePigs',
           position: { q: 1, r: 1 },
-          status: 'operational',
+          state: 'operational',
           weapons: [],
         },
       },
@@ -99,7 +92,7 @@ describe('buildCombatEvents', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
-        type: 'TheOnion',
+        type: DEFAULT_ONION_UNIT_TYPE_ID,
         position: { q: 0, r: 0 },
         status: 'operational',
         weapons: [],
@@ -108,10 +101,11 @@ describe('buildCombatEvents', () => {
       },
       defenders: {
         'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
+          role: 'defender',
+          unitId: 'pigs-1',
+          typeId: 'LittlePigs',
           position: { q: 1, r: 1 },
-          status: 'operational',
+          state: 'operational',
           weapons: [],
           squads: 3,
         },
@@ -146,7 +140,7 @@ describe('buildCombatEvents', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
-        type: 'TheOnion',
+        type: DEFAULT_ONION_UNIT_TYPE_ID,
         position: { q: 0, r: 0 },
         status: 'operational',
         weapons: [
@@ -157,10 +151,11 @@ describe('buildCombatEvents', () => {
       },
       defenders: {
         'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
+          role: 'defender',
+          unitId: 'pigs-1',
+          typeId: 'LittlePigs',
           position: { q: 1, r: 1 },
-          status: 'operational',
+          state: 'operational',
           weapons: [],
           squads: 3,
         },
@@ -198,7 +193,7 @@ describe('buildCombatEvents', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
-        type: 'TheOnion',
+        type: DEFAULT_ONION_UNIT_TYPE_ID,
         position: { q: 0, r: 0 },
         status: 'operational',
         weapons: [
@@ -209,10 +204,11 @@ describe('buildCombatEvents', () => {
       },
       defenders: {
         'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
+          role: 'defender',
+          unitId: 'pigs-1',
+          typeId: 'LittlePigs',
           position: { q: 1, r: 1 },
-          status: 'operational',
+          state: 'operational',
           weapons: [],
           squads: 3,
         },
@@ -244,7 +240,7 @@ describe('buildCombatEvents', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
-        type: 'TheOnion',
+        type: DEFAULT_ONION_UNIT_TYPE_ID,
         position: { q: 0, r: 0 },
         status: 'operational',
         weapons: [],
@@ -253,10 +249,11 @@ describe('buildCombatEvents', () => {
       },
       defenders: {
         'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
+          role: 'defender',
+          unitId: 'pigs-1',
+          typeId: 'LittlePigs',
           position: { q: 1, r: 1 },
-          status: 'operational',
+          state: 'operational',
           weapons: [],
         },
       },
@@ -306,7 +303,7 @@ describe('buildVictoryObjectiveStates', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
-        type: 'TheOnion',
+        type: DEFAULT_ONION_UNIT_TYPE_ID,
         position: { q: 2, r: 2 },
         status: 'operational',
         weapons: [],
@@ -368,7 +365,7 @@ describe('buildVictoryObjectiveStates', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
-        type: 'TheOnion',
+        type: DEFAULT_ONION_UNIT_TYPE_ID,
         position: { q: 2, r: 2 },
         status: 'operational',
         weapons: [],
@@ -377,10 +374,11 @@ describe('buildVictoryObjectiveStates', () => {
       },
       defenders: {
         swamp: {
-          id: 'swamp',
-          type: 'Swamp',
+          role: "defender",
+          unitId: 'swamp',
+          typeId: 'Swamp',
           position: { q: 0, r: 0 },
-          status: 'destroyed',
+          state: 'destroyed',
           weapons: [],
         },
       },
@@ -436,7 +434,7 @@ describe('buildVictoryObjectiveStates', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
-        type: 'TheOnion',
+        type: DEFAULT_ONION_UNIT_TYPE_ID,
         position: { q: 1, r: 1 },
         status: 'operational',
         weapons: [],
@@ -445,10 +443,11 @@ describe('buildVictoryObjectiveStates', () => {
       },
       defenders: {
         swamp: {
-          id: 'swamp',
-          type: 'Swamp',
+          role: "defender",
+          unitId: 'swamp',
+          typeId: 'Swamp',
           position: { q: 0, r: 0 },
-          status: 'destroyed',
+          state: 'destroyed',
           weapons: [],
         },
       },
@@ -486,7 +485,7 @@ describe('buildVictoryObjectiveStates', () => {
     const state: GameState = {
       onion: {
         id: 'onion-1',
-        type: 'TheOnion',
+        type: DEFAULT_ONION_UNIT_TYPE_ID,
         position: { q: 1, r: 1 },
         status: 'operational',
         weapons: [],
@@ -495,10 +494,11 @@ describe('buildVictoryObjectiveStates', () => {
       },
       defenders: {
         swamp: {
-          id: 'swamp',
-          type: 'Swamp',
+          role: "defender",
+          unitId: 'swamp',
+          typeId: 'Swamp',
           position: { q: 0, r: 0 },
-          status: 'operational',
+          state: 'destroyed',
           weapons: [],
         },
       },
@@ -520,7 +520,7 @@ describe('buildVictoryObjectiveStates', () => {
         state: {
           onion: {
             id: 'onion-1',
-            type: 'TheOnion',
+            type: DEFAULT_ONION_UNIT_TYPE_ID,
             position: { q: 0, r: 0 },
             status: 'operational',
             treads: 45,
@@ -529,19 +529,21 @@ describe('buildVictoryObjectiveStates', () => {
           },
           defenders: {
             'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-1',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 1',
               weapons: [],
             },
             'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-2',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 2',
               weapons: [],
@@ -595,7 +597,7 @@ describe('buildVictoryObjectiveStates', () => {
         state: {
           onion: {
             id: 'onion-1',
-            type: 'TheOnion',
+            type: DEFAULT_ONION_UNIT_TYPE_ID,
             position: { q: 0, r: 0 },
             status: 'operational',
             treads: 45,
@@ -604,18 +606,20 @@ describe('buildVictoryObjectiveStates', () => {
           },
           defenders: {
             'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-1',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               friendlyName: 'Little Pigs 1',
               weapons: [],
             },
             'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-2',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               friendlyName: 'Little Pigs 2',
               weapons: [],
             },
@@ -653,7 +657,7 @@ describe('buildVictoryObjectiveStates', () => {
         state: {
           onion: {
             id: 'onion-1',
-            type: 'TheOnion',
+            type: DEFAULT_ONION_UNIT_TYPE_ID,
             position: { q: 0, r: 0 },
             status: 'operational',
             treads: 45,
@@ -662,10 +666,11 @@ describe('buildVictoryObjectiveStates', () => {
           },
           defenders: {
             'wolf-1': {
-              id: 'wolf-1',
-              type: 'BigBadWolf',
+              role: "defender",
+              unitId: 'wolf-1',
+              typeId: 'BigBadWolf',
               position: { q: 6, r: 6 },
-              status: 'operational',
+              state: 'operational',
               friendlyName: 'Big Bad Wolf 1',
               weapons: [],
             },
@@ -702,7 +707,7 @@ describe('buildVictoryObjectiveStates', () => {
         state: {
           onion: {
             id: 'onion-1',
-            type: 'TheOnion',
+            type: DEFAULT_ONION_UNIT_TYPE_ID,
             position: { q: 0, r: 0 },
             status: 'operational',
             treads: 45,
@@ -711,18 +716,20 @@ describe('buildVictoryObjectiveStates', () => {
           },
           defenders: {
             'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-1',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               friendlyName: 'Little Pigs 1',
               weapons: [],
             },
             'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-2',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               friendlyName: 'Little Pigs 2',
               weapons: [],
             },
@@ -747,7 +754,7 @@ describe('buildVictoryObjectiveStates', () => {
         state: {
           onion: {
             id: 'onion-1',
-            type: 'TheOnion',
+            type: DEFAULT_ONION_UNIT_TYPE_ID,
             position: { q: 0, r: 0 },
             status: 'operational',
             treads: 45,
@@ -756,10 +763,11 @@ describe('buildVictoryObjectiveStates', () => {
           },
           defenders: {
             'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-1',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               squads: 3,
               friendlyName: 'Little Pigs 1',
               weapons: [],
@@ -797,7 +805,7 @@ describe('buildVictoryObjectiveStates', () => {
         state: {
           onion: {
             id: 'onion-1',
-            type: 'TheOnion',
+            type: DEFAULT_ONION_UNIT_TYPE_ID,
             position: { q: 0, r: 0 },
             status: 'operational',
             treads: 45,
@@ -806,19 +814,21 @@ describe('buildVictoryObjectiveStates', () => {
           },
           defenders: {
             'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-1',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 1',
               weapons: [],
             },
             'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-2',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 2',
               weapons: [],
@@ -862,7 +872,7 @@ describe('buildVictoryObjectiveStates', () => {
         state: {
           onion: {
             id: 'onion-1',
-            type: 'TheOnion',
+            type: DEFAULT_ONION_UNIT_TYPE_ID,
             position: { q: 0, r: 0 },
             status: 'operational',
             treads: 45,
@@ -871,28 +881,31 @@ describe('buildVictoryObjectiveStates', () => {
           },
           defenders: {
             'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-1',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 1',
               weapons: [],
             },
             'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-2',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 2',
               weapons: [],
             },
             'pigs-5': {
-              id: 'pigs-5',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-5',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 8 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 5',
               weapons: [],

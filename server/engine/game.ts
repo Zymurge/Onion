@@ -3,6 +3,7 @@ import logger from '#server/logger'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
 import type { MatchRecord } from '#server/db/adapter'
 import { TURN_PHASES, phaseActor } from '#server/engine/phases'
+import { getUnitState, getWeaponState, setUnitState, setWeaponState } from '#server/engine/units'
 
 function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'missile' | null {
   if (weaponId === 'main') return 'main'
@@ -18,10 +19,10 @@ function refreshOnionWeaponsForNewTurn(state: GameState): void {
   }
 
   for (const weapon of state.onion.weapons) {
-    if (weapon.status === 'spent') {
-      weapon.status = 'ready'
+    if (getWeaponState(weapon) === 'spent') {
+      setWeaponState(weapon, 'ready')
 
-      const weaponType = getWeaponTypeFromId(weapon.id)
+      const weaponType = getWeaponTypeFromId(weapon.typeId)
       if (weaponType === 'missile') {
         if (state.onion.missiles !== undefined) {
           state.onion.missiles += 1
@@ -70,17 +71,17 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
     for (const unit of Object.values(state.defenders)) {
       if (unit.weapons) {
         for (const weapon of unit.weapons) {
-          if (weapon.status === 'spent') {
-            weapon.status = 'ready'
+          if (weapon.state === 'spent') {
+            weapon.state = 'ready'
           }
         }
       }
     }
     for (const [unitId, unit] of Object.entries(state.defenders)) {
-      const prevStatus = unit.status;
-      if (unit.status === 'disabled') unit.status = 'recovering';
-      if (unit.status !== prevStatus) {
-          newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, phase: phase, unitId, from: prevStatus, to: unit.status });
+      const prevStatus = unit.state;
+      if (unit.state === 'disabled') unit.state = 'recovering';
+      if (unit.state !== prevStatus) {
+          newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, phase: phase, unitId, from: prevStatus, to: unit.state });
       }
     }
   }
@@ -89,10 +90,10 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
   if (phaseActor(phase) === 'engine') {
     const engineFrom = phase;
     for (const [unitId, unit] of Object.entries(state.defenders)) {
-      const prevStatus = unit.status;
-      if (unit.status === 'recovering') unit.status = 'operational';
-      if (unit.status !== prevStatus) {
-        newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, phase: engineFrom, unitId, from: prevStatus, to: unit.status });
+      const prevStatus = unit.state;
+      if (unit.state === 'recovering') unit.state = 'operational';
+      if (unit.state !== prevStatus) {
+        newEvents.push({ seq: seq++, type: 'UNIT_STATUS_CHANGED', timestamp, phase: engineFrom, unitId, from: prevStatus, to: unit.state });
       }
     }
     const engineNextIdx = (TURN_PHASES.indexOf(engineFrom) + 1) % TURN_PHASES.length;

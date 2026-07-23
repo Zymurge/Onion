@@ -11,7 +11,8 @@ import {
   isImmobile,
   getUnitDefense,
   getWeaponDefense,
-  getReadyWeapons,
+  isWeaponAvailable,
+  getAvailableWeapons,
   isDestroyed,
   canTargetWeapon,
   destroyWeapon,
@@ -49,12 +50,8 @@ import type { GameUnit, OnionUnit, DefenderUnit, Weapon, EngineGameState } from 
 function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
   return {
     id: 'main',
-    name: 'Main Gun',
-    attack: 4,
-    range: 2,
-    defense: 3,
-    status: 'ready',
-    individuallyTargetable: false,
+    typeId: 'Puss.main',
+    state: 'ready',
     ...overrides,
   }
 }
@@ -531,53 +528,53 @@ describe('getUnitDefense', () => {
 
 describe('getWeaponDefense', () => {
   it('returns main battery defense for Onion', () => {
-    const onion = makeOnion()
-    const mainId = onion.weapons.find(w => w.id.startsWith('main'))!.id
-    expect(getWeaponDefense(onion, mainId)).toBe(4)
+    expect(getWeaponDefense('TheOnion.main')).toBe(4)
   })
 
   it('returns AP defense for Onion', () => {
-    const onion = makeOnion()
-    const apId = onion.weapons.find(w => w.id.startsWith('ap'))!.id
-    expect(getWeaponDefense(onion, apId)).toBe(1)
+    expect(getWeaponDefense('TheOnion.ap_1')).toBe(1)
   })
 
   it('returns missile defense for Onion', () => {
-    const onion = makeOnion()
-    const missileId = onion.weapons.find(w => w.id.startsWith('missile'))!.id
-    expect(getWeaponDefense(onion, missileId)).toBe(3)
+    expect(getWeaponDefense('TheOnion.missile_1')).toBe(3)
   })
 
-  it('returns unit defense for non-individually-targetable weapon', () => {
-    const puss = makeUnit({ type: 'Puss' })
-    expect(getWeaponDefense(puss, 'main')).toBe(3)
+  it('returns configured defense for a non-individually-targetable weapon type', () => {
+    expect(getWeaponDefense('Puss.main')).toBe(3)
   })
 
-  it('returns unit defense when weaponId not found', () => {
-    const puss = makeUnit({ type: 'Puss' })
-    expect(getWeaponDefense(puss, 'nosuchweapon')).toBe(3)
+  it('throws when weapon type is not found', () => {
+    expect(() => getWeaponDefense('nosuchweapon')).toThrow('Unknown weapon type: nosuchweapon')
   })
 })
 
-// ─── getReadyWeapons ──────────────────────────────────────────────────────────
+// ─── isWeaponAvailable / getAvailableWeapons ──────────────────────────────────
 
-describe('getReadyWeapons', () => {
+describe('isWeaponAvailable', () => {
+  it('returns true only for ready weapons', () => {
+    expect(isWeaponAvailable(makeWeapon({ state: 'ready' }))).toBe(true)
+    expect(isWeaponAvailable(makeWeapon({ state: 'spent' }))).toBe(false)
+    expect(isWeaponAvailable(makeWeapon({ state: 'destroyed' }))).toBe(false)
+  })
+})
+
+describe('getAvailableWeapons', () => {
   it('returns all weapons if none are destroyed', () => {
     const unit = makeUnit({
       weapons: [makeWeapon({ id: 'w1' }), makeWeapon({ id: 'w2' })],
     })
-    expect(getReadyWeapons(unit)).toHaveLength(2)
+    expect(getAvailableWeapons(unit)).toHaveLength(2)
   })
 
   it('filters out destroyed weapons', () => {
     const unit = makeUnit({
       weapons: [
-        makeWeapon({ id: 'w1', status: 'ready' }),
-        makeWeapon({ id: 'w2', status: 'destroyed' }),
-        makeWeapon({ id: 'w3', status: 'ready' }),
+        makeWeapon({ id: 'w1', state: 'ready' }),
+        makeWeapon({ id: 'w2', state: 'destroyed' }),
+        makeWeapon({ id: 'w3', state: 'ready' }),
       ],
     })
-    const ready = getReadyWeapons(unit)
+    const ready = getAvailableWeapons(unit)
     expect(ready).toHaveLength(2)
     expect(ready.map(w => w.id)).toEqual(['w1', 'w3'])
   })
@@ -585,16 +582,16 @@ describe('getReadyWeapons', () => {
   it('returns empty array when all weapons destroyed', () => {
     const unit = makeUnit({
       weapons: [
-        makeWeapon({ id: 'w1', status: 'destroyed' }),
-        makeWeapon({ id: 'w2', status: 'destroyed' }),
+        makeWeapon({ id: 'w1', state: 'destroyed' }),
+        makeWeapon({ id: 'w2', state: 'destroyed' }),
       ],
     })
-    expect(getReadyWeapons(unit)).toHaveLength(0)
+    expect(getAvailableWeapons(unit)).toHaveLength(0)
   })
 
   it('returns empty array for unit with no weapons', () => {
     const unit = makeUnit({ type: 'Swamp', weapons: [] })
-    expect(getReadyWeapons(unit)).toHaveLength(0)
+    expect(getAvailableWeapons(unit)).toHaveLength(0)
   })
 })
 

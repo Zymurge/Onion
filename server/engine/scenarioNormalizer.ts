@@ -1,8 +1,7 @@
 import type { InitialState } from '#server/engine/scenarioSchema'
 import type { DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
-import { getUnitDefinition } from '#server/engine/units'
 import logger from '#server/logger'
-import { buildFriendlyName } from '#shared/unitDefinitions'
+import { buildFriendlyName, getUnitDefinition } from '#shared/unitDefinitions'
 import { buildStackGroupKey, createStackNamingEngine } from '#shared/stackNaming'
 import type { StackRosterState } from '#shared/types/index'
 

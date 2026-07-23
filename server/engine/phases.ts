@@ -1,5 +1,6 @@
 import type { TurnPhase } from '#shared/types/index'
 import type { EngineGameState } from '#server/engine/units'
+import { getUnitState, getWeaponState, setUnitState, setWeaponState } from '#server/engine/units'
 import logger from '#server/logger'
 
 function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'missile' | null {
@@ -57,9 +58,9 @@ export function advancePhase(state: EngineGameState): void {
     state.turn++
     state.ramsThisTurn = 0
     for (const weapon of state.onion.weapons) {
-      if (weapon.status === 'spent') {
-        const weaponType = getWeaponTypeFromId(weapon.id)
-        weapon.status = 'ready'
+      if (getWeaponState(weapon) === 'spent') {
+        const weaponType = getWeaponTypeFromId(weapon.typeId ?? weapon.id)
+        setWeaponState(weapon, 'ready')
         if (weaponType === 'missile') {
           const onion = state.onion as EngineGameState['onion'] & { missiles?: number }
           if (onion.missiles !== undefined) {
@@ -79,18 +80,18 @@ export function advancePhase(state: EngineGameState): void {
     for (const unit of Object.values(state.defenders)) {
       if (unit.weapons) {
         for (const weapon of unit.weapons) {
-          if (weapon.status === 'spent') {
-            weapon.status = 'ready'
+          if (getWeaponState(weapon) === 'spent') {
+            setWeaponState(weapon, 'ready')
           }
         }
       }
-      if (unit.status === 'disabled') unit.status = 'recovering'
+      if (getUnitState(unit) === 'disabled') setUnitState(unit, 'recovering')
     }
   }
 
   if (next === 'DEFENDER_RECOVERY') {
     for (const unit of Object.values(state.defenders)) {
-      if (unit.status === 'recovering') unit.status = 'operational'
+      if (getUnitState(unit) === 'recovering') setUnitState(unit, 'operational')
     }
   }
 
@@ -111,7 +112,7 @@ export function checkVictoryConditions(
   state: EngineGameState,
 ): 'onion' | 'defender' | null {
   // Defender wins by immobilizing the Onion (treads = 0) or destroying it
-  if (state.onion.treads <= 0 || state.onion.status === 'destroyed') {
+  if (state.onion.treads <= 0 || getUnitState(state.onion) === 'destroyed') {
     return 'defender'
   }
 

@@ -26,26 +26,30 @@ export {
 
 // Unit definitions and capabilities
 export type {
-  UnitType,
-  WeaponStatus,
-  Weapon,
-  UnitAbilities,
-  UnitDefinition,
+  GameState,
   GameUnit,
   OnionUnit,
   DefenderUnit,
-  EngineGameState,
-} from '#server/engine/units'
+  UnitAbilities,
+  UnitType,
+  UnitTypeBase,
+  UnitTypeCatalog,
+  Weapon,
+  WeaponType,
+  WeaponTypeCatalog,
+} from '#shared/types/index'
 
 export {
   getUnitDefinition,
   getAllUnitDefinitions,
+  getWeaponType,
   onionMovementAllowance,
   canSecondMove,
   isImmobile,
   getUnitDefense,
   getWeaponDefense,
-  getReadyWeapons,
+  isWeaponAvailable,
+  getAvailableWeapons,
   isDestroyed,
   canTargetWeapon,
   destroyWeapon,

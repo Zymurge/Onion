@@ -9,6 +9,7 @@ import logger from '#server/logger'
 import type { HexPos, PlayerRole, SingleUnitMoveCommand } from '#shared/types/index'
 import { isInBounds } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
+import { getUnitId, getUnitState, setUnitState } from '#server/engine/units'
 import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
 import { calculateRamming as calculateSharedRamming, resolveRammingOutcome } from '#shared/rammingCalculator'
 import { spendUnitMovement } from '#shared/unitMovement'
@@ -89,7 +90,7 @@ function hasTreads(unit: GameUnit): unit is OnionUnit {
 }
 
 function resolveUnit(state: EngineGameState, unitId: string): ResolvedUnit | null {
-  if (state.onion.id === unitId) {
+  if (getUnitId(state.onion) === unitId) {
     return { unit: state.onion }
   }
 
@@ -103,11 +104,11 @@ function resolveUnit(state: EngineGameState, unitId: string): ResolvedUnit | nul
 
 function toMoveMapSnapshot(map: GameMap, state: EngineGameState, movingUnitId: string): MoveMapSnapshot {
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
-    ...(state.onion.id !== movingUnitId && state.onion.status !== 'destroyed'
+    ...(getUnitId(state.onion) !== movingUnitId && getUnitState(state.onion) !== 'destroyed'
       ? [{ q: state.onion.position.q, r: state.onion.position.r, role: 'onion' as const, unitType: state.onion.type ?? 'TheOnion', squads: 1 }]
       : []),
     ...Object.values(state.defenders)
-      .filter((unit) => unit.id !== movingUnitId && unit.status !== 'destroyed')
+      .filter((unit) => getUnitId(unit) !== movingUnitId && getUnitState(unit) !== 'destroyed')
       .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.type, squads: unit.squads })),
   ]
 
@@ -156,7 +157,7 @@ function toMovementValidation(result: SharedMoveValidationResult): MovementValid
 
 function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: string): void {
   const movedDefender = state.defenders[movedUnitId]
-  if (movedDefender === undefined || movedDefender.status === 'destroyed') {
+  if (movedDefender === undefined || getUnitState(movedDefender) === 'destroyed') {
     logger.debug(
       {
         movedUnitId,
@@ -236,7 +237,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
 
   const { unit } = resolved
   unit.position = plan.to
-  spendUnitMovement(state, state.currentPhase, unit.id, plan.cost)
+  spendUnitMovement(state, state.currentPhase, getUnitId(unit), plan.cost)
 
   const destroyedUnits: string[] = []
   const rammedUnitResults: NonNullable<MovementResult['rammedUnitResults']> = []
@@ -252,7 +253,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
         outcome,
       })
       if (outcome.effect === 'destroyed') {
-        rammedUnit.status = 'destroyed'
+        setUnitState(rammedUnit, 'destroyed')
         destroyedUnits.push(rammedUnitId)
       }
     }
@@ -313,7 +314,7 @@ export function executeOnionMovement(
   command: SingleUnitMoveCommand
 ): MovementResult {
   logger.debug({ position: state.onion.position, command }, '[executeOnionMovement] called')
-  if (command.unitId !== state.onion.id) {
+  if (command.unitId !== getUnitId(state.onion)) {
     logger.info({ command }, 'executeOnionMovement: Not an Onion move command')
     return { success: false, error: 'Not an Onion move command' }
   }
@@ -348,12 +349,12 @@ export function getOccupyingUnit(
   pos: HexPos,
   excludeUnitId?: string
 ): GameUnit | null {
-  if (state.onion.id !== excludeUnitId &&
+  if (getUnitId(state.onion) !== excludeUnitId &&
       state.onion.position.q === pos.q && state.onion.position.r === pos.r) {
     return state.onion
   }
   for (const unit of Object.values(state.defenders)) {
-    if (unit.id !== excludeUnitId &&
+    if (getUnitId(unit) !== excludeUnitId &&
         unit.position.q === pos.q && unit.position.r === pos.r) {
       return unit
     }
@@ -429,7 +430,7 @@ export function getRammedUnits(
   const result: string[] = []
   for (const pos of path) {
     for (const [id, unit] of Object.entries(state.defenders)) {
-      if (unit.status === 'destroyed') continue
+      if (getUnitState(unit) === 'destroyed') continue
       if (unit.position.q === pos.q && unit.position.r === pos.r) {
         result.push(id)
       }

@@ -1,12 +1,12 @@
 import type { TurnPhase } from './types/index.js'
 import { onionMovementAllowance } from './movementAllowance.js'
-import { getAllUnitDefinitions } from './unitDefinitions.js'
+import { getUnitTypeCatalog } from './unitDefinitions.js'
 import { canUnitCrossRidgeline } from './movementRules.js'
 
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
+const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
 
 function getDefinition(unitType: string) {
-	return UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]
+	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]
 }
 
 function movementSpentKey(phase: TurnPhase, unitId: string): string {

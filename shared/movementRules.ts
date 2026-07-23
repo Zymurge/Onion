@@ -1,5 +1,6 @@
-import type { TerrainType, UnitDefinition } from './engineTypes.js'
-import { getAllUnitDefinitions } from './unitDefinitions.js'
+import type { TerrainType } from './engineTypes.js'
+import type { UnitTypeBase } from './types/index.js'
+import { getUnitTypeCatalog } from './unitDefinitions.js'
 
 export type MoveRole = 'onion' | 'defender'
 
@@ -17,10 +18,10 @@ export type StopOccupationFailure =
 	| 'mixed-stack'
 	| 'stack-limit'
 
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
+const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
 
-function getUnitDefinition(unitType: string): UnitDefinition | undefined {
-	return UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]
+function getUnitDefinition(unitType: string): UnitTypeBase | undefined {
+	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]
 }
 
 export function canUnitCrossRidgeline(unitType: string): boolean {
