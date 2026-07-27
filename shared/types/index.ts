@@ -82,15 +82,15 @@ export type WeaponTypeCatalog = Readonly<Record<string, WeaponType>>
  * @property id Unique identifier for the weapon instance.
  * @property typeId The lookup into the {@link WeaponTypeCatalog} for the static attributes of this weapon.
  * @property state The current state of the weapon (e.g., "ready", "spent", "destroyed"). 
+ * @property friendlyName Human-readable name for display purposes.
  * @property ammo Optional ammo count for the weapon, if applicable.
- * @property friendlyName Optional human-readable name for display purposes.
  */
 export interface Weapon {
   id: string
   typeId: string
   state: WeaponState
+  friendlyName: string
   ammo?: number
-  friendlyName?: string
 }
 
 /**
@@ -99,8 +99,8 @@ export interface Weapon {
  * This interface is used to represent both onion and defender units in a unified way.
  * 
  * @property typeId The unique identifier of the unit.
+ * @property friendlyName Human-readable name for the unit.
  * @property name The type of the unit (e.g., "TheOnion", "LittlePigs").
- * @property friendlyName Optional human-readable name for the unit.
  * @property weapons Array of weapons associated with the unit. For weaponless units, this can be an empty array.
  */
 export interface UnitTypeBase {
@@ -159,8 +159,8 @@ export type UnitTypeCatalog = Readonly<Record<UnitTypeId, OnionUnitType | Defend
  * @property position The hexagonal grid position of the unit, represented by q and r coordinates.
  * @property state The current status of the unit, which can be "operational", "disabled", "recovering", or "destroyed".
  * @property weapons An array of weapons associated with the unit, each with its own state and properties.
+ * @property friendlyName Human-readable name for the unit.
  * @property movementSpent A record of movement points spent by phase for the onion unit in the current turn.
- * @property friendlyName Optional human-readable name for the unit.
 */
 export interface UnitStatus {
   unitId: string
@@ -168,8 +168,8 @@ export interface UnitStatus {
   position: HexPos
   state: UnitState
   weapons: ReadonlyArray<Weapon>
+  friendlyName: string
   movementSpent?: Partial<Record<TurnPhase, number>>
-  friendlyName?: string  
 }
 
 /**
@@ -189,7 +189,6 @@ export interface OnionUnit extends UnitStatus {
  */
 export interface DefenderUnit extends UnitStatus {
   role: 'defender'
-  squads?: number
 }
 
 // Canonical state maps are read-only at the type boundary; call sites
@@ -262,7 +261,7 @@ export type SingleUnitMoveCommand = { type: 'MOVE'; unitId: string; to: HexPos; 
 
 export type Command =
   | MoveCommand
-  | { type: 'FIRE'; attackers: ReadonlyArray<string>; targetId: string }
+  | { type: 'FIRE'; attackers: ReadonlyArray<string>; targetId: string; onionId: string }
   | { type: 'END_PHASE' }
 
 export interface ActionOkResponse {

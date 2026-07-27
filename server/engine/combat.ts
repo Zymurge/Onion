@@ -76,6 +76,7 @@ export type CombatValidationCode =
   | 'NO_ATTACKERS'
   | 'MULTI_ATTACK_TREAD_TARGET'
   | 'DUPLICATE_ATTACKER'
+  | 'ONION_NOT_FOUND'
 
 export type CombatTarget =
   | { kind: 'defender'; id: string }
@@ -86,6 +87,7 @@ export interface CombatPlan {
   actionType: Extract<Command, { type: 'FIRE' }>['type']
   actor: 'onion' | 'defender'
   attackerIds: string[]
+  onionId: string
   target: CombatTarget
   attackStrength: number
   defense: number
@@ -101,6 +103,7 @@ export interface CombatExecutionResult {
   success: boolean
   actionType: CombatPlan['actionType']
   attackerIds: string[]
+  onionId: string
   targetId: string
   roll?: CombatRoll
   treadsLost?: number
@@ -136,14 +139,29 @@ function getTerrainTypeAt(map: GameMap, position: { q: number; r: number }) {
   return map.hexes[`${position.q},${position.r}`]?.terrain
 }
 
+function requireOnion(state: GameState, onionId: string): OnionUnit {
+  const resolvedOnionId = getOnion(onionId, state)
+  if (resolvedOnionId === undefined) {
+    throw new Error(`Onion '${onionId}' was not found in game state`)
+  }
+
+  const onion = state.onions[resolvedOnionId]
+  if (onion === undefined) {
+    throw new Error(`Onion '${resolvedOnionId}' was not found in game state`)
+  }
+
+  return onion
+}
+
 function buildCombatCalculatorInput(
   map: GameMap,
   state: GameState,
   target: CombatTarget,
   attackerIds: string[],
+  onionId: string,
 ): CombatCalculatorInput {
   const units: CombatCalculatorInput['combatState']['units'] = {}
-  const onion = getOnion(state)
+  const onion = requireOnion(state, onionId)
 
   if (state.currentPhase === 'ONION_COMBAT') {
     for (const attackerId of attackerIds) {
@@ -161,7 +179,6 @@ function buildCombatCalculatorInput(
     if (defender) {
       units[target.id] = {
         typeId: defender.typeId,
-        squads: defender.squads,
         terrainType: getTerrainTypeAt(map, defender.position),
         weapons: defender.weapons,
       }
@@ -206,15 +223,9 @@ function buildCombatCalculatorInput(
   }
 }
 
-function resolveOnionTarget(state: GameState, targetId: string): CombatTarget | null {
-  const onion = getOnion(state)
-  const normalizedTargetId = targetId.trim().toLowerCase()
-  if (
-    normalizedTargetId === onion.unitId.toLowerCase() ||
-    normalizedTargetId === 'onion' ||
-    normalizedTargetId === 'tread' ||
-    normalizedTargetId === 'treads'
-  ) {
+function resolveOnionTarget(state: GameState, onionId: string, targetId: string): CombatTarget | null {
+  const onion = requireOnion(state, onionId)
+  if (targetId === onion.unitId) {
     return { kind: 'treads', id: onion.unitId }
   }
 
@@ -280,13 +291,19 @@ export function validateCombatAction(
     return { ok: false, code: 'WRONG_PHASE', error: 'Not a combat phase' }
   }
 
+  const onionUnitId = getOnion(command.onionId, state)
+  if (onionUnitId === undefined) {
+    return { ok: false, code: 'ONION_NOT_FOUND', error: `Onion '${command.onionId}' was not found in game state` }
+  }
+  const onion = state.onions[onionUnitId]
+
   if (state.currentPhase === 'ONION_COMBAT') {
     const explicitTarget = state.defenders[command.targetId]
-    const rosterIndex = state.stackRoster === undefined ? null : buildStackRosterIndex(state.stackRoster, state.defenders)
+    const targetBelongsToStack = Object.values(state.stackRoster?.groupsById ?? {}).some((group) => group.unitIds.includes(command.targetId))
 
     // If the command targets an individual unit that is part of a stack group,
     // reject the action: stacks must be targeted as a whole (group id).
-    if (explicitTarget && rosterIndex && rosterIndex.getUnitGroup(command.targetId) !== null) {
+    if (explicitTarget && targetBelongsToStack) {
       return { ok: false, code: 'INVALID_TARGET', error: `Individual stack members cannot be targeted; target the stack group instead` }
     }
 
@@ -305,7 +322,6 @@ export function validateCombatAction(
         .map((id) => state.defenders[id])
         .filter((member): member is DefenderUnit => member !== undefined)
       const allDestroyed = members.length > 0 && members.every((member) => member.state === 'destroyed')
-      const squads = memberIds.length
       const representative = members[0]
 
       target = {
@@ -314,10 +330,13 @@ export function validateCombatAction(
         role: 'defender',
         position: group.position,
         state: allDestroyed ? 'destroyed' : (representative?.state ?? 'operational'),
-        squads,
         weapons: representative?.weapons ?? [],
         friendlyName: representative?.friendlyName,
       }
+    }
+
+    if (target === undefined) {
+      return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
     }
 
     if (target.state === 'destroyed') {
@@ -335,7 +354,6 @@ export function validateCombatAction(
       }
       seen.add(attackerId)
 
-      const onion = getOnion(state)
       const weapon = onion.weapons.find((candidate) => candidate.id === attackerId)
       if (!weapon) {
         return { ok: false, code: 'WEAPON_NOT_FOUND', error: `Attacker '${attackerId}' not found` }
@@ -352,7 +370,7 @@ export function validateCombatAction(
     for (let index = 0; index < weapons.length; index += 1) {
       const weapon = weapons[index]
       const attackerId = command.attackers[index]
-      if (hexDistance(getOnion(state).position, target.position) > getWeaponType(weapon.typeId).range) {
+      if (hexDistance(onion.position, target.position) > getWeaponType(weapon.typeId).range) {
         return { ok: false, code: 'TARGET_OUT_OF_RANGE', error: `Attacker '${attackerId}' is out of range` }
       }
     }
@@ -361,7 +379,7 @@ export function validateCombatAction(
     const targetAllowed = weapons.every((weapon) =>
       isTargetAllowedByRules(
         {
-          unitType: getOnion(state).typeId,
+          unitType: onion.typeId,
           weaponId: weapon.id,
           targetRules: getWeaponType(weapon.typeId).targetRules,
         },
@@ -376,7 +394,7 @@ export function validateCombatAction(
       const invalidWeapon = weapons.find((weapon) =>
         !isTargetAllowedByRules(
           {
-            unitType: getOnion(state).typeId,
+            unitType: onion.typeId,
             weaponId: weapon.id,
             targetRules: getWeaponType(weapon.typeId).targetRules,
           },
@@ -397,7 +415,7 @@ export function validateCombatAction(
     }
 
     const combatResult = combatCalculator.calculateResult(
-      buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.unitId }, [...command.attackers]),
+      buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.unitId }, [...command.attackers], onion.unitId),
     )
 
     return {
@@ -406,6 +424,7 @@ export function validateCombatAction(
         actionType: 'FIRE',
         actor: 'onion',
         attackerIds: [...command.attackers],
+        onionId: onion.unitId,
 
         target: { kind: 'defender', id: target.unitId },
         attackStrength: combatResult.attackStrength,
@@ -415,7 +434,7 @@ export function validateCombatAction(
     }
   }
 
-  const target = resolveOnionTarget(state, command.targetId)
+  const target = resolveOnionTarget(state, command.onionId, command.targetId)
   if (!target) {
     return { ok: false, code: 'INVALID_TARGET', error: `Target '${command.targetId}' is not valid for the selected weapon(s)` }
   }
@@ -454,7 +473,7 @@ export function validateCombatAction(
     }
 
     const maxRange = Math.max(...availableWeapons.map((weapon) => getWeaponType(weapon.typeId).range), 0)
-    if (hexDistance(unit.position, getOnion(state).position) > maxRange) {
+    if (hexDistance(unit.position, onion.position) > maxRange) {
       return { ok: false, code: 'TARGET_OUT_OF_RANGE', error: `Attacker '${attackerId}' is out of range` }
     }
 
@@ -462,11 +481,11 @@ export function validateCombatAction(
   }
 
   const combatResult = combatCalculator.calculateResult(
-    buildCombatCalculatorInput(map, state, target, [...command.attackers]),
+    buildCombatCalculatorInput(map, state, target, [...command.attackers], onion.unitId),
   )
 
   const targetWeapon = target.kind === 'weapon'
-    ? getOnion(state).weapons.find((weapon) => weapon.id === target.id)
+    ? onion.weapons.find((weapon) => weapon.id === target.id)
     : undefined
   if (target.kind === 'weapon' && !targetWeapon) {
     throw new Error(`Unknown weapon target: ${target.id}`)
@@ -478,6 +497,7 @@ export function validateCombatAction(
       actionType: 'FIRE',
       actor: 'defender',
       attackerIds: [...command.attackers],
+      onionId: onion.unitId,
       target,
       attackStrength: combatResult.attackStrength,
       defense:
@@ -497,6 +517,7 @@ export function executeCombatAction(
 ): CombatExecutionResult {
   logger.info({ plan }, 'Executing combat action')
   logger.debug({ plan }, 'executeCombatAction input')
+  const onion = requireOnion(state, plan.onionId)
   const defense = plan.target.kind === 'treads' ? plan.attackStrength : plan.defense
   const combatRoll = rollCombat(plan.attackStrength, defense, roll)
 
@@ -506,6 +527,7 @@ export function executeCombatAction(
         success: false,
         actionType: plan.actionType,
         attackerIds: plan.attackerIds,
+        onionId: plan.onionId,
         targetId: plan.target.id,
         error: 'Invalid target for Onion fire',
       }
@@ -513,7 +535,7 @@ export function executeCombatAction(
 
     const defender = state.defenders[plan.target.id]
     if (!defender) {
-      return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, targetId: plan.target.id, error: 'Target not found' }
+      return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: plan.target.id, error: 'Target not found' }
     }
 
     if (defender.state === 'destroyed') {
@@ -521,6 +543,7 @@ export function executeCombatAction(
         success: false,
         actionType: plan.actionType,
         attackerIds: plan.attackerIds,
+        onionId: plan.onionId,
         targetId: plan.target.id,
         error: 'Target is already destroyed',
       }
@@ -529,12 +552,12 @@ export function executeCombatAction(
     const firingWeaponIds = plan.weaponIds ?? (plan.weaponId ? [plan.weaponId] : [])
     const firingWeapons: Array<OnionUnit['weapons'][number]> = []
     for (const weaponId of firingWeaponIds) {
-      const weapon = getOnion(state).weapons.find((candidate) => candidate.id === weaponId)
+      const weapon = onion.weapons.find((candidate) => candidate.id === weaponId)
       if (!weapon) {
-        return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, targetId: plan.target.id, error: `Weapon '${weaponId}' not found` }
+        return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: plan.target.id, error: `Weapon '${weaponId}' not found` }
       }
       if (weapon.state !== 'ready') {
-        return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, targetId: plan.target.id, error: `Weapon '${weaponId}' is not ready` }
+        return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: plan.target.id, error: `Weapon '${weaponId}' is not ready` }
       }
       firingWeapons.push(weapon)
     }
@@ -543,7 +566,7 @@ export function executeCombatAction(
     const damage = applyDamage(defender, combatRoll.result, plan.attackStrength)
     for (const firedWeapon of firingWeapons) {
       if (getWeaponType(firedWeapon.typeId).weaponClass === 'missile') {
-        destroyWeapon(getOnion(state), firedWeapon.id)
+        destroyWeapon(onion, firedWeapon.id)
       } else {
         firedWeapon.state = 'spent'
       }
@@ -557,6 +580,7 @@ export function executeCombatAction(
       success: true,
       actionType: plan.actionType,
       attackerIds: plan.attackerIds,
+      onionId: plan.onionId,
       targetId: defender.unitId,
       roll: combatRoll,
       statusChanges,
@@ -566,20 +590,20 @@ export function executeCombatAction(
   const targetedWeaponPreviousStatus =
     plan.target.kind === 'weapon'
       ? (() => {
-        const targetedWeapon = getOnion(state).weapons.find((weapon) => weapon.id === plan.target.id)
+        const targetedWeapon = onion.weapons.find((weapon) => weapon.id === plan.target.id)
         return targetedWeapon?.state
       })()
       : undefined
 
   const damage = applyDamage(
-    getOnion(state),
+    onion,
     combatRoll.result,
     plan.attackStrength,
     plan.target.kind === 'weapon' ? plan.target.id : undefined
   )
   if (damage.weaponDestroyed) {
     const previousStatus = targetedWeaponPreviousStatus ?? 'ready'
-    destroyWeapon(getOnion(state), damage.weaponDestroyed)
+    destroyWeapon(onion, damage.weaponDestroyed)
   }
 
   // Mark defender weapons as spent after firing
@@ -596,7 +620,8 @@ export function executeCombatAction(
     success: true,
     actionType: plan.actionType,
     attackerIds: plan.attackerIds,
-    targetId: plan.target.kind === 'treads' ? getOnion(state).unitId : plan.target.id,
+    onionId: plan.onionId,
+    targetId: plan.target.kind === 'treads' ? onion.unitId : plan.target.id,
     roll: combatRoll,
     treadsLost: damage.treads,
     destroyedWeaponId: damage.weaponDestroyed,
@@ -712,9 +737,11 @@ export function getValidTargets(
       }
     }
   } else {
-    // Defender targets Onion
-    if (hexDistance(firingUnit.position, getOnion(state).position) <= maxRange) {
-      results.push(getOnion(state).unitId)
+    // Defender targets each Onion independently.
+    for (const onion of Object.values(state.onions)) {
+      if (hexDistance(firingUnit.position, onion.position) <= maxRange) {
+        results.push(onion.unitId)
+      }
     }
   }
   return results

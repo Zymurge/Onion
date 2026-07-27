@@ -503,7 +503,7 @@ describe('useBattlefieldInteractionState', () => {
 		)
 
 		await act(async () => {
-			await result.current.commitClientAction({ type: 'FIRE', attackers: ['def-1'], targetId: 'onion-1' })
+			await result.current.commitClientAction({ type: 'FIRE', attackers: ['def-1'], targetId: 'onion-1', onionId: 'onion-1' })
 		})
 
 		expect(refresh).toHaveBeenCalledTimes(1)

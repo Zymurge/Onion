@@ -218,12 +218,14 @@ describe('rightRailSelection', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-2'],
         targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: true,
         action: {
           type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1',
+          onionId: 'onion-1',
         },
       })
     })
@@ -236,6 +238,7 @@ describe('rightRailSelection', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-1'],
         targetId: null,
+        onionId: 'onion-1',
       })).toEqual({
         ok: false,
         reason: 'missing-target',
@@ -291,12 +294,14 @@ describe('rightRailSelection', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['stack-member:pigs-1:2'],
         targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: true,
         action: {
           type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1',
+          onionId: 'onion-1',
         },
       })
     })
@@ -310,6 +315,7 @@ describe('rightRailSelection', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: [],
         targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: false,
         reason: 'empty-stack-selection',

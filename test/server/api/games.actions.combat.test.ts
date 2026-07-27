@@ -79,7 +79,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     const res = await submitAction(app, gameId, fiona.token, {
       type: 'FIRE',
       attackers: ['wolf-1', 'puss-1'],
-      targetId: 'onion',
+      targetId: 'onion-1',
+      onionId: 'onion-1',
     })
 
     expect(res.statusCode).toBe(422)
@@ -108,7 +109,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     const res = await submitAction(app, gameId, fiona.token, {
       type: 'FIRE',
       attackers: ['wolf-1', 'wolf-1'],
-      targetId: 'onion',
+      targetId: 'onion-1',
+      onionId: 'onion-1',
     })
 
     expect(res.statusCode).toBe(422)
@@ -138,6 +140,7 @@ describe('POST /games/:id/actions combat API contract', () => {
       type: 'FIRE',
       attackers: ['missile_1'],
       targetId: 'wolf-1',
+      onionId: 'onion-1',
     })
 
     expect(res.statusCode).toBe(422)
@@ -167,6 +170,7 @@ describe('POST /games/:id/actions combat API contract', () => {
       type: 'FIRE',
       attackers: ['main'],
       targetId: 'not-a-unit',
+      onionId: 'onion-1',
     })
 
     expect(res.statusCode).toBe(422)
@@ -191,18 +195,20 @@ describe('POST /games/:id/actions combat API contract', () => {
       plan: {
         actionType: 'FIRE',
         attackerIds: ['wolf-1'],
+        onionId: 'onion-1',
         target: { kind: 'treads', id: 'onion' },
         attackStrength: 2,
         defense: 0,
       },
     } as any)
     const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation((state) => {
-      state.onion.treads = 43
+      state.onions['onion-1'].treads = 43
       return {
         success: true,
         actionType: 'FIRE',
         attackerIds: ['wolf-1'],
-        targetId: 'onion',
+        onionId: 'onion-1',
+        targetId: 'onion-1',
         roll: { roll: 6, result: 'X', odds: '1:1' },
         treadsLost: 2,
       }
@@ -211,7 +217,8 @@ describe('POST /games/:id/actions combat API contract', () => {
     const res = await submitAction(app, gameId, fiona.token, {
       type: 'FIRE',
       attackers: ['wolf-1'],
-      targetId: 'onion',
+      targetId: 'onion-1',
+      onionId: 'onion-1',
     })
 
     expect(res.statusCode).toBe(200)
@@ -219,19 +226,19 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.ok).toBe(true)
     expect(body.events[0].type).toBe('FIRE_RESOLVED')
     expect(body.events[0].attackers).toEqual(['wolf-1'])
-    expect(body.events[0].targetId).toBe('onion')
+    expect(body.events[0].targetId).toBe('onion-1')
     expect(body.events[1].type).toBe('ONION_TREADS_LOST')
     expect(body.events[1].amount).toBe(2)
     expect(body.events[1].remaining).toBe(43)
     expect(body.events[0].causeId).toBeDefined()
     expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
-    expect(body.state.onion.treads).toBe(43)
+    expect(body.state.onions['onion-1'].treads).toBe(43)
     expect(infoSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         actionType: 'FIRE',
         outcome: expect.objectContaining({
           attackers: ['wolf-1'],
-          targetId: 'onion',
+          targetId: 'onion-1',
           roll: 6,
           outcome: 'X',
           odds: '1:1',
@@ -263,17 +270,19 @@ describe('POST /games/:id/actions combat API contract', () => {
       plan: {
         actionType: 'FIRE',
         attackerIds: ['wolf-1', 'puss-1'],
+        onionId: 'onion-1',
         target: { kind: 'weapon', id: 'main' },
         attackStrength: 6,
         defense: 4,
       },
     } as any)
     const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation((state) => {
-      ;(state.onion as any).batteries.main = 0
+      state.onions['onion-1'].weapons[0].state = 'destroyed'
       return {
         success: true,
         actionType: 'FIRE',
         attackerIds: ['wolf-1', 'puss-1'],
+        onionId: 'onion-1',
         targetId: 'main',
         roll: { roll: 4, result: 'X', odds: '2:1' },
         destroyedWeaponId: 'main',
@@ -284,6 +293,7 @@ describe('POST /games/:id/actions combat API contract', () => {
       type: 'FIRE',
       attackers: ['wolf-1', 'puss-1'],
       targetId: 'main',
+      onionId: 'onion-1',
     })
 
     expect(res.statusCode).toBe(200)
@@ -321,7 +331,7 @@ describe('POST /games/:id/actions combat API contract', () => {
         turnNumber: 1,
         winner: null,
         state: {
-          onion: { position: { q: 0, r: 10 }, treads: 45, missiles: 2, batteries: { main: 1, secondary: 4, ap: 8 } },
+          onions: { 'onion-1': { unitId: 'onion-1', typeId: 'TheOnion', role: 'onion', position: { q: 0, r: 10 }, state: 'operational', friendlyName: 'The Onion 1', treads: 45, ramsRemaining: 2, weapons: [] } },
           defenders: { 'wolf-1': { type: 'GEV', position: { q: 3, r: 10 }, status: 'operational' as const } },
           ramsThisTurn: 0,
         },
@@ -336,10 +346,10 @@ describe('POST /games/:id/actions combat API contract', () => {
 
     const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
       ok: true,
-      plan: { actionType: 'FIRE', attackerIds: ['main'], target: { kind: 'defender', id: 'wolf-1' }, attackStrength: 4, defense: 2 },
+      plan: { actionType: 'FIRE', attackerIds: ['main'], onionId: 'onion-1', target: { kind: 'defender', id: 'wolf-1' }, attackStrength: 4, defense: 2 },
     } as any)
     const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockReturnValue({
-      success: true, actionType: 'FIRE', targetId: 'wolf-1', roll: { roll: 5, result: 'X', odds: '2:1' },
+      success: true, actionType: 'FIRE', attackerIds: ['main'], onionId: 'onion-1', targetId: 'wolf-1', roll: { roll: 5, result: 'X', odds: '2:1' },
     } as any)
 
     const app = buildApp(mockDb)
@@ -347,7 +357,7 @@ describe('POST /games/:id/actions combat API contract', () => {
       method: 'POST',
       url: `/games/${gameId}/actions`,
       headers: { authorization: `Bearer stub.${onionId}` },
-      payload: { type: 'FIRE', attackers: ['main'], targetId: 'wolf-1' },
+      payload: { type: 'FIRE', attackers: ['main'], targetId: 'wolf-1', onionId: 'onion-1' },
     })
 
     expect(res.statusCode).toBe(409)

@@ -627,7 +627,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
     if (!combatAction.ok) {
       setActionError(
-        combatAction.reason === 'snapshot-missing-stack-selection'
+        combatAction.reason === 'missing-onion'
+          ? 'Loaded game snapshot is missing the canonical Onion unit ID.'
+          : combatAction.reason === 'snapshot-missing-stack-selection'
           ? 'Loaded game snapshot is missing canonical stackRoster data for the selected unit.'
           : 'Unable to resolve combat from the current selection.',
       )

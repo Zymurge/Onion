@@ -9,8 +9,8 @@ import { hexKey } from '#shared/hex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
-import { buildFriendlyName, getUnitDefinition } from '#shared/unitDefinitions'
-import { buildStackGroupKey, resolveStackLabel, resolveStackLabelFromSnapshot } from '#shared/stackNaming'
+import { getUnitDefinition } from '#shared/unitDefinitions'
+import { getDefender, getOnionOrDefender } from '#shared/unitState'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
 import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
@@ -141,8 +141,8 @@ function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state'])
       issues,
       stackRosterGroups: Object.keys(matchState.stackRoster?.groupsById ?? {}),
       stackableDefenders: Object.values(matchState.defenders)
-        .filter((defender) => getUnitDefinition(defender.type)?.stackable === true)
-        .map((defender) => defender.id),
+        .filter((defender) => getUnitDefinition(defender.typeId)?.stackable === true)
+        .map((defender) => defender.unitId),
     },
     'Invalid stack roster detected during game state response validation',
   )
@@ -265,9 +265,12 @@ export function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined)
 
 export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, scenarioSnapshot: ScenarioSnapshot, state: GameState): void {
   const positions: Array<{ label: string; position: { q: number; r: number } }> = [
-    { label: 'onion start', position: state.onion.position },
-    ...Object.entries(state.defenders).map(([defenderId, defender]) => ({
-      label: `defender start ${defender.id ?? defenderId}`,
+    ...Object.values(state.onions).map((onion) => ({
+      label: `onion start ${onion.unitId}`,
+      position: onion.position,
+    })),
+    ...Object.values(state.defenders).map((defender) => ({
+      label: `defender start ${defender.unitId}`,
       position: defender.position,
     })),
   ]
@@ -297,19 +300,18 @@ export function buildEngineState(match: MatchRecord): EngineGameState {
 
 export function buildMovementRemainingByUnit(state: GameState, phase: TurnPhase): Record<string, number> {
   const movementRemainingByUnit: Record<string, number> = {}
-  const onionId = state.onion.id ?? 'onion-1'
+  for (const onion of Object.values(state.onions)) {
+    movementRemainingByUnit[onion.unitId] = getRemainingUnitMovementAllowance(
+      onion.typeId,
+      phase,
+      state,
+      onion.unitId,
+      onion.treads,
+    )
+  }
 
-  movementRemainingByUnit[onionId] = getRemainingUnitMovementAllowance(
-    state.onion.type ?? 'TheOnion',
-    phase,
-    state,
-    onionId,
-    state.onion.treads,
-  )
-
-  for (const [defenderId, defender] of Object.entries(state.defenders)) {
-    const resolvedId = defender.id ?? defenderId
-    movementRemainingByUnit[resolvedId] = getRemainingUnitMovementAllowance(defender.type, phase, state, resolvedId)
+  for (const defender of Object.values(state.defenders)) {
+    movementRemainingByUnit[defender.unitId] = getRemainingUnitMovementAllowance(defender.typeId, phase, state, defender.unitId)
   }
 
   return movementRemainingByUnit
@@ -326,10 +328,10 @@ function isOnionEscaped(
       return false
     }
 
-    return escapeHexes.some((hex) => hexKey(hex) === hexKey(state.onion.position))
+    return Object.values(state.onions).some((onion) => escapeHexes.some((hex) => hexKey(hex) === hexKey(onion.position)))
   }
 
-  return !scenarioMap.cells.some((cell) => hexKey(cell) === hexKey(state.onion.position))
+  return Object.values(state.onions).some((onion) => !scenarioMap.cells.some((cell) => hexKey(cell) === hexKey(onion.position)))
 }
 
 function isObjectiveCompleted(
@@ -341,11 +343,12 @@ function isObjectiveCompleted(
 ): boolean {
   if (objective.kind === 'destroy-unit') {
     if (objective.unitId !== undefined) {
-      return state.defenders[objective.unitId]?.status === 'destroyed'
+      const defenderId = getDefender(objective.unitId, state)
+      return defenderId !== undefined && state.defenders[defenderId]?.state === 'destroyed'
     }
 
     if (objective.unitType !== undefined) {
-      return Object.values(state.defenders).some((defender) => defender.type === objective.unitType && defender.status === 'destroyed')
+      return Object.values(state.defenders).some((defender) => defender.typeId === objective.unitType && defender.state === 'destroyed')
     }
 
     return false
@@ -393,7 +396,8 @@ export function computeWinnerUserId(
       return match.players.onion
     }
 
-    if (engineState.onion.treads <= 0 || engineState.onion.status === 'destroyed') {
+    const onion = Object.values(state.onions).find((candidate) => candidate.treads <= 0 || candidate.state === 'destroyed')
+    if (onion !== undefined) {
       return match.players.defender
     }
 
@@ -423,8 +427,13 @@ export function buildCombatEvents(
   const timestamp = new Date().toISOString()
   let seq = startSeq
   const events: EventEnvelope[] = []
+  const onionId = command.onionId
+  const onion = state.onions[onionId]
+  if (onion === undefined) {
+    throw new Error(`Onion '${onionId}' was not found while building combat events`)
+  }
   const attackerFriendlyNames = command.attackers.map((attackerId) => resolveCombatParticipantFriendlyName(state, attackerId))
-  const targetFriendlyName = resolveTargetFriendlyName(state, result.targetId)
+  const targetFriendlyName = resolveTargetFriendlyName(state, result.targetId, onionId)
 
   events.push({
     seq: seq++,
@@ -432,6 +441,7 @@ export function buildCombatEvents(
     timestamp,
     ...(phase === undefined ? {} : { phase }),
     attackers: command.attackers,
+    onionId,
     attackerFriendlyNames,
     targetId: result.targetId,
     targetFriendlyName,
@@ -446,8 +456,9 @@ export function buildCombatEvents(
       type: 'ONION_TREADS_LOST',
       timestamp,
       ...(phase === undefined ? {} : { phase }),
+      onionId,
       amount: result.treadsLost,
-      remaining: state.onion.treads,
+      remaining: onion.treads,
     })
   }
 
@@ -457,8 +468,9 @@ export function buildCombatEvents(
       type: 'ONION_BATTERY_DESTROYED',
       timestamp,
       ...(phase === undefined ? {} : { phase }),
+      onionId,
       weaponId: result.destroyedWeaponId,
-      weaponFriendlyName: resolveWeaponFriendlyName(state, result.destroyedWeaponId),
+      weaponFriendlyName: resolveWeaponFriendlyName(state, result.destroyedWeaponId, onionId),
       weaponType: getWeaponTypeFromId(result.destroyedWeaponId),
     })
   }
@@ -501,9 +513,10 @@ export function buildMoveEvents(
 ): EventEnvelope[] {
   const timestamp = new Date().toISOString()
   let seq = startSeq
-  const onionUnitId = state.onion.id
   const canonicalMoveUnitId = moveUnitId
-  const isOnionMove = canonicalMoveUnitId === onionUnitId
+  const movedUnit = getOnionOrDefender(canonicalMoveUnitId, state)
+  const isOnionMove = movedUnit.kind === 'onion'
+  const onion = isOnionMove ? state.onions[canonicalMoveUnitId] : undefined
   const moveUnitFriendlyName = resolveUnitFriendlyName(state, canonicalMoveUnitId)
   const events: EventEnvelope[] = [
     {
@@ -512,7 +525,9 @@ export function buildMoveEvents(
       timestamp,
       ...(phase === undefined ? {} : { phase }),
       unitFriendlyName: moveUnitFriendlyName,
-      ...(isOnionMove ? { to: command.to } : { unitId: canonicalMoveUnitId, to: command.to }),
+      ...(isOnionMove
+        ? { onionId: canonicalMoveUnitId, to: command.to }
+        : { unitId: canonicalMoveUnitId, to: command.to }),
     },
   ]
 
@@ -525,6 +540,7 @@ export function buildMoveEvents(
       type: 'MOVE_RESOLVED',
       timestamp,
       ...(phase === undefined ? {} : { phase }),
+      ...(isOnionMove ? { onionId: canonicalMoveUnitId } : {}),
       unitId: canonicalMoveUnitId,
       unitFriendlyName: moveUnitFriendlyName,
       rammedUnitIds,
@@ -550,7 +566,7 @@ export function buildMoveEvents(
       timestamp,
       ...(phase === undefined ? {} : { phase }),
       amount: result.treadDamage,
-      remaining: state.onion.treads,
+      remaining: onion?.treads,
     })
   }
 
@@ -571,88 +587,47 @@ export function buildMoveEvents(
 }
 
 function resolveUnitFriendlyName(state: GameState, unitId: string): string {
-  if (state.onion.id === unitId || unitId === 'onion') {
-    const friendlyName = state.onion.friendlyName
-    if (friendlyName !== undefined && friendlyName.trim().length > 0) {
-      return friendlyName
-    }
-
-    const onionDefinition = state.onion.type ? getUnitDefinition(state.onion.type) : undefined
-    if (onionDefinition?.friendlyNameTemplate !== undefined) {
-      return buildFriendlyName(onionDefinition.friendlyNameTemplate, state.onion.id ?? 'onion-1')
-    }
-
-    return state.onion.id ?? state.onion.type ?? 'The Onion'
+  const lookup = getOnionOrDefender(unitId, state)
+  if (lookup.kind === 'onion' && lookup.unitId !== undefined) {
+    return state.onions[lookup.unitId]?.friendlyName ?? unitId
   }
 
-  for (const defender of Object.values(state.defenders)) {
-    if (defender.id === unitId) {
-      if ((defender.squads ?? 1) > 1) {
-        return resolveStackLabelFromSnapshot(
-          state.stackNaming,
-          buildStackGroupKey(defender.type, defender.position),
-          defender.type,
-          defender.id,
-          defender.friendlyName,
-          defender.squads,
-        )
-      }
-
-      if (defender.friendlyName !== undefined && defender.friendlyName.trim().length > 0) {
-        return defender.friendlyName
-      }
-
-      const defenderDefinition = getUnitDefinition(defender.type)
-
-      if (defenderDefinition?.friendlyNameTemplate !== undefined) {
-        return buildFriendlyName(defenderDefinition.friendlyNameTemplate, defender.id ?? unitId)
-      }
-
-      return defender.id ?? defender.type ?? unitId
+  if (lookup.kind === 'defender' && lookup.unitId !== undefined) {
+    const defender = state.defenders[lookup.unitId]
+    if (defender === undefined) {
+      return unitId
     }
+
+    const stackGroup = Object.values(state.stackRoster.groupsById).find((group) => group.unitIds.includes(lookup.unitId!))
+    if (stackGroup !== undefined) {
+      return stackGroup.groupName
+    }
+
+    return defender.friendlyName
   }
 
   return unitId
 }
 
-function resolveWeaponFriendlyName(state: GameState, weaponId: string): string {
-  const onionWeapon = state.onion.weapons?.find((weapon) => weapon.id === weaponId)
-  if (onionWeapon) {
-    if (onionWeapon.friendlyName !== undefined && onionWeapon.friendlyName.trim().length > 0) {
+function resolveWeaponFriendlyName(state: GameState, weaponId: string, ownerOnionId?: string): string {
+  if (ownerOnionId !== undefined) {
+    const ownerWeapon = state.onions[ownerOnionId]?.weapons.find((weapon) => weapon.id === weaponId)
+    if (ownerWeapon) {
+      return ownerWeapon.friendlyName
+    }
+  }
+
+  for (const onion of Object.values(state.onions)) {
+    const onionWeapon = onion.weapons.find((weapon) => weapon.id === weaponId)
+    if (onionWeapon) {
       return onionWeapon.friendlyName
     }
-
-    if (onionWeapon.friendlyNameTemplate !== undefined) {
-      return buildFriendlyName(onionWeapon.friendlyNameTemplate, weaponId)
-    }
-
-    const onionDefinition = state.onion.type ? getUnitDefinition(state.onion.type) : undefined
-    const definitionWeapon = onionDefinition?.weapons.find((weapon) => weapon.id === weaponId)
-    if (definitionWeapon?.friendlyNameTemplate !== undefined) {
-      return buildFriendlyName(definitionWeapon.friendlyNameTemplate, weaponId)
-    }
-
-    return onionWeapon.name ?? weaponId
   }
 
   for (const defender of Object.values(state.defenders)) {
-    const weapon = defender.weapons?.find((candidate) => candidate.id === weaponId)
+    const weapon = defender.weapons.find((candidate) => candidate.id === weaponId)
     if (weapon) {
-      if (weapon.friendlyName !== undefined && weapon.friendlyName.trim().length > 0) {
-        return weapon.friendlyName
-      }
-
-      if (weapon.friendlyNameTemplate !== undefined) {
-        return buildFriendlyName(weapon.friendlyNameTemplate, weaponId)
-      }
-
-      const defenderDefinition = getUnitDefinition(defender.type)
-      const definitionWeapon = defenderDefinition?.weapons.find((candidate) => candidate.id === weaponId)
-      if (definitionWeapon?.friendlyNameTemplate !== undefined) {
-        return buildFriendlyName(definitionWeapon.friendlyNameTemplate, weaponId)
-      }
-
-      return weapon.name ?? weaponId
+      return weapon.friendlyName
     }
   }
 
@@ -668,13 +643,13 @@ function resolveCombatParticipantFriendlyName(state: GameState, attackerId: stri
   return resolveWeaponFriendlyName(state, attackerId)
 }
 
-function resolveTargetFriendlyName(state: GameState, targetId: string): string {
+function resolveTargetFriendlyName(state: GameState, targetId: string, ownerOnionId?: string): string {
   const unitFriendlyName = resolveUnitFriendlyName(state, targetId)
   if (unitFriendlyName !== targetId) {
     return unitFriendlyName
   }
 
-  return resolveWeaponFriendlyName(state, targetId)
+  return resolveWeaponFriendlyName(state, targetId, ownerOnionId)
 }
 
 export function logSentEvents(gameId: number, actionType: string, events: EventEnvelope[]) {
@@ -728,8 +703,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
 
   const defenders = Object.fromEntries(
     Object.entries(match.state.defenders).map(([defenderId, defender]) => {
-      const { squads: _squads, ...defenderWithoutSquads } = defender
-      return [defenderId, defenderWithoutSquads]
+      return [defenderId, defender]
     }),
   )
 

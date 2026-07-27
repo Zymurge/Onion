@@ -142,13 +142,15 @@ describe('commitActionBuilders', () => {
         state,
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-2'],
-        targetId: 'onion-1:treads',
+        targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: true,
         action: {
           type: 'FIRE',
           attackers: ['pigs-2'],
-          targetId: 'onion-1:treads',
+          targetId: 'onion-1',
+          onionId: 'onion-1',
         },
       })
     })
@@ -160,13 +162,15 @@ describe('commitActionBuilders', () => {
         state,
         anchorUnitId: 'wolf-1',
         selectedUnitIds: ['wolf-1'],
-        targetId: 'onion-1:treads',
+        targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: true,
         action: {
           type: 'FIRE',
           attackers: ['wolf-1'],
-          targetId: 'onion-1:treads',
+          targetId: 'onion-1',
+          onionId: 'onion-1',
         },
       })
     })
@@ -179,6 +183,7 @@ describe('commitActionBuilders', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-1'],
         targetId: null,
+        onionId: 'onion-1',
       })).toEqual({
         ok: false,
         reason: 'missing-target',
@@ -192,7 +197,8 @@ describe('commitActionBuilders', () => {
         state,
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-1'],
-        targetId: 'onion-1:treads',
+        targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: false,
         reason: 'snapshot-missing-stack-selection',

@@ -240,6 +240,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 						type: 'FIRE',
 						attackers: fireAction.attackers,
 						targetId: fireAction.targetId,
+						onionId: fireAction.onionId,
 					},
 					fetchImpl,
 				})

@@ -77,7 +77,7 @@ export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
 	| { type: 'MOVE'; movers: ReadonlyArray<string>; to: { q: number; r: number }; attemptRam?: boolean }
-	| { type: 'FIRE'; attackers: ReadonlyArray<string>; targetId: string }
+	| { type: 'FIRE'; attackers: ReadonlyArray<string>; targetId: string; onionId: string }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 

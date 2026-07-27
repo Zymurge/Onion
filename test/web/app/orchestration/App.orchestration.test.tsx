@@ -818,7 +818,7 @@ describe('combat', () => {
 		await user.click(within(targetList).getAllByRole('button')[0])
 		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
 
-		expect(submitAction).toHaveBeenCalledWith(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1' })
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1', onionId: 'onion-1' })
 		expect(screen.getByRole('alert').textContent).toMatch(/stale combat state/i)
 		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
 		expect(screen.queryByTestId('combat-target-list')).toBeNull()

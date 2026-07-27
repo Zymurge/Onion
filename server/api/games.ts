@@ -692,6 +692,15 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.send(responsePayload)
       } else if (command.type === 'FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
+        if (typeof command.onionId !== 'string' || command.onionId.trim().length === 0) {
+          return reply.status(422).send({
+            ok: false,
+            error: 'FIRE command requires an Onion ID',
+            code: 'MOVE_INVALID',
+            detailCode: 'ONION_NOT_FOUND',
+            currentPhase: match.phase,
+          })
+        }
         const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
         const validation = validateCombatAction(map, state, command)
@@ -730,6 +739,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logSentEvents(match.gameId, command.type, newEvents)
         logActionOutcome(match.gameId, 'FIRE', {
           attackers: command.attackers,
+          onionId: command.onionId,
           targetId: result.targetId,
           roll: result.roll?.roll ?? null,
           outcome: result.roll?.result ?? null,

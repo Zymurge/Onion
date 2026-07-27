@@ -1,12 +1,33 @@
-import type { GameState, GameUnit, OnionUnit, Weapon } from './types/index.js'
+import type { DefenderUnit, GameState, GameUnit, Weapon } from './types/index.js'
 import { getUnitDefinition, getWeaponType } from './unitDefinitions.js'
 
-export function getOnion(state: GameState): OnionUnit {
-  const onion = state.onions['onion-1']
-  if (!onion) {
-    throw new Error('Game state does not contain onion-1')
+export type UnitKind = 'onion' | 'defender' | 'none'
+
+export type UnitLookup = {
+  unitId: string | undefined
+  kind: UnitKind
+}
+
+export function getOnion(unitId: string, state: GameState): string | undefined {
+  return state.onions[unitId]?.unitId
+}
+
+export function getDefender(unitId: string, state: GameState): string | undefined {
+  return state.defenders[unitId]?.unitId
+}
+
+export function getOnionOrDefender(unitId: string, state: GameState): UnitLookup {
+  const onion = getOnion(unitId, state)
+  if (onion !== undefined) {
+    return { unitId: onion, kind: 'onion' }
   }
-  return onion
+
+  const defender = getDefender(unitId, state)
+  if (defender !== undefined) {
+    return { unitId: defender, kind: 'defender' }
+  }
+
+  return { unitId: undefined, kind: 'none' }
 }
 
 export function canSecondMove(unit: GameUnit): boolean {
@@ -23,12 +44,7 @@ export function getUnitDefense(unit: GameUnit, inCover: boolean): number {
     throw new Error(`Unknown unit type: ${unit.typeId}`)
   }
 
-  if (unit.role === 'defender' && unit.typeId === 'LittlePigs') {
-    const squads = unit.squads ?? 1
-    return squads * definition.defense + (inCover ? 1 : 0)
-  }
-
-  return definition.defense
+  return definition.defense + (unit.role === 'defender' && inCover ? 1 : 0)
 }
 
 export function isWeaponAvailable(weapon: Weapon): boolean {

@@ -116,32 +116,34 @@ describe('GET /games/:id/ws', () => {
 				actionType: 'FIRE',
 				actor: 'defender',
 				attackerIds: ['wolf-1'],
-				target: { kind: 'treads' as const, id: 'onion' },
+				onionId: 'onion-1',
+				target: { kind: 'treads' as const, id: 'onion-1' },
 				attackStrength: 2,
 				defense: 2,
 			},
 		} as any)
 		const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation(((state: any) => {
-			state.onion.treads = 43
+			state.onions['onion-1'].treads = 43
 			return {
 				success: true,
 				actionType: 'FIRE',
 				attackerIds: ['wolf-1'],
-				targetId: 'onion',
+				onionId: 'onion-1',
+				targetId: 'onion-1',
 				roll: { roll: 6, result: 'X', odds: '1:1' },
 				treadsLost: 2,
 			}
 		}) as any)
 
 		const liveEventPromise = readWsMessage(ws)
-		await submitAction(app, gameId, fiona.token, { type: 'FIRE', attackers: ['wolf-1'], targetId: 'onion' })
+		await submitAction(app, gameId, fiona.token, { type: 'FIRE', attackers: ['wolf-1'], targetId: 'onion-1', onionId: 'onion-1' })
 		const liveEventMessage = await liveEventPromise
 
 		expect(liveEventMessage.kind).toBe('EVENT')
 		expect(liveEventMessage.event.type).toBe('FIRE_RESOLVED')
 		expect(liveEventMessage.event.phase).toBe('DEFENDER_COMBAT')
 		expect(liveEventMessage.event.attackers).toEqual(['wolf-1'])
-		expect(liveEventMessage.event.targetId).toBe('onion')
+		expect(liveEventMessage.event.targetId).toBe('onion-1')
 
 		validateSpy.mockRestore()
 		executeSpy.mockRestore()

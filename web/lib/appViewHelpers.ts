@@ -513,10 +513,6 @@ export function buildCombatTargetActionId(targetId: string, onionId: string | un
     return stripWeaponSelectionId(targetId)
   }
 
-  if (targetId.endsWith(':treads')) {
-    return onionId ?? targetId
-  }
-
   return targetId
 }
 

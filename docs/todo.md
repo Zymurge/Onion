@@ -9,6 +9,14 @@ break down into features/tasks as needed.
   - [x] Render Little Pigs stack size directly inside the marker and keep yellow/inactive marker text dark for readability.
   - [x] Extract the shared stack naming engine into a standalone module that can track used group names and active groups.
   - [ ] Implement the section 1b/1c stack-roster lifecycle rules as a standalone step: bundle groups and units into a dedicated state element, keep the persisted roster minimal, assign unique finalized stack names at end of movement, carry names forward correctly across splits and merges, never recycle stack names, and expose canonical member names plus finalized stack names to UI/messages and left-rail selection rows so member identity is preserved there.
+- [ ] Make Onion identity explicit throughout runtime events and combat
+  - [ ] Collapse `getOnion` to one canonical signature that requires an explicit `unitId` and `GameState`; do not add a helper that guesses a single Onion from the state map.
+  - [ ] Treat single-value Onion maps as valid state without introducing a separate genuinely-single-Onion invariant.
+  - [ ] Ensure every event that involves the Onion carries the Onion instance identity as an attacker, target, or move object.
+  - [ ] Update combat calls that currently receive only a weapon ID, whether as an attacker or target, so they also carry the owning Onion `unitId`.
+  - [ ] Remove tread aliases such as `onion`, `tread`, and `treads` from identity resolution; require direct Onion IDs instead.
+  - [ ] Find and correct all callers that do not pass the target Onion ID when building or resolving combat actions and events.
+  - [ ] Make consumers that require a valid Onion ID fail loudly when the ID is missing or does not resolve in `GameState`.
 
 ## Epics / Major Work
 

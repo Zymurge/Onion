@@ -347,7 +347,7 @@ export function buildCombatTargetOptions({
 
 	return [
 		{
-			id: `${displayedOnion.id}:treads`,
+			id: displayedOnion.id,
 			kind: 'onion' as const,
 			q: onionPosition.q,
 			r: onionPosition.r,
