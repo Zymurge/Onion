@@ -332,8 +332,8 @@ describe('POST /games/:id/actions combat API contract', () => {
         winner: null,
         state: {
           onions: { 'onion-1': { unitId: 'onion-1', typeId: 'TheOnion', role: 'onion', position: { q: 0, r: 10 }, state: 'operational', friendlyName: 'The Onion 1', treads: 45, ramsRemaining: 2, weapons: [] } },
-          defenders: { 'wolf-1': { type: 'GEV', position: { q: 3, r: 10 }, status: 'operational' as const } },
-          ramsThisTurn: 0,
+          defenders: { 'wolf-1': { unitId: 'wolf-1', typeId: 'GEV', position: { q: 3, r: 10 }, state: 'operational' as const, weapons: [] } },
+          stackRoster: { groupsById: {} },
         },
         events: [],
       }),

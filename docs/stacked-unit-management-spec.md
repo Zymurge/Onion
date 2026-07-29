@@ -46,7 +46,7 @@
   - During the stack’s combat phase, temporary attack groupings may be shown for the active player for clarity.
   - Inactive event viewers may use the generic unit type plus "group" wording when a final stack name has not yet been declared.
 - **Movement Tracking:**
-  - Per-unit movement remaining must be tracked. If stack A (all units at max move) joins stack B (units with remaining move), only stack B’s units can still move.
+  - Per-unit movement spent and remaining are tracked on the unit record via `UnitStatus.movementSpent`. If stack A (all units at max move) joins stack B (units with remaining move), only stack B’s units can still move.
   - Mechanically, units are considered stacked if they share a hex at the end of the movement phase; splitting/merging within the move phase is not tracked as a separate entity.
   - The max-units-per-hex rule is always enforced.
 - **Unit IDs & Stack Identity:**
@@ -71,6 +71,7 @@
   - `stackRoster` is the authoritative source of stack membership, group identity, and unit identity.
   - `stackNaming` is the authoritative source of stack-name allocation, normalization, and retirement history.
   - `defenders` may remain as a compatibility or projection view, but it should not be used as the canonical source for stacked-unit identity once `stackRoster` is available.
+  - `movementSpent` and other live per-unit phase counters stay on the unit records, not on the top-level game state bundle.
   - UI grouping and selection helpers must not infer stack membership from co-location or synthetic member ids; if canonical roster data is missing for stacked defenders, the projection layer should fail fast instead of inventing membership.
 
 ## 1c. Proposed Stack-Roster Contract

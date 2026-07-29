@@ -141,10 +141,10 @@ export function resolveBattlefieldFriendlyName(
 }
 
 export type StackSourceUnit = {
-  id: string
+  unitId: string
   type: string
   position: { q: number; r: number }
-  status: string
+  state: string
   squads?: number
 }
 

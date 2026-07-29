@@ -15,10 +15,10 @@ import { GameState } from '#shared/types/index'
 
 function createTestDefendersMap() : Record<string, StackSourceUnit> {
   return {
-    'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-    'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
-    'pigs-3': { id: 'pigs-3', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'destroyed' },
-    'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+    'pigs-1': { unitId: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+    'pigs-2': { unitId: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
+    'pigs-3': { unitId: 'pigs-3', type: 'LittlePigs', position: { q: 4, r: 4 }, state: 'destroyed' },
+    'wolf-1': { unitId: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
   }
 }
 

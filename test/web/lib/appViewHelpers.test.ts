@@ -10,8 +10,8 @@ import { UnitStatus } from '#shared/types/index'
 
 function createTestDefendersMap(): Record<string, StackSourceUnit> {
   return {
-    'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 2, r: 2 }, status: 'operational' as UnitStatus },
-    'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 2, r: 2 }, status: 'operational' as UnitStatus },
+    'pigs-1': { unitId: 'pigs-1', type: 'LittlePigs', position: { q: 2, r: 2 }, state: 'operational' as UnitStatus },
+    'pigs-2': { unitId: 'pigs-2', type: 'LittlePigs', position: { q: 2, r: 2 }, state: 'operational' as UnitStatus },
   }
 }
 
