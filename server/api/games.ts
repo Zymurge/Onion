@@ -10,7 +10,6 @@ import { phaseActor } from '#server/engine/phases'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { createMap } from '#server/engine/map'
 import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '#server/engine/index'
-import { InitialStateSchema } from '#server/engine/scenarioSchema'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
 import {
   assertScenarioStateFitsMap,
@@ -29,6 +28,7 @@ import {
   logActionOutcome,
   logSentEvents,
   loadScenario,
+  ScenarioValidationError,
   parseGameId,
   parseWsMessage,
   serializeWsMessage,
@@ -46,16 +46,6 @@ const CreateGameSchema = z.object({
   scenarioId: z.string().min(1),
   role: z.enum(['onion', 'defender']),
 })
-
-const INITIAL_STATE: GameState = {
-  onion: {
-    position: { q: 0, r: 10 },
-    treads: 45,
-    missiles: 2,
-    batteries: { main: 1, secondary: 4, ap: 8 },
-  },
-  defenders: {},
-}
 
 /**
  * Game management routes for creating, joining, and playing matches.
@@ -161,27 +151,31 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for game creation')
-      const scenarioSnapshot = await loadScenario(scenarioId) as ScenarioSnapshot | null
+      let scenarioSnapshot
+      try {
+        scenarioSnapshot = await loadScenario(scenarioId)
+      } catch (err) {
+        if (err instanceof ScenarioValidationError) {
+          logger.error({ err, scenarioId }, 'Invalid scenario definition')
+          return reply.status(400).send({ ok: false, error: 'Invalid scenario', code: 'INVALID_SCENARIO' })
+        }
+        throw err
+      }
+
       if (!scenarioSnapshot) {
         logger.warn({ scenarioId }, 'Scenario not found')
         return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
       }
-      const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+
       let state: GameState
-      if (scenarioSnapshot.initialState) {
-        try {
-          const parsedState = InitialStateSchema.parse(scenarioSnapshot.initialState)
-          state = normalizeInitialStateToGameState(parsedState)
-          assertScenarioStateFitsMap(scenarioMap, scenarioSnapshot, state)
-          logger.debug({ state }, 'Parsed and normalized initial game state')
-        } catch (err) {
-          logger.error({ err }, 'Invalid scenario initialState')
-          logger.debug({ scenarioSnapshot }, 'Scenario snapshot for failed initialState')
-          return reply.status(400).send({ ok: false, error: 'Invalid scenario initialState', code: 'INVALID_SCENARIO' })
-        }
-      } else {
-        state = { ...INITIAL_STATE }
-        logger.debug({ state }, 'Default initial game state used')
+      try {
+        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+        state = normalizeInitialStateToGameState(scenarioSnapshot.initialState)
+        assertScenarioStateFitsMap(scenarioMap, scenarioSnapshot, state)
+        logger.debug({ state }, 'Parsed and normalized initial game state')
+      } catch (err) {
+        logger.error({ err, scenarioId }, 'Invalid scenario initial state')
+        return reply.status(400).send({ ok: false, error: 'Invalid scenario', code: 'INVALID_SCENARIO' })
       }
       const players: { onion: string | null; defender: string | null } = {
         onion: null,

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildApp } from '#server/app'
 import { StaleMatchStateError } from '#server/db/adapter'
 import * as engineGameInternal from '#server/engine/game'
+import { makeGameState, makeOnion } from '../../shared/gameStateUtils'
 import { createGame, endPhase, getEvents, joinGame, register } from './helpers.js'
 
 describe('POST /games/:id/actions END_PHASE', () => {
@@ -230,16 +231,12 @@ describe('POST /games/:id/actions END_PHASE', () => {
         phase: 'ONION_MOVE' as const,
         turnNumber: 1,
         winner: null,
-        state: {
-          onion: {
-            position: { q: 0, r: 10 },
-            treads: 45,
-            missiles: 2,
-            batteries: { main: 1, secondary: 4, ap: 8 },
-          },
+        state: makeGameState({
+          onions: { onion: makeOnion({ unitId: 'onion', position: { q: 0, r: 10 } }) },
           defenders: {},
-          ramsThisTurn: 0,
-        },
+          currentPhase: 'ONION_MOVE',
+          turn: 1,
+        }),
         events: [],
       }),
       updateMatchPlayers: async () => {},

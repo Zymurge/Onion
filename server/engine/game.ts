@@ -1,9 +1,9 @@
 import { resetMovementSpent } from '#shared/unitMovement'
+import { getUnitRamCapacity } from '#shared/unitMovement'
 import logger from '#server/logger'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
 import type { MatchRecord } from '#server/db/adapter'
 import { TURN_PHASES, phaseActor } from '#server/engine/phases'
-import { getUnitState, getWeaponState, setUnitState, setWeaponState } from '#server/engine/units'
 
 function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'missile' | null {
   if (weaponId === 'main') return 'main'
@@ -14,21 +14,26 @@ function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'm
 }
 
 function refreshOnionWeaponsForNewTurn(state: GameState): void {
-  if (!state.onion.weapons) {
-    return
-  }
+  for (const onion of Object.values(state.onions)) {
+    onion.ramsRemaining = getUnitRamCapacity(onion.typeId)
+    for (const weapon of onion.weapons) {
+      if (weapon.state === 'spent') {
+        weapon.state = 'ready'
 
-  for (const weapon of state.onion.weapons) {
-    if (getWeaponState(weapon) === 'spent') {
-      setWeaponState(weapon, 'ready')
-
-      const weaponType = getWeaponTypeFromId(weapon.typeId)
-      if (weaponType === 'missile') {
-        if (state.onion.missiles !== undefined) {
-          state.onion.missiles += 1
+        const weaponType = getWeaponTypeFromId(weapon.typeId)
+        if (weaponType === 'missile') {
+          const missileOnion = onion as typeof onion & { missiles?: number }
+          if (missileOnion.missiles !== undefined) {
+            missileOnion.missiles += 1
+          }
+        } else if (weaponType) {
+          const batteryOnion = onion as typeof onion & {
+            batteries?: { main: number; secondary: number; ap: number }
+          }
+          if (batteryOnion.batteries) {
+            batteryOnion.batteries[weaponType] = (batteryOnion.batteries[weaponType] ?? 0) + 1
+          }
         }
-      } else if (weaponType && state.onion.batteries) {
-        state.onion.batteries[weaponType] = (state.onion.batteries[weaponType] ?? 0) + 1
       }
     }
   }
@@ -54,7 +59,7 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
   const newEvents: EventEnvelope[] = [];
   let seq = (match.events.at(-1)?.seq ?? 0) + 1;
   const timestamp = new Date().toISOString();
-  const state: GameState = structuredClone(match.state);
+  const state = structuredClone(match.state) as GameState;
   let turnNumber = match.turnNumber;
 
   const fromPhase = match.phase;
@@ -64,7 +69,6 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
   newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, phase: fromPhase, from: fromPhase, to: phase, turnNumber });
 
   if (phase === 'ONION_MOVE') {
-    state.ramsThisTurn = 0;
     resetMovementSpent(state);
     refreshOnionWeaponsForNewTurn(state);
     // Reset defender weapons for the new turn

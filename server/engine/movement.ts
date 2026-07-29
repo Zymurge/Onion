@@ -6,11 +6,9 @@ import logger from '#server/logger'
  * movement mechanics like Onion ramming and GEV second moves.
  */
 
-import type { HexPos, PlayerRole, SingleUnitMoveCommand } from '#shared/types/index'
+import type { HexPos, PlayerRole, SingleUnitMoveCommand, GameState, GameUnit, OnionUnit, DefenderUnit } from '#shared/types/index'
 import { isInBounds } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
-import { getUnitId, getUnitState, setUnitState } from '#server/engine/units'
-import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
 import { calculateRamming as calculateSharedRamming, resolveRammingOutcome } from '#shared/rammingCalculator'
 import { spendUnitMovement } from '#shared/unitMovement'
 import { isUnitTypeStackable } from '#shared/unitDefinitions'
@@ -18,6 +16,8 @@ import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
 import { reconcileStackRosterMoveLifecycle, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
+
+type EngineGameState = GameState
 /**
  * Result of validating a movement command.
  */
@@ -90,8 +90,9 @@ function hasTreads(unit: GameUnit): unit is OnionUnit {
 }
 
 function resolveUnit(state: EngineGameState, unitId: string): ResolvedUnit | null {
-  if (getUnitId(state.onion) === unitId) {
-    return { unit: state.onion }
+  const onion = state.onions[unitId]
+  if (onion !== undefined) {
+    return { unit: onion }
   }
 
   const defender = state.defenders[unitId]
@@ -104,12 +105,12 @@ function resolveUnit(state: EngineGameState, unitId: string): ResolvedUnit | nul
 
 function toMoveMapSnapshot(map: GameMap, state: EngineGameState, movingUnitId: string): MoveMapSnapshot {
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
-    ...(getUnitId(state.onion) !== movingUnitId && getUnitState(state.onion) !== 'destroyed'
-      ? [{ q: state.onion.position.q, r: state.onion.position.r, role: 'onion' as const, unitType: state.onion.type ?? 'TheOnion', squads: 1 }]
-      : []),
+    ...Object.values(state.onions)
+      .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'onion' as const, unitType: unit.typeId })),
     ...Object.values(state.defenders)
-      .filter((unit) => getUnitId(unit) !== movingUnitId && getUnitState(unit) !== 'destroyed')
-      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.type, squads: unit.squads })),
+      .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.typeId })),
   ]
 
   return {
@@ -157,7 +158,7 @@ function toMovementValidation(result: SharedMoveValidationResult): MovementValid
 
 function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: string): void {
   const movedDefender = state.defenders[movedUnitId]
-  if (movedDefender === undefined || getUnitState(movedDefender) === 'destroyed') {
+  if (movedDefender === undefined || movedDefender.state === 'destroyed') {
     logger.debug(
       {
         movedUnitId,
@@ -174,7 +175,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     stackNaming: state.stackNaming,
     defenders: state.defenders,
     movedUnitId,
-    unitType: movedDefender.type,
+    unitType: movedDefender.typeId,
     destinationPosition: movedDefender.position,
     movedUnitFriendlyName: movedDefender.friendlyName,
   })
@@ -182,7 +183,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
   logger.debug(
     {
       movedUnitId,
-      unitType: movedDefender.type,
+      unitType: movedDefender.typeId,
       destinationGroupId: reconciled.destinationGroupId,
       selectedNameSource: reconciled.selectedNameSource,
       selectedName: reconciled.destinationGroupName,
@@ -193,7 +194,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
 
   const relocateInput = {
     movedUnitIds: [movedUnitId],
-    unitType: movedDefender.type,
+    unitType: movedDefender.typeId,
     destinationPosition: movedDefender.position,
     destinationGroupName: reconciled.destinationGroupName,
   }
@@ -237,23 +238,26 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
 
   const { unit } = resolved
   unit.position = plan.to
-  spendUnitMovement(state, state.currentPhase, getUnitId(unit), plan.cost)
+  spendUnitMovement(unit, state.currentPhase, plan.cost)
 
   const destroyedUnits: string[] = []
   const rammedUnitResults: NonNullable<MovementResult['rammedUnitResults']> = []
   if (plan.capabilities.canRam && plan.ramCapacityUsed > 0) {
-    state.ramsThisTurn += plan.ramCapacityUsed
+    if (!hasTreads(unit)) {
+      return { success: false, error: 'Ramming requires an Onion unit' }
+    }
+    unit.ramsRemaining = Math.max(0, unit.ramsRemaining - plan.ramCapacityUsed)
     for (const rammedUnitId of plan.rammedUnitIds) {
       const rammedUnit = state.defenders[rammedUnitId]
       if (!rammedUnit) continue
-      const outcome = resolveRammingOutcome(rammedUnit.type)
+      const outcome = resolveRammingOutcome(rammedUnit.typeId)
       rammedUnitResults.push({
         unitId: rammedUnitId,
-        unitType: rammedUnit.type,
+        unitType: rammedUnit.typeId,
         outcome,
       })
       if (outcome.effect === 'destroyed') {
-        setUnitState(rammedUnit, 'destroyed')
+        rammedUnit.state = 'destroyed'
         destroyedUnits.push(rammedUnitId)
       }
     }
@@ -313,8 +317,9 @@ export function executeOnionMovement(
   state: EngineGameState,
   command: SingleUnitMoveCommand
 ): MovementResult {
-  logger.debug({ position: state.onion.position, command }, '[executeOnionMovement] called')
-  if (command.unitId !== getUnitId(state.onion)) {
+  const onion = state.onions[command.unitId]
+  logger.debug({ position: onion?.position, command }, '[executeOnionMovement] called')
+  if (onion === undefined) {
     logger.info({ command }, 'executeOnionMovement: Not an Onion move command')
     return { success: false, error: 'Not an Onion move command' }
   }
@@ -349,12 +354,14 @@ export function getOccupyingUnit(
   pos: HexPos,
   excludeUnitId?: string
 ): GameUnit | null {
-  if (getUnitId(state.onion) !== excludeUnitId &&
-      state.onion.position.q === pos.q && state.onion.position.r === pos.r) {
-    return state.onion
+  for (const onion of Object.values(state.onions)) {
+    if (onion.unitId !== excludeUnitId &&
+        onion.position.q === pos.q && onion.position.r === pos.r) {
+      return onion
+    }
   }
   for (const unit of Object.values(state.defenders)) {
-    if (getUnitId(unit) !== excludeUnitId &&
+    if (unit.unitId !== excludeUnitId &&
         unit.position.q === pos.q && unit.position.r === pos.r) {
       return unit
     }
@@ -392,7 +399,7 @@ export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
   treadCost: number
   destroyed: boolean
 } {
-  return calculateSharedRamming(rammedUnit.type, roll)
+  return calculateSharedRamming(rammedUnit.typeId, roll)
 }
 
 /**
@@ -409,10 +416,10 @@ export function canMoveThrough(
 ): boolean {
   if (movingRole === 'onion') {
     // Onion can move through any defender hex (ramming)
-    return occupyingUnit.type !== 'TheOnion'
+    return occupyingUnit.typeId !== 'TheOnion'
   }
   // Defender can move through friendly defenders but not through the Onion
-  return occupyingUnit.type !== 'TheOnion'
+  return occupyingUnit.typeId !== 'TheOnion'
 }
 
 /**
@@ -430,7 +437,7 @@ export function getRammedUnits(
   const result: string[] = []
   for (const pos of path) {
     for (const [id, unit] of Object.entries(state.defenders)) {
-      if (getUnitState(unit) === 'destroyed') continue
+      if (unit.state === 'destroyed') continue
       if (unit.position.q === pos.q && unit.position.r === pos.r) {
         result.push(id)
       }

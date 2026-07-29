@@ -11,9 +11,10 @@ import {
 import { createMap } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
 import type { MovementPlan } from '#server/engine/movement'
-import type { DefenderUnit, OnionUnit, EngineGameState } from '#server/engine/units'
+import type { GameState } from '#server/engine/units'
 import logger from '#server/logger'
 import { buildStackRosterFromUnits } from '#shared/stackRoster'
+import { makeDefender, makeGameState, makeOnion } from '../../shared/gameStateUtils'
 
 let infoSpy: any, warnSpy: any, errorSpy: any;
 
@@ -36,40 +37,18 @@ const CLEAR_MAP: GameMap = createMap(5, 5, [])
 /** 5×5 map with a crater at (2,2) */
 const CRATER_MAP: GameMap = createMap(5, 5, [{ q: 2, r: 2, t: 2 }])
 
-function makeDefender(overrides: Partial<DefenderUnit> = {}): DefenderUnit {
-  return {
-    id: 'd1',
-    type: 'Puss',
-    position: { q: 2, r: 2 },
-    status: 'operational',
-    weapons: [],
-    ...overrides,
-  } as DefenderUnit
-}
+type MovementStateOverrides = Partial<GameState> & { ramsRemaining?: number }
 
-function makeOnion(overrides: Partial<OnionUnit> = {}): OnionUnit {
-  return {
-    id: 'onion',
-    type: 'TheOnion',
-    position: { q: 0, r: 0 },
-    status: 'operational',
-    treads: 45,
-    weapons: [],
-    ...overrides,
-  }
-}
-
-function makeState(overrides: Partial<EngineGameState> = {}): EngineGameState {
+function makeState({ ramsRemaining = 2, ...overrides }: MovementStateOverrides = {}): GameState {
   const defenders = overrides.defenders ?? {}
-  return {
-    onion: makeOnion(),
+  return makeGameState({
+    onions: { onion: makeOnion({ unitId: 'onion', ramsRemaining }) },
     defenders,
-    ramsThisTurn: 0,
     currentPhase: 'ONION_MOVE',
     turn: 1,
     stackRoster: overrides.stackRoster ?? buildStackRosterFromUnits(Object.values(defenders)),
     ...overrides,
-  }
+  })
 }
 
 // ─── getOccupyingUnit ────────────────────────────────────────────────────────
@@ -81,18 +60,18 @@ describe('getOccupyingUnit', () => {
   })
 
   it('returns the Onion when it occupies the position', () => {
-    const state = makeState({ onion: makeOnion({ position: { q: 1, r: 1 } }) })
-    expect(getOccupyingUnit(state, { q: 1, r: 1 })).toBe(state.onion)
+    const state = makeState({ onions: { onion: makeOnion({ unitId: 'onion', position: { q: 1, r: 1 } }) } })
+    expect(getOccupyingUnit(state, { q: 1, r: 1 })).toBe(state.onions.onion)
   })
 
   it('returns the defender when it occupies the position', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 3, r: 2 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 3, r: 2 } })
     const state = makeState({ defenders: { d1: defender } })
     expect(getOccupyingUnit(state, { q: 3, r: 2 })).toBe(defender)
   })
 
   it('returns null when the only occupant is excluded', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 3, r: 2 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 3, r: 2 } })
     const state = makeState({ defenders: { d1: defender } })
     expect(getOccupyingUnit(state, { q: 3, r: 2 }, 'd1')).toBeNull()
   })
@@ -117,13 +96,13 @@ describe('isMovementBlocked', () => {
   })
 
   it('returns true when hex is occupied by a unit', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 1 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 1 } })
     const state = makeState({ defenders: { d1: defender } })
     expect(isMovementBlocked(CLEAR_MAP, state, { q: 1, r: 1 })).toBe(true)
   })
 
   it('returns false when the only occupant is excluded', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 1 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 1 } })
     const state = makeState({ defenders: { d1: defender } })
     expect(isMovementBlocked(CLEAR_MAP, state, { q: 1, r: 1 }, 'd1')).toBe(false)
   })
@@ -139,8 +118,8 @@ describe('canMoveThrough', () => {
   })
 
   it('returns true when a defender moves through a friendly defender hex', () => {
-    const mover = makeDefender({ id: 'd1' })
-    const occupier = makeDefender({ id: 'd2' })
+    const mover = makeDefender({ unitId: 'd1' })
+    const occupier = makeDefender({ unitId: 'd2' })
     expect(canMoveThrough(mover, occupier, 'defender')).toBe(true)
   })
 
@@ -155,37 +134,37 @@ describe('canMoveThrough', () => {
 
 describe('calculateRamming', () => {
   it('LittlePigs: treadCost is 0 and roll 1–4 destroys the unit', () => {
-    const pigs = makeDefender({ type: 'LittlePigs' })
+    const pigs = makeDefender({ typeId: 'LittlePigs' })
     expect(calculateRamming(pigs, 1)).toEqual({ treadCost: 0, destroyed: true })
     expect(calculateRamming(pigs, 4)).toEqual({ treadCost: 0, destroyed: true })
   })
 
   it('LittlePigs: treadCost is 0 and roll 5–6 does not destroy', () => {
-    const pigs = makeDefender({ type: 'LittlePigs' })
+    const pigs = makeDefender({ typeId: 'LittlePigs' })
     expect(calculateRamming(pigs, 5)).toEqual({ treadCost: 0, destroyed: false })
     expect(calculateRamming(pigs, 6)).toEqual({ treadCost: 0, destroyed: false })
   })
 
   it('armor unit (Puss): treadCost is 1 and roll 1–4 destroys', () => {
-    const puss = makeDefender({ type: 'Puss' })
+    const puss = makeDefender({ typeId: 'Puss' })
     expect(calculateRamming(puss, 1)).toEqual({ treadCost: 1, destroyed: true })
     expect(calculateRamming(puss, 4)).toEqual({ treadCost: 1, destroyed: true })
   })
 
   it('armor unit (Puss): treadCost is 1 and roll 5–6 does not destroy', () => {
-    const puss = makeDefender({ type: 'Puss' })
+    const puss = makeDefender({ typeId: 'Puss' })
     expect(calculateRamming(puss, 5)).toEqual({ treadCost: 1, destroyed: false })
     expect(calculateRamming(puss, 6)).toEqual({ treadCost: 1, destroyed: false })
   })
 
   it('Dragon: treadCost is 2 and roll 1–4 destroys', () => {
-    const dragon = makeDefender({ type: 'Dragon' })
+    const dragon = makeDefender({ typeId: 'Dragon' })
     expect(calculateRamming(dragon, 1)).toEqual({ treadCost: 2, destroyed: true })
     expect(calculateRamming(dragon, 4)).toEqual({ treadCost: 2, destroyed: true })
   })
 
   it('Dragon: treadCost is 2 and roll 5–6 does not destroy', () => {
-    const dragon = makeDefender({ type: 'Dragon' })
+    const dragon = makeDefender({ typeId: 'Dragon' })
     expect(calculateRamming(dragon, 5)).toEqual({ treadCost: 2, destroyed: false })
     expect(calculateRamming(dragon, 6)).toEqual({ treadCost: 2, destroyed: false })
   })
@@ -206,15 +185,15 @@ describe('getRammedUnits', () => {
   })
 
   it('returns the unit ID when a defender lies on the path', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })
     const path = [{ q: 1, r: 0 }, { q: 2, r: 0 }]
     expect(getRammedUnits(CLEAR_MAP, state, path)).toEqual(['d1'])
   })
 
   it('returns multiple IDs when multiple defenders lie on the path', () => {
-    const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
-    const d2 = makeDefender({ id: 'd2', position: { q: 2, r: 0 } })
+    const d1 = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
+    const d2 = makeDefender({ unitId: 'd2', position: { q: 2, r: 0 } })
     const state = makeState({ defenders: { d1, d2 } })
     const path = [{ q: 1, r: 0 }, { q: 2, r: 0 }]
     const result = getRammedUnits(CLEAR_MAP, state, path)
@@ -224,8 +203,8 @@ describe('getRammedUnits', () => {
   })
 
   it('ignores destroyed defenders on the path', () => {
-    const liveDefender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
-    const destroyedDefender = makeDefender({ id: 'd2', position: { q: 1, r: 0 }, status: 'destroyed' })
+    const liveDefender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
+    const destroyedDefender = makeDefender({ unitId: 'd2', position: { q: 1, r: 0 }, state: 'destroyed' })
     const state = makeState({ defenders: { d1: liveDefender, d2: destroyedDefender } })
     const path = [{ q: 1, r: 0 }]
 
@@ -237,7 +216,7 @@ describe('getRammedUnits', () => {
 
 describe('validateUnitMovement', () => {
   it('returns a validated plan for a treaded ram-capable unit', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 2, r: 0 } })
 
@@ -256,7 +235,7 @@ describe('validateUnitMovement', () => {
   })
 
   it('allows Onion to move into an occupied defender destination as a ram', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 1, r: 0 } })
 
@@ -270,7 +249,7 @@ describe('validateUnitMovement', () => {
   })
 
   it('returns WRONG_PHASE for a defender unit in ONION_MOVE', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 0, r: 0 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'ONION_MOVE', defenders: { d1: defender } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'd1', to: { q: 1, r: 0 } })
 
@@ -293,7 +272,7 @@ describe('validateUnitMovement', () => {
   })
 
   it('returns UNIT_IMMOBILE when the unit cannot move', () => {
-    const farquaad = makeDefender({ id: 'f1', type: 'LordFarquaad', position: { q: 0, r: 0 } })
+    const farquaad = makeDefender({ unitId: 'f1', typeId: 'LordFarquaad', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { f1: farquaad } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'f1', to: { q: 1, r: 0 } })
 
@@ -305,7 +284,7 @@ describe('validateUnitMovement', () => {
   })
 
   it('returns UNIT_NOT_OPERATIONAL when the unit is disabled', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 0, r: 0 }, status: 'disabled' })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 0, r: 0 }, state: 'disabled' })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: defender } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'd1', to: { q: 1, r: 0 } })
 
@@ -317,7 +296,7 @@ describe('validateUnitMovement', () => {
   })
 
   it('returns a validated plan using second move allowance when applicable', () => {
-    const wolf = makeDefender({ id: 'w1', type: 'BigBadWolf', position: { q: 0, r: 0 } })
+    const wolf = makeDefender({ unitId: 'w1', typeId: 'BigBadWolf', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { w1: wolf } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'w1', to: { q: 3, r: 0 } })
 
@@ -330,7 +309,7 @@ describe('validateUnitMovement', () => {
   })
 
   it('returns SECOND_MOVE_NOT_ALLOWED for a non-GEV unit in GEV_SECOND_MOVE', () => {
-    const puss = makeDefender({ id: 'd1', position: { q: 0, r: 0 } })
+    const puss = makeDefender({ unitId: 'd1', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { d1: puss } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'd1', to: { q: 1, r: 0 } })
 
@@ -342,10 +321,10 @@ describe('validateUnitMovement', () => {
   })
 
   it('returns RAM_LIMIT_EXCEEDED when a ram-capable unit would exceed the turn limit', () => {
-    const d1 = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
-    const d2 = makeDefender({ id: 'd2', position: { q: 2, r: 0 } })
-    const d3 = makeDefender({ id: 'd3', position: { q: 4, r: 0 } })
-    const state = makeState({ ramsThisTurn: 1, defenders: { d1, d2, d3 } })
+    const d1 = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
+    const d2 = makeDefender({ unitId: 'd2', position: { q: 2, r: 0 } })
+    const d3 = makeDefender({ unitId: 'd3', position: { q: 4, r: 0 } })
+    const state = makeState({ ramsRemaining: 1, defenders: { d1, d2, d3 } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 3, r: 0 } })
 
     expect(result).toEqual({
@@ -356,8 +335,8 @@ describe('validateUnitMovement', () => {
   })
 
   it('allows an Onion move to skip ramming when attemptRam is false', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
-    const state = makeState({ ramsThisTurn: 1, defenders: { d1: defender } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
+    const state = makeState({ ramsRemaining: 1, defenders: { d1: defender } })
 
     const result = validateUnitMovement(CLEAR_MAP, state, {
       type: 'MOVE',
@@ -376,9 +355,9 @@ describe('validateUnitMovement', () => {
   })
 
   it('ignores destroyed defenders when counting rams on the path', () => {
-    const liveDefender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
-    const destroyedDefender = makeDefender({ id: 'd2', position: { q: 1, r: 0 }, status: 'destroyed' })
-    const state = makeState({ ramsThisTurn: 1, defenders: { d1: liveDefender, d2: destroyedDefender } })
+    const liveDefender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
+    const destroyedDefender = makeDefender({ unitId: 'd2', position: { q: 1, r: 0 }, state: 'destroyed' })
+    const state = makeState({ ramsRemaining: 1, defenders: { d1: liveDefender, d2: destroyedDefender } })
 
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'onion', to: { q: 1, r: 0 } })
 
@@ -391,8 +370,8 @@ describe('validateUnitMovement', () => {
   })
 
   it('returns HEX_OCCUPIED when a defender tries to end movement in an occupied hex', () => {
-    const mover = makeDefender({ id: 'd1', type: 'Puss', position: { q: 0, r: 0 } })
-    const occupier = makeDefender({ id: 'd2', type: 'BigBadWolf', position: { q: 1, r: 0 } })
+    const mover = makeDefender({ unitId: 'd1', typeId: 'Puss', position: { q: 0, r: 0 } })
+    const occupier = makeDefender({ unitId: 'd2', typeId: 'BigBadWolf', position: { q: 1, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: mover, d2: occupier } })
 
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'd1', to: { q: 1, r: 0 } })
@@ -404,8 +383,8 @@ describe('validateUnitMovement', () => {
   })
 
   it('allows Little Pigs to stack when member count stays within limit', () => {
-    const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 1, r: 0 } })
+    const pigsA = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const pigsB = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: pigsA, p2: pigsB } })
 
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'p1', to: { q: 1, r: 0 } })
@@ -413,12 +392,12 @@ describe('validateUnitMovement', () => {
   })
 
   it('returns HEX_OCCUPIED when Little Pigs member count would exceed stack limit', () => {
-    const pigsA = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 3, position: { q: 0, r: 0 } })
-    const pigsB = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 1, r: 0 } })
-    const pigsC = makeDefender({ id: 'p3', type: 'LittlePigs', squads: 8, position: { q: 1, r: 0 } })
-    const pigsD = makeDefender({ id: 'p4', type: 'LittlePigs', squads: 1, position: { q: 1, r: 0 } })
-    const pigsE = makeDefender({ id: 'p5', type: 'LittlePigs', squads: 4, position: { q: 1, r: 0 } })
-    const pigsF = makeDefender({ id: 'p6', type: 'LittlePigs', squads: 2, position: { q: 1, r: 0 } })
+    const pigsA = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const pigsB = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+    const pigsC = makeDefender({ unitId: 'p3', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+    const pigsD = makeDefender({ unitId: 'p4', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+    const pigsE = makeDefender({ unitId: 'p5', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+    const pigsF = makeDefender({ unitId: 'p6', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: pigsA, p2: pigsB, p3: pigsC, p4: pigsD, p5: pigsE, p6: pigsF } })
 
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'p1', to: { q: 1, r: 0 } })
@@ -454,7 +433,7 @@ describe('executeUnitMovement', () => {
   }
 
   it('moves a defender using a validated plan', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 1 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 1 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: defender } })
     const result = executeUnitMovement(state, makePlan())
 
@@ -464,7 +443,7 @@ describe('executeUnitMovement', () => {
   })
 
   it('updates ram usage for a ram-capable move plan', () => {
-    const defender = makeDefender({ id: 'd1', position: { q: 1, r: 0 } })
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })
     const plan = makePlan({
       unitId: 'onion',
@@ -483,9 +462,9 @@ describe('executeUnitMovement', () => {
 
     const result = executeUnitMovement(state, plan)
 
-    expect(state.onion.position).toEqual({ q: 1, r: 0 })
-    expect(state.ramsThisTurn).toBe(1)
-    expect(state.onion.treads).toBe(44)
+    expect(state.onions.onion.position).toEqual({ q: 1, r: 0 })
+    expect(state.onions.onion.ramsRemaining).toBe(1)
+    expect(state.onions.onion.treads).toBe(44)
     expect(result.success).toBe(true)
     expect(result.rammedUnitIds).toEqual(['d1'])
     expect(result.ramCapacityUsed).toBe(1)
@@ -505,9 +484,9 @@ describe('executeUnitMovement', () => {
   })
 
   it('preserves and advances stack names when a stacked Little Pigs unit moves away', () => {
-    const movingPig = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const remainingPig = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: movingPig, p2: remainingPig } }) as EngineGameState & {
+    const movingPig = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const remainingPig = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: movingPig, p2: remainingPig } }) as GameState & {
       stackNaming?: {
         groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
         usedGroupNames: string[]
@@ -541,21 +520,21 @@ describe('executeUnitMovement', () => {
       groupName: 'Little Pigs group 2',
       unitIds: ['p1'],
     })
-    expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.groupsInUse).toEqual([
+    expect((state as GameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.groupsInUse).toEqual([
       { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
       { groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
     ])
-    expect((state as EngineGameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.usedGroupNames).toEqual([
+    expect((state as GameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.usedGroupNames).toEqual([
       'Little Pigs group 1',
       'Little Pigs group 2',
     ])
   })
 
   it('reforms a stack as sequential movers arrive on the same destination hex', () => {
-    const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const p2 = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 0, r: 0 } })
-    const p3 = makeDefender({ id: 'p3', type: 'LittlePigs', squads: 1, position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2, p3 } }) as EngineGameState & {
+    const p1 = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const p2 = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const p3 = makeDefender({ unitId: 'p3', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2, p3 } }) as GameState & {
       stackNaming?: {
         groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
         usedGroupNames: string[]
@@ -598,8 +577,8 @@ describe('executeUnitMovement', () => {
   })
 
   it('retires a stacked group when the last unit in it is destroyed', () => {
-    const doomedPig = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 1, position: { q: 1, r: 0 }, status: 'destroyed' })
-    const state = makeState({ currentPhase: 'ONION_MOVE', defenders: { p1: doomedPig } }) as EngineGameState & {
+    const doomedPig = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 1, r: 0 }, state: 'destroyed' })
+    const state = makeState({ currentPhase: 'ONION_MOVE', defenders: { p1: doomedPig } }) as GameState & {
       stackNaming?: {
         groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
         usedGroupNames: string[]
@@ -620,9 +599,9 @@ describe('executeUnitMovement', () => {
   })
 
   it('keeps the older group name when two Little Pigs end on the same hex', () => {
-    const olderPig = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const newerPig = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 3, position: { q: 2, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: olderPig, p2: newerPig } }) as EngineGameState & {
+    const olderPig = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const newerPig = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 2, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: olderPig, p2: newerPig } }) as GameState & {
       stackNaming?: {
         groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
         usedGroupNames: string[]
@@ -664,12 +643,12 @@ describe('executeUnitMovement', () => {
   })
 
   it('allocates a fresh group name when a move reforms a stack on top of a singleton placeholder with a stale ordinal', () => {
-    const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 }, friendlyName: 'Little Pigs 1' })
-    const p2 = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 }, friendlyName: 'Little Pigs 2' })
-    const p3 = makeDefender({ id: 'p3', type: 'LittlePigs', squads: 2, position: { q: 2, r: 0 }, friendlyName: 'Little Pigs 3' })
-    const p4 = makeDefender({ id: 'p4', type: 'LittlePigs', squads: 2, position: { q: 2, r: 0 }, friendlyName: 'Little Pigs 4' })
-    const p5 = makeDefender({ id: 'p5', type: 'LittlePigs', squads: 2, position: { q: 4, r: 0 }, friendlyName: 'Little Pigs 5' })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2, p3, p4, p5 } }) as EngineGameState & {
+    const p1 = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 }, friendlyName: 'Little Pigs 1' })
+    const p2 = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 0, r: 0 }, friendlyName: 'Little Pigs 2' })
+    const p3 = makeDefender({ unitId: 'p3', typeId: 'LittlePigs', position: { q: 2, r: 0 }, friendlyName: 'Little Pigs 3' })
+    const p4 = makeDefender({ unitId: 'p4', typeId: 'LittlePigs', position: { q: 2, r: 0 }, friendlyName: 'Little Pigs 4' })
+    const p5 = makeDefender({ unitId: 'p5', typeId: 'LittlePigs', position: { q: 4, r: 0 }, friendlyName: 'Little Pigs 5' })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2, p3, p4, p5 } }) as GameState & {
       stackNaming?: {
         groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
         usedGroupNames: string[]
@@ -723,7 +702,7 @@ describe('executeUnitMovement', () => {
   })
 
   it('fails fast when a move references a grouped unit absent from defenders', () => {
-    const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
+    const p1 = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1 } })
 
     state.stackNaming = {
@@ -747,10 +726,10 @@ describe('executeUnitMovement', () => {
   })
 
   it('splits a unit from a multi-member group creating a new destination group while preserving the source group', () => {
-    const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const p2 = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const p3 = makeDefender({ id: 'p3', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2, p3 } }) as EngineGameState & {
+    const p1 = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const p2 = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const p3 = makeDefender({ unitId: 'p3', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2, p3 } }) as GameState & {
       stackNaming?: {
         groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
         usedGroupNames: string[]
@@ -783,11 +762,11 @@ describe('executeUnitMovement', () => {
   })
 
   it('moves a split-off unit onto an existing destination group merging into it and preserving both group names', () => {
-    const a1 = makeDefender({ id: 'a1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const a2 = makeDefender({ id: 'a2', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const a3 = makeDefender({ id: 'a3', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 } })
-    const b1 = makeDefender({ id: 'b1', type: 'LittlePigs', squads: 2, position: { q: 1, r: 0 } })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { a1, a2, a3, b1 } }) as EngineGameState & {
+    const a1 = makeDefender({ unitId: 'a1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const a2 = makeDefender({ unitId: 'a2', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const a3 = makeDefender({ unitId: 'a3', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const b1 = makeDefender({ unitId: 'b1', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { a1, a2, a3, b1 } }) as GameState & {
       stackNaming?: {
         groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
         usedGroupNames: string[]
@@ -832,9 +811,9 @@ describe('executeUnitMovement', () => {
   })
 
   it('selects source group name when destination has no roster or persisted naming', () => {
-    const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 }, friendlyName: 'Pig 1' })
-    const p2 = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 }, friendlyName: 'Pig 2' })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2 } }) as EngineGameState & {
+    const p1 = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 }, friendlyName: 'Pig 1' })
+    const p2 = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 0, r: 0 }, friendlyName: 'Pig 2' })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2 } }) as GameState & {
       stackNaming?: {
         groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
         usedGroupNames: string[]
@@ -865,9 +844,9 @@ describe('executeUnitMovement', () => {
   })
 
   it('honors persisted stack naming when present for the destination group', () => {
-    const p1 = makeDefender({ id: 'p1', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 }, friendlyName: 'Pig 1' })
-    const p2 = makeDefender({ id: 'p2', type: 'LittlePigs', squads: 2, position: { q: 0, r: 0 }, friendlyName: 'Pig 2' })
-    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2 } }) as EngineGameState & {
+    const p1 = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 }, friendlyName: 'Pig 1' })
+    const p2 = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 0, r: 0 }, friendlyName: 'Pig 2' })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2 } }) as GameState & {
       stackNaming?: {
         groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>
         usedGroupNames: string[]

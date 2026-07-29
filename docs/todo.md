@@ -25,6 +25,10 @@ break down into features/tasks as needed.
 
 ## Features / Work Items
 
+- [ ] Complete scenario-driven unit deployment after the unit-catalog refactor.
+  - [ ] Define finite-ammunition metadata in global weapon definitions and an authored scenario override keyed by weapon type for starting ammunition; normalize it into dynamic weapon state without accepting unused ammo fields.
+  - [ ] Move faction/side assignment out of global unit definitions and into scenario deployment data so a scenario can assign supporting units to the Onion side.
+  - [ ] Rework the runtime unit maps and phase/combat assumptions around the special Onion vehicle versus a player side, then migrate scenario authoring and tests together.
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
 - [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability.
   - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.

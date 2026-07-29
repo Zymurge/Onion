@@ -12,7 +12,7 @@ import {
 	getUnitRamCapacity,
 	isUnitImmobile,
 } from './unitMovement.js'
-import type { UnitStatus } from './types/index.js'
+import type { DefenderUnit, OnionUnit } from './types/index.js'
 
 export type MoveValidationCode =
 	| 'WRONG_PHASE'
@@ -58,34 +58,19 @@ export type MoveValidationResult =
 export interface MoveValidationState extends GameState {
 	currentPhase: TurnPhase
 	turn: number
-	movementSpent?: Record<string, number>
-	ramsThisTurn?: number
 }
 
-type ResolvedUnit = {
-	unit: {
-		id?: string
-		type: string
-		position: HexPos
-		status: UnitStatus
-		squads?: number
-	}
-	role: 'onion' | 'defender'
-}
+type ResolvedUnit =
+	| { unit: OnionUnit; role: 'onion' }
+	| { unit: DefenderUnit; role: 'defender' }
 
 function resolveUnit(state: MoveValidationState, unitId: string): ResolvedUnit | null {
-	if (state.onion.id === unitId) {
-		return {
-			unit: {
-				...state.onion,
-				type: state.onion.type ?? 'TheOnion',
-				status: state.onion.status ?? 'operational',
-			},
-			role: 'onion',
-		}
+	const onion = state.onions[unitId]
+	if (onion !== undefined) {
+		return { unit: onion, role: 'onion' }
 	}
 
-	const defenderEntry = state.defenders[unitId] ?? Object.values(state.defenders).find((unit) => unit.id === unitId)
+	const defenderEntry = state.defenders[unitId]
 	if (defenderEntry) {
 		return { unit: defenderEntry, role: 'defender' }
 	}
@@ -96,30 +81,32 @@ function resolveUnit(state: MoveValidationState, unitId: string): ResolvedUnit |
 function getOccupantsAt(state: MoveValidationState, destination: HexPos, movingUnitId: string): MoveOccupant[] {
 	const occupants: MoveOccupant[] = []
 
-	if (
-		state.onion.id !== movingUnitId &&
-		state.onion.status !== 'destroyed' &&
-		state.onion.position.q === destination.q &&
-		state.onion.position.r === destination.r
-	) {
-		occupants.push({
-			q: destination.q,
-			r: destination.r,
-			role: 'onion',
-			unitType: state.onion.type ?? 'TheOnion',
-		})
+	for (const onion of Object.values(state.onions)) {
+		if (
+			onion.unitId !== movingUnitId &&
+			onion.state !== 'destroyed' &&
+			onion.position.q === destination.q &&
+			onion.position.r === destination.r
+		) {
+			occupants.push({
+				q: destination.q,
+				r: destination.r,
+				role: 'onion',
+				unitType: onion.typeId,
+			})
+		}
 	}
 
 	for (const [defenderId, defender] of Object.entries(state.defenders)) {
-		if (defenderId === movingUnitId || defender.id === movingUnitId) continue
-		if (defender.status === 'destroyed') continue
+		if (defenderId === movingUnitId || defender.unitId === movingUnitId) continue
+		if (defender.state === 'destroyed') continue
 		if (defender.position.q !== destination.q || defender.position.r !== destination.r) continue
 
 		occupants.push({
 			q: defender.position.q,
 			r: defender.position.r,
 			role: 'defender',
-			unitType: defender.type,
+			unitType: defender.typeId,
 		})
 	}
 
@@ -170,15 +157,15 @@ function collectRammedUnits(state: MoveValidationState, path: HexPos[], movingUn
 
 	for (const position of path) {
 		for (const [defenderId, defender] of Object.entries(state.defenders)) {
-			if (defenderId === movingUnitId || defender.id === movingUnitId) continue
-			if (defender.status === 'destroyed') continue
+			if (defenderId === movingUnitId || defender.unitId === movingUnitId) continue
+			if (defender.state === 'destroyed') continue
 			if (defender.position.q !== position.q || defender.position.r !== position.r) continue
 
-			const targetKey = `${defender.position.q},${defender.position.r}:${defender.type}`
+			const targetKey = `${defender.position.q},${defender.position.r}:${defender.typeId}`
 			if (seenTargets.has(targetKey)) continue
 			seenTargets.add(targetKey)
 
-			rammedUnits.push({ unitId: defender.id ?? defenderId, unitType: defender.type })
+			rammedUnits.push({ unitId: defender.unitId, unitType: defender.typeId })
 		}
 	}
 
@@ -196,10 +183,10 @@ export function validateMove(
 	}
 
 	const { unit, role } = resolved
-	const unitType = unit.type
-	const unitId = unit.id ?? command.unitId
+	const unitType = unit.typeId
+	const unitId = unit.unitId
 	const incomingMembers = 1
-	if (unit.status !== 'operational') {
+	if (unit.state !== 'operational') {
 		return { valid: false, code: 'UNIT_NOT_OPERATIONAL', error: getMoveFailureMessage('UNIT_NOT_OPERATIONAL') }
 	}
 	if (isUnitImmobile(unitType)) {
@@ -221,11 +208,8 @@ export function validateMove(
 	}
 
 	const movementAllowance = getRemainingUnitMovementAllowance(
-		unitType,
+		unit,
 		state.currentPhase,
-		state,
-		unitId,
-		capabilities.hasTreads ? state.onion.treads : undefined,
 	)
 
 	if (movementAllowance === 0) {
@@ -276,9 +260,11 @@ export function validateMove(
 	const attemptRam = command.attemptRam !== false
 	const rammedUnits = capabilities.canRam && attemptRam ? collectRammedUnits(state, pathResult.path, command.unitId) : []
 	const ramCapacityUsed = rammedUnits.length
-	const ramCapacityLimit = getUnitRamCapacity(unitType)
+	const ramCapacityLimit = role === 'onion'
+		? Math.min(getUnitRamCapacity(unitType), unit.ramsRemaining)
+		: getUnitRamCapacity(unitType)
 
-	if (capabilities.canRam && (state.ramsThisTurn ?? 0) + ramCapacityUsed > ramCapacityLimit) {
+	if (capabilities.canRam && ramCapacityUsed > ramCapacityLimit) {
 		return {
 			valid: false,
 			code: 'RAM_LIMIT_EXCEEDED',

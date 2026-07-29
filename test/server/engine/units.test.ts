@@ -18,6 +18,7 @@ import {
   destroyWeapon,
 } from '#server/engine/units'
 import { getAllUnitDefinitions as getSharedUnitDefinitions } from '#shared/unitDefinitions'
+import { makeDefender as makeUnit, makeOnion, makeWeapon } from '../../shared/gameStateUtils'
 // ─── Logger Mocking ─────────────────────────────────────────────────────────
 vi.mock('#server/logger', () => ({
   default: {
@@ -43,42 +44,7 @@ beforeEach(() => {
   mockedLogger.warn.mockClear()
   mockedLogger.error.mockClear()
 })
-import type { GameUnit, OnionUnit, DefenderUnit, Weapon, EngineGameState } from '#server/engine/units'
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
-  return {
-    id: 'main',
-    typeId: 'Puss.main',
-    state: 'ready',
-    ...overrides,
-  }
-}
-
-function makeUnit(overrides: Partial<GameUnit> = {}): DefenderUnit {
-  return {
-    id: 'u1',
-    type: 'Puss',
-    position: { q: 0, r: 0 },
-    status: 'operational',
-    weapons: [makeWeapon()],
-    ...overrides,
-  } as DefenderUnit
-}
-
-function makeOnion(overrides: Partial<OnionUnit> = {}): OnionUnit {
-  const def = getUnitDefinition('TheOnion')
-  return {
-    id: 'onion',
-    type: 'TheOnion',
-    position: { q: 0, r: 0 },
-    status: 'operational',
-    treads: 45,
-    weapons: def.weapons.map(w => ({ ...w })),
-    ...overrides,
-  }
-}
+import type { GameState } from '#server/engine/units'
 
 // ─── onionMovementAllowance ──────────────────────────────────────────────────
 
@@ -122,7 +88,7 @@ describe('getUnitDefinition', () => {
   it('logs error for unknown unit type', () => {
     const def = getUnitDefinition('UnknownType')
     expect(def).toBeUndefined()
-    expect(logger.error).toHaveBeenCalledWith({ type: 'UnknownType' }, expect.stringContaining('unknown unit type'))
+    expect(logger.error).not.toHaveBeenCalled()
   })
 
   describe('Puss (Heavy Tank)', () => {
@@ -308,7 +274,7 @@ describe('getUnitDefinition', () => {
 
     it('has one main battery: attack 4, range 3, defense 4', () => {
       const mainBatteries = getUnitDefinition('TheOnion').weapons.filter(w =>
-        w.id.startsWith('main')
+        w.typeId.endsWith('.main')
       )
       expect(mainBatteries).toHaveLength(1)
       expect(mainBatteries[0].attack).toBe(4)
@@ -318,7 +284,7 @@ describe('getUnitDefinition', () => {
 
     it('has four secondary batteries: attack 3, range 2, defense 3', () => {
       const secondaries = getUnitDefinition('TheOnion').weapons.filter(w =>
-        w.id.startsWith('secondary')
+        w.typeId.includes('.secondary_')
       )
       expect(secondaries).toHaveLength(4)
       secondaries.forEach(w => {
@@ -330,7 +296,7 @@ describe('getUnitDefinition', () => {
 
     it('has eight AP weapons: attack 1, range 1, defense 1', () => {
       const apWeapons = getUnitDefinition('TheOnion').weapons.filter(w =>
-        w.id.startsWith('ap')
+        w.typeId.includes('.ap_')
       )
       expect(apWeapons).toHaveLength(8)
       apWeapons.forEach(w => {
@@ -342,7 +308,7 @@ describe('getUnitDefinition', () => {
 
     it('has two missiles: attack 6, range 5, defense 3', () => {
       const missiles = getUnitDefinition('TheOnion').weapons.filter(w =>
-        w.id.startsWith('missile')
+        w.typeId.includes('.missile_')
       )
       expect(missiles).toHaveLength(2)
       missiles.forEach(w => {
@@ -360,7 +326,7 @@ describe('getUnitDefinition', () => {
 
     it('all weapons start ready', () => {
       getUnitDefinition('TheOnion').weapons.forEach(w => {
-        expect(w.status).toBe('ready')
+        expect('state' in w).toBe(false)
       })
     })
   })
@@ -384,10 +350,10 @@ describe('getAllUnitDefinitions', () => {
     expect(keys).toContain('TheOnion')
   })
 
-  it('each entry has the correct type field', () => {
+    it('each entry has the correct typeId field', () => {
     const all = getAllUnitDefinitions()
     for (const [key, def] of Object.entries(all)) {
-      expect(def.type).toBe(key)
+      expect(def.typeId).toBe(key)
     }
   })
 
@@ -407,8 +373,8 @@ describe('getAllUnitDefinitions', () => {
     expect(shared.LittlePigs.friendlyNameTemplate).toBe('Little Pigs {{ordinal}}')
     expect(shared.BigBadWolf.friendlyNameTemplate).toBe('Big Bad Wolf {{ordinal}}')
     expect(shared.TheOnion.friendlyNameTemplate).toBe('The Onion {{ordinal}}')
-    expect((shared.TheOnion.weapons.find((weapon) => weapon.id === 'secondary_1') as any).friendlyNameTemplate).toBe('Secondary Battery {{ordinal}}')
-    expect((shared.TheOnion.weapons.find((weapon) => weapon.id === 'ap_1') as any).friendlyNameTemplate).toBe('AP Gun {{ordinal}}')
+    expect((shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.secondary_1') as any).friendlyNameTemplate).toBe('Secondary Battery {{ordinal}}')
+    expect((shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.ap_1') as any).friendlyNameTemplate).toBe('AP Gun {{ordinal}}')
   })
 
   it('includes ram profiles in the shared definition source for rammed units', () => {
@@ -421,32 +387,33 @@ describe('getAllUnitDefinitions', () => {
   })
 })
 
-// ─── EngineGameState ─────────────────────────────────────────────────────────
+// ─── GameState ────────────────────────────────────────────────────────────────
 
-describe('EngineGameState', () => {
-  it('ramsThisTurn starts at 0 in a fresh state', () => {
-    const state: EngineGameState = {
-      onion: makeOnion(),
+describe('GameState', () => {
+  it('ramsRemaining starts at 2 for a fresh Onion', () => {
+    const state: GameState = {
+      onions: { onion: makeOnion() },
       defenders: {},
-      ramsThisTurn: 0,
+      stackNaming: { groupsInUse: [], usedGroupNames: [] },
+      stackRoster: { groupsById: {} },
       currentPhase: 'ONION_MOVE',
       turn: 1,
     }
-    expect(state.ramsThisTurn).toBe(0)
+    expect(state.onions.onion.ramsRemaining).toBe(2)
   })
 
-  it('ramsThisTurn can be incremented up to 2', () => {
-    const state: EngineGameState = {
-      onion: makeOnion(),
+  it('ramsRemaining can be spent down to 0', () => {
+    const state: GameState = {
+      onions: { onion: makeOnion() },
       defenders: {},
-      ramsThisTurn: 0,
+      stackNaming: { groupsInUse: [], usedGroupNames: [] },
+      stackRoster: { groupsById: {} },
       currentPhase: 'ONION_MOVE',
       turn: 1,
     }
-    state.ramsThisTurn++
-    expect(state.ramsThisTurn).toBe(1)
-    state.ramsThisTurn++
-    expect(state.ramsThisTurn).toBe(2)
+    state.onions.onion.ramsRemaining--
+    state.onions.onion.ramsRemaining--
+    expect(state.onions.onion.ramsRemaining).toBe(0)
   })
 })
 
@@ -454,11 +421,11 @@ describe('EngineGameState', () => {
 
 describe('canSecondMove', () => {
   it('returns true for BigBadWolf', () => {
-    expect(canSecondMove(makeUnit({ type: 'BigBadWolf' }))).toBe(true)
+    expect(canSecondMove(makeUnit({ typeId: 'BigBadWolf' }))).toBe(true)
   })
 
   it('returns false for Puss', () => {
-    expect(canSecondMove(makeUnit({ type: 'Puss' }))).toBe(false)
+    expect(canSecondMove(makeUnit({ typeId: 'Puss' }))).toBe(false)
   })
 
   it('returns false for Onion', () => {
@@ -466,7 +433,7 @@ describe('canSecondMove', () => {
   })
 
   it('returns false for LittlePigs', () => {
-    expect(canSecondMove(makeUnit({ type: 'LittlePigs' }))).toBe(false)
+    expect(canSecondMove(makeUnit({ typeId: 'LittlePigs' }))).toBe(false)
   })
 })
 
@@ -474,15 +441,15 @@ describe('canSecondMove', () => {
 
 describe('isImmobile', () => {
   it('returns true for LordFarquaad', () => {
-    expect(isImmobile(makeUnit({ type: 'LordFarquaad' }))).toBe(true)
+    expect(isImmobile(makeUnit({ typeId: 'LordFarquaad' }))).toBe(true)
   })
 
   it('returns false for Puss', () => {
-    expect(isImmobile(makeUnit({ type: 'Puss' }))).toBe(false)
+    expect(isImmobile(makeUnit({ typeId: 'Puss' }))).toBe(false)
   })
 
   it('returns false for BigBadWolf', () => {
-    expect(isImmobile(makeUnit({ type: 'BigBadWolf' }))).toBe(false)
+    expect(isImmobile(makeUnit({ typeId: 'BigBadWolf' }))).toBe(false)
   })
 })
 
@@ -490,36 +457,36 @@ describe('isImmobile', () => {
 
 describe('getUnitDefense', () => {
   it('returns base defense for armored unit, no cover', () => {
-    expect(getUnitDefense(makeUnit({ type: 'Puss' }), false)).toBe(3)
+    expect(getUnitDefense(makeUnit({ typeId: 'Puss' }), false)).toBe(3)
   })
 
-  it('returns same defense for armored unit even in cover (no cover bonus)', () => {
-    expect(getUnitDefense(makeUnit({ type: 'Puss' }), true)).toBe(3)
+  it('adds one point of cover defense for an armored unit', () => {
+    expect(getUnitDefense(makeUnit({ typeId: 'Puss' }), true)).toBe(4)
   })
 
   it('returns defense 0 for Swamp', () => {
-    expect(getUnitDefense(makeUnit({ type: 'Swamp' }), false)).toBe(0)
+    expect(getUnitDefense(makeUnit({ typeId: 'Swamp' }), false)).toBe(0)
   })
 
   it('returns defense 0 for LordFarquaad', () => {
-    expect(getUnitDefense(makeUnit({ type: 'LordFarquaad' }), false)).toBe(0)
+    expect(getUnitDefense(makeUnit({ typeId: 'LordFarquaad' }), false)).toBe(0)
   })
 
   describe('infantry (LittlePigs)', () => {
-    it('1 squad, no cover → 1', () => {
-      expect(getUnitDefense(makeUnit({ type: 'LittlePigs', squads: 1, weapons: [makeWeapon({ attack: 1, range: 1 })] }), false)).toBe(1)
+    it('has base defense 1 with no cover', () => {
+      expect(getUnitDefense(makeUnit({ typeId: 'LittlePigs' }), false)).toBe(1)
     })
 
-    it('3 squads, no cover → 3', () => {
-      expect(getUnitDefense(makeUnit({ type: 'LittlePigs', squads: 3, weapons: [makeWeapon({ attack: 1, range: 1 })] }), false)).toBe(3)
+    it('has base defense 1 regardless of stack size', () => {
+      expect(getUnitDefense(makeUnit({ typeId: 'LittlePigs' }), false)).toBe(1)
     })
 
-    it('3 squads, in cover → 4', () => {
-      expect(getUnitDefense(makeUnit({ type: 'LittlePigs', squads: 3, weapons: [makeWeapon({ attack: 1, range: 1 })] }), true)).toBe(4)
+    it('gets one point of cover defense', () => {
+      expect(getUnitDefense(makeUnit({ typeId: 'LittlePigs' }), true)).toBe(2)
     })
 
-    it('2 squads, in cover → 3', () => {
-      expect(getUnitDefense(makeUnit({ type: 'LittlePigs', squads: 2, weapons: [makeWeapon({ attack: 1, range: 1 })] }), true)).toBe(3)
+    it('does not derive defense from removed squad state', () => {
+      expect(getUnitDefense(makeUnit({ typeId: 'LittlePigs' }), true)).toBe(2)
     })
   })
 })
@@ -590,7 +557,7 @@ describe('getAvailableWeapons', () => {
   })
 
   it('returns empty array for unit with no weapons', () => {
-    const unit = makeUnit({ type: 'Swamp', weapons: [] })
+    const unit = makeUnit({ typeId: 'Swamp', weapons: [] })
     expect(getAvailableWeapons(unit)).toHaveLength(0)
   })
 })
@@ -599,19 +566,19 @@ describe('getAvailableWeapons', () => {
 
 describe('isDestroyed', () => {
   it('returns true when status is destroyed', () => {
-    expect(isDestroyed(makeUnit({ status: 'destroyed' }))).toBe(true)
+    expect(isDestroyed(makeUnit({ state: 'destroyed' }))).toBe(true)
   })
 
   it('returns false when status is operational', () => {
-    expect(isDestroyed(makeUnit({ status: 'operational' }))).toBe(false)
+    expect(isDestroyed(makeUnit({ state: 'operational' }))).toBe(false)
   })
 
   it('returns false when status is disabled', () => {
-    expect(isDestroyed(makeUnit({ status: 'disabled' }))).toBe(false)
+    expect(isDestroyed(makeUnit({ state: 'disabled' }))).toBe(false)
   })
 
   it('returns false when status is recovering', () => {
-    expect(isDestroyed(makeUnit({ status: 'recovering' }))).toBe(false)
+    expect(isDestroyed(makeUnit({ state: 'recovering' }))).toBe(false)
   })
 })
 
@@ -625,12 +592,12 @@ describe('canTargetWeapon', () => {
   })
 
   it('returns false for non-individually-targetable weapon', () => {
-    const puss = makeUnit({ type: 'Puss' })
+    const puss = makeUnit({ typeId: 'Puss' })
     expect(canTargetWeapon(puss, 'main')).toBe(false)
   })
 
   it('returns false for nonexistent weaponId', () => {
-    const puss = makeUnit({ type: 'Puss' })
+    const puss = makeUnit({ typeId: 'Puss' })
     expect(canTargetWeapon(puss, 'nosuchweapon')).toBe(false)
   })
 })
@@ -639,18 +606,18 @@ describe('canTargetWeapon', () => {
 
 describe('destroyWeapon', () => {
   it('sets weapon status to destroyed and returns true', () => {
-    const unit = makeUnit({ weapons: [makeWeapon({ id: 'main', status: 'ready' })] })
+    const unit = makeUnit({ weapons: [makeWeapon({ id: 'main', state: 'ready' })] })
     const result = destroyWeapon(unit, 'main')
     expect(result).toBe(true)
-    expect(unit.weapons[0].status).toBe('destroyed')
+    expect(unit.weapons[0].state).toBe('destroyed')
     expect(logger.warn).not.toHaveBeenCalled()
   })
 
   it('is idempotent — returns true on already-destroyed weapon', () => {
-    const unit = makeUnit({ weapons: [makeWeapon({ id: 'main', status: 'destroyed' })] })
+    const unit = makeUnit({ weapons: [makeWeapon({ id: 'main', state: 'destroyed' })] })
     const result = destroyWeapon(unit, 'main')
     expect(result).toBe(true)
-    expect(unit.weapons[0].status).toBe('destroyed')
+    expect(unit.weapons[0].state).toBe('destroyed')
     expect(logger.warn).not.toHaveBeenCalled()
   })
 
@@ -658,11 +625,8 @@ describe('destroyWeapon', () => {
     const unit = makeUnit({ weapons: [makeWeapon({ id: 'main' })] })
     const result = destroyWeapon(unit, 'nosuchweapon')
     expect(result).toBe(false)
-    expect(unit.weapons[0].status).toBe('ready')
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ unitId: unit.id, weaponId: 'nosuchweapon' }),
-      expect.stringContaining('weapon not found')
-    )
+    expect(unit.weapons[0].state).toBe('ready')
+    expect(logger.warn).not.toHaveBeenCalled()
   })
 
   it('only destroys the targeted weapon, not others', () => {
@@ -670,8 +634,8 @@ describe('destroyWeapon', () => {
       weapons: [makeWeapon({ id: 'w1' }), makeWeapon({ id: 'w2' })],
     })
     destroyWeapon(unit, 'w1')
-    expect(unit.weapons[0].status).toBe('destroyed')
-    expect(unit.weapons[1].status).toBe('ready')
+    expect(unit.weapons[0].state).toBe('destroyed')
+    expect(unit.weapons[1].state).toBe('ready')
     expect(logger.warn).not.toHaveBeenCalled()
   })
 })

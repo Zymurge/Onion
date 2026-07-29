@@ -11,6 +11,7 @@ import {
 } from './integration.helpers.js'
 import { hexDistance } from '#shared/hex'
 import { getUnitDefinition } from '#server/engine/units'
+import { getOnion } from '#shared/unitState'
 import type { Weapon, DefenderUnit } from '#shared/types/index'
 
 type TestUser = { userId: string; token: string }
@@ -69,7 +70,14 @@ async function setupIntegrationGame(seed: string, scenarioId = 'swamp-siege-01')
   expect(stateRes.statusCode).toBe(200)
   const initialState = stateRes.json()
   assertStateMatches(initialState.state, expectedState)
-  expectedState.onion.id = initialState.state.onion.id
+  const onionIds = Object.keys(initialState.state.onions ?? {})
+  expect(onionIds).toHaveLength(1)
+  const authoredOnionId = onionIds[0]
+  if (authoredOnionId === undefined) {
+    throw new Error('Integration scenario must define one Onion')
+  }
+  const onionId = getOnion(authoredOnionId, initialState.state)
+  expect(onionId).toBe(authoredOnionId)
 
   return {
     app,
@@ -78,7 +86,7 @@ async function setupIntegrationGame(seed: string, scenarioId = 'swamp-siege-01')
     defenderUser,
     scenarioMap: scenario.map,
     expectedState,
-    onionId: initialState.state.onion.id,
+    onionId,
     tracking: {
       onionAttackTargetId: null,
       defenderAttackUnitIds: [],

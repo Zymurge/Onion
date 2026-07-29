@@ -38,19 +38,19 @@ describe('unit movement helpers', () => {
 	})
 
 	it('tracks remaining movement after spending hexes in the current phase', () => {
-		const state = { movementSpent: {} }
+		const unit = { unitId: 'wolf-2', typeId: 'Puss', movementSpent: {} }
 
-		expect(getRemainingUnitMovementAllowance('Puss', 'DEFENDER_MOVE', state, 'wolf-2')).toBe(3)
-		spendUnitMovement(state, 'DEFENDER_MOVE', 'wolf-2', 1)
-		expect(getRemainingUnitMovementAllowance('Puss', 'DEFENDER_MOVE', state, 'wolf-2')).toBe(2)
-		spendUnitMovement(state, 'DEFENDER_MOVE', 'wolf-2', 2)
-		expect(getRemainingUnitMovementAllowance('Puss', 'DEFENDER_MOVE', state, 'wolf-2')).toBe(0)
+		expect(getRemainingUnitMovementAllowance(unit, 'DEFENDER_MOVE')).toBe(3)
+		spendUnitMovement(unit, 'DEFENDER_MOVE', 1)
+		expect(getRemainingUnitMovementAllowance(unit, 'DEFENDER_MOVE')).toBe(2)
+		spendUnitMovement(unit, 'DEFENDER_MOVE', 2)
+		expect(getRemainingUnitMovementAllowance(unit, 'DEFENDER_MOVE')).toBe(0)
 	})
 
 	it('keeps GEV second move separate from defender move spending', () => {
-		const state = { movementSpent: {} }
+		const unit = { unitId: 'wolf-2', typeId: 'BigBadWolf', movementSpent: {} }
 
-		spendUnitMovement(state, 'DEFENDER_MOVE', 'wolf-2', 3)
-		expect(getRemainingUnitMovementAllowance('BigBadWolf', 'GEV_SECOND_MOVE', state, 'wolf-2')).toBe(3)
+		spendUnitMovement(unit, 'DEFENDER_MOVE', 3)
+		expect(getRemainingUnitMovementAllowance(unit, 'GEV_SECOND_MOVE')).toBe(3)
 	})
 })

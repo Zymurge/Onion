@@ -9,6 +9,7 @@ export type TurnPhase =
 export type UnitState = 'operational' | 'disabled' | 'recovering' | 'destroyed'
 export type WeaponState = 'ready' | 'spent' | 'destroyed'
 export type WeaponClass = 'main' | 'secondary' | 'ap' | 'missile'
+export type MovementSpent = Partial<Record<TurnPhase, number>>
 
 export type PlayerRole = 'onion' | 'defender'
 export type UnitTypeId = string
@@ -160,7 +161,7 @@ export type UnitTypeCatalog = Readonly<Record<UnitTypeId, OnionUnitType | Defend
  * @property state The current status of the unit, which can be "operational", "disabled", "recovering", or "destroyed".
  * @property weapons An array of weapons associated with the unit, each with its own state and properties.
  * @property friendlyName Human-readable name for the unit.
- * @property movementSpent A record of movement points spent by phase for the onion unit in the current turn.
+ * @property movementSpent A record of movement points spent by phase for this unit in the current turn.
 */
 export interface UnitStatus {
   unitId: string
@@ -169,7 +170,7 @@ export interface UnitStatus {
   state: UnitState
   weapons: ReadonlyArray<Weapon>
   friendlyName: string
-  movementSpent?: Partial<Record<TurnPhase, number>>
+  movementSpent?: MovementSpent
 }
 
 /**

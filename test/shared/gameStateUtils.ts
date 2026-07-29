@@ -8,7 +8,7 @@ import type {
   StackRosterState,
   Weapon,
 } from '#shared/types/index'
-import { DEFAULT_ONION_UNIT_TYPE_ID } from '#shared/unitDefinitions'
+import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog } from '#shared/unitDefinitions'
 
 /**
  * Utility to create a new Weapon object with default properties, allowing for overrides.
@@ -32,7 +32,7 @@ export function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
  * @returns A new DefenderUnit object with the specified overrides.
  */
 export function makeDefender(overrides: Partial<DefenderUnit> = {}): DefenderUnit {
-  return {
+  const defaultDefender: DefenderUnit = {
     unitId: 'puss-1',
     typeId: 'Puss',
     role: 'defender',
@@ -42,6 +42,15 @@ export function makeDefender(overrides: Partial<DefenderUnit> = {}): DefenderUni
     friendlyName: 'Puss 1',
     ...overrides,
   }
+
+  if (overrides.friendlyName === undefined && overrides.typeId !== undefined) {
+    const template = getUnitTypeCatalog()[defaultDefender.typeId]?.friendlyNameTemplate
+    if (template !== undefined) {
+      defaultDefender.friendlyName = buildFriendlyName(template, defaultDefender.unitId)
+    }
+  }
+
+  return defaultDefender
 }
 
 /**

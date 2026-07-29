@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import type { MatchRecord } from '#server/db/adapter'
 import { checkVictoryConditions } from '#server/engine/phases'
+import { ScenarioSchema, type InitialState } from '#server/engine/scenarioSchema'
 import type { GameStateResponse, VictoryEscapeHex, VictoryObjectiveState } from '#shared/apiProtocol'
 import { hexKey } from '#shared/hex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
@@ -14,7 +15,6 @@ import { getDefender, getOnionOrDefender } from '#shared/unitState'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
 import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
-import type { EngineGameState } from '#server/engine/units'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
 
 const SCENARIOS_DIR = resolveScenariosDir()
@@ -185,7 +185,39 @@ export type ScenarioSnapshot = {
     }
   }
   map?: AuthoredScenarioMap
-  initialState?: unknown
+  initialState?: InitialState
+}
+
+export type ValidatedScenarioSnapshot = Omit<ScenarioSnapshot, 'map' | 'initialState'> & {
+  id: string
+  description: string
+  map: ExplicitScenarioMap
+  initialState: InitialState
+}
+
+export class ScenarioValidationError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.name = 'ScenarioValidationError'
+  }
+}
+
+export function parseScenarioSnapshot(raw: unknown): ValidatedScenarioSnapshot {
+  const parsed = ScenarioSchema.safeParse(raw)
+  if (!parsed.success) {
+    throw new ScenarioValidationError('Scenario does not match the required schema', { cause: parsed.error })
+  }
+
+  try {
+    const translated = translateScenarioSnapshot(parsed.data)
+    if (translated === undefined || translated.map === undefined) {
+      throw new Error('Scenario map is missing')
+    }
+
+    return translated as ValidatedScenarioSnapshot
+  } catch (error) {
+    throw new ScenarioValidationError('Scenario map is invalid', { cause: error })
+  }
 }
 
 export function getScenarioEscapeHexes(scenarioSnapshot: ScenarioSnapshot | undefined): VictoryEscapeHex[] {
@@ -212,15 +244,22 @@ export function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined)
   const translatedInitialState = initial.initialState && typeof initial.initialState === 'object'
     ? (() => {
       const state = initial.initialState as {
-        onion?: { position?: { q: number; r: number } }
+        onions?: Record<string, { position?: { q: number; r: number } }>
         defenders?: Record<string, { position?: { q: number; r: number } }>
       }
 
       return {
         ...state,
-        onion: state.onion?.position
-          ? { ...state.onion, position: translateScenarioCoord(state.onion.position, radius) }
-          : state.onion,
+        onions: state.onions
+          ? Object.fromEntries(
+            Object.entries(state.onions).map(([key, onion]) => [
+              key,
+              onion.position
+                ? { ...onion, position: translateScenarioCoord(onion.position, radius) }
+                : onion,
+            ]),
+          )
+          : state.onions,
         defenders: state.defenders
           ? Object.fromEntries(
             Object.entries(state.defenders).map(([key, defender]) => [
@@ -285,33 +324,26 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
   assertScenarioPositionsInMap(scenarioMap, positions)
 }
 
-export function buildEngineState(match: MatchRecord): EngineGameState {
+export function buildEngineState(match: MatchRecord): GameState {
   assertCanonicalStackGroupNames(match.state)
   const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming, match.state.defenders)
   return {
     ...structuredClone(match.state),
     stackRoster: structuredClone(match.state.stackRoster) ?? { groupsById: {} },
     stackNaming,
-    ramsThisTurn: match.state.ramsThisTurn ?? 0,
     currentPhase: match.phase,
     turn: match.turnNumber,
-  } as EngineGameState
+  }
 }
 
 export function buildMovementRemainingByUnit(state: GameState, phase: TurnPhase): Record<string, number> {
   const movementRemainingByUnit: Record<string, number> = {}
   for (const onion of Object.values(state.onions)) {
-    movementRemainingByUnit[onion.unitId] = getRemainingUnitMovementAllowance(
-      onion.typeId,
-      phase,
-      state,
-      onion.unitId,
-      onion.treads,
-    )
+    movementRemainingByUnit[onion.unitId] = getRemainingUnitMovementAllowance(onion, phase)
   }
 
   for (const defender of Object.values(state.defenders)) {
-    movementRemainingByUnit[defender.unitId] = getRemainingUnitMovementAllowance(defender.typeId, phase, state, defender.unitId)
+    movementRemainingByUnit[defender.unitId] = getRemainingUnitMovementAllowance(defender, phase)
   }
 
   return movementRemainingByUnit
@@ -379,12 +411,11 @@ export function computeWinnerUserId(
   phase: TurnPhase,
   turnNumber: number,
 ): string | null {
-  const engineState = {
+  const engineState: GameState = {
     ...structuredClone(state),
-    ramsThisTurn: state.ramsThisTurn ?? 0,
     currentPhase: phase,
     turn: turnNumber,
-  } as EngineGameState
+  }
 
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
@@ -802,32 +833,33 @@ export function parseWsMessage(rawMessage: string): WebSocketClientMessage | nul
   return null
 }
 
-export async function loadScenario(id: string): Promise<(ScenarioSnapshot & { id?: string; displayName?: string }) | null> {
+export async function loadScenario(id: string): Promise<ValidatedScenarioSnapshot | null> {
+  let files: string[]
   try {
-    const files = await readdir(SCENARIOS_DIR)
-    for (const file of files.filter((f) => f.endsWith('.json'))) {
-      const fullPath = join(SCENARIOS_DIR, file)
-      const raw = await readFile(fullPath, 'utf8')
-      let scenario: any
-      try {
-        scenario = JSON.parse(raw)
-      } catch {
-        continue
-      }
-      if (scenario.id === id) {
-        const translated = translateScenarioSnapshot(scenario)
-        if (!translated) {
-          return null
-        }
-
-        return {
-          ...translated,
-          displayName: translated.displayName ?? translated.name,
-        }
-      }
-    }
+    files = await readdir(SCENARIOS_DIR)
   } catch {
     // directory unreadable — treat as not found
+    return null
+  }
+
+  for (const file of files.filter((f) => f.endsWith('.json'))) {
+    const fullPath = join(SCENARIOS_DIR, file)
+    const raw = await readFile(fullPath, 'utf8')
+    let scenario: unknown
+    try {
+      scenario = JSON.parse(raw)
+    } catch {
+      continue
+    }
+
+    if (typeof scenario === 'object' && scenario !== null && 'id' in scenario && scenario.id === id) {
+      const translated = parseScenarioSnapshot(scenario)
+
+      return {
+        ...translated,
+        displayName: translated.displayName ?? translated.name,
+      }
+    }
   }
 
   return null
