@@ -11,6 +11,7 @@ import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenario
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
 import { getUnitDefinition } from '#shared/unitDefinitions'
+import { parseCombatTargetId } from '#shared/combatTarget'
 import { getDefender, getOnionOrDefender } from '#shared/unitState'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
 import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
@@ -488,6 +489,8 @@ export function buildCombatEvents(
       timestamp,
       ...(phase === undefined ? {} : { phase }),
       onionId,
+      targetId: result.targetId,
+      targetFriendlyName,
       amount: result.treadsLost,
       remaining: onion.treads,
     })
@@ -675,6 +678,11 @@ function resolveCombatParticipantFriendlyName(state: GameState, attackerId: stri
 }
 
 function resolveTargetFriendlyName(state: GameState, targetId: string, ownerOnionId?: string): string {
+  const parsedTarget = parseCombatTargetId(targetId)
+  if (parsedTarget?.kind === 'treads') {
+    return `${resolveUnitFriendlyName(state, parsedTarget.onionId)} treads`
+  }
+
   const unitFriendlyName = resolveUnitFriendlyName(state, targetId)
   if (unitFriendlyName !== targetId) {
     return unitFriendlyName

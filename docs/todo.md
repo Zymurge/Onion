@@ -9,12 +9,6 @@ break down into features/tasks as needed.
   - [x] Render Little Pigs stack size directly inside the marker and keep yellow/inactive marker text dark for readability.
   - [x] Extract the shared stack naming engine into a standalone module that can track used group names and active groups.
   - [x] Move per-unit movement spend onto the unit records themselves and reset it at phase boundaries.
-- [ ] Make Onion tread targeting a first-class explicit target across web, API, and server contracts instead of aliasing generic Onion targeting to treads.
-  - [ ] Preserve the existing special tread rules while making the target identity explicit: tread targeting still uses its special defense-strength logic, tread-damage resolution, and defender stack-limit rules.
-  - [ ] Current coupling is favorable but real: the web already carries a synthetic `onion-id:treads` identity through target selection and downstream UI state, then translates it back to the plain Onion id at submit time.
-  - [ ] Main migration risk is the cross-layer target contract, not the combat math. Server validation/execution already distinguishes tread vs weapon targets internally, but external request/event semantics still use generic Onion ids for tread attacks.
-  - [ ] Review and update all places that currently depend on the alias behavior: web target generation and selection state, combat submit helpers, API target parsing/validation, emitted combat events, friendly target naming, and inactive/combat result formatting.
-  - [ ] Expect the largest affected surface to be tests and integration fixtures. Favor a TDD migration because the change is likely to touch many expectations around target ids, target labels, multi-attacker tread restrictions, and emitted event payloads.
 
 ## Epics / Major Work
 
@@ -32,12 +26,6 @@ break down into features/tasks as needed.
   - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.
   - [ ] Replace tooltip-only detail exposure with explicit accessible disclosure patterns where details are important to gameplay comprehension.
   - [ ] Known issue: `InactiveEventStream` currently exposes event details only through the row `title` tooltip, which is not a sufficient keyboard/screen-reader interaction path.
-- [ ] Make Onion tread targeting a first-class explicit target across web, API, and server contracts instead of aliasing generic Onion targeting to treads.
-  - [ ] Preserve the existing special tread rules while making the target identity explicit: tread targeting still uses its special defense-strength logic, tread-damage resolution, and defender stack-limit rules.
-  - [ ] Current coupling is favorable but real: the web already carries a synthetic `onion-id:treads` identity through target selection and downstream UI state, then translates it back to the plain Onion id at submit time.
-  - [ ] Main migration risk is the cross-layer target contract, not the combat math. Server validation/execution already distinguishes tread vs weapon targets internally, but external request/event semantics still use generic Onion ids for tread attacks.
-  - [ ] Review and update all places that currently depend on the alias behavior: web target generation and selection state, combat submit helpers, API target parsing/validation, emitted combat events, friendly target naming, and inactive/combat result formatting.
-  - [ ] Expect the largest affected surface to be tests and integration fixtures. Favor a TDD migration because the change is likely to touch many expectations around target ids, target labels, multi-attacker tread restrictions, and emitted event payloads.
 
 ## Done
 
@@ -47,6 +35,13 @@ break down into features/tasks as needed.
   - [x] Treat single-value Onion maps as valid state without introducing a separate genuinely-single-Onion invariant.
   - [x] Ensure every event that involves the Onion carries the Onion instance identity as an attacker, target, or move object.
   - [x] Update combat calls that currently receive only a weapon ID, whether as an attacker or target, so they also carry the owning Onion `unitId`.
+- [x] Make Onion tread targeting a first-class explicit target across web, API, and server contracts.
+  - [x] Add the shared parser and formatter for the canonical `onion-id:treads` target ID.
+  - [x] Require explicit tread target IDs in server validation and preserve them through execution results.
+  - [x] Emit canonical tread target IDs and friendly names in combat and tread-loss events.
+  - [x] Emit canonical tread target IDs from web target selection and commit builders.
+  - [x] Update focused unit, API, WebSocket, and integration coverage for the new contract.
+  - [x] Document the target ID and event semantics in the API, CLI, and web UI specifications.
 - [x] Connect debug screen to API output (next)
 - [x] Audit defense source of truth for units and weapons so defense is defined once in the unit/weapon model and only derived for effective combat situations.
 - [x] Reuse the left-rail step badge area to show the selected group's combined attack value while units are selected or deselected.

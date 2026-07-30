@@ -5,7 +5,7 @@ import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
 import { buildGameStateResponse } from '#server/api/gamesHelpers'
 import { DEFAULT_ONION_UNIT_TYPE_ID } from '#shared/unitDefinitions'
-import { makeDefender, makeGameState, makeOnion } from '../../shared/gameStateUtils.js'
+import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 
 let state: GameState = makeGameState()
 
@@ -17,16 +17,14 @@ function makeGameStateWithUnits(): GameState {
       'pigs-2':  makeDefender({ unitId: 'pigs-2',  typeId: 'LittlePigs', position: { q: 1, r: 1 }, weapons: [] }),
       'swamp-1': makeDefender({ unitId: 'swamp-1', typeId: 'Swamp',      position: { q: 2, r: 2 }, weapons: [] }),
     },
-    stackRoster: { 
+    stackRoster: makeStackRoster({
       groupsById: {
-        'LittlePigs:1,1': {
-          groupName: 'Little Pigs group 1',
-          unitType: 'LittlePigs',
+        'LittlePigs:1,1': makeStackGroup({
           position: { q: 1, r: 1 },
           unitIds: ['pigs-1', 'pigs-2'],
-        },
+        }),
       },
-    },
+    }),
     stackNaming: {
       groupsInUse: [
         'LittlePigs:1,1',
@@ -40,6 +38,32 @@ beforeEach(() => {
 })
 
 describe('buildCombatEvents', () => {
+  it('uses an explicit tread target identity and friendly label', () => {
+    const events = buildCombatEvents(
+      10,
+      { type: 'FIRE', attackers: ['pigs-1'], targetId: 'onion-1:treads', onionId: 'onion-1' },
+      {
+        targetId: 'onion-1:treads',
+        roll: { roll: 6, result: 'X', odds: '1:1' },
+        treadsLost: 2,
+      },
+      state,
+    )
+
+    expect(events[0]).toMatchObject({
+      type: 'FIRE_RESOLVED',
+      targetId: 'onion-1:treads',
+      targetFriendlyName: 'The Onion 1 treads',
+    })
+    expect(events[1]).toMatchObject({
+      type: 'ONION_TREADS_LOST',
+      onionId: 'onion-1',
+      targetId: 'onion-1:treads',
+      targetFriendlyName: 'The Onion 1 treads',
+      amount: 2,
+    })
+  })
+
   it('uses the weapon friendly name for weapon targets', () => {
     const events = buildCombatEvents(
       20,
@@ -369,7 +393,7 @@ describe('buildVictoryObjectiveStates', () => {
   })
 
   it('does not derive stackRoster from defender co-location when canonical stackRoster is absent', () => {
-    state.stackRoster = { groupsById: {} }
+    state.stackRoster = makeStackRoster({ groupsById: {} })
     expect(() => buildGameStateResponse(
       {
         gameId: 4,
@@ -482,16 +506,14 @@ describe('buildVictoryObjectiveStates', () => {
               weapons: [],
             },
           },
-          stackRoster: {
+          stackRoster: makeStackRoster({
             groupsById: {
-              'LittlePigs:4,4': {
-                groupName: 'Little Pigs group 1',
-                unitType: 'LittlePigs',
+              'LittlePigs:4,4': makeStackGroup({
                 position: { q: 4, r: 4 },
                 unitIds: ['pigs-1', 'pigs-2'],
-              },
+              }),
             },
-          },
+          }),
         },
         events: [],
       } as any,

@@ -4,17 +4,18 @@ import {
   makeDefender,
   makeGameState,
   makeOnion,
+  makeStackFixture,
   makeStackNaming,
   makeStackRoster,
   makeWeapon,
-} from './gameStateUtils'
+} from '#test/utils/gameStateUtils'
 
 describe('GameState test helpers', () => {
   it('creates canonical defaults for units and state', () => {
     const state = makeGameState()
 
     expect(state.onions['onion-1']).toEqual(makeOnion())
-    expect(state.defenders).toEqual({})
+    expect(Object.keys(state.defenders)).toEqual(['swamp-1', 'pigs-1', 'pigs-2', 'puss-1'])
     expect(state.stackNaming).toEqual(makeStackNaming())
     expect(state.stackRoster).toEqual(makeStackRoster())
     expect(state.currentPhase).toBe('ONION_COMBAT')
@@ -51,7 +52,65 @@ describe('GameState test helpers', () => {
       id: 'missile',
       typeId: 'TheOnion.secondary_1',
       state: 'ready',
+      friendlyName: 'Main Battery 1',
       ammo: 3,
     })
+  })
+
+  it('derives defenders, roster, and naming from stack groups', () => {
+    const fixture = makeStackFixture({
+      groups: {
+        'stack-1': {
+          groupName: 'Little Pigs group 4',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 4 },
+          unitIds: ['pigs-7', 'pigs-8'],
+        },
+      },
+      unitOverrides: {
+        'pigs-7': { state: 'disabled', friendlyName: 'Damaged Pig 7' },
+      },
+    })
+
+    expect(fixture.defenders['pigs-7']).toMatchObject({
+      unitId: 'pigs-7',
+      typeId: 'LittlePigs',
+      position: { q: 4, r: 4 },
+      state: 'disabled',
+      friendlyName: 'Damaged Pig 7',
+    })
+    expect(fixture.defenders['pigs-8']).toMatchObject({
+      unitId: 'pigs-8',
+      typeId: 'LittlePigs',
+      position: { q: 4, r: 4 },
+    })
+    expect(fixture.stackRoster.groupsById['stack-1']?.unitIds).toEqual(['pigs-7', 'pigs-8'])
+    expect(fixture.stackNaming).toEqual({
+      groupsInUse: [{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 4', unitType: 'LittlePigs' }],
+      usedGroupNames: ['Little Pigs group 4'],
+    })
+  })
+
+  it('merges stack fixture output into preexisting game state data', () => {
+    const baseState = makeGameState()
+    const fixture = makeStackFixture({
+      groups: {
+        'stack-2': {
+          groupName: 'Little Pigs group 2',
+          unitType: 'LittlePigs',
+          position: { q: 2, r: 2 },
+          unitIds: ['pigs-3'],
+        },
+      },
+      base: baseState,
+    })
+    const state = makeGameState({ ...fixture, currentPhase: 'DEFENDER_MOVE' })
+
+    expect(state.defenders['pigs-1']).toBeDefined()
+    expect(state.defenders['pigs-3']).toMatchObject({ position: { q: 2, r: 2 } })
+    expect(state.stackRoster.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
+    expect(state.stackRoster.groupsById['stack-2']?.unitIds).toEqual(['pigs-3'])
+    expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+    expect(state.currentPhase).toBe('DEFENDER_MOVE')
   })
 })

@@ -10,6 +10,7 @@ import {
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex, type UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
 import { getDisplayDefense, getTerrainValueAt, isWeaponSelectionId, resolveBattlefieldFriendlyName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './appViewHelpers'
+import { formatCombatTargetId } from '../../shared/combatTarget'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState, TerrainType } from '../../shared/types/index'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
@@ -253,7 +254,7 @@ export function buildCombatTargetOptions({
 						},
 						{
 							unitType: unit.typeId,
-							targetRules: UNIT_DEFINITIONS[unit.typeId]?.targetRules,
+							targetRules: unit.targetRules ?? UNIT_DEFINITIONS[unit.typeId]?.targetRules,
 						},
 					),
 				),
@@ -347,7 +348,7 @@ export function buildCombatTargetOptions({
 
 	return [
 		{
-			id: displayedOnion.id,
+			id: formatCombatTargetId({ kind: 'treads', onionId: displayedOnion.id }),
 			kind: 'onion' as const,
 			q: onionPosition.q,
 			r: onionPosition.r,

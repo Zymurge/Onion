@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
-import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
+import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import type { GameAction, ServerGameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
-import { isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
+import { getAuthoritativeOnion, isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
 import { buildMoveCommitAction } from './commitActionBuilders'
 import { clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
 import type { TurnPhase } from '../../shared/types/index'
@@ -37,8 +37,8 @@ function summarizeStackState(
   }
 
   const stackableDefenderIds = Object.values(state.defenders)
-    .filter((defender) => isUnitTypeStackable(defender.type))
-    .map((defender) => defender.id)
+    .filter((defender) => isUnitTypeStackable(defender.typeId))
+    .map((defender) => defender.unitId)
   const stackRosterGroupKeys = Object.keys(state.stackRoster?.groupsById ?? {})
 
   return `unitId=${unitId}, phase=${phase ?? 'unknown'}, stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupKeys.join(', ') || 'none'}`
@@ -70,13 +70,14 @@ function buildMoveMapSnapshot(snapshot: ServerGameSnapshot, movingUnitId: string
     return null
   }
 
+  const onion = getAuthoritativeOnion(authoritativeState)
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
-    ...(authoritativeState.onion.id !== movingUnitId && authoritativeState.onion.status !== 'destroyed'
-      ? [{ q: authoritativeState.onion.position.q, r: authoritativeState.onion.position.r, role: 'onion' as const, unitType: authoritativeState.onion.type ?? 'TheOnion', squads: 1 }]
+    ...(onion.unitId !== movingUnitId && onion.state !== 'destroyed'
+      ? [{ q: onion.position.q, r: onion.position.r, role: 'onion' as const, unitType: onion.typeId, squads: 1 }]
       : []),
     ...Object.values(authoritativeState.defenders)
-      .filter((unit) => unit.id !== movingUnitId && unit.status !== 'destroyed')
-      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.type, squads: unit.squads })),
+      .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.typeId, squads: (unit as typeof unit & { squads?: number }).squads })),
   ]
 
   return {
@@ -97,17 +98,16 @@ function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to:
     return null
   }
 
-  const onion = snapshot.authoritativeState.onion
-  if (unitId !== onion.id || onion.status !== 'operational') {
+  const onion = getAuthoritativeOnion(snapshot.authoritativeState)
+  if (unitId !== onion.unitId || onion.state !== 'operational') {
     return null
   }
 
-  const remainingRams = Math.max(getUnitRamCapacity(onion.type ?? 'TheOnion') - (snapshot.authoritativeState.ramsThisTurn ?? 0), 0)
-  if (remainingRams === 0) {
+  if (onion.ramsRemaining === 0) {
     return null
   }
 
-  const movementAllowance = snapshot.movementRemainingByUnit?.[unitId] ?? getUnitMovementAllowance(onion.type ?? 'TheOnion', snapshot.phase, onion.treads)
+  const movementAllowance = snapshot.movementRemainingByUnit?.[unitId] ?? getUnitMovementAllowance(onion.typeId, snapshot.phase, onion.treads)
   const moveMap = buildMoveMapSnapshot(snapshot, unitId)
   if (moveMap === null) {
     return null
@@ -119,7 +119,7 @@ function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to:
     to,
     movementAllowance,
     movingRole: 'onion',
-    movingUnitType: onion.type ?? 'TheOnion',
+    movingUnitType: onion.typeId,
     incomingSquads: 1,
   })
 
@@ -133,8 +133,8 @@ function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to:
     return null
   }
 
-  const targetDefender = Object.values(snapshot.authoritativeState.defenders).find((unit) => unit.position.q === rammedStep.q && unit.position.r === rammedStep.r && unit.status !== 'destroyed')
-  const targetLabel = targetDefender?.type ?? 'occupied hex'
+  const targetDefender = Object.values(snapshot.authoritativeState.defenders).find((unit) => unit.position.q === rammedStep.q && unit.position.r === rammedStep.r && unit.state !== 'destroyed')
+  const targetLabel = targetDefender?.typeId ?? 'occupied hex'
 
   return {
     unitId,
@@ -332,13 +332,14 @@ export function useBattlefieldInteractionState({
 
     const authoritativeState = clientSnapshot?.authoritativeState
     const selectionOwnerUnitId = resolveSelectionOwnerUnitId(unitId)
+    const authoritativeOnion = authoritativeState === undefined ? null : getAuthoritativeOnion(authoritativeState)
     const destroyedUnit = authoritativeState === undefined
       ? false
-      : selectionOwnerUnitId === authoritativeState.onion.id
-        ? authoritativeState.onion.status === 'destroyed'
+      : selectionOwnerUnitId === authoritativeOnion?.unitId
+        ? authoritativeOnion.state === 'destroyed'
         : (() => {
           const defender = authoritativeState.defenders[selectionOwnerUnitId]
-          return defender?.status === 'destroyed' && defender.type !== 'Swamp'
+          return defender?.state === 'destroyed' && defender.typeId !== 'Swamp'
         })()
 
     if (destroyedUnit) {
@@ -349,7 +350,7 @@ export function useBattlefieldInteractionState({
     const preserveCombatSelection =
       clientSnapshotPhase === 'ONION_COMBAT' &&
       !additive &&
-      selectionOwnerUnitId !== authoritativeState?.onion.id &&
+      selectionOwnerUnitId !== authoritativeOnion?.unitId &&
       authoritativeState?.defenders[selectionOwnerUnitId] !== undefined &&
       baseSelection.some(isWeaponSelectionId)
 

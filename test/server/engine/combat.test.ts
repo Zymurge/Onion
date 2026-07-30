@@ -39,7 +39,7 @@ import type { GameMap } from '#server/engine/map'
 import type { GameState } from '#shared/types/index'
 import { getOnion } from '#shared/unitState'
 import { DEFAULT_ONION_UNIT_TYPE_ID } from '#shared/unitDefinitions'
-import { makeDefender, makeGameState, makeOnion, makeWeapon } from '../../shared/gameStateUtils.js'
+import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster, makeWeapon } from '#test/utils/gameStateUtils'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -336,7 +336,7 @@ describe('getValidTargets', () => {
     const defender = makeDefender({ unitId: 'd1', position: { q: 0, r: 0 } })
     const state = makeState({ onions: { 'onion-1': onion }, defenders: { d1: defender } })
     const targets = getValidTargets(CLEAR_MAP, state, defender)
-    expect(targets).toContain('onion-1')
+    expect(targets).toContain('onion-1:treads')
   })
 
   it('defender cannot target Onion when out of weapon range', () => {
@@ -345,7 +345,7 @@ describe('getValidTargets', () => {
     const defender = makeDefender({ unitId: 'd1', position: { q: 0, r: 0 } })
     const state = makeState({ onions: { 'onion-1': onion }, defenders: { d1: defender } })
     const targets = getValidTargets(CLEAR_MAP, state, defender)
-    expect(targets).not.toContain('onion-1')
+    expect(targets).not.toContain('onion-1:treads')
   })
 })
 
@@ -444,13 +444,13 @@ describe('validateCombatAction', () => {
     const state = makeState({
       currentPhase: 'DEFENDER_COMBAT',
       defenders: { d1, d2 },
-      stackRoster: { groupsById: {} },
+      stackRoster: makeStackRoster({ groupsById: {} }),
     })
 
     const result = validateCombatAction(CLEAR_MAP, state, {
       type: 'FIRE',
       attackers: ['d1', 'd2'],
-      targetId: 'onion-1',
+      targetId: 'onion-1:treads',
       onionId: 'onion-1',
     })
 
@@ -465,29 +465,46 @@ describe('validateCombatAction', () => {
     const state = makeState({
       currentPhase: 'DEFENDER_COMBAT',
       defenders: { d1, d2 },
-      stackRoster: {
+      stackRoster: makeStackRoster({
         groupsById: {
-          'LittlePigs:1,0': {
-            groupName: 'Little Pigs group 1',
-            unitType: 'LittlePigs',
+          'LittlePigs:1,0': makeStackGroup({
             position: { q: 1, r: 0 },
             unitIds: ['d1', 'd2'],
-          },
+          }),
         },
-      },
+      }),
     })
 
     const result = validateCombatAction(CLEAR_MAP, state, {
       type: 'FIRE',
       attackers: ['d1', 'd2'],
-      targetId: 'onion-1',
+      targetId: 'onion-1:treads',
       onionId: 'onion-1',
     })
 
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.plan.target.kind).toBe('treads')
+    expect(result.plan.target.id).toBe('onion-1:treads')
     expect(result.plan.attackStrength).toBeGreaterThan(0)
+  })
+
+  it('rejects the bare Onion ID when a defender submits a tread attack', () => {
+    const d1 = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1 } })
+
+    const result = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['d1'],
+      targetId: 'onion-1',
+      onionId: 'onion-1',
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'INVALID_TARGET',
+      error: expect.any(String),
+    })
   })
 
   it('accepts defender fire against an Onion subsystem', () => {
@@ -536,7 +553,7 @@ describe('validateCombatAction', () => {
     const first = validateCombatAction(CLEAR_MAP, state, {
       type: 'FIRE',
       attackers: ['d1'],
-      targetId: 'onion-1',
+      targetId: 'onion-1:treads',
       onionId: 'onion-1',
     })
 
@@ -549,7 +566,7 @@ describe('validateCombatAction', () => {
     const second = validateCombatAction(CLEAR_MAP, state, {
       type: 'FIRE',
       attackers: ['d1'],
-      targetId: 'onion-1',
+      targetId: 'onion-1:treads',
       onionId: 'onion-1',
     })
 
@@ -570,7 +587,7 @@ describe('executeCombatAction', () => {
     const validation = validateCombatAction(CLEAR_MAP, state, {
       type: 'FIRE',
       attackers: ['d1'],
-      targetId: 'onion-1',
+      targetId: 'onion-1:treads',
       onionId: 'onion-1',
     })
 
@@ -580,7 +597,7 @@ describe('executeCombatAction', () => {
     const result = executeCombatAction(state, validation.plan, 6)
     expect(result.success).toBe(true)
     expect(result.treadsLost).toBeGreaterThan(0)
-    expect(result.targetId).toBe('onion-1')
+    expect(result.targetId).toBe('onion-1:treads')
     expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({ plan: expect.any(Object) }),
       expect.stringContaining('Executing combat action')

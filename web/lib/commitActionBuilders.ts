@@ -37,11 +37,11 @@ function resolveUnitType(state: WebStackSourceState, unitId: string | null): str
     return null
   }
 
-  if (state.onion?.id === unitId) {
-    return state.onion.type ?? 'TheOnion'
+  if (state.onion?.unitId === unitId) {
+    return state.onion.typeId
   }
 
-  return state.defenders?.[unitId]?.type ?? null
+  return state.defenders?.[unitId]?.typeId ?? null
 }
 
 function isStackableUnitType(unitType: string | null): boolean {

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildApp } from '#server/app'
 import { StaleMatchStateError } from '#server/db/adapter'
 import * as engineGameInternal from '#server/engine/game'
-import { makeGameState, makeOnion } from '../../shared/gameStateUtils'
+import { makeGameState, makeOnion } from '#test/utils/gameStateUtils'
 import { createGame, endPhase, getEvents, joinGame, register } from './helpers.js'
 
 describe('POST /games/:id/actions END_PHASE', () => {

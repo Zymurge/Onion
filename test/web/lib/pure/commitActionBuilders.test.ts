@@ -135,6 +135,26 @@ describe('commitActionBuilders', () => {
   })
 
   describe('buildCombatCommitAction', () => {
+    it('preserves the explicit tread target identity in a FIRE action', () => {
+      const state = createTestStackState()
+
+      expect(buildCombatCommitAction({
+        state,
+        anchorUnitId: 'wolf-1',
+        selectedUnitIds: ['wolf-1'],
+        targetId: 'onion-1:treads',
+        onionId: 'onion-1',
+      })).toEqual({
+        ok: true,
+        action: {
+          type: 'FIRE',
+          attackers: ['wolf-1'],
+          targetId: 'onion-1:treads',
+          onionId: 'onion-1',
+        },
+      })
+    })
+
     it('builds a FIRE action when the active unit is a stack and members are selected', () => {
       const state = createTestStackState()
 
@@ -149,7 +169,7 @@ describe('commitActionBuilders', () => {
         action: {
           type: 'FIRE',
           attackers: ['pigs-2'],
-          targetId: 'onion-1',
+          targetId: 'onion-1:treads',
           onionId: 'onion-1',
         },
       })
@@ -169,7 +189,7 @@ describe('commitActionBuilders', () => {
         action: {
           type: 'FIRE',
           attackers: ['wolf-1'],
-          targetId: 'onion-1',
+          targetId: 'onion-1:treads',
           onionId: 'onion-1',
         },
       })

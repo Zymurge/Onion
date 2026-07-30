@@ -1,14 +1,15 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
-import { resolveBattlefieldDisplayName, resolveSelectionOwnerUnitId } from '../lib/appViewHelpers'
+import { isBattlefieldWeaponReady, resolveBattlefieldDisplayName, resolveSelectionOwnerUnitId } from '../lib/appViewHelpers'
 import { getBattlefieldPosition, statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
+import { formatCombatTargetId } from '../../shared/combatTarget'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
-import type { DefenderMap, StackRosterState } from '../../shared/types/index'
+import type { DefenderMap, StackRosterState, TurnPhase } from '../../shared/types/index'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 import logger from '../lib/logger'
@@ -124,42 +125,49 @@ function buildMoveValidationState(
   defenders: ReadonlyArray<BattlefieldUnit>,
   selectedOccupant: HexOccupant,
   selectedAllowance: number,
+  stackNaming: StackNamingSnapshot | undefined,
+  stackRoster: StackRosterState | undefined,
 ): MoveValidationState | null {
   if (phase !== 'ONION_MOVE' && phase !== 'DEFENDER_MOVE' && phase !== 'GEV_SECOND_MOVE') {
     return null
   }
 
-  const movementSpent: Record<string, number> = {}
   const baseAllowance = selectedOccupant.id === onion.id
     ? getUnitMovementAllowance(onion.type, phase, onion.treads)
     : getUnitMovementAllowance(selectedOccupant.type, phase)
   const spent = Math.max(baseAllowance - selectedAllowance, 0)
 
-  if (spent > 0) {
-    movementSpent[`${phase}:${selectedOccupant.id}`] = spent
-  }
-
   return {
-    onion: {
-      id: onion.id,
-      type: onion.type,
-      position: getBattlefieldPosition(onion),
-      status: onion.status,
-      treads: onion.treads,
+    onions: {
+      [onion.id]: {
+        unitId: onion.id,
+        typeId: onion.type,
+        role: 'onion',
+        friendlyName: onion.friendlyName,
+        position: getBattlefieldPosition(onion),
+        state: onion.status,
+        treads: onion.treads,
+        ramsRemaining: onion.rams,
+        weapons: onion.weaponDetails ?? [],
+      },
     },
     defenders: Object.fromEntries(
       defenders.map((defender) => [defender.id, {
-        id: defender.id,
-        type: defender.type,
+        unitId: defender.unitId,
+        typeId: defender.typeId,
+        role: 'defender',
+        friendlyName: defender.friendlyName,
         position: getBattlefieldPosition(defender),
-        status: defender.status,
+        state: defender.state,
+        weapons: defender.weaponDetails ?? [],
         squads: defender.squads,
+        targetRules: defender.targetRules,
       }]),
     ),
-    ramsThisTurn: 0,
-    currentPhase: phase,
+    stackNaming: stackNaming ?? { groupsInUse: [], usedGroupNames: [] },
+    stackRoster: stackRoster ?? { groupsById: {} },
+    currentPhase: phase as TurnPhase,
     turn: 0,
-    movementSpent,
   }
 }
 
@@ -175,11 +183,12 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
 
     const defenderLookup = Object.fromEntries(
       defenders.map((defender) => [defender.id, {
-        id: defender.id,
-        type: defender.type,
+        unitId: defender.unitId,
+        typeId: defender.typeId,
+        role: 'defender' as const,
         friendlyName: defender.friendlyName,
         position: defender.position,
-        status: defender.status,
+        state: defender.state,
         targetRules: defender.targetRules,
         squads: defender.squads,
       }]),
@@ -282,7 +291,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
       return null
     }
 
-    const validationState = buildMoveValidationState(phase, onion, defenders, selectedOccupant, selectedAllowance)
+    const validationState = buildMoveValidationState(phase, onion, defenders, selectedOccupant, selectedAllowance, stackNaming, stackRoster)
     if (validationState === null) {
       return null
     }
@@ -404,7 +413,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
 
   function getCombatTargetIdForOccupant(occupant: HexOccupant): string {
     if (activeCombatRole === 'defender' && occupant.id === onion.id) {
-      return `${onion.id}:treads`
+      return formatCombatTargetId({ kind: 'treads', onionId: onion.id })
     }
 
     return occupant.id
@@ -681,7 +690,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                         const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
                         const isMovementPhaseActiveSide = phase === 'ONION_MOVE' ? isOccupantOnion : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE' ? !isOccupantOnion : false
                         const combatHasReadyAttack = isOccupantOnion
-                          ? (occupant.weaponDetails ?? []).some((weapon) => weapon.status === 'ready')
+                              ? (occupant.weaponDetails ?? []).some(isBattlefieldWeaponReady)
                           : 'actionableModes' in occupant && occupant.actionableModes.includes('fire')
                         const moveHasRemaining = isOccupantOnion
                           ? onion.movesRemaining > 0
@@ -772,7 +781,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                                   inspectable: occupant.status !== 'destroyed' || occupant.type === 'Swamp',
                                   moveEligible: isMovementPhase && occupant.status === 'operational' && (occupant.id === onion.id ? onion.movesRemaining > 0 : 'move' in occupant && occupant.move > 0),
                                   attackerEligible: isCombatPhase && occupant.status === 'operational' && (occupant.id === onion.id
-                                    ? resolvedViewerRole === 'onion' && (occupant.weaponDetails ?? []).some((weapon) => weapon.status === 'ready')
+                                    ? resolvedViewerRole === 'onion' && (occupant.weaponDetails ?? []).some(isBattlefieldWeaponReady)
                                     : resolvedViewerRole === 'defender' && 'actionableModes' in occupant && occupant.actionableModes.includes('fire')),
                                   targetEligible: false,
                                 },

@@ -280,12 +280,44 @@ turn), not as a separate command.
 Combat uses a single `FIRE` command shape for both Onion and defender attacks.
 
 ```json
-{ "type": "FIRE", "attackers": [string, ...], "targetId": string }
+{ "type": "FIRE", "attackers": [string, ...], "targetId": string, "onionId": string }
 ```
 
 `attackers` contains one or more attacker IDs. For Onion, each entry is a weapon id. For defenders, each entry is a unit id. The engine resolves whether the command is valid for the current phase and target.
 
 `FIRE` with multiple attackers is legal when attacking a weapon or unit target, but not when targeting Onion treads. In that case, each attacker must fire separately.
+
+#### Combat Target IDs
+
+`targetId` is a cross-layer wire identifier. The server is authoritative for
+target legality, but all clients and event consumers must use the same target
+identity:
+
+- Defender units, defender stacks, and individually targetable weapons use the
+  opaque IDs supplied by the game state, such as `wolf-1`, `LittlePigs:3,2`, or
+  `main`.
+- Onion treads use the explicit structured form `{onionId}:treads`, such as
+  `onion-1:treads`.
+- A bare Onion unit ID is not a tread target. `onion-1` must not be submitted
+  when the intended target is the Onion's treads.
+- The `:treads` suffix is exact. Clients must not add whitespace, extra
+  suffixes, or a different subsystem spelling.
+
+The canonical tread target is preserved in successful responses and combat
+events. `FIRE_RESOLVED` and `ONION_TREADS_LOST` include the canonical
+`targetId` and its corresponding `targetFriendlyName` (for example,
+`The Onion treads`).
+
+Example defender attack against Onion treads:
+
+```json
+{
+  "type": "FIRE",
+  "attackers": ["wolf-1"],
+  "targetId": "onion-1:treads",
+  "onionId": "onion-1"
+}
+```
 
 ### Movement Commands
 
@@ -380,6 +412,7 @@ WEAPON_FIRED      { weaponType: string, weaponIndex: number, targetId: string,
                     roll: number, result: "NE" | "D" | "X" }
 
 FIRE_RESOLVED     { attackers: string[], targetId: string,
+                    targetFriendlyName: string,
                     attackStrength: number, defenseStrength: number,
                     roll: number, result: "NE" | "D" | "X" }
 ```
@@ -389,7 +422,9 @@ FIRE_RESOLVED     { attackers: string[], targetId: string,
 ```text
 UNIT_STATUS_CHANGED   { unitId: string, from: UnitStatus, to: UnitStatus }
 UNIT_SQUADS_LOST      { unitId: string, amount: number }
-ONION_TREADS_LOST     { amount: number, remaining: number }
+ONION_TREADS_LOST     { onionId: string, targetId: string,
+                        targetFriendlyName: string,
+                        amount: number, remaining: number }
 ONION_BATTERY_DESTROYED { weaponId: string, weaponType: string }
 ```
 

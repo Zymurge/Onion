@@ -79,7 +79,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     const res = await submitAction(app, gameId, fiona.token, {
       type: 'FIRE',
       attackers: ['wolf-1', 'puss-1'],
-      targetId: 'onion-1',
+      targetId: 'onion-1:treads',
       onionId: 'onion-1',
     })
 
@@ -196,7 +196,7 @@ describe('POST /games/:id/actions combat API contract', () => {
         actionType: 'FIRE',
         attackerIds: ['wolf-1'],
         onionId: 'onion-1',
-        target: { kind: 'treads', id: 'onion' },
+        target: { kind: 'treads', id: 'onion-1:treads' },
         attackStrength: 2,
         defense: 0,
       },
@@ -208,7 +208,7 @@ describe('POST /games/:id/actions combat API contract', () => {
         actionType: 'FIRE',
         attackerIds: ['wolf-1'],
         onionId: 'onion-1',
-        targetId: 'onion-1',
+        targetId: 'onion-1:treads',
         roll: { roll: 6, result: 'X', odds: '1:1' },
         treadsLost: 2,
       }
@@ -217,7 +217,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     const res = await submitAction(app, gameId, fiona.token, {
       type: 'FIRE',
       attackers: ['wolf-1'],
-      targetId: 'onion-1',
+      targetId: 'onion-1:treads',
       onionId: 'onion-1',
     })
 
@@ -226,8 +226,10 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.ok).toBe(true)
     expect(body.events[0].type).toBe('FIRE_RESOLVED')
     expect(body.events[0].attackers).toEqual(['wolf-1'])
-    expect(body.events[0].targetId).toBe('onion-1')
+    expect(body.events[0].targetId).toBe('onion-1:treads')
     expect(body.events[1].type).toBe('ONION_TREADS_LOST')
+    expect(body.events[1].targetId).toBe('onion-1:treads')
+    expect(body.events[1].onionId).toBe('onion-1')
     expect(body.events[1].amount).toBe(2)
     expect(body.events[1].remaining).toBe(43)
     expect(body.events[0].causeId).toBeDefined()
@@ -238,7 +240,7 @@ describe('POST /games/:id/actions combat API contract', () => {
         actionType: 'FIRE',
         outcome: expect.objectContaining({
           attackers: ['wolf-1'],
-          targetId: 'onion-1',
+          targetId: 'onion-1:treads',
           roll: 6,
           outcome: 'X',
           odds: '1:1',

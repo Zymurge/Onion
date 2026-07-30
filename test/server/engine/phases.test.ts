@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { TURN_PHASES, nextPhase, phaseActor, checkVictoryConditions, advancePhase } from '#server/engine/phases'
 import type { GameState, Weapon } from '#server/engine/units'
-import { makeDefender as makeUnit, makeGameState, makeOnion } from '../../shared/gameStateUtils'
+import { makeDefender as makeUnit, makeGameState, makeOnion } from '#test/utils/gameStateUtils'
 
 describe('TURN_PHASES', () => {
   it('contains all 6 phases in order', () => {

@@ -8,15 +8,7 @@ import {
 	resolveStackLabelFromSnapshot,
 	resolveStackUnitName,
 } from '#shared/stackNaming'
-import type { StackRosterGroupState, StackRosterState } from '#shared/types/index'
-
-function createStackRoster(groupsById: Record<string, StackRosterGroupState | undefined>): StackRosterState {
-	return {
-		groupsById: Object.fromEntries(
-			Object.entries(groupsById).filter((entry): entry is [string, StackRosterGroupState] => entry[1] !== undefined),
-		),
-	}
-}
+import { makeDefender, makeStackFixture } from '#test/utils/gameStateUtils'
 
 describe('stack naming', () => {
 	it('resolves canonical unit names from unit definitions', () => {
@@ -66,6 +58,31 @@ describe('stack naming', () => {
 	})
 
 	it('refreshes active groups and drops missing ones from the snapshot', () => {
+		const fixture = makeStackFixture({
+			groups: {
+				'g-a': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+				'g-b': {
+					groupName: 'Little Pigs group 2',
+					unitType: 'LittlePigs',
+					position: { q: 5, r: 5 },
+					unitIds: ['pigs-3', 'pigs-4'],
+				},
+				'g-c': {
+					groupName: 'Big Bad Wolf group',
+					unitType: 'BigBadWolf',
+					position: { q: 7, r: 7 },
+					unitIds: ['wolf-1'],
+				},
+			},
+			unitOverrides: {
+				'wolf-1': { state: 'destroyed' },
+			},
+		})
 		const snapshot = refreshStackNamingSnapshotFromRoster(
 			{
 				groupsInUse: [
@@ -74,35 +91,8 @@ describe('stack naming', () => {
 				],
 				usedGroupNames: ['Little Pigs group'],
 			},
-			{
-				groupsById: {
-					'g-a': {
-						groupName: 'Little Pigs group 1',
-						unitType: 'LittlePigs',
-						position: { q: 4, r: 4 },
-						unitIds: ['pigs-1', 'pigs-2'],
-					},
-					'g-b': {
-						groupName: 'Little Pigs group 2',
-						unitType: 'LittlePigs',
-						position: { q: 5, r: 5 },
-						unitIds: ['pigs-3', 'pigs-4'],
-					},
-					'g-c': {
-						groupName: 'Big Bad Wolf group',
-						unitType: 'BigBadWolf',
-						position: { q: 7, r: 7 },
-						unitIds: ['wolf-1'],
-					},
-				},
-			},
-			[
-				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', squads: 3, friendlyName: 'Little Pigs 1' },
-				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', squads: 2, friendlyName: 'Little Pigs 2' },
-				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 5 }, status: 'operational', squads: 2, friendlyName: 'Little Pigs 3' },
-				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 5, r: 5 }, status: 'operational', squads: 2, friendlyName: 'Little Pigs 4' },
-				{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 7 }, status: 'destroyed', squads: 2, friendlyName: 'Big Bad Wolf 1' },
-			],
+			fixture.stackRoster,
+			Object.values(fixture.defenders),
 		)
 
 		expect(snapshot.groupsInUse).toHaveLength(2)
@@ -121,39 +111,35 @@ describe('stack naming', () => {
 	})
 
 	it('refreshes stack names from the authoritative roster and keeps stackable singleton groups', () => {
+		const fixture = makeStackFixture({
+			groups: {
+				'g-a': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+				'g-b': {
+					groupName: 'Little Pigs group 2',
+					unitType: 'LittlePigs',
+					position: { q: 5, r: 4 },
+					unitIds: ['pigs-3'],
+				},
+				'g-c': {
+					groupName: 'Big Bad Wolf group',
+					unitType: 'BigBadWolf',
+					position: { q: 7, r: 4 },
+					unitIds: ['wolf-1'],
+				},
+			},
+		})
 		const snapshot = refreshStackNamingSnapshotFromRoster(
 			{
 				groupsInUse: [{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
 				usedGroupNames: ['Little Pigs group 1'],
 			},
-			{
-				groupsById: {
-					'g-a': {
-						groupName: 'Little Pigs group 1',
-						unitType: 'LittlePigs',
-						position: { q: 4, r: 4 },
-						unitIds: ['pigs-1', 'pigs-2'],
-					},
-					'g-b': {
-						groupName: 'Little Pigs group 2',
-						unitType: 'LittlePigs',
-						position: { q: 5, r: 4 },
-						unitIds: ['pigs-3'],
-					},
-					'g-c': {
-						groupName: 'Big Bad Wolf group',
-						unitType: 'BigBadWolf',
-						position: { q: 7, r: 4 },
-						unitIds: ['wolf-1'],
-					},
-				},
-			},
-			[
-				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2' },
-				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 3' },
-				{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 4 }, status: 'operational', friendlyName: 'Big Bad Wolf 1' },
-			],
+			fixture.stackRoster,
+			Object.values(fixture.defenders),
 		)
 
 		expect(snapshot.groupsInUse).toHaveLength(2)
@@ -170,10 +156,11 @@ describe('stack naming', () => {
 		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
 	})
 
-	it.each([
-		{
-			name: 'split to empty',
-			stackRoster: createStackRoster({
+	it('preserves duplicate source IDs in an explicit split edge case', () => {
+		const snapshot = refreshStackNamingSnapshotFromRoster(
+			undefined,
+			{
+				groupsById: {
 					'LittlePigs:4,7': {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
@@ -192,70 +179,58 @@ describe('stack naming', () => {
 						position: { q: 5, r: 8 },
 						unitIds: ['pigs-1', 'pigs-2'],
 					},
-				}),
-			units: [
-				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 2' },
-				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 3' },
-				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 4' },
+				},
+			},
+			[
+				makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 7 }, friendlyName: 'Little Pigs 1' }),
+				makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 5, r: 8 }, friendlyName: 'Little Pigs 1' }),
+				makeDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 8 }, friendlyName: 'Little Pigs 2' }),
+				makeDefender({ unitId: 'pigs-3', typeId: 'LittlePigs', position: { q: 5, r: 7 }, friendlyName: 'Little Pigs 3' }),
+				makeDefender({ unitId: 'pigs-4', typeId: 'LittlePigs', position: { q: 5, r: 7 }, friendlyName: 'Little Pigs 4' }),
 			],
-			expected: [
-				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
-				{ groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2' },
-				{ groupKey: 'LittlePigs:5,8', groupName: 'Little Pigs group 3' },
-			],
-		},
+		)
+
+		expect(snapshot.groupsInUse).toHaveLength(3)
+	})
+
+	it.each([
 		{
 			name: 'split onto existing stack',
-			stackRoster: createStackRoster({
-					'LittlePigs:4,7': {
-						groupName: 'Little Pigs group 1',
-						unitType: 'LittlePigs',
-						position: { q: 4, r: 7 },
-						unitIds: ['pigs-1'],
-					},
-					'LittlePigs:5,7': {
-						groupName: 'Little Pigs group 2',
-						unitType: 'LittlePigs',
-						position: { q: 5, r: 7 },
-						unitIds: ['pigs-2', 'pigs-3', 'pigs-4', 'pigs-5'],
-					},
-				}),
-			units: [
-				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
-				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 3' },
-				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 4' },
-				{ id: 'pigs-5', type: 'LittlePigs', position: { q: 5, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 5' },
-			],
+			fixture: makeStackFixture({ groups: {
+				'LittlePigs:4,7': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 7 },
+					unitIds: ['pigs-1'],
+				},
+				'LittlePigs:5,7': {
+					groupName: 'Little Pigs group 2',
+					unitType: 'LittlePigs',
+					position: { q: 5, r: 7 },
+					unitIds: ['pigs-2', 'pigs-3', 'pigs-4', 'pigs-5'],
+				},
+			} }),
 			expected: [
-					{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
+				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
 				{ groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2' },
 			],
 		},
 		{
 			name: 'whole stack move to empty',
-			stackRoster: createStackRoster({
-					'LittlePigs:4,7': {
-						groupName: 'Little Pigs group 1',
-						unitType: 'LittlePigs',
-						position: { q: 4, r: 7 },
-						unitIds: ['pigs-1', 'pigs-2'],
-					},
-					'LittlePigs:5,8': {
-						groupName: 'Little Pigs group 2',
-						unitType: 'LittlePigs',
-						position: { q: 5, r: 8 },
-						unitIds: ['pigs-3', 'pigs-4'],
-					},
-				}),
-			units: [
-				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
-				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 3' },
-				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 5, r: 8 }, status: 'operational', friendlyName: 'Little Pigs 4' },
-			],
+			fixture: makeStackFixture({ groups: {
+				'LittlePigs:4,7': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 7 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+				'LittlePigs:5,8': {
+					groupName: 'Little Pigs group 2',
+					unitType: 'LittlePigs',
+					position: { q: 5, r: 8 },
+					unitIds: ['pigs-3', 'pigs-4'],
+				},
+			} }),
 			expected: [
 				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
 				{ groupKey: 'LittlePigs:5,8', groupName: 'Little Pigs group 2' },
@@ -263,46 +238,34 @@ describe('stack naming', () => {
 		},
 		{
 			name: 'whole stack move onto existing stack',
-			stackRoster: createStackRoster({
-					'LittlePigs:4,7': {
+			fixture: makeStackFixture({ groups: {
+				'LittlePigs:4,7': {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 7 },
 						unitIds: ['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4'],
 					},
-				}),
-			units: [
-				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
-				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 3' },
-				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 4' },
-			],
+			} }),
 			expected: [
 				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
 			],
 		},
 		{
 			name: 'merge two preexisting groups',
-			stackRoster: createStackRoster({
-					'LittlePigs:4,7': {
-						groupName: 'Little Pigs group 2',
-						unitType: 'LittlePigs',
-						position: { q: 4, r: 7 },
-						unitIds: ['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4'],
-					},
-				}),
-			units: [
-				{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-				{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 2' },
-				{ id: 'pigs-3', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 3' },
-				{ id: 'pigs-4', type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', friendlyName: 'Little Pigs 4' },
-			],
+			fixture: makeStackFixture({ groups: {
+				'LittlePigs:4,7': {
+					groupName: 'Little Pigs group 2',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 7 },
+					unitIds: ['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4'],
+				},
+			} }),
 			expected: [
 				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 2' },
 			],
 		},
-	])('covers the stack move matrix for $name', ({ stackRoster, units, expected }) => {
-		const snapshot = refreshStackNamingSnapshotFromRoster(undefined, stackRoster, units)
+	])('covers the stack move matrix for $name', ({ fixture, expected }) => {
+		const snapshot = refreshStackNamingSnapshotFromRoster(undefined, fixture.stackRoster, Object.values(fixture.defenders))
 
 		expect(snapshot.groupsInUse).toHaveLength(expected.length)
 		for (const entry of expected) {

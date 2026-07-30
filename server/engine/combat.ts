@@ -16,6 +16,7 @@ import {
 } from '#shared/combatCalculator'
 import { ONION_STATIC_RULES } from '#shared/staticRules'
 import { isTargetAllowedByRules } from '#shared/targetRules'
+import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import { getUnitDefinition, getWeaponType } from '#shared/unitDefinitions'
 import { buildStackRosterIndex } from '#shared/stackRoster'
 import { getWeaponDefense } from '#shared/unitDefinitions'
@@ -225,8 +226,9 @@ function buildCombatCalculatorInput(
 
 function resolveOnionTarget(state: GameState, onionId: string, targetId: string): CombatTarget | null {
   const onion = requireOnion(state, onionId)
-  if (targetId === onion.unitId) {
-    return { kind: 'treads', id: onion.unitId }
+  const parsedTarget = parseCombatTargetId(targetId)
+  if (parsedTarget?.kind === 'treads' && parsedTarget.onionId === onion.unitId) {
+    return { kind: 'treads', id: formatCombatTargetId(parsedTarget) }
   }
 
   const weapon = onion.weapons.find((candidate) => candidate.id === targetId && getWeaponType(candidate.typeId).individuallyTargetable)
@@ -235,6 +237,10 @@ function resolveOnionTarget(state: GameState, onionId: string, targetId: string)
   }
 
   return null
+}
+
+function formatResolvedTargetId(target: CombatTarget): string {
+  return target.id
 }
 
 export function resolveCombatOutcome(
@@ -528,14 +534,14 @@ export function executeCombatAction(
         actionType: plan.actionType,
         attackerIds: plan.attackerIds,
         onionId: plan.onionId,
-        targetId: plan.target.id,
+        targetId: formatResolvedTargetId(plan.target),
         error: 'Invalid target for Onion fire',
       }
     }
 
     const defender = state.defenders[plan.target.id]
     if (!defender) {
-      return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: plan.target.id, error: 'Target not found' }
+      return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: formatResolvedTargetId(plan.target), error: 'Target not found' }
     }
 
     if (defender.state === 'destroyed') {
@@ -544,7 +550,7 @@ export function executeCombatAction(
         actionType: plan.actionType,
         attackerIds: plan.attackerIds,
         onionId: plan.onionId,
-        targetId: plan.target.id,
+        targetId: formatResolvedTargetId(plan.target),
         error: 'Target is already destroyed',
       }
     }
@@ -554,10 +560,10 @@ export function executeCombatAction(
     for (const weaponId of firingWeaponIds) {
       const weapon = onion.weapons.find((candidate) => candidate.id === weaponId)
       if (!weapon) {
-        return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: plan.target.id, error: `Weapon '${weaponId}' not found` }
+        return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: formatResolvedTargetId(plan.target), error: `Weapon '${weaponId}' not found` }
       }
       if (weapon.state !== 'ready') {
-        return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: plan.target.id, error: `Weapon '${weaponId}' is not ready` }
+        return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: formatResolvedTargetId(plan.target), error: `Weapon '${weaponId}' is not ready` }
       }
       firingWeapons.push(weapon)
     }
@@ -621,7 +627,7 @@ export function executeCombatAction(
     actionType: plan.actionType,
     attackerIds: plan.attackerIds,
     onionId: plan.onionId,
-    targetId: plan.target.kind === 'treads' ? onion.unitId : plan.target.id,
+    targetId: formatResolvedTargetId(plan.target),
     roll: combatRoll,
     treadsLost: damage.treads,
     destroyedWeaponId: damage.weaponDestroyed,
@@ -740,7 +746,7 @@ export function getValidTargets(
     // Defender targets each Onion independently.
     for (const onion of Object.values(state.onions)) {
       if (hexDistance(firingUnit.position, onion.position) <= maxRange) {
-        results.push(onion.unitId)
+        results.push(formatCombatTargetId({ kind: 'treads', onionId: onion.unitId }))
       }
     }
   }

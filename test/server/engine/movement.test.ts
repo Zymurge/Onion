@@ -14,7 +14,7 @@ import type { MovementPlan } from '#server/engine/movement'
 import type { GameState } from '#server/engine/units'
 import logger from '#server/logger'
 import { buildStackRosterFromUnits } from '#shared/stackRoster'
-import { makeDefender, makeGameState, makeOnion } from '../../shared/gameStateUtils'
+import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 
 let infoSpy: any, warnSpy: any, errorSpy: any;
 
@@ -497,16 +497,15 @@ describe('executeUnitMovement', () => {
       groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group'],
     }
-    state.stackRoster = {
+    state.stackRoster = makeStackRoster({
       groupsById: {
-        'LittlePigs:0,0': {
+        'LittlePigs:0,0': makeStackGroup({
           groupName: 'Little Pigs group',
-          unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2'],
-        },
+        }),
       },
-    }
+    })
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))
 
@@ -545,16 +544,15 @@ describe('executeUnitMovement', () => {
       groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group'],
     }
-    state.stackRoster = {
+    state.stackRoster = makeStackRoster({
       groupsById: {
-        'LittlePigs:0,0': {
+        'LittlePigs:0,0': makeStackGroup({
           groupName: 'Little Pigs group',
-          unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2', 'p3'],
-        },
+        }),
       },
-    }
+    })
 
     expect(executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 5, r: 4 } })).success).toBe(true)
     expect(state.stackRoster?.groupsById['LittlePigs:5,4']).toMatchObject({
@@ -589,7 +587,7 @@ describe('executeUnitMovement', () => {
       groupsInUse: [{ groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group 1'],
     }
-    state.stackRoster = { groupsById: {} }
+    state.stackRoster = makeStackRoster({ groupsById: {} })
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'onion', from: { q: 0, r: 0 }, to: { q: 2, r: 0 } }))
 
@@ -615,22 +613,20 @@ describe('executeUnitMovement', () => {
       ],
       usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
     }
-    state.stackRoster = {
+    state.stackRoster = makeStackRoster({
       groupsById: {
-        'LittlePigs:0,0': {
+        'LittlePigs:0,0': makeStackGroup({
           groupName: 'Little Pigs group 1',
-          unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['p1'],
-        },
-        'LittlePigs:2,0': {
+        }),
+        'LittlePigs:2,0': makeStackGroup({
           groupName: 'Little Pigs group 2',
-          unitType: 'LittlePigs',
           position: { q: 2, r: 0 },
           unitIds: ['p2'],
-        },
+        }),
       },
-    }
+    })
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p2', from: { q: 2, r: 0 }, to: { q: 0, r: 0 } }))
 
@@ -662,28 +658,25 @@ describe('executeUnitMovement', () => {
       ],
       usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
     }
-    state.stackRoster = {
+    state.stackRoster = makeStackRoster({
       groupsById: {
-        'LittlePigs:0,0': {
+        'LittlePigs:0,0': makeStackGroup({
           groupName: 'Little Pigs group 1',
-          unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2'],
-        },
-        'LittlePigs:2,0': {
+        }),
+        'LittlePigs:2,0': makeStackGroup({
           groupName: 'Little Pigs group 2',
-          unitType: 'LittlePigs',
           position: { q: 2, r: 0 },
           unitIds: ['p3', 'p4'],
-        },
-        'LittlePigs:4,0': {
+        }),
+        'LittlePigs:4,0': makeStackGroup({
           groupName: 'Little Pigs group 2',
-          unitType: 'LittlePigs',
           position: { q: 4, r: 0 },
           unitIds: ['p5'],
-        },
+        }),
       },
-    }
+    })
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 4, r: 0 } }))
 
@@ -709,16 +702,15 @@ describe('executeUnitMovement', () => {
       groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group 1'],
     }
-    state.stackRoster = {
+    state.stackRoster = makeStackRoster({
       groupsById: {
-        'LittlePigs:0,0': {
+        'LittlePigs:0,0': makeStackGroup({
           groupName: 'Little Pigs group 1',
-          unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2-missing'],
-        },
+        }),
       },
-    }
+    })
 
     expect(() => executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))).toThrow(
       /missing.*p2-missing/i,
@@ -740,16 +732,15 @@ describe('executeUnitMovement', () => {
       groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group A', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group A'],
     }
-    state.stackRoster = {
+    state.stackRoster = makeStackRoster({
       groupsById: {
-        'LittlePigs:0,0': {
+        'LittlePigs:0,0': makeStackGroup({
           groupName: 'Little Pigs group A',
-          unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2', 'p3'],
-        },
+        }),
       },
-    }
+    })
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 0, r: 1 } }))
 
@@ -781,22 +772,20 @@ describe('executeUnitMovement', () => {
       usedGroupNames: ['Group A', 'Group B'],
     }
 
-    state.stackRoster = {
+    state.stackRoster = makeStackRoster({
       groupsById: {
-        'LittlePigs:0,0': {
+        'LittlePigs:0,0': makeStackGroup({
           groupName: 'Group A',
-          unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['a1', 'a2', 'a3'],
-        },
-        'LittlePigs:1,0': {
+        }),
+        'LittlePigs:1,0': makeStackGroup({
           groupName: 'Group B',
-          unitType: 'LittlePigs',
           position: { q: 1, r: 0 },
           unitIds: ['b1'],
-        },
+        }),
       },
-    }
+    })
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'a1', from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }))
 
@@ -824,16 +813,15 @@ describe('executeUnitMovement', () => {
     state.stackNaming = { groupsInUse: [], usedGroupNames: [] }
 
     // Source group name should be used when destination has no roster entry
-    state.stackRoster = {
+    state.stackRoster = makeStackRoster({
       groupsById: {
-        'LittlePigs:0,0': {
+        'LittlePigs:0,0': makeStackGroup({
           groupName: 'Source Group',
-          unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2'],
-        },
+        }),
       },
-    }
+    })
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 4, r: 8 } }))
 
@@ -856,16 +844,15 @@ describe('executeUnitMovement', () => {
     const destKey = 'LittlePigs:4,8'
     state.stackNaming = { groupsInUse: [{ groupKey: destKey, groupName: 'Persisted Destination', unitType: 'LittlePigs' }], usedGroupNames: ['Persisted Destination'] }
 
-    state.stackRoster = {
+    state.stackRoster = makeStackRoster({
       groupsById: {
-        'LittlePigs:0,0': {
+        'LittlePigs:0,0': makeStackGroup({
           groupName: 'Source Group',
-          unitType: 'LittlePigs',
           position: { q: 0, r: 0 },
           unitIds: ['p1', 'p2'],
-        },
+        }),
       },
-    }
+    })
 
     const result = executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 4, r: 8 } }))
 

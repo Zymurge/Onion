@@ -207,7 +207,7 @@ describe('useInactiveEventStream', () => {
 			createEvent({ seq: 1, type: 'PHASE_CHANGED', timestamp: 't1', turnNumber: 3, to: 'DEFENDER_MOVE' }),
 			createEvent({ seq: 2, type: 'ONION_MOVED', timestamp: 't2', turnNumber: 3, unitFriendlyName: 'The Onion 1', to: { q: 1, r: 2 } }),
 			createEvent({ seq: 3, type: 'UNIT_MOVED', timestamp: 't3', turnNumber: 3, unitId: 'u-2', to: { q: 4, r: 5 } }),
-			createEvent({ seq: 4, type: 'FIRE_RESOLVED', timestamp: 't4', turnNumber: 3, causeId: 'combat-1', attackers: ['Alpha', 'Bravo'], targetId: 'onion-1', outcome: 'NE', odds: '2:1', roll: 6 }),
+			createEvent({ seq: 4, type: 'FIRE_RESOLVED', timestamp: 't4', turnNumber: 3, causeId: 'combat-1', attackers: ['Alpha', 'Bravo'], targetId: 'onion-1:treads', outcome: 'NE', odds: '2:1', roll: 6 }),
 			createEvent({ seq: 5, type: 'FIRE_RESOLVED', timestamp: 't5', turnNumber: 3, causeId: 'combat-2', targetFriendlyName: 'Enemy Unit', outcome: 'X' }),
 			createEvent({ seq: 6, type: 'FIRE_RESOLVED', timestamp: 't6', turnNumber: 3, causeId: 'combat-3', targetId: 'main-12', outcome: 'D' }),
 			createEvent({ seq: 7, type: 'ONION_TREADS_LOST', timestamp: 't7', turnNumber: 3, causeId: 'combat-3', amount: 2, remaining: 3 }),
@@ -244,7 +244,7 @@ describe('useInactiveEventStream', () => {
 			expect.arrayContaining([
 				'Move by The Onion 1',
 				'Move by u-2',
-				'Fire on onion-1: missed',
+				'Fire on onion-1:treads: missed',
 				'Fire on Enemy Unit: destroyed',
 				'Fire on main-12: missed',
 				'Ram on Puss 1 - destroyed',

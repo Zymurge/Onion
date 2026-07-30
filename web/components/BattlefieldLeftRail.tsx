@@ -5,6 +5,8 @@ import {
   buildWeaponSelectionId,
   countSelectedBattlefieldStackMembers,
   getBattlefieldStackSize,
+  getBattlefieldWeaponAttack,
+  isBattlefieldWeaponReady,
   parseAttackStats,
   parseRangeValue,
   resolveSelectionOwnerUnitId,
@@ -83,12 +85,13 @@ type DefenderMoveGroup = {
 function buildDefenderLookup(units: ReadonlyArray<BattlefieldUnit>): DefenderMap {
   return Object.fromEntries(
     units.map((unit) => [unit.id, {
-      id: unit.id,
-      type: unit.type,
+      role: 'defender' as const,
+      unitId: unit.unitId,
+      typeId: unit.typeId,
+      state: unit.state,
       friendlyName: unit.friendlyName,
       position: getBattlefieldPosition(unit),
-      status: unit.status,
-      weapons: unit.weapons,
+      weapons: unit.weaponDetails ?? (Array.isArray(unit.weapons) ? unit.weapons : []),
       targetRules: unit.targetRules,
       squads: unit.squads,
     }]),
@@ -289,8 +292,8 @@ function buildMoveGroupFromUnits(
 function getReadyUnitAttackStrength(unit: BattlefieldUnit): number {
   if (unit.weaponDetails !== undefined && unit.weaponDetails.length > 0) {
     return unit.weaponDetails
-      .filter((weapon) => weapon.status === 'ready')
-      .reduce((total, weapon) => total + weapon.attack, 0)
+      .filter(isBattlefieldWeaponReady)
+      .reduce((total, weapon) => total + getBattlefieldWeaponAttack(weapon), 0)
   }
 
   return parseRangeValue(parseAttackStats(unit.attack).damage)

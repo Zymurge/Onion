@@ -1,10 +1,11 @@
-import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
-import type { TargetRules, TurnPhase, UnitStatus, Weapon } from '../../shared/types/index'
+import { getUnitMovementAllowance } from '../../shared/unitMovement'
+import type { DefenderUnit, GameState, OnionUnit, TurnPhase, UnitStatus, Weapon } from '../../shared/types/index'
 import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView'
 import type { ServerGameSnapshot, StackActionSelection } from './gameClient'
 import type { LiveConnectionStatus } from './gameSessionTypes'
-import { buildFriendlyName, isUnitTypeStackable } from '../../shared/unitDefinitions'
+import { buildFriendlyName, getUnitDefinition, getWeaponType, isUnitTypeStackable } from '../../shared/unitDefinitions'
+import { formatCombatTargetId } from '../../shared/combatTarget'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming'
 import type { StackRosterState } from '../../shared/types/index'
@@ -115,7 +116,7 @@ export function resolveBattlefieldFriendlyName(
 
   if (isStackable) {
     if (stackRoster === undefined) {
-      throw new Error(`Missing stackRoster for grouped unit ${unit.id}`)
+      return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)
     }
 
     if (stackNaming === undefined) {
@@ -142,9 +143,9 @@ export function resolveBattlefieldFriendlyName(
 
 export type StackSourceUnit = {
   unitId: string
-  type: string
+  typeId: string
   position: { q: number; r: number }
-  state: string
+  state: UnitStatus
   squads?: number
 }
 
@@ -155,13 +156,46 @@ export type WebStackSourceState = {
   stackRoster?: StackRosterState
 }
 
+export function getAuthoritativeOnion(state: GameState): OnionUnit {
+  const onion = Object.values(state.onions)[0]
+  if (onion === undefined) {
+    throw new Error('Missing authoritative onion')
+  }
+
+  return onion
+}
+
+export function buildWebStackSourceState(state: GameState): WebStackSourceState {
+  const onion = getAuthoritativeOnion(state)
+  const defenders = Object.fromEntries(
+    Object.values(state.defenders).map((defender) => [defender.unitId, {
+      unitId: defender.unitId,
+      typeId: defender.typeId,
+      position: defender.position,
+      state: defender.state,
+      squads: (defender as DefenderUnit & { squads?: number }).squads,
+    }]),
+  )
+
+  return {
+    onion: {
+      unitId: onion.unitId,
+      typeId: onion.typeId,
+      position: onion.position,
+      state: onion.state,
+    },
+    defenders,
+    stackRoster: state.stackRoster,
+  }
+}
+
 export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | null | undefined, unitId: string): string[] {
   if (state === null || state === undefined) {
     return [unitId]
   }
 
-  if (state.onion !== undefined && state.onion !== null && state.onion.id === unitId) {
-    return [state.onion.id]
+  if (state.onion !== undefined && state.onion !== null && state.onion.unitId === unitId) {
+    return [state.onion.unitId]
   }
 
   const selectedUnit = state.defenders?.[unitId]
@@ -169,7 +203,7 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
     return [unitId]
   }
 
-  if (!isStackableUnitType(selectedUnit.type)) {
+  if (!isStackableUnitType(selectedUnit.typeId)) {
     return [unitId]
   }
 
@@ -194,7 +228,7 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
       }
     }
 
-    const activeMemberIds = unitIds.filter((memberId) => state.defenders?.[memberId]?.status !== 'destroyed')
+    const activeMemberIds = unitIds.filter((memberId) => state.defenders?.[memberId]?.state !== 'destroyed')
     if (activeMemberIds.length > 0) {
       return activeMemberIds
     }
@@ -407,7 +441,15 @@ export function formatWeaponSummary(weapons: ReadonlyArray<Weapon> | undefined) 
     return 'n/a'
   }
 
-  return weapons.map((weapon) => `${weapon.id}: ${weapon.status}`).join(', ')
+  return weapons.map((weapon) => `${weapon.id}: ${weapon.state}`).join(', ')
+}
+
+export function isBattlefieldWeaponReady(weapon: Weapon): boolean {
+  return weapon.state === 'ready'
+}
+
+export function getBattlefieldWeaponAttack(weapon: Weapon): number {
+  return getWeaponType(weapon.typeId).attack
 }
 
 export function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) {
@@ -416,18 +458,21 @@ export function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined) 
   }
 
   const primaryWeapon = weapons.reduce((strongest, weapon) => {
-    if (weapon.attack > strongest.attack) {
+    const weaponType = getWeaponType(weapon.typeId)
+    const strongestType = getWeaponType(strongest.typeId)
+    if (weaponType.attack > strongestType.attack) {
       return weapon
     }
 
-    if (weapon.attack === strongest.attack && weapon.range > strongest.range) {
+    if (weaponType.attack === strongestType.attack && weaponType.range > strongestType.range) {
       return weapon
     }
 
     return strongest
   })
 
-  return `${primaryWeapon.attack} / rng ${primaryWeapon.range}`
+  const primaryWeaponType = getWeaponType(primaryWeapon.typeId)
+  return `${primaryWeaponType.attack} / rng ${primaryWeaponType.range}`
 }
 
 export function formatDebugEntrySummary(entry: ApiProtocolTrafficEntry) {
@@ -457,8 +502,8 @@ export function getReadyWeaponRange(weapons: ReadonlyArray<Weapon> | undefined):
   }
 
   return weapons
-    .filter((weapon) => weapon.status === 'ready')
-    .reduce((maxRange, weapon) => Math.max(maxRange, weapon.range), 0)
+    .filter((weapon) => weapon.state === 'ready')
+    .reduce((maxRange, weapon) => Math.max(maxRange, getWeaponType(weapon.typeId).range), 0)
 }
 
 export function parseRangeValue(rangeText: string): number {
@@ -513,6 +558,10 @@ export function buildCombatTargetActionId(targetId: string, onionId: string | un
     return stripWeaponSelectionId(targetId)
   }
 
+  if (onionId !== undefined && targetId === onionId) {
+    return formatCombatTargetId({ kind: 'treads', onionId })
+  }
+
   return targetId
 }
 
@@ -526,7 +575,7 @@ export function getActionableModes(status: UnitStatus | undefined, weapons: Read
     return []
   }
 
-  const hasReadyWeapon = (weapons ?? []).some((weapon) => weapon.status === 'ready')
+  const hasReadyWeapon = (weapons ?? []).some((weapon) => weapon.state === 'ready')
   if (activePhase === 'DEFENDER_COMBAT') {
     return hasReadyWeapon ? ['fire', 'combined'] : []
   }
@@ -542,6 +591,73 @@ export function getActionableModes(status: UnitStatus | undefined, weapons: Read
   return hasReadyWeapon ? ['fire', 'combined'] : []
 }
 
+export function buildBattlefieldDefenderView(
+  defender: DefenderUnit & { squads?: number },
+  {
+    move = 0,
+    terrainValue,
+    activePhase = null,
+    activeTurnActive = false,
+  }: {
+    move?: number
+    terrainValue?: number
+    activePhase?: TurnPhase | null
+    activeTurnActive?: boolean
+  } = {},
+): BattlefieldUnit {
+  const weapons = defender.weapons ?? []
+  const unitType = defender.typeId
+
+  return {
+    id: defender.unitId,
+    type: unitType,
+    role: 'defender',
+    unitId: defender.unitId,
+    typeId: unitType,
+    state: defender.state,
+    friendlyName: resolveBattlefieldUnitName(unitType, defender.unitId, defender.friendlyName),
+    status: defender.state,
+    position: defender.position,
+    q: defender.position.q,
+    r: defender.position.r,
+    move,
+    weapons,
+    weaponSummary: formatWeaponSummary(weapons),
+    attack: formatAttackSummary(weapons),
+    weaponDetails: weapons,
+    targetRules: getUnitDefinition(unitType)?.targetRules,
+    defense: getDisplayDefense(unitType, defender.squads, terrainValue),
+    squads: defender.squads,
+    actionableModes: getActionableModes(defender.state, weapons, activeTurnActive, activePhase),
+  }
+}
+
+export function buildBattlefieldOnionView(
+  onion: OnionUnit,
+  {
+    movesAllowed = 0,
+    movesRemaining = 0,
+  }: {
+    movesAllowed?: number
+    movesRemaining?: number
+  } = {},
+): BattlefieldOnionView {
+  return {
+    id: onion.unitId,
+    type: onion.typeId,
+    friendlyName: resolveBattlefieldUnitName(onion.typeId, onion.unitId, onion.friendlyName),
+    position: onion.position,
+    status: onion.state,
+    treads: onion.treads,
+    movesAllowed,
+    movesRemaining,
+    rams: onion.ramsRemaining,
+    weapons: formatWeaponSummary(onion.weapons),
+    weaponDetails: onion.weapons,
+    targetRules: getUnitDefinition(onion.typeId)?.targetRules,
+  }
+}
+
 export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldUnit[] {
   const authoritativeState = snapshot.authoritativeState
 
@@ -550,44 +666,21 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
   }
 
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
-  const defenderEntries = Object.entries(
-    authoritativeState.defenders as Record<
-      string,
-      {
-        id?: string
-        type: string
-        status: UnitStatus
-        position: { q: number; r: number }
-        weapons?: ReadonlyArray<Weapon>
-        squads?: number
-        friendlyName?: string
-        targetRules?: TargetRules
-      }
-    >,
-  )
+  const defenderEntries = Object.entries(authoritativeState.defenders)
 
   return defenderEntries
     .map(([defenderId, defender], index) => {
-      const resolvedDefenderId = defender.id ?? defenderId
+      const canonicalDefender = defender as DefenderUnit & { squads?: number }
+      const resolvedDefenderId = canonicalDefender.unitId || defenderId
       const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
 
       return {
-        id: resolvedDefenderId,
-        type: defender.type,
-      friendlyName: resolveBattlefieldUnitName(defender.type, resolvedDefenderId, defender.friendlyName),
-        status: defender.status,
-        position: defender.position,
-        q: defender.position.q,
-        r: defender.position.r,
-        move: activePhase === null ? 0 : snapshotMovementRemaining ?? 0,
-        weapons: defender.weapons ?? [],
-        weaponSummary: formatWeaponSummary(defender.weapons),
-        attack: formatAttackSummary(defender.weapons),
-        weaponDetails: defender.weapons ?? [],
-        targetRules: defender.targetRules,
-        defense: getDisplayDefense(defender.type, defender.squads, getTerrainValueAt(snapshot.scenarioMap, defender.position.q, defender.position.r)),
-        squads: defender.squads,
-        actionableModes: getActionableModes(defender.status, defender.weapons, activeTurnActive, activePhase),
+        ...buildBattlefieldDefenderView(canonicalDefender, {
+          move: activePhase === null ? 0 : snapshotMovementRemaining ?? 0,
+          activePhase,
+          activeTurnActive,
+          terrainValue: getTerrainValueAt(snapshot.scenarioMap, canonicalDefender.position.q, canonicalDefender.position.r),
+        }),
         rosterOrder: index,
       }
     })
@@ -614,27 +707,13 @@ export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPh
     throw new Error('Missing authoritative state')
   }
 
-  const onion = authoritativeState.onion
-  const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
-  const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance('TheOnion', activePhase, onion.treads)
-  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.id ?? 'onion-1'] ?? movesAllowed
-  const ramCapacity = getUnitRamCapacity(onion.type ?? 'TheOnion')
-  const ramsRemaining = Math.max(ramCapacity - (authoritativeState.ramsThisTurn ?? 0), 0)
+  const onion = getAuthoritativeOnion(authoritativeState)
 
-  return {
-    id: onion.id ?? 'onion-1',
-    type: onion.type ?? 'TheOnion',
-    friendlyName: resolveBattlefieldUnitName(onion.type ?? 'TheOnion', onion.id ?? 'onion-1', onion.friendlyName),
-    position: onion.position,
-    status: onion.status ?? 'operational',
-    treads: onion.treads,
-    movesAllowed,
-    movesRemaining,
-    rams: ramsRemaining,
-    weapons: formatWeaponSummary(onion.weapons),
-    weaponDetails: onion.weapons ?? [],
-    targetRules: onion.targetRules,
-  }
+  const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
+  const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance(onion.typeId, activePhase, onion.treads)
+  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.unitId] ?? movesAllowed
+
+  return buildBattlefieldOnionView(onion, { movesAllowed, movesRemaining })
 }
 
 export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex> } | null {

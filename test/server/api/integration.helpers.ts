@@ -1,29 +1,24 @@
 import { expect } from 'vitest'
 import { getNeighbors, hexDistance, type HexPos } from '#shared/hex'
 import { translateScenarioCoord } from '#shared/scenarioMap'
+import { getUnitTypeCatalog } from '#shared/unitDefinitions'
+import type { DefenderUnit, OnionUnit, StackRosterGroupState } from '#shared/types/index'
+import type { InitialState } from '#server/engine/scenarioSchema'
 import { getUnitDefinition, onionMovementAllowance } from '#server/engine/units'
 import { listReachableMoves, type MoveMapSnapshot } from '#shared/movePlanner'
 
 export type ScenarioMap = { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: Array<{ q: number; r: number; t: number }> }
 
-type ScenarioStackRosterGroup = {
-  unitIds?: string[]
-}
-
-type ScenarioDefender = {
-  kind?: string
-  unitType?: string
-  count?: number
-  position?: { q: number; r: number }
-  status?: string
-  squads?: number
-  type?: string
-  weapons?: Array<{ status?: string }>
+type ScenarioStackRosterGroup = Pick<StackRosterGroupState, 'unitIds'>
+type ExpectedOnion = Pick<OnionUnit, 'unitId' | 'typeId' | 'state' | 'position' | 'treads'>
+type ExpectedDefender = Pick<DefenderUnit, 'unitId' | 'typeId' | 'state' | 'position' | 'weapons'> & { squads?: number }
+type ExpectedStateInput = InitialState & {
+  stackRoster?: { groupsById?: Record<string, ScenarioStackRosterGroup> }
 }
 
 export interface ExpectedState {
-  onions: Record<string, any>
-  defenders: Record<string, any>
+  onions: Record<string, ExpectedOnion>
+  defenders: Record<string, ExpectedDefender>
   stackRoster?: {
     groupsById: Record<string, ScenarioStackRosterGroup>
   }
@@ -33,36 +28,37 @@ export function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value))
 }
 
-export function buildExpectedState(initialState: { onions: Record<string, any>; defenders: Record<string, ScenarioDefender>; stackRoster?: { groupsById?: Record<string, ScenarioStackRosterGroup> } }): ExpectedState {
+export function buildExpectedState(initialState: ExpectedStateInput): ExpectedState {
   const radius = translateScenarioCoord.lastRadius
   if (radius === undefined) {
     throw new Error('translateScenarioCoord.lastRadius is undefined')
   }
 
-  const onions: Record<string, any> = {}
+  const onions: Record<string, ExpectedOnion> = {}
   for (const [unitId, authoredOnion] of Object.entries(initialState.onions)) {
     const onion = clone(authoredOnion)
-    const definition = getUnitDefinition(onion.type)
+    const definition = getUnitTypeCatalog()[onion.type]
+    if (definition?.role !== 'onion') {
+      throw new Error(`Unknown onion type: ${onion.type}`)
+    }
+
     onions[unitId] = {
-      ...onion,
       unitId,
       typeId: onion.type,
       state: onion.status ?? 'operational',
       position: translateScenarioCoord(onion.position, radius),
-      treads: definition?.treads,
+      treads: definition.treads,
     }
-    delete onions[unitId].type
-    delete onions[unitId].status
   }
 
-  const defenders: Record<string, any> = {}
+  const defenders: Record<string, ExpectedDefender> = {}
   // Track ordinals for each stack group type to ensure unique IDs across multiple groups
   const stackOrdinals: Record<string, number> = {}
   for (const [key, def] of Object.entries(initialState.defenders)) {
-    if (def.kind === 'stack-group') {
-      const unitType = def.unitType!
-      const count = def.count || 1
-      const position = translateScenarioCoord(def.position!, radius)
+    if ('kind' in def) {
+      const unitType = def.unitType
+      const count = def.count
+      const position = translateScenarioCoord(def.position, radius)
       // Use the same base as scenarioNormalizer
       const unitIdBase = unitType === 'LittlePigs' ? 'pigs' : unitType.toLowerCase()
       let ordinal = stackOrdinals[unitIdBase] || 0
@@ -73,22 +69,20 @@ export function buildExpectedState(initialState: { onions: Record<string, any>; 
           typeId: unitType,
           position,
           state: def.status ?? 'operational',
+          weapons: [],
         }
       }
       stackOrdinals[unitIdBase] = ordinal + count
     } else {
-      const defender = clone(def) as ScenarioDefender & { position?: { q: number; r: number } }
-      if (defender?.position) {
-        defender.position = translateScenarioCoord(defender.position, radius)
-      }
+      const position = translateScenarioCoord(def.position, radius)
       defenders[key] = {
-        ...defender,
         unitId: key,
-        typeId: defender.type,
-        state: defender.status ?? 'operational',
+        typeId: def.type,
+        position,
+        state: def.status ?? 'operational',
+        weapons: [],
+        ...(def.squads === undefined ? {} : { squads: def.squads }),
       }
-      delete defenders[key].type
-      delete defenders[key].status
     }
   }
 
@@ -270,7 +264,7 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
         if (expected.defenders[attacker] && expected.defenders[attacker].weapons) {
           const defender = expected.defenders[attacker]
           for (const weapon of defender.weapons) {
-            if (weapon.status === 'ready') {
+            if (weapon.state === 'ready') {
               weapon.state = 'spent'
               break // Only mark the first ready weapon
             }

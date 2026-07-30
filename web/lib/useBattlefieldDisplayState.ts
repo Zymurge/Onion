@@ -2,11 +2,13 @@ import { useMemo } from 'react'
 import type { ServerGameSnapshot } from './gameClient'
 import {
   buildCombatRangeSources,
+  buildWebStackSourceState,
   buildLiveDefenders,
   buildLiveOnion,
   buildScenarioMap,
   countSelectedBattlefieldStackGroups,
   formatLiveConnectionStatus,
+  getBattlefieldWeaponAttack,
   getPhaseAdvanceLabel,
   getPhaseOwner,
   isWeaponSelectionId,
@@ -19,8 +21,8 @@ import {
   resolveBattlefieldWeaponName,
   resolveBattlefieldStackMemberIds,
   resolveSelectionOwnerUnitId,
-  type WebStackSourceState,
   stripWeaponSelectionId,
+  isBattlefieldWeaponReady,
 } from './appViewHelpers'
 import { buildCombatRangeHexKeys } from './combatRange'
 import { buildCombatTargetOptions } from './combatPreview'
@@ -60,7 +62,7 @@ function hasImplicitStackedDefenders(authoritativeState: GameState): boolean {
   const stackableUnitCountsByPosition = new Map<string, number>()
 
   for (const defender of Object.values(authoritativeState.defenders)) {
-    if (!isUnitTypeStackable(defender.type)) {
+    if (!isUnitTypeStackable(defender.typeId)) {
       continue
     }
 
@@ -68,7 +70,7 @@ function hasImplicitStackedDefenders(authoritativeState: GameState): boolean {
       return true
     }
 
-    const groupKey = `${defender.type}:${defender.position.q},${defender.position.r}`
+    const groupKey = `${defender.typeId}:${defender.position.q},${defender.position.r}`
     const nextCount = (stackableUnitCountsByPosition.get(groupKey) ?? 0) + 1
     stackableUnitCountsByPosition.set(groupKey, nextCount)
     if (nextCount > 1) {
@@ -82,8 +84,8 @@ function hasImplicitStackedDefenders(authoritativeState: GameState): boolean {
 function assertCanonicalStackProjection(authoritativeState: GameState): { error: string | null } {
   const stackRoster = authoritativeState.stackRoster
   const stackableDefenderIds = Object.values(authoritativeState.defenders)
-    .filter((defender) => isUnitTypeStackable(defender.type))
-    .map((defender) => defender.id)
+    .filter((defender) => isUnitTypeStackable(defender.typeId))
+    .map((defender) => defender.unitId)
   const stackRosterGroupKeys = Object.keys(stackRoster?.groupsById ?? {})
   if (hasImplicitStackedDefenders(authoritativeState) && stackRoster === undefined) {
     return {
@@ -145,7 +147,7 @@ export function useBattlefieldDisplayState({
       const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
-    const stackSourceState = authoritativeState as WebStackSourceState | null
+    const stackSourceState = authoritativeState === null ? null : buildWebStackSourceState(authoritativeState)
     const selectedStackUnitIds = selectedBoardUnitId === null || hasValidationError ? [] : resolveBattlefieldStackMemberIds(stackSourceState, selectedBoardUnitId)
     const activeSelectedUnitIds = selectedUnitIds ?? []
     const headerHasSnapshot = clientSnapshot !== null
@@ -181,7 +183,7 @@ export function useBattlefieldDisplayState({
     const displayedOnion = clientSnapshot === null || hasValidationError ? null : buildLiveOnion(clientSnapshot, activePhase)
     const stackNaming = hasValidationError ? null : authoritativeState?.stackNaming ?? null
     const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
-    const readyWeaponDetails = displayedOnion?.weaponDetails?.filter((weapon) => weapon.status === 'ready') ?? []
+    const readyWeaponDetails = displayedOnion?.weaponDetails?.filter(isBattlefieldWeaponReady) ?? []
     const readyDefenderUnitIds = new Set(
       displayedDefenders
         .filter(isBattlefieldUnitCombatReady)
@@ -203,8 +205,8 @@ export function useBattlefieldDisplayState({
         : [...selectedCombatSelectionIds]
     const selectedCombatAttackStrength = activeCombatRole === 'onion'
       ? (displayedOnion?.weaponDetails ?? [])
-        .filter((weapon) => weapon.status === 'ready' && selectedCombatAttackerIds.includes(weapon.id))
-        .reduce((total, weapon) => total + weapon.attack, 0)
+        .filter((weapon) => isBattlefieldWeaponReady(weapon) && selectedCombatAttackerIds.includes(weapon.id))
+        .reduce((total, weapon) => total + getBattlefieldWeaponAttack(weapon), 0)
       : (() => {
         const selectedUnitIdSet = new Set(selectedAttackSelectionIds.map(resolveSelectionOwnerUnitId))
 

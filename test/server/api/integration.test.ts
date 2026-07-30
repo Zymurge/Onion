@@ -275,7 +275,7 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
   const fireUnitId = findDefendersInRangeOfOnion(state.state, state.state.onions[ctx.onionId].position)[0]
   if (!fireUnitId) return
 
-  const fireCmd = { type: 'FIRE' as const, attackers: [fireUnitId], targetId: ctx.onionId, onionId: ctx.onionId }
+  const fireCmd = { type: 'FIRE' as const, attackers: [fireUnitId], targetId: `${ctx.onionId}:treads`, onionId: ctx.onionId }
   const fireRes = await ctx.app.inject({
     method: 'POST',
     url: `/games/${ctx.gameId}/actions`,
@@ -287,7 +287,11 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
   expect(fireBody.ok).toBe(true)
   expect(fireBody.events[0].type).toBe('FIRE_RESOLVED')
   expect(fireBody.events[0].attackers).toEqual([fireUnitId])
-  expect(fireBody.events[0].targetId).toBe(ctx.onionId)
+  expect(fireBody.events[0].targetId).toBe(`${ctx.onionId}:treads`)
+  const treadLossEvent = fireBody.events.find((event: any) => event.type === 'ONION_TREADS_LOST')
+  if (treadLossEvent) {
+    expect(treadLossEvent.targetId).toBe(`${ctx.onionId}:treads`)
+  }
 
   // Verify weapon status changed to spent after firing
   const firedDefender = fireBody.state.defenders[fireUnitId]
@@ -426,12 +430,12 @@ async function runTreadFocusAssaultTurn(ctx: IntegrationContext): Promise<any> {
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,
       headers: { authorization: `Bearer ${ctx.defenderUser.token}` },
-      payload: { type: 'FIRE', attackers: [unitId], targetId: ctx.onionId, onionId: ctx.onionId },
+      payload: { type: 'FIRE', attackers: [unitId], targetId: `${ctx.onionId}:treads`, onionId: ctx.onionId },
     })
 
     if (fireRes.statusCode === 200) {
       const fireBody = fireRes.json()
-      applyActionToExpectedState(ctx.expectedState, { type: 'FIRE', attackers: [unitId], targetId: ctx.onionId, onionId: ctx.onionId }, fireBody)
+      applyActionToExpectedState(ctx.expectedState, { type: 'FIRE', attackers: [unitId], targetId: `${ctx.onionId}:treads`, onionId: ctx.onionId }, fireBody)
       assertStateMatches(fireBody.state, ctx.expectedState)
       combatState = await fetchGame(ctx, 'defender')
       if (combatState.winner) return combatState

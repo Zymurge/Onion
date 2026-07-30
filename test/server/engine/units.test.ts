@@ -18,7 +18,7 @@ import {
   destroyWeapon,
 } from '#server/engine/units'
 import { getAllUnitDefinitions as getSharedUnitDefinitions } from '#shared/unitDefinitions'
-import { makeDefender as makeUnit, makeOnion, makeWeapon } from '../../shared/gameStateUtils'
+import { makeDefender as makeUnit, makeOnion, makeWeapon } from '#test/utils/gameStateUtils'
 // ─── Logger Mocking ─────────────────────────────────────────────────────────
 vi.mock('#server/logger', () => ({
   default: {

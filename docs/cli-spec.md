@@ -313,7 +313,7 @@ refresh            = "refresh" ;
 events             = "events" [after_clause] [limit_clause] ;
 
 move               = "move" unit_id position ;
-fire               = "fire" target_id { attacker_id } ;
+fire               = "fire" onion_id target_id { attacker_id } ;
 end_phase          = "end-phase" ;
 
 raw_action         = "raw" json ;
@@ -364,13 +364,12 @@ events
 events after 12
 events after 12 limit 20
 
-move onion 1,10
+move onion-1 1,10
 move wolf-1 5,6
 
-fire wolf-1 wolf-1
-fire main main
-fire onion wolf-1 puss-1
-fire main wolf-1 puss-1 witch-1
+fire onion-1 wolf-1 main
+fire onion-1 main wolf-1 puss-1 witch-1
+fire onion-1 onion-1:treads wolf-1
 
 end-phase
 
@@ -402,8 +401,8 @@ The help output should always show canonical commands, not aliases.
 Positions should be accepted in either of these forms:
 
 ```text
-move onion 1,10
-move onion 1 10
+move onion-1 1,10
+move onion-1 1 10
 ```
 
 Internally both normalize to:
@@ -416,13 +415,30 @@ Internally both normalize to:
 
 The CLI should accept backend unit IDs exactly as returned by the server, for example:
 
-- `onion`
+- `onion-1`
 - `wolf-1`
 - `puss-1`
 - `witch-1`
 - `main`
 
 The CLI should not invent local aliases for units in Phase 1.
+
+### Combat Target IDs
+
+The `targetId` passed to `fire` must use the canonical API target identity:
+
+- Defender units, defender stacks, and individually targetable weapons use the
+  IDs returned by the server, such as `wolf-1`, `LittlePigs:3,2`, or `main`.
+- Onion treads use `{onionId}:treads`, such as `onion-1:treads`.
+- A bare Onion ID is not valid when targeting treads.
+
+Example defender attack against Onion treads:
+
+```text
+fire onion-1 onion-1:treads wolf-1
+```
+
+This submits a `FIRE` command whose `targetId` is `onion-1:treads`.
 
 ### FIRE Attacker List
 
@@ -431,7 +447,7 @@ The `fire` command uses a variable-length attacker list after the target id.
 Example:
 
 ```text
-fire main wolf-1 puss-1 witch-1
+fire onion-1 main wolf-1 puss-1 witch-1
 ```
 
 This maps to:
@@ -440,7 +456,8 @@ This maps to:
 {
   "type": "FIRE",
   "attackers": ["wolf-1", "puss-1", "witch-1"],
-  "targetId": "main"
+  "targetId": "main",
+  "onionId": "onion-1"
 }
 ```
 
@@ -453,7 +470,7 @@ The `raw` command takes the remainder of the input line as a JSON object and sub
 Example:
 
 ```text
-raw {"type":"MOVE","unitId":"onion","to":{"q":1,"r":10}}
+raw {"type":"MOVE","unitId":"onion-1","to":{"q":1,"r":10}}
 ```
 
 This mode exists for backend testing and should bypass all client-side action-shape convenience logic except basic JSON parsing. For the expected payload shapes, see the [API Contract](api-contract.md#actions).
@@ -484,8 +501,8 @@ Example local parse error:
 ```text
 Parse error
 command: fire
-error: expected a target id followed by one or more attacker unit IDs
-usage: fire <targetId> <attacker1> [attacker2...]
+error: expected an Onion id, target id, and one or more attacker IDs
+usage: fire <onionId> <targetId> <attacker1> [attacker2...]
 ```
 
 These are distinct from backend validation failures.
@@ -599,7 +616,7 @@ The CLI should compute suggested commands from the current phase, but it should 
 
 `ONION_MOVE`
 
-- `move onion <q,r>`
+- `move <onionId> <q,r>`
 - `end-phase`
 
 `ONION_COMBAT`

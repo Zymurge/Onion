@@ -220,11 +220,17 @@
 	})
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
+import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { HexMapBoard } from '#web/components/HexMapBoard'
+import { HexMapBoard as ProductionHexMapBoard } from '#web/components/HexMapBoard'
 import { boardPixelSize } from '#web/lib/hex'
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '#web/lib/battlefieldView'
+import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion } from '#test/utils/gameStateUtils'
+
+function HexMapBoard(props: ComponentProps<typeof ProductionHexMapBoard>) {
+	return <ProductionHexMapBoard {...props} defenders={canonicalizeBattlefieldDefenders(props.defenders)} onion={canonicalizeBattlefieldOnion(props.onion)} />
+}
 
 const scenarioMap = {
 	width: 5,
