@@ -86,7 +86,7 @@ function requireStackRoster(response: GameStateResponse) {
 
 		for (const unitId of group.unitIds) {
 			const defender = defenders[unitId]
-			if (defender === undefined || defender === null || typeof defender !== 'object' || typeof defender?.status !== 'string') {
+			if (defender === undefined || defender === null || typeof defender !== 'object' || typeof defender?.state !== 'string') {
 				throw new GameClientSeamError('transport', `Missing stack roster defender ${unitId} for ${groupId}`)
 			}
 		}

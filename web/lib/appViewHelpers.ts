@@ -1,15 +1,16 @@
-import { getUnitMovementAllowance } from '../../shared/unitMovement'
-import type { DefenderUnit, GameState, OnionUnit, TurnPhase, UnitStatus, Weapon } from '../../shared/types/index'
-import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
-import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView'
-import type { ServerGameSnapshot, StackActionSelection } from './gameClient'
-import type { LiveConnectionStatus } from './gameSessionTypes'
-import { buildFriendlyName, getUnitDefinition, getWeaponType, isUnitTypeStackable } from '../../shared/unitDefinitions'
-import { formatCombatTargetId } from '../../shared/combatTarget'
-import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming'
-import type { StackRosterState } from '../../shared/types/index'
-import { resolveSelectionName } from './resolveSelectionName'
+import { getUnitMovementAllowance } from '../../shared/unitMovement.js'
+import type { DefenderMap, DefenderUnit, GameState, OnionUnit, TurnPhase, UnitState, UnitStatus, Weapon } from '../../shared/types/index.js'
+import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol.js'
+import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView.js'
+import type { ServerGameSnapshot, StackActionSelection } from './gameClient.js'
+import type { LiveConnectionStatus } from './gameSessionTypes.js'
+import { buildFriendlyName, getUnitDefinition, getWeaponType, isUnitTypeStackable } from '../../shared/unitDefinitions.js'
+import { formatCombatTargetId } from '../../shared/combatTarget.js'
+import type { StackNamingSnapshot } from '../../shared/stackNaming.js'
+import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming.js'
+import type { StackRosterState } from '../../shared/types/index.js'
+import { buildStackRosterIndex } from '../../shared/stackRoster.js'
+import { resolveSelectionName } from './resolveSelectionName.js'
 
 function isStackableUnitType(unitType: string | undefined): boolean {
   if (unitType === undefined) {
@@ -145,15 +146,25 @@ export type StackSourceUnit = {
   unitId: string
   typeId: string
   position: { q: number; r: number }
-  state: UnitStatus
+  state: UnitState
   squads?: number
 }
 
 /** Canonical web-facing source state for stack membership resolution. */
 export type WebStackSourceState = {
-  onion?: StackSourceUnit | null
+  onions?: Record<string, StackSourceUnit>
   defenders?: Record<string, StackSourceUnit>
   stackRoster?: StackRosterState
+}
+
+function toStackSourceUnit(unit: StackSourceUnit, squads?: number): StackSourceUnit {
+  return {
+    unitId: unit.unitId,
+    typeId: unit.typeId,
+    position: unit.position,
+    state: unit.state,
+    squads,
+  }
 }
 
 export function getAuthoritativeOnion(state: GameState): OnionUnit {
@@ -166,24 +177,18 @@ export function getAuthoritativeOnion(state: GameState): OnionUnit {
 }
 
 export function buildWebStackSourceState(state: GameState): WebStackSourceState {
-  const onion = getAuthoritativeOnion(state)
+  const onions = Object.fromEntries(
+    Object.values(state.onions).map((onion) => [onion.unitId, toStackSourceUnit(onion)]),
+  )
   const defenders = Object.fromEntries(
-    Object.values(state.defenders).map((defender) => [defender.unitId, {
-      unitId: defender.unitId,
-      typeId: defender.typeId,
-      position: defender.position,
-      state: defender.state,
-      squads: (defender as DefenderUnit & { squads?: number }).squads,
-    }]),
+    Object.values(state.defenders).map((defender) => {
+      const definition = getUnitDefinition(defender.typeId)
+      return [defender.unitId, toStackSourceUnit(defender, definition?.role === 'defender' ? definition.squads : undefined)]
+    }),
   )
 
   return {
-    onion: {
-      unitId: onion.unitId,
-      typeId: onion.typeId,
-      position: onion.position,
-      state: onion.state,
-    },
+    onions,
     defenders,
     stackRoster: state.stackRoster,
   }
@@ -194,8 +199,8 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
     return [unitId]
   }
 
-  if (state.onion !== undefined && state.onion !== null && state.onion.unitId === unitId) {
-    return [state.onion.unitId]
+  if (state.onions?.[unitId] !== undefined) {
+    return [unitId]
   }
 
   const selectedUnit = state.defenders?.[unitId]
@@ -211,32 +216,19 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
     throw new Error(`Missing stackRoster for grouped unit ${unitId}`)
   }
 
-  for (const [groupId, group] of Object.entries(state.stackRoster.groupsById ?? {})) {
-    if (!Array.isArray(group.unitIds)) {
-      throw new Error(`Invalid stack roster group shape for ${groupId}`)
-    }
-
-    const unitIds = group.unitIds
-    if (!unitIds.includes(unitId)) {
-      continue
-    }
-
-    for (const memberId of unitIds) {
-      const member = state.defenders?.[memberId]
-      if (member === undefined) {
-        throw new Error(`Missing stackRoster member ${memberId} for grouped unit ${unitId}`)
-      }
-    }
-
-    const activeMemberIds = unitIds.filter((memberId) => state.defenders?.[memberId]?.state !== 'destroyed')
-    if (activeMemberIds.length > 0) {
-      return activeMemberIds
-    }
-
-    return [unitId]
+  const stackRosterIndex = buildStackRosterIndex(
+    state.stackRoster,
+    state.defenders as DefenderMap | undefined,
+  )
+  const group = stackRosterIndex.getUnitGroup(unitId)
+  if (group === null) {
+    throw new Error(`Missing stackRoster entry for grouped unit ${unitId}`)
   }
 
-  throw new Error(`Missing stackRoster entry for grouped unit ${unitId}`)
+  const activeMemberIds = group.units
+    .filter((member) => member.state !== 'destroyed')
+    .map((member) => member.unitId)
+  return activeMemberIds.length > 0 ? activeMemberIds : [unitId]
 }
 
 export function buildStackMemberSelectionId(unitId: string, memberIndex: number): string {
@@ -345,16 +337,7 @@ export function buildClientStackSelection(
 }
 
 export function resolveBattlefieldWeaponName(weapon: Weapon): string {
-  const explicitFriendlyName = weapon.friendlyName?.trim()
-  if (explicitFriendlyName !== undefined && explicitFriendlyName.length > 0) {
-    return explicitFriendlyName
-  }
-
-  if (weapon.friendlyNameTemplate !== undefined) {
-    return buildFriendlyName(weapon.friendlyNameTemplate, weapon.id)
-  }
-
-  return weapon.name
+  return getWeaponType(weapon.typeId).name
 }
 
 export function getPhaseOwner(phase: TurnPhase | null): 'onion' | 'defender' | null {
@@ -570,7 +553,7 @@ export function normalizeSelectionIds(selectedIds: readonly string[] | null | un
   return Array.from(new Set((selectedIds ?? []).filter((selectionId) => allowedIdSet.has(selectionId))))
 }
 
-export function getActionableModes(status: UnitStatus | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean, activePhase: TurnPhase | null): Mode[] {
+export function getActionableModes(status: UnitState | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean, activePhase: TurnPhase | null): Mode[] {
   if (status === 'destroyed' || status === 'disabled') {
     return []
   }
@@ -756,11 +739,11 @@ export function buildCombatRangeSources(
     const selectedWeaponIds = new Set(activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId))
 
     return (displayedOnion.weaponDetails ?? [])
-      .filter((weapon) => weapon.status === 'ready' && selectedWeaponIds.has(weapon.id))
+      .filter((weapon) => weapon.state === 'ready' && selectedWeaponIds.has(weapon.id))
       .map((weapon) => ({
         q: displayedOnion.position.q,
         r: displayedOnion.position.r,
-        range: weapon.range,
+        range: getWeaponType(weapon.typeId).range,
       }))
   }
 

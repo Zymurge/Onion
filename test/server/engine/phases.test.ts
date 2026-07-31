@@ -175,6 +175,7 @@ describe('advancePhase', () => {
       const state = makeState('GEV_SECOND_MOVE')
       state.onions.onion.weapons = [
         {
+          id: 'main',
           typeId: 'TheOnion.main',
           state: 'spent',
           friendlyName: 'Main Battery',

@@ -6,8 +6,8 @@ describe('appViewHelpers stack-grouping contract', () => {
   it('resolves stack members from explicit stackRoster membership instead of raw co-location', () => {
     const state = {
       defenders: {
-        'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-        'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
+        'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+        'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
       },
       stackRoster: {
         groupsById: {
@@ -27,8 +27,8 @@ describe('appViewHelpers stack-grouping contract', () => {
   it('counts selected stack members from explicit stackRoster membership', () => {
     const state = {
       defenders: {
-        'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-        'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
+        'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+        'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
       },
       stackRoster: {
         groupsById: {
@@ -48,9 +48,9 @@ describe('appViewHelpers stack-grouping contract', () => {
   it('counts distinct selected stack groups instead of raw unit ids', () => {
     const state = {
       defenders: {
-        'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-        'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
-        'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+        'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+        'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
+        'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
       },
       stackRoster: {
         groupsById: {
@@ -70,8 +70,8 @@ describe('appViewHelpers stack-grouping contract', () => {
   it('throws when stackable unit membership is requested without a stack roster', () => {
     const state = {
       defenders: {
-        'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-        'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
+        'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+        'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
       },
     }
 
@@ -81,7 +81,7 @@ describe('appViewHelpers stack-grouping contract', () => {
     it('throws when a grouped unit is absent from defenders', () => {
       const state = {
         defenders: {
-          'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+          'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
         },
         stackRoster: {
           groupsById: {

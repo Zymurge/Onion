@@ -37,8 +37,9 @@ function resolveUnitType(state: WebStackSourceState, unitId: string | null): str
     return null
   }
 
-  if (state.onion?.unitId === unitId) {
-    return state.onion.typeId
+  const onion = state.onions?.[unitId]
+  if (onion !== undefined) {
+    return onion.typeId
   }
 
   return state.defenders?.[unitId]?.typeId ?? null

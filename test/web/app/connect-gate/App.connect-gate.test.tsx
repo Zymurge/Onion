@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '#web/App'
 import type { GameClient, GameSnapshot } from '#web/lib/gameClient'
-import { buildStackRosterFromUnits } from '#shared/stackRoster'
+import { makeScenarioSnapshot, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 
 const createHttpGameRequestTransport = vi.hoisted(() => vi.fn())
 const createLiveEventSource = vi.hoisted(() => vi.fn())
@@ -14,6 +14,7 @@ const clearApiProtocolTraffic = vi.hoisted(() => vi.fn())
 const getApiProtocolTrafficSnapshot = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const formatApiProtocolTrafficEntry = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const subscribeApiProtocolTraffic = vi.hoisted(() => vi.fn().mockReturnValue(vi.fn()))
+const runtimeConfig = { apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }
 
 vi.mock('#web/lib/httpGameClient', () => ({
 	createHttpGameRequestTransport,
@@ -31,119 +32,14 @@ vi.mock('#shared/apiProtocol', () => ({
 	subscribeApiProtocolTraffic,
 }))
 
-function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): GameSnapshot {
-	const cells = Array.from({ length: 8 }, (_, q) => Array.from({ length: 8 }, (_, r) => ({ q, r }))).flat()
-
-	return {
-		gameId: 123,
+function createLoadedSnapshot(phase: 'ONION_MOVE' | 'DEFENDER_MOVE'): TestScenarioSnapshot {
+	return makeScenarioSnapshot({
 		phase,
 		scenarioName: 'Test Scenario',
-		turnNumber: 11,
-		lastEventSeq: 47,
-		authoritativeState: {
-			onion: {
-				id: 'onion-1',
-				type: 'TheOnion',
-					friendlyName: 'The Onion',
-				position: { q: 0, r: 1 },
-				treads: 33,
-				status: 'operational',
-				weapons: [
-					{
-						id: 'main-1',
-						name: 'Main Battery',
-						attack: 4,
-						range: 4,
-						defense: 4,
-						status: 'ready',
-						individuallyTargetable: true,
-					},
-				],
-				batteries: {
-					main: 1,
-					secondary: 0,
-					ap: 0,
-				},
-			},
-			defenders: {
-				'wolf-2': {
-					id: 'wolf-2',
-					type: 'BigBadWolf',
-					friendlyName: 'Big Bad Wolf 2',
-					position: { q: 3, r: 6 },
-					status: 'operational',
-					weapons: [
-						{
-							id: 'main',
-							name: 'Main Gun',
-							attack: 4,
-							range: 2,
-							defense: 2,
-							status: 'ready',
-							individuallyTargetable: false,
-						},
-					],
-				},
-				'puss-1': {
-					id: 'puss-1',
-					type: 'Puss',
-					friendlyName: 'Puss 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [
-						{
-							id: 'main',
-							name: 'Main Gun',
-							attack: 4,
-							range: 2,
-							defense: 3,
-							status: 'ready',
-							individuallyTargetable: false,
-						},
-					],
-				},
-			},
-			ramsThisTurn: 0,
-				stackRoster: buildStackRosterFromUnits([
-					{
-						id: 'wolf-2',
-						type: 'BigBadWolf',
-						friendlyName: 'Big Bad Wolf 2',
-						position: { q: 3, r: 6 },
-						status: 'operational',
-						weapons: [],
-					},
-					{
-						id: 'puss-1',
-						type: 'Puss',
-						friendlyName: 'Puss 1',
-						position: { q: 4, r: 4 },
-						status: 'operational',
-						weapons: [],
-					},
-				]),
-		},
-		movementRemainingByUnit: {
-			'onion-1': 0,
-			'wolf-2': 4,
-			'puss-1': 3,
-		},
 		scenarioMap: {
-			width: 8,
-			height: 8,
-			cells,
-			hexes: [
-				{ q: 0, r: 0, t: 0 },
-				{ q: 1, r: 0, t: 0 },
-				{ q: 2, r: 0, t: 0 },
-				{ q: 3, r: 0, t: 0 },
-				{ q: 4, r: 0, t: 0 },
-				{ q: 5, r: 0, t: 0 },
-				{ q: 6, r: 0, t: 0 },
-				{ q: 7, r: 0, t: 0 },
-			],
+			hexes: Array.from({ length: 8 }, (_, q) => ({ q, r: 0, t: 0 })),
 		},
-	} satisfies GameSnapshot
+	})
 }
 
 function createControlledClient(snapshot: GameSnapshot): GameClient {
@@ -158,13 +54,33 @@ function createControlledClient(snapshot: GameSnapshot): GameClient {
 }
 
 function createControlledLiveEventSource(connectionStatus: 'connected' | 'idle' = 'connected') {
-       const disconnect = vi.fn();
-       return {
-	       subscribe: vi.fn().mockReturnValue(vi.fn()),
-	       connect: vi.fn(),
-	       disconnect,
-	       getConnectionState: vi.fn().mockReturnValue(connectionStatus),
-       };
+	const disconnect = vi.fn()
+	return {
+		subscribe: vi.fn().mockReturnValue(vi.fn()),
+		connect: vi.fn(),
+		disconnect,
+		getConnectionState: vi.fn().mockReturnValue(connectionStatus),
+	}
+}
+
+function mockAuthenticatedSession(snapshot: GameSnapshot): void {
+	requestJson.mockResolvedValue({
+		ok: true,
+		status: 200,
+		data: { userId: 'user-123', token: 'stub.token' },
+	})
+	createHttpGameRequestTransport.mockReturnValue({
+		getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' } }),
+		submitAction: vi.fn(),
+	})
+	createLiveEventSource.mockReturnValue(createControlledLiveEventSource())
+}
+
+async function submitConnectForm(): Promise<void> {
+	const user = userEvent.setup()
+	await user.type(screen.getByLabelText(/username/i), 'player-1')
+	await user.type(screen.getByLabelText(/password/i), 'secret')
+	await user.click(screen.getByRole('button', { name: /load game/i }))
 }
 
 beforeEach(() => {
@@ -173,7 +89,7 @@ beforeEach(() => {
 
 describe('App connect gate', () => {
 	it('renders a connect form when runtime config is seeded but no client is ready', async () => {
-		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }} showConnectionGate />)
+		render(<App runtimeConfig={runtimeConfig} showConnectionGate />)
 
 		expect(screen.getByRole('heading', { name: /open a live game session/i })).not.toBeNull()
 		expect((screen.getByLabelText(/api base url/i) as HTMLInputElement).value).toBe('http://localhost:3000')
@@ -184,7 +100,7 @@ describe('App connect gate', () => {
 	it('shows a dismissable overlay when connect validation fails', async () => {
 		const user = userEvent.setup()
 
-		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }} showConnectionGate />)
+		render(<App runtimeConfig={runtimeConfig} showConnectionGate />)
 
 		await user.click(screen.getByRole('button', { name: /load game/i }))
 
@@ -198,40 +114,11 @@ describe('App connect gate', () => {
 	})
 
 	it('logs in and loads an existing game when the form is submitted', async () => {
-		const user = userEvent.setup()
 		const timeSpy = vi.spyOn(Date.prototype, 'toLocaleTimeString').mockReturnValue('01:14:15 PM')
-		const submitAction = vi.fn().mockResolvedValue({
-			gameId: 123,
-			phase: 'ONION_MOVE',
-			scenarioName: 'Test Scenario',
-			turnNumber: 11,
-			lastEventSeq: 47,
-		})
-		requestJson.mockResolvedValue({
-			ok: true,
-			status: 200,
-			data: { userId: 'user-123', token: 'stub.token' },
-		})
+		mockAuthenticatedSession(createLoadedSnapshot('ONION_MOVE'))
 
-		createHttpGameRequestTransport.mockReturnValue({
-			getState: vi.fn().mockResolvedValue({
-				snapshot: createLoadedSnapshot('ONION_MOVE'),
-				session: { role: 'onion' },
-			}),
-			submitAction,
-		})
-		createLiveEventSource.mockReturnValue({
-			subscribe: vi.fn().mockReturnValue(vi.fn()),
-			connect: vi.fn(),
-			disconnect: vi.fn(),
-			getConnectionState: vi.fn().mockReturnValue('connected'),
-		})
-
-		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }} showConnectionGate />)
-
-		await user.type(screen.getByLabelText(/username/i), 'player-1')
-		await user.type(screen.getByLabelText(/password/i), 'secret')
-		await user.click(screen.getByRole('button', { name: /load game/i }))
+		render(<App runtimeConfig={runtimeConfig} showConnectionGate />)
+		await submitConnectForm()
 
 		expect(requestJson).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -269,34 +156,11 @@ describe('App connect gate', () => {
 	})
 
 	it('renders the role badge as inactive when it is not that role’s turn', async () => {
-		const user = userEvent.setup()
 		const timeSpy = vi.spyOn(Date.prototype, 'toLocaleTimeString').mockReturnValue('01:14:15 PM')
+		mockAuthenticatedSession(createLoadedSnapshot('DEFENDER_MOVE'))
 
-		requestJson.mockResolvedValue({
-			ok: true,
-			status: 200,
-			data: { userId: 'user-123', token: 'stub.token' },
-		})
-
-		createHttpGameRequestTransport.mockReturnValue({
-			getState: vi.fn().mockResolvedValue({
-				snapshot: createLoadedSnapshot('DEFENDER_MOVE'),
-				session: { role: 'onion' },
-			}),
-			submitAction: vi.fn(),
-		})
-		createLiveEventSource.mockReturnValue({
-			subscribe: vi.fn().mockReturnValue(vi.fn()),
-			connect: vi.fn(),
-			disconnect: vi.fn(),
-			getConnectionState: vi.fn().mockReturnValue('connected'),
-		})
-
-		render(<App runtimeConfig={{ apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }} showConnectionGate />)
-
-		await user.type(screen.getByLabelText(/username/i), 'player-1')
-		await user.type(screen.getByLabelText(/password/i), 'secret')
-		await user.click(screen.getByRole('button', { name: /load game/i }))
+		render(<App runtimeConfig={runtimeConfig} showConnectionGate />)
+		await submitConnectForm()
 
 		const roleBadge = await screen.findByText(/^Onion$/i, { selector: '.role-badge' })
 		expect(roleBadge.classList.contains('role-badge-inactive')).toBe(true)

@@ -9,9 +9,9 @@ import {
 function createTestStackState() {
   return {
     defenders: {
-      'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-      'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-      'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+      'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+      'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+      'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
     },
     stackRoster: {
       groupsById: {
@@ -29,8 +29,8 @@ function createTestStackState() {
 function createBrokenStackState() {
   return {
     defenders: {
-      'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-      'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+      'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+      'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
     },
   }
 }
@@ -38,8 +38,8 @@ function createBrokenStackState() {
 function createSingletonStackState() {
   return {
     defenders: {
-      'pigs-5': { id: 'pigs-5', type: 'LittlePigs', position: { q: 4, r: 8 }, status: 'operational' },
-      'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+      'pigs-5': { unitId: 'pigs-5', typeId: 'LittlePigs', position: { q: 4, r: 8 }, state: 'operational' },
+      'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
     },
     stackRoster: {
       groupsById: {

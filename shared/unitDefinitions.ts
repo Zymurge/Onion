@@ -140,8 +140,17 @@ export function getWeaponTypeCatalog(): WeaponTypeCatalog {
   return WEAPON_TYPE_CATALOG
 }
 
-export function getUnitDefinition(typeId: UnitType): UnitTypeBase | undefined {
+export function getUnitDefinition(typeId: UnitType): UnitTypeCatalog[UnitType] | undefined {
   return UNIT_TYPE_CATALOG[typeId]
+}
+
+export function getRequiredUnitDefinition(typeId: UnitType): UnitTypeCatalog[UnitType] {
+  const definition = getUnitDefinition(typeId)
+  if (definition === undefined) {
+    throw new Error(`Unknown unit type: ${typeId}`)
+  }
+
+  return definition
 }
 
 export function getAllUnitDefinitions(): UnitTypeCatalog {

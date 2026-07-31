@@ -4,7 +4,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  getUnitDefinition,
+  getUnitDefinition as lookupUnitDefinition,
+  getRequiredUnitDefinition as getUnitDefinition,
   getAllUnitDefinitions,
   onionMovementAllowance,
   canSecondMove,
@@ -86,7 +87,7 @@ describe('onionMovementAllowance', () => {
 
 describe('getUnitDefinition', () => {
   it('logs error for unknown unit type', () => {
-    const def = getUnitDefinition('UnknownType')
+    const def = lookupUnitDefinition('UnknownType')
     expect(def).toBeUndefined()
     expect(logger.error).not.toHaveBeenCalled()
   })

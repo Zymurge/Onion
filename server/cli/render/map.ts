@@ -54,10 +54,14 @@ export function renderMap(state: GameState | null, scenario: ScenarioDetail | nu
   }
 
   const occupants = new Map<string, string>()
-  occupants.set(keyOf(state.onion.position), unitCode(state.onion.type ?? 'TheOnion'))
+  for (const onion of Object.values(state.onions)) {
+    if (onion.state !== 'destroyed') {
+      occupants.set(keyOf(onion.position), unitCode(onion.typeId))
+    }
+  }
   for (const defender of Object.values(state.defenders)) {
-    if (defender.status === 'destroyed') continue
-    occupants.set(keyOf(defender.position), unitCode(defender.type))
+    if (defender.state === 'destroyed') continue
+    occupants.set(keyOf(defender.position), unitCode(defender.typeId))
   }
 
   const lines = ['Map']

@@ -149,10 +149,10 @@ function buildCombatGroupFromUnits(
   const selectionState: WebStackSourceState = {
     defenders: Object.fromEntries(
       units.map((unit) => [unit.id, {
-        id: unit.id,
-        type: unit.type,
+        unitId: unit.unitId ?? unit.id,
+        typeId: unit.typeId ?? unit.type,
         position: getBattlefieldPosition(unit),
-        status: unit.status,
+        state: unit.state ?? unit.status,
         squads: unit.squads,
       }]),
     ),
@@ -252,10 +252,10 @@ function buildMoveGroupFromUnits(
   const selectionState: WebStackSourceState = {
     defenders: Object.fromEntries(
       units.map((unit) => [unit.id, {
-        id: unit.id,
-        type: unit.type,
+        unitId: unit.unitId ?? unit.id,
+        typeId: unit.typeId ?? unit.type,
         position: getBattlefieldPosition(unit),
-        status: unit.status,
+        state: unit.state ?? unit.status,
         squads: unit.squads,
       }]),
     ),

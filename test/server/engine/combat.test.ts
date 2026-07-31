@@ -186,7 +186,7 @@ describe('resolveCombatOutcome', () => {
   })
 
   it('resolves D against Little Pigs as unit destruction in per-unit model', () => {
-    const target = makeDefender({ typeId: 'LittlePigs', squads: 3 })
+    const target = makeDefender({ typeId: 'LittlePigs' })
 
     expect(resolveCombatOutcome(target, 'D', 1)).toMatchObject({
       effect: 'destroyed',
@@ -242,20 +242,20 @@ describe('applyDamage', () => {
 
   describe('LittlePigs infantry', () => {
     it('D result destroys the targeted Little Pigs unit', () => {
-      const pigs = makeDefender({ typeId: 'LittlePigs', squads: 3 })
+      const pigs = makeDefender({ typeId: 'LittlePigs' })
       const result = applyDamage(pigs, 'D', 1)
       expect(result.unitDestroyed).toBeTruthy()
       expect(pigs.state).toBe('destroyed')
     })
 
     it('D result destroys Little Pigs even when squads is 1', () => {
-      const pigs = makeDefender({ typeId: 'LittlePigs', squads: 1 })
+      const pigs = makeDefender({ typeId: 'LittlePigs' })
       applyDamage(pigs, 'D', 1)
       expect(pigs.state).toBe('destroyed')
     })
 
     it('X result destroys the entire stack', () => {
-      const pigs = makeDefender({ typeId: 'LittlePigs', squads: 3 })
+      const pigs = makeDefender({ typeId: 'LittlePigs' })
       const result = applyDamage(pigs, 'X', 1)
       expect(pigs.state).toBe('destroyed')
       expect(result.unitDestroyed).toBe(true)

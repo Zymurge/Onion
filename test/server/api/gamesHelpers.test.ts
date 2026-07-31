@@ -27,8 +27,9 @@ function makeGameStateWithUnits(): GameState {
     }),
     stackNaming: {
       groupsInUse: [
-        'LittlePigs:1,1',
+        { groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
       ],
+      usedGroupNames: ['Little Pigs group 1'],
     },
   })
 }
@@ -435,8 +436,10 @@ describe('buildVictoryObjectiveStates', () => {
         {
           groupKey: 'LittlePigs:1,1',
           groupName: '--CONFLICTING NAME---',
+          unitType: 'LittlePigs',
         },
       ],
+      usedGroupNames: ['--CONFLICTING NAME---'],
     }
     expect(() => buildGameStateResponse(
       {

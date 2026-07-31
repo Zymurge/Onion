@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { translateScenarioCoord } from '#shared/scenarioMap'
 import { buildExpectedState } from './integration.helpers.js'
+import type { InitialState } from '#server/engine/scenarioSchema'
 
 	describe('buildExpectedState', () => {
 	 it('remaps Onion and defender positions using the cached radius', () => {
@@ -8,7 +9,7 @@ import { buildExpectedState } from './integration.helpers.js'
 		translateScenarioCoord.lastRadius = 7
 
 		try {
-			const initialState = {
+			const initialState: InitialState = {
 				onions: {
 					'onion-1': {
 						type: 'TheOnion',
@@ -20,8 +21,8 @@ import { buildExpectedState } from './integration.helpers.js'
 					},
 				},
 				defenders: {
-					'wolf-1': { position: { q: 5, r: 6 }, status: 'operational' },
-					'pigs-1': { position: { q: 4, r: 7 }, status: 'operational', squads: 3 },
+					'wolf-1': { type: 'BigBadWolf', position: { q: 5, r: 6 }, status: 'operational' },
+					'pigs-1': { type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', squads: 3 },
 				},
 			}
 

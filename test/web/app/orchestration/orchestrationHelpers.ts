@@ -5,20 +5,11 @@ import type { StackNamingSnapshot } from '#shared/stackNaming'
 import { buildStackGroupKey } from '#shared/stackNaming'
 import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
 import { getAllUnitDefinitions, isUnitTypeStackable } from '#shared/unitDefinitions'
-import { createMoveGameState } from '#shared/moveFixtures'
-import { createGameClient, type GameClient, type GameSnapshot } from '#web/lib/gameClient'
+import { createTestClient, makeDefender, makeOnion, makeScenarioSnapshot, makeWeapon, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 
 // ---- Shared type alias ----
 
-export type AuthoritativeBattlefieldSnapshot = GameSnapshot & {
-	authoritativeState: GameState
-	scenarioMap: {
-		width: number
-		height: number
-		cells: Array<{ q: number; r: number }>
-		hexes: Array<{ q: number; r: number; t: number }>
-	}
-}
+export type AuthoritativeBattlefieldSnapshot = TestScenarioSnapshot
 
 // ---- Async test utility ----
 
@@ -42,60 +33,33 @@ export function createDeferred<T>() {
  * rather than falling back to local fixtures.
  */
 export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefieldSnapshot {
-	return {
+	return makeScenarioSnapshot({
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
 		scenarioName: 'Authoritative swamp state',
 		turnNumber: 8,
 		lastEventSeq: 47,
 		authoritativeState: {
-			onion: {
-				id: 'onion-live',
-				type: 'TheOnion',
+			onions: {
+				'onion-live': makeOnion({
+					unitId: 'onion-live',
+					position: { q: 1, r: 1 },
+					treads: 27,
 					friendlyName: 'The Onion',
-				position: { q: 1, r: 1 },
-				treads: 27,
-				status: 'operational',
-				weapons: [
-					{
-						id: 'main-1',
-						name: 'Main Battery',
-						attack: 4,
-						range: 4,
-						defense: 4,
-						status: 'ready',
-						individuallyTargetable: true,
-					},
-				],
-				batteries: {
-					main: 1,
-					secondary: 0,
-					ap: 0,
-				},
+					weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+				}),
 			},
 			defenders: {
-				'dragon-7': {
-					id: 'dragon-7',
-					type: 'Dragon',
-					friendlyName: 'Dragon 7',
+				'dragon-7': makeDefender({
+					unitId: 'dragon-7',
+					typeId: 'Dragon',
 					position: { q: 0, r: 1 },
-					status: 'operational',
-					weapons: [
-						{
-							id: 'cannon-1',
-							name: 'Dragon Cannon',
-							attack: 6,
-							range: 3,
-							defense: 3,
-							status: 'ready',
-							individuallyTargetable: false,
-						},
-					],
-				},
+					friendlyName: 'Dragon 7',
+					weapons: [makeWeapon({ id: 'cannon-1', typeId: 'Dragon.main_1', friendlyName: 'Dragon Cannon' })],
+				}),
 			},
 			stackRoster: { groupsById: {} },
-    		stackNaming: { groupsInUse: [], usedGroupNames: [] },
-			ramsThisTurn: 0,
+			stackNaming: { groupsInUse: [], usedGroupNames: [] },
 		},
 		movementRemainingByUnit: {
 			'onion-live': 0,
@@ -108,7 +72,7 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 			hexes: [{ q: 1, r: 1, t: 1 }],
 		},
 		victoryObjectives: [],
-	}
+	})
 }
 
 /**
@@ -122,78 +86,40 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 export function createConnectedBattlefieldSnapshot(
 	overrides: Partial<AuthoritativeBattlefieldSnapshot> = {},
 ): AuthoritativeBattlefieldSnapshot {
-	return {
+	return makeScenarioSnapshot({
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
 		scenarioName: "The Siege of Shrek's Swamp",
 		turnNumber: 8,
 		lastEventSeq: 47,
 		authoritativeState: {
-			onion: {
-				id: 'onion-1',
-				type: 'TheOnion',
+			onions: {
+				'onion-1': makeOnion({
+					unitId: 'onion-1',
+					position: { q: 0, r: 1 },
+					treads: 33,
 					friendlyName: 'The Onion',
-				position: { q: 0, r: 1 },
-				treads: 33,
-				status: 'operational',
-				weapons: [
-					{
-						id: 'main-1',
-						name: 'Main Battery',
-						attack: 4,
-						range: 4,
-						defense: 4,
-						status: 'ready',
-						individuallyTargetable: true,
-					},
-				],
-				batteries: {
-					main: 1,
-					secondary: 0,
-					ap: 0,
-				},
+					weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+				}),
 			},
 			defenders: {
-				'wolf-2': {
-					id: 'wolf-2',
-					type: 'BigBadWolf',
-					friendlyName: 'Big Bad Wolf 2',
+				'wolf-2': makeDefender({
+					unitId: 'wolf-2',
+					typeId: 'BigBadWolf',
 					position: { q: 3, r: 6 },
-					status: 'operational',
-					weapons: [
-						{
-							id: 'main',
-							name: 'Main Gun',
-							attack: 4,
-							range: 2,
-							defense: 2,
-							status: 'ready',
-							individuallyTargetable: false,
-						},
-					],
-				},
-				'puss-1': {
-					id: 'puss-1',
-					type: 'Puss',
-					friendlyName: 'Puss 1',
+					friendlyName: 'Big Bad Wolf 2',
+					weapons: [makeWeapon({ id: 'main', typeId: 'BigBadWolf.main', friendlyName: 'Main Gun' })],
+				}),
+				'puss-1': makeDefender({
+					unitId: 'puss-1',
+					typeId: 'Puss',
 					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [
-						{
-							id: 'main',
-							name: 'Main Gun',
-							attack: 4,
-							range: 2,
-							defense: 3,
-							status: 'ready',
-							individuallyTargetable: false,
-						},
-					],
-				},
+					friendlyName: 'Puss 1',
+					weapons: [makeWeapon({ id: 'main', typeId: 'Puss.main', friendlyName: 'Main Gun' })],
+				}),
 			},
 			stackRoster: { groupsById: {} },
-    		stackNaming: { groupsInUse: [], usedGroupNames: [] },
-			ramsThisTurn: 0,
+			stackNaming: { groupsInUse: [], usedGroupNames: [] },
 		},
 		movementRemainingByUnit: {
 			'onion-1': 0,
@@ -208,7 +134,7 @@ export function createConnectedBattlefieldSnapshot(
 		},
 		victoryObjectives: [],
 		...overrides,
-	}
+	})
 }
 
 /**
@@ -216,42 +142,29 @@ export function createConnectedBattlefieldSnapshot(
  * onion) and both onion batteries included, so combat-range tests can fire.
  */
 export function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot {
+	const snapshot = createConnectedBattlefieldSnapshot()
 	return {
-		...createConnectedBattlefieldSnapshot(),
-		phase: 'DEFENDER_COMBAT' as const,
+		...snapshot,
 		authoritativeState: {
-			...createConnectedBattlefieldSnapshot().authoritativeState,
-			onion: {
-				...createConnectedBattlefieldSnapshot().authoritativeState.onion,
-						friendlyName: 'The Onion',
-				weapons: [
-					{
-						id: 'main-1',
-						name: 'Main Battery',
-						attack: 4,
-						range: 4,
-						defense: 4,
-						status: 'ready' as const,
-						individuallyTargetable: true,
-					},
-					{
-						id: 'secondary-1',
-						name: 'Secondary Battery',
-						attack: 3,
-						range: 2,
-						defense: 3,
-						status: 'ready' as const,
-						individuallyTargetable: true,
-					},
-				],
+			...snapshot.authoritativeState,
+			onions: {
+				...snapshot.authoritativeState.onions,
+				'onion-1': makeOnion({
+					...snapshot.authoritativeState.onions['onion-1'],
+					friendlyName: 'The Onion',
+					weapons: [
+						makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' }),
+						makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Battery' }),
+					],
+				}),
 			},
 			defenders: {
-				...createConnectedBattlefieldSnapshot().authoritativeState.defenders,
-				'wolf-2': {
-					...createConnectedBattlefieldSnapshot().authoritativeState.defenders['wolf-2'],
-						friendlyName: 'Big Bad Wolf 2',
+				...snapshot.authoritativeState.defenders,
+				'wolf-2': makeDefender({
+					...snapshot.authoritativeState.defenders['wolf-2'],
+					friendlyName: 'Big Bad Wolf 2',
 					position: { q: 1, r: 1 },
-				},
+				}),
 			},
 		},
 	}
@@ -285,16 +198,19 @@ export function createGroupedInRangeCombatSnapshot(): AuthoritativeBattlefieldSn
  * authoritative onion state with the given tread count.
  */
 export function createSnapshotWithTreads(treads: number, movementRemaining: number): AuthoritativeBattlefieldSnapshot {
-	return {
-		...createConnectedBattlefieldSnapshot(),
+	return makeScenarioSnapshot({
 		phase: 'ONION_MOVE',
-		authoritativeState: createMoveGameState(treads),
+		authoritativeState: {
+			onions: {
+				'onion-1': makeOnion({ position: { q: 0, r: 1 }, treads, friendlyName: 'The Onion' }),
+			},
+		},
 		movementRemainingByUnit: {
 			'onion-1': movementRemaining,
 			'wolf-2': 4,
 			'puss-1': 3,
 		},
-	}
+	})
 }
 
 // ---- Base snapshot constant ----
@@ -327,8 +243,13 @@ const UNIT_DEFINITIONS = getAllUnitDefinitions()
 function getDefaultWeapons(unitType: string): ReadonlyArray<Weapon> {
 	const def = UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]
 	if (def === undefined) return []
-	// Clone each weapon and force status to ready so tests start in a clean combat state.
-	return def.weapons.map((w) => ({ ...w, status: 'ready' as const }))
+	// Clone each weapon and force state to ready so tests start in a clean combat state.
+	return def.weapons.map((weapon) => makeWeapon({
+		id: weapon.typeId.split('.').at(-1) ?? weapon.typeId,
+		typeId: weapon.typeId,
+		friendlyName: weapon.name,
+		state: 'ready',
+	}))
 }
 
 /** Minimal description of an individual (non-grouped) defender unit. */
@@ -386,23 +307,23 @@ export function buildDefenderTree(opts: {
 
 	// ---- Individual units ----
 	for (const unit of units) {
-		defenders[unit.id] = {
-			id: unit.id,
-			type: unit.type,
+		defenders[unit.id] = makeDefender({
+			unitId: unit.id,
+			typeId: unit.type,
 			position: unit.pos,
-			status: unit.status ?? 'operational',
+			state: unit.status ?? 'operational',
 			weapons: unit.weapons ?? getDefaultWeapons(unit.type),
 			squads: unit.squads ?? (isUnitTypeStackable(unit.type) ? 1 : undefined),
 			friendlyName: unit.friendlyName,
-		}
+		})
 	}
 
 	// ---- Grouped units ----
 	const allSourceUnits = Object.values(defenders).map((d) => ({
-		id: d.id ?? '',
-		type: d.type,
+		unitId: d.unitId,
+		typeId: d.typeId,
 		position: d.position,
-		status: d.status,
+		state: d.state,
 		squads: d.squads,
 		weapons: d.weapons,
 		friendlyName: d.friendlyName,
@@ -424,29 +345,29 @@ export function buildDefenderTree(opts: {
 		})
 
 		const firstMember = memberUnits[0]
-		if (!isUnitTypeStackable(firstMember.type)) {
-			throw new Error(`Grouped defender stack '${group.groupName}' must reference a stackable unit type, got '${firstMember.type}'`)
+		if (!isUnitTypeStackable(firstMember.typeId)) {
+			throw new Error(`Grouped defender stack '${group.groupName}' must reference a stackable unit type, got '${firstMember.typeId}'`)
 		}
 
 		for (const member of memberUnits.slice(1)) {
-			if (member.type !== firstMember.type) {
-				throw new Error(`Grouped defender stack '${group.groupName}' mixes unit types '${firstMember.type}' and '${member.type}'`)
+			if (member.typeId !== firstMember.typeId) {
+				throw new Error(`Grouped defender stack '${group.groupName}' mixes unit types '${firstMember.typeId}' and '${member.typeId}'`)
 			}
 
 			if (member.position.q !== firstMember.position.q || member.position.r !== firstMember.position.r) {
-				throw new Error(`Grouped defender stack '${group.groupName}' mixes positions for '${member.id}'`)
+				throw new Error(`Grouped defender stack '${group.groupName}' mixes positions for '${member.unitId}'`)
 			}
 		}
 
-		const groupKey = buildStackGroupKey(firstMember.type, firstMember.position)
+		const groupKey = buildStackGroupKey(firstMember.typeId, firstMember.position)
 		stackRoster.groupsById[groupKey] = {
 			...(stackRoster.groupsById[groupKey] ?? {
-				unitType: firstMember.type,
+				unitType: firstMember.typeId,
 				position: firstMember.position,
 				unitIds: [],
 			}),
 			groupName: group.groupName,
-			unitType: firstMember.type,
+			unitType: firstMember.typeId,
 			position: firstMember.position,
 			unitIds: [...group.memberIds],
 		}
@@ -456,39 +377,3 @@ export function buildDefenderTree(opts: {
 
 	return { defenders: defenders as DefenderMap, stackRoster, stackNaming }
 }
-
-// ---- Mock game-client factory ----
-
-/**
- * Creates a fully mocked `GameClient` for use in orchestration tests.
- *
- * By default:
- * - `getState` resolves once with `{ snapshot, session }`.
- * - `submitAction` resolves with `snapshot` (same state, no change).
- * - `pollEvents` resolves with an empty array.
- *
- * Pass `overrides` to replace individual transport methods, e.g. to make
- * `submitAction` reject or to chain multiple `getState` responses.
- */
-export function createTestClient(
-	snapshot: AuthoritativeBattlefieldSnapshot,
-	session: { role: 'onion' | 'defender' },
-	overrides: {
-		getState?: GameClient['getState']
-		submitAction?: GameClient['submitAction']
-		pollEvents?: GameClient['pollEvents']
-	} = {},
-): GameClient {
-	const defaultGetState: GameClient['getState'] = async () => ({ snapshot, session })
-	const defaultSubmitAction: GameClient['submitAction'] = async () => snapshot
-	const defaultPollEvents: GameClient['pollEvents'] = async () => []
-
-	return createGameClient({
-		getState: overrides.getState ?? defaultGetState,
-		submitAction: overrides.submitAction ?? defaultSubmitAction,
-		pollEvents: overrides.pollEvents ?? defaultPollEvents,
-	})
-}
-
-// Re-export building blocks that tests may need directly
-export { createMoveGameState }

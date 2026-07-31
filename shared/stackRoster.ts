@@ -6,6 +6,11 @@ export { buildStackGroupKey } from './stackNaming.js'
 
 const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
 
+function getStaticSquadCount(unitType: string): number | undefined {
+	const definition = UNIT_TYPE_CATALOG[unitType]
+	return definition?.role === 'defender' ? definition.squads : undefined
+}
+
 type StackRosterSourceUnit = {
 	unitId: string
 	typeId: string
@@ -189,7 +194,7 @@ export function buildStackRosterNamingSourceUnits(
 				position: group.position,
 				state: unit.state,
 				friendlyName: unit.friendlyName,
-				squads: unit.squads,
+				squads: getStaticSquadCount(group.unitType),
 			})
 		}
 	}
@@ -341,7 +346,7 @@ export function buildStackRosterIndex(
 				state: unit.state,
 				friendlyName: unit.friendlyName,
 				weapons: unit.weapons,
-				squads: unit.squads,
+				squads: getStaticSquadCount(normalizedGroup.unitType),
 				groupId,
 				groupKey,
 				unitType: normalizedGroup.unitType,

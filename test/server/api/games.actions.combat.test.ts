@@ -4,6 +4,7 @@ import { buildApp } from '#server/app'
 import { StaleMatchStateError } from '#server/db/adapter'
 import * as engineGame from '#server/engine/index'
 import { materializeScenarioMap } from '#shared/scenarioMap'
+import type { GameState } from '#shared/types/index'
 import { advanceToPhase, createGame, joinGame, register, submitAction } from './helpers.js'
 import logger from '#server/logger'
 
@@ -334,9 +335,12 @@ describe('POST /games/:id/actions combat API contract', () => {
         winner: null,
         state: {
           onions: { 'onion-1': { unitId: 'onion-1', typeId: 'TheOnion', role: 'onion', position: { q: 0, r: 10 }, state: 'operational', friendlyName: 'The Onion 1', treads: 45, ramsRemaining: 2, weapons: [] } },
-          defenders: { 'wolf-1': { unitId: 'wolf-1', typeId: 'GEV', position: { q: 3, r: 10 }, state: 'operational' as const, weapons: [] } },
+          defenders: { 'wolf-1': { unitId: 'wolf-1', typeId: 'GEV', role: 'defender', position: { q: 3, r: 10 }, state: 'operational', friendlyName: 'GEV 1', weapons: [] } },
+          stackNaming: { groupsInUse: [], usedGroupNames: [] },
           stackRoster: { groupsById: {} },
-        },
+          currentPhase: 'ONION_COMBAT',
+          turn: 1,
+        } satisfies GameState,
         events: [],
       }),
       updateMatchPlayers: async () => {},

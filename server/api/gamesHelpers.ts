@@ -244,10 +244,7 @@ export function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined)
   const radius = Math.max(0, Math.floor(initial.map.radius))
   const translatedInitialState = initial.initialState && typeof initial.initialState === 'object'
     ? (() => {
-      const state = initial.initialState as {
-        onions?: Record<string, { position?: { q: number; r: number } }>
-        defenders?: Record<string, { position?: { q: number; r: number } }>
-      }
+      const state = initial.initialState
 
       return {
         ...state,
@@ -270,8 +267,8 @@ export function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined)
                 : defender,
             ]),
           )
-          : state.defenders,
-      }
+            : state.defenders,
+          } as InitialState
     })()
     : initial.initialState
 

@@ -9,6 +9,7 @@ break down into features/tasks as needed.
   - [x] Render Little Pigs stack size directly inside the marker and keep yellow/inactive marker text dark for readability.
   - [x] Extract the shared stack naming engine into a standalone module that can track used group names and active groups.
   - [x] Move per-unit movement spend onto the unit records themselves and reset it at phase boundaries.
+  - [ ] Code and regression coverage are complete; manual stack smoke testing is the remaining stop point before this epic can move to Done.
 
 ## Epics / Major Work
 

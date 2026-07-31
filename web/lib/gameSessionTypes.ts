@@ -14,7 +14,7 @@
  * - `GameSessionViewState` is the snapshot consumed by React and test helpers.
  */
 
-import type { GameAction, GameClientSeamError, GameEvent, GameSessionContext, ServerGameSnapshot } from './gameClient'
+import type { GameAction, GameClientSeamError, GameEvent, GameSessionContext, ServerGameSnapshot } from './gameClient.js'
 
 /**
  * Live connection state reported to the session controller and UI.

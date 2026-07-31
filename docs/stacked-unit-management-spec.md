@@ -1,5 +1,7 @@
 # Stacked Unit Management Spec
 
+**Status:** Implementation complete in code; manual stack smoke testing is the last open validation step before the epic can be closed.
+
 ## 1. Stacking Rules (Current Knowledge)
 
 - **Stacking Definition:** Multiple units may occupy (“stack in”) the same hex, subject to stacking limits.

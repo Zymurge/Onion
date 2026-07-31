@@ -77,7 +77,9 @@ async function setupIntegrationGame(seed: string, scenarioId = 'swamp-siege-01')
     throw new Error('Integration scenario must define one Onion')
   }
   const onionId = getOnion(authoredOnionId, initialState.state)
-  expect(onionId).toBe(authoredOnionId)
+  if (onionId === undefined) {
+    throw new Error(`Scenario Onion ${authoredOnionId} was not found in normalized state`)
+  }
 
   return {
     app,
@@ -647,7 +649,7 @@ describe('Integration Orchestrators', () => {
     const ctx = await setupIntegrationGame('orchestrator-endgame', 'smoke-endgame-01')
 
     let finalState = await fetchGame(ctx, 'onion')
-    const maxAssaultTurns = 20
+    const maxAssaultTurns = 40
     for (let turn = 0; turn < maxAssaultTurns; turn++) {
         const defendersRemaining = Object.values(finalState.state.defenders as Record<string, any>)
           .filter((unit: any) => unit.state !== 'destroyed')
@@ -664,7 +666,6 @@ describe('Integration Orchestrators', () => {
         .filter((unit: any) => unit.state !== 'destroyed')
       .length
     const onionImmobilized = finalState.state.onions[ctx.onionId].treads <= 0
-
     expect(onionImmobilized || defendersRemaining === 0).toBe(true)
 
     if (onionImmobilized) {

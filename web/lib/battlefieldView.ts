@@ -1,4 +1,4 @@
-import type { DefenderUnit, HexPos, TargetRules, Weapon } from '../../shared/types/index'
+import type { DefenderUnit, HexPos, TargetRules, UnitState, Weapon } from '../../shared/types/index.js'
 
 // Returns true if the unit is eligible to move for the given player and phase
 export function isUnitMoveEligible(
@@ -24,6 +24,8 @@ export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
 
 export type BattlefieldUnitView = Omit<DefenderUnit, 'id'> & {
   id: string
+  type: string
+  status: UnitState
   position: DefenderUnit['position']
   q: number
   r: number
@@ -35,6 +37,8 @@ export type BattlefieldUnitView = Omit<DefenderUnit, 'id'> & {
   weapons: ReadonlyArray<Weapon> | string
   weaponDetails?: ReadonlyArray<Weapon>
   defense?: number
+  targetRules?: TargetRules
+  squads?: number
   actionableModes: Mode[]
 }
 

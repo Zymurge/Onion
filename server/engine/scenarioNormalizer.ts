@@ -7,14 +7,7 @@ import type { StackRosterState } from '#shared/types/index'
 
 type DefenderEntry = InitialState['defenders'][string]
 
-type DefenderStackGroupEntry = {
-  kind: 'stack-group'
-  unitType: string
-  position: { q: number; r: number }
-  count: number
-  groupName?: string
-  status?: string
-}
+type DefenderStackGroupEntry = Extract<DefenderEntry, { kind: 'stack-group' }>
 
 function isStackGroupEntry(entry: DefenderEntry): entry is DefenderStackGroupEntry {
   return 'kind' in entry && entry.kind === 'stack-group'
@@ -54,14 +47,18 @@ export function normalizeInitialStateToGameState(initial: InitialState): GameSta
       throw new Error(`Unknown onion type: ${entry.type}`)
     }
 
+    if (onionDefinition.role !== 'onion') {
+      throw new Error(`Unit type is not an onion: ${entry.type}`)
+    }
+
     onions[unitId] = {
       unitId,
       typeId: entry.type,
       role: 'onion',
       friendlyName: buildFriendlyName(onionDefinition.friendlyNameTemplate ?? `${onionDefinition.name} {{ordinal}}`, unitId),
       position: entry.position,
-      treads: onionDefinition.treads ?? 0,
-      ramsRemaining: onionDefinition.role === 'onion' ? onionDefinition.ramsPerTurn : 0,
+      treads: onionDefinition.treads,
+      ramsRemaining: onionDefinition.ramsPerTurn,
       state: (entry.status ?? 'operational') as OnionUnit['state'],
       weapons: buildUnitWeapons(onionDefinition),
     }

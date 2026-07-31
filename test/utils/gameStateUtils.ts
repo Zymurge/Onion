@@ -1,4 +1,5 @@
 import { buildStackGroupKey, type StackNamingSnapshot } from '#shared/stackNaming'
+import type { VictoryObjectiveState } from '#shared/apiProtocol'
 import type {
 	DefenderMap,
 	DefenderUnit,
@@ -12,6 +13,7 @@ import type {
 import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog } from '#shared/unitDefinitions'
 import { buildBattlefieldDefenderView, buildBattlefieldOnionView } from '#web/lib/appViewHelpers'
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
+import { createGameClient, type GameClient, type GameSnapshot, type ScenarioMapSnapshot } from '#web/lib/gameClient'
 
 /**
  * Utility to create a new Weapon object with default properties, allowing for overrides.
@@ -36,7 +38,7 @@ export function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
  */
 export function makeDefender(overrides: Partial<DefenderUnit> = {}): DefenderUnit {
 	const unitType = overrides.typeId ?? 'Puss'
-	const weaponTypeId = getUnitTypeCatalog()[unitType]?.weaponTypeIds?.[0] ?? 'Puss.main'
+	const weaponTypeId = getUnitTypeCatalog()[unitType]?.weapons[0]?.typeId ?? 'Puss.main'
 	const defaultDefender: DefenderUnit = {
 		unitId: 'puss-1',
 		typeId: unitType,
@@ -95,12 +97,16 @@ export function makeBattlefieldDefender(
 	unitOverrides: Partial<DefenderUnit> = {},
 	viewOverrides: Partial<BattlefieldUnit> = {},
 ): BattlefieldUnit {
+	const defender = makeDefender(unitOverrides)
+	const definition = getUnitTypeCatalog()[defender.typeId]
+	const squads = definition?.role === 'defender' ? definition.squads ?? 1 : undefined
+
 	return {
-		...buildBattlefieldDefenderView(makeDefender(unitOverrides), {
+		...buildBattlefieldDefenderView({ ...defender, squads }, {
 			activePhase: 'DEFENDER_COMBAT',
 			activeTurnActive: true,
 		}),
-		squads: unitOverrides.squads ?? 1,
+		squads,
 		...viewOverrides,
 	}
 }
@@ -123,7 +129,6 @@ export function canonicalizeBattlefieldDefenders(defenders: ReadonlyArray<Battle
 		state: view.state ?? view.status,
 		friendlyName: view.friendlyName,
 		weapons: [],
-		squads: view.squads,
 	}, view))
 }
 
@@ -132,7 +137,7 @@ export function canonicalizeBattlefieldOnion(view: BattlefieldOnionView): Battle
 	const weapons = (view.weaponDetails ?? []).map((weapon) => makeWeapon({
 		...weapon,
 		typeId: weapon.typeId ?? `${view.type}.${weapon.id.replace(/-\d+$/, '')}`,
-		state: weapon.state ?? weapon.status ?? 'ready',
+		state: weapon.state ?? (weapon as Weapon & { status?: Weapon['state'] }).status ?? 'ready',
 	}))
 
 	return makeBattlefieldOnion({
@@ -279,6 +284,104 @@ export function makeGameState(overrides: Partial<GameState> = {}): GameState {
 		turn: 1,
 		...overrides,
 	}
+}
+
+export type TestScenarioSnapshot = GameSnapshot & {
+	authoritativeState: GameState
+	scenarioMap: ScenarioMapSnapshot
+}
+
+export type ScenarioSnapshotOptions = Omit<Partial<TestScenarioSnapshot>, 'authoritativeState' | 'scenarioMap'> & {
+	authoritativeState?: Partial<GameState>
+	scenarioMap?: Partial<ScenarioMapSnapshot>
+}
+
+export function makeScenarioGameState(overrides: Partial<GameState> = {}): GameState {
+	return makeGameState({
+		onions: {
+			'onion-1': makeOnion({ position: { q: 0, r: 1 }, friendlyName: 'The Onion' }),
+		},
+		defenders: {
+			'wolf-2': makeDefender({
+				unitId: 'wolf-2',
+				typeId: 'BigBadWolf',
+				position: { q: 3, r: 6 },
+				friendlyName: 'Big Bad Wolf 2',
+			}),
+			'puss-1': makeDefender({
+				unitId: 'puss-1',
+				typeId: 'Puss',
+				position: { q: 4, r: 4 },
+				friendlyName: 'Puss 1',
+			}),
+		},
+		stackRoster: makeStackRoster({ groupsById: {} }),
+		stackNaming: makeStackNaming({ groupsInUse: [], usedGroupNames: [] }),
+		currentPhase: 'DEFENDER_COMBAT',
+		turn: 11,
+		...overrides,
+	})
+}
+
+export function makeScenarioSnapshot(options: ScenarioSnapshotOptions = {}): TestScenarioSnapshot {
+	const { authoritativeState: stateOverrides, scenarioMap: mapOverrides, ...snapshotOverrides } = options
+	const phase = snapshotOverrides.phase ?? 'DEFENDER_COMBAT'
+	const turnNumber = snapshotOverrides.turnNumber ?? 11
+	const authoritativeState = makeScenarioGameState({ currentPhase: phase, turn: turnNumber, ...stateOverrides })
+
+	return {
+		gameId: 123,
+		phase: 'DEFENDER_COMBAT',
+		scenarioName: 'Selection Contract Test',
+		turnNumber: 11,
+		lastEventSeq: 47,
+		authoritativeState,
+		movementRemainingByUnit: {
+			'onion-1': 0,
+			'wolf-2': 4,
+			'puss-1': 3,
+		},
+		victoryObjectives: [],
+		scenarioMap: {
+			width: 8,
+			height: 8,
+			cells: Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, q) => ({ q, r }))).flat(),
+			hexes: [],
+			...mapOverrides,
+		},
+		...snapshotOverrides,
+	}
+}
+
+export function makeScenarioObjective(overrides: Partial<VictoryObjectiveState> = {}): VictoryObjectiveState {
+	return {
+		id: 'objective-1',
+		label: 'Destroy the marked unit',
+		kind: 'destroy-unit',
+		required: true,
+		completed: false,
+		...overrides,
+	}
+}
+
+export function createTestClient(
+	snapshot: TestScenarioSnapshot,
+	session: { role: 'onion' | 'defender' },
+	overrides: {
+		getState?: GameClient['getState']
+		submitAction?: GameClient['submitAction']
+		pollEvents?: GameClient['pollEvents']
+	} = {},
+): GameClient {
+	const defaultGetState: GameClient['getState'] = async () => ({ snapshot, session })
+	const defaultSubmitAction: GameClient['submitAction'] = async () => snapshot
+	const defaultPollEvents: GameClient['pollEvents'] = async () => []
+
+	return createGameClient({
+		getState: overrides.getState ?? defaultGetState,
+		submitAction: overrides.submitAction ?? defaultSubmitAction,
+		pollEvents: overrides.pollEvents ?? defaultPollEvents,
+	})
 }
 
 export type { DefenderMap, DefenderUnit, GameState, HexPos, OnionUnit, StackRosterGroupState, StackRosterState, Weapon }

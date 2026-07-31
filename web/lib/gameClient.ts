@@ -1,6 +1,6 @@
-import type { GameState, TurnPhase } from '../../shared/types/index'
-import type { GameRequestTransport } from './gameSessionTypes'
-import type { RamResolution as MoveResolution } from './moveResolution'
+import type { GameState, TurnPhase } from '../../shared/types/index.js'
+import type { GameRequestTransport } from './gameSessionTypes.js'
+import type { RamResolution as MoveResolution } from './moveResolution.js'
 
 export type ScenarioMapSnapshot = {
 	width: number

@@ -1,4 +1,4 @@
-import type { TerrainType } from './engineTypes.js'
+import type { TerrainType } from './types/index.js'
 import type { UnitTypeBase } from './types/index.js'
 import { getUnitTypeCatalog } from './unitDefinitions.js'
 

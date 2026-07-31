@@ -122,7 +122,7 @@ function buildValidatedStackSelection(
     return { ok: false, reason: 'snapshot-missing-stack-selection' }
   }
 
-  if (selectedUnit === undefined || !isUnitTypeStackable(selectedUnit.type)) {
+  if (selectedUnit === undefined || !isUnitTypeStackable(selectedUnit.typeId)) {
     return { ok: false, reason: 'not-a-stack' }
   }
 
