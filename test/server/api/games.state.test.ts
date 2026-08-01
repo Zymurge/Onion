@@ -23,6 +23,7 @@ describe('GET /games/:id', () => {
     expect(body.turnNumber).toBe(1)
     expect(body.winner).toBeNull()
     expect(body).toHaveProperty('state')
+    expect(body).not.toHaveProperty('catalog')
     expect(body).toHaveProperty('movementRemainingByUnit')
     expect(body).toHaveProperty('scenarioMap')
     expect(body.scenarioMap.width).toBeGreaterThan(0)

@@ -1,7 +1,7 @@
 import type { GameAction, StackActionSelection } from './gameClient'
 import { normalizeSelectionIds, parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId, type WebStackSourceState } from './appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
-import { isUnitTypeStackable } from '../../shared/unitDefinitions'
+import { isSessionUnitTypeStackable } from './sessionCatalog'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState, DefenderMap } from '../../shared/types/index'
 
@@ -122,7 +122,7 @@ function buildValidatedStackSelection(
     return { ok: false, reason: 'snapshot-missing-stack-selection' }
   }
 
-  if (selectedUnit === undefined || !isUnitTypeStackable(selectedUnit.typeId)) {
+  if (selectedUnit === undefined || state.catalog === undefined || !isSessionUnitTypeStackable(state.catalog, selectedUnit.typeId)) {
     return { ok: false, reason: 'not-a-stack' }
   }
 

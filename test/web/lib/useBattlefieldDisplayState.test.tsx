@@ -7,6 +7,10 @@ import type { GameSnapshot } from '#web/lib/gameClient'
 import type { GameSessionViewState } from '#web/lib/gameSessionTypes'
 import type { BattlefieldInteractionState } from '#web/lib/useBattlefieldInteractionState'
 import { makeDefender, makeGameState, makeOnion, makeWeapon } from '#test/utils/gameStateUtils'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createSnapshot(): GameSnapshot {
 	const authoritativeState = makeGameState({
@@ -65,6 +69,7 @@ function createSnapshot(): GameSnapshot {
 function createSessionState(snapshot: GameSnapshot): GameSessionViewState {
 	return {
 		status: 'ready',
+		catalog: sessionCatalog,
 		snapshot,
 		session: { role: 'defender' },
 		liveConnection: 'connected',

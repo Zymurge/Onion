@@ -9,18 +9,25 @@ import type { GameStateResponse, VictoryEscapeHex, VictoryObjectiveState } from 
 import { hexKey } from '#shared/hex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
-import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
-import { getUnitDefinition } from '#shared/unitDefinitions'
+import type { Command, EventEnvelope, GameState, SessionInitPayload, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
+import { getUnitDefinition, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { parseCombatTargetId } from '#shared/combatTarget'
 import { getDefender, getOnionOrDefender } from '#shared/unitState'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
 import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
-import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
+import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
 
 const SCENARIOS_DIR = resolveScenariosDir()
 const GAME_ID_RE = /^\d+$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function buildSessionInitPayload(): SessionInitPayload {
+  return {
+    unitTypes: getUnitTypeCatalog(),
+    weaponTypes: getWeaponTypeCatalog(),
+  }
+}
 
 function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void {
   const stackRoster = matchState.stackRoster
@@ -817,7 +824,7 @@ export function buildActionResponse(
   }
 }
 
-export function serializeWsMessage(message: WebSocketClientMessage | WebSocketServerEventMessage | WebSocketServerSnapshotMessage | WebSocketServerErrorMessage): string {
+export function serializeWsMessage(message: WebSocketClientMessage | WebSocketServerEventMessage | WebSocketServerSessionInitMessage | WebSocketServerSnapshotMessage | WebSocketServerErrorMessage): string {
   return JSON.stringify(message)
 }
 

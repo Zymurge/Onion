@@ -6,6 +6,10 @@ import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import { useBattlefieldInteractionState } from '#web/lib/useBattlefieldInteractionState'
 import type { GameSessionController } from '#web/lib/gameSessionTypes'
 import type { GameSnapshot } from '#web/lib/gameClient'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	return {
@@ -151,6 +155,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -196,6 +201,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -225,6 +231,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: false,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -256,6 +263,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -291,6 +299,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -372,6 +381,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: snapshot,
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -403,6 +413,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot({ phase: 'DEFENDER_MOVE' }),
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: true,
 				isSelectionLocked: true,
@@ -438,6 +449,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createGroupedDefenderSnapshot({ includeStackRoster: false }),
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -458,6 +470,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createGroupedDefenderSnapshot({ includeStackRoster: false }),
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -487,6 +500,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createGroupedDefenderSnapshot(),
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -514,6 +528,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot({ phase: 'DEFENDER_COMBAT' }),
 				clientSnapshotPhase: 'DEFENDER_COMBAT',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,

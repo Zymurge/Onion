@@ -5,9 +5,14 @@ import {
   buildEndPhaseCommitAction,
   buildMoveCommitAction,
 } from '#web/lib/commitActionBuilders'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createTestStackState() {
   return {
+    catalog: sessionCatalog,
     defenders: {
       'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
       'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
@@ -28,6 +33,7 @@ function createTestStackState() {
 
 function createBrokenStackState() {
   return {
+    catalog: sessionCatalog,
     defenders: {
       'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
       'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
@@ -37,6 +43,7 @@ function createBrokenStackState() {
 
 function createSingletonStackState() {
   return {
+    catalog: sessionCatalog,
     defenders: {
       'pigs-5': { unitId: 'pigs-5', typeId: 'LittlePigs', position: { q: 4, r: 8 }, state: 'operational' },
       'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },

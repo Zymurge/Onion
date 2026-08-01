@@ -134,6 +134,10 @@ Errors:   404 game not found
 
 Full current game state. Suitable for initial render and reconnect.
 
+This response contains dynamic game state only. Static unit and weapon catalogs
+are sent separately in the WebSocket `SESSION_INIT` message and are not included
+in this response or in `GameState`.
+
 ```json
 {
   "gameId":      number,
@@ -443,11 +447,13 @@ and their assigned role.
 ### Sync Event
 
 ```text
+SESSION_INIT      { unitTypes: UnitTypeCatalog, weaponTypes: WeaponTypeCatalog }
 STATE_SNAPSHOT    { state: GameState }
 ```
 
-Sent by server on WS reconnect. Not generated in REST polling.
-Clients use `GET /games/{id}` for full state on reconnect.
+`SESSION_INIT` is sent when a WebSocket session is established and carries static
+catalog data. `STATE_SNAPSHOT` is sent on WS reconnect and carries dynamic state
+only. REST `GET /games/{id}` likewise returns dynamic state only.
 
 ---
 

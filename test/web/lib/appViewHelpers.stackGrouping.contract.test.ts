@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import { countSelectedBattlefieldStackGroups, countSelectedBattlefieldStackMembers, resolveBattlefieldStackMemberIds } from '#web/lib/appViewHelpers'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 describe('appViewHelpers stack-grouping contract', () => {
   it('resolves stack members from explicit stackRoster membership instead of raw co-location', () => {
     const state = {
+      catalog: sessionCatalog,
       defenders: {
         'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
         'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
@@ -26,6 +31,7 @@ describe('appViewHelpers stack-grouping contract', () => {
 
   it('counts selected stack members from explicit stackRoster membership', () => {
     const state = {
+      catalog: sessionCatalog,
       defenders: {
         'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
         'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
@@ -47,6 +53,7 @@ describe('appViewHelpers stack-grouping contract', () => {
 
   it('counts distinct selected stack groups instead of raw unit ids', () => {
     const state = {
+      catalog: sessionCatalog,
       defenders: {
         'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
         'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
@@ -69,6 +76,7 @@ describe('appViewHelpers stack-grouping contract', () => {
 
   it('throws when stackable unit membership is requested without a stack roster', () => {
     const state = {
+      catalog: sessionCatalog,
       defenders: {
         'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
         'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
@@ -80,6 +88,7 @@ describe('appViewHelpers stack-grouping contract', () => {
 
     it('throws when a grouped unit is absent from defenders', () => {
       const state = {
+        catalog: sessionCatalog,
         defenders: {
           'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
         },

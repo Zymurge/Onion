@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCombatTargetOptions } from '#web/lib/combatPreview'
+import { buildCombatTargetOptions as buildCombatTargetOptionsWithCatalog } from '#web/lib/combatPreview'
 import type { StackRosterGroupState } from '#shared/types/index'
 import {
 	makeBattlefieldDefender,
@@ -9,6 +9,14 @@ import {
 	makeStackGroup,
 	makeWeapon,
 } from '#test/utils/gameStateUtils'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
+
+function buildCombatTargetOptions(input: Parameters<typeof buildCombatTargetOptionsWithCatalog>[0]) {
+	return buildCombatTargetOptionsWithCatalog({ ...input, catalog: sessionCatalog })
+}
 
 function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRosterGroupState, 'position' | 'unitIds'>) {
 	const stack = makeStackFixture({

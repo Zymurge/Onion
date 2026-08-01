@@ -7,11 +7,15 @@ import {
   StackSourceUnit,
 } from '../../../web/lib/appViewHelpers'
 import { UnitStatus } from '#shared/types/index'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '../../../web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createTestDefendersMap(): Record<string, StackSourceUnit> {
   return {
-    'pigs-1': { unitId: 'pigs-1', type: 'LittlePigs', position: { q: 2, r: 2 }, state: 'operational' as UnitStatus },
-    'pigs-2': { unitId: 'pigs-2', type: 'LittlePigs', position: { q: 2, r: 2 }, state: 'operational' as UnitStatus },
+    'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 2, r: 2 }, state: 'operational' },
+    'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 2, r: 2 }, state: 'operational' },
   }
 }
 
@@ -38,7 +42,7 @@ describe('resolveBattlefieldDisplayName', () => {
       },
       undefined,
       stackRoster,
-      createTestDefendersMap(),
+      sessionCatalog,
     )).toThrow('Missing stackNaming for grouped unit pigs-1')
   })
 
@@ -71,7 +75,7 @@ describe('resolveBattlefieldDisplayName', () => {
       },
       stackNaming,
       stackRoster,
-      createTestDefendersMap(),
+      sessionCatalog,
     )).toThrow('Conflicting stacked-unit labels for pigs-1')
   })
 
@@ -97,7 +101,7 @@ describe('resolveBattlefieldDisplayName', () => {
       },
       stackNaming,
       stackRoster,
-      createTestDefendersMap(),
+      sessionCatalog,
     )).toThrow('Missing roster group for grouped unit pigs-1')
   })
 
@@ -151,7 +155,7 @@ describe('resolveBattlefieldDisplayName', () => {
       },
       stackNaming,
       stackRoster,
-      createTestDefendersMap(),
+      sessionCatalog,
     )
 
     expect(label).toBe('Little Pigs group 1')

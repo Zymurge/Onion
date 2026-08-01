@@ -12,6 +12,10 @@ import {
 } from '#web/lib/rightRailSelection'
 import { StackSourceUnit } from '#web/lib/appViewHelpers'
 import { GameState } from '#shared/types/index'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createTestDefendersMap() : Record<string, StackSourceUnit> {
   return {
@@ -24,6 +28,7 @@ function createTestDefendersMap() : Record<string, StackSourceUnit> {
 
 function createTestStackState() {
   return {
+    catalog: sessionCatalog,
     defenders: createTestDefendersMap(),
     stackRoster: {
       groupsById: {
@@ -45,6 +50,7 @@ function createSingletonStackState() {
   }
 
   return {
+    catalog: sessionCatalog,
     defenders,
     stackRoster: {
       groupsById: {
@@ -324,6 +330,7 @@ describe('rightRailSelection', () => {
 
     it('rejects stackable submissions when stack metadata is missing instead of inferring members', () => {
       const state = {
+        catalog: sessionCatalog,
         defenders: {
           'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
           'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },

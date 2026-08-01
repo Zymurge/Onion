@@ -6,11 +6,12 @@ import type {
 	GameState,
 	HexPos,
 	OnionUnit,
+	SessionInitPayload,
 	StackRosterGroupState,
 	StackRosterState,
 	Weapon,
 } from '#shared/types/index'
-import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog } from '#shared/unitDefinitions'
+import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { buildBattlefieldDefenderView, buildBattlefieldOnionView } from '#web/lib/appViewHelpers'
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
 import { createGameClient, type GameClient, type GameSnapshot, type ScenarioMapSnapshot } from '#web/lib/gameClient'
@@ -374,11 +375,14 @@ export function createTestClient(
 	} = {},
 ): GameClient {
 	const defaultGetState: GameClient['getState'] = async () => ({ snapshot, session })
+	const getState = overrides.getState ?? defaultGetState
 	const defaultSubmitAction: GameClient['submitAction'] = async () => snapshot
 	const defaultPollEvents: GameClient['pollEvents'] = async () => []
 
 	return createGameClient({
-		getState: overrides.getState ?? defaultGetState,
+		async getState(gameId) {
+			return getState(gameId)
+		},
 		submitAction: overrides.submitAction ?? defaultSubmitAction,
 		pollEvents: overrides.pollEvents ?? defaultPollEvents,
 	})

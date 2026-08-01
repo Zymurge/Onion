@@ -99,6 +99,7 @@
 					scenarioMap={scenarioMap}
 					defenders={littlePigsStack}
 					onion={onion}
+					catalog={sessionCatalog}
 					phase="DEFENDER_COMBAT"
 					selectedUnitIds={[]}
 					onSelectUnit={vi.fn()}
@@ -227,6 +228,10 @@ import { HexMapBoard as ProductionHexMapBoard } from '#web/components/HexMapBoar
 import { boardPixelSize } from '#web/lib/hex'
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '#web/lib/battlefieldView'
 import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion } from '#test/utils/gameStateUtils'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function HexMapBoard(props: ComponentProps<typeof ProductionHexMapBoard>) {
 	return <ProductionHexMapBoard {...props} defenders={canonicalizeBattlefieldDefenders(props.defenders)} onion={canonicalizeBattlefieldOnion(props.onion)} />

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '#web/App'
 import type { GameClient, GameSnapshot } from '#web/lib/gameClient'
 import { makeScenarioSnapshot, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
+import { WebRuntimeConfig } from '#web/lib/appBootstrap'
 
 const createHttpGameRequestTransport = vi.hoisted(() => vi.fn())
 const createLiveEventSource = vi.hoisted(() => vi.fn())
@@ -14,7 +15,7 @@ const clearApiProtocolTraffic = vi.hoisted(() => vi.fn())
 const getApiProtocolTrafficSnapshot = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const formatApiProtocolTrafficEntry = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const subscribeApiProtocolTraffic = vi.hoisted(() => vi.fn().mockReturnValue(vi.fn()))
-const runtimeConfig = { apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5 }
+const runtimeConfig = { apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5, clientLogLevel: 'info' } as WebRuntimeConfig
 
 vi.mock('#web/lib/httpGameClient', () => ({
 	createHttpGameRequestTransport,

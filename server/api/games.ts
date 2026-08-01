@@ -17,6 +17,7 @@ import {
   buildEngineState,
   buildGameStateResponse,
   buildActionResponse,
+  buildSessionInitPayload,
   buildMoveEvents,
   buildVictoryObjectiveStates,
   computeWinnerUserId,
@@ -39,6 +40,7 @@ import type {
   WebSocketClientMessage,
   WebSocketServerErrorMessage,
   WebSocketServerEventMessage,
+  WebSocketServerSessionInitMessage,
   WebSocketServerSnapshotMessage,
 } from '#shared/websocketProtocol'
 
@@ -465,6 +467,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             socket.close()
             return
           }
+
+          const sessionInitMessage: WebSocketServerSessionInitMessage = {
+            kind: 'SESSION_INIT',
+            payload: buildSessionInitPayload(),
+          }
+          socket.send(serializeWsMessage(sessionInitMessage))
 
           const snapshotMessage: WebSocketServerSnapshotMessage = {
             kind: 'STATE_SNAPSHOT',

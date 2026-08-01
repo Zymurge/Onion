@@ -13,6 +13,33 @@ async function readWsMessage(ws: { once: (event: 'message', handler: (data: Buff
 	})
 }
 
+async function readInitialSnapshot(ws: {
+	on: (event: 'message', handler: (data: Buffer | string) => void) => void
+	off: (event: 'message', handler: (data: Buffer | string) => void) => void
+}) {
+	const messages = await new Promise<any[]>((resolve) => {
+		const received: any[] = []
+		const handler = (data: Buffer | string) => {
+			const text = typeof data === 'string' ? data : data.toString()
+			received.push(JSON.parse(text))
+			if (received.length === 2) {
+				ws.off('message', handler)
+				resolve(received)
+			}
+		}
+		ws.on('message', handler)
+	})
+
+	const [sessionInitMessage, snapshotMessage] = messages
+	expect(sessionInitMessage.kind).toBe('SESSION_INIT')
+	expect(sessionInitMessage.payload).toEqual(expect.objectContaining({
+		unitTypes: expect.any(Object),
+		weaponTypes: expect.any(Object),
+	}))
+	expect(snapshotMessage.kind).toBe('STATE_SNAPSHOT')
+	return snapshotMessage
+}
+
 describe('GET /games/:id/ws', () => {
 	it('sends the current snapshot and broadcasts live events', async () => {
 		const app = buildApp()
@@ -24,7 +51,7 @@ describe('GET /games/:id/ws', () => {
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 
@@ -67,7 +94,7 @@ describe('GET /games/:id/ws', () => {
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 
@@ -107,7 +134,7 @@ describe('GET /games/:id/ws', () => {
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(fiona.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 
@@ -163,7 +190,7 @@ describe('GET /games/:id/ws', () => {
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 
@@ -198,7 +225,7 @@ describe('GET /games/:id/ws', () => {
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 

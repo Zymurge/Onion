@@ -6,7 +6,7 @@ import {
   type WebStackSourceState,
 } from './appViewHelpers'
 import { buildRightRailCombatSubmissionAction, buildRightRailMoveSubmissionAction } from './rightRailSelection'
-import { isUnitTypeStackable } from '../../shared/unitDefinitions'
+import { isSessionUnitTypeStackable } from './sessionCatalog'
 
 type CommitActionFailureReason = 'empty-stack-selection' | 'missing-target' | 'missing-onion' | 'snapshot-missing-stack-selection'
 
@@ -45,8 +45,8 @@ function resolveUnitType(state: WebStackSourceState, unitId: string | null): str
   return state.defenders?.[unitId]?.typeId ?? null
 }
 
-function isStackableUnitType(unitType: string | null): boolean {
-  return isUnitTypeStackable(unitType)
+function isStackableUnitType(state: WebStackSourceState, unitType: string | null): boolean {
+  return unitType !== null && state.catalog !== undefined && isSessionUnitTypeStackable(state.catalog, unitType)
 }
 
 function buildMovePayload(
@@ -86,7 +86,7 @@ function buildMovePayload(
     return stackSubmission
   }
 
-  if (!isStackableUnitType(resolveUnitType(state, unitId))) {
+  if (!isStackableUnitType(state, resolveUnitType(state, unitId))) {
     return {
       ok: true,
       action: {
@@ -138,7 +138,7 @@ function buildCombatPayload(
     }
   }
 
-  if (!isStackableUnitType(resolveUnitType(state, anchorUnitId ?? selectedUnitIds[0] ?? null))) {
+  if (!isStackableUnitType(state, resolveUnitType(state, anchorUnitId ?? selectedUnitIds[0] ?? null))) {
     return {
       ok: true,
       action: {

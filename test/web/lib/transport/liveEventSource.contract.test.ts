@@ -117,4 +117,33 @@ describe('live event source contract', () => {
 			JSON.stringify({ kind: 'RESUME', afterSeq: 11 }),
 		])
 	})
+
+	it('emits valid session initialization and ignores malformed initialization payloads', () => {
+		const socket = new FakeWebSocket('wss://onion.test/games/123/ws')
+		const signals: LiveSessionSignal[] = []
+		const source = createLiveEventSource({
+			baseUrl: 'https://onion.test',
+			webSocketFactory: () => socket,
+		})
+
+		source.subscribe((signal) => signals.push(signal))
+		source.connect(123)
+		socket.open()
+		socket.receive({
+			kind: 'SESSION_INIT',
+			payload: { unitTypes: { tank: { typeId: 'tank' } }, weaponTypes: { cannon: { typeId: 'cannon' } } },
+		})
+		socket.receive({ kind: 'SESSION_INIT', payload: { unitTypes: [] } })
+		socket.receive({
+			kind: 'SESSION_INIT',
+			payload: { unitTypes: { tank: { typeId: 'tank' } }, weaponTypes: { cannon: { typeId: 'cannon' } } },
+		})
+
+		expect(signals).toEqual([
+			{ kind: 'connection', gameId: 123, status: 'connecting' },
+			{ kind: 'connection', gameId: 123, status: 'connected' },
+			{ kind: 'session-init', gameId: 123, payload: { unitTypes: { tank: { typeId: 'tank' } }, weaponTypes: { cannon: { typeId: 'cannon' } } } },
+			{ kind: 'session-init', gameId: 123, payload: { unitTypes: { tank: { typeId: 'tank' } }, weaponTypes: { cannon: { typeId: 'cannon' } } } },
+		])
+	})
 })

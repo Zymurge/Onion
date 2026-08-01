@@ -51,5 +51,21 @@ const invalidWeapon: Weapon = { ...weapon, attack: 4 }
 // @ts-expect-error: dynamic weapon instances must use state instead of status
 const invalidLegacyWeapon: Weapon = { ...weapon, status: 'ready' }
 
+// @ts-expect-error: dynamic units must resolve movement from the static catalog
+const invalidDynamicMovement: OnionUnit = { ...onion, movement: 3 }
+
+// @ts-expect-error: dynamic units must resolve defense from the static catalog
+const invalidDynamicDefense: DefenderUnit = { ...defender, defense: 4 }
+
+// @ts-expect-error: dynamic units must resolve abilities from the static catalog
+const invalidDynamicAbilities: DefenderUnit = { ...defender, abilities: { maxStacks: 1 } }
+
+// @ts-expect-error: dynamic units must resolve squad capacity from the static catalog
+const invalidDynamicSquads: DefenderUnit = { ...defender, squads: 3 }
+
 void invalidWeapon
 void invalidLegacyWeapon
+void invalidDynamicMovement
+void invalidDynamicDefense
+void invalidDynamicAbilities
+void invalidDynamicSquads

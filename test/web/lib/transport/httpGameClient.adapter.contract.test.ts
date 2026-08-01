@@ -68,7 +68,8 @@ describe('http game client adapter contract', () => {
 			token: 'stub.token',
 		})
 
-		await expect(client.getState(123)).resolves.toEqual({
+		const loadedState = await client.getState(123)
+		expect(loadedState).toEqual({
 			snapshot: {
 				authoritativeState: {
 					onion: { position: { q: 0, r: 0 }, treads: 45 },
@@ -113,6 +114,7 @@ describe('http game client adapter contract', () => {
 			},
 			session: { role: 'defender' },
 		})
+		expect(loadedState).not.toHaveProperty('catalog')
 
 		await expect(client.pollEvents(123, 47)).resolves.toEqual([
 			{ seq: 48, type: 'TURN_CONTEXT', summary: 'ready', timestamp: '2026-03-26T12:00:00.000Z' },

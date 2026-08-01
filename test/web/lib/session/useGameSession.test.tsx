@@ -11,6 +11,7 @@ import { useGameSession } from '#web/lib/useGameSession'
 function createState(overrides: Partial<GameSessionViewState> = {}): GameSessionViewState {
 	return {
 		status: 'idle',
+		catalog: null,
 		snapshot: null,
 		session: null,
 		liveConnection: 'idle',

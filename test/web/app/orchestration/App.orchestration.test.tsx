@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render as renderWithTestingLibrary, screen, within } from '@testing-library/react'
+import { cloneElement, type ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -16,6 +17,38 @@ import {
 	createInRangeCombatSnapshot,
 	createSnapshotWithTreads,
 } from './orchestrationHelpers'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import type { LiveEventSource } from '#web/lib/gameSessionTypes'
+import type { SessionInitPayload } from '#shared/types/index'
+
+const testSessionCatalog: SessionInitPayload = {
+	unitTypes: getUnitTypeCatalog(),
+	weaponTypes: getWeaponTypeCatalog(),
+}
+
+function createCatalogLiveEventSource(): LiveEventSource {
+	const listeners = new Set<Parameters<LiveEventSource['subscribe']>[0]>()
+
+	return {
+		subscribe(listener) {
+			listeners.add(listener)
+			return () => listeners.delete(listener)
+		},
+		connect(gameId) {
+			for (const listener of listeners) {
+				listener({ kind: 'session-init', gameId, payload: testSessionCatalog })
+			}
+		},
+		disconnect() {},
+		getConnectionState() {
+			return 'idle'
+		},
+	}
+}
+
+function render(ui: ReactElement) {
+	return renderWithTestingLibrary(cloneElement(ui, { liveEventSource: createCatalogLiveEventSource() }))
+}
 
 async function acknowledgeTurnIfAvailable() {
 	try {

@@ -14,7 +14,7 @@ import { formatCombatTargetId } from '../../shared/combatTarget'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState, TerrainType } from '../../shared/types/index'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { getUnitTypeCatalog, getWeaponDefense, getWeaponType } from '../../shared/unitDefinitions'
+import { getSessionUnitType, getSessionWeaponDefense, getSessionWeaponType, isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog'
 
 type CombatRole = 'onion' | 'defender'
 
@@ -43,23 +43,22 @@ type CombatPreviewInput = {
 	selectedAttackStrength: number
 	selectedAttackGroupCount: number
 	displayedScenarioMap: { width: number; height: number; cells?: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex> } | null
+	catalog?: SessionCatalog
 }
 
 const combatRules = ONION_STATIC_RULES
 
 const combatCalculator = createCombatCalculator(combatRules)
-const UNIT_DEFINITIONS = getUnitTypeCatalog()
-
-function isStackableUnitType(unitType: string): boolean {
-	return (UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.abilities.maxStacks ?? 1) > 1
+function isStackableUnitType(unitType: string, catalog?: SessionCatalog): boolean {
+	return catalog !== undefined && isSessionUnitTypeStackable(catalog, unitType)
 }
 
-function getStackedDefenderKeys(displayedDefenders: ReadonlyArray<BattlefieldUnit>): Set<string> {
+function getStackedDefenderKeys(displayedDefenders: ReadonlyArray<BattlefieldUnit>, catalog?: SessionCatalog): Set<string> {
 	const stackedCountsByPosition = new Map<string, number>()
 	const stackedKeys = new Set<string>()
 
 	for (const unit of displayedDefenders) {
-		if (!isStackableUnitType(unit.typeId)) {
+		if (!isStackableUnitType(unit.typeId, catalog)) {
 			continue
 		}
 
@@ -206,6 +205,7 @@ export function buildCombatTargetOptions({
 	selectedAttackStrength,
 	selectedAttackGroupCount,
 	displayedScenarioMap,
+	catalog,
 }: CombatPreviewInput): CombatTargetOption[] {
 	if (activeCombatRole === null) {
 		return []
@@ -229,7 +229,7 @@ export function buildCombatTargetOptions({
 				}]),
 			),
 		)
-	const stackedDefenderKeys = getStackedDefenderKeys(displayedDefenders)
+	const stackedDefenderKeys = getStackedDefenderKeys(displayedDefenders, catalog)
 
 	if (stackRosterIndex === null && stackedDefenderKeys.size > 0) {
 		throw new Error('Missing stackRoster for grouped defenders')
@@ -250,11 +250,11 @@ export function buildCombatTargetOptions({
 						{
 							unitType: 'TheOnion',
 							weaponId: weapon.id,
-							targetRules: getWeaponType(weapon.typeId).targetRules,
+							targetRules: catalog === undefined ? undefined : getSessionWeaponType(catalog, weapon.typeId).targetRules,
 						},
 						{
 							unitType: unit.typeId,
-							targetRules: unit.targetRules ?? UNIT_DEFINITIONS[unit.typeId]?.targetRules,
+							targetRules: unit.targetRules ?? (catalog === undefined ? undefined : getSessionUnitType(catalog, unit.typeId)?.targetRules),
 						},
 					),
 				),
@@ -302,7 +302,7 @@ export function buildCombatTargetOptions({
 					type: unit.typeId,
 					position: unitPosition,
 					friendlyName: unit.friendlyName,
-				}, stackNaming ?? undefined, stackRoster ?? undefined),
+				}, stackNaming ?? undefined, stackRoster ?? undefined, catalog),
 				defense,
 				modifiers: buildTargetModifiers(
 					result.modifiers,
@@ -322,13 +322,13 @@ export function buildCombatTargetOptions({
 	}
 
 	const readyWeaponTargets = getWeaponDetails(displayedOnion)
-		.filter((weapon) => getWeaponType(weapon.typeId).individuallyTargetable && weapon.state === 'ready')
+		.filter((weapon) => catalog !== undefined && getSessionWeaponType(catalog, weapon.typeId).individuallyTargetable && weapon.state === 'ready')
 		.map((weapon) => {
 			const result = combatCalculator.calculateResult(
 				buildCombatCalculatorInputForWeaponTarget(selectedAttackerIds, displayedDefenders, displayedOnion, weapon, displayedScenarioMap),
 			)
 
-			const defense = getWeaponDefense(weapon.typeId)
+			const defense = catalog === undefined ? 0 : getSessionWeaponDefense(catalog, weapon.typeId)
 
 			return {
 				id: `weapon:${weapon.id}`,
@@ -336,11 +336,11 @@ export function buildCombatTargetOptions({
 				q: onionPosition.q,
 				r: onionPosition.r,
 				status: weapon.state as UnitStatus,
-				label: resolveBattlefieldWeaponName(weapon),
+				label: resolveBattlefieldWeaponName(weapon, catalog),
 				defense: defense,
 				modifiers: buildTargetModifiers(result.modifiers, [
 					...(selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : []),
-					`Subsystem target: ${resolveBattlefieldWeaponName(weapon)}`,
+					`Subsystem target: ${resolveBattlefieldWeaponName(weapon, catalog)}`,
 				]),
 				detail: `Defense: ${defense}`,
 			}

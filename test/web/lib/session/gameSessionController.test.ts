@@ -86,6 +86,7 @@ function createTransport(getState: GameRequestTransport['getState'], submitActio
 function expectIdleState(state: GameSessionViewState) {
 	expect(state).toMatchObject({
 		status: 'idle',
+		catalog: null,
 		snapshot: null,
 		session: null,
 		liveConnection: 'idle',
@@ -216,6 +217,95 @@ describe('createGameSessionController', () => {
 
 		unsubscribeSecond()
 		controller.dispose()
+	})
+
+	it('stores session initialization separately and preserves it across snapshot refreshes', async () => {
+		const initialSnapshot = createSnapshot({
+			phase: 'DEFENDER_COMBAT',
+			lastEventSeq: 47,
+			scenarioName: 'Catalog session snapshot',
+		})
+		const refreshedSnapshot = createSnapshot({
+			phase: 'ONION_MOVE',
+			lastEventSeq: 48,
+			scenarioName: 'Catalog refreshed snapshot',
+		})
+		const getState = vi.fn()
+			.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
+			.mockResolvedValueOnce({ snapshot: refreshedSnapshot, session: { role: 'defender' as const } })
+		const { controller, liveEventSource } = await createLoadedController({ getState })
+		const catalog = {
+			unitTypes: { tank: { typeId: 'tank' } },
+			weaponTypes: { cannon: { typeId: 'cannon' } },
+		}
+
+		liveEventSource.emit({ kind: 'session-init', gameId: 123, payload: catalog })
+		expect(controller.getSnapshot()).toMatchObject({ catalog })
+
+		await controller.refresh()
+
+		expect(controller.getSnapshot()).toMatchObject({
+			catalog,
+			snapshot: refreshedSnapshot,
+		})
+
+		controller.dispose()
+	})
+
+	it('allows the live session initialization to arrive after the HTTP snapshot', async () => {
+		const getState = vi.fn().mockResolvedValue({
+			snapshot: createSnapshot({ phase: 'ONION_MOVE', lastEventSeq: 4 }),
+			session: { role: 'onion' as const },
+		})
+		const { controller, liveEventSource } = await createLoadedController({ getState })
+
+		expect(controller.getSnapshot().catalog).toBeNull()
+		expect(liveEventSource.disconnect).not.toHaveBeenCalled()
+		expect(liveEventSource.connect).toHaveBeenCalledTimes(1)
+
+		await controller.refresh()
+
+		expect(liveEventSource.disconnect).not.toHaveBeenCalled()
+		expect(liveEventSource.connect).toHaveBeenCalledTimes(2)
+		controller.dispose()
+	})
+
+	it('preserves initialization when it arrives before or after the HTTP snapshot', async () => {
+		const catalog = {
+			unitTypes: { tank: { typeId: 'tank' } },
+			weaponTypes: { cannon: { typeId: 'cannon' } },
+		}
+		const snapshot = createSnapshot({ phase: 'ONION_MOVE', lastEventSeq: 4 })
+		const initialLoad = createDeferred<{ snapshot: GameSnapshot; session: { role: 'onion' } }>()
+		const getState = vi.fn().mockReturnValue(initialLoad.promise)
+		const liveEventSource = createLiveEventSource()
+		const controller = createGameSessionController({
+			gameId: 123,
+			requestTransport: createTransport(getState),
+			liveEventSource,
+		})
+
+		const loadPromise = controller.load()
+		liveEventSource.emit({ kind: 'session-init', gameId: 123, payload: catalog })
+		initialLoad.resolve({ snapshot, session: { role: 'onion' } })
+		await loadPromise
+
+		expect(controller.getSnapshot()).toMatchObject({ status: 'ready', snapshot, catalog })
+		controller.dispose()
+
+		const laterInitLoad = vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } })
+		const laterLiveEventSource = createLiveEventSource()
+		const laterController = createGameSessionController({
+			gameId: 123,
+			requestTransport: createTransport(laterInitLoad),
+			liveEventSource: laterLiveEventSource,
+		})
+
+		await laterController.load()
+		laterLiveEventSource.emit({ kind: 'session-init', gameId: 123, payload: catalog })
+
+		expect(laterController.getSnapshot()).toMatchObject({ status: 'ready', snapshot, catalog })
+		laterController.dispose()
 	})
 
 	it('ignores snapshot hints that do not advance the sequence', async () => {

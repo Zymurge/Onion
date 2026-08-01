@@ -10,8 +10,8 @@ import { formatCombatTargetId } from '../../shared/combatTarget'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { DefenderMap, StackRosterState, TurnPhase } from '../../shared/types/index'
+import { isSessionUnitTypeStackable, type SessionCatalog } from '../lib/sessionCatalog'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
-import { isUnitTypeStackable } from '../../shared/unitDefinitions'
 import logger from '../lib/logger'
 import './HexMapBoard.css'
 
@@ -38,6 +38,7 @@ type HexMapBoardProps = {
   escapeHexes?: ReadonlyArray<{ q: number; r: number }>
   stackNaming?: StackNamingSnapshot
   stackRoster?: StackRosterState
+  catalog?: SessionCatalog
   canSubmitMove?: boolean
   isSelectionLocked?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
@@ -92,15 +93,15 @@ function getUnitMarkerText(occupant: HexOccupant, stackNaming?: StackNamingSnaps
   return resolveBattlefieldDisplayName(occupant, stackNaming)
 }
 
-function isStackableUnitType(unitType: string): boolean {
-  return isUnitTypeStackable(unitType)
+function isStackableUnitType(unitType: string, catalog?: SessionCatalog): boolean {
+  return catalog !== undefined && isSessionUnitTypeStackable(catalog, unitType)
 }
 
-function hasStackedOccupants(defenders: ReadonlyArray<BattlefieldUnit>): boolean {
+function hasStackedOccupants(defenders: ReadonlyArray<BattlefieldUnit>, catalog?: SessionCatalog): boolean {
   const stackedCountsByPosition = new Map<string, number>()
 
   for (const defender of defenders) {
-    if (!isStackableUnitType(defender.type)) {
+    if (!isStackableUnitType(defender.type, catalog)) {
       continue
     }
 
@@ -171,7 +172,7 @@ function buildMoveValidationState(
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, escapeHexes, stackNaming, stackRoster, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, escapeHexes, stackNaming, stackRoster, catalog, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   void viewerRole
 
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
@@ -197,7 +198,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
     return buildStackRosterIndex(stackRoster, defenderLookup)
   }, [defenders, stackRoster])
 
-  if (stackRosterIndex === null && hasStackedOccupants(defenders)) {
+  if (stackRosterIndex === null && hasStackedOccupants(defenders, catalog)) {
     throw new Error('Missing stackRoster for grouped defenders')
   }
 

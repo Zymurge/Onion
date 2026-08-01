@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { buildCombatEvents, buildMoveEvents, buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gamesHelpers'
+import { buildCombatEvents, buildMoveEvents, buildSessionInitPayload, buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gamesHelpers'
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
 import { buildGameStateResponse } from '#server/api/gamesHelpers'
-import { DEFAULT_ONION_UNIT_TYPE_ID } from '#shared/unitDefinitions'
+import { DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 
 let state: GameState = makeGameState()
@@ -36,6 +36,21 @@ function makeGameStateWithUnits(): GameState {
 
 beforeEach(() => {
   state = makeGameStateWithUnits()
+})
+
+describe('buildSessionInitPayload', () => {
+  it('returns static unit and weapon catalogs separately from game state', () => {
+    const payload = buildSessionInitPayload()
+
+    expect(payload).toEqual({
+      unitTypes: getUnitTypeCatalog(),
+      weaponTypes: getWeaponTypeCatalog(),
+    })
+    expect(payload).not.toHaveProperty('onions')
+    expect(payload).not.toHaveProperty('defenders')
+    expect(payload.unitTypes.TheOnion).not.toHaveProperty('state')
+    expect(payload.weaponTypes['TheOnion.main']).not.toHaveProperty('state')
+  })
 })
 
 describe('buildCombatEvents', () => {

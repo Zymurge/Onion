@@ -46,6 +46,7 @@ type AppProps = {
 
 const idleSessionState: GameSessionViewState = {
   status: 'idle',
+  catalog: null,
   snapshot: null,
   session: null,
   liveConnection: 'idle',
@@ -320,6 +321,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     activeTurnActive: sessionTurnActive,
     clientSnapshot: sessionState.snapshot,
     clientSnapshotPhase: sessionPhase,
+    catalog: sessionState.catalog,
     isControlledSession: activeSessionBinding !== null,
     isInteractionLocked: inactiveEventControlsLocked,
     isSelectionLocked: inactiveEventScreenLocked,
@@ -613,7 +615,10 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     const combatAction = buildCombatCommitAction({
-      state: clientSnapshot?.authoritativeState as Parameters<typeof buildCombatCommitAction>[0]['state'],
+      state: {
+        ...clientSnapshot?.authoritativeState,
+        catalog: sessionState.catalog ?? undefined,
+      } as Parameters<typeof buildCombatCommitAction>[0]['state'],
       anchorUnitId: activeCombatRole === 'defender' ? selectedInspectorUnitId : null,
       selectedUnitIds: selectedCombatAttackerIds,
       targetId: selectedCombatTarget.id,
@@ -859,6 +864,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           selectedCombatAttackLabel={selectedCombatAttackLabel}
           stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
           stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
+          catalog={sessionState.catalog ?? undefined}
           onSelectUnit={handleSelectUnit}
         />
 
@@ -870,6 +876,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
             onion={displayedOnion}
             stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
             stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
+            catalog={sessionState.catalog ?? undefined}
             scenarioMap={displayedScenarioMap}
             selectedCombatTargetId={selectedCombatTargetId}
             selectedUnitIds={activeSelectedUnitIds}
