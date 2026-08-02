@@ -20,7 +20,7 @@ import {
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { DefenderMap, StackRosterState, Weapon } from '../../shared/types/index'
-import type { SessionCatalog } from '../lib/sessionCatalog'
+import { getSessionWeaponType, type SessionCatalog } from '../lib/sessionCatalog'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import logger from '../lib/logger'
 import { ErrorOverlay } from './ErrorOverlay'
@@ -499,8 +499,8 @@ export function BattlefieldLeftRail({
                         )
                       }}
                     >
-                      <div className="weapon-card-name">{resolveBattlefieldWeaponName(weapon)}</div>
-                      <div className="weapon-card-stats">Attack: {weapon.attack} &nbsp;·&nbsp; Range: {weapon.range}</div>
+                      <div className="weapon-card-name">{resolveBattlefieldWeaponName(weapon, catalog)}</div>
+                      <div className="weapon-card-stats">Attack: {getBattlefieldWeaponAttack(weapon, catalog)} &nbsp;·&nbsp; Range: {catalog === undefined ? 0 : getSessionWeaponType(catalog, weapon.typeId).range}</div>
                     </button>
                   )
                 })

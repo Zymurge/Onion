@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import type { GameAction, ServerGameSnapshot } from './gameClient'
@@ -149,6 +149,35 @@ function buildSelectedBoardUnitIds(selectedUnitIds: string[] | null): string[] {
   return (selectedUnitIds ?? []).filter((selectionId) => !isWeaponSelectionId(selectionId))
 }
 
+function isSelectionPresentInSnapshot(selectionId: string, snapshot: ServerGameSnapshot): boolean {
+  const state = snapshot.authoritativeState
+  if (state === undefined) {
+    return false
+  }
+
+  if (isWeaponSelectionId(selectionId)) {
+    const weaponId = selectionId.replace(/^weapon:/, '')
+    return Object.values(state.onions).some((onion) => onion.weapons.some((weapon) => weapon.id === weaponId))
+  }
+
+  const unitId = resolveSelectionOwnerUnitId(selectionId)
+  return state.onions[unitId] !== undefined || state.defenders[unitId] !== undefined
+}
+
+function getSnapshotSelectionKey(snapshot: ServerGameSnapshot): string {
+  const state = snapshot.authoritativeState
+  if (state === undefined) {
+    return `${snapshot.phase}:${snapshot.lastEventSeq}:missing`
+  }
+
+  const defenderIds = Object.keys(state.defenders).sort().join(',')
+  const weaponIds = Object.values(state.onions)
+    .flatMap((onion) => onion.weapons.map((weapon) => weapon.id))
+    .sort()
+    .join(',')
+  return `${snapshot.phase}:${snapshot.lastEventSeq}:${defenderIds}:${weaponIds}`
+}
+
 export function useBattlefieldInteractionState({
   activeSessionController,
   activeTurnActive,
@@ -172,6 +201,8 @@ export function useBattlefieldInteractionState({
   const [pendingRamPrompt, setPendingRamPrompt] = useState<RamPrompt | null>(null)
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const previousSnapshotPhaseRef = useRef(clientSnapshotPhase)
+  const previousSnapshotSelectionKeyRef = useRef(clientSnapshot === null ? null : getSnapshotSelectionKey(clientSnapshot))
 
   function debugLog(event: string, details: Record<string, unknown>) {
     if (typeof window === 'undefined') {
@@ -195,6 +226,36 @@ export function useBattlefieldInteractionState({
       setSelectedCombatTargetId(null)
     }
   }, [clientSnapshot, clientSnapshotPhase])
+
+  useEffect(() => {
+    if (previousSnapshotPhaseRef.current !== clientSnapshotPhase) {
+      setSelectedUnitIds([])
+      setHasExplicitSelection(true)
+      setSelectedCombatTargetId(null)
+    }
+    previousSnapshotPhaseRef.current = clientSnapshotPhase
+  }, [clientSnapshotPhase])
+
+  useEffect(() => {
+    if (clientSnapshot === null) {
+      return
+    }
+
+    const snapshotSelectionKey = getSnapshotSelectionKey(clientSnapshot)
+    if (previousSnapshotSelectionKeyRef.current === snapshotSelectionKey) {
+      return
+    }
+    previousSnapshotSelectionKeyRef.current = snapshotSelectionKey
+
+    setSelectedUnitIds((currentSelection) => {
+      if (currentSelection === null) {
+        return currentSelection
+      }
+
+      const nextSelection = currentSelection.filter((selectionId) => isSelectionPresentInSnapshot(selectionId, clientSnapshot))
+      return nextSelection.length === currentSelection.length ? currentSelection : nextSelection
+    })
+  }, [clientSnapshot])
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeSessionController === null) {

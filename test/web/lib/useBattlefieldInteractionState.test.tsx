@@ -515,6 +515,36 @@ describe('useBattlefieldInteractionState', () => {
 		expect(result.current.selectedUnitIds).toEqual(['pigs-1', 'pigs-2'])
 	})
 
+	it('clears selections when the authoritative phase changes', async () => {
+		const controller = createController()
+		const initialSnapshot = createSnapshot({ phase: 'DEFENDER_MOVE' })
+		const { result, rerender } = renderHook(
+			({ snapshot, phase }: { snapshot: GameSnapshot; phase: GameSnapshot['phase'] }) => useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: snapshot,
+				clientSnapshotPhase: phase,
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+			{ initialProps: { snapshot: initialSnapshot, phase: initialSnapshot.phase } },
+		)
+
+		await act(async () => {
+			result.current.handleSelectUnit('def-1')
+		})
+		expect(result.current.selectedUnitIds).toEqual(['def-1'])
+
+		const nextSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT', lastEventSeq: 11 })
+		rerender({ snapshot: nextSnapshot, phase: nextSnapshot.phase })
+
+		await waitFor(() => {
+			expect(result.current.selectedUnitIds).toEqual([])
+		})
+	})
+
 	it('refreshes after a failed combat commit', async () => {
 		const submitAction = vi.fn().mockRejectedValue(new Error('combat exploded'))
 		const refresh = vi.fn().mockResolvedValue(undefined)

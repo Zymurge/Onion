@@ -5,12 +5,63 @@ import { describe, expect, it, vi } from 'vitest'
 import { BattlefieldLeftRail } from '#web/components/BattlefieldLeftRail'
 import type { BattlefieldOnionView, BattlefieldUnit } from '#web/lib/battlefieldView'
 import { canonicalizeBattlefieldDefenders } from '#test/utils/gameStateUtils'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createDefendersMap(defenders: BattlefieldUnit[]) {
   return Object.fromEntries(defenders.map((unit) => [unit.id, { id: unit.id, status: unit.status, friendlyName: unit.friendlyName }]))
 }
 
 describe('BattlefieldLeftRail', () => {
+  it('renders onion weapon metadata from the session catalog', () => {
+    const weaponType = sessionCatalog.weaponTypes['TheOnion.main']
+    const onion: BattlefieldOnionView = {
+      id: 'onion-1',
+      type: 'TheOnion',
+      position: { q: 0, r: 0 },
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weapons: 'main: ready',
+      weaponDetails: [{
+        id: 'main-1',
+        typeId: 'TheOnion.main',
+        state: 'ready',
+        friendlyName: 'Runtime Main',
+      }],
+    }
+
+    render(
+      <BattlefieldLeftRail
+        activeCombatRole="onion"
+        activeRole="onion"
+        activeTurnActive
+        activeMode="fire"
+        activeSelectedUnitIds={[]}
+        displayedDefenders={[]}
+        displayedOnion={onion}
+        isCombatPhase
+        isMovementPhase={false}
+        isSelectionLocked={false}
+        stacksExpandable={false}
+        onionWeapons={{ operationalWeapons: 1, operationalMissiles: 0 }}
+        readyWeaponDetails={onion.weaponDetails}
+        selectedCombatAttackLabel="Attack 0"
+        catalog={sessionCatalog}
+        onSelectUnit={vi.fn()}
+      />,
+    )
+
+    const weaponCard = screen.getByTestId('combat-weapon-main-1')
+    expect(weaponCard.textContent).toContain(weaponType.name)
+    expect(weaponCard.textContent).toContain(`Attack: ${weaponType.attack}`)
+    expect(weaponCard.textContent).toContain(`Range: ${weaponType.range}`)
+  })
+
   it('renders one combat group card from canonical roster membership even when members are on different hexes', () => {
     const displayedDefenders: BattlefieldUnit[] = [
       {

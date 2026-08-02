@@ -101,7 +101,7 @@ describe('buildCombatTargetOptions', () => {
 
 		expect(options).toHaveLength(1)
 		expect(options[0]).toMatchObject({
-			id: 'pigs-1',
+			id: 'LittlePigs:3,2',
 			label: 'Little Pigs group 1',
 			defense: 2,
 		})

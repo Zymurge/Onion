@@ -176,17 +176,6 @@ function buildTargetModifiers(modifiers: ReadonlyArray<{ label: string }>, extra
 	return [...extraLabels, ...modifiers.map((modifier) => modifier.label)]
 }
 
-function resolveGroupedDefenderTargetId(groupUnitIds: ReadonlyArray<string>, displayedDefenders: ReadonlyArray<BattlefieldUnit>): string | null {
-	for (const groupUnitId of groupUnitIds) {
-		const candidate = displayedDefenders.find((unit) => unit.id === groupUnitId && unit.state !== 'destroyed')
-		if (candidate !== undefined) {
-			return candidate.id
-		}
-	}
-
-	return null
-}
-
 function resolveGroupedDefenderStackSize(groupUnitIds: ReadonlyArray<string>, displayedDefenders: ReadonlyArray<BattlefieldUnit>): number {
 	return groupUnitIds.reduce((total, groupUnitId) => {
 		const candidate = displayedDefenders.find((unit) => unit.id === groupUnitId)
@@ -282,7 +271,7 @@ export function buildCombatTargetOptions({
 			const terrainType = getTerrainValueAt(displayedScenarioMap, unitPosition.q, unitPosition.r)
 			const defense = getDisplayDefense(unit.typeId, stackSize, terrainType)
 			const targetId = rosterGroup !== null && rosterGroup.unitIds.length > 1
-				? resolveGroupedDefenderTargetId(rosterGroup.unitIds, validDefenders) ?? unit.id
+				? rosterGroup.groupId
 				: unit.id
 			const result = combatCalculator.calculateResult(
 				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, {
