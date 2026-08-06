@@ -62,12 +62,14 @@ export type {
   MovementCapabilities,
   MovementPlan,
   MovementResult,
+  MovementExecutionOptions,
 } from '#server/engine/movement'
 
 export {
   validateUnitMovement,
   executeOnionMovement,
   executeUnitMovement,
+  reconcileStackStateAfterMoves,
   getOccupyingUnit,
   isMovementBlocked,
   calculateRamming,

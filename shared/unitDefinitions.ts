@@ -3,12 +3,9 @@ import type {
   DefenderUnitType,
   OnionUnitType,
   PlayerRole,
-  TargetRules,
-  UnitAbilities,
   UnitType,
   UnitTypeBase,
   UnitTypeCatalog,
-  Weapon,
   WeaponType,
   WeaponTypeCatalog,
 } from './types/index.js'

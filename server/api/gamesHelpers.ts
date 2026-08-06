@@ -570,8 +570,12 @@ export function buildMoveEvents(
   ]
 
   const rammedUnitIds = result.rammedUnitIds ?? []
-  const destroyedUnitIds = result.destroyedUnits ?? []
   const rammedUnitResults = Array.isArray(result.rammedUnitResults) ? result.rammedUnitResults : []
+  const destroyedUnitIds = rammedUnitResults.length > 0
+    ? rammedUnitResults
+      .filter((ramResult: { outcome?: { effect?: string } }) => ramResult.outcome?.effect === 'destroyed')
+      .map((ramResult: { unitId: string }) => ramResult.unitId)
+    : result.destroyedUnits ?? []
   if (rammedUnitIds.length > 0 || destroyedUnitIds.length > 0 || (result.treadDamage ?? 0) > 0) {
     events.push({
       seq: seq++,

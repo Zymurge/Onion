@@ -191,6 +191,63 @@
 		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
 	})
 
+	it('shows Onion and a surviving defender as shared occupants', () => {
+		const survivingDefender: BattlefieldUnit = {
+			...defenders[0],
+			id: 'bbw-1',
+			friendlyName: 'Big Bad Wolf',
+			q: 0,
+			r: 0,
+			position: { q: 0, r: 0 },
+		}
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[survivingDefender]}
+				onion={{ ...onion, q: 0, r: 0, position: { q: 0, r: 0 } } as any}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-0-0')).toHaveClass('hex-cell-shared-occupancy')
+		expect(screen.getByTestId('hex-unit-onion-1')).toBeInTheDocument()
+		expect(screen.getByTestId('hex-unit-bbw-1')).toBeInTheDocument()
+		expect(screen.getByTestId('hex-cell-0-0').querySelector('.hex-shared-occupancy-ring')).not.toBeNull()
+	})
+
+	it('keeps the Onion combat marker eligible when sharing a hex with a defender', () => {
+		const coLocatedDefender: BattlefieldUnit = {
+			...defenders[0],
+			id: 'bbw-1',
+			position: { q: 0, r: 0 },
+			q: 0,
+			r: 0,
+		}
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[coLocatedDefender]}
+				onion={{ ...onion, position: { q: 0, r: 0 } }}
+				phase="ONION_COMBAT"
+				viewerRole="onion"
+				selectedUnitIds={[]}
+				combatTargetIds={new Set(['bbw-1'])}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		expect(screen.getByTestId('hex-unit-bbw-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
+	})
+
 	it('applies correct movement eligibility coloring for eligible and disabled units', () => {
 		const eligible: BattlefieldUnit = {
 			...defenders[0],

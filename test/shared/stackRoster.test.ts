@@ -113,6 +113,24 @@ describe('stack roster', () => {
 		expect(rosterIndex.getUnitGroup('pigs-2')).toBeNull()
 	})
 
+	it('resolves grouped defenders by canonical unitId when map keys differ', () => {
+		const rosterIndex = buildStackRosterIndex(
+			{
+				groupsById: {
+					'LittlePigs:4,4': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-4'],
+					},
+				},
+			},
+			{ 'roster-entry-4': makeDefender({ unitId: 'pigs-4', typeId: 'LittlePigs', position: { q: 4, r: 4 } }) },
+		)
+
+		expect(rosterIndex.getUnitGroup('pigs-4')).toMatchObject({ groupId: 'LittlePigs:4,4' })
+	})
+
 	it('round-trips through JSON serialization without losing the roster shape', () => {
 		const roster: StackRosterState = {
 			groupsById: {
@@ -682,5 +700,38 @@ describe('stack roster', () => {
 			]),
 		)
 		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+	})
+
+	it('preserves the group name when the whole group moves together', () => {
+		const reconciled = reconcileStackRosterMoveLifecycle({
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:0,0': {
+						groupName: 'Little Pigs group 3',
+						unitType: 'LittlePigs',
+						position: { q: 0, r: 0 },
+						unitIds: ['p1', 'p2'],
+					},
+				},
+			},
+			stackNaming: {
+				groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 3', unitType: 'LittlePigs' }],
+				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'],
+			},
+			defenders: makeDefenderMap({
+				p1: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+				p2: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+			}),
+			movedUnitId: 'p1',
+			movedUnitIds: ['p1', 'p2'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 2, r: 1 },
+		})
+
+		expect(reconciled.stackRoster.groupsById['LittlePigs:2,1']).toMatchObject({
+			groupName: 'Little Pigs group 3',
+			unitIds: ['p1', 'p2'],
+		})
+		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'])
 	})
 })

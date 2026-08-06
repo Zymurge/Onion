@@ -9,7 +9,7 @@ import { StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { createMap } from '#server/engine/map'
-import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '#server/engine/index'
+import { validateUnitMovement, executeUnitMovement, reconcileStackStateAfterMoves, validateCombatAction, executeCombatAction } from '#server/engine/index'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
 import {
   assertScenarioStateFitsMap,
@@ -639,7 +639,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             })
           }
 
-          const result = executeUnitMovement(state, validation.plan)
+          const result = executeUnitMovement(state, validation.plan, { reconcileStackRoster: false })
           if (!result.success) {
             logger.info({ gameId: match.gameId, unitId: moveUnitId, error: result.error }, 'Invalid move command')
             return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
@@ -661,6 +661,8 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             treadDamage: result.treadDamage,
           }
         }
+
+        reconcileStackStateAfterMoves(state, moveUnitIds)
 
         newEvents = attachCauseId(moveEvents, causeId)
 

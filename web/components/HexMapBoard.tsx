@@ -124,8 +124,6 @@ function buildMoveValidationState(
   phase: string | null,
   onion: BattlefieldOnionView,
   defenders: ReadonlyArray<BattlefieldUnit>,
-  selectedOccupant: HexOccupant,
-  selectedAllowance: number,
   stackNaming: StackNamingSnapshot | undefined,
   stackRoster: StackRosterState | undefined,
 ): MoveValidationState | null {
@@ -133,18 +131,13 @@ function buildMoveValidationState(
     return null
   }
 
-  const baseAllowance = selectedOccupant.id === onion.id
-    ? getUnitMovementAllowance(onion.type, phase, onion.treads)
-    : getUnitMovementAllowance(selectedOccupant.type, phase)
-  const spent = Math.max(baseAllowance - selectedAllowance, 0)
-
   return {
     onions: {
       [onion.id]: {
         unitId: onion.id,
         typeId: onion.type,
         role: 'onion',
-        friendlyName: onion.friendlyName,
+        friendlyName: onion.friendlyName ?? onion.id,
         position: getBattlefieldPosition(onion),
         state: onion.status,
         treads: onion.treads,
@@ -190,6 +183,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
         friendlyName: defender.friendlyName,
         position: defender.position,
         state: defender.state,
+        weapons: defender.weaponDetails ?? [],
         targetRules: defender.targetRules,
         squads: defender.squads,
       }]),
@@ -292,7 +286,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
       return null
     }
 
-    const validationState = buildMoveValidationState(phase, onion, defenders, selectedOccupant, selectedAllowance, stackNaming, stackRoster)
+    const validationState = buildMoveValidationState(phase, onion, defenders, stackNaming, stackRoster)
     if (validationState === null) {
       return null
     }
@@ -512,6 +506,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
               const polygonPoints = pointsToString(hexCorners(center, HEX_SIZE - 1))
               const terrainType = terrain.get(hexKey(coord))
               const cellOccupants = occupantMap.get(hexKey(coord)) ?? []
+              const hasSharedOccupancy = cellOccupants.length > 1
               const renderedTerrainType = terrainType
               const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
               const isSelected = cellOccupants.some((occupant) => selectedUnitSet.has(occupant.id))
@@ -559,6 +554,7 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                     isReachable ? 'hex-cell-reachable' : '',
                     isOnion ? 'hex-cell-onion' : '',
                     cellOccupants.length > 0 ? 'hex-cell-occupied' : '',
+                    hasSharedOccupancy ? 'hex-cell-shared-occupancy' : '',
                   ].join(' ')}
                   onClick={() => {
                     if (isSelectionLocked) {
@@ -652,6 +648,14 @@ export function HexMapBoard({ scenarioMap, defenders, onion, phase, viewerRole =
                   {isEscapeHex ? (
                     <polygon
                       className="hex-shape hex-shape-escape-ring"
+                      points={polygonPoints}
+                      fill="none"
+                      pointerEvents="none"
+                    />
+                  ) : null}
+                  {hasSharedOccupancy ? (
+                    <polygon
+                      className="hex-shape hex-shared-occupancy-ring"
                       points={polygonPoints}
                       fill="none"
                       pointerEvents="none"

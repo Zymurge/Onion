@@ -85,6 +85,10 @@ export interface MovementResult {
   error?: string
 }
 
+export type MovementExecutionOptions = {
+  reconcileStackRoster?: boolean
+}
+
 function hasTreads(unit: GameUnit): unit is OnionUnit {
   return 'treads' in unit && typeof unit.treads === 'number'
 }
@@ -156,13 +160,14 @@ function toMovementValidation(result: SharedMoveValidationResult): MovementValid
   }
 }
 
-function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: string): void {
-  const movedDefender = state.defenders[movedUnitId]
+export function reconcileStackStateAfterMoves(state: EngineGameState, movedUnitIds: ReadonlyArray<string>): void {
+  const movedDefenderId = movedUnitIds.find((unitId) => state.defenders[unitId] !== undefined)
+  const movedDefender = movedDefenderId === undefined ? undefined : state.defenders[movedDefenderId]
   if (movedDefender === undefined || movedDefender.state === 'destroyed') {
     logger.debug(
       {
-        movedUnitId,
-        reason: movedDefender === undefined ? 'missing-defender' : 'destroyed-defender',
+      movedUnitIds,
+      reason: movedDefender === undefined ? 'missing-defender' : 'destroyed-defender',
       },
       'Refreshing stack naming after move for non-operational unit',
     )
@@ -174,7 +179,8 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     stackRoster: state.stackRoster,
     stackNaming: state.stackNaming,
     defenders: state.defenders,
-    movedUnitId,
+    movedUnitId: movedDefender.unitId,
+    movedUnitIds,
     unitType: movedDefender.typeId,
     destinationPosition: movedDefender.position,
     movedUnitFriendlyName: movedDefender.friendlyName,
@@ -182,7 +188,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
 
   logger.debug(
     {
-      movedUnitId,
+      movedUnitIds,
       unitType: movedDefender.typeId,
       destinationGroupId: reconciled.destinationGroupId,
       selectedNameSource: reconciled.selectedNameSource,
@@ -193,7 +199,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
   )
 
   const relocateInput = {
-    movedUnitIds: [movedUnitId],
+    movedUnitIds,
     unitType: movedDefender.typeId,
     destinationPosition: movedDefender.position,
     destinationGroupName: reconciled.destinationGroupName,
@@ -201,26 +207,26 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
 
   // Debug: record roster state before relocation and the relocate input
   try {
-    logger.debug({ movedUnitId, relocateInput, beforeGroups: Object.keys(state.stackRoster?.groupsById ?? {}) }, 'RelocateStackRosterUnits - before')
+    logger.debug({ movedUnitIds, relocateInput, beforeGroups: Object.keys(state.stackRoster?.groupsById ?? {}) }, 'RelocateStackRosterUnits - before')
   } catch (err) {
     // swallow logging errors
-    logger.debug({ movedUnitId, err: String(err) }, 'RelocateStackRosterUnits - before(log-failed)')
+    logger.debug({ movedUnitIds, err: String(err) }, 'RelocateStackRosterUnits - before(log-failed)')
   }
 
   state.stackRoster = reconciled.stackRoster
 
   // Debug: record roster state after relocation for diagnosis
   try {
-    logger.debug({ movedUnitId, relocateInput, afterGroups: Object.keys(state.stackRoster?.groupsById ?? {}), afterGroupsDetail: state.stackRoster?.groupsById }, 'RelocateStackRosterUnits - after')
+    logger.debug({ movedUnitIds, relocateInput, afterGroups: Object.keys(state.stackRoster?.groupsById ?? {}), afterGroupsDetail: state.stackRoster?.groupsById }, 'RelocateStackRosterUnits - after')
   } catch (err) {
-    logger.debug({ movedUnitId, err: String(err) }, 'RelocateStackRosterUnits - after(log-failed)')
+    logger.debug({ movedUnitIds, err: String(err) }, 'RelocateStackRosterUnits - after(log-failed)')
   }
 
   state.stackNaming = reconciled.stackNaming
 
   logger.debug(
     {
-      movedUnitId,
+      movedUnitIds,
       destinationGroupId: reconciled.destinationGroupId,
       refreshedGroupName: state.stackNaming.groupsInUse.find((entry) => entry.groupKey === reconciled.destinationGroupId)?.groupName ?? null,
       refreshedGroupsInUse: state.stackNaming.groupsInUse,
@@ -230,7 +236,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
   )
 }
 
-function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementResult {
+function executeMovePlan(state: EngineGameState, plan: MovementPlan, options: MovementExecutionOptions = {}): MovementResult {
   const resolved = resolveUnit(state, plan.unitId)
   if (!resolved) {
     return { success: false, error: `Unit '${plan.unitId}' not found` }
@@ -268,7 +274,9 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
     unit.treads = Math.max(0, unit.treads - treadDamage)
   }
 
-  reconcileStackStateAfterMove(state, plan.unitId)
+  if (options.reconcileStackRoster !== false) {
+    reconcileStackStateAfterMoves(state, [plan.unitId])
+  }
 
   return {
     success: true,
@@ -333,13 +341,15 @@ export function executeOnionMovement(
 
 export function executeUnitMovement(
   state: EngineGameState,
-  plan: MovementPlan
+  plan: MovementPlan,
+  options?: MovementExecutionOptions,
 ): MovementResult
 export function executeUnitMovement(
   state: EngineGameState,
-  plan: MovementPlan
+  plan: MovementPlan,
+  options: MovementExecutionOptions = {},
 ): MovementResult {
-  return executeMovePlan(state, plan)
+  return executeMovePlan(state, plan, options)
 }
 
 /**

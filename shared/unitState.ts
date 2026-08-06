@@ -1,4 +1,4 @@
-import type { DefenderUnit, GameState, GameUnit, Weapon } from './types/index.js'
+import type { GameState, GameUnit, Weapon } from './types/index.js'
 import { getUnitDefinition, getWeaponType } from './unitDefinitions.js'
 
 export type UnitKind = 'onion' | 'defender' | 'none'

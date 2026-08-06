@@ -66,10 +66,6 @@ function hasImplicitStackedDefenders(authoritativeState: GameState, catalog: Gam
       continue
     }
 
-    if ((defender.squads ?? 1) > 1) {
-      return true
-    }
-
     const groupKey = `${defender.typeId}:${defender.position.q},${defender.position.r}`
     const nextCount = (stackableUnitCountsByPosition.get(groupKey) ?? 0) + 1
     stackableUnitCountsByPosition.set(groupKey, nextCount)
@@ -234,8 +230,7 @@ export function useBattlefieldDisplayState({
     const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
     const selectedCombatAttackCount = selectedCombatAttackerIds.length
     const selectedInspectorUnitId = (() => {
-      const selectionSourceIds = activeCombatRole === 'defender' && isCombatPhase ? selectedCombatSelectionIds : activeSelectedUnitIds
-      const selectionId = selectionSourceIds.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
+      const selectionId = activeSelectedUnitIds.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
     const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.id ? displayedOnion : null

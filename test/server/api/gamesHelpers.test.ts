@@ -119,6 +119,31 @@ describe('buildCombatEvents', () => {
     })
   })
 
+  it('does not emit a destroyed status event for a survived ram outcome', () => {
+    const events = buildMoveEvents(
+      45,
+      'onion-1',
+      { type: 'MOVE', unitId: 'onion-1', to: { q: 2, r: 2 } },
+      {
+        success: true,
+        rammedUnitIds: ['puss-1'],
+        destroyedUnits: ['puss-1'],
+        rammedUnitResults: [{
+          unitId: 'puss-1',
+          unitType: 'Puss',
+          outcome: { effect: 'survived', roll: 6, treadCost: 1 },
+        }],
+        treadDamage: 1,
+      },
+      state,
+    )
+
+    expect(events.find((event) => event.type === 'MOVE_RESOLVED')).toMatchObject({
+      destroyedUnitIds: [],
+    })
+    expect(events.some((event) => event.type === 'UNIT_STATUS_CHANGED')).toBe(false)
+  })
+
   it('recognizes any matching onion in the canonical onions map', () => {
     state = makeGameState({
       onions: {

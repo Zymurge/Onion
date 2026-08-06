@@ -51,6 +51,28 @@ describe('appViewHelpers stack-grouping contract', () => {
     expect(countSelectedBattlefieldStackMembers(state as any, 'pigs-1', ['pigs-1', 'pigs-2'])).toBe(2)
   })
 
+  it('returns zero selected stack members when nothing is selected', () => {
+    const state = {
+      catalog: sessionCatalog,
+      defenders: {
+        'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+        'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
+      },
+      stackRoster: {
+        groupsById: {
+          'stack-a': {
+            groupName: 'Little Pigs group 1',
+            unitType: 'LittlePigs',
+            position: { q: 4, r: 4 },
+            unitIds: ['pigs-1', 'pigs-2'],
+          },
+        },
+      },
+    }
+
+    expect(countSelectedBattlefieldStackMembers(state as any, 'pigs-1', [])).toBe(0)
+  })
+
   it('counts distinct selected stack groups instead of raw unit ids', () => {
     const state = {
       catalog: sessionCatalog,

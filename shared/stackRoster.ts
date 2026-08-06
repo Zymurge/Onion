@@ -75,6 +75,7 @@ export type ReconcileStackRosterMoveLifecycleInput = {
 	stackNaming: StackNamingSnapshot | undefined
 	defenders: DefenderMap | undefined
 	movedUnitId: string
+	movedUnitIds?: ReadonlyArray<string>
 	unitType: string
 	destinationPosition: HexPos
 	movedUnitFriendlyName?: string
@@ -163,8 +164,13 @@ function buildDefenderLookup(defenders: DefenderMap | undefined): DefenderMap {
 	const lookup: Record<string, DefenderMap[string]> = {}
 	for (const [defenderKey, defender] of Object.entries(defenders ?? {})) {
 		lookup[defenderKey] = defender
-		if (defender !== null && typeof defender === 'object' && typeof (defender as any).id === 'string') {
-			lookup[(defender as any).id] = defender
+		if (defender !== null && typeof defender === 'object') {
+			if (typeof defender.unitId === 'string') {
+				lookup[defender.unitId] = defender
+			}
+			if (typeof (defender as any).id === 'string') {
+				lookup[(defender as any).id] = defender
+			}
 		}
 	}
 	return lookup as DefenderMap
@@ -707,18 +713,23 @@ function pruneBareGroupNames(snapshot: StackNamingSnapshot): StackNamingSnapshot
 
 export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMoveLifecycleInput): ReconcileStackRosterMoveLifecycleResult {
 	const rosterIndex = buildStackRosterIndex(input.stackRoster, input.defenders)
+	const movedUnitIds = [...new Set(input.movedUnitIds ?? [input.movedUnitId])]
+	const movedUnitIdSet = new Set(movedUnitIds)
 	const sourceGroup = rosterIndex.getUnitGroup(input.movedUnitId)
 	const destinationGroupId = buildStackGroupKey(input.unitType, input.destinationPosition)
 	const destinationGroup = rosterIndex.groupsById[destinationGroupId] ?? null
 	const sourceGroupUnitCount = sourceGroup?.unitIds?.length ?? sourceGroup?.units?.length ?? 0
-	const sourceRemainingUnitCount = Math.max(sourceGroupUnitCount - 1, 0)
+	const sourceRemainingUnitCount = sourceGroup?.unitIds.filter((unitId) => !movedUnitIdSet.has(unitId)).length ?? 0
 	const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? 0
-	const destinationResultUnitCount = destinationGroupUnitCount + 1
+	const destinationResultUnitCount = destinationGroupUnitCount + movedUnitIds.length
 	const isStackableDestination = isStackRosterUnitType(input.unitType)
 	const persistedDestinationName = input.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+	const movesWholeSourceGroup = sourceGroup !== null
+		&& sourceGroup.unitIds.length > 0
+		&& sourceGroup.unitIds.every((unitId) => movedUnitIdSet.has(unitId))
 
 	const namingEngine = createStackNamingEngine(input.stackNaming)
-	if (sourceGroup !== null && sourceGroupUnitCount > 1 && !/\sgroup\s+\d+$/i.test(sourceGroup.groupName)) {
+	if (!movesWholeSourceGroup && sourceGroup !== null && sourceGroupUnitCount > 1 && !/\sgroup\s+\d+$/i.test(sourceGroup.groupName)) {
 		namingEngine.resolveGroupName(
 			`${sourceGroup.groupKey}:source-reserve`,
 			sourceGroup.unitType,
@@ -737,6 +748,7 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 			|| sourceGroup?.groupName !== destinationGroup.groupName
 			|| sourceRemainingUnitCount > 1
 		)
+		&& !movesWholeSourceGroup
 
 	const allocatedDestinationName = shouldAllocateFreshDestinationName
 		? namingEngine.resolveGroupName(
@@ -763,12 +775,12 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 	const destinationGroupName = input.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
 		?? allocatedDestinationName
 		?? destinationGroup?.groupName
-		?? sourceGroup?.groupName
+		?? (movesWholeSourceGroup ? sourceGroup?.groupName : undefined)
 		?? input.movedUnitFriendlyName
 		?? input.unitType
 
 	const stackRoster = relocateStackRosterUnits(input.stackRoster, {
-		movedUnitIds: [input.movedUnitId],
+		movedUnitIds,
 		unitType: input.unitType,
 		destinationPosition: input.destinationPosition,
 		destinationGroupName,

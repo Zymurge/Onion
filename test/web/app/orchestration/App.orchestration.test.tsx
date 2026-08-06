@@ -321,6 +321,72 @@ describe('ram flow', () => {
 		await user.click(within(toast).getByRole('button', { name: /dismiss/i }))
 		expect(screen.queryByTestId('ram-resolution-toast')).toBeNull()
 	})
+
+	it('keeps a surviving co-located ram target available in Onion combat', async () => {
+		const user = userEvent.setup()
+		const snapshot = createInRangeCombatSnapshot()
+		snapshot.phase = 'ONION_COMBAT'
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({
+			...snapshot.authoritativeState.onions['onion-1'],
+			position: { q: 0, r: 1 },
+		})
+		snapshot.authoritativeState.defenders['wolf-2'] = makeDefender({
+			...snapshot.authoritativeState.defenders['wolf-2'],
+			position: { q: 0, r: 1 },
+			state: 'operational',
+		})
+
+		const client = createTestClient(snapshot, { role: 'onion' })
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		await user.click(await screen.findByTestId('combat-weapon-main-1'))
+
+		expect(screen.getByTestId('combat-target-wolf-2')).not.toBeNull()
+	})
+
+	it('keeps a survived ram target after the move response enters Onion combat', async () => {
+		const user = userEvent.setup()
+		const snapshot = createSnapshotWithTreads(45, 3)
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({
+			...snapshot.authoritativeState.onions['onion-1'],
+			position: { q: 0, r: 0 },
+		})
+		snapshot.authoritativeState.defenders = {
+			'd1': makeDefender({ unitId: 'd1', typeId: 'BigBadWolf', friendlyName: 'Big Bad Wolf 1', position: { q: 0, r: 1 }, weapons: [] }),
+		}
+		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
+		const ramSnapshot = {
+			...snapshot,
+			phase: 'ONION_COMBAT' as const,
+			authoritativeState: {
+				...snapshot.authoritativeState,
+				onions: {
+					...snapshot.authoritativeState.onions,
+					'onion-1': { ...snapshot.authoritativeState.onions['onion-1'], position: { q: 0, r: 1 } },
+				},
+				defenders: {
+					...snapshot.authoritativeState.defenders,
+					d1: { ...snapshot.authoritativeState.defenders.d1, position: { q: 0, r: 1 }, state: 'operational' as const },
+				},
+			},
+			ramResolution: [{ actionType: 'MOVE' as const, unitId: 'onion-1', rammedUnitId: 'd1', rammedUnitFriendlyName: 'Big Bad Wolf 1', destroyedUnitId: '', details: ['Result: survived'] }],
+		}
+		const submitAction = vi.fn().mockResolvedValue(ramSnapshot)
+		const client = createTestClient(snapshot, { role: 'onion' }, { submitAction })
+
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+		await user.click(await screen.findByTestId('combat-unit-onion-1'))
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-1'))
+		})
+		await user.click(await screen.findByRole('button', { name: /attempt ram/i }))
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 0, r: 1 }, attemptRam: true })
+		await user.click(await screen.findByTestId('combat-weapon-main'))
+		expect(await screen.findByTestId('combat-target-d1')).not.toBeNull()
+	})
 })
 
 // ---- selection behavior ----
@@ -463,6 +529,51 @@ describe('combat', () => {
 
 		await user.click(screen.getByTestId('combat-weapon-main-1'))
 		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
+	})
+
+	it('keeps a co-located Onion eligible during Onion combat', async () => {
+		const user = userEvent.setup()
+		const snapshot = createInRangeCombatSnapshot()
+		snapshot.phase = 'ONION_COMBAT'
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({
+			...snapshot.authoritativeState.onions['onion-1'],
+			position: { q: 0, r: 1 },
+		})
+		snapshot.authoritativeState.defenders['wolf-2'] = makeDefender({
+			...snapshot.authoritativeState.defenders['wolf-2'],
+			position: { q: 0, r: 1 },
+		})
+
+		const client = createTestClient(snapshot, { role: 'onion' })
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		const weapon = await screen.findByTestId('combat-weapon-main-1')
+		await user.click(weapon)
+
+		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
+	})
+
+	it('keeps a co-located defender eligible during Defender combat', async () => {
+		const snapshot = createInRangeCombatSnapshot()
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({
+			...snapshot.authoritativeState.onions['onion-1'],
+			position: { q: 1, r: 1 },
+		})
+		snapshot.authoritativeState.defenders['wolf-2'] = makeDefender({
+			...snapshot.authoritativeState.defenders['wolf-2'],
+			position: { q: 1, r: 1 },
+		})
+
+		const client = createTestClient(snapshot, { role: 'defender' })
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		const attacker = await screen.findByTestId('combat-unit-wolf-2')
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		await userEvent.click(attacker)
+		expect(attacker.getAttribute('data-selected')).toBe('true')
 	})
 
 	it('sorts destroyed defenders to the bottom and marks them as destroyed in the roster', async () => {

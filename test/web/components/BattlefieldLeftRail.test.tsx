@@ -464,6 +464,80 @@ describe('BattlefieldLeftRail', () => {
     expect(onSelectUnit).toHaveBeenCalledWith('pigs-1', false)
   })
 
+  it('keeps all roster defenders available when another move group is selected', () => {
+    const displayedDefenders: BattlefieldUnit[] = [1, 2, 3, 4, 5].map((unitNumber) => ({
+      id: `pigs-${unitNumber}`,
+      type: 'LittlePigs',
+      friendlyName: `Little Pigs ${unitNumber}`,
+      status: 'operational',
+      q: unitNumber <= 3 ? 4 : 5,
+      r: 7,
+      move: 1,
+      weapons: 'rifle: ready',
+      attack: '1 / rng 1',
+      actionableModes: ['fire', 'combined'],
+    }))
+    const onion: BattlefieldOnionView = {
+      id: 'onion-1',
+      type: 'TheOnion',
+      position: { q: 0, r: 0 },
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weapons: 'main: ready',
+      weaponDetails: [],
+    }
+
+    render(
+      <BattlefieldLeftRail
+        activeCombatRole="defender"
+        activeRole="defender"
+        activeTurnActive
+        activeMode="fire"
+        activeSelectedUnitIds={['pigs-1', 'pigs-2', 'pigs-3']}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
+        displayedOnion={onion}
+        isCombatPhase={false}
+        isMovementPhase
+        isSelectionLocked={false}
+        stacksExpandable
+        onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
+        readyWeaponDetails={[]}
+        selectedCombatAttackLabel="Attack 0"
+        stackNaming={{
+          groupsInUse: [
+            { groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+            { groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+          ],
+          usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+        } as any}
+        stackRoster={{
+          groupsById: {
+            'LittlePigs:4,7': {
+              groupName: 'Little Pigs group 1',
+              unitType: 'LittlePigs',
+              position: { q: 4, r: 7 },
+              unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+            },
+            'LittlePigs:5,7': {
+              groupName: 'Little Pigs group 2',
+              unitType: 'LittlePigs',
+              position: { q: 5, r: 7 },
+              unitIds: ['pigs-4', 'pigs-5'],
+            },
+          },
+        } as any}
+        onSelectUnit={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs group 1')
+    expect(screen.getByTestId('combat-unit-pigs-4').textContent).toContain('Little Pigs group 2')
+  })
+
   it('shows the movement badge for an Onion viewer during defender movement', () => {
     const displayedDefenders: BattlefieldUnit[] = [
       {

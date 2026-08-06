@@ -141,6 +141,26 @@ describe('AttackPlanningConfirmationView', () => {
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
+  it('defaults the build-mode confirm button to disabled until a target is selected', () => {
+    const onConfirm = vi.fn()
+
+    render(
+      <AttackPlanningConfirmationView
+        mode="build"
+        title="Build attack"
+        attackStrength={5}
+        onConfirm={onConfirm}
+        dataTestId="combat-confirmation-view"
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: /confirm attack/i })
+    expect(button).toBeDisabled()
+
+    fireEvent.click(button)
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
   it('renders a disabled confirm button without calling the handler', () => {
     const onConfirm = vi.fn()
 

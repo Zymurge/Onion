@@ -100,6 +100,26 @@ function buildDefenderLookup(units: ReadonlyArray<BattlefieldUnit>): DefenderMap
   )
 }
 
+function buildDefenderSelectionState(
+  displayedDefenders: ReadonlyArray<BattlefieldUnit>,
+  stackRoster: StackRosterState | undefined,
+  catalog: SessionCatalog | undefined,
+): WebStackSourceState {
+  return {
+    defenders: Object.fromEntries(
+      displayedDefenders.map((unit) => [unit.id, {
+        unitId: unit.unitId ?? unit.id,
+        typeId: unit.typeId ?? unit.type,
+        position: getBattlefieldPosition(unit),
+        state: unit.state ?? unit.status,
+        squads: unit.squads,
+      }]),
+    ),
+    ...(stackRoster === undefined ? {} : { stackRoster }),
+    catalog,
+  }
+}
+
 function buildRenderErrorMessage(
   error: unknown,
   context: {
@@ -131,7 +151,7 @@ function buildCombatGroupFromUnits(
   activeMode: Mode,
   activeSelectedUnitIds: readonly string[],
   stackNaming: StackNamingSnapshot | undefined,
-  stackRoster: StackRosterState | undefined,
+  selectionState: WebStackSourceState,
   catalog: SessionCatalog | undefined,
   groupKey?: string,
 ): DefenderCombatGroup {
@@ -149,19 +169,6 @@ function buildCombatGroupFromUnits(
       friendlyName: anchorUnit.friendlyName,
       squads: stackSize,
     }, stackNaming)
-  const selectionState: WebStackSourceState = {
-    defenders: Object.fromEntries(
-      units.map((unit) => [unit.id, {
-        unitId: unit.unitId ?? unit.id,
-        typeId: unit.typeId ?? unit.type,
-        position: getBattlefieldPosition(unit),
-        state: unit.state ?? unit.status,
-        squads: unit.squads,
-      }]),
-    ),
-    ...(stackRoster === undefined ? {} : { stackRoster }),
-    catalog,
-  }
   const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.id, activeSelectedUnitIds)
   const attackReadyCount = displayedUnits.filter((unit) => getReadyUnitAttackStrength(unit, catalog) > 0).length
   const members = units.length > 1
@@ -202,6 +209,7 @@ function buildDefenderCombatGroups(
   const rosterIndex = stackRoster !== undefined
     ? buildStackRosterIndex(stackRoster, buildDefenderLookup(displayedDefenders))
     : null
+  const selectionState = buildDefenderSelectionState(displayedDefenders, stackRoster, catalog)
   const selectionGroups: DefenderCombatGroup[] = []
   const consumedUnitIds = new Set<string>()
 
@@ -219,7 +227,7 @@ function buildDefenderCombatGroups(
         consumedUnitIds.add(unit.id)
       }
 
-      selectionGroups.push(buildCombatGroupFromUnits(units, activeMode, activeSelectedUnitIds, stackNaming, stackRoster, catalog, rosterGroup.groupKey))
+      selectionGroups.push(buildCombatGroupFromUnits(units, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog, rosterGroup.groupKey))
     }
   }
 
@@ -228,7 +236,7 @@ function buildDefenderCombatGroups(
       continue
     }
 
-    selectionGroups.push(buildCombatGroupFromUnits([unit], activeMode, activeSelectedUnitIds, stackNaming, stackRoster, catalog))
+    selectionGroups.push(buildCombatGroupFromUnits([unit], activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog))
   }
 
   return selectionGroups
@@ -238,7 +246,7 @@ function buildMoveGroupFromUnits(
   units: ReadonlyArray<BattlefieldUnit>,
   activeSelectedUnitIds: readonly string[],
   stackNaming: StackNamingSnapshot | undefined,
-  stackRoster: StackRosterState | undefined,
+  selectionState: WebStackSourceState,
   catalog: SessionCatalog | undefined,
   groupKey?: string,
 ): DefenderMoveGroup {
@@ -255,19 +263,6 @@ function buildMoveGroupFromUnits(
       friendlyName: anchorUnit.friendlyName,
       squads: stackSize,
     }, stackNaming)
-  const selectionState: WebStackSourceState = {
-    defenders: Object.fromEntries(
-      units.map((unit) => [unit.id, {
-        unitId: unit.unitId ?? unit.id,
-        typeId: unit.typeId ?? unit.type,
-        position: getBattlefieldPosition(unit),
-        state: unit.state ?? unit.status,
-        squads: unit.squads,
-      }]),
-    ),
-    ...(stackRoster === undefined ? {} : { stackRoster }),
-    catalog,
-  }
   const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.id, activeSelectedUnitIds)
   const attackReadyCount = displayedUnits.filter((unit) => getReadyUnitAttackStrength(unit, catalog) > 0).length
   const members = units.length > 1
@@ -326,6 +321,7 @@ function buildDefenderMoveGroups(
   const rosterIndex = stackRoster !== undefined
     ? buildStackRosterIndex(stackRoster, buildDefenderLookup(displayedDefenders))
     : null
+  const selectionState = buildDefenderSelectionState(displayedDefenders, stackRoster, catalog)
   const selectionGroups: DefenderMoveGroup[] = []
   const consumedUnitIds = new Set<string>()
 
@@ -343,7 +339,7 @@ function buildDefenderMoveGroups(
         consumedUnitIds.add(unit.id)
       }
 
-      selectionGroups.push(buildMoveGroupFromUnits(units, activeSelectedUnitIds, stackNaming, stackRoster, catalog, rosterGroup.groupKey))
+      selectionGroups.push(buildMoveGroupFromUnits(units, activeSelectedUnitIds, stackNaming, selectionState, catalog, rosterGroup.groupKey))
     }
   }
 
@@ -352,7 +348,7 @@ function buildDefenderMoveGroups(
       continue
     }
 
-    selectionGroups.push(buildMoveGroupFromUnits([unit], activeSelectedUnitIds, stackNaming, stackRoster, catalog))
+    selectionGroups.push(buildMoveGroupFromUnits([unit], activeSelectedUnitIds, stackNaming, selectionState, catalog))
   }
 
   return selectionGroups
@@ -385,6 +381,8 @@ export function BattlefieldLeftRail({
   let renderError: string | null = null
   let defenderCombatGroups: DefenderCombatGroup[] = []
   let defenderMoveGroups: DefenderMoveGroup[] = []
+  const defenderLookup = buildDefenderLookup(displayedDefenders)
+  const defenderLookupKeys = Object.keys(defenderLookup)
 
   try {
     defenderCombatGroups = activeCombatRole === 'defender' && isCombatPhase
@@ -408,6 +406,7 @@ export function BattlefieldLeftRail({
         errorMessage: error instanceof Error ? error.message : String(error),
         errorStack: error instanceof Error ? error.stack : null,
         renderError,
+        defenderLookupKeys,
       },
       'Battlefield left rail render mismatch',
     )

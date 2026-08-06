@@ -1,6 +1,5 @@
 import type {
 	WebSocketClientMessage,
-	WebSocketServerErrorMessage,
 	WebSocketServerEventMessage,
 	WebSocketServerMessage,
 	WebSocketServerSessionInitMessage,
@@ -169,9 +168,6 @@ export function createLiveEventSource(options: LiveEventSourceOptions): LiveEven
 
 				if (isSessionInitMessage(parsed)) {
 					emit({ kind: 'session-init', gameId, payload: parsed.payload })
-					return
-				}
-				if (parsed.kind === 'SESSION_INIT') {
 					return
 				}
 

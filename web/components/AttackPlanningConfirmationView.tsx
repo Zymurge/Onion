@@ -32,7 +32,7 @@ export function AttackPlanningConfirmationView({
   attackMemberLabels = [],
   confirmLabel,
   onConfirm,
-  isConfirmReady = true,
+  isConfirmReady,
   isDisabled = false,
   dataTestId,
   ...modeProps
@@ -42,6 +42,7 @@ export function AttackPlanningConfirmationView({
   }
 
   const hasTarget = modeProps.mode === 'confirm'
+  const isConfirmActionReady = isConfirmReady ?? hasTarget
   const odds = hasTarget ? calculateCombatOdds(attackStrength, modeProps.defenseStrength) : null
 
   return (
@@ -91,7 +92,7 @@ export function AttackPlanningConfirmationView({
           <button
             className="combat-confirm-button"
             type="button"
-            disabled={isDisabled || !isConfirmReady}
+            disabled={isDisabled || !isConfirmActionReady}
             onClick={(event) => {
               event.stopPropagation()
 

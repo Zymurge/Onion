@@ -269,6 +269,10 @@ export function countSelectedBattlefieldStackMembers(
   selectedUnitIds: ReadonlyArray<string>,
   catalog?: SessionCatalog,
 ): number {
+  if (selectedUnitIds.length === 0) {
+    return 0
+  }
+
   const stackedUnitIds = resolveBattlefieldStackMemberIds(state, unitId, catalog)
   if (stackedUnitIds.length > 1) {
     return stackedUnitIds.filter((memberId) => selectedUnitIds.includes(memberId)).length
@@ -282,6 +286,10 @@ export function countSelectedBattlefieldStackGroups(
   selectedUnitIds: ReadonlyArray<string>,
   catalog?: SessionCatalog,
 ): number {
+  if (selectedUnitIds.length === 0) {
+    return 0
+  }
+
   const selectedGroupKeys = new Set<string>()
 
   for (const selectedUnitId of selectedUnitIds) {

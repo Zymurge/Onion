@@ -483,6 +483,33 @@ describe('executeUnitMovement', () => {
     )
   })
 
+  it('keeps a defender operational when a ram survives', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
+    const state = makeState({ defenders: { d1: defender } })
+    const plan = makePlan({
+      unitId: 'onion',
+      from: { q: 0, r: 0 },
+      to: { q: 1, r: 0 },
+      path: [{ q: 1, r: 0 }],
+      rammedUnitIds: ['d1'],
+      ramCapacityUsed: 1,
+      treadCost: 1,
+      capabilities: {
+        canRam: true,
+        hasTreads: true,
+        canSecondMove: false,
+      },
+    })
+
+    const result = executeUnitMovement(state, plan)
+
+    expect(result.destroyedUnits).toEqual([])
+    expect(result.rammedUnitResults?.[0]?.outcome.effect).toBe('survived')
+    expect(state.defenders.d1.state).toBe('operational')
+    randomSpy.mockRestore()
+  })
+
   it('preserves and advances stack names when a stacked Little Pigs unit moves away', () => {
     const movingPig = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
     const remainingPig = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
