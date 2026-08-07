@@ -20,6 +20,7 @@
     "web:preview": "pnpm --dir web preview",
     "web:lint": "pnpm --dir web lint",
     "build": "tsc && node scripts/write-dist-package-json.mjs",
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json",
     "start:cli": "node dist/server/cli/index.js",
     "start": "node dist/server/index.js",
     "test": "vitest run",
