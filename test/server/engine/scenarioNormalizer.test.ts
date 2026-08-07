@@ -30,7 +30,7 @@ const validInitialState = {
   },
   defenders: {
     'wolf-1': { type: 'BigBadWolf', position: { q: 5, r: 6 }, status: 'operational' },
-    'pigs-1': { type: 'LittlePigs', position: { q: 4, r: 7 }, squads: 3 },
+    'pigs-1': { type: 'LittlePigs', position: { q: 4, r: 7 } },
   },
 }
 
@@ -42,6 +42,18 @@ beforeEach(() => {
 })
 
 describe('normalizeInitialStateToGameState', () => {
+  it('rejects legacy defender squads entries', () => {
+    const parsed = InitialStateSchema.safeParse({
+      ...validInitialState,
+      defenders: {
+        ...validInitialState.defenders,
+        'pigs-1': { type: 'LittlePigs', position: { q: 4, r: 7 }, squads: 3 },
+      },
+    })
+
+    expect(parsed.success).toBe(false)
+  })
+
   it('produces a valid canonical GameState from a valid initialState', () => {
     const parsed = InitialStateSchema.parse(validInitialState)
     const gameState = normalizeInitialStateToGameState(parsed)

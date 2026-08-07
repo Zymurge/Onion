@@ -81,7 +81,6 @@ export function buildExpectedState(initialState: ExpectedStateInput): ExpectedSt
         position,
         state: def.status ?? 'operational',
         weapons: [],
-        ...(def.squads === undefined ? {} : { squads: def.squads }),
       }
     }
   }

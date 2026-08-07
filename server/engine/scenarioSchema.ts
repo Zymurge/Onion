@@ -23,8 +23,7 @@ export const DefenderSchema = z.object({
   type: z.string().min(1),
   position: HexPosSchema,
   status: UnitStateSchema.optional(),
-  squads: z.number().int().positive().optional(),
-})
+}).strict()
 
 export const DefenderStackGroupSchema = z.object({
   kind: z.literal('stack-group'),

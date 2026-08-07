@@ -22,7 +22,7 @@ import type { InitialState } from '#server/engine/scenarioSchema'
 				},
 				defenders: {
 					'wolf-1': { type: 'BigBadWolf', position: { q: 5, r: 6 }, status: 'operational' },
-					'pigs-1': { type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational', squads: 3 },
+					'pigs-1': { type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational' },
 				},
 			}
 
