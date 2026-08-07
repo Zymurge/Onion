@@ -47,7 +47,7 @@ describe('normalizeInitialStateToGameState', () => {
       ...validInitialState,
       defenders: {
         ...validInitialState.defenders,
-        'pigs-1': { type: 'LittlePigs', position: { q: 4, r: 7 }, squads: 3 },
+        'pigs-group-1': { kind: 'stack-group', unitType: 'LittlePigs', position: { q: 4, r: 7 }, count: 3, squads: 3 },
       },
     })
 

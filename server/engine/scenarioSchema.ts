@@ -32,7 +32,7 @@ export const DefenderStackGroupSchema = z.object({
   count: z.number().int().positive(),
   groupName: z.string().optional(),
   status: UnitStateSchema.optional(),
-})
+}).strict()
 
 export const DefenderEntrySchema = z.union([
   DefenderSchema,
