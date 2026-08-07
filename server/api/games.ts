@@ -624,7 +624,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             type: 'MOVE',
             unitId: moveUnitId,
             to: command.to,
-            ...(command.attemptRam ? { attemptRam: true } : {}),
+            ...(command.attemptRam === undefined ? {} : { attemptRam: command.attemptRam }),
           }
 
           const validation = validateUnitMovement(map, state, moveCommand)
