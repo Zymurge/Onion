@@ -22,6 +22,7 @@ function normalizeTransportError(error: unknown): GameClientSeamError {
 function createInitialState(options: GameSessionControllerOptions): GameSessionViewState {
 	return {
 		status: 'idle',
+		catalog: null,
 		snapshot: null,
 		session: null,
 		liveConnection: options.liveEventSource.getConnectionState(options.gameId),
@@ -169,6 +170,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 		version: number,
 		status: GameSessionViewState['status'],
 		preserveEventType: boolean,
+		nextCatalog?: GameSessionViewState['catalog'],
 	) {
 		if (!shouldAcceptSnapshot(nextSnapshot.lastEventSeq, minimumAcceptedSeq, version)) {
 			return false
@@ -183,6 +185,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 		state = {
 			...state,
+			catalog: nextCatalog ?? state.catalog,
 			status,
 			snapshot: nextSnapshot,
 			session: nextSession,
@@ -368,6 +371,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 			if (!applied && state.snapshot !== null) {
 				setState({ status: 'ready' })
 			}
+
 		} catch (error) {
 			debugLog('loadOrRefresh failure', {
 				gameId: options.gameId,
@@ -395,6 +399,11 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 		if (signal.kind === 'connection') {
 			setState({ liveConnection: signal.status })
+			return
+		}
+
+		if (signal.kind === 'session-init') {
+			setState({ catalog: signal.payload })
 			return
 		}
 

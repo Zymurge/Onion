@@ -13,6 +13,33 @@ async function readWsMessage(ws: { once: (event: 'message', handler: (data: Buff
 	})
 }
 
+async function readInitialSnapshot(ws: {
+	on: (event: 'message', handler: (data: Buffer | string) => void) => void
+	off: (event: 'message', handler: (data: Buffer | string) => void) => void
+}) {
+	const messages = await new Promise<any[]>((resolve) => {
+		const received: any[] = []
+		const handler = (data: Buffer | string) => {
+			const text = typeof data === 'string' ? data : data.toString()
+			received.push(JSON.parse(text))
+			if (received.length === 2) {
+				ws.off('message', handler)
+				resolve(received)
+			}
+		}
+		ws.on('message', handler)
+	})
+
+	const [sessionInitMessage, snapshotMessage] = messages
+	expect(sessionInitMessage.kind).toBe('SESSION_INIT')
+	expect(sessionInitMessage.payload).toEqual(expect.objectContaining({
+		unitTypes: expect.any(Object),
+		weaponTypes: expect.any(Object),
+	}))
+	expect(snapshotMessage.kind).toBe('STATE_SNAPSHOT')
+	return snapshotMessage
+}
+
 describe('GET /games/:id/ws', () => {
 	it('sends the current snapshot and broadcasts live events', async () => {
 		const app = buildApp()
@@ -24,7 +51,7 @@ describe('GET /games/:id/ws', () => {
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 
@@ -58,23 +85,26 @@ describe('GET /games/:id/ws', () => {
 			url: `/games/${gameId}`,
 			headers: { authorization: `Bearer ${shrek.token}` },
 		})
-		const initialStateBody = initialStateRes.json<{ state: { onion: { id?: string; position: { q: number; r: number } } } }>()
-		const onionUnitId = initialStateBody.state.onion.id ?? 'onion-1'
+		const initialStateBody = initialStateRes.json<{
+			state: { onions: { [key: string]: { unitId: string; position: { q: number; r: number } } } }
+		}>()
+		const onion = initialStateBody.state.onions['onion-1']
+		const onionUnitId = onion.unitId
 
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 
 		await snapshotMessagePromise
 
 		const moveTo = { q: 1, r: 10 }
-		const validatedPlan = createMovePlan({ unitId: onionUnitId, from: initialStateBody.state.onion.position, to: moveTo, path: [moveTo] })
+		const validatedPlan = createMovePlan({ unitId: onionUnitId, from: onion.position, to: moveTo, path: [moveTo] })
 		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
 		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
-			state.onion.position = plan.to
+			state.onions[onionUnitId].position = plan.to
 			return { success: true, newPosition: plan.to }
 		}) as any)
 
@@ -104,7 +134,7 @@ describe('GET /games/:id/ws', () => {
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(fiona.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 
@@ -116,32 +146,34 @@ describe('GET /games/:id/ws', () => {
 				actionType: 'FIRE',
 				actor: 'defender',
 				attackerIds: ['wolf-1'],
-				target: { kind: 'treads' as const, id: 'onion' },
+				onionId: 'onion-1',
+				target: { kind: 'treads' as const, id: 'onion-1:treads' },
 				attackStrength: 2,
 				defense: 2,
 			},
 		} as any)
 		const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation(((state: any) => {
-			state.onion.treads = 43
+			state.onions['onion-1'].treads = 43
 			return {
 				success: true,
 				actionType: 'FIRE',
 				attackerIds: ['wolf-1'],
-				targetId: 'onion',
+				onionId: 'onion-1',
+				targetId: 'onion-1:treads',
 				roll: { roll: 6, result: 'X', odds: '1:1' },
 				treadsLost: 2,
 			}
 		}) as any)
 
 		const liveEventPromise = readWsMessage(ws)
-		await submitAction(app, gameId, fiona.token, { type: 'FIRE', attackers: ['wolf-1'], targetId: 'onion' })
+		await submitAction(app, gameId, fiona.token, { type: 'FIRE', attackers: ['wolf-1'], targetId: 'onion-1:treads', onionId: 'onion-1' })
 		const liveEventMessage = await liveEventPromise
 
 		expect(liveEventMessage.kind).toBe('EVENT')
 		expect(liveEventMessage.event.type).toBe('FIRE_RESOLVED')
 		expect(liveEventMessage.event.phase).toBe('DEFENDER_COMBAT')
 		expect(liveEventMessage.event.attackers).toEqual(['wolf-1'])
-		expect(liveEventMessage.event.targetId).toBe('onion')
+		expect(liveEventMessage.event.targetId).toBe('onion-1:treads')
 
 		validateSpy.mockRestore()
 		executeSpy.mockRestore()
@@ -158,7 +190,7 @@ describe('GET /games/:id/ws', () => {
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 
@@ -193,7 +225,7 @@ describe('GET /games/:id/ws', () => {
 		let snapshotMessagePromise: Promise<any> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
-				snapshotMessagePromise = readWsMessage(openWs)
+				snapshotMessagePromise = readInitialSnapshot(openWs)
 			},
 		})
 

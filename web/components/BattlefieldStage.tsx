@@ -1,14 +1,16 @@
 import { HexMapBoard } from './HexMapBoard'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import type { StackRosterState } from '../../shared/types/index'
+import type { SessionCatalog } from '../lib/sessionCatalog'
 
 type BattlefieldStageProps = {
   activePhase: string | null
   activeTurnActive: boolean
   defenders: ReadonlyArray<BattlefieldUnit>
-  onion: BattlefieldOnionView
+  onions: ReadonlyArray<BattlefieldOnionView>
   stackNaming?: import('../../shared/stackNaming').StackNamingSnapshot
   stackRoster?: StackRosterState
+  catalog?: SessionCatalog
   scenarioMap: {
     width: number
     height: number
@@ -34,9 +36,10 @@ export function BattlefieldStage({
   activePhase,
   activeTurnActive,
   defenders,
-  onion,
+  onions,
   stackNaming,
   stackRoster,
+  catalog,
   scenarioMap,
   selectedCombatTargetId,
   selectedUnitIds,
@@ -58,9 +61,10 @@ export function BattlefieldStage({
         <HexMapBoard
           scenarioMap={scenarioMap}
           defenders={defenders}
-          onion={onion}
+          onions={onions}
           stackNaming={stackNaming}
           stackRoster={stackRoster}
+          catalog={catalog}
           phase={activePhase}
           viewerRole={viewerRole}
           selectedUnitIds={selectedUnitIds}

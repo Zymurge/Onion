@@ -6,9 +6,9 @@ import {
   type WebStackSourceState,
 } from './appViewHelpers'
 import { buildRightRailCombatSubmissionAction, buildRightRailMoveSubmissionAction } from './rightRailSelection'
-import { isUnitTypeStackable } from '../../shared/unitDefinitions'
+import { isSessionUnitTypeStackable } from './sessionCatalog'
 
-type CommitActionFailureReason = 'empty-stack-selection' | 'missing-target' | 'snapshot-missing-stack-selection'
+type CommitActionFailureReason = 'empty-stack-selection' | 'missing-target' | 'missing-onion' | 'snapshot-missing-stack-selection'
 
 type CommitActionResult<TAction extends GameAction> =
   | { ok: true; action: TAction }
@@ -27,7 +27,7 @@ type CombatCommitActionInput = {
   anchorUnitId: string | null
   selectedUnitIds: readonly string[]
   targetId: string | null
-  onionId?: string
+  onionId: string
 }
 
 type EndPhaseCommitAction = Extract<GameAction, { type: 'end-phase' }>
@@ -37,15 +37,16 @@ function resolveUnitType(state: WebStackSourceState, unitId: string | null): str
     return null
   }
 
-  if (state.onion?.id === unitId) {
-    return state.onion.type ?? 'TheOnion'
+  const onion = state.onions?.[unitId]
+  if (onion !== undefined) {
+    return onion.typeId
   }
 
-  return state.defenders?.[unitId]?.type ?? null
+  return state.defenders?.[unitId]?.typeId ?? null
 }
 
-function isStackableUnitType(unitType: string | null): boolean {
-  return isUnitTypeStackable(unitType)
+function isStackableUnitType(state: WebStackSourceState, unitType: string | null): boolean {
+  return unitType !== null && state.catalog !== undefined && isSessionUnitTypeStackable(state.catalog, unitType)
 }
 
 function buildMovePayload(
@@ -85,7 +86,7 @@ function buildMovePayload(
     return stackSubmission
   }
 
-  if (!isStackableUnitType(resolveUnitType(state, unitId))) {
+  if (!isStackableUnitType(state, resolveUnitType(state, unitId))) {
     return {
       ok: true,
       action: {
@@ -108,7 +109,7 @@ function buildCombatPayload(
   anchorUnitId: string | null,
   selectedUnitIds: readonly string[],
   targetId: string,
-  onionId?: string,
+  onionId: string,
 ): CommitActionResult<Extract<GameAction, { type: 'FIRE' }>> {
   const translatedTargetId = buildCombatTargetActionId(targetId, onionId)
   const stackSubmission = buildRightRailCombatSubmissionAction({
@@ -116,6 +117,7 @@ function buildCombatPayload(
     anchorUnitId,
     selectedUnitIds,
     targetId: translatedTargetId,
+    onionId,
   }) as
     | { ok: true; action: Extract<GameAction, { type: 'FIRE' }> }
     | { ok: false; reason: CommitActionFailureReason }
@@ -131,17 +133,19 @@ function buildCombatPayload(
         type: 'FIRE',
         attackers: stackSubmission.action.attackers,
         targetId: stackSubmission.action.targetId,
+        onionId,
       },
     }
   }
 
-  if (!isStackableUnitType(resolveUnitType(state, anchorUnitId ?? selectedUnitIds[0] ?? null))) {
+  if (!isStackableUnitType(state, resolveUnitType(state, anchorUnitId ?? selectedUnitIds[0] ?? null))) {
     return {
       ok: true,
       action: {
         type: 'FIRE',
         attackers: [...selectedUnitIds],
         targetId: translatedTargetId,
+        onionId,
       },
     }
   }
@@ -159,6 +163,10 @@ export function buildMoveCommitAction(input: MoveCommitActionInput): CommitActio
 export function buildCombatCommitAction(input: CombatCommitActionInput): CommitActionResult<Extract<GameAction, { type: 'FIRE' }>> {
   if (input.targetId === null || input.targetId.trim().length === 0) {
     return { ok: false, reason: 'missing-target' }
+  }
+
+  if (typeof input.onionId !== 'string' || input.onionId.trim().length === 0) {
+    return { ok: false, reason: 'missing-onion' }
   }
 
   return buildCombatPayload(input.state, input.anchorUnitId, input.selectedUnitIds, input.targetId, input.onionId)

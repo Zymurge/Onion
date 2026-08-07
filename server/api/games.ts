@@ -9,8 +9,7 @@ import { StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { createMap } from '#server/engine/map'
-import { validateUnitMovement, executeUnitMovement, validateCombatAction, executeCombatAction } from '#server/engine/index'
-import { InitialStateSchema } from '#server/engine/scenarioSchema'
+import { validateUnitMovement, executeUnitMovement, reconcileStackStateAfterMoves, validateCombatAction, executeCombatAction } from '#server/engine/index'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
 import {
   assertScenarioStateFitsMap,
@@ -18,6 +17,7 @@ import {
   buildEngineState,
   buildGameStateResponse,
   buildActionResponse,
+  buildSessionInitPayload,
   buildMoveEvents,
   buildVictoryObjectiveStates,
   computeWinnerUserId,
@@ -29,6 +29,7 @@ import {
   logActionOutcome,
   logSentEvents,
   loadScenario,
+  ScenarioValidationError,
   parseGameId,
   parseWsMessage,
   serializeWsMessage,
@@ -39,6 +40,7 @@ import type {
   WebSocketClientMessage,
   WebSocketServerErrorMessage,
   WebSocketServerEventMessage,
+  WebSocketServerSessionInitMessage,
   WebSocketServerSnapshotMessage,
 } from '#shared/websocketProtocol'
 
@@ -46,16 +48,6 @@ const CreateGameSchema = z.object({
   scenarioId: z.string().min(1),
   role: z.enum(['onion', 'defender']),
 })
-
-const INITIAL_STATE: GameState = {
-  onion: {
-    position: { q: 0, r: 10 },
-    treads: 45,
-    missiles: 2,
-    batteries: { main: 1, secondary: 4, ap: 8 },
-  },
-  defenders: {},
-}
 
 /**
  * Game management routes for creating, joining, and playing matches.
@@ -161,27 +153,31 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       const userId = extractUserId(req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for game creation')
-      const scenarioSnapshot = await loadScenario(scenarioId) as ScenarioSnapshot | null
+      let scenarioSnapshot
+      try {
+        scenarioSnapshot = await loadScenario(scenarioId)
+      } catch (err) {
+        if (err instanceof ScenarioValidationError) {
+          logger.error({ err, scenarioId }, 'Invalid scenario definition')
+          return reply.status(400).send({ ok: false, error: 'Invalid scenario', code: 'INVALID_SCENARIO' })
+        }
+        throw err
+      }
+
       if (!scenarioSnapshot) {
         logger.warn({ scenarioId }, 'Scenario not found')
         return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
       }
-      const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+
       let state: GameState
-      if (scenarioSnapshot.initialState) {
-        try {
-          const parsedState = InitialStateSchema.parse(scenarioSnapshot.initialState)
-          state = normalizeInitialStateToGameState(parsedState)
-          assertScenarioStateFitsMap(scenarioMap, scenarioSnapshot, state)
-          logger.debug({ state }, 'Parsed and normalized initial game state')
-        } catch (err) {
-          logger.error({ err }, 'Invalid scenario initialState')
-          logger.debug({ scenarioSnapshot }, 'Scenario snapshot for failed initialState')
-          return reply.status(400).send({ ok: false, error: 'Invalid scenario initialState', code: 'INVALID_SCENARIO' })
-        }
-      } else {
-        state = { ...INITIAL_STATE }
-        logger.debug({ state }, 'Default initial game state used')
+      try {
+        const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
+        state = normalizeInitialStateToGameState(scenarioSnapshot.initialState)
+        assertScenarioStateFitsMap(scenarioMap, scenarioSnapshot, state)
+        logger.debug({ state }, 'Parsed and normalized initial game state')
+      } catch (err) {
+        logger.error({ err, scenarioId }, 'Invalid scenario initial state')
+        return reply.status(400).send({ ok: false, error: 'Invalid scenario', code: 'INVALID_SCENARIO' })
       }
       const players: { onion: string | null; defender: string | null } = {
         onion: null,
@@ -472,6 +468,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             return
           }
 
+          const sessionInitMessage: WebSocketServerSessionInitMessage = {
+            kind: 'SESSION_INIT',
+            payload: buildSessionInitPayload(),
+          }
+          socket.send(serializeWsMessage(sessionInitMessage))
+
           const snapshotMessage: WebSocketServerSnapshotMessage = {
             kind: 'STATE_SNAPSHOT',
             snapshot: buildGameStateResponse(match, userId),
@@ -622,7 +624,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             type: 'MOVE',
             unitId: moveUnitId,
             to: command.to,
-            ...(command.attemptRam ? { attemptRam: true } : {}),
+            ...(command.attemptRam === undefined ? {} : { attemptRam: command.attemptRam }),
           }
 
           const validation = validateUnitMovement(map, state, moveCommand)
@@ -637,7 +639,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             })
           }
 
-          const result = executeUnitMovement(state, validation.plan)
+          const result = executeUnitMovement(state, validation.plan, { reconcileStackRoster: false })
           if (!result.success) {
             logger.info({ gameId: match.gameId, unitId: moveUnitId, error: result.error }, 'Invalid move command')
             return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
@@ -659,6 +661,8 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             treadDamage: result.treadDamage,
           }
         }
+
+        reconcileStackStateAfterMoves(state, moveUnitIds)
 
         newEvents = attachCauseId(moveEvents, causeId)
 
@@ -692,6 +696,15 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         return reply.send(responsePayload)
       } else if (command.type === 'FIRE') {
         logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
+        if (typeof command.onionId !== 'string' || command.onionId.trim().length === 0) {
+          return reply.status(422).send({
+            ok: false,
+            error: 'FIRE command requires an Onion ID',
+            code: 'MOVE_INVALID',
+            detailCode: 'ONION_NOT_FOUND',
+            currentPhase: match.phase,
+          })
+        }
         const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
         const state = buildEngineState(match)
         const validation = validateCombatAction(map, state, command)
@@ -730,6 +743,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
         logSentEvents(match.gameId, command.type, newEvents)
         logActionOutcome(match.gameId, 'FIRE', {
           attackers: command.attackers,
+          onionId: command.onionId,
           targetId: result.targetId,
           roll: result.roll?.roll ?? null,
           outcome: result.roll?.result ?? null,

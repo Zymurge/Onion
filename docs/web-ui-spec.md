@@ -186,6 +186,24 @@ Before the first click in a phase, the UI should already present the correct pha
 - Expanded stack presentation in the right rail implies active-player subgroup editing. If a group is expanded, clicks inside that view already carry subgroup-selection intent and should not be reinterpreted as inspection.
 - The board should not need embedded role checks beyond subject normalization such as `self`, `opponent`, `background`, or `neutral/system`.
 
+### Combat Target Identity
+
+Combat target selection is a client-side preparation step, but the selected
+target ID is a shared protocol value when the action is committed. The web
+client must emit the canonical target ID without relying on server-side aliases:
+
+- Defender units, defender stacks, and individually targetable Onion weapons
+  use their authoritative IDs.
+- Onion tread selection emits `{onionId}:treads`, for example
+  `onion-1:treads`.
+- A bare Onion ID is not emitted for tread selection.
+- `weapon:` prefixes may be used by web-only selection controls, but they are
+  UI state and must be removed before a `FIRE` command is submitted.
+
+The web consumes the canonical `targetId` and `targetFriendlyName` from
+`FIRE_RESOLVED` and `ONION_TREADS_LOST` events. Friendly labels are display
+data; target legality and target identity remain backend-owned.
+
 ### Intent Vocabulary
 
 The routing layer should resolve to a small set of intent types:

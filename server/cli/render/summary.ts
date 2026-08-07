@@ -1,22 +1,23 @@
-import type { DefenderUnit, EventEnvelope, GameState, HexPos, UnitStatus, Weapon } from '#shared/types/index'
+import { getUnitDefinition } from '#shared/unitDefinitions'
+import type { DefenderUnit, EventEnvelope, GameState, HexPos, UnitState, Weapon } from '#shared/types/index'
 import type { SessionStore } from '#server/cli/session/store'
 
 function posText(pos: HexPos): string {
   return `(${pos.q},${pos.r})`
 }
 
-function effectiveWeaponDisplayStatus(unitStatus: UnitStatus | undefined, weapon: Weapon): string {
-  if (weapon.status === 'destroyed') {
+function effectiveWeaponDisplayStatus(unitState: UnitState | undefined, weapon: Weapon): string {
+  if (weapon.state === 'destroyed') {
     return 'destroyed'
   }
-  if (unitStatus === 'disabled' || unitStatus === 'recovering') {
+  if (unitState === 'disabled' || unitState === 'recovering') {
     return 'disabled'
   }
-  return weapon.status
+  return weapon.state
 }
 
-function weaponSummary(weapons: Weapon[] | undefined, unitStatus: UnitStatus | undefined): string {
-  if (unitStatus === 'destroyed') {
+function weaponSummary(weapons: ReadonlyArray<Weapon> | undefined, unitState: UnitState | undefined): string {
+  if (unitState === 'destroyed') {
     return '(n/a - unit destroyed)'
   }
 
@@ -25,7 +26,7 @@ function weaponSummary(weapons: Weapon[] | undefined, unitStatus: UnitStatus | u
   }
 
   return weapons
-    .map((weapon, index) => `${index}:${weapon.id}:${effectiveWeaponDisplayStatus(unitStatus, weapon)}`)
+    .map((weapon, index) => `${index}:${weapon.id}:${effectiveWeaponDisplayStatus(unitState, weapon)}`)
     .join(', ')
 }
 
@@ -35,24 +36,25 @@ function defenderReadinessRank(defender: DefenderUnit): number {
   // 1: spent (at least one weapon spent, unit operational)
   // 2: disabled (unit disabled)
   // 3: destroyed (unit destroyed)
-  if (defender.status === 'destroyed') {
+  if (defender.state === 'destroyed') {
     return 3
   }
-  if (defender.status === 'disabled' || defender.status === 'recovering') {
+  if (defender.state === 'disabled' || defender.state === 'recovering') {
     return 2
   }
   // Unit is operational. Check weapons.
   if (!defender.weapons || defender.weapons.length === 0) {
     return 0 // No weapons = ready
   }
-  const hasSpentWeapon = defender.weapons.some((w) => w.status === 'spent')
+  const hasSpentWeapon = defender.weapons.some((w) => w.state === 'spent')
   return hasSpentWeapon ? 1 : 0
 }
 
 function defenderLine(defender: DefenderUnit): string {
-  const squads = defender.squads ? ` squads=${defender.squads}` : ''
-  const weapons = weaponSummary(defender.weapons, defender.status)
-  return `  ${defender.id ?? '(unknown)'} ${defender.type} ${defender.status} at ${posText(defender.position)} weapons: ${weapons}${squads ? ` (${squads})` : ''}`
+  const definition = getUnitDefinition(defender.typeId)
+  const squads = definition?.role === 'defender' && definition.squads ? ` squads=${definition.squads}` : ''
+  const weapons = weaponSummary(defender.weapons, defender.state)
+  return `  ${defender.unitId} ${defender.typeId} ${defender.state} at ${posText(defender.position)} weapons: ${weapons}${squads ? ` (${squads})` : ''}`
 }
 
 function sortDefenders(defenders: DefenderUnit[]): DefenderUnit[] {
@@ -65,7 +67,7 @@ function sortDefenders(defenders: DefenderUnit[]): DefenderUnit[] {
         return leftRank - rightRank
       }
       // Same readiness rank: sort by type
-      return (left.type ?? '').localeCompare(right.type ?? '')
+      return left.typeId.localeCompare(right.typeId)
     })
 }
 
@@ -86,16 +88,22 @@ export function renderGameSummary(session: SessionStore, state: GameState | null
     return lines.join('\n')
   }
 
-  lines.push(`  onion: id=${state.onion.id ?? '(unknown)'} type=${state.onion.type ?? 'TheOnion'} status=${state.onion.status ?? 'operational'} at ${posText(state.onion.position)} treads=${state.onion.treads}`)
-  lines.push(`  onion weapons: ${weaponSummary(state.onion.weapons, state.onion.status)}`)
+  for (const onion of Object.values(state.onions)) {
+    lines.push(`  onion: id=${onion.unitId} type=${onion.typeId} status=${onion.state} at ${posText(onion.position)} treads=${onion.treads}`)
+    lines.push(`  onion weapons: ${weaponSummary(onion.weapons, onion.state)}`)
+  }
+  if (Object.keys(state.onions).length === 0) {
+    lines.push('  onions: (none)')
+  }
   if (Object.keys(state.defenders).length === 0) {
     lines.push('  defenders: (none)')
   } else {
     lines.push('  defenders:')
     for (const defender of sortDefenders(Object.values(state.defenders))) {
-      const weapons = weaponSummary(defender.weapons, defender.status)
-      const squads = defender.squads ? ` (squads=${defender.squads})` : ''
-      lines.push(`    id=${defender.id ?? '(unknown)'} type=${defender.type} status=${defender.status} at ${posText(defender.position)} weapons: ${weapons}${squads}`)
+      const definition = getUnitDefinition(defender.typeId)
+      const weapons = weaponSummary(defender.weapons, defender.state)
+      const squads = definition?.role === 'defender' && definition.squads ? ` (squads=${definition.squads})` : ''
+      lines.push(`    id=${defender.unitId} type=${defender.typeId} status=${defender.state} at ${posText(defender.position)} weapons: ${weapons}${squads}`)
     }
   }
   return lines.join('\n')
@@ -122,12 +130,14 @@ export function renderOnion(state: GameState | null): string {
 
   return [
     'Onion',
-    `  id: ${state.onion.id ?? '(unknown)'}`,
-    `  type: ${state.onion.type ?? 'TheOnion'}`,
-    `  status: ${state.onion.status ?? 'operational'}`,
-    `  position: ${posText(state.onion.position)}`,
-    `  treads: ${state.onion.treads}`,
-    `  weapons: ${weaponSummary(state.onion.weapons, state.onion.status)}`,
+    ...Object.values(state.onions).flatMap((onion) => [
+      `  id: ${onion.unitId}`,
+      `  type: ${onion.typeId}`,
+      `  status: ${onion.state}`,
+      `  position: ${posText(onion.position)}`,
+      `  treads: ${onion.treads}`,
+      `  weapons: ${weaponSummary(onion.weapons, onion.state)}`,
+    ]),
   ].join('\n')
 }
 

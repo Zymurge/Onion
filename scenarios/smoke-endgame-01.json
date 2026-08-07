@@ -2,23 +2,18 @@
   "id": "smoke-endgame-01",
   "name": "smoke-endgame-01",
   "displayName": "Smoke Endgame Detection",
-  "description": "Low-tread smoke scenario where defenders focus Onion treads.",
+  "description": "Smoke scenario where defenders focus Onion movement.",
   "map": {
     "radius": 5,
     "hexes": []
   },
   "initialState": {
-    "onion": {
-      "type": "TheOnion",
-      "position": { "q": 5, "r": 5 },
-      "treads": 1,
-      "missiles": 0,
-      "batteries": {
-        "main": 1,
-        "secondary": 0,
-        "ap": 0
-      },
-      "status": "operational"
+    "onions": {
+      "onion-1": {
+        "type": "TheOnion",
+        "position": { "q": 5, "r": 5 },
+        "status": "operational"
+      }
     },
     "defenders": {
       "wolf-1":  { "type": "BigBadWolf", "position": { "q": 5, "r": 3 }, "status": "operational" },

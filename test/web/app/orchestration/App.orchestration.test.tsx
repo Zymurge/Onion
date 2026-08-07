@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render as renderWithTestingLibrary, screen, within } from '@testing-library/react'
+import { cloneElement, type ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import App from '../../../../web/App'
+import { createTestClient, makeDefender, makeOnion, makeWeapon } from '#test/utils/gameStateUtils'
 import {
 	type AuthoritativeBattlefieldSnapshot,
 	baseOrchestrationSnapshot,
@@ -13,10 +15,40 @@ import {
 	createDeferred,
 	createGroupedInRangeCombatSnapshot,
 	createInRangeCombatSnapshot,
-	createMoveGameState,
 	createSnapshotWithTreads,
-	createTestClient,
 } from './orchestrationHelpers'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import type { LiveEventSource } from '#web/lib/gameSessionTypes'
+import type { SessionInitPayload } from '#shared/types/index'
+
+const testSessionCatalog: SessionInitPayload = {
+	unitTypes: getUnitTypeCatalog(),
+	weaponTypes: getWeaponTypeCatalog(),
+}
+
+function createCatalogLiveEventSource(): LiveEventSource {
+	const listeners = new Set<Parameters<LiveEventSource['subscribe']>[0]>()
+
+	return {
+		subscribe(listener) {
+			listeners.add(listener)
+			return () => listeners.delete(listener)
+		},
+		connect(gameId) {
+			for (const listener of listeners) {
+				listener({ kind: 'session-init', gameId, payload: testSessionCatalog })
+			}
+		},
+		disconnect() {},
+		getConnectionState() {
+			return 'idle'
+		},
+	}
+}
+
+function render(ui: ReactElement) {
+	return renderWithTestingLibrary(cloneElement(ui, { liveEventSource: createCatalogLiveEventSource() }))
+}
 
 async function acknowledgeTurnIfAvailable() {
 	try {
@@ -114,9 +146,7 @@ describe('movement', () => {
 	it('falls back to onion tread allowance when remaining movement is not provided', async () => {
 		// treads=16 → onionMovementAllowance(16) = 2; movementRemainingByUnit omitted to test the fallback path
 		const snapshot = {
-			...createConnectedBattlefieldSnapshot(),
-			phase: 'ONION_MOVE' as const,
-			authoritativeState: createMoveGameState(16),
+			...createSnapshotWithTreads(16, 2),
 			movementRemainingByUnit: undefined,
 		}
 		const session = { role: 'onion' as const }
@@ -198,10 +228,9 @@ describe('movement', () => {
 describe('ram flow', () => {
 	it('prompts before a ram-capable Onion move and can skip the ram', async () => {
 		const snapshot = createSnapshotWithTreads(45, 3)
-		snapshot.phase = 'ONION_MOVE'
-		snapshot.authoritativeState.onion.position = { q: 0, r: 0 }
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({ ...snapshot.authoritativeState.onions['onion-1'], position: { q: 0, r: 0 } })
 		snapshot.authoritativeState.defenders = {
-			'd1': { id: 'd1', type: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, status: 'operational', weapons: [] },
+			'd1': makeDefender({ unitId: 'd1', typeId: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, weapons: [] }),
 		}
 		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
 
@@ -225,11 +254,10 @@ describe('ram flow', () => {
 	it('renders one ram toast per resolved target', async () => {
 		const user = userEvent.setup()
 		const snapshot = createSnapshotWithTreads(45, 3)
-		snapshot.phase = 'ONION_MOVE'
-		snapshot.authoritativeState.onion.position = { q: 0, r: 0 }
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({ ...snapshot.authoritativeState.onions['onion-1'], position: { q: 0, r: 0 } })
 		snapshot.authoritativeState.defenders = {
-			'd1': { id: 'd1', type: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, status: 'operational', weapons: [] },
-			'd2': { id: 'd2', type: 'BigBadWolf', friendlyName: 'Big Bad Wolf 2', position: { q: 1, r: 1 }, status: 'operational', weapons: [] },
+			'd1': makeDefender({ unitId: 'd1', typeId: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, weapons: [] }),
+			'd2': makeDefender({ unitId: 'd2', typeId: 'BigBadWolf', friendlyName: 'Big Bad Wolf 2', position: { q: 1, r: 1 }, weapons: [] }),
 		}
 		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
 
@@ -260,10 +288,9 @@ describe('ram flow', () => {
 	it('renders ram toast fallback details and dismisses it from the app shell', async () => {
 		const user = userEvent.setup()
 		const snapshot = createSnapshotWithTreads(45, 3)
-		snapshot.phase = 'ONION_MOVE'
-		snapshot.authoritativeState.onion.position = { q: 0, r: 0 }
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({ ...snapshot.authoritativeState.onions['onion-1'], position: { q: 0, r: 0 } })
 		snapshot.authoritativeState.defenders = {
-			'd1': { id: 'd1', type: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, status: 'operational', weapons: [] },
+			'd1': makeDefender({ unitId: 'd1', typeId: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, weapons: [] }),
 		}
 		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
 
@@ -293,6 +320,72 @@ describe('ram flow', () => {
 
 		await user.click(within(toast).getByRole('button', { name: /dismiss/i }))
 		expect(screen.queryByTestId('ram-resolution-toast')).toBeNull()
+	})
+
+	it('keeps a surviving co-located ram target available in Onion combat', async () => {
+		const user = userEvent.setup()
+		const snapshot = createInRangeCombatSnapshot()
+		snapshot.phase = 'ONION_COMBAT'
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({
+			...snapshot.authoritativeState.onions['onion-1'],
+			position: { q: 0, r: 1 },
+		})
+		snapshot.authoritativeState.defenders['wolf-2'] = makeDefender({
+			...snapshot.authoritativeState.defenders['wolf-2'],
+			position: { q: 0, r: 1 },
+			state: 'operational',
+		})
+
+		const client = createTestClient(snapshot, { role: 'onion' })
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		await user.click(await screen.findByTestId('combat-weapon-main-1'))
+
+		expect(screen.getByTestId('combat-target-wolf-2')).not.toBeNull()
+	})
+
+	it('keeps a survived ram target after the move response enters Onion combat', async () => {
+		const user = userEvent.setup()
+		const snapshot = createSnapshotWithTreads(45, 3)
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({
+			...snapshot.authoritativeState.onions['onion-1'],
+			position: { q: 0, r: 0 },
+		})
+		snapshot.authoritativeState.defenders = {
+			'd1': makeDefender({ unitId: 'd1', typeId: 'BigBadWolf', friendlyName: 'Big Bad Wolf 1', position: { q: 0, r: 1 }, weapons: [] }),
+		}
+		snapshot.movementRemainingByUnit = { 'onion-1': 3 }
+		const ramSnapshot = {
+			...snapshot,
+			phase: 'ONION_COMBAT' as const,
+			authoritativeState: {
+				...snapshot.authoritativeState,
+				onions: {
+					...snapshot.authoritativeState.onions,
+					'onion-1': { ...snapshot.authoritativeState.onions['onion-1'], position: { q: 0, r: 1 } },
+				},
+				defenders: {
+					...snapshot.authoritativeState.defenders,
+					d1: { ...snapshot.authoritativeState.defenders.d1, position: { q: 0, r: 1 }, state: 'operational' as const },
+				},
+			},
+			ramResolution: [{ actionType: 'MOVE' as const, unitId: 'onion-1', rammedUnitId: 'd1', rammedUnitFriendlyName: 'Big Bad Wolf 1', destroyedUnitId: '', details: ['Result: survived'] }],
+		}
+		const submitAction = vi.fn().mockResolvedValue(ramSnapshot)
+		const client = createTestClient(snapshot, { role: 'onion' }, { submitAction })
+
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+		await user.click(await screen.findByTestId('combat-unit-onion-1'))
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-cell-0-1'))
+		})
+		await user.click(await screen.findByRole('button', { name: /attempt ram/i }))
+
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 0, r: 1 }, attemptRam: true })
+		await user.click(await screen.findByTestId('combat-weapon-main'))
+		expect(await screen.findByTestId('combat-target-d1')).not.toBeNull()
 	})
 })
 
@@ -409,12 +502,15 @@ describe('combat', () => {
 			phase: 'ONION_COMBAT' as const,
 			authoritativeState: {
 				...baseOrchestrationSnapshot.authoritativeState,
-				onion: {
-					...baseOrchestrationSnapshot.authoritativeState.onion,
-					weapons: [
-						{ id: 'main-1', name: 'Main Battery', attack: 4, range: 4, defense: 4, status: 'ready' as const, individuallyTargetable: true },
-						{ id: 'secondary-1', name: 'Secondary Battery', attack: 3, range: 2, defense: 3, status: 'ready' as const, individuallyTargetable: true },
-					],
+				onions: {
+					...baseOrchestrationSnapshot.authoritativeState.onions,
+					'onion-1': makeOnion({
+						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
+						weapons: [
+							makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' }),
+							makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Battery' }),
+						],
+					}),
 				},
 			},
 		}
@@ -435,6 +531,51 @@ describe('combat', () => {
 		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
 	})
 
+	it('keeps a co-located Onion eligible during Onion combat', async () => {
+		const user = userEvent.setup()
+		const snapshot = createInRangeCombatSnapshot()
+		snapshot.phase = 'ONION_COMBAT'
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({
+			...snapshot.authoritativeState.onions['onion-1'],
+			position: { q: 0, r: 1 },
+		})
+		snapshot.authoritativeState.defenders['wolf-2'] = makeDefender({
+			...snapshot.authoritativeState.defenders['wolf-2'],
+			position: { q: 0, r: 1 },
+		})
+
+		const client = createTestClient(snapshot, { role: 'onion' })
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		const weapon = await screen.findByTestId('combat-weapon-main-1')
+		await user.click(weapon)
+
+		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
+	})
+
+	it('keeps a co-located defender eligible during Defender combat', async () => {
+		const snapshot = createInRangeCombatSnapshot()
+		snapshot.authoritativeState.onions['onion-1'] = makeOnion({
+			...snapshot.authoritativeState.onions['onion-1'],
+			position: { q: 1, r: 1 },
+		})
+		snapshot.authoritativeState.defenders['wolf-2'] = makeDefender({
+			...snapshot.authoritativeState.defenders['wolf-2'],
+			position: { q: 1, r: 1 },
+		})
+
+		const client = createTestClient(snapshot, { role: 'defender' })
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		const attacker = await screen.findByTestId('combat-unit-wolf-2')
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		await userEvent.click(attacker)
+		expect(attacker.getAttribute('data-selected')).toBe('true')
+	})
+
 	it('sorts destroyed defenders to the bottom and marks them as destroyed in the roster', async () => {
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
 			units: [
@@ -443,7 +584,7 @@ describe('combat', () => {
 					type: 'Witch',
 					friendlyName: 'Witch 1',
 					pos: { q: 2, r: 5 },
-					weapons: [{ id: 'main', name: 'Main Gun', attack: 3, range: 2, defense: 2, status: 'spent' as const, individuallyTargetable: false }],
+						weapons: [makeWeapon({ id: 'main', typeId: 'Witch.main', friendlyName: 'Main Gun', state: 'spent' })],
 				},
 				{ id: 'active-1', type: 'BigBadWolf', friendlyName: 'Big Bad Wolf 1', pos: { q: 3, r: 5 } },
 				{ id: 'dead-1', type: 'Puss', friendlyName: 'Puss 1', pos: { q: 4, r: 5 }, status: 'destroyed' },
@@ -480,13 +621,16 @@ describe('combat', () => {
 			phase: 'ONION_COMBAT' as const,
 			authoritativeState: {
 				...baseOrchestrationSnapshot.authoritativeState,
-				onion: {
-					...baseOrchestrationSnapshot.authoritativeState.onion,
-					position: { q: 1, r: 1 },
-					weapons: [
-						{ id: 'main-1', name: 'Main Battery', attack: 4, range: 4, defense: 4, status: 'ready' as const, individuallyTargetable: true },
-						{ id: 'secondary-1', name: 'Secondary Battery', attack: 3, range: 2, defense: 3, status: 'ready' as const, individuallyTargetable: true },
-					],
+				onions: {
+					...baseOrchestrationSnapshot.authoritativeState.onions,
+					'onion-1': makeOnion({
+						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
+						position: { q: 1, r: 1 },
+						weapons: [
+							makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' }),
+							makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Battery' }),
+						],
+					}),
 				},
 				defenders: baseOrchestrationSnapshot.authoritativeState.defenders,
 			},
@@ -514,12 +658,13 @@ describe('combat', () => {
 			phase: 'ONION_COMBAT' as const,
 			authoritativeState: {
 				...baseOrchestrationSnapshot.authoritativeState,
-				onion: {
-					...baseOrchestrationSnapshot.authoritativeState.onion,
-					position: { q: 1, r: 1 },
-					weapons: [
-						{ id: 'main-1', name: 'Main Battery', attack: 4, range: 4, defense: 4, status: 'ready' as const, individuallyTargetable: true },
-					],
+				onions: {
+					...baseOrchestrationSnapshot.authoritativeState.onions,
+					'onion-1': makeOnion({
+						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
+						position: { q: 1, r: 1 },
+						weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+					}),
 				},
 				defenders: {
 					...baseOrchestrationSnapshot.authoritativeState.defenders,
@@ -558,12 +703,13 @@ describe('combat', () => {
 			phase: 'ONION_COMBAT' as const,
 			authoritativeState: {
 				...baseOrchestrationSnapshot.authoritativeState,
-				onion: {
-					...baseOrchestrationSnapshot.authoritativeState.onion,
-					position: { q: 1, r: 2 },
-					weapons: [
-						{ id: 'main-1', name: 'Main Battery', attack: 4, range: 1, defense: 4, status: 'ready' as const, individuallyTargetable: true },
-					],
+				onions: {
+					...baseOrchestrationSnapshot.authoritativeState.onions,
+					'onion-1': makeOnion({
+						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
+						position: { q: 1, r: 2 },
+						weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+					}),
 				},
 				defenders,
 				stackRoster,
@@ -600,12 +746,13 @@ describe('combat', () => {
 			phase: 'ONION_COMBAT' as const,
 			authoritativeState: {
 				...baseOrchestrationSnapshot.authoritativeState,
-				onion: {
-					...baseOrchestrationSnapshot.authoritativeState.onion,
-					position: { q: 1, r: 2 },
-					weapons: [
-						{ id: 'main-1', name: 'Main Battery', attack: 4, range: 1, defense: 4, status: 'ready' as const, individuallyTargetable: true },
-					],
+				onions: {
+					...baseOrchestrationSnapshot.authoritativeState.onions,
+					'onion-1': makeOnion({
+						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
+						position: { q: 1, r: 2 },
+						weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+					}),
 				},
 				defenders,
 				stackRoster,
@@ -721,7 +868,7 @@ describe('combat', () => {
 					type: 'LittlePigs',
 					friendlyName: 'Little Pigs 1',
 					pos: { q: 4, r: 4 },
-					weapons: [{ id: 'main', name: 'Main Gun', attack: 1, range: 1, defense: 2, status: 'spent' as const, individuallyTargetable: false }],
+					weapons: [makeWeapon({ id: 'main', typeId: 'LittlePigs.rifle', friendlyName: 'Main Gun', state: 'spent' })],
 				},
 				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 4, r: 4 } },
 			],
@@ -757,28 +904,29 @@ describe('combat', () => {
 			authoritativeState: {
 				...baseSnapshot.authoritativeState,
 				defenders: {
-					'long-range-spent': {
-						id: 'long-range-spent',
-						type: 'Dragon',
-						friendlyName: 'Dragon 1',
-						position: { q: 2, r: 4 },
-						status: 'operational' as const,
+						'long-range-spent': makeDefender({
+							unitId: 'long-range-spent',
+							typeId: 'Dragon',
+							friendlyName: 'Dragon 1',
+							position: { q: 2, r: 4 },
 						weapons: [
-							{ id: 'main', name: 'Main Gun', attack: 4, range: 6, defense: 3, status: 'spent' as const, individuallyTargetable: false },
-							{ id: 'secondary', name: 'Secondary Gun', attack: 2, range: 2, defense: 2, status: 'ready' as const, individuallyTargetable: false },
+								makeWeapon({ id: 'main', typeId: 'Dragon.main_1', friendlyName: 'Main Gun', state: 'spent' }),
+								makeWeapon({ id: 'secondary', typeId: 'Puss.main', friendlyName: 'Secondary Gun', state: 'ready' }),
 						],
-					},
-					'near-1': {
-						id: 'near-1',
-						type: 'Puss',
-						friendlyName: 'Puss 1',
-						position: { q: 4, r: 4 },
-						status: 'operational' as const,
-						weapons: [{ id: 'main', name: 'Main Gun', attack: 4, range: 2, defense: 3, status: 'ready' as const, individuallyTargetable: false }],
-					},
+						}),
+						'near-1': makeDefender({
+							unitId: 'near-1',
+							typeId: 'Puss',
+							friendlyName: 'Puss 1',
+							position: { q: 4, r: 4 },
+							weapons: [makeWeapon({ id: 'main', typeId: 'Puss.main', friendlyName: 'Main Gun', state: 'ready' })],
+						}),
 				},
 			},
-			onion: { ...baseSnapshot.authoritativeState.onion, position: { q: 5, r: 4 } },
+				onions: {
+					...baseSnapshot.authoritativeState.onions,
+					'onion-1': makeOnion({ ...baseSnapshot.authoritativeState.onions['onion-1'], position: { q: 5, r: 4 } }),
+				},
 		}
 		const session = { role: 'defender' as const }
 		const client = createTestClient(snapshot as AuthoritativeBattlefieldSnapshot, session)
@@ -798,7 +946,13 @@ describe('combat', () => {
 		const snapshot = createInRangeCombatSnapshot()
 		const refreshedSnapshot = {
 			...snapshot,
-			authoritativeState: { ...snapshot.authoritativeState, onion: { ...snapshot.authoritativeState.onion, treads: 29 } },
+			authoritativeState: {
+				...snapshot.authoritativeState,
+				onions: {
+					...snapshot.authoritativeState.onions,
+					'onion-1': makeOnion({ ...snapshot.authoritativeState.onions['onion-1'], treads: 29 }),
+				},
+			},
 		}
 		const session = { role: 'defender' as const }
 		const submitAction = vi.fn().mockRejectedValue(new Error('stale combat state'))
@@ -818,7 +972,7 @@ describe('combat', () => {
 		await user.click(within(targetList).getAllByRole('button')[0])
 		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
 
-		expect(submitAction).toHaveBeenCalledWith(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1' })
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1:treads', onionId: 'onion-1' })
 		expect(screen.getByRole('alert').textContent).toMatch(/stale combat state/i)
 		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
 		expect(screen.queryByTestId('combat-target-list')).toBeNull()

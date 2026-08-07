@@ -1,6 +1,6 @@
-import type { GameState, TurnPhase } from '../../shared/types/index'
-import type { GameRequestTransport } from './gameSessionTypes'
-import type { RamResolution as MoveResolution } from './moveResolution'
+import type { GameState, TurnPhase } from '../../shared/types/index.js'
+import type { GameRequestTransport } from './gameSessionTypes.js'
+import type { RamResolution as MoveResolution } from './moveResolution.js'
 
 export type ScenarioMapSnapshot = {
 	width: number
@@ -77,7 +77,7 @@ export type GameAction =
 	| { type: 'select-unit'; unitId: string }
 	| { type: 'set-mode'; mode: ActionMode }
 	| { type: 'MOVE'; movers: ReadonlyArray<string>; to: { q: number; r: number }; attemptRam?: boolean }
-	| { type: 'FIRE'; attackers: ReadonlyArray<string>; targetId: string }
+	| { type: 'FIRE'; attackers: ReadonlyArray<string>; targetId: string; onionId: string }
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 

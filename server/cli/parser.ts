@@ -191,17 +191,17 @@ function parseMove(tokens: string[]): ParseResult {
 }
 
 function parseFire(tokens: string[]): ParseResult {
-  const missing = requireArgs(tokens, 'fire <targetId> <attacker1> [attacker2...]', 3)
+  const missing = requireArgs(tokens, 'fire <onionId> <targetId> <attacker1> [attacker2...]', 4)
   if (missing) return missing
 
-  const attackers = tokens.slice(2)
+  const attackers = tokens.slice(3)
   if (attackers.some((attacker) => attacker.trim().length === 0)) {
-    return { ok: false, error: 'usage: fire <targetId> <attacker1> [attacker2...]' }
+    return { ok: false, error: 'usage: fire <onionId> <targetId> <attacker1> [attacker2...]' }
   }
 
   return {
     ok: true,
-    command: { kind: 'fire', targetId: tokens[1], attackers },
+    command: { kind: 'fire', onionId: tokens[1], targetId: tokens[2], attackers },
   }
 }
 

@@ -16,17 +16,12 @@
     ]
   },
   "initialState": {
-    "onion": {
-      "type": "TheOnion",
-      "position": { "q": 3, "r": 10 },
-      "treads": 45,
-      "missiles": 2,
-      "batteries": {
-        "main": 1,
-        "secondary": 4,
-        "ap": 8
-      },
-      "status": "operational"
+    "onions": {
+      "onion-1": {
+        "type": "TheOnion",
+        "position": { "q": 3, "r": 10 },
+        "status": "operational"
+      }
     },
     "defenders": {
       "swamp-1": { "type": "Swamp", "position": { "q": 7, "r": 5 }, "status": "operational" },

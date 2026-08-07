@@ -1,4 +1,4 @@
-import { buildFriendlyName, getAllUnitDefinitions, isUnitTypeStackable } from './unitDefinitions.js'
+import { buildFriendlyName, getUnitTypeCatalog, isUnitTypeStackable } from './unitDefinitions.js'
 import type { StackRosterState } from './types/index.js'
 
 type StackNamingGroupRecord = {
@@ -15,10 +15,10 @@ export type StackNamingSnapshot = {
 export type StackNamingSeed = Partial<StackNamingSnapshot>
 
 export type StackNamingSourceUnit = {
-	id: string
-	type: string
+	unitId: string
+	typeId: string
 	position: { q: number; r: number }
-	status: string
+	state: string
 	squads?: number
 	friendlyName?: string
 }
@@ -30,10 +30,10 @@ export type StackNamingSourceUnit = {
 // source units (usually built from `defenders`) so the naming engine can
 // look up the first unit in each group to derive labels.
 
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
+const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
 
 function getUnitFriendlyNameTemplate(unitType: string): string | undefined {
-	return UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.friendlyNameTemplate
+	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]?.friendlyNameTemplate
 }
 
 function stripOrdinalSuffix(name: string): string {
@@ -177,7 +177,7 @@ export function refreshStackNamingSnapshotFromRoster(
 	stackRoster: StackRosterState | undefined,
 	sourceUnits: ReadonlyArray<StackNamingSourceUnit>,
 ): StackNamingSnapshot {
-	const sourceUnitById = new Map(sourceUnits.map((unit) => [unit.id, unit]))
+	const sourceUnitById = new Map(sourceUnits.map((unit) => [unit.unitId, unit]))
 	const activeGroupKeys: string[] = []
 	const rosterGroupsInUse: StackNamingGroupRecord[] = []
 	const rosterUsedGroupNames: string[] = []
@@ -202,7 +202,7 @@ export function refreshStackNamingSnapshotFromRoster(
 		activeGroupKeys.push(groupKey)
 		const baseGroupName = group.groupName.trim().length > 0
 			? group.groupName
-			: resolveStackLabel(group.unitType, firstUnit.id, firstUnit.friendlyName, unitIds.length)
+			: resolveStackLabel(group.unitType, firstUnit.unitId, firstUnit.friendlyName, unitIds.length)
 		const authoritativeGroupName = /\sgroup(?:\s+\d+)?$/i.test(baseGroupName) && !/\sgroup\s+\d+$/i.test(baseGroupName)
 			? createUniqueName(baseGroupName, allocatedUsedGroupNames)
 			: baseGroupName

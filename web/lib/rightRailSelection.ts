@@ -1,7 +1,7 @@
 import type { GameAction, StackActionSelection } from './gameClient'
 import { normalizeSelectionIds, parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId, type WebStackSourceState } from './appViewHelpers'
 import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
-import { isUnitTypeStackable } from '../../shared/unitDefinitions'
+import { isSessionUnitTypeStackable } from './sessionCatalog'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState, DefenderMap } from '../../shared/types/index'
 
@@ -47,6 +47,7 @@ type RightRailCombatSubmissionInput = {
   anchorUnitId: string | null
   selectedUnitIds: readonly string[]
   targetId: string | null
+  onionId: string
 }
 
 export type RightRailStackSubmissionInput = RightRailMoveSubmissionInput | RightRailCombatSubmissionInput
@@ -121,7 +122,7 @@ function buildValidatedStackSelection(
     return { ok: false, reason: 'snapshot-missing-stack-selection' }
   }
 
-  if (selectedUnit === undefined || !isUnitTypeStackable(selectedUnit.type)) {
+  if (selectedUnit === undefined || state.catalog === undefined || !isSessionUnitTypeStackable(state.catalog, selectedUnit.typeId)) {
     return { ok: false, reason: 'not-a-stack' }
   }
 
@@ -246,12 +247,14 @@ export const buildRightRailCombatAction = ({
   anchorUnitId,
   selectedUnitIds,
   targetId,
+  onionId,
 }: {
   state: WebStackSourceState
   anchorUnitId: string | null
   selectedUnitIds: readonly string[]
   targetId: string | null
-}): RightRailCombatSubmissionResult => buildRightRailCombatSubmissionAction({ state, anchorUnitId, selectedUnitIds, targetId })
+  onionId: string
+}): RightRailCombatSubmissionResult => buildRightRailCombatSubmissionAction({ state, anchorUnitId, selectedUnitIds, targetId, onionId })
 
 export function buildRightRailMoveSubmissionAction(input: Omit<RightRailMoveSubmissionInput, 'kind'>): RightRailMoveSubmissionResult {
   const selectionResult = buildValidatedStackSelection(input.state, input.anchorUnitId, input.selectedUnitIds)
@@ -284,12 +287,17 @@ export function buildRightRailCombatSubmissionAction(input: Omit<RightRailCombat
     return { ok: false, reason: 'missing-target' }
   }
 
+  if (input.onionId.trim().length === 0) {
+    return { ok: false, reason: 'missing-target' }
+  }
+
   return {
     ok: true,
     action: {
       type: 'FIRE',
       attackers: selectionResult.selection.selectedUnitIds,
       targetId: input.targetId,
+      onionId: input.onionId,
     },
   }
 }
@@ -324,6 +332,7 @@ export function buildRightRailStackSubmissionAction(input: RightRailStackSubmiss
       type: 'FIRE',
       attackers: selectionResult.selection.selectedUnitIds,
       targetId: input.targetId,
+      onionId: input.onionId,
     },
   }
 }

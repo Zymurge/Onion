@@ -28,7 +28,7 @@ describe('http game client adapter contract', () => {
 							id: 'wolf-2',
 							type: 'BigBadWolf',
 							position: { q: 3, r: 6 },
-							status: 'operational',
+							state: 'operational',
 							weapons: [],
 						},
 					},
@@ -68,7 +68,8 @@ describe('http game client adapter contract', () => {
 			token: 'stub.token',
 		})
 
-		await expect(client.getState(123)).resolves.toEqual({
+		const loadedState = await client.getState(123)
+		expect(loadedState).toEqual({
 			snapshot: {
 				authoritativeState: {
 					onion: { position: { q: 0, r: 0 }, treads: 45 },
@@ -77,7 +78,7 @@ describe('http game client adapter contract', () => {
 							id: 'wolf-2',
 							type: 'BigBadWolf',
 							position: { q: 3, r: 6 },
-							status: 'operational',
+							state: 'operational',
 							weapons: [],
 						},
 					},
@@ -113,6 +114,7 @@ describe('http game client adapter contract', () => {
 			},
 			session: { role: 'defender' },
 		})
+		expect(loadedState).not.toHaveProperty('catalog')
 
 		await expect(client.pollEvents(123, 47)).resolves.toEqual([
 			{ seq: 48, type: 'TURN_CONTEXT', summary: 'ready', timestamp: '2026-03-26T12:00:00.000Z' },
@@ -428,7 +430,7 @@ describe('http game client adapter contract', () => {
 
 		await client.getState(123)
 
-		const snapshot = await client.submitAction(123, { type: 'FIRE', attackers: ['main'], targetId: 'swamp-1' })
+		const snapshot = await client.submitAction(123, { type: 'FIRE', attackers: ['main'], targetId: 'swamp-1', onionId: 'onion-1' })
 
 		expect(snapshot.victoryObjectives).toEqual([
 			{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true, completed: true },
@@ -486,6 +488,7 @@ describe('http game client adapter contract', () => {
 			type: 'FIRE',
 			attackers: ['wolf-2', 'wolf-3'],
 			targetId: 'onion-1',
+			onionId: 'onion-1',
 		})).resolves.toMatchObject({
 			gameId: 123,
 			lastEventSeq: 48,
@@ -504,7 +507,7 @@ describe('http game client adapter contract', () => {
 		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
 			expect.objectContaining({
 				method: 'POST',
-				body: JSON.stringify({ type: 'FIRE', attackers: ['wolf-2', 'wolf-3'], targetId: 'onion-1' }),
+				body: JSON.stringify({ type: 'FIRE', attackers: ['wolf-2', 'wolf-3'], targetId: 'onion-1', onionId: 'onion-1' }),
 			}),
 		)
 	})
@@ -855,7 +858,7 @@ describe('http game client adapter contract', () => {
 		})
 
 		await client.getState(123)
-		await expect(client.submitAction(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1' })).resolves.toEqual(
+		await expect(client.submitAction(123, { type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1', onionId: 'onion-1' })).resolves.toEqual(
 			expect.objectContaining({
 				gameId: 123,
 				phase: 'DEFENDER_COMBAT',
@@ -881,7 +884,7 @@ describe('http game client adapter contract', () => {
 					authorization: 'Bearer stub.token',
 					'content-type': 'application/json',
 				}),
-				body: JSON.stringify({ type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1' }),
+				body: JSON.stringify({ type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1', onionId: 'onion-1' }),
 			}),
 		)
 	})
@@ -976,7 +979,7 @@ describe('http game client adapter contract', () => {
 							id: 'pigs-1',
 							type: 'LittlePigs',
 							position: { q: 4, r: 4 },
-							status: 'operational',
+							state: 'operational',
 							friendlyName: 'Little Pigs 1',
 						},
 					},
@@ -1013,7 +1016,7 @@ describe('http game client adapter contract', () => {
 							id: 'pigs-1',
 							type: 'LittlePigs',
 							position: { q: 4, r: 4 },
-							status: 'operational',
+							state: 'operational',
 							friendlyName: 'Little Pigs 1',
 						},
 					},
@@ -1079,7 +1082,7 @@ describe('http game client adapter contract', () => {
 						id: 'pigs-1',
 						type: 'LittlePigs',
 						position: { q: 4, r: 4 },
-						status: 'operational',
+							state: 'operational',
 						friendlyName: 'Little Pigs 1',
 					},
 				},
@@ -1132,7 +1135,7 @@ describe('http game client adapter contract', () => {
 						id: 'pigs-1',
 						type: 'LittlePigs',
 						position: { q: 4, r: 4 },
-						status: 'operational',
+							state: 'operational',
 						friendlyName: 'Little Pigs 1',
 					},
 				},

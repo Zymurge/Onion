@@ -5,6 +5,8 @@ export const HexPosSchema = z.object({
   r: z.number(),
 })
 
+const UnitStateSchema = z.enum(['operational', 'disabled', 'recovering', 'destroyed'])
+
 const TerrainHexSchema = z.object({
   q: z.number(),
   r: z.number(),
@@ -12,33 +14,25 @@ const TerrainHexSchema = z.object({
 })
 
 export const OnionSchema = z.object({
-  type: z.string(), // e.g., 'TheOnion', 'MkIII', etc.
+  type: z.string().min(1), // e.g., 'TheOnion', 'MkIII', etc.
   position: HexPosSchema,
-  treads: z.number(),
-  missiles: z.number(),
-  batteries: z.object({
-    main: z.number(),
-    secondary: z.number(),
-    ap: z.number(),
-  }),
-  status: z.string().optional(),
-})
+  status: UnitStateSchema.optional(),
+}).strict()
 
 export const DefenderSchema = z.object({
-  type: z.string(),
+  type: z.string().min(1),
   position: HexPosSchema,
-  status: z.string().optional(),
-  squads: z.number().optional(),
-})
+  status: UnitStateSchema.optional(),
+}).strict()
 
 export const DefenderStackGroupSchema = z.object({
   kind: z.literal('stack-group'),
-  unitType: z.string(),
+  unitType: z.string().min(1),
   position: HexPosSchema,
   count: z.number().int().positive(),
   groupName: z.string().optional(),
-  status: z.string().optional(),
-})
+  status: UnitStateSchema.optional(),
+}).strict()
 
 export const DefenderEntrySchema = z.union([
   DefenderSchema,
@@ -48,14 +42,15 @@ export const DefenderEntrySchema = z.union([
 export const DefendersRecordSchema = z.record(z.string(), DefenderEntrySchema)
 
 export const InitialStateSchema = z.object({
-  onion: OnionSchema,
+  onions: z.record(z.string().min(1), OnionSchema).refine((onions) => Object.keys(onions).length > 0, 'At least one Onion is required'),
   defenders: DefendersRecordSchema,
-})
+}).strict()
 
 export const ScenarioSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string(),
+  id: z.string().min(1),
+  name: z.string().min(1),
+  displayName: z.string().min(1).optional(),
+  description: z.string().min(1),
   map: z.union([
   z.object({
     radius: z.number().int().nonnegative(),
@@ -63,14 +58,14 @@ export const ScenarioSchema = z.object({
     hexes: z.array(TerrainHexSchema).default([]),
   }),
   z.object({
-    width: z.number(),
-    height: z.number(),
-    cells: z.array(HexPosSchema),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+    cells: z.array(HexPosSchema).min(1),
     hexes: z.array(TerrainHexSchema),
   }),
   ]),
   initialState: InitialStateSchema,
-  victoryConditions: z.any(), // For now, accept any shape
+  victoryConditions: z.object({}).passthrough(),
 })
 
 export type Scenario = z.infer<typeof ScenarioSchema>

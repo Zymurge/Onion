@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PostgresDb } from '../../../server/db/postgres.js'
 import type { MatchRecord } from '../../../server/db/adapter.js'
+import { makeGameState, makeOnion } from '#test/utils/gameStateUtils'
 
 const { Pool } = pg
 
@@ -14,10 +15,10 @@ let db: PostgresDb
 
 const MIGRATION_PATH = join(process.cwd(), 'server/db/migrations/001_initial.sql')
 
-const SAMPLE_STATE = {
-  onion: { position: { q: 0, r: 10 }, treads: 45, missiles: 2, batteries: { main: 1, secondary: 4, ap: 8 } },
+const SAMPLE_STATE = makeGameState({
+  onions: { 'onion-1': makeOnion({ position: { q: 0, r: 10 }, treads: 45 }) },
   defenders: {},
-}
+})
 
 function makeMatch(overrides: Partial<Omit<MatchRecord, 'gameId'>> = {}): Omit<MatchRecord, 'gameId'> {
   return {
@@ -88,7 +89,7 @@ describe('PostgresDb - games', () => {
     expect(found?.turnNumber).toBe(1)
     expect(found?.winner).toBeNull()
     expect(found?.players).toEqual({ onion: null, defender: null })
-    expect(found?.state.onion.position).toEqual({ q: 0, r: 10 })
+    expect(found?.state.onions['onion-1'].position).toEqual({ q: 0, r: 10 })
     expect(found?.events).toEqual([])
   })
 
@@ -110,12 +111,12 @@ describe('PostgresDb - games', () => {
     const match = makeMatch()
     const created = await db.createMatch(match)
     const newState = structuredClone(SAMPLE_STATE)
-    newState.onion.treads = 30
+    newState.onions['onion-1'].treads = 30
     await db.updateMatchState(created.gameId, 'ONION_COMBAT', 2, null, newState)
     const found = await db.findMatch(created.gameId)
     expect(found?.phase).toBe('ONION_COMBAT')
     expect(found?.turnNumber).toBe(2)
-    expect(found?.state.onion.treads).toBe(30)
+    expect(found?.state.onions['onion-1'].treads).toBe(30)
   })
 
   it('appendEvents + getEvents roundtrip with after filter', async () => {

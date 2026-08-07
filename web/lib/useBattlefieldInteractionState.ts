@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
-import { getUnitMovementAllowance, getUnitRamCapacity } from '../../shared/unitMovement'
+import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import type { GameAction, ServerGameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
-import { isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
+import { getAuthoritativeOnion, isWeaponSelectionId, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId } from './appViewHelpers'
 import { buildMoveCommitAction } from './commitActionBuilders'
 import { clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
 import type { TurnPhase } from '../../shared/types/index'
 import type { Mode } from './battlefieldView'
-import { isUnitTypeStackable } from '../../shared/unitDefinitions'
+import { isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog'
 import logger from './logger'
 
 type UseBattlefieldInteractionStateOptions = {
@@ -16,6 +16,7 @@ type UseBattlefieldInteractionStateOptions = {
   activeTurnActive: boolean
   clientSnapshot: ServerGameSnapshot | null
   clientSnapshotPhase: TurnPhase | null
+  catalog: SessionCatalog | null
   isControlledSession: boolean
   isInteractionLocked: boolean
   isSelectionLocked: boolean
@@ -31,14 +32,15 @@ function summarizeStackState(
   state: ServerGameSnapshot['authoritativeState'] | null | undefined,
   unitId: string,
   phase: TurnPhase | null = null,
+  catalog?: SessionCatalog,
 ): string {
   if (state === null || state === undefined) {
     return `unitId=${unitId}, phase=${phase ?? 'unknown'}, snapshot=missing`
   }
 
   const stackableDefenderIds = Object.values(state.defenders)
-    .filter((defender) => isUnitTypeStackable(defender.type))
-    .map((defender) => defender.id)
+    .filter((defender) => catalog !== undefined && isSessionUnitTypeStackable(catalog, defender.typeId))
+    .map((defender) => defender.unitId)
   const stackRosterGroupKeys = Object.keys(state.stackRoster?.groupsById ?? {})
 
   return `unitId=${unitId}, phase=${phase ?? 'unknown'}, stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupKeys.join(', ') || 'none'}`
@@ -70,13 +72,14 @@ function buildMoveMapSnapshot(snapshot: ServerGameSnapshot, movingUnitId: string
     return null
   }
 
+  const onion = authoritativeState.onions[movingUnitId] ?? getAuthoritativeOnion(authoritativeState)
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
-    ...(authoritativeState.onion.id !== movingUnitId && authoritativeState.onion.status !== 'destroyed'
-      ? [{ q: authoritativeState.onion.position.q, r: authoritativeState.onion.position.r, role: 'onion' as const, unitType: authoritativeState.onion.type ?? 'TheOnion', squads: 1 }]
-      : []),
+    ...Object.values(authoritativeState.onions)
+      .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'onion' as const, unitType: unit.typeId, squads: 1 })),
     ...Object.values(authoritativeState.defenders)
-      .filter((unit) => unit.id !== movingUnitId && unit.status !== 'destroyed')
-      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.type, squads: unit.squads })),
+      .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.typeId, squads: (unit as typeof unit & { squads?: number }).squads })),
   ]
 
   return {
@@ -97,17 +100,16 @@ function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to:
     return null
   }
 
-  const onion = snapshot.authoritativeState.onion
-  if (unitId !== onion.id || onion.status !== 'operational') {
+  const onion = snapshot.authoritativeState.onions[unitId] ?? getAuthoritativeOnion(snapshot.authoritativeState)
+  if (unitId !== onion.unitId || onion.state !== 'operational') {
     return null
   }
 
-  const remainingRams = Math.max(getUnitRamCapacity(onion.type ?? 'TheOnion') - (snapshot.authoritativeState.ramsThisTurn ?? 0), 0)
-  if (remainingRams === 0) {
+  if (onion.ramsRemaining === 0) {
     return null
   }
 
-  const movementAllowance = snapshot.movementRemainingByUnit?.[unitId] ?? getUnitMovementAllowance(onion.type ?? 'TheOnion', snapshot.phase, onion.treads)
+  const movementAllowance = snapshot.movementRemainingByUnit?.[unitId] ?? getUnitMovementAllowance(onion.typeId, snapshot.phase, onion.treads)
   const moveMap = buildMoveMapSnapshot(snapshot, unitId)
   if (moveMap === null) {
     return null
@@ -119,7 +121,7 @@ function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to:
     to,
     movementAllowance,
     movingRole: 'onion',
-    movingUnitType: onion.type ?? 'TheOnion',
+    movingUnitType: onion.typeId,
     incomingSquads: 1,
   })
 
@@ -133,8 +135,8 @@ function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to:
     return null
   }
 
-  const targetDefender = Object.values(snapshot.authoritativeState.defenders).find((unit) => unit.position.q === rammedStep.q && unit.position.r === rammedStep.r && unit.status !== 'destroyed')
-  const targetLabel = targetDefender?.type ?? 'occupied hex'
+  const targetDefender = Object.values(snapshot.authoritativeState.defenders).find((unit) => unit.position.q === rammedStep.q && unit.position.r === rammedStep.r && unit.state !== 'destroyed')
+  const targetLabel = targetDefender?.typeId ?? 'occupied hex'
 
   return {
     unitId,
@@ -147,11 +149,41 @@ function buildSelectedBoardUnitIds(selectedUnitIds: string[] | null): string[] {
   return (selectedUnitIds ?? []).filter((selectionId) => !isWeaponSelectionId(selectionId))
 }
 
+function isSelectionPresentInSnapshot(selectionId: string, snapshot: ServerGameSnapshot): boolean {
+  const state = snapshot.authoritativeState
+  if (state === undefined) {
+    return false
+  }
+
+  if (isWeaponSelectionId(selectionId)) {
+    const weaponId = selectionId.replace(/^weapon:/, '')
+    return Object.values(state.onions).some((onion) => onion.weapons.some((weapon) => weapon.id === weaponId))
+  }
+
+  const unitId = resolveSelectionOwnerUnitId(selectionId)
+  return state.onions[unitId] !== undefined || state.defenders[unitId] !== undefined
+}
+
+function getSnapshotSelectionKey(snapshot: ServerGameSnapshot): string {
+  const state = snapshot.authoritativeState
+  if (state === undefined) {
+    return `${snapshot.phase}:${snapshot.lastEventSeq}:missing`
+  }
+
+  const defenderIds = Object.keys(state.defenders).sort().join(',')
+  const weaponIds = Object.values(state.onions)
+    .flatMap((onion) => onion.weapons.map((weapon) => weapon.id))
+    .sort()
+    .join(',')
+  return `${snapshot.phase}:${snapshot.lastEventSeq}:${defenderIds}:${weaponIds}`
+}
+
 export function useBattlefieldInteractionState({
   activeSessionController,
   activeTurnActive,
   clientSnapshot,
   clientSnapshotPhase,
+  catalog,
   isControlledSession,
   isInteractionLocked,
   isSelectionLocked,
@@ -169,6 +201,8 @@ export function useBattlefieldInteractionState({
   const [pendingRamPrompt, setPendingRamPrompt] = useState<RamPrompt | null>(null)
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const previousSnapshotPhaseRef = useRef(clientSnapshotPhase)
+  const previousSnapshotSelectionKeyRef = useRef(clientSnapshot === null ? null : getSnapshotSelectionKey(clientSnapshot))
 
   function debugLog(event: string, details: Record<string, unknown>) {
     if (typeof window === 'undefined') {
@@ -192,6 +226,36 @@ export function useBattlefieldInteractionState({
       setSelectedCombatTargetId(null)
     }
   }, [clientSnapshot, clientSnapshotPhase])
+
+  useEffect(() => {
+    if (previousSnapshotPhaseRef.current !== clientSnapshotPhase) {
+      setSelectedUnitIds([])
+      setHasExplicitSelection(true)
+      setSelectedCombatTargetId(null)
+    }
+    previousSnapshotPhaseRef.current = clientSnapshotPhase
+  }, [clientSnapshotPhase])
+
+  useEffect(() => {
+    if (clientSnapshot === null) {
+      return
+    }
+
+    const snapshotSelectionKey = getSnapshotSelectionKey(clientSnapshot)
+    if (previousSnapshotSelectionKeyRef.current === snapshotSelectionKey) {
+      return
+    }
+    previousSnapshotSelectionKeyRef.current = snapshotSelectionKey
+
+    setSelectedUnitIds((currentSelection) => {
+      if (currentSelection === null) {
+        return currentSelection
+      }
+
+      const nextSelection = currentSelection.filter((selectionId) => isSelectionPresentInSnapshot(selectionId, clientSnapshot))
+      return nextSelection.length === currentSelection.length ? currentSelection : nextSelection
+    })
+  }, [clientSnapshot])
 
   async function commitClientAction(action: GameAction) {
     if (!isControlledSession || activeSessionController === null) {
@@ -298,7 +362,10 @@ export function useBattlefieldInteractionState({
     setPendingRamPrompt(null)
 
     const moveAction = buildMoveCommitAction({
-      state: clientSnapshot?.authoritativeState as Parameters<typeof buildMoveCommitAction>[0]['state'],
+      state: {
+        ...clientSnapshot?.authoritativeState,
+        catalog: catalog ?? undefined,
+      } as Parameters<typeof buildMoveCommitAction>[0]['state'],
       unitId: prompt.unitId,
       selectedUnitIds: selectedUnitIds ?? [],
       to: prompt.to,
@@ -306,7 +373,7 @@ export function useBattlefieldInteractionState({
     })
 
     if (!moveAction.ok) {
-      const diagnosticSuffix = summarizeStackState(clientSnapshot?.authoritativeState, prompt.unitId, clientSnapshotPhase)
+      const diagnosticSuffix = summarizeStackState(clientSnapshot?.authoritativeState, prompt.unitId, clientSnapshotPhase, catalog ?? undefined)
       setActionError(
         moveAction.reason === 'snapshot-missing-stack-selection'
           ? `Loaded game snapshot is missing canonical stackRoster data for the selected unit (${diagnosticSuffix}).`
@@ -332,13 +399,14 @@ export function useBattlefieldInteractionState({
 
     const authoritativeState = clientSnapshot?.authoritativeState
     const selectionOwnerUnitId = resolveSelectionOwnerUnitId(unitId)
+    const authoritativeOnion = authoritativeState === undefined ? null : authoritativeState.onions[selectionOwnerUnitId]
     const destroyedUnit = authoritativeState === undefined
       ? false
-      : selectionOwnerUnitId === authoritativeState.onion.id
-        ? authoritativeState.onion.status === 'destroyed'
+      : authoritativeOnion?.unitId === selectionOwnerUnitId
+        ? authoritativeOnion.state === 'destroyed'
         : (() => {
           const defender = authoritativeState.defenders[selectionOwnerUnitId]
-          return defender?.status === 'destroyed' && defender.type !== 'Swamp'
+          return defender?.state === 'destroyed' && defender.typeId !== 'Swamp'
         })()
 
     if (destroyedUnit) {
@@ -349,7 +417,7 @@ export function useBattlefieldInteractionState({
     const preserveCombatSelection =
       clientSnapshotPhase === 'ONION_COMBAT' &&
       !additive &&
-      selectionOwnerUnitId !== authoritativeState?.onion.id &&
+      authoritativeOnion?.unitId !== selectionOwnerUnitId &&
       authoritativeState?.defenders[selectionOwnerUnitId] !== undefined &&
       baseSelection.some(isWeaponSelectionId)
 
@@ -368,6 +436,7 @@ export function useBattlefieldInteractionState({
         nextStackSelection = resolveBattlefieldStackSelectionIds(
           clientSnapshot?.authoritativeState as Parameters<typeof resolveBattlefieldStackSelectionIds>[0],
           selectionOwnerUnitId,
+          catalog ?? undefined,
         )
       } catch (error) {
         debugLog('handleSelectUnit selection resolution failed', {
@@ -378,7 +447,7 @@ export function useBattlefieldInteractionState({
         })
 
         const errorMessage = error instanceof Error ? error.message : 'Failed to resolve stack selection.'
-        const diagnosticSuffix = summarizeStackState(clientSnapshot?.authoritativeState, selectionOwnerUnitId, clientSnapshotPhase)
+        const diagnosticSuffix = summarizeStackState(clientSnapshot?.authoritativeState, selectionOwnerUnitId, clientSnapshotPhase, catalog ?? undefined)
         setActionError(`${errorMessage} (${diagnosticSuffix})`)
         return
       }
@@ -522,7 +591,10 @@ export function useBattlefieldInteractionState({
 
     setActionError(null)
     const moveAction = buildMoveCommitAction({
-      state: clientSnapshot?.authoritativeState as Parameters<typeof buildMoveCommitAction>[0]['state'],
+      state: {
+        ...clientSnapshot?.authoritativeState,
+        catalog: catalog ?? undefined,
+      } as Parameters<typeof buildMoveCommitAction>[0]['state'],
       unitId,
       selectedUnitIds: selectedUnitIds ?? [],
       to,

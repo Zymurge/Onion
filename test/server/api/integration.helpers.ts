@@ -1,88 +1,87 @@
 import { expect } from 'vitest'
 import { getNeighbors, hexDistance, type HexPos } from '#shared/hex'
 import { translateScenarioCoord } from '#shared/scenarioMap'
+import { getUnitTypeCatalog } from '#shared/unitDefinitions'
+import type { DefenderUnit, OnionUnit, StackRosterGroupState } from '#shared/types/index'
+import type { InitialState } from '#server/engine/scenarioSchema'
 import { getUnitDefinition, onionMovementAllowance } from '#server/engine/units'
 import { listReachableMoves, type MoveMapSnapshot } from '#shared/movePlanner'
 
 export type ScenarioMap = { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: Array<{ q: number; r: number; t: number }> }
 
-type ScenarioStackRosterGroup = {
-  unitIds?: string[]
-}
-
-type ScenarioDefender = {
-  kind?: string
-  unitType?: string
-  count?: number
-  position?: { q: number; r: number }
-  status?: string
-  squads?: number
-  type?: string
-  weapons?: Array<{ status?: string }>
+type ScenarioStackRosterGroup = Pick<StackRosterGroupState, 'unitIds'>
+type ExpectedOnion = Pick<OnionUnit, 'unitId' | 'typeId' | 'state' | 'position' | 'treads'>
+type ExpectedDefender = Pick<DefenderUnit, 'unitId' | 'typeId' | 'state' | 'position' | 'weapons'> & { squads?: number }
+type ExpectedStateInput = InitialState & {
+  stackRoster?: { groupsById?: Record<string, ScenarioStackRosterGroup> }
 }
 
 export interface ExpectedState {
-  onion: any
-  defenders: Record<string, any>
+  onions: Record<string, ExpectedOnion>
+  defenders: Record<string, ExpectedDefender>
   stackRoster?: {
     groupsById: Record<string, ScenarioStackRosterGroup>
   }
-}
-
-type OnionSpentTracker = {
-  main: number
-  secondary: number
-  ap: number
-}
-
-function getOrCreateSpentTracker(expected: ExpectedState): OnionSpentTracker {
-  const onionState = expected.onion as { __spentWeapons?: OnionSpentTracker }
-  if (!onionState.__spentWeapons) {
-    onionState.__spentWeapons = { main: 0, secondary: 0, ap: 0 }
-  }
-  return onionState.__spentWeapons
 }
 
 export function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value))
 }
 
-export function buildExpectedState(initialState: { onion: any; defenders: Record<string, ScenarioDefender>; stackRoster?: { groupsById?: Record<string, ScenarioStackRosterGroup> } }): ExpectedState {
+export function buildExpectedState(initialState: ExpectedStateInput): ExpectedState {
   const radius = translateScenarioCoord.lastRadius
   if (radius === undefined) {
     throw new Error('translateScenarioCoord.lastRadius is undefined')
   }
 
-  const onion = clone(initialState.onion)
-  onion.position = translateScenarioCoord(onion.position, radius)
+  const onions: Record<string, ExpectedOnion> = {}
+  for (const [unitId, authoredOnion] of Object.entries(initialState.onions)) {
+    const onion = clone(authoredOnion)
+    const definition = getUnitTypeCatalog()[onion.type]
+    if (definition?.role !== 'onion') {
+      throw new Error(`Unknown onion type: ${onion.type}`)
+    }
 
-  const defenders: Record<string, any> = {}
+    onions[unitId] = {
+      unitId,
+      typeId: onion.type,
+      state: onion.status ?? 'operational',
+      position: translateScenarioCoord(onion.position, radius),
+      treads: definition.treads,
+    }
+  }
+
+  const defenders: Record<string, ExpectedDefender> = {}
   // Track ordinals for each stack group type to ensure unique IDs across multiple groups
   const stackOrdinals: Record<string, number> = {}
   for (const [key, def] of Object.entries(initialState.defenders)) {
-    if (def.kind === 'stack-group') {
-      const unitType = def.unitType!
-      const count = def.count || 1
-      const position = translateScenarioCoord(def.position!, radius)
+    if ('kind' in def) {
+      const unitType = def.unitType
+      const count = def.count
+      const position = translateScenarioCoord(def.position, radius)
       // Use the same base as scenarioNormalizer
       const unitIdBase = unitType === 'LittlePigs' ? 'pigs' : unitType.toLowerCase()
       let ordinal = stackOrdinals[unitIdBase] || 0
       for (let i = 1; i <= count; i++) {
         const unitId = `${unitIdBase}-${ordinal + i}`
         defenders[unitId] = {
-          id: unitId,
-          type: unitType,
+          unitId,
+          typeId: unitType,
           position,
-          status: def.status ?? 'operational',
+          state: def.status ?? 'operational',
+          weapons: [],
         }
       }
       stackOrdinals[unitIdBase] = ordinal + count
     } else {
-      const defender = clone(def) as ScenarioDefender & { position?: { q: number; r: number } }
-      if (defender?.position) {
-        defender.position = translateScenarioCoord(defender.position, radius)
+      const position = translateScenarioCoord(def.position, radius)
+      defenders[key] = {
+        unitId: key,
+        typeId: def.type,
+        position,
+        state: def.status ?? 'operational',
+        weapons: [],
       }
-      defenders[key] = defender
     }
   }
 
@@ -90,7 +89,7 @@ export function buildExpectedState(initialState: { onion: any; defenders: Record
     ? { groupsById: clone(initialState.stackRoster.groupsById) }
     : undefined
 
-  return { onion, defenders, stackRoster }
+  return { onions, defenders, stackRoster }
 }
 
 export async function registerAndLoginUser(app: any, username: string, password: string) {
@@ -124,18 +123,19 @@ function isPassableTerrain(map: ScenarioMap, position: HexPos): boolean {
 }
 
 function isOccupied(state: any, position: HexPos, excludedUnitId?: string): boolean {
-  if (state.onion.id !== excludedUnitId && state.onion.position.q === position.q && state.onion.position.r === position.r) {
-    return true
-  }
+  const onionAtPosition = Object.values(state.onions ?? {}).some((onion: any) => (
+    onion.unitId !== excludedUnitId && onion.position.q === position.q && onion.position.r === position.r
+  ))
+  if (onionAtPosition) return true
 
   return Object.values(state.defenders).some((defender: any) => {
-    if (defender.id === excludedUnitId) return false
+    if ((defender.unitId ?? defender.id) === excludedUnitId) return false
     return defender.position.q === position.q && defender.position.r === position.r
   })
 }
 
 export function chooseLegalAdjacentMove(map: ScenarioMap, state: any, unitId: string): HexPos | null {
-  const unit = unitId === state.onion.id ? state.onion : state.defenders[unitId]
+  const unit = state.onions?.[unitId] ?? state.defenders[unitId]
   if (!unit) return null
 
   for (const candidate of getNeighbors(unit.position)) {
@@ -149,8 +149,9 @@ export function chooseLegalAdjacentMove(map: ScenarioMap, state: any, unitId: st
 }
 
 function movementAllowanceFor(state: any, unitId: string): number {
-  if (unitId === state.onion.id) {
-    return onionMovementAllowance(state.onion.treads)
+  const onion = state.onions?.[unitId]
+  if (onion) {
+    return onionMovementAllowance(onion.treads)
   }
 
   const unit = state.defenders[unitId]
@@ -161,17 +162,17 @@ function movementAllowanceFor(state: any, unitId: string): number {
 
 function buildMoveMapSnapshot(map: ScenarioMap, state: any, unitId: string): MoveMapSnapshot {
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
-    ...(state.onion.id !== unitId
-      ? [{
-          q: state.onion.position.q,
-          r: state.onion.position.r,
-          role: 'onion' as const,
-          unitType: state.onion.type ?? 'TheOnion',
-          squads: 1,
-        }]
-      : []),
+    ...Object.values(state.onions ?? {})
+      .filter((onion: any) => onion.unitId !== unitId)
+      .map((onion: any) => ({
+        q: onion.position.q,
+        r: onion.position.r,
+        role: 'onion' as const,
+        unitType: onion.typeId ?? onion.type ?? 'TheOnion',
+        squads: 1,
+      })),
     ...Object.entries(state.defenders)
-      .filter(([defenderId, defender]: [string, any]) => defenderId !== unitId && defender.id !== unitId)
+      .filter(([defenderId, defender]: [string, any]) => defenderId !== unitId && (defender.unitId ?? defender.id) !== unitId)
       .map(([_defenderId, defender]: [string, any]) => ({
         q: defender.position.q,
         r: defender.position.r,
@@ -196,7 +197,7 @@ export function chooseReachableMoveToward(
   unitId: string,
   target: HexPos,
 ): HexPos | null {
-  const unit = unitId === state.onion.id ? state.onion : state.defenders[unitId]
+  const unit = state.onions?.[unitId] ?? state.defenders[unitId]
   if (!unit) return null
 
   const movementAllowance = movementAllowanceFor(state, unitId)
@@ -207,8 +208,8 @@ export function chooseReachableMoveToward(
     map: moveMap,
     from: unit.position,
     movementAllowance,
-    movingRole: unitId === state.onion.id ? 'onion' : 'defender',
-    movingUnitType: unit.type,
+    movingRole: state.onions?.[unitId] ? 'onion' : 'defender',
+    movingUnitType: unit.typeId ?? unit.type,
     incomingSquads: unit.squads,
   })
 
@@ -245,8 +246,8 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
         : []
 
     for (const moverId of moverIds) {
-      if (expected.onion.id && moverId === expected.onion.id) {
-        expected.onion.position = clone(action.to)
+      if (expected.onions[moverId]) {
+        expected.onions[moverId].position = clone(action.to)
       } else if (expected.defenders[moverId]) {
         expected.defenders[moverId].position = clone(action.to)
       }
@@ -258,38 +259,12 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
   for (const event of result.events) {
     if (event.type === 'FIRE_RESOLVED' && Array.isArray(event.attackers)) {
       for (const attacker of event.attackers as string[]) {
-        if (attacker === 'main' && expected.onion.batteries) {
-          const spentTracker = getOrCreateSpentTracker(expected)
-          expected.onion.batteries.main = Math.max(0, (expected.onion.batteries.main ?? 0) - 1)
-          spentTracker.main += 1
-          continue
-        }
-
-        if (attacker.startsWith('secondary_') && expected.onion.batteries) {
-          const spentTracker = getOrCreateSpentTracker(expected)
-          expected.onion.batteries.secondary = Math.max(0, (expected.onion.batteries.secondary ?? 0) - 1)
-          spentTracker.secondary += 1
-          continue
-        }
-
-        if (attacker.startsWith('ap_') && expected.onion.batteries) {
-          const spentTracker = getOrCreateSpentTracker(expected)
-          expected.onion.batteries.ap = Math.max(0, (expected.onion.batteries.ap ?? 0) - 1)
-          spentTracker.ap += 1
-          continue
-        }
-
-        if (attacker.startsWith('missile_') && expected.onion.missiles !== undefined) {
-          expected.onion.missiles = Math.max(0, expected.onion.missiles - 1)
-          continue
-        }
-
         // If attacker is a defender unit ID, mark their first ready weapon as spent
         if (expected.defenders[attacker] && expected.defenders[attacker].weapons) {
           const defender = expected.defenders[attacker]
           for (const weapon of defender.weapons) {
-            if (weapon.status === 'ready') {
-              weapon.status = 'spent'
+            if (weapon.state === 'ready') {
+              weapon.state = 'spent'
               break // Only mark the first ready weapon
             }
           }
@@ -298,44 +273,36 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
     }
 
     if (event.type === 'UNIT_STATUS_CHANGED' && expected.defenders[event.unitId]) {
-      expected.defenders[event.unitId].status = event.to
+      expected.defenders[event.unitId].state = event.to
     }
     if (event.type === 'UNIT_SQUADS_LOST' && expected.defenders[event.unitId]) {
       expected.defenders[event.unitId].squads = Math.max(0, (expected.defenders[event.unitId].squads ?? 1) - Number(event.amount ?? 0))
       if (expected.defenders[event.unitId].squads === 0) {
-        expected.defenders[event.unitId].status = 'destroyed'
+        expected.defenders[event.unitId].state = 'destroyed'
       }
     }
     if (event.type === 'ONION_TREADS_LOST') {
-      expected.onion.treads = event.remaining
-    }
-    if (event.type === 'ONION_BATTERY_DESTROYED' && expected.onion.batteries && event.weaponType) {
-      if (event.weaponType === 'main' || event.weaponType === 'secondary' || event.weaponType === 'ap') {
-        const weaponType = event.weaponType as 'main' | 'secondary' | 'ap'
-        expected.onion.batteries[weaponType] = Math.max(0, (expected.onion.batteries[weaponType] || 0) - 1)
-        const spentTracker = getOrCreateSpentTracker(expected)
-        if (spentTracker[weaponType] > 0) {
-          spentTracker[weaponType] -= 1
-        }
-      }
-    }
-
-    if (event.type === 'PHASE_CHANGED' && event.to === 'ONION_MOVE' && expected.onion.batteries) {
-      const spentTracker = getOrCreateSpentTracker(expected)
-      expected.onion.batteries.main += spentTracker.main
-      expected.onion.batteries.secondary += spentTracker.secondary
-      expected.onion.batteries.ap += spentTracker.ap
-      spentTracker.main = 0
-      spentTracker.secondary = 0
-      spentTracker.ap = 0
+      const onionId = event.unitId ?? action.onionId ?? Object.keys(expected.onions)[0]
+      if (expected.onions[onionId]) expected.onions[onionId].treads = event.remaining
     }
   }
 }
 
 export function assertStateMatches(apiState: any, expected: ExpectedState) {
-  expect(apiState.onion.position).toEqual(expected.onion.position)
-  expect(apiState.onion.treads).toBe(expected.onion.treads)
-  expect(apiState.onion.batteries).toEqual(expected.onion.batteries)
+  const actualOnionIds = Object.keys(apiState.onions || {}).sort()
+  const expectedOnionIds = Object.keys(expected.onions).sort()
+  expect(actualOnionIds, `Onion unit IDs mismatch\nExpected: ${JSON.stringify(expectedOnionIds)}\nActual: ${JSON.stringify(actualOnionIds)}`).toEqual(expectedOnionIds)
+
+  for (const unitId of expectedOnionIds) {
+    const actualOnion = apiState.onions[unitId]
+    const expectedOnion = expected.onions[unitId]
+    expect(actualOnion, `apiState.onions missing unitId: ${unitId}`).toBeTruthy()
+    expect(actualOnion.position).toEqual(expectedOnion.position)
+    expect(actualOnion.unitId).toBe(unitId)
+    expect(actualOnion.typeId).toBe(expectedOnion.typeId)
+    expect(actualOnion.state).toBe(expectedOnion.state)
+    if (expectedOnion.treads !== undefined) expect(actualOnion.treads).toBe(expectedOnion.treads)
+  }
 
   // Check all expected individual defenders are present and match, order-insensitive
   const expectedUnitIds = Object.keys(expected.defenders).sort()
@@ -347,7 +314,9 @@ export function assertStateMatches(apiState: any, expected: ExpectedState) {
     // Compare position and status for each unit
     expect(apiState.defenders[unitId].position, `Missing position for unitId: ${unitId}`).toBeDefined()
     expect(apiState.defenders[unitId].position).toEqual(expected.defenders[unitId].position)
-    expect(apiState.defenders[unitId].status).toBe(expected.defenders[unitId].status)
+    expect(apiState.defenders[unitId].unitId).toBe(unitId)
+    expect(apiState.defenders[unitId].typeId).toBe(expected.defenders[unitId].typeId)
+    expect(apiState.defenders[unitId].state).toBe(expected.defenders[unitId].state)
   }
 
   // If expected.stackRoster exists, check stack groups and memberships

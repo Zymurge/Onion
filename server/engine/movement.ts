@@ -6,10 +6,9 @@ import logger from '#server/logger'
  * movement mechanics like Onion ramming and GEV second moves.
  */
 
-import type { HexPos, PlayerRole, SingleUnitMoveCommand } from '#shared/types/index'
+import type { HexPos, PlayerRole, SingleUnitMoveCommand, GameState, GameUnit, OnionUnit, DefenderUnit } from '#shared/types/index'
 import { isInBounds } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
-import type { GameUnit, DefenderUnit, EngineGameState, OnionUnit } from '#server/engine/units'
 import { calculateRamming as calculateSharedRamming, resolveRammingOutcome } from '#shared/rammingCalculator'
 import { spendUnitMovement } from '#shared/unitMovement'
 import { isUnitTypeStackable } from '#shared/unitDefinitions'
@@ -17,6 +16,8 @@ import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
 import { reconcileStackRosterMoveLifecycle, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
+
+type EngineGameState = GameState
 /**
  * Result of validating a movement command.
  */
@@ -84,13 +85,18 @@ export interface MovementResult {
   error?: string
 }
 
+export type MovementExecutionOptions = {
+  reconcileStackRoster?: boolean
+}
+
 function hasTreads(unit: GameUnit): unit is OnionUnit {
   return 'treads' in unit && typeof unit.treads === 'number'
 }
 
 function resolveUnit(state: EngineGameState, unitId: string): ResolvedUnit | null {
-  if (state.onion.id === unitId) {
-    return { unit: state.onion }
+  const onion = state.onions[unitId]
+  if (onion !== undefined) {
+    return { unit: onion }
   }
 
   const defender = state.defenders[unitId]
@@ -103,12 +109,12 @@ function resolveUnit(state: EngineGameState, unitId: string): ResolvedUnit | nul
 
 function toMoveMapSnapshot(map: GameMap, state: EngineGameState, movingUnitId: string): MoveMapSnapshot {
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
-    ...(state.onion.id !== movingUnitId && state.onion.status !== 'destroyed'
-      ? [{ q: state.onion.position.q, r: state.onion.position.r, role: 'onion' as const, unitType: state.onion.type ?? 'TheOnion', squads: 1 }]
-      : []),
+    ...Object.values(state.onions)
+      .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'onion' as const, unitType: unit.typeId })),
     ...Object.values(state.defenders)
-      .filter((unit) => unit.id !== movingUnitId && unit.status !== 'destroyed')
-      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.type, squads: unit.squads })),
+      .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.typeId })),
   ]
 
   return {
@@ -154,13 +160,14 @@ function toMovementValidation(result: SharedMoveValidationResult): MovementValid
   }
 }
 
-function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: string): void {
-  const movedDefender = state.defenders[movedUnitId]
-  if (movedDefender === undefined || movedDefender.status === 'destroyed') {
+export function reconcileStackStateAfterMoves(state: EngineGameState, movedUnitIds: ReadonlyArray<string>): void {
+  const movedDefenderId = movedUnitIds.find((unitId) => state.defenders[unitId] !== undefined)
+  const movedDefender = movedDefenderId === undefined ? undefined : state.defenders[movedDefenderId]
+  if (movedDefender === undefined || movedDefender.state === 'destroyed') {
     logger.debug(
       {
-        movedUnitId,
-        reason: movedDefender === undefined ? 'missing-defender' : 'destroyed-defender',
+      movedUnitIds,
+      reason: movedDefender === undefined ? 'missing-defender' : 'destroyed-defender',
       },
       'Refreshing stack naming after move for non-operational unit',
     )
@@ -172,16 +179,17 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
     stackRoster: state.stackRoster,
     stackNaming: state.stackNaming,
     defenders: state.defenders,
-    movedUnitId,
-    unitType: movedDefender.type,
+    movedUnitId: movedDefender.unitId,
+    movedUnitIds,
+    unitType: movedDefender.typeId,
     destinationPosition: movedDefender.position,
     movedUnitFriendlyName: movedDefender.friendlyName,
   })
 
   logger.debug(
     {
-      movedUnitId,
-      unitType: movedDefender.type,
+      movedUnitIds,
+      unitType: movedDefender.typeId,
       destinationGroupId: reconciled.destinationGroupId,
       selectedNameSource: reconciled.selectedNameSource,
       selectedName: reconciled.destinationGroupName,
@@ -191,34 +199,34 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
   )
 
   const relocateInput = {
-    movedUnitIds: [movedUnitId],
-    unitType: movedDefender.type,
+    movedUnitIds,
+    unitType: movedDefender.typeId,
     destinationPosition: movedDefender.position,
     destinationGroupName: reconciled.destinationGroupName,
   }
 
   // Debug: record roster state before relocation and the relocate input
   try {
-    logger.debug({ movedUnitId, relocateInput, beforeGroups: Object.keys(state.stackRoster?.groupsById ?? {}) }, 'RelocateStackRosterUnits - before')
+    logger.debug({ movedUnitIds, relocateInput, beforeGroups: Object.keys(state.stackRoster?.groupsById ?? {}) }, 'RelocateStackRosterUnits - before')
   } catch (err) {
     // swallow logging errors
-    logger.debug({ movedUnitId, err: String(err) }, 'RelocateStackRosterUnits - before(log-failed)')
+    logger.debug({ movedUnitIds, err: String(err) }, 'RelocateStackRosterUnits - before(log-failed)')
   }
 
   state.stackRoster = reconciled.stackRoster
 
   // Debug: record roster state after relocation for diagnosis
   try {
-    logger.debug({ movedUnitId, relocateInput, afterGroups: Object.keys(state.stackRoster?.groupsById ?? {}), afterGroupsDetail: state.stackRoster?.groupsById }, 'RelocateStackRosterUnits - after')
+    logger.debug({ movedUnitIds, relocateInput, afterGroups: Object.keys(state.stackRoster?.groupsById ?? {}), afterGroupsDetail: state.stackRoster?.groupsById }, 'RelocateStackRosterUnits - after')
   } catch (err) {
-    logger.debug({ movedUnitId, err: String(err) }, 'RelocateStackRosterUnits - after(log-failed)')
+    logger.debug({ movedUnitIds, err: String(err) }, 'RelocateStackRosterUnits - after(log-failed)')
   }
 
   state.stackNaming = reconciled.stackNaming
 
   logger.debug(
     {
-      movedUnitId,
+      movedUnitIds,
       destinationGroupId: reconciled.destinationGroupId,
       refreshedGroupName: state.stackNaming.groupsInUse.find((entry) => entry.groupKey === reconciled.destinationGroupId)?.groupName ?? null,
       refreshedGroupsInUse: state.stackNaming.groupsInUse,
@@ -228,7 +236,7 @@ function reconcileStackStateAfterMove(state: EngineGameState, movedUnitId: strin
   )
 }
 
-function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementResult {
+function executeMovePlan(state: EngineGameState, plan: MovementPlan, options: MovementExecutionOptions = {}): MovementResult {
   const resolved = resolveUnit(state, plan.unitId)
   if (!resolved) {
     return { success: false, error: `Unit '${plan.unitId}' not found` }
@@ -236,23 +244,26 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
 
   const { unit } = resolved
   unit.position = plan.to
-  spendUnitMovement(state, state.currentPhase, unit.id, plan.cost)
+  spendUnitMovement(unit, state.currentPhase, plan.cost)
 
   const destroyedUnits: string[] = []
   const rammedUnitResults: NonNullable<MovementResult['rammedUnitResults']> = []
   if (plan.capabilities.canRam && plan.ramCapacityUsed > 0) {
-    state.ramsThisTurn += plan.ramCapacityUsed
+    if (!hasTreads(unit)) {
+      return { success: false, error: 'Ramming requires an Onion unit' }
+    }
+    unit.ramsRemaining = Math.max(0, unit.ramsRemaining - plan.ramCapacityUsed)
     for (const rammedUnitId of plan.rammedUnitIds) {
       const rammedUnit = state.defenders[rammedUnitId]
       if (!rammedUnit) continue
-      const outcome = resolveRammingOutcome(rammedUnit.type)
+      const outcome = resolveRammingOutcome(rammedUnit.typeId)
       rammedUnitResults.push({
         unitId: rammedUnitId,
-        unitType: rammedUnit.type,
+        unitType: rammedUnit.typeId,
         outcome,
       })
       if (outcome.effect === 'destroyed') {
-        rammedUnit.status = 'destroyed'
+        rammedUnit.state = 'destroyed'
         destroyedUnits.push(rammedUnitId)
       }
     }
@@ -263,7 +274,9 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan): MovementRe
     unit.treads = Math.max(0, unit.treads - treadDamage)
   }
 
-  reconcileStackStateAfterMove(state, plan.unitId)
+  if (options.reconcileStackRoster !== false) {
+    reconcileStackStateAfterMoves(state, [plan.unitId])
+  }
 
   return {
     success: true,
@@ -312,8 +325,9 @@ export function executeOnionMovement(
   state: EngineGameState,
   command: SingleUnitMoveCommand
 ): MovementResult {
-  logger.debug({ position: state.onion.position, command }, '[executeOnionMovement] called')
-  if (command.unitId !== state.onion.id) {
+  const onion = state.onions[command.unitId]
+  logger.debug({ position: onion?.position, command }, '[executeOnionMovement] called')
+  if (onion === undefined) {
     logger.info({ command }, 'executeOnionMovement: Not an Onion move command')
     return { success: false, error: 'Not an Onion move command' }
   }
@@ -327,13 +341,15 @@ export function executeOnionMovement(
 
 export function executeUnitMovement(
   state: EngineGameState,
-  plan: MovementPlan
+  plan: MovementPlan,
+  options?: MovementExecutionOptions,
 ): MovementResult
 export function executeUnitMovement(
   state: EngineGameState,
-  plan: MovementPlan
+  plan: MovementPlan,
+  options: MovementExecutionOptions = {},
 ): MovementResult {
-  return executeMovePlan(state, plan)
+  return executeMovePlan(state, plan, options)
 }
 
 /**
@@ -348,12 +364,14 @@ export function getOccupyingUnit(
   pos: HexPos,
   excludeUnitId?: string
 ): GameUnit | null {
-  if (state.onion.id !== excludeUnitId &&
-      state.onion.position.q === pos.q && state.onion.position.r === pos.r) {
-    return state.onion
+  for (const onion of Object.values(state.onions)) {
+    if (onion.unitId !== excludeUnitId &&
+        onion.position.q === pos.q && onion.position.r === pos.r) {
+      return onion
+    }
   }
   for (const unit of Object.values(state.defenders)) {
-    if (unit.id !== excludeUnitId &&
+    if (unit.unitId !== excludeUnitId &&
         unit.position.q === pos.q && unit.position.r === pos.r) {
       return unit
     }
@@ -391,7 +409,7 @@ export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
   treadCost: number
   destroyed: boolean
 } {
-  return calculateSharedRamming(rammedUnit.type, roll)
+  return calculateSharedRamming(rammedUnit.typeId, roll)
 }
 
 /**
@@ -408,10 +426,10 @@ export function canMoveThrough(
 ): boolean {
   if (movingRole === 'onion') {
     // Onion can move through any defender hex (ramming)
-    return occupyingUnit.type !== 'TheOnion'
+    return occupyingUnit.typeId !== 'TheOnion'
   }
   // Defender can move through friendly defenders but not through the Onion
-  return occupyingUnit.type !== 'TheOnion'
+  return occupyingUnit.typeId !== 'TheOnion'
 }
 
 /**
@@ -429,7 +447,7 @@ export function getRammedUnits(
   const result: string[] = []
   for (const pos of path) {
     for (const [id, unit] of Object.entries(state.defenders)) {
-      if (unit.status === 'destroyed') continue
+      if (unit.state === 'destroyed') continue
       if (unit.position.q === pos.q && unit.position.r === pos.r) {
         result.push(id)
       }

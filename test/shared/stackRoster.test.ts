@@ -16,6 +16,7 @@ import {
 	validateStackRosterConsistency,
 } from '#shared/stackRoster'
 import type { DefenderMap, StackRosterState } from '#shared/types/index'
+import { makeDefender, makeDefenderMap, makeStackFixture } from '#test/utils/gameStateUtils'
 
 describe('stack roster', () => {
 	it('flags structural contract violations', () => {
@@ -64,8 +65,8 @@ describe('stack roster', () => {
 	})
 
 	it('builds derived group and unit views from the minimal contract', () => {
-		const roster: StackRosterState = {
-			groupsById: {
+		const fixture = makeStackFixture({
+			groups: {
 				'stack-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
@@ -79,12 +80,8 @@ describe('stack roster', () => {
 					unitIds: ['pigs-3'],
 				},
 			},
-		}
-		const defenders = {
-			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 1' },
-			'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 2' },
-			'pigs-3': { id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 5 }, status: 'operational' as const, friendlyName: 'Little Pigs 3' },
-		}
+		})
+		const { defenders, stackRoster: roster } = fixture
 
 		const rosterIndex = buildStackRosterIndex(roster, defenders)
 
@@ -104,7 +101,7 @@ describe('stack roster', () => {
 			position: { q: 4, r: 4 },
 		})
 		expect(rosterIndex.derivedUnitsById['pigs-2']).toMatchObject({
-			id: 'pigs-2',
+			unitId: 'pigs-2',
 			groupId: 'stack-1',
 			groupKey: 'LittlePigs:4,4',
 			unitType: 'LittlePigs',
@@ -114,6 +111,24 @@ describe('stack roster', () => {
 
 		delete rosterIndex.groupsById['stack-1']
 		expect(rosterIndex.getUnitGroup('pigs-2')).toBeNull()
+	})
+
+	it('resolves grouped defenders by canonical unitId when map keys differ', () => {
+		const rosterIndex = buildStackRosterIndex(
+			{
+				groupsById: {
+					'LittlePigs:4,4': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-4'],
+					},
+				},
+			},
+			{ 'roster-entry-4': makeDefender({ unitId: 'pigs-4', typeId: 'LittlePigs', position: { q: 4, r: 4 } }) },
+		)
+
+		expect(rosterIndex.getUnitGroup('pigs-4')).toMatchObject({ groupId: 'LittlePigs:4,4' })
 	})
 
 	it('round-trips through JSON serialization without losing the roster shape', () => {
@@ -130,9 +145,9 @@ describe('stack roster', () => {
 
 		const serialized = JSON.stringify(roster)
 		const restored = JSON.parse(serialized) as StackRosterState
-		const defenders = {
-			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 1' },
-		}
+		const defenders = makeDefenderMap({
+			'pigs-1': { typeId: 'LittlePigs', position: { q: 4, r: 4 }, friendlyName: 'Little Pigs 1' },
+		})
 
 		expect(restored).toEqual(roster)
 		expect(buildStackRosterIndex(restored, defenders).groupsById['stack-1']?.groupName).toBe('Little Pigs group 1')
@@ -149,9 +164,9 @@ describe('stack roster', () => {
 
 	it('builds roster groups for stackable co-located unit clusters only', () => {
 		expect(buildStackRosterFromUnits([
-			{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1', squads: 1 },
-			{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2', squads: 1 },
-			{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 7 }, status: 'operational', friendlyName: 'Big Bad Wolf 1', squads: 1 },
+			makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, friendlyName: 'Little Pigs 1' }),
+			makeDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, friendlyName: 'Little Pigs 2' }),
+			makeDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 7, r: 7 }, friendlyName: 'Big Bad Wolf 1' }),
 		])).toEqual({
 			groupsById: {
 				'LittlePigs:4,4': {
@@ -166,8 +181,8 @@ describe('stack roster', () => {
 
 	it('ignores non-stackable units when building stack roster groups', () => {
 		const roster = buildStackRosterFromUnits([
-			{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 7 }, status: 'operational', friendlyName: 'Big Bad Wolf 1' },
-			{ id: 'puss-1', type: 'Puss', position: { q: 3, r: 5 }, status: 'operational', friendlyName: 'Puss 1' },
+			makeDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 7, r: 7 }, friendlyName: 'Big Bad Wolf 1' }),
+			makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 3, r: 5 }, friendlyName: 'Puss 1' }),
 		])
 
 		expect(roster).toEqual({
@@ -177,8 +192,8 @@ describe('stack roster', () => {
 
 	it('preserves explicit grouped units without squashing them back into squads', () => {
 		const roster = buildStackRosterFromUnits([
-			{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-			{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2' },
+			makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, friendlyName: 'Little Pigs 1' }),
+			makeDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, friendlyName: 'Little Pigs 2' }),
 		])
 
 		expect(roster).toEqual({
@@ -220,7 +235,7 @@ describe('stack roster', () => {
 				},
 			},
 			{
-				'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const },
+				...makeDefenderMap({ 'pigs-1': { typeId: 'LittlePigs', position: { q: 4, r: 4 } } }),
 				'pigs-2': null as unknown as never,
 			},
 		)).toThrow('Invalid stack roster unit shape for bad')
@@ -244,9 +259,9 @@ describe('stack roster', () => {
 
 	it('derives the minimal roster contract from defender units', () => {
 		const roster = buildStackRosterFromUnits([
-			{ id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 1' },
-			{ id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational', friendlyName: 'Little Pigs 2' },
-			{ id: 'wolf-1', type: 'BigBadWolf', position: { q: 7, r: 7 }, status: 'destroyed', friendlyName: 'Big Bad Wolf 1' },
+			makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, friendlyName: 'Little Pigs 1' }),
+			makeDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, friendlyName: 'Little Pigs 2' }),
+			makeDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 7, r: 7 }, state: 'destroyed', friendlyName: 'Big Bad Wolf 1' }),
 		])
 
 		expect(roster).toEqual({
@@ -272,18 +287,18 @@ describe('stack roster', () => {
 				},
 			},
 		}
-		const defenders = {
-			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const },
-			'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const },
-		}
+		const defenders = makeDefenderMap({
+			'pigs-1': { typeId: 'LittlePigs', position: { q: 4, r: 4 } },
+			'pigs-2': { typeId: 'LittlePigs', position: { q: 4, r: 4 } },
+		})
 
 		expect(() => buildStackRosterIndex(roster, defenders)).not.toThrow()
 		expect(buildStackRosterIndex(roster, defenders).groupsById['LittlePigs:4,4']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
 	})
 
 	it('refreshes stack naming from the roster-owned adapter', () => {
-		const roster: StackRosterState = {
-			groupsById: {
+		const fixture = makeStackFixture({
+			groups: {
 				'g-a': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
@@ -297,12 +312,8 @@ describe('stack roster', () => {
 					unitIds: ['pigs-3'],
 				},
 			},
-		}
-		const defenders = {
-			'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 1' },
-			'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 2' },
-			'pigs-3': { id: 'pigs-3', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' as const, friendlyName: 'Little Pigs 3' },
-		}
+		})
+		const { defenders, stackRoster: roster } = fixture
 
 		expect(refreshStackRosterNamingSnapshot(roster, undefined, defenders)).toMatchObject({
 			groupsInUse: [
@@ -326,16 +337,16 @@ describe('stack roster', () => {
 				},
 			},
 			undefined,
-			{ 'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const } },
+			makeDefenderMap({ 'pigs-1': { typeId: 'LittlePigs', position: { q: 4, r: 4 } } }),
 		)).toThrow(/missing.*pigs-2/i)
 	})
 
 	it('validates canonical consistency between defenders and group membership', () => {
 		const issues = validateStackRosterConsistency(
-			{
-				'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-				'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 4, r: 5 }, status: 'operational' },
-			},
+			makeDefenderMap({
+				'pigs-1': { typeId: 'LittlePigs', position: { q: 4, r: 4 } },
+				'wolf-1': { typeId: 'BigBadWolf', position: { q: 4, r: 5 } },
+			}),
 			{
 				groupsById: {
 					'a': {
@@ -367,9 +378,10 @@ describe('stack roster', () => {
 
 	it('flags stackable defenders that are missing from every roster group', () => {
 		const issues = validateStackRosterConsistency(
-			{
-				'pigs-5': { id: 'pigs-5', type: 'LittlePigs', position: { q: 4, r: 8 }, status: 'operational' },
-			},
+			makeDefenderMap({
+				'pigs-1': { typeId: 'LittlePigs', position: { q: 4, r: 4 } },
+				'pigs-5': { typeId: 'LittlePigs', position: { q: 4, r: 8 } },
+			}),
 			{
 				groupsById: {
 					'a': {
@@ -401,10 +413,10 @@ describe('stack roster', () => {
 					},
 				},
 			},
-			{
-				'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' as const },
-				'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'disabled' as const },
-			},
+			makeDefenderMap({
+				'pigs-1': { typeId: 'LittlePigs', position: { q: 4, r: 4 } },
+				'pigs-2': { typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'disabled' },
+			}),
 		)
 
 		expect(projected.groupsById['g-1']).toEqual({
@@ -615,10 +627,10 @@ describe('stack roster', () => {
 				groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
 				usedGroupNames: ['Little Pigs group'],
 			},
-			defenders: {
-				p1: { id: 'p1', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
-				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
-			},
+			defenders: makeDefenderMap({
+				p1: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+				p2: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+			}),
 			movedUnitId: 'p1',
 			unitType: 'LittlePigs',
 			destinationPosition: { q: 1, r: 0 },
@@ -667,11 +679,11 @@ describe('stack roster', () => {
 				],
 				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
 			},
-			defenders: {
-				p1: { id: 'p1', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
-				p2: { id: 'p2', type: 'LittlePigs', position: { q: 0, r: 0 }, status: 'operational' },
-				p5: { id: 'p5', type: 'LittlePigs', position: { q: 4, r: 0 }, status: 'operational' },
-			},
+			defenders: makeDefenderMap({
+				p1: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+				p2: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+				p5: { typeId: 'LittlePigs', position: { q: 4, r: 0 } },
+			}),
 			movedUnitId: 'p1',
 			unitType: 'LittlePigs',
 			destinationPosition: { q: 4, r: 0 },
@@ -688,5 +700,38 @@ describe('stack roster', () => {
 			]),
 		)
 		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+	})
+
+	it('preserves the group name when the whole group moves together', () => {
+		const reconciled = reconcileStackRosterMoveLifecycle({
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:0,0': {
+						groupName: 'Little Pigs group 3',
+						unitType: 'LittlePigs',
+						position: { q: 0, r: 0 },
+						unitIds: ['p1', 'p2'],
+					},
+				},
+			},
+			stackNaming: {
+				groupsInUse: [{ groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 3', unitType: 'LittlePigs' }],
+				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'],
+			},
+			defenders: makeDefenderMap({
+				p1: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+				p2: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+			}),
+			movedUnitId: 'p1',
+			movedUnitIds: ['p1', 'p2'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 2, r: 1 },
+		})
+
+		expect(reconciled.stackRoster.groupsById['LittlePigs:2,1']).toMatchObject({
+			groupName: 'Little Pigs group 3',
+			unitIds: ['p1', 'p2'],
+		})
+		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'])
 	})
 })

@@ -287,6 +287,16 @@
   opacity: 0.88;
 }
 
+.hex-shared-occupancy-ring {
+  pointer-events: none;
+  stroke: rgba(255, 245, 200, 0.92);
+  stroke-width: 2.4;
+  stroke-dasharray: 5 4;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 1px rgba(45, 35, 20, 0.55));
+}
+
 .hex-cell-escape:hover > .hex-shape {
   filter: brightness(1.02) saturate(1.06);
 }

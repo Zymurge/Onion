@@ -17,6 +17,7 @@ export default defineConfig({
       { find: /^#server\/(.*)$/, replacement: `${serverRoot}/$1` },
       { find: /^#shared$/, replacement: sharedRoot },
       { find: /^#shared\/(.*)$/, replacement: `${sharedRoot}/$1` },
+      { find: /^#test\/utils\/(.*)$/, replacement: `${rootDir}/test/utils/$1` },
       { find: /^#web$/, replacement: webRoot },
       { find: /^#web\/(.*)$/, replacement: `${webRoot}/$1` },
       { find: /^react-json-print$/, replacement: fileURLToPath(new URL('./web/test-support/react-json-print.tsx', import.meta.url)) },

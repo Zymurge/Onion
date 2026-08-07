@@ -154,16 +154,16 @@ describe('parseCommand', () => {
   })
 
   it('parses unified fire command with one attacker', () => {
-    expect(parseCommand('fire wolf-1 main')).toEqual({
+    expect(parseCommand('fire onion-1 wolf-1 main')).toEqual({
       ok: true,
-      command: { kind: 'fire', targetId: 'wolf-1', attackers: ['main'] },
+      command: { kind: 'fire', onionId: 'onion-1', targetId: 'wolf-1', attackers: ['main'] },
     })
   })
 
   it('parses unified fire command with multiple attackers', () => {
-    expect(parseCommand('fire main wolf-1 puss-1')).toEqual({
+    expect(parseCommand('fire onion-1 main wolf-1 puss-1')).toEqual({
       ok: true,
-      command: { kind: 'fire', targetId: 'main', attackers: ['wolf-1', 'puss-1'] },
+      command: { kind: 'fire', onionId: 'onion-1', targetId: 'main', attackers: ['wolf-1', 'puss-1'] },
     })
   })
 
@@ -186,16 +186,16 @@ describe('parseCommand', () => {
   })
 
   it('rejects malformed fire command', () => {
-    expect(parseCommand('fire wolf-1')).toEqual({
+    expect(parseCommand('fire onion-1 wolf-1')).toEqual({
       ok: false,
-      error: 'usage: fire <targetId> <attacker1> [attacker2...]',
+      error: 'usage: fire <onionId> <targetId> <attacker1> [attacker2...]',
     })
   })
 
   it('rejects fire command with empty attacker token', () => {
-    expect(parseCommand('fire wolf-1 ""')).toEqual({
+    expect(parseCommand('fire onion-1 wolf-1 ""')).toEqual({
       ok: false,
-      error: 'usage: fire <targetId> <attacker1> [attacker2...]',
+      error: 'usage: fire <onionId> <targetId> <attacker1> [attacker2...]',
     })
   })
 

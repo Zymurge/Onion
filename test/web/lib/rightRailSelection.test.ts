@@ -12,18 +12,23 @@ import {
 } from '#web/lib/rightRailSelection'
 import { StackSourceUnit } from '#web/lib/appViewHelpers'
 import { GameState } from '#shared/types/index'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createTestDefendersMap() : Record<string, StackSourceUnit> {
   return {
-    'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-    'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
-    'pigs-3': { id: 'pigs-3', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'destroyed' },
-    'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+    'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+    'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
+    'pigs-3': { unitId: 'pigs-3', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'destroyed' },
+    'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
   }
 }
 
 function createTestStackState() {
   return {
+    catalog: sessionCatalog,
     defenders: createTestDefendersMap(),
     stackRoster: {
       groupsById: {
@@ -40,11 +45,12 @@ function createTestStackState() {
 
 function createSingletonStackState() {
   const defenders = {
-    'pigs-5': { id: 'pigs-5', type: 'LittlePigs', position: { q: 4, r: 8 }, status: 'operational' },
-    'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+    'pigs-5': { unitId: 'pigs-5', typeId: 'LittlePigs', position: { q: 4, r: 8 }, state: 'operational' },
+    'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
   }
 
   return {
+    catalog: sessionCatalog,
     defenders,
     stackRoster: {
       groupsById: {
@@ -218,12 +224,14 @@ describe('rightRailSelection', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-2'],
         targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: true,
         action: {
           type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1',
+          onionId: 'onion-1',
         },
       })
     })
@@ -236,6 +244,7 @@ describe('rightRailSelection', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-1'],
         targetId: null,
+        onionId: 'onion-1',
       })).toEqual({
         ok: false,
         reason: 'missing-target',
@@ -291,12 +300,14 @@ describe('rightRailSelection', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['stack-member:pigs-1:2'],
         targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: true,
         action: {
           type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1',
+          onionId: 'onion-1',
         },
       })
     })
@@ -310,6 +321,7 @@ describe('rightRailSelection', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: [],
         targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: false,
         reason: 'empty-stack-selection',
@@ -318,9 +330,10 @@ describe('rightRailSelection', () => {
 
     it('rejects stackable submissions when stack metadata is missing instead of inferring members', () => {
       const state = {
+        catalog: sessionCatalog,
         defenders: {
-          'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-          'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 5, r: 4 }, status: 'operational' },
+          'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+          'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 }, state: 'operational' },
         },
       }
 

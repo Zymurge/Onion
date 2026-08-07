@@ -4,12 +4,64 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { BattlefieldLeftRail } from '#web/components/BattlefieldLeftRail'
 import type { BattlefieldOnionView, BattlefieldUnit } from '#web/lib/battlefieldView'
+import { canonicalizeBattlefieldDefenders } from '#test/utils/gameStateUtils'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createDefendersMap(defenders: BattlefieldUnit[]) {
   return Object.fromEntries(defenders.map((unit) => [unit.id, { id: unit.id, status: unit.status, friendlyName: unit.friendlyName }]))
 }
 
 describe('BattlefieldLeftRail', () => {
+  it('renders onion weapon metadata from the session catalog', () => {
+    const weaponType = sessionCatalog.weaponTypes['TheOnion.main']
+    const onion: BattlefieldOnionView = {
+      id: 'onion-1',
+      type: 'TheOnion',
+      position: { q: 0, r: 0 },
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weapons: 'main: ready',
+      weaponDetails: [{
+        id: 'main-1',
+        typeId: 'TheOnion.main',
+        state: 'ready',
+        friendlyName: 'Runtime Main',
+      }],
+    }
+
+    render(
+      <BattlefieldLeftRail
+        activeCombatRole="onion"
+        activeRole="onion"
+        activeTurnActive
+        activeMode="fire"
+        activeSelectedUnitIds={[]}
+        displayedDefenders={[]}
+        displayedOnion={onion}
+        isCombatPhase
+        isMovementPhase={false}
+        isSelectionLocked={false}
+        stacksExpandable={false}
+        onionWeapons={{ operationalWeapons: 1, operationalMissiles: 0 }}
+        readyWeaponDetails={onion.weaponDetails}
+        selectedCombatAttackLabel="Attack 0"
+        catalog={sessionCatalog}
+        onSelectUnit={vi.fn()}
+      />,
+    )
+
+    const weaponCard = screen.getByTestId('combat-weapon-main-1')
+    expect(weaponCard.textContent).toContain(weaponType.name)
+    expect(weaponCard.textContent).toContain(`Attack: ${weaponType.attack}`)
+    expect(weaponCard.textContent).toContain(`Range: ${weaponType.range}`)
+  })
+
   it('renders one combat group card from canonical roster membership even when members are on different hexes', () => {
     const displayedDefenders: BattlefieldUnit[] = [
       {
@@ -76,7 +128,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={true}
         activeMode="fire"
         activeSelectedUnitIds={[]}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase
         isMovementPhase={false}
@@ -163,7 +215,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={true}
         activeMode="fire"
         activeSelectedUnitIds={[]}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase={false}
         isMovementPhase
@@ -220,7 +272,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={true}
         activeMode="fire"
         activeSelectedUnitIds={[]}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase={false}
         isMovementPhase
@@ -264,6 +316,7 @@ describe('BattlefieldLeftRail', () => {
         move: 3,
         weapons: 'main: ready',
         attack: '1 / rng 1',
+        squads: 2,
         actionableModes: ['fire', 'combined'],
       },
     ]
@@ -290,7 +343,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={true}
         activeMode="fire"
         activeSelectedUnitIds={[]}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase={false}
         isMovementPhase
@@ -306,7 +359,7 @@ describe('BattlefieldLeftRail', () => {
     )
 
     const alert = screen.getByRole('alert')
-    expect(alert.textContent).toContain('Missing stackRoster for grouped unit pigs-5')
+    expect(alert.textContent).toContain('Missing stackNaming entry for grouped unit pigs-5')
     expect(alert.textContent).toContain('selectedUnitId=pigs-5')
     expect(alert.textContent).toContain('stackRosterGroups=none')
   })
@@ -388,7 +441,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={true}
         activeMode="fire"
         activeSelectedUnitIds={[]}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase={false}
         isMovementPhase
@@ -409,6 +462,80 @@ describe('BattlefieldLeftRail', () => {
     expect(screen.getByTestId('move-stack-group-pigs-1').dataset.expanded).toBe('false')
     fireEvent.click(screen.getByTestId('combat-unit-pigs-1'))
     expect(onSelectUnit).toHaveBeenCalledWith('pigs-1', false)
+  })
+
+  it('keeps all roster defenders available when another move group is selected', () => {
+    const displayedDefenders: BattlefieldUnit[] = [1, 2, 3, 4, 5].map((unitNumber) => ({
+      id: `pigs-${unitNumber}`,
+      type: 'LittlePigs',
+      friendlyName: `Little Pigs ${unitNumber}`,
+      status: 'operational',
+      q: unitNumber <= 3 ? 4 : 5,
+      r: 7,
+      move: 1,
+      weapons: 'rifle: ready',
+      attack: '1 / rng 1',
+      actionableModes: ['fire', 'combined'],
+    }))
+    const onion: BattlefieldOnionView = {
+      id: 'onion-1',
+      type: 'TheOnion',
+      position: { q: 0, r: 0 },
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weapons: 'main: ready',
+      weaponDetails: [],
+    }
+
+    render(
+      <BattlefieldLeftRail
+        activeCombatRole="defender"
+        activeRole="defender"
+        activeTurnActive
+        activeMode="fire"
+        activeSelectedUnitIds={['pigs-1', 'pigs-2', 'pigs-3']}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
+        displayedOnion={onion}
+        isCombatPhase={false}
+        isMovementPhase
+        isSelectionLocked={false}
+        stacksExpandable
+        onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
+        readyWeaponDetails={[]}
+        selectedCombatAttackLabel="Attack 0"
+        stackNaming={{
+          groupsInUse: [
+            { groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+            { groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+          ],
+          usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+        } as any}
+        stackRoster={{
+          groupsById: {
+            'LittlePigs:4,7': {
+              groupName: 'Little Pigs group 1',
+              unitType: 'LittlePigs',
+              position: { q: 4, r: 7 },
+              unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+            },
+            'LittlePigs:5,7': {
+              groupName: 'Little Pigs group 2',
+              unitType: 'LittlePigs',
+              position: { q: 5, r: 7 },
+              unitIds: ['pigs-4', 'pigs-5'],
+            },
+          },
+        } as any}
+        onSelectUnit={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs group 1')
+    expect(screen.getByTestId('combat-unit-pigs-4').textContent).toContain('Little Pigs group 2')
   })
 
   it('shows the movement badge for an Onion viewer during defender movement', () => {
@@ -461,7 +588,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={false}
         activeMode="fire"
         activeSelectedUnitIds={[]}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase={false}
         isMovementPhase
@@ -572,7 +699,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={true}
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2']}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase
         isMovementPhase={false}
@@ -675,7 +802,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={true}
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2', 'pigs-3']}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase
         isMovementPhase={false}
@@ -764,7 +891,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={true}
         activeMode="fire"
         activeSelectedUnitIds={[]}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase
         isMovementPhase={false}
@@ -849,7 +976,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={true}
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1']}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase
         isMovementPhase={false}
@@ -918,7 +1045,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={false}
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2']}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase
         isMovementPhase={false}
@@ -1003,7 +1130,7 @@ describe('BattlefieldLeftRail', () => {
         activeTurnActive={false}
         activeMode="fire"
         activeSelectedUnitIds={[]}
-        displayedDefenders={displayedDefenders}
+        displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
         displayedOnion={onion}
         isCombatPhase
         isMovementPhase={false}

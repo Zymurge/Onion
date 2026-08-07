@@ -5,13 +5,18 @@ import {
   buildEndPhaseCommitAction,
   buildMoveCommitAction,
 } from '#web/lib/commitActionBuilders'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createTestStackState() {
   return {
+    catalog: sessionCatalog,
     defenders: {
-      'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-      'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-      'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+      'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+      'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+      'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
     },
     stackRoster: {
       groupsById: {
@@ -28,18 +33,20 @@ function createTestStackState() {
 
 function createBrokenStackState() {
   return {
+    catalog: sessionCatalog,
     defenders: {
-      'pigs-1': { id: 'pigs-1', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
-      'pigs-2': { id: 'pigs-2', type: 'LittlePigs', position: { q: 4, r: 4 }, status: 'operational' },
+      'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
+      'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
     },
   }
 }
 
 function createSingletonStackState() {
   return {
+    catalog: sessionCatalog,
     defenders: {
-      'pigs-5': { id: 'pigs-5', type: 'LittlePigs', position: { q: 4, r: 8 }, status: 'operational' },
-      'wolf-1': { id: 'wolf-1', type: 'BigBadWolf', position: { q: 6, r: 4 }, status: 'operational' },
+      'pigs-5': { unitId: 'pigs-5', typeId: 'LittlePigs', position: { q: 4, r: 8 }, state: 'operational' },
+      'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
     },
     stackRoster: {
       groupsById: {
@@ -135,6 +142,26 @@ describe('commitActionBuilders', () => {
   })
 
   describe('buildCombatCommitAction', () => {
+    it('preserves the explicit tread target identity in a FIRE action', () => {
+      const state = createTestStackState()
+
+      expect(buildCombatCommitAction({
+        state,
+        anchorUnitId: 'wolf-1',
+        selectedUnitIds: ['wolf-1'],
+        targetId: 'onion-1:treads',
+        onionId: 'onion-1',
+      })).toEqual({
+        ok: true,
+        action: {
+          type: 'FIRE',
+          attackers: ['wolf-1'],
+          targetId: 'onion-1:treads',
+          onionId: 'onion-1',
+        },
+      })
+    })
+
     it('builds a FIRE action when the active unit is a stack and members are selected', () => {
       const state = createTestStackState()
 
@@ -142,13 +169,15 @@ describe('commitActionBuilders', () => {
         state,
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-2'],
-        targetId: 'onion-1:treads',
+        targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: true,
         action: {
           type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1:treads',
+          onionId: 'onion-1',
         },
       })
     })
@@ -160,13 +189,15 @@ describe('commitActionBuilders', () => {
         state,
         anchorUnitId: 'wolf-1',
         selectedUnitIds: ['wolf-1'],
-        targetId: 'onion-1:treads',
+        targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: true,
         action: {
           type: 'FIRE',
           attackers: ['wolf-1'],
           targetId: 'onion-1:treads',
+          onionId: 'onion-1',
         },
       })
     })
@@ -179,6 +210,7 @@ describe('commitActionBuilders', () => {
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-1'],
         targetId: null,
+        onionId: 'onion-1',
       })).toEqual({
         ok: false,
         reason: 'missing-target',
@@ -192,7 +224,8 @@ describe('commitActionBuilders', () => {
         state,
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-1'],
-        targetId: 'onion-1:treads',
+        targetId: 'onion-1',
+        onionId: 'onion-1',
       })).toEqual({
         ok: false,
         reason: 'snapshot-missing-stack-selection',

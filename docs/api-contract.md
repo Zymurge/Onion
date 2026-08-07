@@ -134,6 +134,10 @@ Errors:   404 game not found
 
 Full current game state. Suitable for initial render and reconnect.
 
+This response contains dynamic game state only. Static unit and weapon catalogs
+are sent separately in the WebSocket `SESSION_INIT` message and are not included
+in this response or in `GameState`.
+
 ```json
 {
   "gameId":      number,
@@ -174,18 +178,7 @@ Planned `GameState` stack roster shape:
         "groupName": "Little Pigs group 1",
         "unitType": "LittlePigs",
         "position": { "q": 4, "r": 4 },
-        "units": [
-          {
-            "id": "pigs-1",
-            "status": "operational",
-            "friendlyName": "Little Pigs 1"
-          },
-          {
-            "id": "pigs-2",
-            "status": "operational",
-            "friendlyName": "Little Pigs 2"
-          }
-        ]
+        "unitIds": ["pigs-1", "pigs-2"]
       }
     }
   }
@@ -197,9 +190,10 @@ Notes:
 - `groupsById` is the canonical stack/group metadata map. The record key is the group id.
 - The roster wrapper is always present in game state, even when `groupsById` is empty.
 - `groupKey`, `unitIds`, and member ordinals are helper-derived and do not need to be persisted.
-- `group.units` enumerates every unit in the group and is a convenience projection for UI and action selection. It must stay consistent with the helper-derived view.
+- `group.units` is a convenience projection derived by shared helpers from the canonical unit maps when UI or messaging needs member detail.
 - `friendlyName` on a unit is stable and does not change when the unit changes groups.
 - `groupName` is the only stack-level display label used by rails, combat UI, and event text.
+- Per-unit runtime movement spend is stored on the unit record itself via `movementSpent[phase]`.
 
 **Notes:**
 
@@ -290,12 +284,44 @@ turn), not as a separate command.
 Combat uses a single `FIRE` command shape for both Onion and defender attacks.
 
 ```json
-{ "type": "FIRE", "attackers": [string, ...], "targetId": string }
+{ "type": "FIRE", "attackers": [string, ...], "targetId": string, "onionId": string }
 ```
 
 `attackers` contains one or more attacker IDs. For Onion, each entry is a weapon id. For defenders, each entry is a unit id. The engine resolves whether the command is valid for the current phase and target.
 
 `FIRE` with multiple attackers is legal when attacking a weapon or unit target, but not when targeting Onion treads. In that case, each attacker must fire separately.
+
+#### Combat Target IDs
+
+`targetId` is a cross-layer wire identifier. The server is authoritative for
+target legality, but all clients and event consumers must use the same target
+identity:
+
+- Defender units, defender stacks, and individually targetable weapons use the
+  opaque IDs supplied by the game state, such as `wolf-1`, `LittlePigs:3,2`, or
+  `main`.
+- Onion treads use the explicit structured form `{onionId}:treads`, such as
+  `onion-1:treads`.
+- A bare Onion unit ID is not a tread target. `onion-1` must not be submitted
+  when the intended target is the Onion's treads.
+- The `:treads` suffix is exact. Clients must not add whitespace, extra
+  suffixes, or a different subsystem spelling.
+
+The canonical tread target is preserved in successful responses and combat
+events. `FIRE_RESOLVED` and `ONION_TREADS_LOST` include the canonical
+`targetId` and its corresponding `targetFriendlyName` (for example,
+`The Onion treads`).
+
+Example defender attack against Onion treads:
+
+```json
+{
+  "type": "FIRE",
+  "attackers": ["wolf-1"],
+  "targetId": "onion-1:treads",
+  "onionId": "onion-1"
+}
+```
 
 ### Movement Commands
 
@@ -390,6 +416,7 @@ WEAPON_FIRED      { weaponType: string, weaponIndex: number, targetId: string,
                     roll: number, result: "NE" | "D" | "X" }
 
 FIRE_RESOLVED     { attackers: string[], targetId: string,
+                    targetFriendlyName: string,
                     attackStrength: number, defenseStrength: number,
                     roll: number, result: "NE" | "D" | "X" }
 ```
@@ -399,7 +426,9 @@ FIRE_RESOLVED     { attackers: string[], targetId: string,
 ```text
 UNIT_STATUS_CHANGED   { unitId: string, from: UnitStatus, to: UnitStatus }
 UNIT_SQUADS_LOST      { unitId: string, amount: number }
-ONION_TREADS_LOST     { amount: number, remaining: number }
+ONION_TREADS_LOST     { onionId: string, targetId: string,
+                        targetFriendlyName: string,
+                        amount: number, remaining: number }
 ONION_BATTERY_DESTROYED { weaponId: string, weaponType: string }
 ```
 
@@ -418,11 +447,13 @@ and their assigned role.
 ### Sync Event
 
 ```text
+SESSION_INIT      { unitTypes: UnitTypeCatalog, weaponTypes: WeaponTypeCatalog }
 STATE_SNAPSHOT    { state: GameState }
 ```
 
-Sent by server on WS reconnect. Not generated in REST polling.
-Clients use `GET /games/{id}` for full state on reconnect.
+`SESSION_INIT` is sent when a WebSocket session is established and carries static
+catalog data. `STATE_SNAPSHOT` is sent on WS reconnect and carries dynamic state
+only. REST `GET /games/{id}` likewise returns dynamic state only.
 
 ---
 

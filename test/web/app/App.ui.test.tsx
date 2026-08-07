@@ -4,181 +4,25 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import App from '../../../../web/App'
-import { buildAcknowledgementTurnKey } from '../../../../web/lib/turnKey'
-import { createGameClient, type GameSnapshot } from '../../../../web/lib/gameClient'
-import { clearApiProtocolTraffic, requestJson } from '../../../../shared/apiProtocol'
-import type { GameState } from '../../../../shared/types/index'
-import { buildStackRosterFromUnits } from '../../../../shared/stackRoster'
-import type { LiveEventSource, LiveSessionSignal } from '../../../../web/lib/gameSessionTypes'
+import App from '../../../web/App'
+import { buildAcknowledgementTurnKey } from '../../../web/lib/turnKey'
+import { createGameClient } from '../../../web/lib/gameClient'
+import { clearApiProtocolTraffic, requestJson } from '../../../shared/apiProtocol'
+import { makeScenarioSnapshot, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
+import type { LiveEventSource, LiveSessionSignal } from '../../../web/lib/gameSessionTypes'
 
-type LoadedBattlefieldSnapshot = GameSnapshot & {
-	authoritativeState: GameState
-	scenarioMap: {
-		width: number
-		height: number
-		cells: Array<{ q: number; r: number }>
-		hexes: Array<{ q: number; r: number; t: number }>
-	}
-}
-
-function createLoadedBattlefieldSnapshot(): LoadedBattlefieldSnapshot {
-	return {
-		gameId: 123,
-		phase: 'DEFENDER_COMBAT',
-		scenarioName: 'Selection Contract Test',
-		turnNumber: 11,
-		lastEventSeq: 47,
-		authoritativeState: {
-			onion: {
-				id: 'onion-1',
-				type: 'TheOnion',
-					friendlyName: 'The Onion',
-				position: { q: 0, r: 1 },
-				treads: 33,
-				status: 'operational',
-				weapons: [
-					{
-						id: 'main-1',
-						name: 'Main Battery',
-						attack: 4,
-						range: 4,
-						defense: 4,
-						status: 'ready',
-						individuallyTargetable: true,
-					},
-				],
-				batteries: {
-					main: 1,
-					secondary: 0,
-					ap: 0,
-				},
-			},
-			defenders: {
-				'wolf-2': {
-					id: 'wolf-2',
-					type: 'BigBadWolf',
-					friendlyName: 'Big Bad Wolf 2',
-					position: { q: 3, r: 6 },
-					status: 'operational',
-					weapons: [
-						{
-							id: 'main',
-							name: 'Main Gun',
-							attack: 4,
-							range: 2,
-							defense: 2,
-							status: 'ready',
-							individuallyTargetable: false,
-						},
-					],
-				},
-				'puss-1': {
-					id: 'puss-1',
-					type: 'Puss',
-					friendlyName: 'Puss 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [
-						{
-							id: 'main',
-							name: 'Main Gun',
-							attack: 4,
-							range: 2,
-							defense: 3,
-							status: 'ready',
-							individuallyTargetable: false,
-						},
-					],
-				},
-			},
-			ramsThisTurn: 0,
-			stackRoster: buildStackRosterFromUnits([
-				{
-					id: 'wolf-2',
-					type: 'BigBadWolf',
-					friendlyName: 'Big Bad Wolf 2',
-					position: { q: 3, r: 6 },
-					status: 'operational',
-					weapons: [],
-				},
-				{
-					id: 'puss-1',
-					type: 'Puss',
-					friendlyName: 'Puss 1',
-					position: { q: 4, r: 4 },
-					status: 'operational',
-					weapons: [],
-				},
-			]),
-		},
-		movementRemainingByUnit: {
-			'onion-1': 0,
-			'wolf-2': 4,
-			'puss-1': 3,
-		},
-		victoryObjectives: [],
-		scenarioMap: {
-			width: 8,
-			height: 8,
-			cells: Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, q) => ({ q, r }))).flat(),
-			hexes: [],
-		},
-	}
-}
-
-function createDefenderMoveSnapshotWithStaleAllowance(): LoadedBattlefieldSnapshot {
-	const snapshot = createLoadedBattlefieldSnapshot()
-
-	return {
-		...snapshot,
+function createDefenderMoveSnapshot(): TestScenarioSnapshot {
+	return makeScenarioSnapshot({
 		phase: 'DEFENDER_MOVE',
-		authoritativeState: {
-			...snapshot.authoritativeState,
-			movementSpent: {},
-		},
-		movementRemainingByUnit: {
-			'onion-1': 0,
-			'wolf-2': 0,
-			'puss-1': 3,
-		},
-	}
+		movementRemainingByUnit: { 'onion-1': 0, 'wolf-2': 0, 'puss-1': 3 },
+	})
 }
 
-function createDefenderMoveSnapshotWithZeroMa(): LoadedBattlefieldSnapshot {
-	const snapshot = createLoadedBattlefieldSnapshot()
-
-	return {
-		...snapshot,
-		phase: 'DEFENDER_MOVE',
-		authoritativeState: {
-			...snapshot.authoritativeState,
-			movementSpent: {},
-		},
-		movementRemainingByUnit: {
-			'onion-1': 0,
-			'wolf-2': 0,
-			'puss-1': 3,
-		},
-	}
-}
-
-function createOnionMoveSnapshot(onionMovesRemaining = 4): LoadedBattlefieldSnapshot {
-	const snapshot = createLoadedBattlefieldSnapshot()
-
-	return {
-		...snapshot,
+function createOnionMoveSnapshot(onionMovesRemaining = 4): TestScenarioSnapshot {
+	return makeScenarioSnapshot({
 		phase: 'ONION_MOVE',
-		authoritativeState: {
-			...snapshot.authoritativeState,
-			movementSpent: {},
-		},
-		movementRemainingByUnit: {
-			'onion-1': onionMovesRemaining,
-			'wolf-2': 4,
-			'puss-1': 3,
-		},
-	}
+		movementRemainingByUnit: { 'onion-1': onionMovesRemaining, 'wolf-2': 4, 'puss-1': 3 },
+	})
 }
 
 function createLiveEventSourceStub() {
@@ -240,7 +84,7 @@ describe('App UI', () => {
 
 	it('keeps selection state on the rail and map in sync when loaded', async () => {
 		const user = userEvent.setup()
-		const snapshot = createLoadedBattlefieldSnapshot()
+		const snapshot = makeScenarioSnapshot()
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -267,23 +111,7 @@ describe('App UI', () => {
 	})
 
 	it('keeps defender movement collapsed when the live snapshot reports zero allowance', async () => {
-		const snapshot = createDefenderMoveSnapshotWithStaleAllowance()
-		const client = createGameClient({
-			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
-			submitAction: vi.fn().mockResolvedValue(snapshot),
-			pollEvents: vi.fn().mockResolvedValue([]),
-		})
-
-		render(<App gameClient={client} gameId={123} />)
-
-		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
-		expect(wolfUnit.getAttribute('data-selected')).toBe('false')
-		expect(wolfUnit.getAttribute('class')).not.toContain('hex-unit-stack-move-ready')
-		expect(document.querySelectorAll('.hex-cell-reachable').length).toBe(0)
-	})
-
-	it('does not show full move range when a defender has zero MA', async () => {
-		const snapshot = createDefenderMoveSnapshotWithZeroMa()
+		const snapshot = createDefenderMoveSnapshot()
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -332,11 +160,18 @@ describe('App UI', () => {
 	})
 
 	it('shows remaining ram capacity in the Onion rail', async () => {
+		const baseSnapshot = createOnionMoveSnapshot(4)
 		const snapshot = {
-			...createOnionMoveSnapshot(4),
+			...baseSnapshot,
 			authoritativeState: {
-				...createOnionMoveSnapshot(4).authoritativeState,
-				ramsThisTurn: 1,
+				...baseSnapshot.authoritativeState,
+				onions: {
+					...baseSnapshot.authoritativeState.onions,
+					'onion-1': {
+						...baseSnapshot.authoritativeState.onions['onion-1'],
+						ramsRemaining: 1,
+					},
+				},
 			},
 		}
 		const client = createGameClient({
@@ -353,7 +188,7 @@ describe('App UI', () => {
 	})
 
 	it('loads initial state under StrictMode', async () => {
-		const snapshot = createLoadedBattlefieldSnapshot()
+		const snapshot = makeScenarioSnapshot()
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
 			submitAction: vi.fn().mockResolvedValue(snapshot),
@@ -454,7 +289,7 @@ describe('App UI', () => {
 						...snapshot.authoritativeState.defenders,
 						'puss-1': {
 							...snapshot.authoritativeState.defenders['puss-1'],
-							status: 'operational',
+								state: 'operational',
 						},
 					},
 				},
@@ -672,7 +507,7 @@ describe('App UI', () => {
 	it('hides the inactive-event stream after the session becomes active again', async () => {
 		const user = userEvent.setup()
 		const inactiveSnapshot = createOnionMoveSnapshot(4)
-		const activeSnapshot = createDefenderMoveSnapshotWithZeroMa()
+		const activeSnapshot = createDefenderMoveSnapshot()
 		const liveEventSource = createLiveEventSourceStub()
 		const getState = vi
 			.fn()

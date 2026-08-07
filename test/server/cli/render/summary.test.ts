@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { renderGameSummary, renderDefenders, renderOnion, renderLatestEvents } from '../../../../server/cli/render/summary.js'
 import type { GameState, EventEnvelope } from '../../../../shared/types/index.js'
 import type { SessionStore } from '../../../../server/cli/session/store.js'
+import { makeDefender, makeGameState, makeOnion, makeWeapon } from '../../../utils/gameStateUtils.js'
 
 describe('renderGameSummary', () => {
   it('renders unloaded state', () => {
@@ -20,32 +21,13 @@ describe('renderGameSummary', () => {
       lastEventSeq: 47,
     } as SessionStore
 
-    const state = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        status: 'operational',
-        position: { q: 3, r: 6 },
-        treads: 33,
-        weapons: [],
-      },
+    const state = makeGameState({
+      onions: { 'onion-1': makeOnion({ position: { q: 3, r: 6 }, treads: 33, weapons: [] }) },
       defenders: {
-        'wolf-1': {
-          id: 'wolf-1',
-          type: 'BigBadWolf',
-          status: 'destroyed',
-          position: { q: 2, r: 6 },
-          weapons: [{ id: 'main', status: 'ready' }],
-        },
-        'wolf-2': {
-          id: 'wolf-2',
-          type: 'BigBadWolf',
-          status: 'operational',
-          position: { q: 2, r: 7 },
-          weapons: [{ id: 'main', status: 'spent' }],
-        },
+        'wolf-1': makeDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', state: 'destroyed', position: { q: 2, r: 6 }, weapons: [makeWeapon({ id: 'main', state: 'ready' })] }),
+        'wolf-2': makeDefender({ unitId: 'wolf-2', typeId: 'BigBadWolf', state: 'operational', position: { q: 2, r: 7 }, weapons: [makeWeapon({ id: 'main', state: 'spent' })] }),
       },
-    } as unknown as GameState
+    })
 
     const summary = renderGameSummary(session, state)
     const wolf2Index = summary.indexOf('id=wolf-2')
@@ -67,32 +49,13 @@ describe('renderGameSummary', () => {
       lastEventSeq: 47,
     } as SessionStore
 
-    const state = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        status: 'operational',
-        position: { q: 3, r: 6 },
-        treads: 33,
-        weapons: [],
-      },
+    const state = makeGameState({
+      onions: { 'onion-1': makeOnion({ position: { q: 3, r: 6 }, treads: 33, weapons: [] }) },
       defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          status: 'disabled',
-          position: { q: 3, r: 7 },
-          weapons: [{ id: 'rifle', status: 'ready' }],
-        },
-        'wolf-1': {
-          id: 'wolf-1',
-          type: 'BigBadWolf',
-          status: 'destroyed',
-          position: { q: 2, r: 6 },
-          weapons: [{ id: 'main', status: 'ready' }],
-        },
+        'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', state: 'disabled', position: { q: 3, r: 7 }, weapons: [makeWeapon({ id: 'rifle', state: 'ready' })] }),
+        'wolf-1': makeDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', state: 'destroyed', position: { q: 2, r: 6 }, weapons: [makeWeapon({ id: 'main', state: 'ready' })] }),
       },
-    } as unknown as GameState
+    })
 
     const summary = renderGameSummary(session, state)
 
@@ -112,24 +75,12 @@ describe('renderDefenders', () => {
   })
 
   it('renders effective weapon status for disabled and destroyed units', () => {
-    const state = {
+    const state = makeGameState({
       defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          status: 'disabled',
-          position: { q: 3, r: 7 },
-          weapons: [{ id: 'rifle', status: 'ready' }],
-        },
-        'wolf-1': {
-          id: 'wolf-1',
-          type: 'BigBadWolf',
-          status: 'destroyed',
-          position: { q: 2, r: 6 },
-          weapons: [{ id: 'main', status: 'ready' }],
-        },
+        'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', state: 'disabled', position: { q: 3, r: 7 }, weapons: [makeWeapon({ id: 'rifle', state: 'ready' })] }),
+        'wolf-1': makeDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', state: 'destroyed', position: { q: 2, r: 6 }, weapons: [makeWeapon({ id: 'main', state: 'ready' })] }),
       },
-    } as unknown as GameState
+    })
 
     const rendered = renderDefenders(state)
 
@@ -146,34 +97,20 @@ describe('renderOnion', () => {
   })
 
   it('renders disabled onion weapons as disabled', () => {
-    const state = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        status: 'disabled',
-        position: { q: 3, r: 6 },
-        treads: 33,
-        weapons: [{ id: 'main', status: 'ready' }],
-      },
+    const state = makeGameState({
+      onions: { 'onion-1': makeOnion({ state: 'disabled', position: { q: 3, r: 6 }, treads: 33, weapons: [makeWeapon({ id: 'main', state: 'ready' })] }) },
       defenders: {},
-    } as unknown as GameState
+    })
 
     const rendered = renderOnion(state)
     expect(rendered).toContain('weapons: 0:main:disabled')
   })
 
   it('renders destroyed onion weapons as n/a', () => {
-    const state = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        status: 'destroyed',
-        position: { q: 3, r: 6 },
-        treads: 0,
-        weapons: [{ id: 'main', status: 'ready' }],
-      },
+    const state = makeGameState({
+      onions: { 'onion-1': makeOnion({ state: 'destroyed', position: { q: 3, r: 6 }, treads: 0, weapons: [makeWeapon({ id: 'main', state: 'ready' })] }) },
       defenders: {},
-    } as unknown as GameState
+    })
 
     const rendered = renderOnion(state)
     expect(rendered).toContain('weapons: (n/a - unit destroyed)')
