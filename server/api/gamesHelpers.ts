@@ -11,7 +11,7 @@ import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenario
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { Command, EventEnvelope, GameState, SessionInitPayload, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
 import { getUnitDefinition, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
-import { parseCombatTargetId } from '#shared/combatTarget'
+import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import { getDefender, getOnionOrDefender } from '#shared/unitState'
 import type { StackNamingSourceUnit } from '#shared/stackNaming'
 import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
@@ -602,11 +602,15 @@ export function buildMoveEvents(
   }
 
   if (result.treadDamage !== undefined && result.treadDamage > 0) {
+    const treadTargetId = formatCombatTargetId({ onionId: canonicalMoveUnitId })
     events.push({
       seq: seq++,
       type: 'ONION_TREADS_LOST',
       timestamp,
       ...(phase === undefined ? {} : { phase }),
+      onionId: canonicalMoveUnitId,
+      targetId: treadTargetId,
+      targetFriendlyName: resolveTargetFriendlyName(state, treadTargetId),
       amount: result.treadDamage,
       remaining: onion?.treads,
     })

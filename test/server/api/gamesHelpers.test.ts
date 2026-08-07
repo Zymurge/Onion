@@ -141,6 +141,11 @@ describe('buildCombatEvents', () => {
     expect(events.find((event) => event.type === 'MOVE_RESOLVED')).toMatchObject({
       destroyedUnitIds: [],
     })
+    expect(events.find((event) => event.type === 'ONION_TREADS_LOST')).toMatchObject({
+      onionId: 'onion-1',
+      targetId: 'onion-1:treads',
+      targetFriendlyName: 'The Onion 1 treads',
+    })
     expect(events.some((event) => event.type === 'UNIT_STATUS_CHANGED')).toBe(false)
   })
 
