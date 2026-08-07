@@ -154,6 +154,34 @@ describe('normalizeInitialStateToGameState', () => {
     )
   })
 
+  it('rejects an onion type in a regular defender entry', () => {
+    const badState = {
+      ...validInitialState,
+      defenders: {
+        ...validInitialState.defenders,
+        bad: { type: 'TheOnion', position: { q: 1, r: 1 } },
+      },
+    }
+    const parsed = InitialStateSchema.parse(badState)
+    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unit type is not a defender')
+  })
+
+  it('rejects an onion type in a stack group entry', () => {
+    const badState = {
+      ...validInitialState,
+      defenders: {
+        'onion-group-1': {
+          kind: 'stack-group',
+          unitType: 'TheOnion',
+          position: { q: 1, r: 1 },
+          count: 2,
+        },
+      },
+    }
+    const parsed = InitialStateSchema.parse(badState as unknown as object)
+    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unit type is not a defender')
+  })
+
   it('expands authored Little Pigs stack groups into individual defenders with group membership metadata', () => {
     const groupedInitialState = {
       onions: validInitialState.onions,

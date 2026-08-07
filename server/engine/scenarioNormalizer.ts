@@ -77,6 +77,10 @@ export function normalizeInitialStateToGameState(initial: InitialState): GameSta
         throw new Error(`Unknown defender type: ${def.unitType}`)
       }
 
+      if (defenderDefinition.role !== 'defender') {
+        throw new Error(`Unit type is not a defender: ${def.unitType}`)
+      }
+
       const unitIds: string[] = []
       const unitIdBase = buildStackUnitIdBase(key)
       const nextOrdinal = nextStackUnitOrdinalByBase.get(unitIdBase) ?? 0
@@ -117,6 +121,10 @@ export function normalizeInitialStateToGameState(initial: InitialState): GameSta
     if (!defenderDefinition) {
       logger.error({ type: def.type, key }, 'normalizeInitialStateToGameState: unknown defender type')
       throw new Error(`Unknown defender type: ${def.type}`)
+    }
+
+    if (defenderDefinition.role !== 'defender') {
+      throw new Error(`Unit type is not a defender: ${def.type}`)
     }
 
     defenders[key] = {
