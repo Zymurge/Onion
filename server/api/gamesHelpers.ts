@@ -432,8 +432,8 @@ export function computeWinnerUserId(
       return match.players.onion
     }
 
-    const onion = Object.values(state.onions).find((candidate) => candidate.treads <= 0 || candidate.state === 'destroyed')
-    if (onion !== undefined) {
+    const onions = Object.values(state.onions)
+    if (onions.length > 0 && onions.every((candidate) => candidate.treads <= 0 || candidate.state === 'destroyed')) {
       return match.players.defender
     }
 
