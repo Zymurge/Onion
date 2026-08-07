@@ -243,6 +243,30 @@ function formatResolvedTargetId(target: CombatTarget): string {
   return target.id
 }
 
+function resolveDefenderTarget(
+  state: GameState,
+  targetId: string,
+): DefenderUnit | null {
+  const explicitTarget = state.defenders[targetId]
+  if (explicitTarget !== undefined) {
+    return explicitTarget
+  }
+
+  const group = state.stackRoster?.groupsById?.[targetId]
+  if (group === undefined) {
+    return null
+  }
+
+  for (const memberId of group.unitIds) {
+    const member = state.defenders[memberId]
+    if (member !== undefined && member.state !== 'destroyed') {
+      return member
+    }
+  }
+
+  return null
+}
+
 export function resolveCombatOutcome(
   target: GameUnit,
   result: CombatResult,
@@ -539,7 +563,7 @@ export function executeCombatAction(
       }
     }
 
-    const defender = state.defenders[plan.target.id]
+    const defender = resolveDefenderTarget(state, plan.target.id)
     if (!defender) {
       return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: formatResolvedTargetId(plan.target), error: 'Target not found' }
     }

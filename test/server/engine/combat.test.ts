@@ -625,5 +625,37 @@ describe('executeCombatAction', () => {
     expect(result.success).toBe(true)
     expect(result.destroyedWeaponId).toBe('main')
   })
-})
 
+  it('resolves a stack-group target to a canonical member unit', () => {
+    const d1 = makeDefender({ unitId: 'd1', typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] })
+    const d2 = makeDefender({ unitId: 'd2', typeId: 'LittlePigs', position: { q: 1, r: 0 }, state: 'destroyed', weapons: [] })
+    const state = makeState({
+      currentPhase: 'ONION_COMBAT',
+      defenders: { d1, d2 },
+      stackRoster: makeStackRoster({
+        groupsById: {
+          'LittlePigs:1,0': makeStackGroup({
+            position: { q: 1, r: 0 },
+            unitIds: ['d1', 'd2'],
+          }),
+        },
+      }),
+    })
+
+    const validation = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['main'],
+      targetId: 'LittlePigs:1,0',
+      onionId: 'onion-1',
+    })
+
+    expect(validation.ok).toBe(true)
+    if (!validation.ok) return
+
+    const result = executeCombatAction(state, validation.plan, 6)
+    expect(result.success).toBe(true)
+    expect(result.targetId).toBe('d1')
+    expect(state.defenders.d1.state).toBe('destroyed')
+    expect(state.defenders.d2.state).toBe('destroyed')
+  })
+})
