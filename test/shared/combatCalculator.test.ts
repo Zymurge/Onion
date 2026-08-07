@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { TerrainType } from '#shared/engineTypes'
-import { getAllUnitDefinitions } from '#shared/unitDefinitions'
+import { getUnitTypeCatalog } from '#shared/unitDefinitions'
 import {
 	createCombatCalculator,
 	type CombatCalculatorInput,
@@ -9,7 +9,7 @@ import {
 } from '#shared/combatCalculator'
 
 const staticRules = {
-	unitDefinitions: getAllUnitDefinitions(),
+	unitTypes: getUnitTypeCatalog(),
 	terrainRules: {
 		clear: { terrainType: 'clear' as TerrainType },
 		ridgeline: { terrainType: 'ridgeline' as TerrainType, defenseBonus: 1 },
@@ -20,12 +20,12 @@ const staticRules = {
 const calculator = createCombatCalculator(staticRules)
 
 const terrainAdeptRules = {
-	unitDefinitions: {
-		...getAllUnitDefinitions(),
+	unitTypes: {
+		...getUnitTypeCatalog(),
 		Puss: {
-			...getAllUnitDefinitions().Puss,
+			...getUnitTypeCatalog().Puss,
 			abilities: {
-				...getAllUnitDefinitions().Puss.abilities,
+				...getUnitTypeCatalog().Puss.abilities,
 				terrainRules: {
 					ridgeline: { canAccessCover: true },
 					clear: { canAccessCover: true },
@@ -56,8 +56,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss', friendlyName: 'Big Bad Wolf 1' },
-					'target-1': { type: 'Puss', friendlyName: 'Little Pigs 1' },
+					'attack-1': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 1' },
+					'target-1': { typeId: 'Puss', friendlyName: 'Little Pigs 1' },
 				},
 			},
 		}
@@ -74,9 +74,9 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss', friendlyName: 'Big Bad Wolf 1' },
-					'attack-2': { type: 'Puss', friendlyName: 'Big Bad Wolf 2' },
-					'target-1': { type: 'LittlePigs', friendlyName: 'Little Pigs 1', squads: 2, terrainType: 'ridgeline' },
+					'attack-1': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 1' },
+					'attack-2': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 2' },
+					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', squads: 2, terrainType: 'ridgeline' },
 				},
 			},
 		}
@@ -94,8 +94,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'LittlePigs', squads: 2 },
+					'attack-1': { typeId: 'Puss' },
+					'target-1': { typeId: 'LittlePigs', squads: 2 },
 				},
 			},
 		}
@@ -112,8 +112,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss', friendlyName: 'Big Bad Wolf 1' },
-					'target-1': { type: 'LittlePigs', friendlyName: 'Little Pigs 1', squads: 3, terrainType: 'ridgeline' },
+					'attack-1': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 1' },
+					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', squads: 3, terrainType: 'ridgeline' },
 				},
 			},
 		}
@@ -138,8 +138,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'Puss', terrainType: 'ridgeline' },
+					'attack-1': { typeId: 'Puss' },
+					'target-1': { typeId: 'Puss', terrainType: 'ridgeline' },
 				},
 			},
 		}
@@ -154,8 +154,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss', friendlyName: 'Big Bad Wolf 1' },
-					'target-1': { type: 'TheOnion', friendlyName: 'The Onion 1', weaponId: 'secondary_1' },
+					'attack-1': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 1' },
+					'target-1': { typeId: 'TheOnion', friendlyName: 'The Onion 1', weaponId: 'secondary_1' },
 				},
 			},
 		}
@@ -173,8 +173,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Dragon' },
-					'target-1': { type: 'Puss' },
+					'attack-1': { typeId: 'Dragon' },
+					'target-1': { typeId: 'Puss' },
 				},
 			},
 		}
@@ -193,23 +193,23 @@ describe('combatCalculator', () => {
 			combatState: {
 				units: {
 					'attack-1': {
-						type: 'Dragon',
+						typeId: 'Dragon',
 						weaponIds: ['main_1', 'main_2'],
 						weapons: [
-							{ id: 'main_1', name: 'A', attack: 1, range: 3, defense: 3, status: 'ready', individuallyTargetable: false },
-							{ id: 'main_2', name: 'B', attack: 2, range: 3, defense: 3, status: 'ready', individuallyTargetable: false },
+							{ id: 'main_1', typeId: 'Dragon.main_1', friendlyName: 'A', state: 'ready', ammo: 1 },
+							{ id: 'main_2', typeId: 'Dragon.main_2', friendlyName: 'B', state: 'ready', ammo: 1 },
 						],
 					},
-					'target-1': { type: 'Puss' },
+					'target-1': { typeId: 'Puss' },
 				},
 			},
 		}
 
 		const result = calculator.calculateResult(input)
 
-		expect(result.attackStrength).toBe(3)
+		expect(result.attackStrength).toBe(12)
 		expect(result.defenseStrength).toBe(3)
-		expect(result.odds).toBe('1:1')
+		expect(result.odds).toBe('4:1')
 	})
 
 	it('prefers live weapon state when resolving Onion subsystem defense', () => {
@@ -218,13 +218,13 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
+					'attack-1': { typeId: 'Puss' },
 					'target-1': {
-						type: 'TheOnion',
+						typeId: 'TheOnion',
 						weaponId: 'secondary_1',
 						weapons: [
-							{ id: 'main', name: 'Main Battery', attack: 4, range: 3, defense: 6, status: 'ready', individuallyTargetable: true },
-							{ id: 'secondary_1', name: 'Secondary Battery 1', attack: 3, range: 2, defense: 4, status: 'ready', individuallyTargetable: true },
+							{ id: 'main', typeId: 'TheOnion.main', friendlyName: 'Main Battery', state: 'ready', ammo: 1 },
+							{ id: 'secondary_1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Battery 1', state: 'ready', ammo: 1 },
 						],
 					},
 				},
@@ -234,7 +234,7 @@ describe('combatCalculator', () => {
 		const result = calculator.calculateResult(input)
 
 		expect(result.attackStrength).toBe(4)
-		expect(result.defenseStrength).toBe(4)
+		expect(result.defenseStrength).toBe(3)
 		expect(result.odds).toBe('1:1')
 	})
 
@@ -244,11 +244,11 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
+					'attack-1': { typeId: 'Puss' },
 					'target-1': {
-						type: 'TheOnion',
+						typeId: 'TheOnion',
 						weapons: [
-							{ id: 'main', name: 'Main Battery', attack: 4, range: 3, defense: 6, status: 'ready', individuallyTargetable: true },
+							{ id: 'main', typeId: 'TheOnion.main', friendlyName: 'Main Battery', state: 'ready', ammo: 1 },
 						],
 					},
 				},
@@ -268,8 +268,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'LittlePigs' },
+					'attack-1': { typeId: 'Puss' },
+					'target-1': { typeId: 'LittlePigs' },
 				},
 			},
 		}
@@ -283,8 +283,8 @@ describe('combatCalculator', () => {
 			targetId: 'target-1',
 			combatState: {
 				units: {
-					'attack-1': { type: 'Puss' },
-					'target-1': { type: 'Puss', terrainType: 'ridgeline' },
+					'attack-1': { typeId: 'Puss' },
+					'target-1': { typeId: 'Puss', terrainType: 'ridgeline' },
 				},
 			},
 		}

@@ -96,7 +96,8 @@ export function BattlefieldRightRail({
 }: BattlefieldRightRailProps) {
   void readyWeaponDetails
   const shouldShowCombatPanel = isCombatPhase && activeRole === activeCombatRole
-  const shouldShowInspectorPanel = !shouldShowCombatPanel && (selectedInspectorOnion !== null || selectedInspectorDefender !== null)
+  const shouldShowInspectorPanel = (selectedInspectorOnion !== null || selectedInspectorDefender !== null)
+    && (!shouldShowCombatPanel || selectedInspectorOnion !== null)
 
   function routeRightRailInteraction(request: InteractionRoutingRequest) {
     const decision = routeInteraction(request, (trace) => {
@@ -224,6 +225,9 @@ export function BattlefieldRightRail({
     combatTargetOptions,
     rightRailStackPanel,
   })
+  const canConfirmCombat = selectedCombatTarget !== null
+    && selectedCombatTarget.isDisabled !== true
+    && selectedCombatAttackStrength > 0
 
   const attackPlanningConfirmationProps = selectedCombatTarget !== null
     ? {
@@ -337,14 +341,14 @@ export function BattlefieldRightRail({
               const decision = routeRightRailControlAction({
                 surface: 'right-rail',
                 control: 'confirm-combat',
-                enabled: !isInteractionLocked,
+                enabled: !isInteractionLocked && canConfirmCombat,
               })
 
               if (decision.intent === 'confirm-combat') {
                 onConfirmCombat()
               }
             }}
-            isConfirmReady={selectedCombatTarget !== null && selectedCombatTarget.isDisabled !== true && selectedCombatAttackStrength > 0}
+            isConfirmReady={canConfirmCombat}
             isDisabled={isInteractionLocked}
             dataTestId="combat-confirmation-view"
           />

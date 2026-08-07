@@ -45,9 +45,21 @@ describe('POST /games/:id/actions MOVE', () => {
 				turnNumber: 1,
 				winner: null,
 				state: {
-					onion: { position: { q: 0, r: 10 }, treads: 45, missiles: 2, batteries: { main: 1, secondary: 4, ap: 8 } },
+					onions: {
+						'onion-1': {
+							unitId: 'onion-1',
+							typeId: 'TheOnion',
+							role: 'onion',
+							position: { q: 0, r: 10 },
+							state: 'operational',
+							friendlyName: 'The Onion 1',
+							treads: 45,
+							missiles: 2,
+							batteries: { main: 1, secondary: 4, ap: 8 },
+							weapons: [],
+						},
+					},
 					defenders: {},
-					ramsThisTurn: 0,
 				},
 				events: [],
 			}),
@@ -88,8 +100,8 @@ describe('POST /games/:id/actions MOVE', () => {
 		const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo] })
 		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
 		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any) => {
-			state.onion.position = moveTo
-			state.onion.treads = 0
+			state.onions['onion-1'].position = moveTo
+			state.onions['onion-1'].treads = 0
 			return { success: true, newPosition: moveTo }
 		}) as any)
 

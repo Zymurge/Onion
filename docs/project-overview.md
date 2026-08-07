@@ -32,26 +32,26 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
 
 - **Language**: Node.js with TypeScript.
 - **Framework**: Fastify.
-- **Rules Engine**: A functional core that processes player intents (e.g., `MoveUnit`, `FireWeapon`) by mutating `EngineGameState` in place. All engine functions (`executeOnionMovement`, `executeUnitFire`, `advancePhase`, etc.) take a state reference and modify it directly. Persistence is handled at the API layer, which snapshots the mutated state after each action.
+- **Rules Engine**: A functional core that processes player intents (e.g., `MoveUnit`, `FireWeapon`) by mutating shared `GameState` in place. All engine functions (`executeOnionMovement`, `executeUnitFire`, `advancePhase`, etc.) take a state reference and modify it directly. Persistence is handled at the API layer, which snapshots the mutated state after each action.
 - **Phase State Machine**: Turn phases advance in strict server-enforced order. Actions submitted out of phase are rejected with an error. The six phases per turn cycle:
 
   | # | Phase | Actor | Side-effects on entry |
   | :- | :--- | :--- | :--- |
-  | 1 | `ONION_MOVE` | Onion player | `turn++`; `ramsThisTurn = 0`; `disabled → recovering` |
+  | 1 | `ONION_MOVE` | Onion player | `turn++`; reset each Onion unit’s `ramsRemaining`; `disabled → recovering` |
   | 2 | `ONION_COMBAT` | Onion player | — |
   | 3 | `DEFENDER_RECOVERY` | Engine (auto) | `recovering → operational`; immediately advances to `DEFENDER_MOVE` |
   | 4 | `DEFENDER_MOVE` | Defender player | — |
   | 5 | `DEFENDER_COMBAT` | Defender player | — |
   | 6 | `GEV_SECOND_MOVE` | Defender player (Big Bad Wolf only) | — |
 
-  Phase transitions are handled by `advancePhase(state)` in `src/engine/phases.ts`. It mutates `EngineGameState` in place, applies any entry side-effects for the new phase, and auto-advances through engine-controlled phases (`DEFENDER_RECOVERY`) without waiting for player input.
+  Phase transitions are handled by `advancePhase(state)` in `src/engine/phases.ts`. It mutates `GameState` in place, applies any entry side-effects for the new phase, and auto-advances through engine-controlled phases (`DEFENDER_RECOVERY`) without waiting for player input.
 
-- **`EngineGameState`** (defined in `src/engine/units.ts`) is the engine's authoritative mutable game state. It contains:
-  - `onion: OnionUnit` — position, treads, weapon statuses
+- **`GameState`** is the engine's authoritative mutable game state. It contains:
+  - `onions: Record<string, OnionUnit>` — Onion units keyed by ID
   - `defenders: Record<string, DefenderUnit>` — all conventional units keyed by ID
   - `currentPhase: TurnPhase` — which phase is currently active
   - `turn: number` — current turn number (1-based; incremented on entry to `ONION_MOVE`)
-  - `ramsThisTurn: number` — how many times the Onion has rammed this turn (max 2; reset on entry to `ONION_MOVE`)
+  - `movementSpent` and `ramsRemaining` live on the individual unit records, not on the top-level state object
 
 - **Unit Disabled/Recovery flow**: Defender units hit by a "D" (Disabled) combat result are set to `status: 'disabled'`. The `UnitStatus` lifecycle is:
 

@@ -8,7 +8,8 @@ break down into features/tasks as needed.
 - [ ] Stacked unit management: UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions
   - [x] Render Little Pigs stack size directly inside the marker and keep yellow/inactive marker text dark for readability.
   - [x] Extract the shared stack naming engine into a standalone module that can track used group names and active groups.
-  - [ ] Implement the section 1b/1c stack-roster lifecycle rules as a standalone step: bundle groups and units into a dedicated state element, keep the persisted roster minimal, assign unique finalized stack names at end of movement, carry names forward correctly across splits and merges, never recycle stack names, and expose canonical member names plus finalized stack names to UI/messages and left-rail selection rows so member identity is preserved there.
+  - [x] Move per-unit movement spend onto the unit records themselves and reset it at phase boundaries.
+  - [ ] Code and regression coverage are complete; manual stack smoke testing is the remaining stop point before this epic can move to Done.
 
 ## Epics / Major Work
 
@@ -17,20 +18,34 @@ break down into features/tasks as needed.
 
 ## Features / Work Items
 
+- [ ] Complete scenario-driven unit deployment after the unit-catalog refactor.
+  - [ ] Define finite-ammunition metadata in global weapon definitions and an authored scenario override keyed by weapon type for starting ammunition; normalize it into dynamic weapon state without accepting unused ammo fields.
+  - [ ] Move faction/side assignment out of global unit definitions and into scenario deployment data so a scenario can assign supporting units to the Onion side.
+  - [ ] Rework the runtime unit maps and phase/combat assumptions around the special Onion vehicle versus a player side, then migrate scenario authoring and tests together.
+- [ ] Remove the redundant `movementRemainingByUnit` response projection after the unit-state refactor.
+  - [ ] Derive remaining movement client-side from each unit's `movementSpent`, the current phase, and the session catalog.
+  - [ ] Remove the field from HTTP/WebSocket payload types, adapters, API documentation, and regression fixtures once all consumers use the shared movement helper.
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
 - [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability.
   - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.
   - [ ] Replace tooltip-only detail exposure with explicit accessible disclosure patterns where details are important to gameplay comprehension.
   - [ ] Known issue: `InactiveEventStream` currently exposes event details only through the row `title` tooltip, which is not a sufficient keyboard/screen-reader interaction path.
-- [ ] Make Onion tread targeting a first-class explicit target across web, API, and server contracts instead of aliasing generic Onion targeting to treads.
-  - [ ] Preserve the existing special tread rules while making the target identity explicit: tread targeting still uses its special defense-strength logic, tread-damage resolution, and defender stack-limit rules.
-  - [ ] Current coupling is favorable but real: the web already carries a synthetic `onion-id:treads` identity through target selection and downstream UI state, then translates it back to the plain Onion id at submit time.
-  - [ ] Main migration risk is the cross-layer target contract, not the combat math. Server validation/execution already distinguishes tread vs weapon targets internally, but external request/event semantics still use generic Onion ids for tread attacks.
-  - [ ] Review and update all places that currently depend on the alias behavior: web target generation and selection state, combat submit helpers, API target parsing/validation, emitted combat events, friendly target naming, and inactive/combat result formatting.
-  - [ ] Expect the largest affected surface to be tests and integration fixtures. Favor a TDD migration because the change is likely to touch many expectations around target ids, target labels, multi-attacker tread restrictions, and emitted event payloads.
 
 ## Done
 
+- [x] Implement the section 1b/1c stack-roster lifecycle rules as a standalone step: bundle groups and units into a dedicated state element, keep the persisted roster minimal, assign unique finalized stack names at end of movement, carry names forward correctly across splits and merges, never recycle stack names, and expose canonical member names plus finalized stack names to UI/messages and left-rail selection rows so member identity is preserved there.
+- [x] Make Onion identity explicit throughout runtime events and combat
+  - [x] Collapse `getOnion` to one canonical signature that requires an explicit `unitId` and `GameState`; do not add a helper that guesses a single Onion from the state map.
+  - [x] Treat single-value Onion maps as valid state without introducing a separate genuinely-single-Onion invariant.
+  - [x] Ensure every event that involves the Onion carries the Onion instance identity as an attacker, target, or move object.
+  - [x] Update combat calls that currently receive only a weapon ID, whether as an attacker or target, so they also carry the owning Onion `unitId`.
+- [x] Make Onion tread targeting a first-class explicit target across web, API, and server contracts.
+  - [x] Add the shared parser and formatter for the canonical `onion-id:treads` target ID.
+  - [x] Require explicit tread target IDs in server validation and preserve them through execution results.
+  - [x] Emit canonical tread target IDs and friendly names in combat and tread-loss events.
+  - [x] Emit canonical tread target IDs from web target selection and commit builders.
+  - [x] Update focused unit, API, WebSocket, and integration coverage for the new contract.
+  - [x] Document the target ID and event semantics in the API, CLI, and web UI specifications.
 - [x] Connect debug screen to API output (next)
 - [x] Audit defense source of truth for units and weapons so defense is defined once in the unit/weapon model and only derived for effective combat situations.
 - [x] Reuse the left-rail step badge area to show the selected group's combined attack value while units are selected or deselected.

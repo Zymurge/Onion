@@ -1,16 +1,12 @@
-import type { TurnPhase } from './types/index.js'
+import type { GameState, TurnPhase, UnitStatus } from './types/index.js'
 import { onionMovementAllowance } from './movementAllowance.js'
-import { getAllUnitDefinitions } from './unitDefinitions.js'
+import { getUnitTypeCatalog } from './unitDefinitions.js'
 import { canUnitCrossRidgeline } from './movementRules.js'
 
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
+const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
 
 function getDefinition(unitType: string) {
-	return UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]
-}
-
-function movementSpentKey(phase: TurnPhase, unitId: string): string {
-	return `${phase}:${unitId}`
+	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]
 }
 
 export function canUnitCrossRidgelines(unitType: string): boolean {
@@ -51,34 +47,35 @@ export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, tre
 	return definition?.movement ?? 0
 }
 
-type MovementSpentState = {
-	movementSpent?: Record<string, number>
-}
-
-export function getUnitMovementSpent(state: MovementSpentState | null | undefined, phase: TurnPhase, unitId: string): number {
-	return state?.movementSpent?.[movementSpentKey(phase, unitId)] ?? 0
+export function getUnitMovementSpent(unit: Pick<UnitStatus, 'movementSpent'> | null | undefined, phase: TurnPhase): number {
+	return unit?.movementSpent?.[phase] ?? 0
 }
 
 export function getRemainingUnitMovementAllowance(
-	unitType: string,
+	unit: Pick<UnitStatus, 'typeId' | 'movementSpent'> & { treads?: number } | null | undefined,
 	phase: TurnPhase,
-	state: MovementSpentState | null | undefined,
-	unitId: string,
-	treads?: number,
 ): number {
-	return Math.max(getUnitMovementAllowance(unitType, phase, treads) - getUnitMovementSpent(state, phase, unitId), 0)
+	if (unit === null || unit === undefined) {
+		return 0
+	}
+
+	return Math.max(
+		getUnitMovementAllowance(unit.typeId, phase, unit.treads) - getUnitMovementSpent(unit, phase),
+		0,
+	)
 }
 
-export function spendUnitMovement(state: MovementSpentState, phase: TurnPhase, unitId: string, spent: number): void {
+export function spendUnitMovement(unit: UnitStatus, phase: TurnPhase, spent: number): void {
 	if (spent <= 0) {
 		return
 	}
 
-	state.movementSpent ??= {}
-	const key = movementSpentKey(phase, unitId)
-	state.movementSpent[key] = (state.movementSpent[key] ?? 0) + spent
+	unit.movementSpent ??= {}
+	unit.movementSpent[phase] = (unit.movementSpent[phase] ?? 0) + spent
 }
 
-export function resetMovementSpent(state: MovementSpentState): void {
-	state.movementSpent = {}
+export function resetMovementSpent(state: GameState): void {
+	for (const unit of [...Object.values(state.onions), ...Object.values(state.defenders)]) {
+		unit.movementSpent = {}
+	}
 }

@@ -46,6 +46,7 @@ type AppProps = {
 
 const idleSessionState: GameSessionViewState = {
   status: 'idle',
+  catalog: null,
   snapshot: null,
   session: null,
   liveConnection: 'idle',
@@ -320,6 +321,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     activeTurnActive: sessionTurnActive,
     clientSnapshot: sessionState.snapshot,
     clientSnapshotPhase: sessionPhase,
+    catalog: sessionState.catalog,
     isControlledSession: activeSessionBinding !== null,
     isInteractionLocked: inactiveEventControlsLocked,
     isSelectionLocked: inactiveEventScreenLocked,
@@ -482,6 +484,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     connectionStatus,
     displayedDefenders,
     displayedOnion,
+    displayedOnions,
     displayedScenarioMap,
     headerHasSnapshot,
     isCombatPhase,
@@ -613,7 +616,10 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     }
 
     const combatAction = buildCombatCommitAction({
-      state: clientSnapshot?.authoritativeState as Parameters<typeof buildCombatCommitAction>[0]['state'],
+      state: {
+        ...clientSnapshot?.authoritativeState,
+        catalog: sessionState.catalog ?? undefined,
+      } as Parameters<typeof buildCombatCommitAction>[0]['state'],
       anchorUnitId: activeCombatRole === 'defender' ? selectedInspectorUnitId : null,
       selectedUnitIds: selectedCombatAttackerIds,
       targetId: selectedCombatTarget.id,
@@ -627,7 +633,9 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
     if (!combatAction.ok) {
       setActionError(
-        combatAction.reason === 'snapshot-missing-stack-selection'
+        combatAction.reason === 'missing-onion'
+          ? 'Loaded game snapshot is missing the canonical Onion unit ID.'
+          : combatAction.reason === 'snapshot-missing-stack-selection'
           ? 'Loaded game snapshot is missing canonical stackRoster data for the selected unit.'
           : 'Unable to resolve combat from the current selection.',
       )
@@ -848,6 +856,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           activeSelectedUnitIds={activeSelectedUnitIds}
           displayedDefenders={displayedDefenders}
           displayedOnion={displayedOnion}
+          displayedOnions={displayedOnions}
           isCombatPhase={isCombatPhase}
           isMovementPhase={isMovementPhase}
           isSelectionLocked={inactiveEventScreenLocked}
@@ -857,17 +866,19 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           selectedCombatAttackLabel={selectedCombatAttackLabel}
           stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
           stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
+          catalog={sessionState.catalog ?? undefined}
           onSelectUnit={handleSelectUnit}
         />
 
-        {displayedScenarioMap && displayedOnion ? (
+        {displayedScenarioMap && displayedOnions.length > 0 ? (
           <BattlefieldStage
             activePhase={activePhase}
             activeTurnActive={activeTurnActive}
             defenders={displayedDefenders}
-            onion={displayedOnion}
+            onions={displayedOnions}
             stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
             stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
+            catalog={sessionState.catalog ?? undefined}
             scenarioMap={displayedScenarioMap}
             selectedCombatTargetId={selectedCombatTargetId}
             selectedUnitIds={activeSelectedUnitIds}

@@ -1,9 +1,11 @@
 import type {
 	WebSocketClientMessage,
-	WebSocketServerErrorMessage,
 	WebSocketServerEventMessage,
+	WebSocketServerMessage,
+	WebSocketServerSessionInitMessage,
 	WebSocketServerSnapshotMessage,
 } from '../../shared/websocketProtocol'
+import type { SessionInitPayload } from '../../shared/types/index.js'
 
 import type { LiveConnectionStatus, LiveEventSource, LiveSessionSignal } from './gameSessionTypes'
 
@@ -42,17 +44,29 @@ function buildWebSocketUrl(baseUrl: string, gameId: number, token?: string) {
 	return url.toString()
 }
 
-function isSnapshotMessage(message: WebSocketServerSnapshotMessage | WebSocketServerEventMessage | WebSocketServerErrorMessage): message is WebSocketServerSnapshotMessage {
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isSessionInitPayload(value: unknown): value is SessionInitPayload {
+	return isRecord(value) && isRecord(value.unitTypes) && isRecord(value.weaponTypes)
+}
+
+function isSessionInitMessage(message: WebSocketServerMessage): message is WebSocketServerSessionInitMessage {
+	return message.kind === 'SESSION_INIT' && isSessionInitPayload(message.payload)
+}
+
+function isSnapshotMessage(message: WebSocketServerMessage): message is WebSocketServerSnapshotMessage {
 	return message.kind === 'STATE_SNAPSHOT'
 }
 
-function isEventMessage(message: WebSocketServerSnapshotMessage | WebSocketServerEventMessage | WebSocketServerErrorMessage): message is WebSocketServerEventMessage {
+function isEventMessage(message: WebSocketServerMessage): message is WebSocketServerEventMessage {
 	return message.kind === 'EVENT'
 }
 
-function parseMessage(rawMessage: string): WebSocketServerSnapshotMessage | WebSocketServerEventMessage | WebSocketServerErrorMessage | null {
+function parseMessage(rawMessage: string): WebSocketServerMessage | null {
 	try {
-		const parsed = JSON.parse(rawMessage) as WebSocketServerSnapshotMessage | WebSocketServerEventMessage | WebSocketServerErrorMessage
+		const parsed = JSON.parse(rawMessage) as WebSocketServerMessage
 		if (typeof parsed === 'object' && parsed !== null && 'kind' in parsed) {
 			return parsed
 		}
@@ -149,6 +163,11 @@ export function createLiveEventSource(options: LiveEventSourceOptions): LiveEven
 
 				const parsed = parseMessage(event.data)
 				if (parsed === null) {
+					return
+				}
+
+				if (isSessionInitMessage(parsed)) {
+					emit({ kind: 'session-init', gameId, payload: parsed.payload })
 					return
 				}
 

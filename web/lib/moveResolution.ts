@@ -73,15 +73,22 @@ export function buildRamResolution(events: ReadonlyArray<MoveResolutionEvent>): 
 			const typedRamResult = ramResult as {
 				unitId?: unknown
 				unitFriendlyName?: unknown
+				effect?: unknown
+				roll?: unknown
+				treadCost?: unknown
 				outcome?: { effect?: unknown; roll?: unknown; treadCost?: unknown }
 			}
 			const unitId = typeof typedRamResult.unitId === 'string' ? typedRamResult.unitId : `rammed-${index}`
 			const unitFriendlyName = typeof typedRamResult.unitFriendlyName === 'string' && typedRamResult.unitFriendlyName.trim().length > 0
 				? typedRamResult.unitFriendlyName
 				: unitId
-			const effect = typeof typedRamResult.outcome?.effect === 'string' ? typedRamResult.outcome.effect : undefined
-			const roll = getNumber(typedRamResult.outcome?.roll)
-			const treadDamage = getNumber(typedRamResult.outcome?.treadCost)
+			const effect = typeof typedRamResult.effect === 'string'
+				? typedRamResult.effect
+				: typeof typedRamResult.outcome?.effect === 'string'
+					? typedRamResult.outcome.effect
+					: undefined
+			const roll = getNumber(typedRamResult.roll) ?? getNumber(typedRamResult.outcome?.roll)
+			const treadDamage = getNumber(typedRamResult.treadCost) ?? getNumber(typedRamResult.outcome?.treadCost)
 
 			return buildRamResolutionItem({
 				moveUnitId,

@@ -6,6 +6,10 @@ import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import { useBattlefieldInteractionState } from '#web/lib/useBattlefieldInteractionState'
 import type { GameSessionController } from '#web/lib/gameSessionTypes'
 import type { GameSnapshot } from '#web/lib/gameClient'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
+
+const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	return {
@@ -15,21 +19,27 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 		turnNumber: 3,
 		lastEventSeq: 10,
 		authoritativeState: {
-			onion: {
-				id: 'onion-1',
-				type: 'TheOnion',
-				position: { q: 0, r: 0 },
-				treads: 33,
-				status: 'operational',
-				weapons: [],
-				batteries: { main: 1, secondary: 0, ap: 0 },
+			onions: {
+				'onion-1': {
+					unitId: 'onion-1',
+					typeId: 'TheOnion',
+					role: 'onion',
+					friendlyName: 'The Onion 1',
+					state: 'operational',
+					position: { q: 0, r: 0 },
+					treads: 33,
+					weapons: [],
+					batteries: { main: 1, secondary: 0, ap: 0 },
+				},
 			},
 			defenders: {
 				'def-1': {
-					id: 'def-1',
-					type: 'Puss',
+					unitId: 'def-1',
+					typeId: 'Puss',
+					role: 'defender',
+					friendlyName: 'Puss 1',
+					state: 'operational',
 					position: { q: 0, r: 1 },
-					status: 'operational',
 					weapons: [],
 				},
 			},
@@ -73,19 +83,21 @@ function createGroupedDefenderSnapshot(options?: {
 }): GameSnapshot {
 	const defenders = {
 		'pigs-1': {
-			id: 'pigs-1',
-			type: 'LittlePigs',
+			unitId: 'pigs-1',
+			typeId: 'LittlePigs',
+			role: 'defender' as const,
 			position: { q: 1, r: 1 },
-			status: 'operational' as const,
+			state: 'operational' as const,
 			friendlyName: 'Little Pigs 1',
 			weapons: [],
 			squads: 1,
 		},
 		'pigs-2': {
-			id: 'pigs-2',
-			type: 'LittlePigs',
+			unitId: 'pigs-2',
+			typeId: 'LittlePigs',
+			role: 'defender' as const,
 			position: { q: 1, r: 1 },
-			status: 'operational' as const,
+			state: 'operational' as const,
 			friendlyName: 'Little Pigs 2',
 			weapons: [],
 			squads: 1,
@@ -110,14 +122,18 @@ function createGroupedDefenderSnapshot(options?: {
 	return createSnapshot({
 		phase: 'DEFENDER_MOVE',
 		authoritativeState: {
-			onion: {
-				id: 'onion-1',
-				type: 'TheOnion',
-				position: { q: 0, r: 0 },
-				treads: 33,
-				status: 'operational',
-				weapons: [],
-				batteries: { main: 1, secondary: 0, ap: 0 },
+			onions: {
+				'onion-1': {
+					unitId: 'onion-1',
+					typeId: 'TheOnion',
+					role: 'onion',
+					friendlyName: 'The Onion 1',
+					state: 'operational',
+					position: { q: 0, r: 0 },
+					treads: 33,
+					weapons: [],
+					batteries: { main: 1, secondary: 0, ap: 0 },
+					},
 			},
 			defenders,
 			ramsThisTurn: 0,
@@ -139,6 +155,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -184,6 +201,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -213,6 +231,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: false,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -244,6 +263,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -279,6 +299,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot(),
 				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -305,21 +326,27 @@ describe('useBattlefieldInteractionState', () => {
 			turnNumber: 3,
 			lastEventSeq: 10,
 			authoritativeState: {
-				onion: {
-					id: 'onion-1',
-					type: 'TheOnion',
-					position: { q: 0, r: 0 },
-					treads: 33,
-					status: 'operational',
-					weapons: [],
-					batteries: { main: 1, secondary: 0, ap: 0 },
+				onions: {
+					'onion-1': {
+						unitId: 'onion-1',
+						typeId: 'TheOnion',
+						role: 'onion',
+						friendlyName: 'The Onion 1',
+						state: 'operational',
+								position: { q: 0, r: 0 },
+								treads: 33,
+								weapons: [],
+								batteries: { main: 1, secondary: 0, ap: 0 },
+					},
 				},
 				defenders: {
 					'wolf-2': {
-						id: 'wolf-2',
-						type: 'BigBadWolf',
+						unitId: 'wolf-2',
+						typeId: 'BigBadWolf',
+						role: 'defender',
+						friendlyName: 'Big Bad Wolf 2',
+						state: 'operational',
 						position: { q: 1, r: 1 },
-						status: 'operational',
 						weapons: [],
 						squads: 2,
 					},
@@ -354,6 +381,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: snapshot,
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -385,6 +413,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot({ phase: 'DEFENDER_MOVE' }),
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: true,
 				isSelectionLocked: true,
@@ -420,6 +449,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createGroupedDefenderSnapshot({ includeStackRoster: false }),
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -440,6 +470,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createGroupedDefenderSnapshot({ includeStackRoster: false }),
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -469,6 +500,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createGroupedDefenderSnapshot(),
 				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -481,6 +513,36 @@ describe('useBattlefieldInteractionState', () => {
 
 		expect(result.current.actionError).toBeNull()
 		expect(result.current.selectedUnitIds).toEqual(['pigs-1', 'pigs-2'])
+	})
+
+	it('clears selections when the authoritative phase changes', async () => {
+		const controller = createController()
+		const initialSnapshot = createSnapshot({ phase: 'DEFENDER_MOVE' })
+		const { result, rerender } = renderHook(
+			({ snapshot, phase }: { snapshot: GameSnapshot; phase: GameSnapshot['phase'] }) => useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: snapshot,
+				clientSnapshotPhase: phase,
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+			{ initialProps: { snapshot: initialSnapshot, phase: initialSnapshot.phase } },
+		)
+
+		await act(async () => {
+			result.current.handleSelectUnit('def-1')
+		})
+		expect(result.current.selectedUnitIds).toEqual(['def-1'])
+
+		const nextSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT', lastEventSeq: 11 })
+		rerender({ snapshot: nextSnapshot, phase: nextSnapshot.phase })
+
+		await waitFor(() => {
+			expect(result.current.selectedUnitIds).toEqual([])
+		})
 	})
 
 	it('refreshes after a failed combat commit', async () => {
@@ -496,6 +558,7 @@ describe('useBattlefieldInteractionState', () => {
 				activeTurnActive: true,
 				clientSnapshot: createSnapshot({ phase: 'DEFENDER_COMBAT' }),
 				clientSnapshotPhase: 'DEFENDER_COMBAT',
+				catalog: sessionCatalog,
 				isControlledSession: true,
 				isInteractionLocked: false,
 				isSelectionLocked: false,
@@ -503,7 +566,7 @@ describe('useBattlefieldInteractionState', () => {
 		)
 
 		await act(async () => {
-			await result.current.commitClientAction({ type: 'FIRE', attackers: ['def-1'], targetId: 'onion-1' })
+			await result.current.commitClientAction({ type: 'FIRE', attackers: ['def-1'], targetId: 'onion-1', onionId: 'onion-1' })
 		})
 
 		expect(refresh).toHaveBeenCalledTimes(1)

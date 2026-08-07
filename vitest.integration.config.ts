@@ -6,6 +6,7 @@ export default defineConfig({
     alias: {
       '#server': fileURLToPath(new URL('./server', import.meta.url)),
       '#shared': fileURLToPath(new URL('./shared', import.meta.url)),
+      '#test/utils': fileURLToPath(new URL('./test/utils', import.meta.url)),
     },
   },
   test: {

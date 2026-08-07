@@ -1,6 +1,8 @@
-import type { TurnPhase } from '#shared/types/index'
-import type { EngineGameState } from '#server/engine/units'
+import type { GameState, TurnPhase } from '#shared/types/index'
+import { getUnitRamCapacity } from '#shared/unitMovement'
 import logger from '#server/logger'
+
+type EngineGameState = GameState
 
 function getWeaponTypeFromId(weaponId: string): 'main' | 'secondary' | 'ap' | 'missile' | null {
   if (weaponId === 'main') return 'main'
@@ -45,7 +47,7 @@ export function phaseActor(phase: TurnPhase): PhaseActor {
  * Advance to the next phase, running any maintenance side-effects.
  *
  * Maintenance applied:
- * - Entering ONION_MOVE: increment turn, reset ramsThisTurn, disabled→recovering
+ * - Entering ONION_MOVE: increment turn, reset Onion ram capacity, disabled→recovering
  * - Entering DEFENDER_RECOVERY: recovering→operational (engine auto-processes
  *   this phase, so it immediately continues to DEFENDER_MOVE)
  * @param state - Game state to mutate in place
@@ -55,22 +57,24 @@ export function advancePhase(state: EngineGameState): void {
 
   if (next === 'ONION_MOVE') {
     state.turn++
-    state.ramsThisTurn = 0
-    for (const weapon of state.onion.weapons) {
-      if (weapon.status === 'spent') {
-        const weaponType = getWeaponTypeFromId(weapon.id)
-        weapon.status = 'ready'
-        if (weaponType === 'missile') {
-          const onion = state.onion as EngineGameState['onion'] & { missiles?: number }
-          if (onion.missiles !== undefined) {
-            onion.missiles += 1
-          }
-        } else if (weaponType) {
-          const onion = state.onion as EngineGameState['onion'] & {
-            batteries?: { main: number; secondary: number; ap: number }
-          }
-          if (onion.batteries) {
-            onion.batteries[weaponType] = (onion.batteries[weaponType] ?? 0) + 1
+    for (const onion of Object.values(state.onions)) {
+      onion.ramsRemaining = getUnitRamCapacity(onion.typeId)
+      for (const weapon of onion.weapons) {
+        if (weapon.state === 'spent') {
+          const weaponType = getWeaponTypeFromId(weapon.typeId ?? weapon.id)
+          weapon.state = 'ready'
+          if (weaponType === 'missile') {
+            const missileOnion = onion as typeof onion & { missiles?: number }
+            if (missileOnion.missiles !== undefined) {
+              missileOnion.missiles += 1
+            }
+          } else if (weaponType) {
+            const batteryOnion = onion as typeof onion & {
+              batteries?: { main: number; secondary: number; ap: number }
+            }
+            if (batteryOnion.batteries) {
+              batteryOnion.batteries[weaponType] = (batteryOnion.batteries[weaponType] ?? 0) + 1
+            }
           }
         }
       }
@@ -79,18 +83,18 @@ export function advancePhase(state: EngineGameState): void {
     for (const unit of Object.values(state.defenders)) {
       if (unit.weapons) {
         for (const weapon of unit.weapons) {
-          if (weapon.status === 'spent') {
-            weapon.status = 'ready'
+          if (weapon.state === 'spent') {
+            weapon.state = 'ready'
           }
         }
       }
-      if (unit.status === 'disabled') unit.status = 'recovering'
+      if (unit.state === 'disabled') unit.state = 'recovering'
     }
   }
 
   if (next === 'DEFENDER_RECOVERY') {
     for (const unit of Object.values(state.defenders)) {
-      if (unit.status === 'recovering') unit.status = 'operational'
+      if (unit.state === 'recovering') unit.state = 'operational'
     }
   }
 
@@ -110,8 +114,9 @@ export function advancePhase(state: EngineGameState): void {
 export function checkVictoryConditions(
   state: EngineGameState,
 ): 'onion' | 'defender' | null {
-  // Defender wins by immobilizing the Onion (treads = 0) or destroying it
-  if (state.onion.treads <= 0 || state.onion.status === 'destroyed') {
+  // Defenders win only when every Onion is immobilized or destroyed.
+  const onions = Object.values(state.onions)
+  if (onions.length > 0 && onions.every((onion) => onion.treads <= 0 || onion.state === 'destroyed')) {
     return 'defender'
   }
 

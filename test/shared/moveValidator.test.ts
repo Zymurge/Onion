@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
+import { makeDefenderMap, makeGameState, makeOnion } from '#test/utils/gameStateUtils'
 
 const map = {
   width: 3,
@@ -20,39 +21,18 @@ const map = {
 }
 
 function makeState(overrides: Partial<MoveValidationState> = {}): MoveValidationState {
-  return {
-    onion: {
-      id: 'onion-1',
-      type: 'TheOnion',
-      position: { q: 2, r: 2 },
-      status: 'operational',
-      weapons: [],
-      treads: 45,
-      batteries: { main: 1, secondary: 4, ap: 8 },
+  return makeGameState({
+    onions: {
+      'onion-1': makeOnion({ position: { q: 2, r: 2 }, weapons: [] }),
     },
-    defenders: {
-      'puss-1': {
-        id: 'puss-1',
-        type: 'Puss',
-        position: { q: 0, r: 0 },
-        status: 'operational',
-        weapons: [],
-        squads: 1,
-      },
-      'pigs-1': {
-        id: 'pigs-1',
-        type: 'LittlePigs',
-        position: { q: 0, r: 0 },
-        status: 'operational',
-        weapons: [],
-        squads: 2,
-      },
-    },
-    ramsThisTurn: 0,
+    defenders: makeDefenderMap({
+      'puss-1': { position: { q: 0, r: 0 }, weapons: [] },
+      'pigs-1': { typeId: 'LittlePigs', position: { q: 0, r: 0 }, weapons: [] },
+    }),
     currentPhase: 'DEFENDER_MOVE',
     turn: 1,
     ...overrides,
-  }
+  })
 }
 
 function move(unitId: string, to: { q: number; r: number }, attemptRam?: boolean) {
@@ -86,56 +66,14 @@ describe('moveValidator', () => {
 
   it('reports stack-limit as an occupancy detail', () => {
     const state = makeState({
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 0, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 1,
-        },
-        'pigs-2': {
-          id: 'pigs-2',
-          type: 'LittlePigs',
-          position: { q: 1, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 1,
-        },
-        'pigs-3': {
-          id: 'pigs-3',
-          type: 'LittlePigs',
-          position: { q: 1, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 5,
-        },
-        'pigs-4': {
-          id: 'pigs-4',
-          type: 'LittlePigs',
-          position: { q: 1, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 7,
-        },
-        'pigs-5': {
-          id: 'pigs-5',
-          type: 'LittlePigs',
-          position: { q: 1, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 1,
-        },
-        'pigs-6': {
-          id: 'pigs-6',
-          type: 'LittlePigs',
-          position: { q: 1, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 2,
-        },
-      },
+      defenders: makeDefenderMap({
+        'pigs-1': { typeId: 'LittlePigs', position: { q: 0, r: 0 }, weapons: [] },
+        'pigs-2': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+        'pigs-3': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+        'pigs-4': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+        'pigs-5': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+        'pigs-6': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+      }),
     })
 
     const result = validateMove(map, state, move('pigs-1', { q: 1, r: 0 }))
@@ -149,23 +87,10 @@ describe('moveValidator', () => {
 
   it('reports mixed-stack as an occupancy detail', () => {
     const state = makeState({
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 0, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 2,
-        },
-        'wolf-1': {
-          id: 'wolf-1',
-          type: 'BigBadWolf',
-          position: { q: 1, r: 0 },
-          status: 'operational',
-          weapons: [],
-        },
-      },
+      defenders: makeDefenderMap({
+        'pigs-1': { typeId: 'LittlePigs', position: { q: 0, r: 0 }, weapons: [] },
+        'wolf-1': { typeId: 'BigBadWolf', position: { q: 1, r: 0 }, weapons: [] },
+      }),
     })
 
     const result = validateMove(map, state, move('pigs-1', { q: 1, r: 0 }))
@@ -179,24 +104,10 @@ describe('moveValidator', () => {
 
   it('ignores legacy squads magnitude when evaluating Little Pigs stack legality', () => {
     const state = makeState({
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 0, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 1,
-        },
-        'pigs-2': {
-          id: 'pigs-2',
-          type: 'LittlePigs',
-          position: { q: 1, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 99,
-        },
-      },
+      defenders: makeDefenderMap({
+        'pigs-1': { typeId: 'LittlePigs', position: { q: 0, r: 0 }, weapons: [] },
+        'pigs-2': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+      }),
     })
 
     const result = validateMove(map, state, move('pigs-1', { q: 1, r: 0 }))
@@ -210,14 +121,8 @@ describe('moveValidator', () => {
 
   it('reports occupied-by-onion as an occupancy detail', () => {
     const state = makeState({
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 1, r: 0 },
-        status: 'operational',
-        weapons: [],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
+      onions: {
+        'onion-1': makeOnion({ position: { q: 1, r: 0 }, weapons: [] }),
       },
     })
 
@@ -232,23 +137,10 @@ describe('moveValidator', () => {
 
   it('reports generic occupation when stacking is not allowed', () => {
     const state = makeState({
-      defenders: {
-        'puss-1': {
-          id: 'puss-1',
-          type: 'Puss',
-          position: { q: 0, r: 0 },
-          status: 'operational',
-          weapons: [],
-          squads: 1,
-        },
-        'wolf-1': {
-          id: 'wolf-1',
-          type: 'BigBadWolf',
-          position: { q: 1, r: 0 },
-          status: 'operational',
-          weapons: [],
-        },
-      },
+      defenders: makeDefenderMap({
+        'puss-1': { typeId: 'Puss', position: { q: 0, r: 0 }, weapons: [] },
+        'wolf-1': { typeId: 'BigBadWolf', position: { q: 1, r: 0 }, weapons: [] },
+      }),
     })
 
     const result = validateMove(map, state, move('puss-1', { q: 1, r: 0 }))

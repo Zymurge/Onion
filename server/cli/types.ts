@@ -19,7 +19,7 @@ export type CliCommand =
   | { kind: 'show'; target?: 'map' | 'state' | 'units' | 'onion' | 'defenders' | 'events' }
   | { kind: 'events'; after?: number }
   | { kind: 'move'; unitId: string; to: { q: number; r: number } }
-  | { kind: 'fire'; targetId: string; attackers: string[] }
+  | { kind: 'fire'; onionId: string; targetId: string; attackers: string[] }
   | { kind: 'end-phase' }
 
 export type ParseResult =

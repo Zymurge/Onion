@@ -8,7 +8,7 @@ import {
 } from './gameClient'
 import type { GameRequestTransport } from './gameSessionTypes'
 
-import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../shared/apiProtocol'
+	import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../shared/apiProtocol'
 import type { GameState, TurnPhase } from '../../shared/types/index'
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
@@ -86,7 +86,7 @@ function requireStackRoster(response: GameStateResponse) {
 
 		for (const unitId of group.unitIds) {
 			const defender = defenders[unitId]
-			if (defender === undefined || defender === null || typeof defender !== 'object' || typeof defender?.status !== 'string') {
+			if (defender === undefined || defender === null || typeof defender !== 'object' || typeof defender?.state !== 'string') {
 				throw new GameClientSeamError('transport', `Missing stack roster defender ${unitId} for ${groupId}`)
 			}
 		}
@@ -240,6 +240,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 						type: 'FIRE',
 						attackers: fireAction.attackers,
 						targetId: fireAction.targetId,
+						onionId: fireAction.onionId,
 					},
 					fetchImpl,
 				})

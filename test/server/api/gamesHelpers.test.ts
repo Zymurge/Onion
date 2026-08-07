@@ -1,86 +1,89 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
-import { buildCombatEvents, buildMoveEvents, buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gamesHelpers'
+import { buildCombatEvents, buildMoveEvents, buildSessionInitPayload, buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gamesHelpers'
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
 import { buildGameStateResponse } from '#server/api/gamesHelpers'
+import { DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
+
+let state: GameState = makeGameState()
+
+function makeGameStateWithUnits(): GameState {
+  return makeGameState({
+    onions: { 'onion-1': makeOnion() },
+    defenders: {
+      'pigs-1':  makeDefender({ unitId: 'pigs-1',  typeId: 'LittlePigs', position: { q: 1, r: 1 }, weapons: [] }),
+      'pigs-2':  makeDefender({ unitId: 'pigs-2',  typeId: 'LittlePigs', position: { q: 1, r: 1 }, weapons: [] }),
+      'swamp-1': makeDefender({ unitId: 'swamp-1', typeId: 'Swamp',      position: { q: 2, r: 2 }, weapons: [] }),
+    },
+    stackRoster: makeStackRoster({
+      groupsById: {
+        'LittlePigs:1,1': makeStackGroup({
+          position: { q: 1, r: 1 },
+          unitIds: ['pigs-1', 'pigs-2'],
+        }),
+      },
+    }),
+    stackNaming: {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 1'],
+    },
+  })
+}
+
+beforeEach(() => {
+  state = makeGameStateWithUnits()
+})
+
+describe('buildSessionInitPayload', () => {
+  it('returns static unit and weapon catalogs separately from game state', () => {
+    const payload = buildSessionInitPayload()
+
+    expect(payload).toEqual({
+      unitTypes: getUnitTypeCatalog(),
+      weaponTypes: getWeaponTypeCatalog(),
+    })
+    expect(payload).not.toHaveProperty('onions')
+    expect(payload).not.toHaveProperty('defenders')
+    expect(payload.unitTypes.TheOnion).not.toHaveProperty('state')
+    expect(payload.weaponTypes['TheOnion.main']).not.toHaveProperty('state')
+  })
+})
 
 describe('buildCombatEvents', () => {
-  it('derives friendly names from unit definitions when live state omits them', () => {
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 0, r: 0 },
-        status: 'operational',
-        weapons: [
-          { id: 'secondary_3', name: 'Secondary Battery', attack: 3, range: 2, defense: 3, status: 'ready', individuallyTargetable: true },
-        ],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 1, r: 1 },
-          status: 'operational',
-          weapons: [],
-        },
-      },
-    }
-
+  it('uses an explicit tread target identity and friendly label', () => {
     const events = buildCombatEvents(
       10,
-      { type: 'FIRE', attackers: ['secondary_3'], targetId: 'pigs-1' },
+      { type: 'FIRE', attackers: ['pigs-1'], targetId: 'onion-1:treads', onionId: 'onion-1' },
       {
-        targetId: 'pigs-1',
+        targetId: 'onion-1:treads',
         roll: { roll: 6, result: 'X', odds: '1:1' },
-        statusChanges: [{ unitId: 'pigs-1', from: 'operational', to: 'destroyed' }],
+        treadsLost: 2,
       },
       state,
     )
 
     expect(events[0]).toMatchObject({
       type: 'FIRE_RESOLVED',
-      attackerFriendlyNames: ['Secondary Battery 3'],
-      targetFriendlyName: 'Little Pigs 1',
+      targetId: 'onion-1:treads',
+      targetFriendlyName: 'The Onion 1 treads',
     })
     expect(events[1]).toMatchObject({
-      type: 'UNIT_STATUS_CHANGED',
-      unitFriendlyName: 'Little Pigs 1',
-      from: 'operational',
-      to: 'destroyed',
+      type: 'ONION_TREADS_LOST',
+      onionId: 'onion-1',
+      targetId: 'onion-1:treads',
+      targetFriendlyName: 'The Onion 1 treads',
+      amount: 2,
     })
   })
 
   it('uses the weapon friendly name for weapon targets', () => {
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 0, r: 0 },
-        status: 'operational',
-        weapons: [
-          { id: 'ap_1', name: 'AP Gun', attack: 1, range: 1, defense: 1, status: 'ready', individuallyTargetable: true },
-        ],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 1, r: 1 },
-          status: 'operational',
-          weapons: [],
-        },
-      },
-    }
-
     const events = buildCombatEvents(
       20,
-      { type: 'FIRE', attackers: ['pigs-1'], targetId: 'ap_1' },
+      { type: 'FIRE', attackers: ['pigs-1'], targetId: 'ap_1', onionId: 'onion-1' },
       {
         targetId: 'ap_1',
         roll: { roll: 1, result: 'NE', odds: '1:1' },
@@ -90,38 +93,12 @@ describe('buildCombatEvents', () => {
 
     expect(events[0]).toMatchObject({
       type: 'FIRE_RESOLVED',
-      attackerFriendlyNames: ['Little Pigs 1'],
+      attackerFriendlyNames: ['Little Pigs group 1'],
       targetFriendlyName: 'AP Gun 1',
     })
   })
 
-  it('uses the declared stack name for stacked Little Pigs move events', () => {
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 0, r: 0 },
-        status: 'operational',
-        weapons: [],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 1, r: 1 },
-          status: 'operational',
-          weapons: [],
-          squads: 3,
-        },
-      },
-      stackNaming: {
-        groupsInUse: [{ groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
-        usedGroupNames: ['Little Pigs group 1'],
-      },
-    }
-
+  it('uses the declared stack name for each stack member move event', () => {
     const events = buildMoveEvents(
       40,
       'pigs-1',
@@ -142,38 +119,64 @@ describe('buildCombatEvents', () => {
     })
   })
 
-  it('uses the declared stack name for stacked Little Pigs combat events', () => {
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 0, r: 0 },
-        status: 'operational',
-        weapons: [
-          { id: 'main', name: 'Main Gun', attack: 4, range: 3, defense: 4, status: 'ready', individuallyTargetable: true },
-        ],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
+  it('does not emit a destroyed status event for a survived ram outcome', () => {
+    const events = buildMoveEvents(
+      45,
+      'onion-1',
+      { type: 'MOVE', unitId: 'onion-1', to: { q: 2, r: 2 } },
+      {
+        success: true,
+        rammedUnitIds: ['puss-1'],
+        destroyedUnits: ['puss-1'],
+        rammedUnitResults: [{
+          unitId: 'puss-1',
+          unitType: 'Puss',
+          outcome: { effect: 'survived', roll: 6, treadCost: 1 },
+        }],
+        treadDamage: 1,
       },
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 1, r: 1 },
-          status: 'operational',
-          weapons: [],
-          squads: 3,
-        },
-      },
-      stackNaming: {
-        groupsInUse: [{ groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 7', unitType: 'LittlePigs' }],
-        usedGroupNames: ['Little Pigs group 7'],
-      },
-    }
+      state,
+    )
 
+    expect(events.find((event) => event.type === 'MOVE_RESOLVED')).toMatchObject({
+      destroyedUnitIds: [],
+    })
+    expect(events.find((event) => event.type === 'ONION_TREADS_LOST')).toMatchObject({
+      onionId: 'onion-1',
+      targetId: 'onion-1:treads',
+      targetFriendlyName: 'The Onion 1 treads',
+    })
+    expect(events.some((event) => event.type === 'UNIT_STATUS_CHANGED')).toBe(false)
+  })
+
+  it('recognizes any matching onion in the canonical onions map', () => {
+    state = makeGameState({
+      onions: {
+        'onion-1': makeOnion(),
+        'onion-2': makeOnion({ unitId: 'onion-2', friendlyName: 'The Onion 2', position: { q: 0, r: 1 } }),
+      },
+    })
+
+    const events = buildMoveEvents(
+      41,
+      'onion-2',
+      { type: 'MOVE', unitId: 'onion-2', to: { q: 0, r: 3 } },
+      { success: true, rammedUnitIds: [], destroyedUnits: [], treadDamage: 0 },
+      state,
+    )
+
+    expect(events[0]).toMatchObject({
+      type: 'ONION_MOVED',
+      unitFriendlyName: 'The Onion 2',
+    })
+    expect(events[0]).not.toHaveProperty('unitId')
+    expect(events[0]).toMatchObject({ onionId: 'onion-2' })
+  })
+
+  it('uses the declared stack name for stacked Little Pigs combat events', () => {
     const events = buildCombatEvents(
       50,
-      { type: 'FIRE', attackers: ['main'], targetId: 'pigs-1' },
+      { type: 'FIRE', attackers: ['main'], targetId: 'pigs-1', onionId: 'onion-1' },
       {
         targetId: 'pigs-1',
         roll: { roll: 6, result: 'X', odds: '1:1' },
@@ -184,87 +187,20 @@ describe('buildCombatEvents', () => {
 
     expect(events[0]).toMatchObject({
       type: 'FIRE_RESOLVED',
-      targetFriendlyName: 'Little Pigs group 7',
+      targetFriendlyName: 'Little Pigs group 1',
     })
     expect(events[1]).toMatchObject({
       type: 'UNIT_STATUS_CHANGED',
-      unitFriendlyName: 'Little Pigs group 7',
+      unitFriendlyName: 'Little Pigs group 1',
       from: 'operational',
       to: 'destroyed',
     })
   })
 
-  it('uses the persisted stack name when one is available', () => {
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 0, r: 0 },
-        status: 'operational',
-        weapons: [
-          { id: 'main', name: 'Main Gun', attack: 4, range: 3, defense: 4, status: 'ready', individuallyTargetable: true },
-        ],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 1, r: 1 },
-          status: 'operational',
-          weapons: [],
-          squads: 3,
-        },
-      },
-      stackNaming: {
-        groupsInUse: [{ groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 7', unitType: 'LittlePigs' }],
-        usedGroupNames: ['Little Pigs group 7'],
-      },
-    }
-
-    const events = buildCombatEvents(
-      51,
-      { type: 'FIRE', attackers: ['main'], targetId: 'pigs-1' },
-      {
-        targetId: 'pigs-1',
-        roll: { roll: 6, result: 'X', odds: '1:1' },
-        statusChanges: [{ unitId: 'pigs-1', from: 'operational', to: 'destroyed' }],
-      },
-      state,
-    )
-
-    expect(events[0]).toMatchObject({
-      type: 'FIRE_RESOLVED',
-      targetFriendlyName: 'Little Pigs group 7',
-    })
-  })
-
   it('includes unitFriendlyName on UNIT_SQUADS_LOST events', () => {
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 0, r: 0 },
-        status: 'operational',
-        weapons: [],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        'pigs-1': {
-          id: 'pigs-1',
-          type: 'LittlePigs',
-          position: { q: 1, r: 1 },
-          status: 'operational',
-          weapons: [],
-        },
-      },
-    }
-
     const events = buildCombatEvents(
       30,
-      { type: 'FIRE', attackers: ['onion-1'], targetId: 'pigs-1' },
+      { type: 'FIRE', attackers: ['onion-1'], targetId: 'pigs-1', onionId: 'onion-1' },
       {
         targetId: 'pigs-1',
         roll: { roll: 3, result: 'D', odds: '1:1' },
@@ -276,7 +212,7 @@ describe('buildCombatEvents', () => {
     expect(events[1]).toMatchObject({
       type: 'UNIT_SQUADS_LOST',
       unitId: 'pigs-1',
-      unitFriendlyName: 'Little Pigs 1',
+      unitFriendlyName: 'Little Pigs group 1',
       amount: 1,
     })
   })
@@ -303,27 +239,6 @@ describe('buildVictoryObjectiveStates', () => {
       hexes: [],
     })
 
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 2, r: 2 },
-        status: 'operational',
-        weapons: [],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        swamp: {
-          id: 'swamp',
-          type: 'Swamp',
-          position: { q: 0, r: 0 },
-          status: 'destroyed',
-          weapons: [],
-        },
-      },
-    }
-
     const objectives = buildVictoryObjectiveStates(scenarioSnapshot as any, scenarioMap, state, 2)
 
     expect(objectives).toEqual([
@@ -333,14 +248,14 @@ describe('buildVictoryObjectiveStates', () => {
         kind: 'destroy-unit',
         required: true,
         unitType: 'Swamp',
-        completed: true,
+        completed: false,
       },
       {
         id: 'escape-off-map',
         label: 'Escape off map',
         kind: 'escape-map',
         required: true,
-        completed: true,
+        completed: false,
       },
     ])
   })
@@ -365,27 +280,6 @@ describe('buildVictoryObjectiveStates', () => {
       hexes: [],
     })
 
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 2, r: 2 },
-        status: 'operational',
-        weapons: [],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        swamp: {
-          id: 'swamp',
-          type: 'Swamp',
-          position: { q: 0, r: 0 },
-          status: 'destroyed',
-          weapons: [],
-        },
-      },
-    }
-
     const objectives = buildVictoryObjectiveStates(scenarioSnapshot as any, scenarioMap, state, 1)
 
     expect(objectives).toEqual([
@@ -395,7 +289,7 @@ describe('buildVictoryObjectiveStates', () => {
         kind: 'destroy-unit',
         required: true,
         unitType: 'Swamp',
-        completed: true,
+        completed: false,
       },
       {
         id: 'escape-off-map',
@@ -433,26 +327,7 @@ describe('buildVictoryObjectiveStates', () => {
       events: [],
     }
 
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 1, r: 1 },
-        status: 'operational',
-        weapons: [],
-        treads: 45,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        swamp: {
-          id: 'swamp',
-          type: 'Swamp',
-          position: { q: 0, r: 0 },
-          status: 'destroyed',
-          weapons: [],
-        },
-      },
-    }
+    state.defenders['swamp-1'].state = 'destroyed'
 
     expect(computeWinnerUserId(match as any, state, 'ONION_MOVE', 1)).toBeNull()
   })
@@ -483,26 +358,8 @@ describe('buildVictoryObjectiveStates', () => {
       events: [],
     }
 
-    const state: GameState = {
-      onion: {
-        id: 'onion-1',
-        type: 'TheOnion',
-        position: { q: 1, r: 1 },
-        status: 'operational',
-        weapons: [],
-        treads: 0,
-        batteries: { main: 1, secondary: 4, ap: 8 },
-      },
-      defenders: {
-        swamp: {
-          id: 'swamp',
-          type: 'Swamp',
-          position: { q: 0, r: 0 },
-          status: 'operational',
-          weapons: [],
-        },
-      },
-    }
+    state.onions['onion-1'].treads = 0
+    state.defenders['swamp-1'].state = 'destroyed'
 
     expect(computeWinnerUserId(match as any, state, 'ONION_MOVE', 1)).toBe('defender-user')
   })
@@ -517,47 +374,7 @@ describe('buildVictoryObjectiveStates', () => {
         phase: 'DEFENDER_MOVE',
         turnNumber: 1,
         winner: null,
-        state: {
-          onion: {
-            id: 'onion-1',
-            type: 'TheOnion',
-            position: { q: 0, r: 0 },
-            status: 'operational',
-            treads: 45,
-            batteries: { main: 1, secondary: 1, ap: 1 },
-            weapons: [],
-          },
-          defenders: {
-            'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
-              position: { q: 4, r: 4 },
-              status: 'operational',
-              squads: 2,
-              friendlyName: 'Little Pigs 1',
-              weapons: [],
-            },
-            'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
-              position: { q: 4, r: 4 },
-              status: 'operational',
-              squads: 2,
-              friendlyName: 'Little Pigs 2',
-              weapons: [],
-            },
-          },
-          stackRoster: {
-            groupsById: {
-              'LittlePigs:4,4': {
-                groupName: 'Little Pigs group 1',
-                unitType: 'LittlePigs',
-                position: { q: 4, r: 4 },
-                unitIds: ['pigs-1', 'pigs-2'],
-              },
-            },
-          },
-        },
+        state: state,
         events: [],
       },
       'defender-1',
@@ -565,19 +382,19 @@ describe('buildVictoryObjectiveStates', () => {
 
     expect(response.state.stackRoster).toMatchObject({
       groupsById: {
-        'LittlePigs:4,4': {
+        'LittlePigs:1,1': {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
-          position: { q: 4, r: 4 },
+          position: { q: 1, r: 1 },
           unitIds: ['pigs-1', 'pigs-2'],
         },
       },
     })
 
-    expect(response.state.stackRoster?.groupsById['LittlePigs:4,4']).toMatchObject({
+    expect(response.state.stackRoster?.groupsById['LittlePigs:1,1']).toMatchObject({
       groupName: 'Little Pigs group 1',
       unitType: 'LittlePigs',
-      position: { q: 4, r: 4 },
+      position: { q: 1, r: 1 },
       unitIds: ['pigs-1', 'pigs-2'],
     })
   })
@@ -592,51 +409,13 @@ describe('buildVictoryObjectiveStates', () => {
         phase: 'DEFENDER_MOVE',
         turnNumber: 1,
         winner: null,
-        state: {
-          onion: {
-            id: 'onion-1',
-            type: 'TheOnion',
-            position: { q: 0, r: 0 },
-            status: 'operational',
-            treads: 45,
-            batteries: { main: 1, secondary: 1, ap: 1 },
-            weapons: [],
-          },
-          defenders: {
-            'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
-              position: { q: 4, r: 4 },
-              status: 'operational',
-              friendlyName: 'Little Pigs 1',
-              weapons: [],
-            },
-            'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
-              position: { q: 4, r: 4 },
-              status: 'operational',
-              friendlyName: 'Little Pigs 2',
-              weapons: [],
-            },
-          },
-          stackRoster: {
-            groupsById: {
-              'LittlePigs:4,4': {
-                groupName: 'Little Pigs group 1',
-                unitType: 'LittlePigs',
-                position: { q: 4, r: 4 },
-                unitIds: ['pigs-1', 'pigs-2'],
-              },
-            },
-          },
-        },
+        state: state,
         events: [],
       },
       'defender-1',
     )
 
-    const group = response.state.stackRoster?.groupsById['LittlePigs:4,4'] as unknown as { unitIds?: string[] }
+    const group = response.state.stackRoster?.groupsById['LittlePigs:1,1'] as unknown as { unitIds?: string[] }
     expect(group.unitIds).toEqual(['pigs-1', 'pigs-2'])
   })
 
@@ -650,37 +429,7 @@ describe('buildVictoryObjectiveStates', () => {
         phase: 'DEFENDER_MOVE',
         turnNumber: 1,
         winner: null,
-        state: {
-          onion: {
-            id: 'onion-1',
-            type: 'TheOnion',
-            position: { q: 0, r: 0 },
-            status: 'operational',
-            treads: 45,
-            batteries: { main: 1, secondary: 1, ap: 1 },
-            weapons: [],
-          },
-          defenders: {
-            'wolf-1': {
-              id: 'wolf-1',
-              type: 'BigBadWolf',
-              position: { q: 6, r: 6 },
-              status: 'operational',
-              friendlyName: 'Big Bad Wolf 1',
-              weapons: [],
-            },
-          },
-          stackRoster: {
-            groupsById: {
-              'BigBadWolf:6,6': {
-                groupName: 'Big Bad Wolf 1',
-                unitType: 'BigBadWolf',
-                position: { q: 6, r: 6 },
-                unitIds: ['wolf-1'],
-              },
-            },
-          },
-        },
+        state: state,
         events: [],
       },
       'defender-1',
@@ -690,6 +439,7 @@ describe('buildVictoryObjectiveStates', () => {
   })
 
   it('does not derive stackRoster from defender co-location when canonical stackRoster is absent', () => {
+    state.stackRoster = makeStackRoster({ groupsById: {} })
     expect(() => buildGameStateResponse(
       {
         gameId: 4,
@@ -699,35 +449,7 @@ describe('buildVictoryObjectiveStates', () => {
         phase: 'DEFENDER_MOVE',
         turnNumber: 1,
         winner: null,
-        state: {
-          onion: {
-            id: 'onion-1',
-            type: 'TheOnion',
-            position: { q: 0, r: 0 },
-            status: 'operational',
-            treads: 45,
-            batteries: { main: 1, secondary: 1, ap: 1 },
-            weapons: [],
-          },
-          defenders: {
-            'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
-              position: { q: 4, r: 4 },
-              status: 'operational',
-              friendlyName: 'Little Pigs 1',
-              weapons: [],
-            },
-            'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
-              position: { q: 4, r: 4 },
-              status: 'operational',
-              friendlyName: 'Little Pigs 2',
-              weapons: [],
-            },
-          },
-        },
+        state: state,
         events: [],
       } as any,
       'defender-1',
@@ -744,38 +466,7 @@ describe('buildVictoryObjectiveStates', () => {
         phase: 'DEFENDER_MOVE',
         turnNumber: 1,
         winner: null,
-        state: {
-          onion: {
-            id: 'onion-1',
-            type: 'TheOnion',
-            position: { q: 0, r: 0 },
-            status: 'operational',
-            treads: 45,
-            batteries: { main: 1, secondary: 1, ap: 1 },
-            weapons: [],
-          },
-          defenders: {
-            'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
-              position: { q: 4, r: 4 },
-              status: 'operational',
-              squads: 3,
-              friendlyName: 'Little Pigs 1',
-              weapons: [],
-            },
-          },
-          stackRoster: {
-            groupsById: {
-              'LittlePigs:4,4': {
-                groupName: 'Little Pigs group 1',
-                unitType: 'LittlePigs',
-                position: { q: 4, r: 4 },
-                unitIds: ['pigs-1'],
-              },
-            },
-          },
-        },
+        state: state,
         events: [],
       },
       'defender-1',
@@ -785,6 +476,16 @@ describe('buildVictoryObjectiveStates', () => {
   })
 
   it('throws when persisted stack group names disagree with canonical roster naming', () => {
+    state.stackNaming = {
+      groupsInUse: [
+        {
+          groupKey: 'LittlePigs:1,1',
+          groupName: '--CONFLICTING NAME---',
+          unitType: 'LittlePigs',
+        },
+      ],
+      usedGroupNames: ['--CONFLICTING NAME---'],
+    }
     expect(() => buildGameStateResponse(
       {
         gameId: 6,
@@ -794,59 +495,11 @@ describe('buildVictoryObjectiveStates', () => {
         phase: 'DEFENDER_MOVE',
         turnNumber: 1,
         winner: null,
-        state: {
-          onion: {
-            id: 'onion-1',
-            type: 'TheOnion',
-            position: { q: 0, r: 0 },
-            status: 'operational',
-            treads: 45,
-            batteries: { main: 1, secondary: 1, ap: 1 },
-            weapons: [],
-          },
-          defenders: {
-            'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
-              position: { q: 4, r: 4 },
-              status: 'operational',
-              squads: 2,
-              friendlyName: 'Little Pigs 1',
-              weapons: [],
-            },
-            'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
-              position: { q: 4, r: 4 },
-              status: 'operational',
-              squads: 2,
-              friendlyName: 'Little Pigs 2',
-              weapons: [],
-            },
-          },
-          stackRoster: {
-            groupsById: {
-              'LittlePigs:4,4': {
-                groupName: 'Little Pigs group 99',
-                unitType: 'LittlePigs',
-                position: { q: 4, r: 4 },
-                unitIds: ['pigs-1', 'pigs-2'],
-              },
-            },
-          },
-          stackNaming: {
-            groupsInUse: [
-              {
-                groupKey: 'LittlePigs:4,4',
-                groupName: '--CONFLICTING NAME---',
-              },
-            ],
-          },
-        },
+        state: state,
         events: [],
       } as any,
       'onion-user',
-    )).toThrow('Conflicting persisted stack group name for LittlePigs:4,4')
+    )).toThrow('Conflicting persisted stack group name for LittlePigs:1,1')
   })
 
   it('throws when a stackable defender is missing from all stack roster groups', () => {
@@ -862,7 +515,7 @@ describe('buildVictoryObjectiveStates', () => {
         state: {
           onion: {
             id: 'onion-1',
-            type: 'TheOnion',
+            type: DEFAULT_ONION_UNIT_TYPE_ID,
             position: { q: 0, r: 0 },
             status: 'operational',
             treads: 45,
@@ -871,43 +524,44 @@ describe('buildVictoryObjectiveStates', () => {
           },
           defenders: {
             'pigs-1': {
-              id: 'pigs-1',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-1',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 1',
               weapons: [],
             },
             'pigs-2': {
-              id: 'pigs-2',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-2',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 4 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 2',
               weapons: [],
             },
             'pigs-5': {
-              id: 'pigs-5',
-              type: 'LittlePigs',
+              role: "defender",
+              unitId: 'pigs-5',
+              typeId: 'LittlePigs',
               position: { q: 4, r: 8 },
-              status: 'operational',
+              state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 5',
               weapons: [],
             },
           },
-          stackRoster: {
+          stackRoster: makeStackRoster({
             groupsById: {
-              'LittlePigs:4,4': {
-                groupName: 'Little Pigs group 1',
-                unitType: 'LittlePigs',
+              'LittlePigs:4,4': makeStackGroup({
                 position: { q: 4, r: 4 },
                 unitIds: ['pigs-1', 'pigs-2'],
-              },
+              }),
             },
-          },
+          }),
         },
         events: [],
       } as any,

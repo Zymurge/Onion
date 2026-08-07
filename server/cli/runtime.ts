@@ -161,11 +161,12 @@ export function renderHelpText(topic?: string): string {
       case 'fire':
         return [
           'fire',
-          '  usage: fire <targetId> <attacker1> [attacker2 ...]',
-          '  targetId: defender unit id or onion/subsystem id depending on current combat phase',
+          '  usage: fire <onionId> <targetId> <attacker1> [attacker2 ...]',
+          '  onionId: explicit Onion unit id that owns the attack or target',
+          '  targetId: defender unit id or Onion/subsystem id depending on current combat phase',
           '  attacker: onion weapon id (main, secondary_1, ap_3, missile_1, ...) or defender unit id',
-          '  example (Onion): fire wolf-1 main secondary_1',
-          '  example (Defender): fire main wolf-1 puss-1',
+          '  example (Onion): fire onion-1 wolf-1 main secondary_1',
+          '  example (Defender): fire onion-1 onion-1 wolf-1 puss-1',
           '  submits a FIRE action',
         ].join('\n')
       case 'end-phase':
@@ -212,7 +213,7 @@ export function renderHelpText(topic?: string): string {
     '  show [map|state|units|onion|defenders|events]',
     '  events [after <seq>]',
     '  move <unitId> <q,r>',
-    '  fire <targetId> <attacker1> [attacker2 ...]',
+    '  fire <onionId> <targetId> <attacker1> [attacker2 ...]',
     '  end-phase',
     '  exit',
   ].join('\n')
@@ -450,7 +451,7 @@ export async function executeCommand(session: SessionStore, command: CliCommand)
       if (!session.gameId) {
         return { message: 'No game is loaded. Use: game load <gameId>' }
       }
-      const result = await submitAction(session, session.gameId, { type: 'FIRE', attackers: command.attackers, targetId: command.targetId })
+      const result = await submitAction(session, session.gameId, { type: 'FIRE', attackers: command.attackers, targetId: command.targetId, onionId: command.onionId })
       if (!result.ok) return { message: formatApiError(result) }
       session.gameState = result.data.state
       session.events = result.data.events

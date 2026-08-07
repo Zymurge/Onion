@@ -1,5 +1,5 @@
 import type { GameStateResponse } from './apiProtocol.js'
-import type { Command, EventEnvelope } from './types/index.js'
+import type { Command, EventEnvelope, SessionInitPayload } from './types/index.js'
 
 export type WebSocketClientCommandMessage = {
 	kind: 'COMMAND'
@@ -19,6 +19,11 @@ export type WebSocketServerEventMessage = {
 	event: EventEnvelope
 }
 
+export type WebSocketServerSessionInitMessage = {
+	kind: 'SESSION_INIT'
+	payload: SessionInitPayload
+}
+
 export type WebSocketServerSnapshotMessage = {
 	kind: 'STATE_SNAPSHOT'
 	snapshot: GameStateResponse
@@ -32,6 +37,7 @@ export type WebSocketServerErrorMessage = {
 }
 
 export type WebSocketServerMessage =
+	| WebSocketServerSessionInitMessage
 	| WebSocketServerEventMessage
 	| WebSocketServerSnapshotMessage
 	| WebSocketServerErrorMessage

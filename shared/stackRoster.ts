@@ -1,20 +1,24 @@
 import { buildStackGroupKey, createStackNamingEngine, refreshStackNamingSnapshotFromRoster, type StackNamingSnapshot, type StackNamingSourceUnit } from './stackNaming.js'
-import { getAllUnitDefinitions } from './unitDefinitions.js'
+import { getUnitTypeCatalog } from './unitDefinitions.js'
 import type { DefenderMap, HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from './types/index.js'
 
 export { buildStackGroupKey } from './stackNaming.js'
 
-const UNIT_DEFINITIONS = getAllUnitDefinitions()
+const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
+
+function getStaticSquadCount(unitType: string): number | undefined {
+	const definition = UNIT_TYPE_CATALOG[unitType]
+	return definition?.role === 'defender' ? definition.squads : undefined
+}
 
 type StackRosterSourceUnit = {
-	id: string
-	type: string
+	unitId: string
+	typeId: string
 	position: HexPos
-	status: StackRosterUnitState['status']
+	state: StackRosterUnitState['state']
 	friendlyName?: string
 	squads?: number
 	weapons?: StackRosterUnitState['weapons']
-	targetRules?: StackRosterUnitState['targetRules']
 }
 
 export type StackRosterValidationIssue = {
@@ -71,6 +75,7 @@ export type ReconcileStackRosterMoveLifecycleInput = {
 	stackNaming: StackNamingSnapshot | undefined
 	defenders: DefenderMap | undefined
 	movedUnitId: string
+	movedUnitIds?: ReadonlyArray<string>
 	unitType: string
 	destinationPosition: HexPos
 	movedUnitFriendlyName?: string
@@ -145,7 +150,7 @@ function normalizeStackRosterGroup(groupId: string, candidate: unknown): StackRo
 }
 
 function isStackRosterUnitType(unitType: string): boolean {
-	return UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.stackable === true
+	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]?.stackable === true
 }
 
 function resolveGroupUnitIds(group: StackRosterGroupState): string[] {
@@ -159,8 +164,13 @@ function buildDefenderLookup(defenders: DefenderMap | undefined): DefenderMap {
 	const lookup: Record<string, DefenderMap[string]> = {}
 	for (const [defenderKey, defender] of Object.entries(defenders ?? {})) {
 		lookup[defenderKey] = defender
-		if (defender !== null && typeof defender === 'object' && typeof (defender as any).id === 'string') {
-			lookup[(defender as any).id] = defender
+		if (defender !== null && typeof defender === 'object') {
+			if (typeof defender.unitId === 'string') {
+				lookup[defender.unitId] = defender
+			}
+			if (typeof (defender as any).id === 'string') {
+				lookup[(defender as any).id] = defender
+			}
 		}
 	}
 	return lookup as DefenderMap
@@ -180,17 +190,17 @@ export function buildStackRosterNamingSourceUnits(
 				throw new Error(`Missing defender for grouped unit ${unitId}`)
 			}
 
-			if (unit === null || typeof unit !== 'object' || typeof unit.status !== 'string') {
+				if (unit === null || typeof unit !== 'object' || typeof unit.state !== 'string') {
 				throw new Error(`Invalid stack roster unit shape for ${group.groupName}`)
 			}
 
 			sourceUnits.push({
-				id: unit.id ?? unitId,
-				type: group.unitType,
+				unitId: unit.unitId,
+				typeId: group.unitType,
 				position: group.position,
-				status: unit.status,
+				state: unit.state,
 				friendlyName: unit.friendlyName,
-				squads: unit.squads,
+				squads: getStaticSquadCount(group.unitType),
 			})
 		}
 	}
@@ -222,19 +232,19 @@ function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>)
 	const groupedUnits = new Map<string, StackRosterGroupBuilder>()
 
 	for (const unit of units) {
-		if (!isStackRosterUnitType(unit.type)) {
+		if (!isStackRosterUnitType(unit.typeId)) {
 			continue
 		}
 
-		const groupId = buildStackGroupKey(unit.type, unit.position)
+		const groupId = buildStackGroupKey(unit.typeId, unit.position)
 		const existingGroup = groupedUnits.get(groupId)
 		const nextUnitIds = existingGroup?.unitIds ?? []
 		groupedUnits.set(groupId, {
 			groupId,
-			groupName: existingGroup?.groupName ?? unit.friendlyName ?? unit.type,
-			unitType: unit.type,
+			groupName: existingGroup?.groupName ?? unit.friendlyName ?? unit.typeId,
+			unitType: unit.typeId,
 			position: unit.position,
-			unitIds: [...nextUnitIds, unit.id],
+			unitIds: [...nextUnitIds, unit.unitId],
 		})
 	}
 
@@ -331,27 +341,26 @@ export function buildStackRosterIndex(
 			if (
 				unit === null || 
 				typeof unit !== 'object' || 
-				typeof unit.status !== 'string' ||
-				typeof unit.id !== 'string'
+				typeof unit.state !== 'string' ||
+				typeof unit.unitId !== 'string'
 			) {
 				throw new Error(`Invalid stack roster unit shape for ${groupId}`)
 			}
 
 			const unitView: StackRosterUnitView = {
-				id: unit.id ?? unitId,
-				status: unit.status,
+				unitId: unit.unitId,
+				state: unit.state,
 				friendlyName: unit.friendlyName,
 				weapons: unit.weapons,
-				targetRules: unit.targetRules,
-				squads: unit.squads,
+				squads: getStaticSquadCount(normalizedGroup.unitType),
 				groupId,
 				groupKey,
 				unitType: normalizedGroup.unitType,
 				position: normalizedGroup.position,
 			}
 
-			derivedUnitsById[unit.id] = unitView
-			groupIdsByUnitId.set(unit.id, groupId)
+			derivedUnitsById[unit.unitId] = unitView
+			groupIdsByUnitId.set(unit.unitId, groupId)
 			return unitView
 		})
 
@@ -423,10 +432,10 @@ export function validateStackRosterConsistency(
 				continue
 			}
 
-			if (defender.type !== group.unitType) {
+			if (defender.typeId !== group.unitType) {
 				issues.push({
 					code: 'GROUP_MEMBER_TYPE_MISMATCH',
-					message: `Group ${groupId} expects ${group.unitType} but ${unitId} is ${defender.type}`,
+					message: `Group ${groupId} expects ${group.unitType} but ${unitId} is ${defender.typeId}`,
 					groupId,
 					unitId,
 				})
@@ -444,9 +453,9 @@ export function validateStackRosterConsistency(
 	}
 
 	for (const [defenderKey, defender] of Object.entries(defenders ?? {})) {
-		const defenderId = defender.id ?? defenderKey
+		const defenderId = defender.unitId ?? defenderKey
 
-		if (!isStackRosterUnitType(defender.type)) {
+		if (!isStackRosterUnitType(defender.typeId)) {
 			continue
 		}
 
@@ -456,7 +465,7 @@ export function validateStackRosterConsistency(
 
 		issues.push({
 			code: 'STACKABLE_DEFENDER_MISSING_GROUP',
-			message: `Defender ${defenderId} with stackable type ${defender.type} is missing from stack roster groups`,
+			message: `Defender ${defenderId} with stackable type ${defender.typeId} is missing from stack roster groups`,
 			groupId: defenderId,
 			unitId: defenderId,
 		})
@@ -704,22 +713,27 @@ function pruneBareGroupNames(snapshot: StackNamingSnapshot): StackNamingSnapshot
 
 export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMoveLifecycleInput): ReconcileStackRosterMoveLifecycleResult {
 	const rosterIndex = buildStackRosterIndex(input.stackRoster, input.defenders)
+	const movedUnitIds = [...new Set(input.movedUnitIds ?? [input.movedUnitId])]
+	const movedUnitIdSet = new Set(movedUnitIds)
 	const sourceGroup = rosterIndex.getUnitGroup(input.movedUnitId)
 	const destinationGroupId = buildStackGroupKey(input.unitType, input.destinationPosition)
 	const destinationGroup = rosterIndex.groupsById[destinationGroupId] ?? null
 	const sourceGroupUnitCount = sourceGroup?.unitIds?.length ?? sourceGroup?.units?.length ?? 0
-	const sourceRemainingUnitCount = Math.max(sourceGroupUnitCount - 1, 0)
+	const sourceRemainingUnitCount = sourceGroup?.unitIds.filter((unitId) => !movedUnitIdSet.has(unitId)).length ?? 0
 	const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? 0
-	const destinationResultUnitCount = destinationGroupUnitCount + 1
+	const destinationResultUnitCount = destinationGroupUnitCount + movedUnitIds.length
 	const isStackableDestination = isStackRosterUnitType(input.unitType)
 	const persistedDestinationName = input.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+	const movesWholeSourceGroup = sourceGroup !== null
+		&& sourceGroup.unitIds.length > 0
+		&& sourceGroup.unitIds.every((unitId) => movedUnitIdSet.has(unitId))
 
 	const namingEngine = createStackNamingEngine(input.stackNaming)
-	if (sourceGroup !== null && sourceGroupUnitCount > 1 && !/\sgroup\s+\d+$/i.test(sourceGroup.groupName)) {
+	if (!movesWholeSourceGroup && sourceGroup !== null && sourceGroupUnitCount > 1 && !/\sgroup\s+\d+$/i.test(sourceGroup.groupName)) {
 		namingEngine.resolveGroupName(
 			`${sourceGroup.groupKey}:source-reserve`,
 			sourceGroup.unitType,
-			sourceGroup.units?.[0]?.id ?? input.movedUnitId,
+			sourceGroup.units?.[0]?.unitId ?? input.movedUnitId,
 			undefined,
 			sourceGroupUnitCount,
 		)
@@ -734,6 +748,7 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 			|| sourceGroup?.groupName !== destinationGroup.groupName
 			|| sourceRemainingUnitCount > 1
 		)
+		&& !movesWholeSourceGroup
 
 	const allocatedDestinationName = shouldAllocateFreshDestinationName
 		? namingEngine.resolveGroupName(
@@ -760,12 +775,12 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 	const destinationGroupName = input.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
 		?? allocatedDestinationName
 		?? destinationGroup?.groupName
-		?? sourceGroup?.groupName
+		?? (movesWholeSourceGroup ? sourceGroup?.groupName : undefined)
 		?? input.movedUnitFriendlyName
 		?? input.unitType
 
 	const stackRoster = relocateStackRosterUnits(input.stackRoster, {
-		movedUnitIds: [input.movedUnitId],
+		movedUnitIds,
 		unitType: input.unitType,
 		destinationPosition: input.destinationPosition,
 		destinationGroupName,

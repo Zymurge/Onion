@@ -1,6 +1,6 @@
 # Client/Server State Boundary Refactor Plan
 
-**Status:** Proposed
+**Status:** Active; target-ID migration complete, manual QA pending
 **Date:** 2026-04-25
 **Branch:** `feature/stacking-refactor`
 
@@ -10,7 +10,10 @@ Re-establish a hard architectural boundary between backend-authoritative game st
 
 This plan treats the backend as the authority for all committed game-state changes and treats the browser as the owner of only transient per-user interaction state, transport/sync state, and pure derived view models.
 
-This document is transient planning guidance. Once the migration lands, permanent docs such as the web UI and architecture docs must be updated and this plan can be retired.
+This document is transient planning guidance. The explicit combat target-ID
+boundary is complete; the broader state-boundary implementation is also in
+place, but the remaining manual QA and documentation consolidation are still
+tracked below until the surrounding architecture documentation is finalized.
 
 ## Decision Summary
 
@@ -307,6 +310,7 @@ The sequence below is intended to be handed to agents one step at a time. Each s
 - Step 5 completed: commit translation now runs through explicit builders.
 - Step 6 completed: App shell now composes session, interaction, and display layers without inline action construction.
 - Step 7 completed: add and harden reload/reconnect regression coverage.
+- Combat target contract completed: Onion tread targets use the canonical `onion-id:treads` identity across web selection, submitted commands, server resolution, and emitted events. Bare Onion IDs are not tread aliases.
 
 ## Snapshot Deprecation Policy
 

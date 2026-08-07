@@ -48,6 +48,37 @@ describe('buildRamResolution', () => {
 		])
 	})
 
+	it('reads the flattened ram result shape emitted by the server', () => {
+		expect(
+			buildRamResolution([
+				{
+					type: 'MOVE_RESOLVED',
+					unitId: 'onion-1',
+					rammedUnitResults: [
+						{
+							unitId: 'wolf-2',
+							unitFriendlyName: 'Big Bad Wolf 2',
+							unitType: 'BigBadWolf',
+							effect: 'destroyed',
+							roll: 2,
+							treadCost: 1,
+						},
+					],
+				},
+			]),
+		).toEqual([
+			{
+				actionType: 'MOVE',
+				unitId: 'onion-1',
+				rammedUnitId: 'wolf-2',
+				rammedUnitFriendlyName: 'Big Bad Wolf 2',
+				destroyedUnitId: 'wolf-2',
+				treadDamage: 1,
+				details: ['Target: Big Bad Wolf 2', 'Result: destroyed', 'Roll: 2', 'Tread loss: 1'],
+			},
+		])
+	})
+
 	it('falls back to aggregate rammed unit ids when per-target results are absent', () => {
 		expect(
 			buildRamResolution([

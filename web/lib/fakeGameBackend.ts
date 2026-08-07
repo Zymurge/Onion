@@ -4,6 +4,8 @@ import type {
   LiveSessionSignal,
 } from './gameSessionTypes'
 import type { GameAction, GameSessionContext, ServerGameSnapshot } from './gameClient'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '../../shared/unitDefinitions'
+import type { SessionInitPayload } from '../../shared/types/index'
 
 /**
  * Fake backend for deterministic controller and app tests.
@@ -20,10 +22,15 @@ import type { GameAction, GameSessionContext, ServerGameSnapshot } from './gameC
 export function createFakeGameBackend(options: {
   initialSnapshot: ServerGameSnapshot
   session: GameSessionContext
+  catalog?: SessionInitPayload
 }) {
   // Internal state
   let currentSnapshot = options.initialSnapshot
   let currentSession: GameSessionContext = options.session
+  const catalog = options.catalog ?? {
+    unitTypes: getUnitTypeCatalog(),
+    weaponTypes: getWeaponTypeCatalog(),
+  }
   let refreshQueue: Array<{ snapshot: ServerGameSnapshot; session: GameSessionContext }> = []
   let failNextRefresh: Error | null = null
   let submittedActions: Array<{ gameId: number; action: GameAction }> = []
@@ -71,6 +78,7 @@ export function createFakeGameBackend(options: {
     connect(gameId: number) {
       connectionStatus = 'connecting'
       emitSignal({ kind: 'connection', gameId, status: 'connecting' })
+      emitSignal({ kind: 'session-init', gameId, payload: catalog })
       setTimeout(() => {
         connectionStatus = 'connected'
         emitSignal({ kind: 'connection', gameId, status: 'connected' })

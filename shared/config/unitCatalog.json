@@ -1,0 +1,136 @@
+{
+  "unitTypes": {
+    "Puss": {
+      "role": "defender",
+      "name": "Puss",
+      "friendlyNameTemplate": "Puss {{ordinal}}",
+      "movement": 3,
+      "defense": 3,
+      "cost": 1,
+      "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "weaponTypeIds": ["Puss.main"]
+    },
+    "BigBadWolf": {
+      "role": "defender",
+      "name": "Big Bad Wolf",
+      "friendlyNameTemplate": "Big Bad Wolf {{ordinal}}",
+      "movement": 4,
+      "defense": 4,
+      "cost": 1,
+      "abilities": { "maxStacks": 1, "isArmor": true, "secondMove": true, "secondMoveAllowance": 3, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "weaponTypeIds": ["BigBadWolf.main"]
+    },
+    "Witch": {
+      "role": "defender",
+      "name": "Witch",
+      "friendlyNameTemplate": "Witch {{ordinal}}",
+      "movement": 2,
+      "defense": 2,
+      "cost": 1,
+      "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "weaponTypeIds": ["Witch.main"]
+    },
+    "LordFarquaad": {
+      "role": "defender",
+      "name": "Lord Farquaad",
+      "friendlyNameTemplate": "Lord Farquaad {{ordinal}}",
+      "movement": 0,
+      "defense": 0,
+      "cost": 2,
+      "abilities": { "maxStacks": 1, "immobile": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "weaponTypeIds": ["LordFarquaad.main"]
+    },
+    "Pinocchio": {
+      "role": "defender",
+      "name": "Pinocchio",
+      "friendlyNameTemplate": "Pinocchio {{ordinal}}",
+      "movement": 2,
+      "defense": 3,
+      "cost": 0.5,
+      "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "weaponTypeIds": ["Pinocchio.main"]
+    },
+    "Dragon": {
+      "role": "defender",
+      "name": "Dragon",
+      "friendlyNameTemplate": "Dragon {{ordinal}}",
+      "movement": 5,
+      "defense": 3,
+      "cost": 2,
+      "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 2, "destroyOnRollAtMost": 4 } },
+      "weaponTypeIds": ["Dragon.main_1", "Dragon.main_2"]
+    },
+    "LittlePigs": {
+      "role": "defender",
+      "name": "Little Pigs",
+      "friendlyNameTemplate": "Little Pigs {{ordinal}}",
+      "movement": 1,
+      "defense": 1,
+      "cost": 1,
+      "abilities": { "maxStacks": 5, "ramProfile": { "treadLoss": 0, "destroyOnRollAtMost": 4 }, "terrainRules": { "ridgeline": { "canCross": true, "canAccessCover": true } } },
+      "weaponTypeIds": ["LittlePigs.rifle"]
+    },
+    "Swamp": {
+      "role": "defender",
+      "name": "The Swamp",
+      "friendlyNameTemplate": "The Swamp",
+      "movement": 0,
+      "defense": 0,
+      "abilities": { "maxStacks": 1, "immobile": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "weaponTypeIds": []
+    },
+    "TheOnion": {
+      "role": "onion",
+      "name": "The Onion",
+      "friendlyNameTemplate": "The Onion {{ordinal}}",
+      "movement": 3,
+      "defense": 0,
+      "treads": 45,
+      "treadsPerMove": 15,
+      "ramsPerTurn": 2,
+      "abilities": { "maxStacks": 1, "canRam": true, "ramCapacity": 2, "terrainRules": { "ridgeline": { "canCross": true } } },
+      "weaponTypeIds": [
+        "TheOnion.main",
+        "TheOnion.secondary_1",
+        "TheOnion.secondary_2",
+        "TheOnion.secondary_3",
+        "TheOnion.secondary_4",
+        "TheOnion.ap_1",
+        "TheOnion.ap_2",
+        "TheOnion.ap_3",
+        "TheOnion.ap_4",
+        "TheOnion.ap_5",
+        "TheOnion.ap_6",
+        "TheOnion.ap_7",
+        "TheOnion.ap_8",
+        "TheOnion.missile_1",
+        "TheOnion.missile_2"
+      ]
+    }
+  },
+  "weaponTypes": {
+    "Puss.main": { "name": "Main Gun", "weaponClass": "main", "attack": 4, "range": 2, "defense": 3, "individuallyTargetable": false },
+    "BigBadWolf.main": { "name": "Cannon", "weaponClass": "main", "attack": 2, "range": 2, "defense": 4, "individuallyTargetable": false },
+    "Witch.main": { "name": "Missile Launcher", "weaponClass": "main", "attack": 3, "range": 4, "defense": 2, "individuallyTargetable": false },
+    "LordFarquaad.main": { "name": "Howitzer", "weaponClass": "main", "attack": 6, "range": 8, "defense": 0, "individuallyTargetable": false },
+    "Pinocchio.main": { "name": "Light Gun", "weaponClass": "main", "attack": 2, "range": 2, "defense": 3, "individuallyTargetable": false },
+    "Dragon.main_1": { "name": "Heavy Gun A", "weaponClass": "main", "attack": 6, "range": 3, "defense": 3, "individuallyTargetable": false },
+    "Dragon.main_2": { "name": "Heavy Gun B", "weaponClass": "main", "attack": 6, "range": 3, "defense": 3, "individuallyTargetable": false },
+    "LittlePigs.rifle": { "name": "Rifle", "weaponClass": "main", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": false },
+    "TheOnion.main": { "name": "Main Battery", "weaponClass": "main", "attack": 4, "range": 3, "defense": 4, "individuallyTargetable": true, "friendlyNameTemplate": "Main Battery" },
+    "TheOnion.secondary_1": { "name": "Secondary Battery", "weaponClass": "secondary", "attack": 3, "range": 2, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Secondary Battery {{ordinal}}" },
+    "TheOnion.secondary_2": { "name": "Secondary Battery", "weaponClass": "secondary", "attack": 3, "range": 2, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Secondary Battery {{ordinal}}" },
+    "TheOnion.secondary_3": { "name": "Secondary Battery", "weaponClass": "secondary", "attack": 3, "range": 2, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Secondary Battery {{ordinal}}" },
+    "TheOnion.secondary_4": { "name": "Secondary Battery", "weaponClass": "secondary", "attack": 3, "range": 2, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Secondary Battery {{ordinal}}" },
+    "TheOnion.ap_1": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
+    "TheOnion.ap_2": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
+    "TheOnion.ap_3": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
+    "TheOnion.ap_4": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
+    "TheOnion.ap_5": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
+    "TheOnion.ap_6": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
+    "TheOnion.ap_7": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
+    "TheOnion.ap_8": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
+    "TheOnion.missile_1": { "name": "Missile", "weaponClass": "missile", "attack": 6, "range": 5, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Missile {{ordinal}}" },
+    "TheOnion.missile_2": { "name": "Missile", "weaponClass": "missile", "attack": 6, "range": 5, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Missile {{ordinal}}" }
+  }
+}

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { renderMap } from '../../../../server/cli/render/map.js'
 import type { GameState } from '../../../../shared/types/index.js'
 import type { ScenarioDetail } from '../../../../server/cli/api/client.js'
+import { makeGameState, makeOnion } from '../../../utils/gameStateUtils.js'
 
 describe('renderMap', () => {
   it('renders unavailable if no state or scenario', () => {
@@ -17,10 +18,10 @@ describe('renderMap', () => {
       description: '',
       map: { width: 1, height: 1, terrain: { '0,0': 1 } },
     } as any
-    const state: GameState = {
-      onion: { position: { q: 0, r: 0 }, treads: 1 },
+    const state: GameState = makeGameState({
+      onions: { 'onion-1': makeOnion({ position: { q: 0, r: 0 }, treads: 1 }) },
       defenders: {},
-    } as any
+    })
     expect(renderMap(state, scenario)).toContain('Map')
   })
 })
