@@ -43,7 +43,7 @@ export const DefenderEntrySchema = z.union([
 export const DefendersRecordSchema = z.record(z.string(), DefenderEntrySchema)
 
 export const InitialStateSchema = z.object({
-  onions: z.record(z.string().min(1), OnionSchema),
+  onions: z.record(z.string().min(1), OnionSchema).refine((onions) => Object.keys(onions).length > 0, 'At least one Onion is required'),
   defenders: DefendersRecordSchema,
 }).strict()
 
