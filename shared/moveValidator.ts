@@ -161,7 +161,7 @@ function collectRammedUnits(state: MoveValidationState, path: HexPos[], movingUn
 			if (defender.state === 'destroyed') continue
 			if (defender.position.q !== position.q || defender.position.r !== position.r) continue
 
-			const targetKey = `${defender.position.q},${defender.position.r}:${defender.typeId}`
+			const targetKey = defender.unitId
 			if (seenTargets.has(targetKey)) continue
 			seenTargets.add(targetKey)
 
