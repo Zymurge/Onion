@@ -72,11 +72,11 @@ function buildMoveMapSnapshot(snapshot: ServerGameSnapshot, movingUnitId: string
     return null
   }
 
-  const onion = getAuthoritativeOnion(authoritativeState)
+  const onion = authoritativeState.onions[movingUnitId] ?? getAuthoritativeOnion(authoritativeState)
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
-    ...(onion.unitId !== movingUnitId && onion.state !== 'destroyed'
-      ? [{ q: onion.position.q, r: onion.position.r, role: 'onion' as const, unitType: onion.typeId, squads: 1 }]
-      : []),
+    ...Object.values(authoritativeState.onions)
+      .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'onion' as const, unitType: unit.typeId, squads: 1 })),
     ...Object.values(authoritativeState.defenders)
       .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
       .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.typeId, squads: (unit as typeof unit & { squads?: number }).squads })),
@@ -100,7 +100,7 @@ function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to:
     return null
   }
 
-  const onion = getAuthoritativeOnion(snapshot.authoritativeState)
+  const onion = snapshot.authoritativeState.onions[unitId] ?? getAuthoritativeOnion(snapshot.authoritativeState)
   if (unitId !== onion.unitId || onion.state !== 'operational') {
     return null
   }
@@ -399,10 +399,10 @@ export function useBattlefieldInteractionState({
 
     const authoritativeState = clientSnapshot?.authoritativeState
     const selectionOwnerUnitId = resolveSelectionOwnerUnitId(unitId)
-    const authoritativeOnion = authoritativeState === undefined ? null : getAuthoritativeOnion(authoritativeState)
+    const authoritativeOnion = authoritativeState === undefined ? null : authoritativeState.onions[selectionOwnerUnitId]
     const destroyedUnit = authoritativeState === undefined
       ? false
-      : selectionOwnerUnitId === authoritativeOnion?.unitId
+      : authoritativeOnion?.unitId === selectionOwnerUnitId
         ? authoritativeOnion.state === 'destroyed'
         : (() => {
           const defender = authoritativeState.defenders[selectionOwnerUnitId]
@@ -417,7 +417,7 @@ export function useBattlefieldInteractionState({
     const preserveCombatSelection =
       clientSnapshotPhase === 'ONION_COMBAT' &&
       !additive &&
-      selectionOwnerUnitId !== authoritativeOnion?.unitId &&
+      authoritativeOnion?.unitId !== selectionOwnerUnitId &&
       authoritativeState?.defenders[selectionOwnerUnitId] !== undefined &&
       baseSelection.some(isWeaponSelectionId)
 

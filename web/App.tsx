@@ -484,6 +484,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     connectionStatus,
     displayedDefenders,
     displayedOnion,
+    displayedOnions,
     displayedScenarioMap,
     headerHasSnapshot,
     isCombatPhase,
@@ -855,6 +856,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           activeSelectedUnitIds={activeSelectedUnitIds}
           displayedDefenders={displayedDefenders}
           displayedOnion={displayedOnion}
+          displayedOnions={displayedOnions}
           isCombatPhase={isCombatPhase}
           isMovementPhase={isMovementPhase}
           isSelectionLocked={inactiveEventScreenLocked}
@@ -868,12 +870,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onSelectUnit={handleSelectUnit}
         />
 
-        {displayedScenarioMap && displayedOnion ? (
+        {displayedScenarioMap && displayedOnions.length > 0 ? (
           <BattlefieldStage
             activePhase={activePhase}
             activeTurnActive={activeTurnActive}
             defenders={displayedDefenders}
-            onion={displayedOnion}
+            onions={displayedOnions}
             stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
             stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
             catalog={sessionState.catalog ?? undefined}

@@ -33,6 +33,7 @@ type BattlefieldLeftRailProps = {
   activeSelectedUnitIds: string[]
   displayedDefenders: ReadonlyArray<BattlefieldUnit>
   displayedOnion: BattlefieldOnionView | null
+  displayedOnions?: ReadonlyArray<BattlefieldOnionView>
   isCombatPhase: boolean
   isMovementPhase: boolean
   isSelectionLocked: boolean
@@ -362,6 +363,7 @@ export function BattlefieldLeftRail({
   activeSelectedUnitIds,
   displayedDefenders,
   displayedOnion,
+  displayedOnions = displayedOnion === null ? [] : [displayedOnion],
   isCombatPhase,
   isMovementPhase,
   isSelectionLocked,
@@ -647,14 +649,15 @@ export function BattlefieldLeftRail({
                 <p className="eyebrow">Onion</p>
               </div>
             </div>
-            {displayedOnion ? (
+            {displayedOnions.length > 0 ? displayedOnions.map((onion) => (
               <button
+                key={onion.id}
                 type="button"
-                className={`onion-card-button ${activeSelectedUnitIds.includes(displayedOnion.id) ? 'is-selected' : ''}`}
-                aria-pressed={activeSelectedUnitIds.includes(displayedOnion.id)}
+                className={`onion-card-button ${activeSelectedUnitIds.includes(onion.id) ? 'is-selected' : ''}`}
+                aria-pressed={activeSelectedUnitIds.includes(onion.id)}
                 disabled={isSelectionLocked}
-                data-selected={activeSelectedUnitIds.includes(displayedOnion.id)}
-                data-testid={`combat-unit-${displayedOnion.id}`}
+                data-selected={activeSelectedUnitIds.includes(onion.id)}
+                data-testid={`combat-unit-${onion.id}`}
                 onClick={(event) => {
                   if (isSelectionLocked) {
                     event.preventDefault()
@@ -679,25 +682,25 @@ export function BattlefieldLeftRail({
                         targetEligible: false,
                       },
                     },
-                    displayedOnion.id,
+                    onion.id,
                     event.ctrlKey || event.metaKey,
                   )
                 }}
               >
-                <h3>{resolveBattlefieldUnitName(displayedOnion.type, displayedOnion.id, displayedOnion.friendlyName)}</h3>
+                <h3>{resolveBattlefieldUnitName(onion.type, onion.id, onion.friendlyName)}</h3>
                 <div className="unit-summary">
                   <div className="summary-line">
-                    <span>Treads <strong>{displayedOnion.treads}</strong></span>
-                    <span>Moves <strong>{displayedOnion.movesRemaining}</strong></span>
-                    <span>Rams remaining <strong>{displayedOnion.rams}</strong></span>
+                    <span>Treads <strong>{onion.treads}</strong></span>
+                    <span>Moves <strong>{onion.movesRemaining}</strong></span>
+                    <span>Rams remaining <strong>{onion.rams}</strong></span>
                   </div>
                   <div className="summary-line">
-                    <span>Weapons <strong>{onionWeapons.operationalWeapons}</strong></span>
-                    <span>Missiles <strong>{onionWeapons.operationalMissiles}</strong></span>
+                    <span>Weapons <strong>{parseWeaponStats(onion.weapons).operationalWeapons}</strong></span>
+                    <span>Missiles <strong>{parseWeaponStats(onion.weapons).operationalMissiles}</strong></span>
                   </div>
                 </div>
               </button>
-            ) : (
+            )) : (
               <p className="summary-line">Waiting for battlefield data.</p>
             )}
           </section>

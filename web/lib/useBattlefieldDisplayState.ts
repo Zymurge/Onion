@@ -4,7 +4,7 @@ import {
   buildCombatRangeSources,
   buildWebStackSourceState,
   buildLiveDefenders,
-  buildLiveOnion,
+  buildLiveOnions,
   buildScenarioMap,
   countSelectedBattlefieldStackGroups,
   formatLiveConnectionStatus,
@@ -177,7 +177,9 @@ export function useBattlefieldDisplayState({
       scenarioMap: scenarioMapSnapshot,
       movementRemainingByUnit: movementRemainingSnapshot,
     } as ServerGameSnapshot, activePhase, activeTurnActive, catalog ?? undefined)
-    const displayedOnion = clientSnapshot === null || hasValidationError ? null : buildLiveOnion(clientSnapshot, activePhase, catalog ?? undefined)
+    const displayedOnions = clientSnapshot === null || hasValidationError ? [] : buildLiveOnions(clientSnapshot, activePhase, catalog ?? undefined)
+    const selectedOnionId = activeSelectedUnitIds.map(resolveSelectionOwnerUnitId).find((unitId) => displayedOnions.some((onion) => onion.id === unitId))
+    const displayedOnion = displayedOnions.find((onion) => onion.id === selectedOnionId) ?? displayedOnions[0] ?? null
     const stackNaming = hasValidationError ? null : authoritativeState?.stackNaming ?? null
     const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
     const readyWeaponDetails = displayedOnion?.weaponDetails?.filter(isBattlefieldWeaponReady) ?? []
@@ -251,6 +253,7 @@ export function useBattlefieldDisplayState({
         activeSelectedUnitIds: selectedCombatSelectionIds,
         displayedDefenders,
         displayedOnion,
+        displayedOnions,
       })
     const rightRailStackPanel: RightRailStackPanelViewModel = {
       isVisible: rightRailStackSelection.selectedStackMembers.length > 1 && !(isCombatPhase && activeCombatRole === 'defender'),

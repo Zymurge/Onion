@@ -710,19 +710,24 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
 }
 
 export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, catalog?: SessionCatalog): BattlefieldOnionView {
+  return buildLiveOnions(snapshot, activePhase, catalog)[0] ?? (() => {
+    throw new Error('Missing authoritative onion')
+  })()
+}
+
+export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, catalog?: SessionCatalog): BattlefieldOnionView[] {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
     throw new Error('Missing authoritative state')
   }
 
-  const onion = getAuthoritativeOnion(authoritativeState)
-
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
-  const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance(onion.typeId, activePhase, onion.treads)
-  const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.unitId] ?? movesAllowed
-
-  return buildBattlefieldOnionView(onion, { movesAllowed, movesRemaining, catalog })
+  return Object.values(authoritativeState.onions).map((onion) => {
+    const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance(onion.typeId, activePhase, onion.treads)
+    const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.unitId] ?? movesAllowed
+    return buildBattlefieldOnionView(onion, { movesAllowed, movesRemaining, catalog })
+  })
 }
 
 export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex> } | null {
