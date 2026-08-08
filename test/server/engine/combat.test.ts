@@ -40,6 +40,7 @@ import type { GameState } from '#shared/types/index'
 import { getOnion } from '#shared/unitState'
 import { DEFAULT_ONION_UNIT_TYPE_ID } from '#shared/unitDefinitions'
 import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster, makeWeapon } from '#test/utils/gameStateUtils'
+import { createRollQueue } from '#test/utils/rollQueue'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -602,6 +603,29 @@ describe('executeCombatAction', () => {
       expect.objectContaining({ plan: expect.any(Object) }),
       expect.stringContaining('Executing combat action')
     )
+  })
+
+  it('drives sequential fire resolutions from a declared roll queue, in order', () => {
+    const d1 = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
+    const d2 = makeDefender({ unitId: 'd2', position: { q: 0, r: 1 } })
+    const state = makeState({ currentPhase: 'DEFENDER_COMBAT', defenders: { d1, d2 } })
+    const rolls = createRollQueue([6, 3])
+
+    const fire = (attackerId: string) => {
+      const validation = validateCombatAction(CLEAR_MAP, state, {
+        type: 'FIRE',
+        attackers: [attackerId],
+        targetId: 'onion-1:treads',
+        onionId: 'onion-1',
+      })
+      expect(validation.ok).toBe(true)
+      if (!validation.ok) throw new Error('unreachable')
+      return executeCombatAction(state, validation.plan, rolls.next())
+    }
+
+    expect(fire('d1').roll?.roll).toBe(6)
+    expect(fire('d2').roll?.roll).toBe(3)
+    expect(rolls.remaining).toBe(0)
   })
 
   it('reports destroyed subsystem for multi-attacker fire against an Onion weapon', () => {

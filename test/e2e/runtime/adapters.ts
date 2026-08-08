@@ -1,7 +1,15 @@
 import { promises as fs } from 'node:fs'
 import { dirname } from 'node:path'
 import { Pool } from 'pg'
-import type { DatabaseProbe, DescriptorStore, HttpProbe, PortAllocator, RuntimeDescriptor } from './types.js'
+import type {
+	ArtifactCleanupDatabase,
+	ArtifactCleanupDatabaseFactory,
+	DatabaseProbe,
+	DescriptorStore,
+	HttpProbe,
+	PortAllocator,
+	RuntimeDescriptor,
+} from './types.js'
 import { RUNTIME_DESCRIPTOR_VERSION } from './types.js'
 
 export class HttpProbeImpl implements HttpProbe {
@@ -54,6 +62,24 @@ export class DatabaseProbeImpl implements DatabaseProbe {
 			await pool.query('SELECT 1')
 		} finally {
 			await pool.end()
+		}
+	}
+}
+
+/** Deletes only the rows a run registered; matches go first so game_state/game_events cascade before users are freed. */
+export class PostgresArtifactCleanupDatabaseFactory implements ArtifactCleanupDatabaseFactory {
+	create(databaseUrl: string): ArtifactCleanupDatabase {
+		const pool = new Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 2_000 })
+		return {
+			async deleteMatches(gameIds: number[]): Promise<void> {
+				await pool.query('DELETE FROM matches WHERE id = ANY($1::int[])', [gameIds])
+			},
+			async deleteUsers(userIds: string[]): Promise<void> {
+				await pool.query('DELETE FROM users WHERE id = ANY($1::uuid[])', [userIds])
+			},
+			async close(): Promise<void> {
+				await pool.end()
+			},
 		}
 	}
 }

@@ -41,12 +41,6 @@ export type RuntimeDescriptor = {
 	artifactFile: string
 }
 
-/** Test data created by a run, tracked so cleanup never deletes unrelated rows. */
-export type E2EArtifacts = {
-	gameIds: number[]
-	userIds: string[]
-}
-
 export type StoppableResource = {
 	ownership: RuntimeOwnership
 	stop?: () => Promise<void>
@@ -69,6 +63,16 @@ export interface HttpProbe {
 export interface DatabaseProbe {
 	/** Resolves when the connection string accepts a trivial query. */
 	check(databaseUrl: string): Promise<void>
+}
+
+export interface ArtifactCleanupDatabase {
+	deleteMatches(gameIds: number[]): Promise<void>
+	deleteUsers(userIds: string[]): Promise<void>
+	close(): Promise<void>
+}
+
+export interface ArtifactCleanupDatabaseFactory {
+	create(databaseUrl: string): ArtifactCleanupDatabase
 }
 
 export interface ProcessHandle {
@@ -113,4 +117,5 @@ export type RuntimeAdapters = {
 	databaseContainer: DatabaseContainerLauncher
 	descriptors: DescriptorStore
 	ports: PortAllocator
+	artifactCleanup: ArtifactCleanupDatabaseFactory
 }

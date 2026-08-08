@@ -5,32 +5,28 @@ import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
 import { buildGameStateResponse } from '#server/api/gamesHelpers'
 import { DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
-import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
+import { makeDefender, makeGameState, makeOnion, makeStackFixture, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 
 let state: GameState = makeGameState()
 
 function makeGameStateWithUnits(): GameState {
+  const stackFixture = makeStackFixture({
+    groups: {
+      'LittlePigs:1,1': makeStackGroup({
+        position: { q: 1, r: 1 },
+        unitIds: ['pigs-1', 'pigs-2'],
+      }),
+    },
+  })
+
   return makeGameState({
     onions: { 'onion-1': makeOnion() },
     defenders: {
-      'pigs-1':  makeDefender({ unitId: 'pigs-1',  typeId: 'LittlePigs', position: { q: 1, r: 1 }, weapons: [] }),
-      'pigs-2':  makeDefender({ unitId: 'pigs-2',  typeId: 'LittlePigs', position: { q: 1, r: 1 }, weapons: [] }),
+      ...stackFixture.defenders,
       'swamp-1': makeDefender({ unitId: 'swamp-1', typeId: 'Swamp',      position: { q: 2, r: 2 }, weapons: [] }),
     },
-    stackRoster: makeStackRoster({
-      groupsById: {
-        'LittlePigs:1,1': makeStackGroup({
-          position: { q: 1, r: 1 },
-          unitIds: ['pigs-1', 'pigs-2'],
-        }),
-      },
-    }),
-    stackNaming: {
-      groupsInUse: [
-        { groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-      ],
-      usedGroupNames: ['Little Pigs group 1'],
-    },
+    stackRoster: stackFixture.stackRoster,
+    stackNaming: stackFixture.stackNaming,
   })
 }
 

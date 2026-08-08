@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["node", "vitest"]
   },
-  "include": ["test/e2e/**/*.ts"]
+  "include": ["playwright.config.ts", "scripts/test-e2e.ts", "test/e2e/**/*.ts"]
 }

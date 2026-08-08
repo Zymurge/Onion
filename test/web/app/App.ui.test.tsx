@@ -8,7 +8,7 @@ import App from '../../../web/App'
 import { buildAcknowledgementTurnKey } from '../../../web/lib/turnKey'
 import { createGameClient } from '../../../web/lib/gameClient'
 import { clearApiProtocolTraffic, requestJson } from '../../../shared/apiProtocol'
-import { makeScenarioSnapshot, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
+import { makeScenarioSnapshot, makeStackFixture, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 import type { LiveEventSource, LiveSessionSignal } from '../../../web/lib/gameSessionTypes'
 
 function createDefenderMoveSnapshot(): TestScenarioSnapshot {
@@ -108,6 +108,55 @@ describe('App UI', () => {
 		await user.click(screen.getByTestId('hex-cell-0-0'))
 		expect(pussButton.getAttribute('data-selected')).toBe('false')
 		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
+	})
+
+	it('does not seed attack selection when a synthetic stack group is rendered', async () => {
+		const user = userEvent.setup()
+		const stack = makeStackFixture({
+			groups: {
+				'LittlePigs:3,6': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 3, r: 6 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		})
+		const snapshot = makeScenarioSnapshot({
+			phase: 'DEFENDER_COMBAT',
+			authoritativeState: {
+				defenders: {
+					...stack.defenders,
+					'wolf-2': {
+						...stack.defenders['pigs-1'],
+						unitId: 'wolf-2',
+						typeId: 'BigBadWolf',
+						position: { q: 6, r: 4 },
+						friendlyName: 'Big Bad Wolf 2',
+					},
+				},
+				stackRoster: stack.stackRoster,
+				stackNaming: stack.stackNaming,
+			},
+		})
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const groupCard = await screen.findByTestId('combat-unit-pigs-1')
+		expect(groupCard.getAttribute('data-selected')).toBe('false')
+		expect(screen.getByText('Attack 0')).not.toBeNull()
+
+		await user.click(await screen.findByRole('button', { name: /begin turn/i }))
+		await user.click(groupCard)
+
+		expect(groupCard.getAttribute('data-selected')).toBe('true')
+		expect(screen.getByText('Attack 2')).not.toBeNull()
+		expect(screen.getByTestId('combat-stack-group-pigs-1').dataset.expanded).toBe('true')
 	})
 
 	it('keeps defender movement collapsed when the live snapshot reports zero allowance', async () => {

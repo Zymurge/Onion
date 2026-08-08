@@ -85,8 +85,15 @@ export interface MovementResult {
   error?: string
 }
 
+/** Injection seam for a caller-supplied die value; production callers never set this, so ramming stays on Math.random(). */
+export type RollSource = {
+  next(): number
+}
+
 export type MovementExecutionOptions = {
   reconcileStackRoster?: boolean
+  /** Consumed once per rammed unit, in order; omit to keep normal random ramming. */
+  ramRolls?: RollSource
 }
 
 function hasTreads(unit: GameUnit): unit is OnionUnit {
@@ -256,7 +263,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan, options: Mo
     for (const rammedUnitId of plan.rammedUnitIds) {
       const rammedUnit = state.defenders[rammedUnitId]
       if (!rammedUnit) continue
-      const outcome = resolveRammingOutcome(rammedUnit.typeId)
+      const outcome = resolveRammingOutcome(rammedUnit.typeId, options.ramRolls?.next())
       rammedUnitResults.push({
         unitId: rammedUnitId,
         unitType: rammedUnit.typeId,

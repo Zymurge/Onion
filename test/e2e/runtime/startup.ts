@@ -3,7 +3,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdir, open } from 'node:fs/promises'
+import { closeSync, mkdirSync, openSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PostgreSqlContainer } from '@testcontainers/postgresql'
 import { readFile } from 'node:fs/promises'
@@ -26,36 +26,19 @@ const MIGRATION_PATH = join(process.cwd(), 'server/db/migrations/001_initial.sql
 export class ProcessLauncherImpl implements ProcessLauncher {
 	spawn(input: { command: string; args: string[]; env: NodeJS.ProcessEnv; logPath: string }): ProcessHandle {
 		const { command, args, env, logPath } = input
-		let child: ChildProcess | null = null
-		let logFileHandle: Awaited<ReturnType<typeof open>> | null = null
+		mkdirSync(dirname(logPath), { recursive: true })
+		const logFileDescriptor = openSync(logPath, 'w')
+		const child: ChildProcess = spawn(command, args, {
+			env,
+			stdio: ['ignore', logFileDescriptor, logFileDescriptor],
+			detached: false,
+		})
 
-		const startProcess = async () => {
-			await mkdir(dirname(logPath), { recursive: true })
-			logFileHandle = await open(logPath, 'w')
-
-			child = spawn(command, args, {
-				env,
-				stdio: ['ignore', logFileHandle.fd, logFileHandle.fd],
-				detached: false,
-			})
-
-			child.on('error', (error) => {
-				logFileHandle?.write(`Process error: ${error.message}\n`)
-			})
-
-			child.on('exit', (code, signal) => {
-				logFileHandle?.write(`Process exited with code ${code}, signal ${signal}\n`)
-				logFileHandle?.close()
-			})
-		}
-
-		// Start asynchronously but don't block spawn() return
-		void startProcess()
+		child.on('exit', () => closeSync(logFileDescriptor))
 
 		return {
 			async stop(): Promise<void> {
 				if (!child || child.exitCode !== null) {
-					await logFileHandle?.close()
 					return
 				}
 
@@ -77,7 +60,6 @@ export class ProcessLauncherImpl implements ProcessLauncher {
 					})
 				})
 
-				await logFileHandle?.close()
 			},
 		}
 	}

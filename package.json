@@ -8,7 +8,10 @@
     "#server/*": "./server/*.ts",
     "#shared/*": "./shared/*.ts",
     "#test/utils/*": "./test/utils/*.ts",
-    "#web/*": ["./web/*.ts", "./web/*.tsx"]
+    "#web/*": [
+      "./web/*.ts",
+      "./web/*.tsx"
+    ]
   },
   "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
   "scripts": {
@@ -29,7 +32,8 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:web:coverage": "vitest run \"test/web/**/*.test.ts*\" --coverage --coverage.include=web/**",
-    "docs:serve": "npx http-server docs/api -p 3001 -c-1 --cors"
+    "docs:serve": "npx http-server docs/api -p 3001 -c-1 --cors",
+    "test:e2e:install": "pnpm exec playwright install chromium"
   },
   "dependencies": {
     "@fastify/jwt": "^10.0.0",
@@ -44,6 +48,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@testcontainers/postgresql": "^11.12.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
