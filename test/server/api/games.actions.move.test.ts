@@ -75,7 +75,9 @@ describe('POST /games/:id/actions MOVE', () => {
 		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
 		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockReturnValue({ success: true, newPosition: moveTo } as any)
 
-		const app = buildApp(mockDb as any)
+		const ramRolls = { next: vi.fn(() => 1) }
+		const createRamRolls = vi.fn(() => ramRolls)
+		const app = buildApp(mockDb as any, { createRamRolls })
 		const res = await app.inject({
 			method: 'POST',
 			url: `/games/${gameId}/actions`,
@@ -85,6 +87,11 @@ describe('POST /games/:id/actions MOVE', () => {
 
 		expect(res.statusCode).toBe(409)
 		expect(res.json().code).toBe('STALE_STATE')
+		expect(executeSpy).toHaveBeenCalledWith(expect.anything(), validatedPlan, {
+			reconcileStackRoster: false,
+			ramRolls,
+		})
+		expect(createRamRolls).toHaveBeenCalledTimes(1)
 		validateSpy.mockRestore()
 		executeSpy.mockRestore()
 	})

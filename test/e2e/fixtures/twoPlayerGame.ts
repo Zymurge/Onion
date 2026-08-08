@@ -47,7 +47,8 @@ export type TwoPlayerGameBootstrapOptions = {
 	runId?: string
 }
 
-export type TwoPlayerFixtures = {
+export type TwoPlayerWorkerFixtures = {
+	twoPlayerScenarioId: string
 	twoPlayerGame: TwoPlayerGame
 }
 
@@ -120,10 +121,11 @@ export async function bootstrapTwoPlayerGame(options: TwoPlayerGameBootstrapOpti
 }
 
 /** Worker-scoped setup keeps one match available to a sequential two-player scenario file. */
-export const test = base.extend<{}, TwoPlayerFixtures>({
+export const test = base.extend<{}, TwoPlayerWorkerFixtures>({
+	twoPlayerScenarioId: ['swamp-siege-01', { option: true, scope: 'worker' }],
 	twoPlayerGame: [
-		async ({}, use) => {
-			await use(await bootstrapTwoPlayerGame())
+		async ({ twoPlayerScenarioId }, use) => {
+			await use(await bootstrapTwoPlayerGame({ scenarioId: twoPlayerScenarioId }))
 		},
 		{ scope: 'worker' },
 	],

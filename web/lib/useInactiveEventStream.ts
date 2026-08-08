@@ -361,7 +361,7 @@ function buildPrimarySummary(event: InactiveEventPayload, relatedEvents: Readonl
 		if (hasRamResolutionPayload(event, relatedEvents)) {
 			const rammedUnit = resolveRamTargetLabel(event, relatedEvents)
 			const result = resolveRamOutcomeLabel(event, relatedEvents)
-			return `Ram on ${rammedUnit} - ${result}`
+			return `Ram on ${rammedUnit}: ${result}`
 		}
 
 		if (mover.length > 0) {

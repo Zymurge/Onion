@@ -32,6 +32,7 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:web:coverage": "vitest run \"test/web/**/*.test.ts*\" --coverage --coverage.include=web/**",
+    "test:e2e": "tsx scripts/test-e2e.ts",
     "docs:serve": "npx http-server docs/api -p 3001 -c-1 --cors",
     "test:e2e:install": "pnpm exec playwright install chromium"
   },

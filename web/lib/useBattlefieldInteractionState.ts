@@ -72,7 +72,6 @@ function buildMoveMapSnapshot(snapshot: ServerGameSnapshot, movingUnitId: string
     return null
   }
 
-  const onion = authoritativeState.onions[movingUnitId] ?? getAuthoritativeOnion(authoritativeState)
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
     ...Object.values(authoritativeState.onions)
       .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')

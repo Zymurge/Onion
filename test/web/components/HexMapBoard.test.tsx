@@ -46,7 +46,7 @@
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={littlePigsStack}
-				onion={onion}
+				onions={[onion]}
 				stackNaming={stackNaming as any}
 				stackRoster={stackRoster as any}
 				phase="DEFENDER_COMBAT"
@@ -98,7 +98,7 @@
 				<HexMapBoard
 					scenarioMap={scenarioMap}
 					defenders={littlePigsStack}
-					onion={onion}
+						onions={[onion]}
 					catalog={sessionCatalog}
 					phase="DEFENDER_COMBAT"
 					selectedUnitIds={[]}
@@ -122,7 +122,7 @@
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[inspectableUnit]}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_COMBAT"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -157,7 +157,7 @@
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[eligible, inspectable, disabled]}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_COMBAT"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -178,7 +178,7 @@
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_COMBAT"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -205,7 +205,7 @@
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[survivingDefender]}
-				onion={{ ...onion, q: 0, r: 0, position: { q: 0, r: 0 } } as any}
+				onions={[{ ...onion, q: 0, r: 0, position: { q: 0, r: 0 } } as any]}
 				phase="ONION_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -233,7 +233,7 @@
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[coLocatedDefender]}
-				onion={{ ...onion, position: { q: 0, r: 0 } }}
+				onions={[{ ...onion, position: { q: 0, r: 0 } }]}
 				phase="ONION_COMBAT"
 				viewerRole="onion"
 				selectedUnitIds={[]}
@@ -263,7 +263,7 @@
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[eligible, disabled]}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -291,7 +291,7 @@ import { createSessionCatalog } from '#web/lib/sessionCatalog'
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function HexMapBoard(props: ComponentProps<typeof ProductionHexMapBoard>) {
-	return <ProductionHexMapBoard {...props} defenders={canonicalizeBattlefieldDefenders(props.defenders)} onion={canonicalizeBattlefieldOnion(props.onion)} />
+	return <ProductionHexMapBoard {...props} defenders={canonicalizeBattlefieldDefenders(props.defenders)} onions={props.onions.map(canonicalizeBattlefieldOnion)} />
 }
 
 const scenarioMap = {
@@ -406,7 +406,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={stackedDefenders}
-				onion={onion}
+				onions={[onion]}
 				stackRoster={stackRoster as any}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={[]}
@@ -427,7 +427,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
@@ -449,7 +449,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={staleDefenderMove}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
@@ -467,7 +467,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -486,7 +486,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -511,7 +511,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[disabledDefender]}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -542,7 +542,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[destroyedSwamp, defenders[1]]}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["swamp-1"]}
 				onSelectUnit={vi.fn()}
@@ -576,7 +576,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[intactSwamp]}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -618,7 +618,7 @@ describe('HexMapBoard', () => {
 						actionableModes: [],
 					},
 				]}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -636,7 +636,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				escapeHexes={[{ q: 2, r: 1 }, { q: 4, r: 4 }]}
 				selectedUnitIds={[]}
@@ -658,7 +658,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_COMBAT"
 				selectedUnitIds={["weapon:main-1"]}
 				combatRangeHexKeys={new Set(['1,1', '2,1'])}
@@ -683,7 +683,7 @@ describe('HexMapBoard', () => {
 					hexes: [{ q: 2, r: 1, t: 1 }],
 				}}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -716,7 +716,7 @@ describe('HexMapBoard', () => {
 						actionableModes: ['fire', 'combined'],
 					},
 				]}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_COMBAT"
 				selectedUnitIds={["weapon:main-1"]}
 				selectedCombatTargetId={null}
@@ -742,7 +742,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
@@ -773,7 +773,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
@@ -806,7 +806,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
@@ -829,7 +829,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
@@ -850,7 +850,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
@@ -870,7 +870,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
@@ -890,7 +890,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_MOVE"
 				selectedUnitIds={["onion-1"]}
 				onSelectUnit={onSelectUnit}
@@ -911,7 +911,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_COMBAT"
 				viewerRole="onion"
 				selectedUnitIds={["weapon:main-1"]}
@@ -935,7 +935,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_COMBAT"
 				viewerRole="onion"
 				selectedUnitIds={["weapon:main-1"]}
@@ -958,7 +958,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_COMBAT"
 				viewerRole="defender"
 				selectedUnitIds={['puss-1']}
@@ -985,7 +985,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_COMBAT"
 				viewerRole="onion"
 				selectedUnitIds={['puss-1']}
@@ -1009,7 +1009,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_COMBAT"
 				selectedUnitIds={['puss-1']}
 				onSelectUnit={onSelectUnit}
@@ -1029,7 +1029,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_COMBAT"
 				selectedUnitIds={['weapon:ap_2']}
 				combatTargetIds={new Set(['puss-1'])}
@@ -1063,7 +1063,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[sharedDefender]}
-				onion={sharedOnion}
+				onions={[sharedOnion]}
 				phase="ONION_COMBAT"
 				viewerRole="onion"
 				selectedUnitIds={["weapon:main-1"]}
@@ -1093,7 +1093,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1", "wolf-2"]}
 				onSelectUnit={onSelectUnit}
@@ -1113,7 +1113,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="ONION_COMBAT"
 				viewerRole="onion"
 				selectedUnitIds={["weapon:main-1"]}
@@ -1138,7 +1138,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["ghost-unit"]}
 				onSelectUnit={vi.fn()}
@@ -1159,7 +1159,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				canSubmitMove={false}
@@ -1179,7 +1179,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={defenders}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}
@@ -1201,7 +1201,7 @@ describe('HexMapBoard', () => {
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[disabledDefender]}
-				onion={onion}
+				onions={[onion]}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={["puss-1"]}
 				onSelectUnit={vi.fn()}

@@ -128,7 +128,7 @@ describe('useInactiveEventStream', () => {
 		})
 
 		expect(result.current.entries[0]).toMatchObject({
-			summary: 'Ram on Puss 1 - destroyed',
+			summary: 'Ram on Puss 1: destroyed',
 			details: expect.arrayContaining(['Unit: The Onion 1', 'Target: Puss 1', 'Result: destroyed']),
 		})
 		expect(result.current.entries[1]).toMatchObject({
@@ -247,8 +247,8 @@ describe('useInactiveEventStream', () => {
 				'Fire on onion-1:treads: missed',
 				'Fire on Enemy Unit: destroyed',
 				'Fire on main-12: missed',
-				'Ram on Puss 1 - destroyed',
-				'Ram on other-1 - survived',
+				'Ram on Puss 1: destroyed',
+				'Ram on other-1: survived',
 				'Game over: Defender wins',
 				'Game over',
 				'Already summarized',
@@ -256,7 +256,7 @@ describe('useInactiveEventStream', () => {
 			]),
 		)
 
-		const ramEntry = result.current.entries.find((entry) => entry.summary === 'Ram on other-1 - survived')
+		const ramEntry = result.current.entries.find((entry) => entry.summary === 'Ram on other-1: survived')
 		expect(ramEntry?.details).toEqual(
 			expect.arrayContaining([
 				'Unit: ram-2',
@@ -269,7 +269,7 @@ describe('useInactiveEventStream', () => {
 			]),
 		)
 
-		const destroyedRamEntry = result.current.entries.find((entry) => entry.summary === 'Ram on Puss 1 - destroyed')
+		const destroyedRamEntry = result.current.entries.find((entry) => entry.summary === 'Ram on Puss 1: destroyed')
 		expect(destroyedRamEntry?.details).toEqual(
 			expect.arrayContaining(['Unit: Rammy: operational → destroyed', 'Squads lost for Rammy: 3']),
 		)
@@ -304,7 +304,7 @@ describe('useInactiveEventStream', () => {
 		})
 
 		expect(result.current.entries[0]).toMatchObject({
-			summary: 'Ram on Puss 1 - survived',
+			summary: 'Ram on Puss 1: survived',
 			details: expect.arrayContaining([
 				'Unit: Rammy',
 				'Target: Puss 1',

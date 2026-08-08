@@ -31,8 +31,9 @@ export class ProcessLauncherImpl implements ProcessLauncher {
 		const child: ChildProcess = spawn(command, args, {
 			env,
 			stdio: ['ignore', logFileDescriptor, logFileDescriptor],
-			detached: false,
+			detached: true,
 		})
+		child.unref()
 
 		child.on('exit', () => closeSync(logFileDescriptor))
 
@@ -42,14 +43,33 @@ export class ProcessLauncherImpl implements ProcessLauncher {
 					return
 				}
 
-				// Try graceful shutdown first
-				child.kill('SIGTERM')
+				const signalProcessGroup = (signal: NodeJS.Signals): void => {
+					if (child.pid === undefined) {
+						return
+					}
+
+					if (process.platform === 'win32') {
+						child.kill(signal)
+						return
+					}
+
+					try {
+						process.kill(-child.pid, signal)
+					} catch (error) {
+						if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
+							throw error
+						}
+					}
+				}
+
+				// Try graceful shutdown first, including descendants spawned by pnpm.
+				signalProcessGroup('SIGTERM')
 
 				// Wait up to 5s for graceful exit
 				await new Promise<void>((resolve) => {
 					const timeout = setTimeout(() => {
 						if (child && child.exitCode === null) {
-							child.kill('SIGKILL')
+							signalProcessGroup('SIGKILL')
 						}
 						resolve()
 					}, 5000)

@@ -40,6 +40,7 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv): BrowserRu
 }
 
 async function main(): Promise<void> {
+	process.env.E2E_RAM_ROLLS ??= '1'
 	const options = resolveRuntimeOptions()
 	const session = await startRuntimeSupervisor(options, {
 		adapters: {
