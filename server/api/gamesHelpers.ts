@@ -602,7 +602,7 @@ export function buildMoveEvents(
   }
 
   if (result.treadDamage !== undefined && result.treadDamage > 0) {
-    const treadTargetId = formatCombatTargetId({ onionId: canonicalMoveUnitId })
+    const treadTargetId = formatCombatTargetId({ kind: 'treads', onionId: canonicalMoveUnitId })
     events.push({
       seq: seq++,
       type: 'ONION_TREADS_LOST',

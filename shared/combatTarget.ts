@@ -1,6 +1,6 @@
 export type TreadsCombatTarget = {
-  kind: 'treads'
   onionId: string
+  kind: 'treads'
 }
 
 const TREADS_TARGET_PATTERN = /^([^:]+):treads$/

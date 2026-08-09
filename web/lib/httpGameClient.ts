@@ -9,7 +9,7 @@ import {
 import type { GameRequestTransport } from './gameSessionTypes'
 
 	import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../shared/apiProtocol'
-	import type { ActionOkResponse, EventEnvelope, GameState, TurnPhase } from '../../shared/types/index'
+	import type { ActionOkResponse, EventEnvelope, TurnPhase } from '../../shared/types/index'
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
 
