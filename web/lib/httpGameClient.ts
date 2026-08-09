@@ -9,16 +9,11 @@ import {
 import type { GameRequestTransport } from './gameSessionTypes'
 
 	import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../shared/apiProtocol'
-import type { GameState, TurnPhase } from '../../shared/types/index'
+	import type { ActionOkResponse, EventEnvelope, GameState, TurnPhase } from '../../shared/types/index'
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
 
-type ActionSuccessResponse = {
-	ok: true
-	seq: number
-	events: Array<{ seq: number; type: string; timestamp: string; [key: string]: unknown }>
-	state: GameState
-	movementRemainingByUnit: Record<string, number>
+type ActionSuccessResponse = ActionOkResponse & {
 	turnNumber: number
 	eventSeq: number
 	phase: TurnPhase
@@ -156,7 +151,7 @@ function mapActionSnapshot(
 }
 function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 	requestTransport: GameRequestTransport
-	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<{ seq: number; type: string; summary: string; timestamp: string }>>
+	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<EventEnvelope>>
 } {
 	const fetchImpl = options.fetchImpl ?? fetch
 	const baseUrl = trimTrailingSlash(options.baseUrl)

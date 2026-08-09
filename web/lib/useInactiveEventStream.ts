@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import type { TimelineEvent } from './battlefieldView'
-import type { GameEvent } from './gameClient'
+import type { EventEnvelope } from '../../shared/types/index.js'
 import type { GameRequestTransport } from './gameSessionTypes'
 
 type UseInactiveEventStreamOptions = {
@@ -12,7 +12,7 @@ type UseInactiveEventStreamOptions = {
 	pollEvents?: GameRequestTransport['pollEvents']
 }
 
-type InactiveEventPayload = GameEvent & {
+type InactiveEventPayload = EventEnvelope & {
 	attackers?: unknown
 	attackerFriendlyNames?: unknown
 	amount?: unknown
@@ -526,7 +526,7 @@ function buildTimelineEvents(events: ReadonlyArray<InactiveEventPayload>): Timel
 	return timelineEntries
 }
 
-function toTimelineEvents(events: ReadonlyArray<GameEvent>): TimelineEvent[] {
+function toTimelineEvents(events: ReadonlyArray<EventEnvelope>): TimelineEvent[] {
 	return buildTimelineEvents(events as ReadonlyArray<InactiveEventPayload>)
 }
 

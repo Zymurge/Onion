@@ -1,4 +1,4 @@
-import type { GameState } from './types/index.js'
+import type { EventEnvelope, GameState } from './types/index.js'
 
 export type ApiErrorBody = {
 	ok?: false
@@ -263,7 +263,7 @@ export type GameStateResponse = {
 }
 
 export type EventsResponse = {
-	events: Array<{ seq: number; type: string; summary: string; timestamp: string }>
+	events: EventEnvelope[]
 }
 
 export function buildUrl(baseUrl: string, path: string): string {

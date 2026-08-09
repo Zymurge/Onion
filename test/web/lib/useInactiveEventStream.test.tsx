@@ -3,16 +3,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { useInactiveEventStream } from '#web/lib/useInactiveEventStream'
-import type { GameEvent } from '#web/lib/gameClient'
+import type { EventEnvelope } from '#shared/types/index'
 
-function createEvent(overrides: Partial<GameEvent> & { seq: number; type: string; timestamp: string; turnNumber: number }): GameEvent {
-	return {
-		seq: overrides.seq,
-		type: overrides.type,
-		timestamp: overrides.timestamp,
-		turnNumber: overrides.turnNumber,
-		...overrides,
-	}
+function createEvent(event: EventEnvelope): EventEnvelope {
+	return event
 }
 
 describe('useInactiveEventStream', () => {

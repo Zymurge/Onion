@@ -1,4 +1,4 @@
-import type { GameState, TurnPhase } from '../../shared/types/index.js'
+import type { EventEnvelope, GameState, TurnPhase } from '../../shared/types/index.js'
 import type { GameRequestTransport } from './gameSessionTypes.js'
 import type { RamResolution as MoveResolution } from './moveResolution.js'
 
@@ -81,27 +81,19 @@ export type GameAction =
 	| { type: 'end-phase' }
 	| { type: 'refresh' }
 
-export type GameEvent = {
-	seq: number
-	type: string
-	summary?: string
-	timestamp: string
-	[key: string]: unknown
-}
-
 export type GameClientError = {
 	kind: 'transport' | 'not-found' | 'invalid-action'
 	message: string
 }
 
 export type GameClientTransport = GameRequestTransport & {
-	pollEvents?(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
+	pollEvents?(gameId: number, afterSeq: number): Promise<ReadonlyArray<EventEnvelope>>
 }
 
 export type GameClient = {
 	getState(gameId: number): Promise<GameStateEnvelope>
 	submitAction(gameId: number, action: GameAction): Promise<ServerGameSnapshot>
-	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<GameEvent>>
+	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<EventEnvelope>>
 }
 
 export class GameClientSeamError extends Error {
