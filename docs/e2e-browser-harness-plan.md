@@ -1,8 +1,12 @@
 # Automated Browser E2E Harness Plan
 
-**Status:** Phases 1, 2, and 3 complete; Phase 4 ready to start
+**Status:** Phases 1, 2, and 3 complete; Phase 4 is the next active track
 **Branch:** `e2e_harness`
 **Date:** 2026-08-07
+
+## Current State
+
+The runtime supervisor, Playwright handoff, artifact cleanup, and two-player fixture boundary are in place. The remaining work is browser-level regression coverage in Phase 4, centered on shared-match scenarios and page-level assertions.
 
 ## Purpose
 
@@ -427,6 +431,12 @@ stable selection and combat baseline.
 - Onion and Defender contexts continue to remain isolated across every scenario.
 - The suite surfaces one readable failure per regression, not a broad shared fixture error.
 - Phase 4 introduces no new global deletion or teardown path.
+
+## Next Steps
+
+1. Start Phase 4 with the ram-resolution regression, since it exercises the shared match path end to end and proves the two browser contexts still agree on the resolved outcome.
+2. Add the weapon-target selection and stale-selection regressions next, because they cover the two main live UI flows that still need browser-level confirmation.
+3. Keep any new helpers local to the Phase 4 spec set unless a second scenario needs the same fixture policy; then move the helper into `test/e2e/fixtures` or `test/utils`.
 
 ## Acceptance Criteria
 
