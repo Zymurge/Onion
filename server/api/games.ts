@@ -59,10 +59,11 @@ const CreateGameSchema = z.object({
  * @param app - Fastify application instance
  * @param opts - Plugin options containing the database adapter
  */
-export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: () => RollSource }> = async (app: FastifyInstance, opts) => {
-  const { db, createRamRolls } = opts
+export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: () => RollSource; createCombatRolls?: () => RollSource }> = async (app: FastifyInstance, opts) => {
+  const { db, createRamRolls, createCombatRolls } = opts
   const liveConnections = new Map<number, Set<WebSocket>>()
   const ramRollsByGame = new Map<number, RollSource>()
+  const combatRollsByGame = new Map<number, RollSource>()
 
   function ramRollsForGame(gameId: number): RollSource | undefined {
     if (createRamRolls === undefined) {
@@ -76,6 +77,21 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: ()
 
     const created = createRamRolls()
     ramRollsByGame.set(gameId, created)
+    return created
+  }
+
+  function combatRollsForGame(gameId: number): RollSource | undefined {
+    if (createCombatRolls === undefined) {
+      return undefined
+    }
+
+    const existing = combatRollsByGame.get(gameId)
+    if (existing !== undefined) {
+      return existing
+    }
+
+    const created = createCombatRolls()
+    combatRollsByGame.set(gameId, created)
     return created
   }
 
@@ -738,7 +754,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: ()
           })
         }
 
-        const result = executeCombatAction(state, validation.plan)
+        const result = executeCombatAction(state, validation.plan, combatRollsForGame(match.gameId)?.next())
         if (!result.success) {
           logger.info({ gameId: match.gameId, error: result.error }, 'Invalid combat command')
           return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })

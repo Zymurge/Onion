@@ -47,7 +47,7 @@ export type TwoPlayerGameBootstrapOptions = {
 	runId?: string
 }
 
-export type TwoPlayerWorkerFixtures = {
+export type TwoPlayerFixtures = {
 	twoPlayerScenarioId: string
 	twoPlayerGame: TwoPlayerGame
 }
@@ -120,15 +120,12 @@ export async function bootstrapTwoPlayerGame(options: TwoPlayerGameBootstrapOpti
 	}
 }
 
-/** Worker-scoped setup keeps one match available to a sequential two-player scenario file. */
-export const test = base.extend<{}, TwoPlayerWorkerFixtures>({
-	twoPlayerScenarioId: ['swamp-siege-01', { option: true, scope: 'worker' }],
-	twoPlayerGame: [
-		async ({ twoPlayerScenarioId }, use) => {
-			await use(await bootstrapTwoPlayerGame({ scenarioId: twoPlayerScenarioId }))
-		},
-		{ scope: 'worker' },
-	],
+/** Each browser test owns an isolated match; the scenario remains worker-configurable. */
+export const test = base.extend<TwoPlayerFixtures>({
+	twoPlayerScenarioId: ['swamp-siege-01', { option: true }],
+	twoPlayerGame: async ({ twoPlayerScenarioId }, use) => {
+		await use(await bootstrapTwoPlayerGame({ scenarioId: twoPlayerScenarioId }))
+	},
 })
 
 export { expect } from '@playwright/test'

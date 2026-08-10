@@ -92,6 +92,9 @@ async function main(): Promise<void> {
 	}
 }
 
+process.env.E2E_RAM_ROLLS ??= '1'
+process.env.E2E_COMBAT_ROLLS ??= '6'
+
 main().catch((error: unknown) => {
 	console.error(error instanceof Error ? error.message : error)
 	process.exitCode = 1

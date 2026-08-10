@@ -664,6 +664,14 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       data-testid="app-shell"
     >
       {headerHasSnapshot ? <span data-testid="app-ready" hidden aria-hidden="true" /> : null}
+      <span
+        data-testid="session-sync-probe"
+        data-observed-event-seq={sessionState.lastAppliedEventSeq ?? undefined}
+        data-snapshot-event-seq={sessionState.snapshot?.lastEventSeq ?? undefined}
+        data-session-status={sessionState.status}
+        hidden
+        aria-hidden="true"
+      />
       {displayError ? (
         <ErrorOverlay
           message={displayError}

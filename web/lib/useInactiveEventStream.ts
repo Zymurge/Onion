@@ -549,6 +549,7 @@ export function useInactiveEventStream({
 	const lastGameIdRef = useRef<number | null>(null)
 	const lastActiveTurnActiveRef = useRef<boolean | null>(null)
 	const windowStartSeqRef = useRef<number | null>(null)
+	const dismissalVersionRef = useRef(0)
 
 	useEffect(() => {
 		latestAppliedEventSeqRef.current = lastAppliedEventSeq
@@ -610,6 +611,7 @@ export function useInactiveEventStream({
 		}
 
 		let cancelled = false
+		const dismissalVersion = dismissalVersionRef.current
 		inFlightAfterSeqRef.current = afterSeq
 
 		async function loadEvents() {
@@ -641,7 +643,7 @@ export function useInactiveEventStream({
 					seenSeqsRef.current.add(event.seq)
 				}
 
-				if (unseenEvents.length > 0) {
+				if (unseenEvents.length > 0 && dismissalVersion === dismissalVersionRef.current) {
 					setEntries((currentEntries) => {
 						const nextEntries = currentEntries.concat(toTimelineEvents(unseenEvents))
 						nextEntries.sort((left, right) => left.seq - right.seq)
@@ -695,6 +697,7 @@ export function useInactiveEventStream({
 	}, [activeGameId, activeTurnActive, currentTurnNumber, lastAppliedEventSeq, pollEvents])
 
 	function clearEntries() {
+		dismissalVersionRef.current += 1
 		setEntries([])
 		setIsDismissed(true)
 		setIsLoading(false)

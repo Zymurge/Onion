@@ -11,6 +11,7 @@ import type { RollSource } from '#server/engine/movement'
 
 type BuildAppOptions = {
   createRamRolls?: () => RollSource
+  createCombatRolls?: () => RollSource
 }
 
 function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
@@ -69,7 +70,12 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
 
   app.register(authRoutes, { prefix: '/auth', db: adapter })
   app.register(scenarioRoutes, { prefix: '/scenarios' })
-  app.register(gameRoutes, { prefix: '/games', db: adapter, createRamRolls: options.createRamRolls })
+  app.register(gameRoutes, {
+    prefix: '/games',
+    db: adapter,
+    createRamRolls: options.createRamRolls,
+    createCombatRolls: options.createCombatRolls,
+  })
 
   // Global error handler
   app.setErrorHandler((error, _req, reply) => {

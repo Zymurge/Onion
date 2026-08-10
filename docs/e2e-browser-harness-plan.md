@@ -1,12 +1,12 @@
 # Automated Browser E2E Harness Plan
 
-**Status:** Phases 1, 2, and 3 complete; Phase 4 is the next active track
+**Status:** Phases 1, 2, 3, 4.1, 4.2, and 4.3 complete; 4.4 is the next active track
 **Branch:** `e2e_harness`
-**Date:** 2026-08-07
+**Date:** 2026-08-09
 
 ## Current State
 
-The runtime supervisor, Playwright handoff, artifact cleanup, and two-player fixture boundary are in place. The remaining work is browser-level regression coverage in Phase 4, centered on shared-match scenarios and page-level assertions.
+The runtime supervisor, Playwright handoff, artifact cleanup, and per-test two-player fixture boundary are in place. Phases 4.1 through 4.3 are complete: ram resolution, weapon-target selection, and authoritative stale-selection refresh all pass across isolated browser contexts. Cross-player tests wait on rendered authoritative phase changes rather than elapsed time. The next browser regression is 4.4.
 
 ## Purpose
 
@@ -319,7 +319,7 @@ run; no teardown path performs a global match or user deletion.
 
 #### Two-player fixture API
 
-Phase 4 scenarios can import the worker-scoped fixture and use the returned
+Phase 4 scenarios can import the test-scoped fixture and use the returned
 identities to create separate browser sessions:
 
 ```ts
@@ -406,9 +406,9 @@ should exercise one live UI contract, one shared match, and one diagnostic path.
 
 | Task | One-line task | Recommended model | Done when |
 | --- | --- | --- | --- |
-| 4.1 | Add the first browser regression for ram resolution so both players see the same destroyed-or-survived result and the same toast copy. | Opus 5 | A single shared match can drive one ram scenario end to end, and both contexts render the same resolved combat result. |
-| 4.2 | Add a weapon-target selection regression that proves the intended target is chosen through the UI and that the other player sees the authoritative result. | Opus 5 | The target selection path uses clicks, not fixture state, and the resulting attacker/target state is consistent for both players. |
-| 4.3 | Add stale-selection regressions for grouped targets and stack cards so a refresh clears any local-only selection residue. | Opus 5 | Selection survives only when the authoritative state still supports it, and a refresh never rehydrates stale local selection. |
+| 4.1 | Add the first browser regression for ram resolution so both players see the same destroyed-or-survived result and the same toast copy. | Opus 5 | Complete: a single shared match drives one ram scenario end to end, and both contexts render the same resolved combat result. |
+| 4.2 | Add a weapon-target selection regression that proves the intended target is chosen through the UI and that the other player sees the authoritative result. | Opus 5 | Complete: the Defender selects and destroys the intended Onion weapon, and the Onion sees the authoritative result. |
+| 4.3 | Add stale-selection regressions for grouped targets and stack cards so a refresh clears any local-only selection residue. | Opus 5 | Complete: rendered authoritative phase updates clear grouped-target and stack-card selections without timer-based waits. |
 | 4.4 | Add a co-location regression that verifies stacked and adjacent units render consistently for active and inactive players. | Opus 4.8 | Both players see the same board geometry and the same stack/rail state for co-located units. |
 | 4.5 | Add a failed-ram regression that proves the ram toast, destroyed-state rendering, and follow-up movement controls stay in sync. | Opus 5 | The UI exposes the failure path clearly, and the same authoritative result appears in both browser contexts. |
 | 4.6 | Add a planner-actionability regression that disables actions only when the authoritative state makes them invalid. | Opus 5 | The planner obeys the live game state rather than local snapshot guesses. |
@@ -417,9 +417,7 @@ should exercise one live UI contract, one shared match, and one diagnostic path.
 #### Phase 4 execution order
 
 Implement 4.1 first so the two-player fixture proves a real gameplay outcome in
-the browser. Then add 4.2 and 4.3 together to cover target choice and stale
-selection cleanup, since they exercise the same selection flow from different
-angles. Follow with 4.4 and 4.5 to cover the board-state edge cases that most
+the browser. **4.1, 4.2, and 4.3 are complete and validated by `pnpm test:e2e`.** Follow with 4.4 and 4.5 to cover the board-state edge cases that most
 often expose desynchronization. Finish with 4.6 once the browser harness has a
 stable selection and combat baseline.
 
@@ -434,9 +432,9 @@ stable selection and combat baseline.
 
 ## Next Steps
 
-1. Start Phase 4 with the ram-resolution regression, since it exercises the shared match path end to end and proves the two browser contexts still agree on the resolved outcome.
-2. Add the weapon-target selection and stale-selection regressions next, because they cover the two main live UI flows that still need browser-level confirmation.
-3. Keep any new helpers local to the Phase 4 spec set unless a second scenario needs the same fixture policy; then move the helper into `test/e2e/fixtures` or `test/utils`.
+1. Continue Phase 4 with the 4.4 co-location regression for active and inactive players.
+2. Follow with the 4.5 failed-ram regression.
+3. Keep cross-player synchronization tied to rendered authoritative state; do not add fixed sleeps.
 
 ## Acceptance Criteria
 

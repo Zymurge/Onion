@@ -1,15 +1,16 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { BattlefieldRightRail } from '#web/components/BattlefieldRightRail'
 
 describe('BattlefieldRightRail', () => {
   it('shows the attack summary above targets and hides the inspector during combat', () => {
+    const onSelectCombatTarget = vi.fn()
     render(
       <BattlefieldRightRail
-        activeCombatRole="defender"
-        activeRole="defender"
+		activeCombatRole="onion"
+		activeRole="onion"
         activeSelectedUnitCount={2}
         isCombatPhase
         showInactiveEventStream={false}
@@ -41,11 +42,11 @@ describe('BattlefieldRightRail', () => {
           isDismissed: false,
           clearErrorMessage: vi.fn(),
         }}
-        combatTargetOptions={[{ id: 'onion-1', kind: 'defender', q: 0, r: 0, status: 'operational', label: 'The Onion', detail: 'Defense: 4', defense: 4, modifiers: [] }]}
+        combatTargetOptions={[{ id: 'LittlePigs:1,1', kind: 'defender', q: 1, r: 1, status: 'operational', label: 'Little Pigs group 1', detail: 'Defense: 2', defense: 2, modifiers: [] }]}
         onConfirmCombat={vi.fn()}
         onAttemptRam={vi.fn()}
         onDeclineRam={vi.fn()}
-        onSelectCombatTarget={vi.fn()}
+        onSelectCombatTarget={onSelectCombatTarget}
         onToggleStackMember={vi.fn()}
         onSelectAllStackMembers={vi.fn()}
         onClearStackSelection={vi.fn()}
@@ -59,5 +60,8 @@ describe('BattlefieldRightRail', () => {
     expect(screen.getByTestId('combat-target-list')).not.toBeNull()
     expect(screen.queryByTestId('battlefield-inspector')).toBeNull()
     expect(screen.getByRole('button', { name: /resolve combat/i }).getAttribute('disabled')).not.toBeNull()
+
+	fireEvent.click(screen.getByTestId('combat-target-LittlePigs:1,1'))
+	expect(onSelectCombatTarget).toHaveBeenCalledWith('LittlePigs:1,1')
   })
 })

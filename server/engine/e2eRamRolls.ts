@@ -3,8 +3,8 @@ import type { RollSource } from './movement.js'
 const MIN_ROLL = 1
 const MAX_ROLL = 6
 
-/** Parses the explicit E2E-only roll sequence and returns a fresh queue for each game. */
-export function createE2ERamRollsFactory(raw: string | undefined): (() => RollSource) | undefined {
+/** Parses an explicit E2E-only d6 sequence and returns a fresh queue for each game. */
+export function createE2ERollSourceFactory(raw: string | undefined): (() => RollSource) | undefined {
   const configured = raw?.trim()
   if (!configured) {
     return undefined
@@ -31,3 +31,5 @@ export function createE2ERamRollsFactory(raw: string | undefined): (() => RollSo
     }
   }
 }
+
+export const createE2ERamRollsFactory = createE2ERollSourceFactory

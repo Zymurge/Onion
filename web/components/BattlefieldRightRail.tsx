@@ -2,7 +2,7 @@ import { AttackPlanningConfirmationView } from './AttackPlanningConfirmationView
 import { CombatTargetList } from './CombatTargetList'
 import { BattlefieldInspectorPanel } from './BattlefieldInspectorPanel'
 import { InactiveEventStream } from './InactiveEventStream'
-import { resolveBattlefieldUnitName } from '../lib/appViewHelpers'
+import { isWeaponSelectionId, resolveBattlefieldUnitName } from '../lib/appViewHelpers'
 import { buildRightRailCombatPanelViewModel } from '../lib/rightRailCombatPanel'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import type { TimelineEvent } from '../lib/battlefieldView'
@@ -12,6 +12,7 @@ import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiPr
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { routeRightRailControl, type RightRailControlRequest } from '../lib/rightRailControlRouting'
 import logger from '../lib/logger'
+import { parseCombatTargetId } from '../../shared/combatTarget'
 
 type RamPrompt = {
   unitId: string
@@ -367,7 +368,7 @@ export function BattlefieldRightRail({
                   surface: 'right-rail',
                   gesture: 'primary',
                   subjectRelation: target?.kind === activeCombatRole ? 'self' : 'opponent',
-                  subjectKind: targetId.includes(':') ? 'subsystem' : 'unit',
+                  subjectKind: parseCombatTargetId(targetId) !== null || isWeaponSelectionId(targetId) ? 'subsystem' : 'unit',
                   subjectCapability: {
                     inspectable: true,
                     moveEligible: false,
