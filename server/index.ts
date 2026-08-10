@@ -8,7 +8,7 @@ const port = Number(process.env.PORT ?? 3000)
 const host = process.env.HOST ?? '0.0.0.0'
 
 const app = buildApp(new PostgresDb(getPool()), {
-  createRamRolls: createE2ERollSourceFactory(process.env.E2E_RAM_ROLLS),
+  createRamRolls: createE2ERollSourceFactory(process.env.E2E_RAM_ROLLS, process.env.E2E_RAM_ROLLS_BY_SCENARIO),
   createCombatRolls: createE2ERollSourceFactory(process.env.E2E_COMBAT_ROLLS),
 })
 

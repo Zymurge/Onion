@@ -10,7 +10,7 @@ import { InMemoryDb } from '#server/db/memory'
 import type { RollSource } from '#server/engine/movement'
 
 type BuildAppOptions = {
-  createRamRolls?: () => RollSource
+  createRamRolls?: (scenarioId?: string) => RollSource
   createCombatRolls?: () => RollSource
 }
 

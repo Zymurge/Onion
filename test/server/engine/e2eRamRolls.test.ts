@@ -17,4 +17,11 @@ describe('createE2ERamRollsFactory', () => {
     expect(createE2ERamRollsFactory(undefined)).toBeUndefined()
     expect(() => createE2ERamRollsFactory('1,7')).toThrow(/integer between 1 and 6/)
   })
+
+  it('uses a scenario-specific sequence when one is configured', () => {
+    const factory = createE2ERamRollsFactory('1', 'e2e-failed-ram-01=6')
+
+    expect(factory!('e2e-failed-ram-01').next()).toBe(6)
+    expect(factory!('e2e-ram-01').next()).toBe(1)
+  })
 })

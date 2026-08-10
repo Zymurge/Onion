@@ -41,6 +41,7 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv): BrowserRu
 
 async function main(): Promise<void> {
 	process.env.E2E_RAM_ROLLS ??= '1'
+	process.env.E2E_RAM_ROLLS_BY_SCENARIO ??= 'e2e-failed-ram-01=6'
 	const options = resolveRuntimeOptions()
 	const session = await startRuntimeSupervisor(options, {
 		adapters: {
@@ -93,6 +94,7 @@ async function main(): Promise<void> {
 }
 
 process.env.E2E_RAM_ROLLS ??= '1'
+process.env.E2E_RAM_ROLLS_BY_SCENARIO ??= 'e2e-failed-ram-01=6'
 process.env.E2E_COMBAT_ROLLS ??= '6'
 
 main().catch((error: unknown) => {
