@@ -88,8 +88,8 @@ The UI may show objective completion state in the inspector, and should surface 
 - **Dragon (Superheavy)**: A powerful conventional unit with two 6-strength attacks.
 - **The Swamp (Command Post)**: The primary objective. Defense 0. Any "X" result against it wins the game for the Onion.
 - **The Onion (Super-Unit)**:
-  - **Main Battery (×1)**: Attack 4 / Range 3 / Defense 4.
-  - **Secondary Battery (×4)**: Attack 3 / Range 2 / Defense 3.
+  - **Main Weapon (×1)**: Attack 4 / Range 3 / Defense 4.
+  - **Secondary Weapons (×4)**: Attack 3 / Range 2 / Defense 3.
   - **AP — Anti-Personnel (×8)**: Attack 1 / Range 1 / Defense 1. Effective only against Infantry.
   - **Missiles (×2)**: Attack 6 / Range 5 / Defense 3. Single-use, exterior-mounted (individually targetable before launch). Only **one** missile may be launched per turn.
   - **Tread Calculation**: Mk III starts with **45 Tread Points**.
@@ -167,12 +167,12 @@ The Onion does not follow the standard CRT for destruction. Attackers must targe
 - **1-to-1 Odds**: All attacks on treads are resolved at **1:1 odds**, regardless of the attacker's strength.
 - **Tread Damage**: On a roll of **5 or 6 (X result)**, the Onion loses a number of tread units equal to the **Attack Strength** of the attacking unit (e.g., a hit from **Puss** costs the Onion 4 treads).
 
-#### Other Subsystems (Batteries & Missiles)
+#### Other Weapon Systems
 
 - **Targeting**: Each weapon system must be targeted individually at its specific defense value. Players can combine fire against these systems.
 - **Subsystem Defense Values**:
-  - **Main Battery**: Defense 4.
-  - **Secondary Battery**: Defense 3.
+  - **Main Weapon**: Defense 4.
+  - **Secondary Weapons**: Defense 3.
   - **AP (Anti-Personnel)**: Defense 1.
   - **Missiles**: Defense 3.
 

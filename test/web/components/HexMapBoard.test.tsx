@@ -438,7 +438,7 @@ const onion: BattlefieldOnionView = {
 	rams: 0,
 	weapons: 'main: ready',
 	weaponDetails: [
-		{ id: 'main-1', typeId: 'TheOnion.main', state: 'ready', friendlyName: 'Main Battery' },
+		{ id: 'main-1', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' },
 	],
 }
 

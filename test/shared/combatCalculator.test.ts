@@ -223,8 +223,8 @@ describe('combatCalculator', () => {
 						typeId: 'TheOnion',
 						weaponId: 'secondary_1',
 						weapons: [
-							{ id: 'main', typeId: 'TheOnion.main', friendlyName: 'Main Battery', state: 'ready', ammo: 1 },
-							{ id: 'secondary_1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Battery 1', state: 'ready', ammo: 1 },
+							{ id: 'main', typeId: 'TheOnion.main', friendlyName: 'Main Weapon', weaponClass: 'main', state: 'ready', ammo: 1 },
+							{ id: 'secondary_1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Weapon 1', weaponClass: 'secondary', state: 'ready', ammo: 1 },
 						],
 					},
 				},
@@ -248,7 +248,7 @@ describe('combatCalculator', () => {
 					'target-1': {
 						typeId: 'TheOnion',
 						weapons: [
-							{ id: 'main', typeId: 'TheOnion.main', friendlyName: 'Main Battery', state: 'ready', ammo: 1 },
+							{ id: 'main', typeId: 'TheOnion.main', friendlyName: 'Main Weapon', weaponClass: 'main', state: 'ready', ammo: 1 },
 						],
 					},
 				},

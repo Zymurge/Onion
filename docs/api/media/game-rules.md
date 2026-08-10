@@ -6,7 +6,7 @@ The initial implementation will be based on the Mark III scenario, and the rules
 
 ## Overview
 
-Onion is a hexagonal-grid tactical wargame where one player controls a single, massive super-tank called the **Onion**, and the other player controls a diverse force of conventional units (**Little Pigs**, **Big Bad Wolves**, **Puss**, etc.) defending **The Swamp**.
+Onion is a hexagonal-grid tactical wargame where one player controls a single, massive super-tank called the **Onion**, and the other player controls a diverse force of conventional units (**Little Pigs**, **Big Bad Wolves**, **Puss**, etc.) defending a **The Swamp**.
 
 ## Units Mapping
 
@@ -22,7 +22,63 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
 | Light Tank | **Pinocchio** | 2 / 2 | 2 | 0.5 | 3 |
 | Superheavy Tank | **Dragon** | 6(x2) / 3 | 5 | 2 | 3 |
 | Infantry | **Little Pigs** | 1 (per squad) / 1 | 1 (squad) | 1 (per 3) | 2 |
-| Command Post | **The Swamp** | 0 / 0 | 0 | N/A | 0 |
+| HQ | **The Swamp** | 0 / 0 | 0 | N/A | 0 |
+
+### The Swamp (HQ)
+
+- **Type:** Swamp
+- **Friendly Name:** The Swamp
+- **Movement:** 0 (Immobile)
+- **Weapons:** None
+- **Defense:** 0 (Any "X" result destroys it)
+- **Ram Profile:** Rammable
+- **Selectable:** Yes (appears as a unit on the map, not just a background feature)
+- **Icon:** Custom swamp image preferred; fallback to placeholder if unavailable
+
+### Victory Conditions
+
+Victory is scenario-driven, but the following conditions are modeled after the original Ogre rules and adapted for Onion/Swamp:
+
+#### Onion (Attacker) Victory Conditions
+
+- **Complete Onion Victory:** All defending units are destroyed.
+- **Onion Victory:** The Swamp (Command Post) is destroyed and the Onion escapes from the south end of the map.
+- **Marginal Onion Victory:** The Swamp is destroyed and the Onion is destroyed or immobilized before escaping.
+
+#### Defender Victory Conditions
+
+- **Complete Defense Victory:** The Swamp survives, the Onion is destroyed, and at least 30 points of attack strength survive.
+- **Defense Victory:** The Swamp survives and the Onion is destroyed (regardless of surviving attack strength).
+- **Marginal Defense Victory:** The Swamp survives, but the Onion escapes.
+
+#### Additional Notes
+
+- Escape hexes are inactive during Onion turn 1 and become active starting on Onion turn 2.
+- The match ends as soon as a victory condition is met.
+- The UI and inspector should display both Onion and Defender victory conditions, and indicate which have been achieved or are still possible.
+
+Currently supported objective kinds (for scenario authoring):
+
+- `destroy-unit`: Destroy a specific unit (`unitId`) or any unit of a given type (`unitType`).
+- `escape-map`: Move the Onion off the map after the prerequisite objective sequence is satisfied.
+
+For the Swamp objective scenario, the core objectives are:
+
+- **Objective 1:** Destroy The Swamp (status: destroyed)
+- **Objective 2:** Escape the Onion off the map after The Swamp is destroyed
+
+Defender victory is possible if the Onion is immobilized or destroyed before completing all required objectives, or if the Swamp survives and the Onion is destroyed.
+
+The UI may show objective completion state in the inspector, and should surface both Onion and Defender victory paths.
+
+### Combat & Ramming
+
+- The Swamp can be targeted by any weapon or ram that can target defender units
+- Any "X" result destroys The Swamp (no disabled state)
+- Ramming follows standard rules for rammable objectives
+- All combat and ram events for The Swamp emit UNIT_STATUS_CHANGED and are surfaced in the event stream
+
+---
 
 ### Unit Special Abilities
 
@@ -32,8 +88,8 @@ Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, De
 - **Dragon (Superheavy)**: A powerful conventional unit with two 6-strength attacks.
 - **The Swamp (Command Post)**: The primary objective. Defense 0. Any "X" result against it wins the game for the Onion.
 - **The Onion (Super-Unit)**:
-  - **Main Battery (×1)**: Attack 4 / Range 3 / Defense 4.
-  - **Secondary Battery (×4)**: Attack 3 / Range 2 / Defense 3.
+  - **Main Weapon (×1)**: Attack 4 / Range 3 / Defense 4.
+  - **Secondary Weapons (×4)**: Attack 3 / Range 2 / Defense 3.
   - **AP — Anti-Personnel (×8)**: Attack 1 / Range 1 / Defense 1. Effective only against Infantry.
   - **Missiles (×2)**: Attack 6 / Range 5 / Defense 3. Single-use, exterior-mounted (individually targetable before launch). Only **one** missile may be launched per turn.
   - **Tread Calculation**: Mk III starts with **45 Tread Points**.
@@ -47,7 +103,7 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
 - Unit target rules live on the unit definition when a unit can only be attacked by certain weapon types or weapon-defined target classes.
 - Target rules should use explicit unit and weapon identifiers, not abstract combat classes, so special cases remain easy to read and extend.
 - Scenario files do not author target rules directly; they reference unit types and the engine populates weapon and target-rule data from the shared unit definitions.
-- For the current Onion AP weapons, the source of truth is the Onion unit definition: AP weapons may target only Little Pigs.
+- For the current Onion AP weapons, the source of truth is the Onion unit definition: AP weapons may target only Little Pigs and any other infantry types that are defined.
 
 ## Core Mechanics
 
@@ -80,6 +136,14 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
 - **Multi-attacker FIRE**: Multiple units can combine their attack strength against a single target (unless attacking Treads).
 - **CRT Tables & Odds**: Ratios rounded down in favor of the defender.
 
+Combat resolution is modeled as a three-step pipeline:
+
+1. **Roll resolution** converts the attack odds and die roll into a CRT letter (`NE`, `D`, or `X`).
+2. **Target resolution** converts that letter into a semantic combat result using the target type and attack context.
+3. **Result handling** applies the semantic effect to game state and emits the corresponding event data.
+
+This separation keeps the CRT table authoritative while still allowing target-specific behavior. For example, a `D` against a normal defender resolves to `disabled`, while the same letter can resolve differently for stacked infantry or special Onion subsystems when the target rules require it.
+
   | Roll | 1:2 | 1:1 | 2:1 | 3:1 | 4:1 |
   | :--- | :--- | :--- | :--- | :--- | :--- |
   | 1 | NE | NE | NE | D | D |
@@ -89,8 +153,8 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
   | 5 | D | X | X | X | X |
   | 6 | X | X | X | X | X |
 
-  - **1:3 or less**: Always NE regardless of roll.
-  - **5:1 or more**: Always X (Destroyed) regardless of roll.
+- **1:3 or less**: Always NE regardless of roll.
+- **5:1 or more**: Always X (Destroyed) regardless of roll.
 - **Infantry Stacks**: Each squad in a stack can attack individually or combine with others.
 
 ### 3. The Onion (Super-Unit) Damage
@@ -103,14 +167,18 @@ The Onion does not follow the standard CRT for destruction. Attackers must targe
 - **1-to-1 Odds**: All attacks on treads are resolved at **1:1 odds**, regardless of the attacker's strength.
 - **Tread Damage**: On a roll of **5 or 6 (X result)**, the Onion loses a number of tread units equal to the **Attack Strength** of the attacking unit (e.g., a hit from **Puss** costs the Onion 4 treads).
 
-#### Other Subsystems (Batteries & Missiles)
+#### Other Weapon Systems
 
 - **Targeting**: Each weapon system must be targeted individually at its specific defense value. Players can combine fire against these systems.
 - **Subsystem Defense Values**:
-  - **Main Battery**: Defense 4.
-  - **Secondary Battery**: Defense 3.
+  - **Main Weapon**: Defense 4.
+  - **Secondary Weapons**: Defense 3.
   - **AP (Anti-Personnel)**: Defense 1.
   - **Missiles**: Defense 3.
+
+For Onion subsystems, only an **"X" (Destroyed)** result has an effect. A "D" (Disabled) result is **No Effect (NE)**. The exact effect of an "X" depends on the subsystem: treads lose tread points equal to the attacker’s strength, while a targeted weapon system is destroyed.
+
+The same resolution pipeline also applies to subsystems and ramming: the roll produces the CRT letter, target rules interpret that letter for the specific target type, and the result handler applies the correct state change.
 
 ## Turn Structure
 
@@ -133,9 +201,3 @@ The Onion does not follow the standard CRT for destruction. Attackers must targe
 | `destroyed` | Permanently removed | No further transitions |
 
 A unit disabled on turn N is recovered and operational by turn N+1's `DEFENDER_MOVE`.
-
-## Victory Conditions
-
-- **Onion Player**: Wins by destroying the **Swamp** (Command Post). The Swamp has Defense 0 — any successful attack result destroys it immediately.
-- **Defender**: Wins by **immobilizing the Onion** before it destroys the Swamp. The Onion is considered immobilized (and the Defender wins) when its tread points are reduced to **0 (MA 0)**. A stationary Onion cannot reach the Swamp and poses no further threat.
-  - Note: A fully armed but immobile Onion is still a Defender win — weapons alone cannot win the game for the Onion player.

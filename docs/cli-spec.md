@@ -200,7 +200,7 @@ Destroyed units should be omitted from the map and shown in event history instea
 The map alone is not enough. The CLI should also display:
 
 - Onion tread count
-- Onion weapon status by battery/slot
+- Onion weapon status by weapon class and slot
 - Defender unit list with position and status
 - Whose turn it is
 - Which commands are legal to attempt next

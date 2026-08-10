@@ -1,5 +1,6 @@
 import type { GameState, GameUnit, Weapon } from './types/index.js'
 import { getUnitDefinition, getWeaponType } from './unitDefinitions.js'
+import { UnitWeapons } from './unitWeapons.js'
 
 export type UnitKind = 'onion' | 'defender' | 'none'
 
@@ -48,11 +49,11 @@ export function getUnitDefense(unit: GameUnit, inCover: boolean): number {
 }
 
 export function isWeaponAvailable(weapon: Weapon): boolean {
-  return weapon.state === 'ready'
+  return new UnitWeapons([weapon]).getReadyWeapons().length === 1
 }
 
 export function getAvailableWeapons(unit: GameUnit): Weapon[] {
-  return unit.weapons.filter(isWeaponAvailable)
+  return new UnitWeapons([...unit.weapons]).getReadyWeapons()
 }
 
 export function isDestroyed(unit: GameUnit): boolean {
@@ -65,10 +66,5 @@ export function canTargetWeapon(unit: GameUnit, weaponId: string): boolean {
 }
 
 export function destroyWeapon(unit: GameUnit, weaponId: string): boolean {
-  const weapon = unit.weapons.find((candidate) => candidate.id === weaponId)
-  if (!weapon) {
-    return false
-  }
-  weapon.state = 'destroyed'
-  return true
+  return new UnitWeapons(unit.weapons as Weapon[]).destroy(weaponId)
 }

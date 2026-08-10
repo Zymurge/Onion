@@ -12,6 +12,7 @@ import {
 import { hexDistance } from '#shared/hex'
 import { getUnitDefinition } from '#server/engine/units'
 import { getOnion } from '#shared/unitState'
+import { UnitWeapons } from '#shared/unitWeapons'
 import type { Weapon, DefenderUnit } from '#shared/types/index'
 
 type TestUser = { userId: string; token: string }
@@ -177,9 +178,15 @@ async function runOnionAttackPhase(ctx: IntegrationContext) {
   const state = await fetchGame(ctx, 'onion')
   expect(state.phase).toBe('ONION_COMBAT')
 
-  const missileCount = Number(state.state.onions[ctx.onionId]?.missiles ?? 0)
-  const weaponType = missileCount > 0 ? 'missile' : 'main'
-  const weaponRange = weaponType === 'missile' ? 5 : 3
+  const onion = state.state.onions[ctx.onionId]
+  const readyWeapons = new UnitWeapons(onion?.weapons ?? []).getReadyWeapons()
+  const firingWeapon = readyWeapons.find((weapon) => weapon.weaponClass === 'missile')
+    ?? readyWeapons.find((weapon) => weapon.weaponClass === 'main')
+  if (firingWeapon === undefined) {
+    assertStateMatches(state.state, ctx.expectedState)
+    return
+  }
+  const weaponRange = firingWeapon.weaponClass === 'missile' ? 5 : 3
   const targetId = findOnionTargetInRange(state.state, state.state.onions[ctx.onionId].position, weaponRange)
   if (!targetId) {
     // Not every turn guarantees a legal Onion attack target. Treat as a valid no-op.
@@ -188,7 +195,7 @@ async function runOnionAttackPhase(ctx: IntegrationContext) {
   }
   ctx.tracking.onionAttackTargetId = targetId
 
-  const fireAttacker = weaponType === 'missile' ? 'missile_1' : 'main'
+  const fireAttacker = firingWeapon.id
   const fireCmd = { type: 'FIRE' as const, attackers: [fireAttacker], targetId, onionId: ctx.onionId }
   const fireRes = await ctx.app.inject({
     method: 'POST',
@@ -221,7 +228,7 @@ async function runOnionAttackPhase(ctx: IntegrationContext) {
   applyActionToExpectedState(ctx.expectedState, fireCmd, fireBody)
   assertStateMatches(fireBody.state, ctx.expectedState)
 
-  if (weaponType === 'missile') {
+  if (firingWeapon.weaponClass === 'missile') {
     const exhaustedRes = await ctx.app.inject({
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,

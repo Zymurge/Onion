@@ -51,8 +51,9 @@ describe('GameState test helpers', () => {
     expect(makeWeapon({ id: 'missile', typeId: 'TheOnion.secondary_1', ammo: 3 })).toEqual({
       id: 'missile',
       typeId: 'TheOnion.secondary_1',
+      weaponClass: 'secondary',
       state: 'ready',
-      friendlyName: 'Main Battery 1',
+      friendlyName: 'Main Weapon 1',
       ammo: 3,
     })
   })

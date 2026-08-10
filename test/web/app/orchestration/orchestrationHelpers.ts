@@ -46,7 +46,7 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
 					position: { q: 1, r: 1 },
 					treads: 27,
 					friendlyName: 'The Onion',
-					weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+					weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' })],
 				}),
 			},
 			defenders: {
@@ -99,7 +99,7 @@ export function createConnectedBattlefieldSnapshot(
 					position: { q: 0, r: 1 },
 					treads: 33,
 					friendlyName: 'The Onion',
-					weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+					weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' })],
 				}),
 			},
 			defenders: {
@@ -139,7 +139,7 @@ export function createConnectedBattlefieldSnapshot(
 
 /**
  * Two-defender snapshot with the wolf moved to `{q:1,r:1}` (adjacent to the
- * onion) and both onion batteries included, so combat-range tests can fire.
+ * onion) and both onion weapons included, so combat-range tests can fire.
  */
 export function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot {
 	const snapshot = createConnectedBattlefieldSnapshot()
@@ -153,8 +153,8 @@ export function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot 
 					...snapshot.authoritativeState.onions['onion-1'],
 					friendlyName: 'The Onion',
 					weapons: [
-						makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' }),
-						makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Battery' }),
+						makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' }),
+						makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Weapon' }),
 					],
 				}),
 			},

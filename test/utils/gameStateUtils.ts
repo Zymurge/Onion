@@ -11,7 +11,7 @@ import type {
 	StackRosterState,
 	Weapon,
 } from '#shared/types/index'
-import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponType, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { buildBattlefieldDefenderView, buildBattlefieldOnionView } from '#web/lib/appViewHelpers'
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
 import { createGameClient, type GameClient, type GameSnapshot, type ScenarioMapSnapshot } from '#web/lib/gameClient'
@@ -23,11 +23,13 @@ import { createGameClient, type GameClient, type GameSnapshot, type ScenarioMapS
  * @returns A new Weapon object with the specified overrides.
  */
 export function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
+	const typeId = overrides.typeId ?? 'Puss.main'
 	return {
 		id: 'main',
-		typeId: 'Puss.main',
+		typeId,
+		weaponClass: overrides.weaponClass ?? getWeaponType(typeId).weaponClass,
 		state: 'ready',
-		friendlyName: 'Main Battery 1',
+		friendlyName: 'Main Weapon 1',
 		...overrides,
 	}
 }
@@ -86,8 +88,8 @@ export function makeOnion(overrides: Partial<OnionUnit> = {}): OnionUnit {
 		treads: 45,
 		ramsRemaining: 2,
 		weapons: [
-			makeWeapon({ id: 'main', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.main`, friendlyName: 'Main Battery 1' }),
-			makeWeapon({ id: 'secondary_1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.secondary_1`, friendlyName: 'Secondary Battery 1' }),
+			makeWeapon({ id: 'main', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.main`, friendlyName: 'Main Weapon 1' }),
+			makeWeapon({ id: 'secondary_1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.secondary_1`, friendlyName: 'Secondary Weapon 1' }),
 			makeWeapon({ id: 'ap_1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.ap_1`, friendlyName: 'AP Gun 1' }),
 		],
 		...overrides,

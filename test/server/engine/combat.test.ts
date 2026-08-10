@@ -678,7 +678,7 @@ describe('executeCombatAction', () => {
 
     const result = executeCombatAction(state, validation.plan, 6)
     expect(result.success).toBe(true)
-    expect(result.targetId).toBe('d1')
+    expect(result.targetId).toBe('LittlePigs:1,0')
     expect(state.defenders.d1.state).toBe('destroyed')
     expect(state.defenders.d2.state).toBe('destroyed')
   })

@@ -21,8 +21,10 @@ function buildWeaponInstance(weaponType: WeaponType, id: string): Weapon {
   return {
     id,
     typeId: weaponType.typeId,
+    weaponClass: weaponType.weaponClass,
     state: 'ready',
     friendlyName: buildFriendlyName(weaponType.friendlyNameTemplate ?? weaponType.name, id),
+    ...(weaponType.weaponClass === 'missile' ? { ammo: 1 } : {}),
   }
 }
 

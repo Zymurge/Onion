@@ -200,7 +200,7 @@ Destroyed units should be omitted from the map and shown in event history instea
 The map alone is not enough. The CLI should also display:
 
 - Onion tread count
-- Onion weapon status by battery/slot
+- Onion weapon status by weapon class and slot
 - Defender unit list with position and status
 - Whose turn it is
 - Which commands are legal to attempt next
@@ -313,7 +313,7 @@ refresh            = "refresh" ;
 events             = "events" [after_clause] [limit_clause] ;
 
 move               = "move" unit_id position ;
-fire               = "fire" target_id { attacker_id } ;
+fire               = "fire" onion_id target_id { attacker_id } ;
 end_phase          = "end-phase" ;
 
 raw_action         = "raw" json ;
@@ -364,13 +364,12 @@ events
 events after 12
 events after 12 limit 20
 
-move onion 1,10
+move onion-1 1,10
 move wolf-1 5,6
 
-fire wolf-1 wolf-1
-fire main main
-fire onion wolf-1 puss-1
-fire main wolf-1 puss-1 witch-1
+fire onion-1 wolf-1 main
+fire onion-1 main wolf-1 puss-1 witch-1
+fire onion-1 onion-1:treads wolf-1
 
 end-phase
 
@@ -402,8 +401,8 @@ The help output should always show canonical commands, not aliases.
 Positions should be accepted in either of these forms:
 
 ```text
-move onion 1,10
-move onion 1 10
+move onion-1 1,10
+move onion-1 1 10
 ```
 
 Internally both normalize to:
@@ -416,13 +415,30 @@ Internally both normalize to:
 
 The CLI should accept backend unit IDs exactly as returned by the server, for example:
 
-- `onion`
+- `onion-1`
 - `wolf-1`
 - `puss-1`
 - `witch-1`
 - `main`
 
 The CLI should not invent local aliases for units in Phase 1.
+
+### Combat Target IDs
+
+The `targetId` passed to `fire` must use the canonical API target identity:
+
+- Defender units, defender stacks, and individually targetable weapons use the
+  IDs returned by the server, such as `wolf-1`, `LittlePigs:3,2`, or `main`.
+- Onion treads use `{onionId}:treads`, such as `onion-1:treads`.
+- A bare Onion ID is not valid when targeting treads.
+
+Example defender attack against Onion treads:
+
+```text
+fire onion-1 onion-1:treads wolf-1
+```
+
+This submits a `FIRE` command whose `targetId` is `onion-1:treads`.
 
 ### FIRE Attacker List
 
@@ -431,7 +447,7 @@ The `fire` command uses a variable-length attacker list after the target id.
 Example:
 
 ```text
-fire main wolf-1 puss-1 witch-1
+fire onion-1 main wolf-1 puss-1 witch-1
 ```
 
 This maps to:
@@ -440,7 +456,8 @@ This maps to:
 {
   "type": "FIRE",
   "attackers": ["wolf-1", "puss-1", "witch-1"],
-  "targetId": "main"
+  "targetId": "main",
+  "onionId": "onion-1"
 }
 ```
 
@@ -453,10 +470,10 @@ The `raw` command takes the remainder of the input line as a JSON object and sub
 Example:
 
 ```text
-raw {"type":"MOVE","unitId":"onion","to":{"q":1,"r":10}}
+raw {"type":"MOVE","unitId":"onion-1","to":{"q":1,"r":10}}
 ```
 
-This mode exists for backend testing and should bypass all client-side action-shape convenience logic except basic JSON parsing.
+This mode exists for backend testing and should bypass all client-side action-shape convenience logic except basic JSON parsing. For the expected payload shapes, see the [API Contract](api-contract.md#actions).
 
 ## Parser Behavior
 
@@ -484,8 +501,8 @@ Example local parse error:
 ```text
 Parse error
 command: fire
-error: expected a target id followed by one or more attacker unit IDs
-usage: fire <targetId> <attacker1> [attacker2...]
+error: expected an Onion id, target id, and one or more attacker IDs
+usage: fire <onionId> <targetId> <attacker1> [attacker2...]
 ```
 
 These are distinct from backend validation failures.
@@ -599,7 +616,7 @@ The CLI should compute suggested commands from the current phase, but it should 
 
 `ONION_MOVE`
 
-- `move onion <q,r>`
+- `move <onionId> <q,r>`
 - `end-phase`
 
 `ONION_COMBAT`
@@ -750,17 +767,7 @@ This should stay small. If a module is only used once and stays under control, k
 
 ## Backend Assumptions
 
-Phase 1 CLI relies only on existing REST endpoints.
-
-- `POST /auth/register`
-- `POST /auth/login`
-- `GET /scenarios`
-- `GET /scenarios/{id}`
-- `POST /games`
-- `POST /games/{id}/join`
-- `GET /games/{id}`
-- `POST /games/{id}/actions`
-- `GET /games/{id}/events`
+Phase 1 CLI relies only on the REST endpoints defined in the [API Contract](api-contract.md#phase-1--pure-rest). See that document for the full list and details of request/response payloads.
 
 Event fetching exists for manual inspection and recovery, not mandatory background polling.
 
@@ -790,34 +797,19 @@ Deliverable: a usable authenticated shell.
 
 ### Step 4. Add state and summary rendering
 
-- Render phase, turn, winner, onion status, and defenders
-- Render recent events and action responses
-
 Deliverable: a text client that can inspect live game state.
 
 ### Step 5. Add the offset hex renderer
-
-- Render the scenario map with alternating row offsets
-- Overlay units on terrain
-
-Deliverable: a functional tactical display.
 
 ### Step 6. Add action commands
 
 - Move
 - Fire weapon
 - Fire unit
-- Multi-attacker fire
-- End phase
 
 Deliverable: a full manual play loop through the CLI.
 
 ### Step 7. Add strong error reporting
-
-- Render status code, error code, detail code, message, and current phase
-- Verify out-of-phase attempts are obvious and useful
-
-Deliverable: CLI suitable for backend manual testing.
 
 ### Step 8. Add convenience features
 
@@ -826,18 +818,10 @@ Deliverable: CLI suitable for backend manual testing.
 - Explicit refresh
 - Event browsing since last seen sequence
 
-Deliverable: easier manual regression testing.
-
 ## Acceptance Criteria
 
-The CLI is successful when:
-
-- Two shell instances can register/login separately.
 - One shell can create a game and the other can join it.
 - Both shells can inspect the same game state.
-- The active shell can complete movement, combat, and end-phase actions.
-- Illegal actions return backend errors clearly.
-- The operator can play both sides manually to a terminal game result.
 - No polling or reactive terminal framework is required.
 
 ## Future Evolution

@@ -17,7 +17,8 @@ export function createMoveGameState(treads: number): GameState {
 					id: 'main-1',
 					typeId: 'TheOnion.main',
 					state: 'ready',
-					friendlyName: 'Main Battery',
+					weaponClass: 'main',
+					friendlyName: 'Main Weapon',
 				},
 			],
 		},
@@ -34,6 +35,7 @@ export function createMoveGameState(treads: number): GameState {
 					{
 						id: 'main',
 						typeId: 'BigBadWolf.main',
+						weaponClass: 'main',
 						state: 'ready',
 						friendlyName: 'Main Gun',
 					},
@@ -50,6 +52,7 @@ export function createMoveGameState(treads: number): GameState {
 					{
 						id: 'main',
 						typeId: 'Puss.main',
+						weaponClass: 'main',
 						state: 'ready',
 						friendlyName: 'Main Gun',
 					},

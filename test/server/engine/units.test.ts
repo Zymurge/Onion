@@ -273,17 +273,17 @@ describe('getUnitDefinition', () => {
       expect(getUnitDefinition('TheOnion').weapons).toHaveLength(15)
     })
 
-    it('has one main battery: attack 4, range 3, defense 4', () => {
-      const mainBatteries = getUnitDefinition('TheOnion').weapons.filter(w =>
+    it('has one main weapon: attack 4, range 3, defense 4', () => {
+      const mainWeapons = getUnitDefinition('TheOnion').weapons.filter(w =>
         w.typeId.endsWith('.main')
       )
-      expect(mainBatteries).toHaveLength(1)
-      expect(mainBatteries[0].attack).toBe(4)
-      expect(mainBatteries[0].range).toBe(3)
-      expect(mainBatteries[0].defense).toBe(4)
+      expect(mainWeapons).toHaveLength(1)
+      expect(mainWeapons[0].attack).toBe(4)
+      expect(mainWeapons[0].range).toBe(3)
+      expect(mainWeapons[0].defense).toBe(4)
     })
 
-    it('has four secondary batteries: attack 3, range 2, defense 3', () => {
+    it('has four secondary weapons: attack 3, range 2, defense 3', () => {
       const secondaries = getUnitDefinition('TheOnion').weapons.filter(w =>
         w.typeId.includes('.secondary_')
       )
@@ -374,7 +374,7 @@ describe('getAllUnitDefinitions', () => {
     expect(shared.LittlePigs.friendlyNameTemplate).toBe('Little Pigs {{ordinal}}')
     expect(shared.BigBadWolf.friendlyNameTemplate).toBe('Big Bad Wolf {{ordinal}}')
     expect(shared.TheOnion.friendlyNameTemplate).toBe('The Onion {{ordinal}}')
-    expect((shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.secondary_1') as any).friendlyNameTemplate).toBe('Secondary Battery {{ordinal}}')
+    expect((shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.secondary_1') as any).friendlyNameTemplate).toBe('Secondary Weapon {{ordinal}}')
     expect((shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.ap_1') as any).friendlyNameTemplate).toBe('AP Gun {{ordinal}}')
   })
 
@@ -495,7 +495,7 @@ describe('getUnitDefense', () => {
 // ─── getWeaponDefense ─────────────────────────────────────────────────────────
 
 describe('getWeaponDefense', () => {
-  it('returns main battery defense for Onion', () => {
+  it('returns main weapon defense for Onion', () => {
     expect(getWeaponDefense('TheOnion.main')).toBe(4)
   })
 

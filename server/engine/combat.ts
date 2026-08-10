@@ -21,6 +21,7 @@ import { getUnitDefinition, getWeaponType } from '#shared/unitDefinitions'
 import { buildStackRosterIndex } from '#shared/stackRoster'
 import { getWeaponDefense } from '#shared/unitDefinitions'
 import { destroyWeapon, getAvailableWeapons, getOnion } from '#shared/unitState'
+import { UnitWeapons } from '#shared/unitWeapons'
 
 /**
  * Combat Results Table outcomes.
@@ -581,8 +582,9 @@ export function executeCombatAction(
 
     const firingWeaponIds = plan.weaponIds ?? (plan.weaponId ? [plan.weaponId] : [])
     const firingWeapons: Array<OnionUnit['weapons'][number]> = []
+    const onionWeapons = new UnitWeapons(onion.weapons as OnionUnit['weapons'][number][])
     for (const weaponId of firingWeaponIds) {
-      const weapon = onion.weapons.find((candidate) => candidate.id === weaponId)
+      const weapon = onionWeapons.findById(weaponId)
       if (!weapon) {
         return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: formatResolvedTargetId(plan.target), error: `Weapon '${weaponId}' not found` }
       }
@@ -596,9 +598,9 @@ export function executeCombatAction(
     const damage = applyDamage(defender, combatRoll.result, plan.attackStrength)
     for (const firedWeapon of firingWeapons) {
       if (getWeaponType(firedWeapon.typeId).weaponClass === 'missile') {
-        destroyWeapon(onion, firedWeapon.id)
+        onionWeapons.destroy(firedWeapon.id)
       } else {
-        firedWeapon.state = 'spent'
+        onionWeapons.spend(firedWeapon.id)
       }
     }
 
@@ -611,7 +613,7 @@ export function executeCombatAction(
       actionType: plan.actionType,
       attackerIds: plan.attackerIds,
       onionId: plan.onionId,
-      targetId: defender.unitId,
+      targetId: plan.target.id,
       roll: combatRoll,
       statusChanges,
     }
@@ -640,9 +642,7 @@ export function executeCombatAction(
   for (const attackerId of plan.attackerIds) {
     const attacker = state.defenders[attackerId]
     if (attacker && attacker.weapons) {
-      for (const weapon of getAvailableWeapons(attacker)) {
-        weapon.state = 'spent'
-      }
+      new UnitWeapons(attacker.weapons as DefenderUnit['weapons'][number][]).spendAll()
     }
   }
 

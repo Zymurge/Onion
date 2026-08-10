@@ -429,7 +429,7 @@ UNIT_SQUADS_LOST      { unitId: string, amount: number }
 ONION_TREADS_LOST     { onionId: string, targetId: string,
                         targetFriendlyName: string,
                         amount: number, remaining: number }
-ONION_BATTERY_DESTROYED { weaponId: string, weaponType: string }
+ONION_WEAPON_DESTROYED { weaponId: string, weaponType: string }
 ```
 
 ### Phase / Game Events
@@ -490,14 +490,16 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from
 ```typescript
 {
   onion: {
-    position:  HexPos,
-    treads:    number,
-    missiles:  number,         // remaining (0–2)
-    batteries: {
-      main:      number,       // remaining count (0–1)
-      secondary: number,       // remaining count (0–4)
-      ap:        number        // remaining count (0–8)
-    }
+    position: HexPos,
+    treads: number,
+    weapons: Array<{
+      id: string,
+      typeId: string,
+      weaponClass: "main" | "secondary" | "ap" | "missile",
+      state: "ready" | "spent" | "destroyed",
+      friendlyName: string,
+      ammo?: number
+    }>
   },
   defenders: {
     [unitId: string]: {
@@ -533,7 +535,7 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from
 | `ILLEGAL_MOVE` | Destination is unreachable, blocked, or out of range |
 | `MOVE_INVALID` | Well-formed but invalid move command (HTTP 422) |
 | `UNIT_NOT_FOUND` | `unitId` does not exist in this game |
-| `WEAPON_EXHAUSTED` | Targeted battery or missile already destroyed/used |
+| `WEAPON_EXHAUSTED` | Targeted weapon already destroyed/used |
 | `RAM_LIMIT_REACHED` | Onion has already rammed twice this turn |
 | `MULTI_ATTACK_TREAD_TARGET` | Multi-attacker fire on Onion treads is illegal |
 | `GAME_OVER` | Match is already decided |

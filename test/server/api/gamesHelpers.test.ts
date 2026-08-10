@@ -515,8 +515,11 @@ describe('buildVictoryObjectiveStates', () => {
             position: { q: 0, r: 0 },
             status: 'operational',
             treads: 45,
-            batteries: { main: 1, secondary: 1, ap: 1 },
-            weapons: [],
+            weapons: [
+              { id: 'main', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' },
+              { id: 'secondary_1', typeId: 'TheOnion.secondary_1', weaponClass: 'secondary', state: 'ready', friendlyName: 'Secondary Weapon 1' },
+              { id: 'ap_1', typeId: 'TheOnion.ap_1', weaponClass: 'ap', state: 'ready', friendlyName: 'AP Gun 1' },
+            ],
           },
           defenders: {
             'pigs-1': {

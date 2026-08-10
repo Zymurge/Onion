@@ -555,8 +555,8 @@ describe('combat', () => {
 					'onion-1': makeOnion({
 						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
 						weapons: [
-							makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' }),
-							makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Battery' }),
+							makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' }),
+							makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Weapon' }),
 						],
 					}),
 				},
@@ -675,8 +675,8 @@ describe('combat', () => {
 						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
 						position: { q: 1, r: 1 },
 						weapons: [
-							makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' }),
-							makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Battery' }),
+							makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' }),
+							makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Weapon' }),
 						],
 					}),
 				},
@@ -711,7 +711,7 @@ describe('combat', () => {
 					'onion-1': makeOnion({
 						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
 						position: { q: 1, r: 1 },
-						weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+						weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' })],
 					}),
 				},
 				defenders: {
@@ -756,7 +756,7 @@ describe('combat', () => {
 					'onion-1': makeOnion({
 						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
 						position: { q: 1, r: 2 },
-						weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+						weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' })],
 					}),
 				},
 				defenders,
@@ -799,7 +799,7 @@ describe('combat', () => {
 					'onion-1': makeOnion({
 						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
 						position: { q: 1, r: 2 },
-						weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Battery' })],
+						weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' })],
 					}),
 				},
 				defenders,
@@ -900,8 +900,8 @@ describe('combat', () => {
 
 		await user.click(await screen.findByTestId('combat-unit-wolf-2'))
 		const targetList = await screen.findByTestId('combat-target-list')
-		expect(targetList.textContent).toContain('Main Battery')
-		expect(targetList.textContent).toContain('Secondary Battery')
+		expect(targetList.textContent).toContain('Main Weapon')
+		expect(targetList.textContent).toContain('Secondary Weapon')
 		expect(targetList.textContent).toContain('Treads')
 
 		await user.click(screen.getByTestId('combat-target-weapon:main-1'))
@@ -922,7 +922,7 @@ describe('combat', () => {
 
 		expect(target.getAttribute('data-selected')).toBe('true')
 		const confirmationView = await screen.findByTestId('combat-confirmation-view')
-		expect(confirmationView.textContent).toContain('Confirm attack on Main Battery')
+		expect(confirmationView.textContent).toContain('Confirm attack on Main Weapon')
 	})
 
 	it('blocks treads when multiple defender groups are selected', async () => {

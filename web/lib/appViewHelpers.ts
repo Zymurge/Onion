@@ -409,14 +409,17 @@ export function formatLiveConnectionStatus(connectionStatus: LiveConnectionStatu
   }
 }
 
-export function parseWeaponStats(weaponString: string) {
-  const weapons = weaponString.split(',').map((w) => w.trim())
+export function parseWeaponStats(weapons: ReadonlyArray<Weapon> | string) {
+  if (typeof weapons === 'string') {
+    return { operationalWeapons: 0, operationalMissiles: 0 }
+  }
+
   let operationalWeapons = 0
   let operationalMissiles = 0
 
   for (const weapon of weapons) {
-    if (weapon.includes('ready')) {
-      if (weapon.toLowerCase().includes('missile')) {
+    if (weapon.state === 'ready') {
+      if (weapon.weaponClass === 'missile') {
         operationalMissiles++
       } else {
         operationalWeapons++

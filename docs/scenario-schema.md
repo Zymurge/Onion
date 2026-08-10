@@ -63,13 +63,6 @@ We use an **Axial Coordinate System** (q, r) where:
     "onion": {
       "type": "MkIII",
       "position": { "q": 0, "r": 10 },
-      "treads": 45,
-      "missiles": 2,
-      "batteries": {
-        "main": 1,
-        "secondary": 4,
-        "ap": 8
-      },
       "status": "operational"
     },
     "defenders": {

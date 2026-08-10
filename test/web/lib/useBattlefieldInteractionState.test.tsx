@@ -28,8 +28,7 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 					state: 'operational',
 					position: { q: 0, r: 0 },
 					treads: 33,
-					weapons: [],
-					batteries: { main: 1, secondary: 0, ap: 0 },
+					weapons: [{ id: 'main', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' }],
 				},
 			},
 			defenders: {
@@ -131,8 +130,7 @@ function createGroupedDefenderSnapshot(options?: {
 					state: 'operational',
 					position: { q: 0, r: 0 },
 					treads: 33,
-					weapons: [],
-					batteries: { main: 1, secondary: 0, ap: 0 },
+					weapons: [{ id: 'main', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' }],
 					},
 			},
 			defenders,
@@ -336,7 +334,7 @@ describe('useBattlefieldInteractionState', () => {
 								position: { q: 0, r: 0 },
 								treads: 33,
 								weapons: [],
-								batteries: { main: 1, secondary: 0, ap: 0 },
+								weapons: [{ id: 'main', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' }],
 					},
 				},
 				defenders: {

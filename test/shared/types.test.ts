@@ -4,10 +4,10 @@ import { DEFAULT_ONION_UNIT_TYPE_ID } from '#shared/unitDefinitions'
 
 const weapon: Weapon = {
   id: 'main-1',
-  typeId: 'main-battery',
+  typeId: 'main-weapon',
   state: 'ready',
   ammo: 1,
-  friendlyName: 'Main Battery',
+  friendlyName: 'Main Weapon',
 }
 
 const onion: OnionUnit = {
@@ -40,7 +40,7 @@ describe('canonical dynamic unit types', () => {
     expect(onion.treads).toBe(45)
     expect(defender.role).toBe('defender')
     expect(defender.squads).toBe(1)
-    expect(weapon.typeId).toBe('main-battery')
+    expect(weapon.typeId).toBe('main-weapon')
     expect(weapon.state).toBe('ready')
   })
 })

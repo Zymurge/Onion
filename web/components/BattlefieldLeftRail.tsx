@@ -695,8 +695,8 @@ export function BattlefieldLeftRail({
                     <span>Rams remaining <strong>{onion.rams}</strong></span>
                   </div>
                   <div className="summary-line">
-                    <span>Weapons <strong>{parseWeaponStats(onion.weapons).operationalWeapons}</strong></span>
-                    <span>Missiles <strong>{parseWeaponStats(onion.weapons).operationalMissiles}</strong></span>
+                    <span>Weapons <strong>{parseWeaponStats(onion.weaponDetails ?? []).operationalWeapons}</strong></span>
+                    <span>Missile weapons <strong>{parseWeaponStats(onion.weaponDetails ?? []).operationalMissiles}</strong></span>
                   </div>
                 </div>
               </button>

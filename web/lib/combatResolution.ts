@@ -71,7 +71,7 @@ export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEven
 					details.push(`Treads lost: ${event.amount} (remaining ${event.remaining})`)
 				}
 				break
-			case 'ONION_BATTERY_DESTROYED':
+			case 'ONION_WEAPON_DESTROYED':
 				{
 					const weaponName = getPreferredLabel(event, 'weaponFriendlyName', 'weaponId')
 					if (weaponName !== null) {

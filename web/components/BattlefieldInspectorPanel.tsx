@@ -63,11 +63,11 @@ export function BattlefieldInspectorPanel({
           </div>
           <div>
             <dt>Weapons</dt>
-            <dd>{parseWeaponStats(selectedInspectorOnion.weapons ?? '').operationalWeapons}</dd>
+            <dd>{parseWeaponStats(selectedInspectorOnion.weaponDetails ?? []).operationalWeapons}</dd>
           </div>
           <div>
             <dt>Missiles</dt>
-            <dd>{parseWeaponStats(selectedInspectorOnion.weapons ?? '').operationalMissiles}</dd>
+            <dd>{parseWeaponStats(selectedInspectorOnion.weaponDetails ?? []).operationalMissiles}</dd>
           </div>
         </dl>
       ),

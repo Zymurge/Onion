@@ -74,7 +74,7 @@ describe('parseScenarioSnapshot', () => {
       ...validScenario,
       map: { width: 1, height: 1, cells: [], hexes: [] },
     }],
-    ['legacy Onion deployment fields', {
+    ['unknown Onion deployment fields', {
       ...validScenario,
       initialState: {
         ...validScenario.initialState,
@@ -83,8 +83,7 @@ describe('parseScenarioSnapshot', () => {
           'onion-1': {
             ...validScenario.initialState.onions['onion-1'],
             treads: 45,
-            missiles: 2,
-            batteries: { main: 1, secondary: 4, ap: 8 },
+            unexpectedWeaponMetadata: { main: 1, secondary: 4, ap: 8 },
             weapons: [],
           },
         },

@@ -4,7 +4,7 @@ This document provides a detailed walkthrough of a single game round to illustra
 
 ## Scenario Setup (Mid-Game)
 
-- **The Onion (Mk III)**: 32 Tread points (MA 3), 1 Main Battery, 2 Secondary Batteries, 1 Missile.
+- **The Onion (Mk III)**: 32 Tread points (MA 3), 1 Main Weapon, 2 Secondary Weapons, 1 Missile Weapon.
 - **Defenders**:
   - **1 Big Bad Wolf (GEV)**: Operational.
   - **1 Puss (Heavy Tank)**: Operational.
@@ -26,10 +26,10 @@ This document provides a detailed walkthrough of a single game round to illustra
 
 ### Phase: Onion Combat
 
-1. **Main Battery Attack**: Targets the **Puss Tank**.
+1. **Main Weapon Attack**: Targets the **Puss Tank**.
    - *Stats*: 4 Attack vs. 3 Defense. Odds: **1:1**.
    - *Roll*: **4**. Result: **D (Disabled)**.
-2. **Secondary Batteries**: Multi-attacker fire targeting the **Witch**.
+2. **Secondary Weapons**: Multi-attacker fire targeting the **Witch**.
    - *Stats*: 6 Attack vs. 2 Defense. Odds: **3:1**.
    - *Roll*: **5**. Result: **X (Destroyed)**.
 3. **Missile Launch**: The Onion launches its only Missile.

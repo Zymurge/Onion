@@ -29,9 +29,9 @@ export function renderEvents(events: EventEnvelope[]): string {
           `  #${event.seq} ONION_TREADS_LOST: amount=${event.amount} remaining=${event.remaining}`,
         )
         break
-      case 'ONION_BATTERY_DESTROYED':
+      case 'ONION_WEAPON_DESTROYED':
         lines.push(
-          `  #${event.seq} ONION_BATTERY_DESTROYED: weaponId=${event.weaponId} weaponType=${event.weaponType}`,
+          `  #${event.seq} ONION_WEAPON_DESTROYED: weaponId=${event.weaponId} weaponType=${event.weaponType}`,
         )
         break
       default: {

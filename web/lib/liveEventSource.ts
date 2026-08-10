@@ -176,10 +176,6 @@ export function createLiveEventSource(options: LiveEventSourceOptions): LiveEven
 					return
 				}
 
-				if (parsed.kind === 'SESSION_INIT') {
-					return
-				}
-
 				if (isSnapshotMessage(parsed)) {
 					const eventSeq = typeof parsed.snapshot.eventSeq === 'number' ? parsed.snapshot.eventSeq : null
 					updateLastEventSeq(gameId, eventSeq)

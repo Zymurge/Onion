@@ -89,6 +89,7 @@ export type WeaponTypeCatalog = Readonly<Record<string, WeaponType>>
 export interface Weapon {
   id: string
   typeId: string
+  weaponClass: WeaponClass
   state: WeaponState
   friendlyName: string
   ammo?: number

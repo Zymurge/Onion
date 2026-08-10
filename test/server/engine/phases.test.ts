@@ -177,8 +177,9 @@ describe('advancePhase', () => {
         {
           id: 'main',
           typeId: 'TheOnion.main',
+          weaponClass: 'main',
           state: 'spent',
-          friendlyName: 'Main Battery',
+          friendlyName: 'Main Weapon',
         } satisfies Weapon,
       ]
 

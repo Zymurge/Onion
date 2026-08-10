@@ -503,7 +503,7 @@ export function buildCombatEvents(
   if (result.destroyedWeaponId) {
     events.push({
       seq: seq++,
-      type: 'ONION_BATTERY_DESTROYED',
+      type: 'ONION_WEAPON_DESTROYED',
       timestamp,
       ...(phase === undefined ? {} : { phase }),
       onionId,

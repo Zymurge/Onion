@@ -44,10 +44,10 @@ describe('buildCombatResolution', () => {
 				},
 				{
 					seq: 9,
-					type: 'ONION_BATTERY_DESTROYED',
+					type: 'ONION_WEAPON_DESTROYED',
 					timestamp: '2026-03-31T00:00:00.000Z',
 					weaponId: 'main',
-					weaponFriendlyName: 'Main Battery',
+					weaponFriendlyName: 'Main Weapon',
 				},
 			]),
 		).toEqual({
@@ -64,7 +64,7 @@ describe('buildCombatResolution', () => {
 					'Treads lost: 3 (remaining 30)',
 				'Squads lost: Little Pigs 1: -1',
 				'Status: Little Pigs 1 operational → disabled',
-				'Destroyed weapon: Main Battery',
+					'Destroyed weapon: Main Weapon',
 			],
 		})
 	})

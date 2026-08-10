@@ -57,6 +57,6 @@ describe('static unit and weapon catalogs', () => {
 
     expect(buildFriendlyName(unitTemplate ?? '', 'onion-1')).toBe('The Onion 1')
     expect(buildFriendlyName(unitTemplate ?? '', 'onion-1')).toBe(buildFriendlyName(unitTemplate ?? '', 'onion-1'))
-    expect(buildFriendlyName(weaponTemplate ?? '', 'secondary_1')).toBe('Secondary Battery 1')
+    expect(buildFriendlyName(weaponTemplate ?? '', 'secondary_1')).toBe('Secondary Weapon 1')
   })
 })

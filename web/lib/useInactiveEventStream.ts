@@ -40,7 +40,7 @@ type InactiveEventPayload = EventEnvelope & {
 
 const MOVE_EVENT_TYPES = new Set(['ONION_MOVED', 'UNIT_MOVED'])
 const RESOLVED_EVENT_TYPES = new Set(['FIRE_RESOLVED', 'MOVE_RESOLVED'])
-const FOLLOW_UP_EVENT_TYPES = new Set(['ONION_TREADS_LOST', 'ONION_BATTERY_DESTROYED', 'UNIT_STATUS_CHANGED', 'UNIT_SQUADS_LOST'])
+const FOLLOW_UP_EVENT_TYPES = new Set(['ONION_TREADS_LOST', 'ONION_WEAPON_DESTROYED', 'UNIT_STATUS_CHANGED', 'UNIT_SQUADS_LOST'])
 
 function isNonEmptyString(value: unknown): value is string {
 	return typeof value === 'string' && value.trim().length > 0
@@ -315,9 +315,9 @@ function buildEventDetails(event: InactiveEventPayload, relatedEvents: ReadonlyA
 			}
 			return details
 		}
-		case 'ONION_BATTERY_DESTROYED': {
+		case 'ONION_WEAPON_DESTROYED': {
 			const weaponName = formatFriendlyName(event.weaponFriendlyName) || humanizeIdentifier(event.weaponType)
-			return [weaponName.length > 0 ? `Battery destroyed: ${weaponName}` : 'Battery destroyed']
+			return [weaponName.length > 0 ? `Weapon destroyed: ${weaponName}` : 'Weapon destroyed']
 		}
 		case 'UNIT_STATUS_CHANGED': {
 			const unitId = formatFriendlyName(event.unitFriendlyName) || formatRawValue(event.unitId)
@@ -416,9 +416,9 @@ function formatEventSummary(event: InactiveEventPayload) {
 		case 'ONION_TREADS_LOST': {
 			return typeof event.amount === 'number' ? `The Onion lost ${event.amount} treads` : 'The Onion lost treads'
 		}
-		case 'ONION_BATTERY_DESTROYED': {
+		case 'ONION_WEAPON_DESTROYED': {
 			const weaponType = humanizeIdentifier(event.weaponType)
-			return weaponType.length > 0 ? `The Onion lost the ${weaponType} battery` : 'The Onion lost a battery'
+			return weaponType.length > 0 ? `The Onion lost the ${weaponType} weapon` : 'The Onion lost a weapon'
 		}
 		case 'GAME_OVER': {
 			const winner = formatRawValue((event as { winner?: unknown }).winner)

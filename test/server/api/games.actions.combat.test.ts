@@ -305,7 +305,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.events[0].type).toBe('FIRE_RESOLVED')
     expect(body.events[0].attackers).toEqual(['wolf-1', 'puss-1'])
     expect(body.events[0].targetId).toBe('main')
-    expect(body.events[1].type).toBe('ONION_BATTERY_DESTROYED')
+    expect(body.events[1].type).toBe('ONION_WEAPON_DESTROYED')
     expect(body.events[1].weaponId).toBe('main')
     expect(body.events[1].weaponType).toBe('main')
     expect(body.events[0].causeId).toBeDefined()
