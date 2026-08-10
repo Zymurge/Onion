@@ -181,7 +181,7 @@ test/e2e/
   support/
     artifactRegistry.ts
 
-docs/archive/e2e-browser-harness-plan.md
+docs/e2e-browser-harness-plan.md
 ```
 
 The runtime supervisor should be a library used by `scripts/test-e2e.ts`, not embedded in Playwright fixtures. This keeps process/container lifecycle outside worker retries and makes the cleanup decision based on the overall command result.
