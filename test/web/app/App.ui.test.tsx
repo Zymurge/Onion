@@ -8,8 +8,15 @@ import App from '../../../web/App'
 import { buildAcknowledgementTurnKey } from '../../../web/lib/turnKey'
 import { createGameClient } from '../../../web/lib/gameClient'
 import { clearApiProtocolTraffic, requestJson } from '../../../shared/apiProtocol'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import type { SessionInitPayload } from '#shared/types/index'
 import { makeScenarioSnapshot, makeStackFixture, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 import type { LiveEventSource, LiveSessionSignal } from '../../../web/lib/gameSessionTypes'
+
+const testSessionCatalog: SessionInitPayload = {
+	unitTypes: getUnitTypeCatalog(),
+	weaponTypes: getWeaponTypeCatalog(),
+}
 
 function createDefenderMoveSnapshot(): TestScenarioSnapshot {
 	return makeScenarioSnapshot({
@@ -40,6 +47,7 @@ function createLiveEventSourceStub() {
 			connectionStatus = 'connected'
 			for (const listener of listeners) {
 				listener({ kind: 'connection', gameId, status: 'connected' })
+				listener({ kind: 'session-init', gameId, payload: testSessionCatalog })
 			}
 		},
 		disconnect(gameId: number) {
@@ -145,7 +153,7 @@ describe('App UI', () => {
 			pollEvents: vi.fn().mockResolvedValue([]),
 		})
 
-		render(<App gameClient={client} gameId={123} />)
+		render(<App gameClient={client} gameId={123} liveEventSource={createLiveEventSourceStub()} />)
 
 		const groupCard = await screen.findByTestId('combat-unit-pigs-1')
 		expect(groupCard.getAttribute('data-selected')).toBe('false')

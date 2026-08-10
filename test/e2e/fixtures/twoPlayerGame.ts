@@ -1,4 +1,4 @@
-import { test as base } from '@playwright/test'
+import { test as base, type Browser, type BrowserContext } from '@playwright/test'
 import {
 	createGame as createGameRequest,
 	joinGame as joinGameRequest,
@@ -50,6 +50,27 @@ export type TwoPlayerGameBootstrapOptions = {
 export type TwoPlayerFixtures = {
 	twoPlayerScenarioId: string
 	twoPlayerGame: TwoPlayerGame
+}
+
+async function closeOpenContexts(contexts: Set<BrowserContext>): Promise<void> {
+	await Promise.allSettled([...contexts].map((context) => context.close()))
+}
+
+function createOwnedBrowser(browser: Browser, contexts: Set<BrowserContext>): Browser {
+	return new Proxy(browser, {
+		get(target, property, receiver) {
+			if (property !== 'newContext') {
+				return Reflect.get(target, property, receiver)
+			}
+
+			return async (...args: Parameters<Browser['newContext']>) => {
+				const context = await target.newContext(...args)
+				contexts.add(context)
+				context.once('close', () => contexts.delete(context))
+				return context
+			}
+		},
+	})
 }
 
 function uniqueRunId(): string {
@@ -122,9 +143,16 @@ export async function bootstrapTwoPlayerGame(options: TwoPlayerGameBootstrapOpti
 
 /** Each browser test owns an isolated match; the scenario remains worker-configurable. */
 export const test = base.extend<TwoPlayerFixtures>({
+	browser: async ({ browser }, use) => {
+		const contexts = new Set<BrowserContext>()
+		const provide = use
+		await provide(createOwnedBrowser(browser, contexts))
+		await closeOpenContexts(contexts)
+	},
 	twoPlayerScenarioId: ['swamp-siege-01', { option: true }],
 	twoPlayerGame: async ({ twoPlayerScenarioId }, use) => {
-		await use(await bootstrapTwoPlayerGame({ scenarioId: twoPlayerScenarioId }))
+		const provide = use
+		await provide(await bootstrapTwoPlayerGame({ scenarioId: twoPlayerScenarioId }))
 	},
 })
 

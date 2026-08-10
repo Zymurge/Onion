@@ -1,6 +1,7 @@
 import type {
 	WebSocketClientMessage,
 	WebSocketServerEventMessage,
+	WebSocketServerErrorMessage,
 	WebSocketServerMessage,
 	WebSocketServerSessionInitMessage,
 	WebSocketServerSnapshotMessage,
@@ -62,6 +63,10 @@ function isSnapshotMessage(message: WebSocketServerMessage): message is WebSocke
 
 function isEventMessage(message: WebSocketServerMessage): message is WebSocketServerEventMessage {
 	return message.kind === 'EVENT'
+}
+
+function isErrorMessage(message: WebSocketServerMessage): message is WebSocketServerErrorMessage {
+	return message.kind === 'ERROR' && typeof message.message === 'string'
 }
 
 function parseMessage(rawMessage: string): WebSocketServerMessage | null {
@@ -171,6 +176,10 @@ export function createLiveEventSource(options: LiveEventSourceOptions): LiveEven
 					return
 				}
 
+				if (parsed.kind === 'SESSION_INIT') {
+					return
+				}
+
 				if (isSnapshotMessage(parsed)) {
 					const eventSeq = typeof parsed.snapshot.eventSeq === 'number' ? parsed.snapshot.eventSeq : null
 					updateLastEventSeq(gameId, eventSeq)
@@ -184,8 +193,10 @@ export function createLiveEventSource(options: LiveEventSourceOptions): LiveEven
 					return
 				}
 
-				emit({ kind: 'error', gameId, message: parsed.message })
-				emitConnection(gameId, 'disconnected')
+				if (isErrorMessage(parsed)) {
+					emit({ kind: 'error', gameId, message: parsed.message })
+					emitConnection(gameId, 'disconnected')
+				}
 			}
 
 			socket.onclose = () => {

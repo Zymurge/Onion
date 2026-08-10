@@ -22,6 +22,7 @@ export function resolvePlaywrightConfig(environment: RuntimeEnvironment = proces
 		},
 		use: {
 			baseURL: webUrl || undefined,
+			headless: true,
 			trace: 'retain-on-failure',
 			screenshot: 'only-on-failure',
 			video: 'retain-on-failure',

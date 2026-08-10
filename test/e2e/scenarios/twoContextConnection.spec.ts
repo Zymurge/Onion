@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../fixtures/twoPlayerGame.js'
 import { readPlaywrightRuntime } from '../runtime/playwrightEnvironment.js'
 
 test('Onion and Defender contexts reach the same runtime with isolated storage', async ({ browser }) => {
