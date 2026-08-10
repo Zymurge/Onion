@@ -197,27 +197,28 @@ class FakeHttpServer {
 	onRequest: (() => { status: number; body: string }) | null = null
 
 	constructor() {
-		const http = require('node:http')
-		this.server = http.createServer((req: any, res: any) => {
-			setTimeout(() => {
-				try {
-					const result = this.onRequest ? this.onRequest() : { status: 200, body: 'ok' }
-					res.writeHead(result.status)
-					res.end(result.body)
-				} catch (error) {
-					res.writeHead(500)
-					res.end('error')
-				}
-			}, this.delayMs)
-		})
+		this.ready = import('node:http').then((http) =>
+			new Promise<void>((resolve) => {
+				this.server = http.createServer((req: any, res: any) => {
+					setTimeout(() => {
+						try {
+							const result = this.onRequest ? this.onRequest() : { status: 200, body: 'ok' }
+							res.writeHead(result.status)
+							res.end(result.body)
+						} catch {
+							res.writeHead(500)
+							res.end('error')
+						}
+					}, this.delayMs)
+				})
 
-		this.ready = new Promise<void>((resolve) => {
-			this.server.listen(0, '127.0.0.1', () => {
-				const address = this.server.address() as import('node:net').AddressInfo
-				this.url = `http://127.0.0.1:${address.port}`
-				resolve()
-			})
-		})
+				this.server.listen(0, '127.0.0.1', () => {
+					const address = this.server.address() as import('node:net').AddressInfo
+					this.url = `http://127.0.0.1:${address.port}`
+					resolve()
+				})
+			}),
+		)
 	}
 
 	async waitUntilReady() {
