@@ -33,13 +33,15 @@ export function createE2ERollSourceFactory(raw: string | undefined, scenarioOver
 
   return (scenarioId) => {
     const configuredRolls = scenarioId === undefined ? undefined : scenarioOverrides.get(scenarioId)
-    const queue = [...(configuredRolls ?? rolls)]
+    const sequence = configuredRolls ?? rolls
+    const queue = [...sequence]
+    const totalRolls = queue.length
     const sourceLabel = configuredRolls === undefined ? 'E2E_RAM_ROLLS' : `E2E_RAM_ROLLS_BY_SCENARIO[${scenarioId}]`
     return {
       next(): number {
         const roll = queue.shift()
         if (roll === undefined) {
-          throw new Error(`${sourceLabel} exhausted after ${queue.length} remaining roll(s)`)
+          throw new Error(`${sourceLabel} exhausted after ${totalRolls} roll(s); declare a longer sequence`)
         }
         return roll
       },
