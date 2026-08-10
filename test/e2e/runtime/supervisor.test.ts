@@ -190,11 +190,36 @@ describe('startRuntimeSupervisor', () => {
 			webUrl: '(starting)',
 		})
 	})
+
+	it('cleans partially started resources when setup failure cleanup is enabled', async () => {
+		const adapter = new FakeRuntimeAdapters()
+		adapter.http.failPaths.add('/')
+		const runtimeOptions = await options({ reuseRuntime: false, keepRuntimeOnFailure: false })
+
+		await expect(startRuntimeSupervisor(runtimeOptions, { adapters: adapter, now: fixedNow })).rejects.toThrow(
+			/E2E runtime setup failed\.[\s\S]*Runtime descriptor: .*runtime\.json[\s\S]*Playwright report:/,
+		)
+		expect(adapter.processes.stops).toBe(2)
+		expect(adapter.databaseContainer.stops).toBe(1)
+		expect(adapter.descriptors.removes).toBe(1)
+	})
+
+	it('preserves partially started resources when setup failure cleanup is disabled', async () => {
+		const adapter = new FakeRuntimeAdapters()
+		adapter.http.failPaths.add('/')
+		const runtimeOptions = await options({ reuseRuntime: false })
+
+		await expect(startRuntimeSupervisor(runtimeOptions, { adapters: adapter, now: fixedNow })).rejects.toThrow('E2E runtime setup failed.')
+		expect(adapter.processes.stops).toBe(0)
+		expect(adapter.databaseContainer.stops).toBe(0)
+		expect(adapter.descriptors.removes).toBe(0)
+	})
 })
 
 const fixedNow = () => new Date('2026-08-07T00:00:00.000Z')
 
 function descriptor(_runtimeFile: string): RuntimeDescriptor {
+	void _runtimeFile
 	return {
 		version: RUNTIME_DESCRIPTOR_VERSION,
 		pid: 1,
@@ -228,7 +253,9 @@ class FakeHttpProbe implements HttpProbe {
 }
 
 class FakeDatabaseProbe implements DatabaseProbe {
-	async check(_databaseUrl: string): Promise<void> {}
+	async check(databaseUrl: string): Promise<void> {
+		void databaseUrl
+	}
 }
 
 class FakeDescriptorStore implements DescriptorStore {
@@ -236,19 +263,23 @@ class FakeDescriptorStore implements DescriptorStore {
 	writes: RuntimeDescriptor[] = []
 	removes = 0
 
-	async read(_path: string): Promise<RuntimeDescriptor | null> {
+	async read(path: string): Promise<RuntimeDescriptor | null> {
+		void path
 		return this.descriptor
 	}
 
-	async write(_path: string, value: RuntimeDescriptor): Promise<void> {
+	async write(path: string, value: RuntimeDescriptor): Promise<void> {
+		void path
 		this.writes.push(value)
 	}
 
-	async remove(_path: string): Promise<void> {
+	async remove(path: string): Promise<void> {
+		void path
 		this.removes += 1
 	}
 
-	async acquireLock(_path: string): Promise<{ release(): Promise<void> }> {
+	async acquireLock(path: string): Promise<{ release(): Promise<void> }> {
+		void path
 		return { release: async () => {} }
 	}
 }

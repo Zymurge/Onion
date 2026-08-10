@@ -14,6 +14,14 @@ export type CoLocationRenderState = {
 	}
 }
 
+export async function waitForAuthoritativeSnapshotAdvance(
+	readSnapshotEventSeq: () => Promise<number>,
+	previousEventSeq: number,
+	message: string,
+): Promise<void> {
+	await expect.poll(readSnapshotEventSeq, { message }).toBeGreaterThan(previousEventSeq)
+}
+
 export class BattlefieldPage {
 	constructor(private readonly page: Page) {}
 
@@ -67,6 +75,19 @@ export class BattlefieldPage {
 		}
 	}
 
+	async moveOnionToFirstReachableHex(): Promise<void> {
+		const previousEventSeq = await this.getSnapshotEventSeq()
+		await this.page.getByTestId('combat-unit-onion-1').click()
+		const destination = this.page.locator('.hex-cell-reachable').first()
+		await expect(destination).toBeVisible()
+		await destination.click({ button: 'right' })
+		await waitForAuthoritativeSnapshotAdvance(
+			() => this.getSnapshotEventSeq(),
+			previousEventSeq,
+			'waiting for the authoritative Onion move to resolve',
+		)
+	}
+
 	async expectInactiveResult(summary: string): Promise<void> {
 		await expect(this.page.getByTestId('inactive-event-stream').getByText(summary, { exact: true })).toBeVisible()
 	}
@@ -76,9 +97,11 @@ export class BattlefieldPage {
 		const button = this.page.getByRole('button', { name: label, exact: true })
 		await expect(button).toBeVisible()
 		await button.click()
-		await expect.poll(async () => this.getSnapshotEventSeq(), {
-			message: `waiting for ${label} to update the authoritative snapshot`,
-		}).toBeGreaterThan(previousEventSeq)
+		await waitForAuthoritativeSnapshotAdvance(
+			() => this.getSnapshotEventSeq(),
+			previousEventSeq,
+			`waiting for ${label} to update the authoritative snapshot`,
+		)
 
 		return this.getSnapshotEventSeq()
 	}

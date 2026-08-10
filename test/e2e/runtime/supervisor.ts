@@ -34,13 +34,16 @@ function runtimePaths(runtimeFile: string, now: Date): { logDir: string; artifac
 	}
 }
 
-function diagnosticMessage(runtime: ResolvedRuntime, reason: unknown): string {
+function diagnosticMessage(runtime: ResolvedRuntime, runtimeFile: string, reason: unknown): string {
 	const detail = reason instanceof Error ? reason.message : String(reason)
 	return [
 		'E2E runtime setup failed.',
 		`Reason: ${detail}`,
+		`Runtime descriptor: ${runtimeFile}`,
 		`Log directory: ${runtime.logDir}`,
 		`Artifact manifest: ${runtime.artifactFile}`,
+		`Playwright report: ${join(runtime.logDir, 'playwright', 'report')}`,
+		`Playwright failure output: ${join(runtime.logDir, 'playwright', 'test-results')}`,
 		`Engine URL: ${runtime.engineUrl}`,
 		`Web URL: ${runtime.webUrl}`,
 		`Database URL: ${runtime.databaseUrl ?? '(not attached)'}`,
@@ -66,13 +69,14 @@ export async function startRuntimeSupervisor(
 	let engine: ProcessHandle | undefined
 	let web: ProcessHandle | undefined
 	let runtime: ResolvedRuntime | undefined
+	let paths: ReturnType<typeof runtimePaths> | undefined
 
 	try {
 		if (!reusable && options.reuseRuntime) {
 			reusable = await discoverHealthyRuntime(options.runtimeFile, options.startupTimeoutMs, adapters)
 		}
 
-		const paths = runtimePaths(options.runtimeFile, now())
+		paths = runtimePaths(options.runtimeFile, now())
 		await mkdir(paths.logDir, { recursive: true })
 		await writeArtifactManifest(paths.artifactFile, createEmptyArtifactManifest())
 
@@ -128,13 +132,13 @@ export async function startRuntimeSupervisor(
 			})
 		}
 	} catch (error) {
-		const paths = runtimePaths(options.runtimeFile, now())
+		const diagnosticPaths = paths ?? runtimePaths(options.runtimeFile, now())
 		const failedRuntime: ResolvedRuntime = runtime ?? {
 			engineUrl: options.engineUrl ?? reusable?.engineUrl ?? '(starting)',
 			webUrl: options.webUrl ?? reusable?.webUrl ?? '(starting)',
 			databaseUrl: options.databaseUrl ?? reusable?.databaseUrl,
-			logDir: paths.logDir,
-			artifactFile: paths.artifactFile,
+			logDir: diagnosticPaths.logDir,
+			artifactFile: diagnosticPaths.artifactFile,
 			ownership: { database: 'owned', engine: 'owned', web: 'owned' },
 		}
 
@@ -153,7 +157,19 @@ export async function startRuntimeSupervisor(
 			// Keep the setup failure as the actionable error if diagnostic persistence fails too.
 		}
 
-		throw new Error(diagnosticMessage(failedRuntime, error))
+		if (!options.keepRuntimeOnFailure) {
+			if (failedRuntime.databaseUrl) {
+				await cleanupRegisteredArtifacts(failedRuntime.artifactFile, failedRuntime.databaseUrl, adapters.artifactCleanup)
+			}
+			await Promise.allSettled([web?.stop(), engine?.stop(), database?.stop()])
+			try {
+				await adapters.descriptors.remove(options.runtimeFile)
+			} catch {
+				// Keep the setup failure as the actionable error if cleanup persistence fails too.
+			}
+		}
+
+		throw new Error(diagnosticMessage(failedRuntime, options.runtimeFile, error))
 	} finally {
 		await lock.release()
 	}
