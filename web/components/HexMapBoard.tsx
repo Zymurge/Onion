@@ -698,9 +698,15 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
                         const isDisabled = occupant.status === 'disabled'
                         const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
                         const isMovementPhaseActiveSide = phase === 'ONION_MOVE' ? isOccupantOnion : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE' ? !isOccupantOnion : false
+                        const combatMembers = rosterGroup === null
+                          ? [occupant]
+                          : rosterGroup.unitIds
+                            .map((unitId) => cellOccupants.find((cellOccupant) => cellOccupant.id === unitId))
+                            .filter((member): member is HexOccupant => member !== undefined)
                         const combatHasReadyAttack = isOccupantOnion
-                              ? (occupant.weaponDetails ?? []).some(isBattlefieldWeaponReady)
-                          : 'actionableModes' in occupant && occupant.actionableModes.includes('fire')
+                          ? (occupant.weaponDetails ?? []).some(isBattlefieldWeaponReady)
+                          : combatMembers.some((member) => member.status === 'operational' && 'actionableModes' in member && member.actionableModes.includes('fire'))
+                        const combatIsDisabled = combatMembers.length > 0 && combatMembers.every((member) => member.status === 'destroyed' || member.status === 'disabled')
                         const moveHasRemaining = isOccupantOnion
                           ? onion.movesRemaining > 0
                           : 'move' in occupant && occupant.move > 0
@@ -725,7 +731,7 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
                           ? ''
                           : isSwamp
                             ? isDestroyed ? 'hex-unit-rect-swamp-destroyed' : 'hex-unit-rect-swamp'
-                            : isDestroyed || isDisabled
+                            : combatIsDisabled
                             ? 'hex-unit-rect-move-disabled'
                             : isMovementPhaseActiveSide
                               ? moveHasRemaining
@@ -789,9 +795,9 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
                                 subjectCapability: {
                                   inspectable: occupant.status !== 'destroyed' || occupant.type === 'Swamp',
                                   moveEligible: isMovementPhase && occupant.status === 'operational' && (occupant.id === onion.id ? onion.movesRemaining > 0 : 'move' in occupant && occupant.move > 0),
-                                  attackerEligible: isCombatPhase && occupant.status === 'operational' && (occupant.id === onion.id
-                                    ? resolvedViewerRole === 'onion' && (occupant.weaponDetails ?? []).some(isBattlefieldWeaponReady)
-                                    : resolvedViewerRole === 'defender' && 'actionableModes' in occupant && occupant.actionableModes.includes('fire')),
+                                  attackerEligible: isCombatPhase && !combatIsDisabled && (occupant.id === onion.id
+                                    ? resolvedViewerRole === 'onion' && combatHasReadyAttack
+                                    : resolvedViewerRole === 'defender' && combatHasReadyAttack),
                                   targetEligible: false,
                                 },
                                 interactionMode: rosterGroup !== null ? { groupExpansionTarget: true } : undefined,

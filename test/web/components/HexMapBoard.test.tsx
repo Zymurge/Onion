@@ -210,6 +210,97 @@
 		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
 	})
 
+	it('keeps a partial-group combat marker eligible when any member is ready', () => {
+		const partialGroup: BattlefieldUnit[] = [
+			{
+				...defenders[0],
+				id: 'pigs-1',
+				type: 'LittlePigs',
+				typeId: 'LittlePigs',
+				position: { q: 2, r: 2 },
+				q: 2,
+				r: 2,
+				state: 'operational',
+				actionableModes: [],
+			},
+			{
+				...defenders[0],
+				id: 'pigs-2',
+				type: 'LittlePigs',
+				typeId: 'LittlePigs',
+				position: { q: 2, r: 2 },
+				q: 2,
+				r: 2,
+				state: 'operational',
+				actionableModes: ['fire', 'combined'],
+			},
+		]
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={partialGroup}
+				onions={[onion]}
+				phase="DEFENDER_COMBAT"
+				stackRoster={{
+					groupsById: {
+						'LittlePigs:2,2': {
+							groupName: 'Little Pigs group',
+							unitType: 'LittlePigs',
+							position: { q: 2, r: 2 },
+							unitIds: ['pigs-1', 'pigs-2'],
+						},
+					},
+				}}
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/> ,
+		)
+
+		expect(screen.getByTestId('hex-unit-pigs-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+	})
+
+	it('marks a grouped combat marker ineligible when every member has fired', () => {
+		const spentGroup = defenders.slice(0, 2).map((defender, index) => ({
+			...defender,
+			id: `pigs-${index + 1}`,
+			type: 'LittlePigs',
+			typeId: 'LittlePigs',
+			position: { q: 2, r: 2 },
+			q: 2,
+			r: 2,
+			state: 'operational' as const,
+			actionableModes: [],
+		}))
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={spentGroup}
+				onions={[onion]}
+				phase="DEFENDER_COMBAT"
+				stackRoster={{
+					groupsById: {
+						'LittlePigs:2,2': {
+							groupName: 'Little Pigs group',
+							unitType: 'LittlePigs',
+							position: { q: 2, r: 2 },
+							unitIds: ['pigs-1', 'pigs-2'],
+						},
+					},
+				}}
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/> ,
+		)
+
+		expect(screen.getByTestId('hex-unit-pigs-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-ineligible')
+	})
+
 	it('shows Onion and a surviving defender as shared occupants', () => {
 		const survivingDefender: BattlefieldUnit = {
 			...defenders[0],

@@ -87,6 +87,54 @@ describe('rendering and display', () => {
 		expect(screen.queryByTestId('combat-unit-wolf-2')).toBeNull()
 	})
 
+	it('lets the inactive Onion inspect fired and ready defenders during defender combat', async () => {
+		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
+			units: [
+				{
+					id: 'fired-puss',
+					type: 'Puss',
+					friendlyName: 'Fired Puss',
+					pos: { q: 2, r: 2 },
+					weapons: [makeWeapon({ id: 'main', typeId: 'Puss.main', state: 'spent' })],
+				},
+				{
+					id: 'ready-puss',
+					type: 'Puss',
+					friendlyName: 'Ready Puss',
+					pos: { q: 4, r: 4 },
+				},
+			],
+		})
+		const snapshot = {
+			...baseOrchestrationSnapshot,
+			phase: 'DEFENDER_COMBAT' as const,
+			authoritativeState: {
+				...baseOrchestrationSnapshot.authoritativeState,
+				defenders,
+				stackRoster,
+				stackNaming,
+			},
+		}
+		const client = createTestClient(snapshot, { role: 'onion' })
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const firedPuss = await screen.findByTestId('hex-unit-fired-puss')
+		expect(firedPuss.querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-ineligible')
+		fireEvent.click(firedPuss)
+
+		expect(screen.getByTestId('battlefield-inspector-subject-fired-puss').textContent).toBe('Fired Puss')
+		expect(screen.getByTestId('battlefield-inspector').textContent).toContain('Status')
+		expect(screen.getByTestId('battlefield-inspector').textContent).toContain('operational')
+		expect(screen.queryByTestId('combat-target-list')).toBeNull()
+
+		const readyPuss = await screen.findByTestId('hex-unit-ready-puss')
+		expect(readyPuss.querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		fireEvent.click(readyPuss)
+
+		expect(screen.getByTestId('battlefield-inspector-subject-ready-puss').textContent).toBe('Ready Puss')
+	})
+
 	it('renders hex board bounds from the authoritative scenario map instead of the mock map', async () => {
 		const snapshot = createAuthoritativeBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
@@ -801,6 +849,44 @@ describe('combat', () => {
 		const groupButton = await screen.findByTestId('combat-unit-pigs-1')
 		expect(groupButton.textContent).toContain('Attack: 2')
 		expect(groupButton.textContent).toContain('2/2')
+	})
+
+	it('submits a canonical group target when Onion fires at a grouped stack', async () => {
+		const user = userEvent.setup()
+		const baseSnapshot = createInRangeCombatSnapshot()
+		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
+			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', pos: { q: 1, r: 1 } },
+				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
+			],
+			groups: [{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] }],
+		})
+		const snapshot = {
+			...baseSnapshot,
+			phase: 'ONION_COMBAT' as const,
+			authoritativeState: {
+				...baseSnapshot.authoritativeState,
+				defenders,
+				stackRoster,
+				stackNaming,
+			},
+		}
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+		const client = createTestClient(snapshot, { role: 'onion' }, { submitAction })
+
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		await user.click(await screen.findByTestId('combat-weapon-main-1'))
+		await user.click(await screen.findByTestId('combat-target-LittlePigs:1,1'))
+		await user.click(await screen.findByRole('button', { name: /resolve combat/i }))
+
+		expect(submitAction).toHaveBeenCalledWith(123, {
+			type: 'FIRE',
+			attackers: ['main-1'],
+			targetId: 'LittlePigs:1,1',
+			onionId: 'onion-1',
+		})
 	})
 
 	it('renders onion weapon targets in defender combat', async () => {

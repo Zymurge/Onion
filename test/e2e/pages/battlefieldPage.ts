@@ -75,6 +75,26 @@ export class BattlefieldPage {
 		}
 	}
 
+	async expectUnitCombatReady(unitId: string, expected: boolean): Promise<void> {
+		const marker = this.page.getByTestId(`hex-unit-${unitId}`)
+		await expect(marker).toHaveCount(1)
+		const rect = marker.locator('rect')
+		if (expected) {
+			await expect(rect).toHaveClass(/hex-unit-rect-combat-eligible/)
+		} else {
+			await expect(rect).toHaveClass(/hex-unit-rect-combat-ineligible/)
+		}
+	}
+
+	async inspectUnit(unitId: string): Promise<void> {
+		await this.page.getByTestId(`hex-unit-${unitId}`).click()
+	}
+
+	async expectInspectorSubject(unitId: string, label: string): Promise<void> {
+		await expect(this.page.getByTestId('battlefield-inspector')).toBeVisible()
+		await expect(this.page.getByTestId(`battlefield-inspector-subject-${unitId}`)).toHaveText(label)
+	}
+
 	async moveOnionToFirstReachableHex(): Promise<void> {
 		const previousEventSeq = await this.getSnapshotEventSeq()
 		await this.page.getByTestId('combat-unit-onion-1').click()

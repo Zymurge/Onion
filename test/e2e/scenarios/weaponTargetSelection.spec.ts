@@ -38,6 +38,12 @@ test('Defender selects the intended Onion weapon target and Onion sees the resul
 		await expect(toast).toContainText('Destroyed weapon: Main Battery')
 		await onionBattlefield.expectInactiveResult('Fire on Main Battery: destroyed')
 		await onionBattlefield.expectInactiveDetail('Battery destroyed: Main Battery')
+		await onionBattlefield.expectUnitCombatReady('puss-1', false)
+		await onionBattlefield.inspectUnit('puss-1')
+		await onionBattlefield.expectInspectorSubject('puss-1', 'Puss 1')
+		await expect(onionPage.getByTestId('battlefield-inspector')).toContainText('Status')
+		await expect(onionPage.getByTestId('battlefield-inspector')).toContainText('operational')
+		await expect(onionPage.getByTestId('combat-target-list')).toHaveCount(0)
 	} finally {
 		await Promise.all([onionContext.close(), defenderContext.close()])
 	}
