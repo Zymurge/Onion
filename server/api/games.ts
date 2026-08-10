@@ -9,7 +9,7 @@ import { StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { createMap } from '#server/engine/map'
-import { validateUnitMovement, executeUnitMovement, reconcileStackStateAfterMoves, validateCombatAction, executeCombatAction } from '#server/engine/index'
+import { validateUnitMovement, executeUnitMovement, reconcileStackStateAfterMoves, validateCombatAction, executeCombatAction, type RollSource } from '#server/engine/index'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
 import {
   assertScenarioStateFitsMap,
@@ -59,9 +59,41 @@ const CreateGameSchema = z.object({
  * @param app - Fastify application instance
  * @param opts - Plugin options containing the database adapter
  */
-export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: FastifyInstance, opts) => {
-  const { db } = opts
+export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (scenarioId?: string) => RollSource; createCombatRolls?: () => RollSource }> = async (app: FastifyInstance, opts) => {
+  const { db, createRamRolls, createCombatRolls } = opts
   const liveConnections = new Map<number, Set<WebSocket>>()
+  const ramRollsByGame = new Map<number, RollSource>()
+  const combatRollsByGame = new Map<number, RollSource>()
+
+  function ramRollsForGame(gameId: number, scenarioId: string): RollSource | undefined {
+    if (createRamRolls === undefined) {
+      return undefined
+    }
+
+    const existing = ramRollsByGame.get(gameId)
+    if (existing !== undefined) {
+      return existing
+    }
+
+    const created = createRamRolls(scenarioId)
+    ramRollsByGame.set(gameId, created)
+    return created
+  }
+
+  function combatRollsForGame(gameId: number): RollSource | undefined {
+    if (createCombatRolls === undefined) {
+      return undefined
+    }
+
+    const existing = combatRollsByGame.get(gameId)
+    if (existing !== undefined) {
+      return existing
+    }
+
+    const created = createCombatRolls()
+    combatRollsByGame.set(gameId, created)
+    return created
+  }
 
   function broadcastGameEvents(gameId: number, events: EventEnvelope[]) {
     const sockets = liveConnections.get(gameId)
@@ -639,7 +671,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
             })
           }
 
-          const result = executeUnitMovement(state, validation.plan, { reconcileStackRoster: false })
+          const result = executeUnitMovement(state, validation.plan, {
+            reconcileStackRoster: false,
+            ramRolls: ramRollsForGame(match.gameId, match.scenarioId),
+          })
           if (!result.success) {
             logger.info({ gameId: match.gameId, unitId: moveUnitId, error: result.error }, 'Invalid move command')
             return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })
@@ -719,7 +754,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
           })
         }
 
-        const result = executeCombatAction(state, validation.plan)
+        const result = executeCombatAction(state, validation.plan, combatRollsForGame(match.gameId)?.next())
         if (!result.success) {
           logger.info({ gameId: match.gameId, error: result.error }, 'Invalid combat command')
           return reply.status(422).send({ ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase })

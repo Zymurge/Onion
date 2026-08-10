@@ -15,6 +15,7 @@ import type { GameState } from '#server/engine/units'
 import logger from '#server/logger'
 import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
+import { createRollQueue } from '#test/utils/rollQueue'
 
 let infoSpy: any, warnSpy: any, errorSpy: any;
 
@@ -508,6 +509,64 @@ describe('executeUnitMovement', () => {
     expect(result.rammedUnitResults?.[0]?.outcome.effect).toBe('survived')
     expect(state.defenders.d1.state).toBe('operational')
     randomSpy.mockRestore()
+  })
+
+  describe('deterministic ramRolls', () => {
+    function makeRamPlan(rammedUnitIds: string[]): MovementPlan {
+      return makePlan({
+        unitId: 'onion',
+        from: { q: 0, r: 0 },
+        to: { q: 1, r: 0 },
+        path: [{ q: 1, r: 0 }],
+        rammedUnitIds,
+        ramCapacityUsed: rammedUnitIds.length,
+        treadCost: 1,
+        capabilities: { canRam: true, hasTreads: true, canSecondMove: false },
+      })
+    }
+
+    it('consumes one roll per rammed unit in order', () => {
+      const d1 = makeDefender({ unitId: 'd1', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+      const d2 = makeDefender({ unitId: 'd2', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+      const state = makeState({ defenders: { d1, d2 } })
+      const ramRolls = createRollQueue([1, 6])
+
+      const result = executeUnitMovement(state, makeRamPlan(['d1', 'd2']), { ramRolls })
+
+      expect(result.rammedUnitResults?.map((r) => r.outcome.roll)).toEqual([1, 6])
+      expect(result.rammedUnitResults?.map((r) => r.outcome.effect)).toEqual(['destroyed', 'survived'])
+      expect(ramRolls.remaining).toBe(0)
+    })
+
+    it('fails loudly when the queue is exhausted mid-move', () => {
+      const d1 = makeDefender({ unitId: 'd1', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+      const d2 = makeDefender({ unitId: 'd2', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+      const state = makeState({ defenders: { d1, d2 } })
+      const ramRolls = createRollQueue([1])
+
+      expect(() => executeUnitMovement(state, makeRamPlan(['d1', 'd2']), { ramRolls })).toThrow(/exhausted/)
+    })
+
+    it('does not affect ramming when no queue is supplied, preserving default randomness', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
+      const d1 = makeDefender({ unitId: 'd1', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+      const state = makeState({ defenders: { d1 } })
+
+      const result = executeUnitMovement(state, makeRamPlan(['d1']))
+
+      expect(result.rammedUnitResults?.[0]?.outcome.roll).toBe(1)
+      randomSpy.mockRestore()
+    })
+
+    it('keeps independently created queues isolated from one another', () => {
+      const combatRolls = createRollQueue([2, 4])
+      const ramRolls = createRollQueue([6])
+
+      expect(combatRolls.next()).toBe(2)
+      expect(ramRolls.next()).toBe(6)
+      expect(combatRolls.remaining).toBe(1)
+      expect(ramRolls.remaining).toBe(0)
+    })
   })
 
   it('preserves and advances stack names when a stacked Little Pigs unit moves away', () => {

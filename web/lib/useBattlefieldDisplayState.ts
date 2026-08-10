@@ -253,7 +253,6 @@ export function useBattlefieldDisplayState({
         activeSelectedUnitIds: selectedCombatSelectionIds,
         displayedDefenders,
         displayedOnion,
-        displayedOnions,
       })
     const rightRailStackPanel: RightRailStackPanelViewModel = {
       isVisible: rightRailStackSelection.selectedStackMembers.length > 1 && !(isCombatPhase && activeCombatRole === 'defender'),
@@ -319,6 +318,7 @@ export function useBattlefieldDisplayState({
       connectionStatus,
       displayedDefenders,
       displayedOnion,
+      displayedOnions,
       displayedScenarioMap,
       headerHasSnapshot,
       isCombatPhase,

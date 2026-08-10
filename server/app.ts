@@ -7,6 +7,12 @@ import { gameRoutes } from '#server/api/games'
 import { getPool } from '#server/db/client'
 import type { DbAdapter } from '#server/db/adapter'
 import { InMemoryDb } from '#server/db/memory'
+import type { RollSource } from '#server/engine/movement'
+
+type BuildAppOptions = {
+  createRamRolls?: (scenarioId?: string) => RollSource
+  createCombatRolls?: () => RollSource
+}
 
 function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
   const fallback = new InMemoryDb()
@@ -25,7 +31,7 @@ function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
   }
 }
 
-export function buildApp(db?: Partial<DbAdapter>): FastifyInstance {
+export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {}): FastifyInstance {
   const adapter = resolveAdapter(db)
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test' })
 
@@ -64,7 +70,12 @@ export function buildApp(db?: Partial<DbAdapter>): FastifyInstance {
 
   app.register(authRoutes, { prefix: '/auth', db: adapter })
   app.register(scenarioRoutes, { prefix: '/scenarios' })
-  app.register(gameRoutes, { prefix: '/games', db: adapter })
+  app.register(gameRoutes, {
+    prefix: '/games',
+    db: adapter,
+    createRamRolls: options.createRamRolls,
+    createCombatRolls: options.createCombatRolls,
+  })
 
   // Global error handler
   app.setErrorHandler((error, _req, reply) => {

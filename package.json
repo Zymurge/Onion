@@ -8,7 +8,10 @@
     "#server/*": "./server/*.ts",
     "#shared/*": "./shared/*.ts",
     "#test/utils/*": "./test/utils/*.ts",
-    "#web/*": ["./web/*.ts", "./web/*.tsx"]
+    "#web/*": [
+      "./web/*.ts",
+      "./web/*.tsx"
+    ]
   },
   "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
   "scripts": {
@@ -16,11 +19,13 @@
     "cli": "tsx server/cli/index.ts",
     "cli:dev": "tsx watch server/cli/index.ts",
     "cli:test-game": "npm run build && node dist/server/cli/test-game.js",
+    "lint": "eslint .",
     "web:dev": "pnpm --dir web dev",
     "web:build": "pnpm --dir web build",
     "web:preview": "pnpm --dir web preview",
     "web:lint": "pnpm --dir web lint",
     "build": "tsc && node scripts/write-dist-package-json.mjs",
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json",
     "start:cli": "node dist/server/cli/index.js",
     "start": "node dist/server/index.js",
     "test": "vitest run",
@@ -28,7 +33,9 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:web:coverage": "vitest run \"test/web/**/*.test.ts*\" --coverage --coverage.include=web/**",
-    "docs:serve": "npx http-server docs/api -p 3001 -c-1 --cors"
+    "test:e2e": "tsx scripts/test-e2e.ts",
+    "docs:serve": "npx http-server docs/api -p 3001 -c-1 --cors",
+    "test:e2e:install": "pnpm exec playwright install chromium"
   },
   "dependencies": {
     "@fastify/jwt": "^10.0.0",
@@ -43,6 +50,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@playwright/test": "1.62.1",
     "@testcontainers/postgresql": "^11.12.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -54,9 +63,16 @@
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
+    "@typescript-eslint/parser": "^8.61.1",
     "@vitest/coverage-v8": "^4.1.2",
     "http-server": "^14.1.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
     "jsdom": "^29.0.2",
+    "typescript-eslint": "^8.61.1",
     "tsx": "^4.21.0",
     "typedoc": "^0.28.19",
     "typescript": "^6.0.2",

@@ -28,8 +28,7 @@ type HexMapBoardProps = {
     hexes: ReadonlyArray<TerrainHex>
   }
   defenders: ReadonlyArray<BattlefieldUnit>
-  onions?: ReadonlyArray<BattlefieldOnionView>
-  onion?: BattlefieldOnionView
+  onions: ReadonlyArray<BattlefieldOnionView>
   phase: string | null
   viewerRole?: 'onion' | 'defender' | null
   selectedUnitIds: ReadonlyArray<string>
@@ -164,9 +163,8 @@ function buildMoveValidationState(
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onions: inputOnions, onion, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, escapeHexes, stackNaming, stackRoster, catalog, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
+export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, escapeHexes, stackNaming, stackRoster, catalog, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
   void viewerRole
-  const onions = inputOnions ?? (onion === undefined ? [] : [onion])
 
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
   const occupantMap = new Map<string, HexOccupant[]>()

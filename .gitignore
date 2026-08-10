@@ -5,3 +5,4 @@ coverage/
 *.tsbuildinfo
 .pnpm-store/
 .vscode/settings.local.json
+.e2e-runtime/*

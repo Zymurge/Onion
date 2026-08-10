@@ -1,0 +1,39 @@
+{
+  "id": "e2e-colocation-01",
+  "name": "e2e-colocation-01",
+  "displayName": "E2E Co-location Rendering",
+  "description": "Deterministic browser scenario for stacked and adjacent unit rendering.",
+  "map": {
+    "radius": 3,
+    "hexes": []
+  },
+  "initialState": {
+    "onions": {
+      "onion-1": {
+        "type": "TheOnion",
+        "position": { "q": 3, "r": 3 },
+        "status": "operational"
+      }
+    },
+    "defenders": {
+      "pigs-stack-1": {
+        "kind": "stack-group",
+        "unitType": "LittlePigs",
+        "position": { "q": 2, "r": 2 },
+        "count": 3,
+        "status": "operational"
+      },
+      "puss-1": {
+        "type": "Puss",
+        "position": { "q": 3, "r": 2 },
+        "status": "operational"
+      },
+      "wolf-1": {
+        "type": "BigBadWolf",
+        "position": { "q": 2, "r": 3 },
+        "status": "operational"
+      }
+    }
+  },
+  "victoryConditions": {}
+}

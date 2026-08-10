@@ -9,7 +9,7 @@ import type { GameStateResponse, VictoryEscapeHex, VictoryObjectiveState } from 
 import { hexKey } from '#shared/hex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
-import type { Command, EventEnvelope, GameState, SessionInitPayload, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
+import type { ActionOkResponse, Command, EventEnvelope, GameState, SessionInitPayload, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
 import { getUnitDefinition, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import { getDefender, getOnionOrDefender } from '#shared/unitState'
@@ -602,7 +602,7 @@ export function buildMoveEvents(
   }
 
   if (result.treadDamage !== undefined && result.treadDamage > 0) {
-    const treadTargetId = formatCombatTargetId({ onionId: canonicalMoveUnitId })
+    const treadTargetId = formatCombatTargetId({ kind: 'treads', onionId: canonicalMoveUnitId })
     events.push({
       seq: seq++,
       type: 'ONION_TREADS_LOST',
@@ -792,12 +792,7 @@ export function buildActionResponse(
   turnNumber: number,
   eventSeq: number,
   events: EventEnvelope[],
-): {
-  ok: true
-  seq: number
-  events: EventEnvelope[]
-  state: GameState
-  movementRemainingByUnit: Record<string, number>
+): ActionOkResponse & {
   turnNumber: number
   eventSeq: number
   phase: TurnPhase

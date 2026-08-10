@@ -1,0 +1,27 @@
+{
+  "id": "e2e-ram-01",
+  "name": "e2e-ram-01",
+  "displayName": "E2E Ram Resolution",
+  "description": "Minimal deterministic browser scenario for one Onion ram against Puss.",
+  "map": {
+    "radius": 2,
+    "hexes": []
+  },
+  "initialState": {
+    "onions": {
+      "onion-1": {
+        "type": "TheOnion",
+        "position": { "q": 0, "r": 0 },
+        "status": "operational"
+      }
+    },
+    "defenders": {
+      "puss-1": {
+        "type": "Puss",
+        "position": { "q": 0, "r": 1 },
+        "status": "operational"
+      }
+    }
+  },
+  "victoryConditions": {}
+}

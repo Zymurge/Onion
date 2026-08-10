@@ -63,6 +63,7 @@ export type {
   MovementPlan,
   MovementResult,
   MovementExecutionOptions,
+  RollSource,
 } from '#server/engine/movement'
 
 export {
