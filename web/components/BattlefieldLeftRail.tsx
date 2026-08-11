@@ -57,7 +57,7 @@ type DefenderStackGroupMember = {
   label: string
 }
 
-type DefenderCombatGroup = {
+type DefenderStackGroup = {
   anchorUnit: BattlefieldUnit
   attackStrength: number
   attackReadyCount: number
@@ -66,16 +66,6 @@ type DefenderCombatGroup = {
   label: string
   members: DefenderStackGroupMember[]
   range: number
-  selectedCount: number
-}
-
-type DefenderMoveGroup = {
-  anchorUnit: BattlefieldUnit
-  attackStrength: number
-  attackReadyCount: number
-  isDestroyed: boolean
-  label: string
-  members: DefenderStackGroupMember[]
   moveAllowance: number
   selectedCount: number
 }
@@ -142,15 +132,16 @@ function buildRenderErrorMessage(
   return `${errorMessage} (selectedUnitId=${selectedUnitId}, phase=${phase}, activeRole=${context.activeCombatRole ?? 'none'}, mode=${context.activeMode}, selectedUnitIds=${context.activeSelectedUnitIds.join(', ') || 'none'}, displayedDefenders=${displayedDefenderIds}, stackRosterGroups=${rosterGroupKeys})`
 }
 
-function buildCombatGroupFromUnits(
+function buildDefenderGroupFromUnits(
   units: ReadonlyArray<BattlefieldUnit>,
+  groupMode: 'combat' | 'move',
   activeMode: Mode,
   activeSelectedUnitIds: readonly string[],
   stackNaming: StackNamingSnapshot | undefined,
   selectionState: WebStackSourceState,
   catalog: SessionCatalog | undefined,
   groupKey?: string,
-): DefenderCombatGroup {
+): DefenderStackGroup {
   const anchorUnit = units[0]
   const baseAttackStats = parseAttackStats(anchorUnit.attack)
   const stackSize = units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
@@ -185,28 +176,32 @@ function buildCombatGroupFromUnits(
     anchorUnit,
     attackStrength: displayedUnits.reduce((total, unit) => total + getReadyUnitAttackStrength(unit, catalog), 0),
     attackReadyCount,
-    isActionable: units.some((unit) => unit.actionableModes.includes(activeMode)),
-    isDestroyed: units.every((unit) => unit.status === 'destroyed'),
+      isActionable: groupMode === 'combat' && units.some((unit) => unit.actionableModes.includes(activeMode)),
+      isDestroyed: groupMode === 'combat'
+        ? units.every((unit) => unit.status === 'destroyed')
+        : anchorUnit.status === 'destroyed',
     label,
     members,
-    range: parseRangeValue(baseAttackStats.range),
+      range: groupMode === 'combat' ? parseRangeValue(baseAttackStats.range) : 0,
+      moveAllowance: groupMode === 'move' ? Math.max(...units.map((unit) => unit.move)) : 0,
     selectedCount,
   }
 }
 
-function buildDefenderCombatGroups(
+  function buildDefenderGroups(
   displayedDefenders: ReadonlyArray<BattlefieldUnit>,
+    groupMode: 'combat' | 'move',
   activeMode: Mode,
   activeSelectedUnitIds: string[],
   stackNaming: StackNamingSnapshot | undefined,
   stackRoster: StackRosterState | undefined,
   catalog: SessionCatalog | undefined,
-): DefenderCombatGroup[] {
+): DefenderStackGroup[] {
   const rosterIndex = stackRoster !== undefined
     ? buildStackRosterIndex(stackRoster, buildDefenderLookup(displayedDefenders))
     : null
   const selectionState = buildDefenderSelectionState(displayedDefenders, stackRoster, catalog)
-  const selectionGroups: DefenderCombatGroup[] = []
+  const selectionGroups: DefenderStackGroup[] = []
   const consumedUnitIds = new Set<string>()
 
   if (rosterIndex !== null) {
@@ -223,7 +218,7 @@ function buildDefenderCombatGroups(
         consumedUnitIds.add(unit.id)
       }
 
-      selectionGroups.push(buildCombatGroupFromUnits(units, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog, rosterGroup.groupKey))
+      selectionGroups.push(buildDefenderGroupFromUnits(units, groupMode, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog, rosterGroup.groupKey))
     }
   }
 
@@ -232,59 +227,10 @@ function buildDefenderCombatGroups(
       continue
     }
 
-    selectionGroups.push(buildCombatGroupFromUnits([unit], activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog))
+    selectionGroups.push(buildDefenderGroupFromUnits([unit], groupMode, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog))
   }
 
   return selectionGroups
-}
-
-function buildMoveGroupFromUnits(
-  units: ReadonlyArray<BattlefieldUnit>,
-  activeSelectedUnitIds: readonly string[],
-  stackNaming: StackNamingSnapshot | undefined,
-  selectionState: WebStackSourceState,
-  catalog: SessionCatalog | undefined,
-  groupKey?: string,
-): DefenderMoveGroup {
-  const anchorUnit = units[0]
-  const stackSize = units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
-  const displayedUnits = resolveDisplayedStackUnits(units, activeSelectedUnitIds)
-  const resolvedGroupKey = units.length > 1 ? groupKey : undefined
-  const label = resolvedGroupKey !== undefined
-    ? resolveBattlefieldStackLabel(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName, stackSize, resolvedGroupKey, stackNaming)
-    : resolveBattlefieldDisplayName({
-      id: anchorUnit.id,
-      type: anchorUnit.type,
-      position: getBattlefieldPosition(anchorUnit),
-      friendlyName: anchorUnit.friendlyName,
-      squads: stackSize,
-    }, stackNaming)
-  const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.id, activeSelectedUnitIds)
-  const attackReadyCount = displayedUnits.filter((unit) => getReadyUnitAttackStrength(unit, catalog) > 0).length
-  const members = units.length > 1
-    ? units.map((unit) => ({
-      selectionId: unit.id,
-      testId: `combat-stack-member-${unit.id}`,
-      label: resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName),
-    }))
-    : stackSize > 1
-      ? Array.from({ length: stackSize }, (_, index) => ({
-        selectionId: buildStackMemberSelectionId(anchorUnit.id, index + 1),
-        testId: `combat-stack-member-${anchorUnit.id}-${index + 1}`,
-        label: resolveBattlefieldUnitName(anchorUnit.type, anchorUnit.id, anchorUnit.friendlyName),
-      }))
-      : []
-
-  return {
-    anchorUnit,
-    attackStrength: displayedUnits.reduce((total, unit) => total + getReadyUnitAttackStrength(unit, catalog), 0),
-    attackReadyCount,
-    isDestroyed: anchorUnit.status === 'destroyed',
-    label,
-    members,
-    moveAllowance: Math.max(...units.map((unit) => unit.move)),
-    selectedCount,
-  }
 }
 
 function getReadyUnitAttackStrength(unit: BattlefieldUnit, catalog?: SessionCatalog): number {
@@ -307,14 +253,12 @@ function resolveDisplayedStackUnits(
   return selectedUnits.length > 0 ? selectedUnits : [...units]
 }
 
-type BattlefieldStackGroup = DefenderCombatGroup | DefenderMoveGroup
-
 type BattlefieldStackGroupProps = {
   activeMode: Mode
   activeSelectedUnitIds: readonly string[]
   activeTurnActive: boolean
   displayedDefenders: ReadonlyArray<BattlefieldUnit>
-  group: BattlefieldStackGroup
+  group: DefenderStackGroup
   groupMode: 'combat' | 'move'
   isSelectionLocked: boolean
   stacksExpandable: boolean
@@ -337,18 +281,15 @@ function BattlefieldStackGroup({
   onSelectMember,
 }: BattlefieldStackGroupProps) {
   const isCombatGroup = groupMode === 'combat'
-  const combatGroup = group as DefenderCombatGroup
-  const moveGroup = group as DefenderMoveGroup
   const isSelected = group.selectedCount > 0
   const isActionable = isCombatGroup
-    ? activeTurnActive && viewerRole === 'defender' && combatGroup.isActionable
+    ? activeTurnActive && viewerRole === 'defender' && group.isActionable
     : activeTurnActive && viewerRole === 'defender' && !group.isDestroyed
   const isExpanded = shouldExpandBattlefieldStackGroup({
     memberCount: group.members.length,
     selectedCount: group.selectedCount,
     stacksExpandable,
   })
-
   return (
     <div
       key={group.anchorUnit.id}
@@ -373,7 +314,7 @@ function BattlefieldStackGroup({
         title={isCombatGroup && activeTurnActive && viewerRole === 'defender'
           ? group.isDestroyed
             ? 'Destroyed units cannot attack.'
-            : !combatGroup.isActionable
+            : !group.isActionable
               ? 'This unit is not eligible to attack.'
               : undefined
           : undefined}
@@ -394,8 +335,8 @@ function BattlefieldStackGroup({
         </div>
         <div className="weapon-card-stats">
           {isCombatGroup
-            ? <>Attack: {combatGroup.attackStrength} &nbsp;·&nbsp; Range: {combatGroup.range}</>
-            : <>Move: {moveGroup.moveAllowance} &nbsp;·&nbsp; Attack: {moveGroup.attackStrength}</>}
+            ? <>Attack: {group.attackStrength} &nbsp;·&nbsp; Range: {group.range}</>
+            : <>Move: {group.moveAllowance} &nbsp;·&nbsp; Attack: {group.attackStrength}</>}
         </div>
       </button>
       {isExpanded ? (
@@ -436,49 +377,6 @@ function BattlefieldStackGroup({
   )
 }
 
-function buildDefenderMoveGroups(
-  displayedDefenders: ReadonlyArray<BattlefieldUnit>,
-  activeSelectedUnitIds: string[],
-  stackNaming: StackNamingSnapshot | undefined,
-  stackRoster: StackRosterState | undefined,
-  catalog: SessionCatalog | undefined,
-): DefenderMoveGroup[] {
-  const rosterIndex = stackRoster !== undefined
-    ? buildStackRosterIndex(stackRoster, buildDefenderLookup(displayedDefenders))
-    : null
-  const selectionState = buildDefenderSelectionState(displayedDefenders, stackRoster, catalog)
-  const selectionGroups: DefenderMoveGroup[] = []
-  const consumedUnitIds = new Set<string>()
-
-  if (rosterIndex !== null) {
-    for (const rosterGroup of Object.values(rosterIndex.groupsById)) {
-      const units = rosterGroup.unitIds
-        .map((unitId) => displayedDefenders.find((unit) => unit.id === unitId))
-        .filter((unit): unit is BattlefieldUnit => unit !== undefined)
-
-      if (units.length === 0) {
-        continue
-      }
-
-      for (const unit of units) {
-        consumedUnitIds.add(unit.id)
-      }
-
-      selectionGroups.push(buildMoveGroupFromUnits(units, activeSelectedUnitIds, stackNaming, selectionState, catalog, rosterGroup.groupKey))
-    }
-  }
-
-  for (const unit of displayedDefenders) {
-    if (consumedUnitIds.has(unit.id)) {
-      continue
-    }
-
-    selectionGroups.push(buildMoveGroupFromUnits([unit], activeSelectedUnitIds, stackNaming, selectionState, catalog))
-  }
-
-  return selectionGroups
-}
-
 export function BattlefieldLeftRail({
   activeCombatRole,
   activeRole,
@@ -504,17 +402,17 @@ export function BattlefieldLeftRail({
   const [dismissedRenderError, setDismissedRenderError] = useState<string | null>(null)
 
   let renderError: string | null = null
-  let defenderCombatGroups: DefenderCombatGroup[] = []
-  let defenderMoveGroups: DefenderMoveGroup[] = []
+  let defenderCombatGroups: DefenderStackGroup[] = []
+  let defenderMoveGroups: DefenderStackGroup[] = []
   const defenderLookup = buildDefenderLookup(displayedDefenders)
   const defenderLookupKeys = Object.keys(defenderLookup)
 
   try {
     defenderCombatGroups = activeCombatRole === 'defender' && isCombatPhase
-      ? buildDefenderCombatGroups(displayedDefenders, activeMode, activeSelectedUnitIds, stackNaming, stackRoster, catalog)
+      ? buildDefenderGroups(displayedDefenders, 'combat', activeMode, activeSelectedUnitIds, stackNaming, stackRoster, catalog)
       : []
     defenderMoveGroups = activeCombatRole === 'defender' && isMovementPhase
-      ? buildDefenderMoveGroups(displayedDefenders, activeSelectedUnitIds, stackNaming, stackRoster, catalog)
+      ? buildDefenderGroups(displayedDefenders, 'move', activeMode, activeSelectedUnitIds, stackNaming, stackRoster, catalog)
       : []
   } catch (error) {
     renderError = buildRenderErrorMessage(error, {

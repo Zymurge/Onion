@@ -269,14 +269,10 @@ export function BattlefieldRightRail({
       ) : null}
       {pendingRamPrompt !== null ? (
         <section className="section-block panel-subtle">
-          <div className="card-head">
-            <div>
-              <p className="eyebrow">Movement</p>
-              <h2>Attempt ram on {pendingRamPrompt.targetLabel}</h2>
-            </div>
-            <span className="mini-tag mini-tag-live">confirmation</span>
-          </div>
           <ConfirmationSurface dataTestId="ram-confirmation-view"
+            eyebrow="Movement"
+            title={`Attempt ram on ${pendingRamPrompt.targetLabel}`}
+            badge="confirmation"
             summary={<p className="summary-line">Choose whether to ram the occupied hex or continue the move without ramming.</p>}
             actions={(
               <>

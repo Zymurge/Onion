@@ -89,6 +89,8 @@ describe('App UI', () => {
 		expect(screen.queryByRole('button', { name: /puss-1/i })).toBeNull()
 		expect(screen.queryByText(/battlefield will appear once the game state loads/i)).not.toBeNull()
 		expect(screen.getByTestId('app-empty-state')).not.toBeNull()
+		expect(screen.getByTestId('app-shell-header')).not.toBeNull()
+		expect(screen.getByTestId('app-battlefield-stage')).not.toBeNull()
 		expect(screen.queryByTestId('hex-unit-wolf-2')).toBeNull()
 	})
 
@@ -107,8 +109,11 @@ describe('App UI', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		expect(await screen.findByTestId('app-loading-state')).not.toBeNull()
+		expect(screen.getByTestId('app-shell-header')).not.toBeNull()
+		expect(screen.getByTestId('app-battlefield-stage')).not.toBeNull()
 		resolveState({ snapshot, session: { role: 'defender' } })
 		expect(await screen.findByTestId('app-loaded-state')).not.toBeNull()
+		expect(screen.getByTestId('app-battlefield-stage')).not.toBeNull()
 		expect(screen.getByTestId('app-state-chip').getAttribute('data-state')).toBe('loaded')
 	})
 

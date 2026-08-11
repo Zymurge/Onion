@@ -56,7 +56,7 @@ export function BattlefieldStage({
   onSelectUnit,
 }: BattlefieldStageProps) {
   return (
-    <section className="panel map-stage">
+    <section className="panel map-stage" data-testid="app-battlefield-stage">
       <div className="map-frame">
         <HexMapBoard
           scenarioMap={scenarioMap}

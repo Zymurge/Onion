@@ -5,7 +5,8 @@ import { GameOverToast } from './components/GameOverToast'
 import { ErrorOverlay } from './components/ErrorOverlay'
 import { DraggableDebugPopup } from './components/DraggableDebugPopup'
 import { ConnectGate } from './components/ConnectGate'
-import { BattlefieldStage } from './components/BattlefieldStage'
+import { AppBattlefieldStage } from './components/AppBattlefieldStage'
+import { AppShellHeader } from './components/AppShellHeader'
 import { BattlefieldLeftRail } from './components/BattlefieldLeftRail'
 import { BattlefieldRightRail } from './components/BattlefieldRightRail'
 import {
@@ -654,6 +655,57 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     setDismissedGameOverToastKey(sessionWinnerToastKey)
   }
 
+  function handleAdvancePhase() {
+    logger.debug('[app-debug] phase advance clicked', {
+      ts: Date.now(),
+      activeGameId: activeSessionBinding?.gameId ?? null,
+      activeTurnOwner,
+      inactiveEventControlsLocked,
+      inactiveEventScreenLocked,
+      inactiveEventWindowVisible,
+      phaseAdvanceLabel,
+      sessionPhase,
+      sessionRole,
+      sessionTurnActive,
+    })
+    void commitClientAction(buildEndPhaseCommitAction().action)
+  }
+
+  function handleAcknowledgeTurn() {
+    logger.debug('[app-debug] begin turn clicked', {
+      ts: Date.now(),
+      activeGameId: activeSessionBinding?.gameId ?? null,
+      activeTurnOwner,
+      inactiveEntryCount: inactiveEventStream.entries.length,
+      inactiveDismissed: inactiveEventStream.isDismissed,
+      inactiveEventControlsLocked,
+      inactiveEventScreenLocked,
+      inactiveEventWindowVisible,
+      sessionPhase,
+      sessionRole,
+      sessionTurnActive,
+    })
+    inactiveEventStream.clearEntries()
+    setAcknowledgedActiveTurnKey(currentActiveTurnKey)
+  }
+
+  function handleRefreshFromHeader() {
+    logger.debug('[app-debug] refresh clicked', {
+      ts: Date.now(),
+      activeGameId: activeSessionBinding?.gameId ?? null,
+      sessionPhase,
+      sessionRole,
+      sessionTurnActive,
+      inactiveEventWindowVisible,
+      inactiveEventControlsLocked,
+    })
+    void handleRefresh()
+  }
+
+  function handleToggleDebugDiagnostics() {
+    setDebugOpen((value: boolean) => !value)
+  }
+
   if (!isControlledSession && runtimeConnectionSeeded) {
     return <ConnectGate runtimeConfig={runtimeConfig} onConnectedSession={setConnectedSession} />
   }
@@ -700,153 +752,30 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         />
       ))}
       {shouldShowGameOverToast ? <GameOverToast winner={sessionWinner} onDismiss={handleDismissGameOverToast} /> : null}
-      <header className="topbar panel">
-        <div
-          className={`role-badge ${
-            headerHasSnapshot
-              ? activeTurnActive
-                ? activeRole === 'defender'
-                  ? 'role-badge-active role-badge-defender'
-                  : 'role-badge-active role-badge-onion'
-                : activeRole === 'defender'
-                  ? 'role-badge-inactive role-badge-defender'
-                  : 'role-badge-inactive role-badge-onion'
-              : 'role-badge-waiting'
-          }`}
-        >
-          {activeRole === 'defender' ? 'Defender' : activeRole === 'onion' ? 'Onion' : 'Waiting'}
-        </div>
-        <div className="topbar-state">
-          <div className={`phase-chip phase-chip-turn${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}>
-            <span>Turn {activeTurnNumber ?? 'waiting'}</span>
-          </div>
-          <div
-            className={`phase-chip phase-chip-state${activeTurnActive ? ' phase-chip-active' : ''}${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}
-            data-state={appState}
-            data-testid="app-state-chip"
-          >
-            <span>{headerHasSnapshot ? activePhaseLabel : 'WAITING'}</span>
-          </div>
-          {phaseAdvanceLabel !== null ? (
-            <button
-              type="button"
-              className="phase-advance-btn"
-              disabled={inactiveEventControlsLocked}
-              onClick={() => {
-                runShellControl('advance-phase', !inactiveEventControlsLocked, () => {
-                  logger.debug('[app-debug] phase advance clicked', {
-                    ts: Date.now(),
-                    activeGameId: activeSessionBinding?.gameId ?? null,
-                    activeTurnOwner,
-                    inactiveEventControlsLocked,
-                    inactiveEventScreenLocked,
-                    inactiveEventWindowVisible,
-                    phaseAdvanceLabel,
-                    sessionPhase,
-                    sessionRole,
-                    sessionTurnActive,
-                  })
-                  void commitClientAction(buildEndPhaseCommitAction().action)
-                })
-              }}
-            >
-              {phaseAdvanceLabel}
-            </button>
-          ) : null}
-          {/* Show Begin Turn button when inactive event stream is visible and can be dismissed */}
-          {inactiveEventWindowVisible && (
-            <button
-              type="button"
-              className={`phase-advance-btn begin-turn-btn${sessionTurnActive ? ' begin-turn-btn-ready' : ' disabled'}`}
-              onClick={() => {
-                runShellControl('acknowledge-turn', sessionTurnActive, () => {
-                  logger.debug('[app-debug] begin turn clicked', {
-                    ts: Date.now(),
-                    activeGameId: activeSessionBinding?.gameId ?? null,
-                    activeTurnOwner,
-                    inactiveEntryCount: inactiveEventStream.entries.length,
-                    inactiveDismissed: inactiveEventStream.isDismissed,
-                    inactiveEventControlsLocked,
-                    inactiveEventScreenLocked,
-                    inactiveEventWindowVisible,
-                    sessionPhase,
-                    sessionRole,
-                    sessionTurnActive,
-                  })
-                  inactiveEventStream.clearEntries()
-                  setAcknowledgedActiveTurnKey(currentActiveTurnKey)
-                })
-              }}
-              aria-label="Begin turn"
-              disabled={!sessionTurnActive}
-            >
-              Begin Turn
-            </button>
-          )}
-        </div>
-        <div className="header-utility-controls">
-          <div className="utility-group-vert">
-            <div>
-              <span className="stat-label-small">Scenario</span>
-              <strong className={headerHasSnapshot ? '' : 'header-waiting'}>{activeScenarioName ?? 'Waiting for game state'}</strong>
-            </div>
-            <div>
-              <span className="stat-label-small">Game ID</span>
-              <strong className={headerHasSnapshot ? '' : 'header-waiting'}>{activeGameId ?? 'Waiting'}</strong>
-            </div>
-          </div>
-          <div className="utility-group-vert">
-            <button
-              className="refresh-btn"
-              title="Refresh game state"
-              onClick={() => {
-                runShellControl('refresh-session', !isRefreshing, () => {
-                  logger.debug('[app-debug] refresh clicked', {
-                    ts: Date.now(),
-                    activeGameId: activeSessionBinding?.gameId ?? null,
-                    sessionPhase,
-                    sessionRole,
-                    sessionTurnActive,
-                    inactiveEventWindowVisible,
-                    inactiveEventControlsLocked,
-                  })
-                  void handleRefresh()
-                })
-              }}
-              aria-label="Refresh"
-              disabled={isRefreshing}
-            >
-              Refresh
-            </button>
-            <button
-              className={`debug-toggle-btn${debugOpen ? ' active' : ''}`}
-              title="Toggle debug diagnostics"
-              aria-label="Toggle debug diagnostics"
-              onClick={() => {
-                runShellControl('toggle-debug-diagnostics', true, () => {
-                  setDebugOpen((value: boolean) => !value)
-                })
-              }}
-            >
-              Debug
-            </button>
-          </div>
-          <div className="utility-group-vert">
-            <div className="sync-status-block" title={`Live connection: ${connectionLabel}`}>
-              <span className="stat-label-small">Connection</span>
-              <span className={`connection-status connection-status-${connectionStatus}`}>
-                {connectionLabel}
-              </span>
-            </div>
-            <div className="last-sync-block" title="Last live update time">
-              <span className="stat-label-small">Last</span>
-              <span className="last-sync">
-                {lastUpdatedAt === null ? '—' : lastUpdatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppShellHeader
+        appState={appState}
+        headerHasSnapshot={headerHasSnapshot}
+        activeTurnActive={activeTurnActive}
+        activeRole={activeRole}
+        activeTurnNumber={activeTurnNumber}
+        activePhaseLabel={activePhaseLabel}
+        phaseAdvanceLabel={phaseAdvanceLabel}
+        inactiveEventControlsLocked={inactiveEventControlsLocked}
+        inactiveEventWindowVisible={inactiveEventWindowVisible}
+        sessionTurnActive={sessionTurnActive}
+        activeScenarioName={activeScenarioName}
+        activeGameId={activeGameId}
+        isRefreshing={isRefreshing}
+        debugOpen={debugOpen}
+        connectionLabel={connectionLabel}
+        connectionStatus={connectionStatus}
+        lastUpdatedAt={lastUpdatedAt}
+        runShellControl={runShellControl}
+        onAdvancePhase={handleAdvancePhase}
+        onAcknowledgeTurn={handleAcknowledgeTurn}
+        onRefresh={handleRefreshFromHeader}
+        onToggleDebugDiagnostics={handleToggleDebugDiagnostics}
+      />
 
       {debugOpen && (
         <DraggableDebugPopup
@@ -885,43 +814,33 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           onSelectUnit={handleSelectUnit}
         />
 
-        {displayedScenarioMap && displayedOnions.length > 0 ? (
-          <BattlefieldStage
-            activePhase={activePhase}
-            activeTurnActive={activeTurnActive}
-            defenders={displayedDefenders}
-            onions={displayedOnions}
-            stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
-            stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
-            catalog={sessionState.catalog ?? undefined}
-            scenarioMap={displayedScenarioMap}
-            selectedCombatTargetId={selectedCombatTargetId}
-            selectedUnitIds={activeSelectedUnitIds}
-            combatRangeHexKeys={combatRangeHexKeys}
-            combatTargetIds={combatTargetIds}
-            escapeHexes={escapeHexes}
-            isSelectionLocked={inactiveEventScreenLocked}
-            isInteractionLocked={inactiveEventControlsLocked}
-            canSubmitMove={
-              activePhase === 'ONION_MOVE' ||
-              activePhase === 'DEFENDER_MOVE' ||
-              activePhase === 'GEV_SECOND_MOVE'
-            }
-            viewerRole={activeRole}
-            onSelectUnit={handleSelectUnit}
-            onSelectCombatTarget={setSelectedCombatTargetId}
-            onDeselect={handleDeselectUnit}
-            onMoveUnit={handleMoveUnit}
-          />
-        ) : (
-          <section className="panel map-stage">
-            <div className="map-frame">
-              <div className="hex-map-shell panel-subtle">
-                <p className="summary-line">Battlefield will appear once the game state loads.</p>
-              </div>
-            </div>
-          </section>
-        )}
+        <AppBattlefieldStage
+          activePhase={activePhase}
+          activeTurnActive={activeTurnActive}
+          defenders={displayedDefenders}
+          onions={displayedOnions}
+          stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
+          stackRoster={clientSnapshot?.authoritativeState?.stackRoster}
+          catalog={sessionState.catalog ?? undefined}
+          scenarioMap={displayedScenarioMap}
+          selectedCombatTargetId={selectedCombatTargetId}
+          selectedUnitIds={activeSelectedUnitIds}
+          combatRangeHexKeys={combatRangeHexKeys}
+          combatTargetIds={combatTargetIds}
+          escapeHexes={escapeHexes}
+          isSelectionLocked={inactiveEventScreenLocked}
+          isInteractionLocked={inactiveEventControlsLocked}
+          canSubmitMove={
+            activePhase === 'ONION_MOVE' ||
+            activePhase === 'DEFENDER_MOVE' ||
+            activePhase === 'GEV_SECOND_MOVE'
+          }
+          viewerRole={activeRole}
+          onSelectUnit={handleSelectUnit}
+          onSelectCombatTarget={setSelectedCombatTargetId}
+          onDeselect={handleDeselectUnit}
+          onMoveUnit={handleMoveUnit}
+        />
 
         <BattlefieldRightRail
           activeCombatRole={activeCombatRole}

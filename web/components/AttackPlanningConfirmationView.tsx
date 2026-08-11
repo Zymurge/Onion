@@ -47,12 +47,7 @@ export function AttackPlanningConfirmationView({
   const odds = hasTarget ? calculateCombatOdds(attackStrength, modeProps.defenseStrength) : null
 
   return (
-    <ConfirmationSurface dataTestId={dataTestId}>
-      <div className="card-head combat-confirmation-head">
-        <div>
-          <h3>{title}</h3>
-        </div>
-      </div>
+    <ConfirmationSurface dataTestId={dataTestId} title={title}>
       <div className="combat-confirmation-stats">
         <div className="combat-confirmation-stat">
           <span className="stat-label-small">Attack</span>
