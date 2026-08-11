@@ -1,8 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
 import { resolveBattlefieldDisplayName } from '../lib/battlefieldNaming'
-import { isBattlefieldWeaponReady } from '../lib/weaponStats'
 import { resolveSelectionOwnerUnitId } from '../lib/selectionIds'
+import { getGroupCombatReadyCount, isGroupCombatDisabled } from '../lib/stackReadiness'
 import { getBattlefieldPosition, statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
@@ -706,10 +706,8 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
                           : rosterGroup.unitIds
                             .map((unitId) => cellOccupants.find((cellOccupant) => cellOccupant.id === unitId))
                             .filter((member): member is HexOccupant => member !== undefined)
-                        const combatHasReadyAttack = isOccupantOnion
-                          ? (occupant.weaponDetails ?? []).some(isBattlefieldWeaponReady)
-                          : combatMembers.some((member) => member.status === 'operational' && 'actionableModes' in member && member.actionableModes.includes('fire'))
-                        const combatIsDisabled = combatMembers.length > 0 && combatMembers.every((member) => member.status === 'destroyed' || member.status === 'disabled')
+                        const combatHasReadyAttack = getGroupCombatReadyCount(combatMembers) > 0
+                        const combatIsDisabled = isGroupCombatDisabled(combatMembers)
                         const moveHasRemaining = isOccupantOnion
                           ? onion.movesRemaining > 0
                           : 'move' in occupant && occupant.move > 0

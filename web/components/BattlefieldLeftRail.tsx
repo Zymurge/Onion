@@ -7,7 +7,8 @@ import {
 } from '../lib/selectionIds'
 import { countSelectedBattlefieldStackMembers, shouldExpandBattlefieldStackGroup, type WebStackSourceState } from '../lib/stackSelection'
 import { getBattlefieldStackSize, resolveBattlefieldDisplayName, resolveBattlefieldStackLabel, resolveBattlefieldUnitName } from '../lib/battlefieldNaming'
-import { getBattlefieldWeaponAttack, isBattlefieldWeaponReady, parseAttackStats, parseRangeValue, parseWeaponStats, resolveBattlefieldWeaponName } from '../lib/weaponStats'
+import { getBattlefieldWeaponAttack, parseAttackStats, parseRangeValue, parseWeaponStats, resolveBattlefieldWeaponName } from '../lib/weaponStats'
+import { getGroupAttackReadyCount, getUnitAttackStrength } from '../lib/stackReadiness'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { DefenderMap, StackRosterState, Weapon } from '../../shared/types/index'
@@ -147,7 +148,7 @@ function buildDefenderGroupFromUnits(
       squads: stackSize,
     }, stackNaming)
   const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.id, activeSelectedUnitIds)
-  const attackReadyCount = displayedUnits.filter((unit) => getReadyUnitAttackStrength(unit, catalog) > 0).length
+  const attackReadyCount = getGroupAttackReadyCount(displayedUnits, catalog)
   const members = units.length > 1
     ? units.map((unit) => ({
       selectionId: unit.id,
@@ -164,7 +165,7 @@ function buildDefenderGroupFromUnits(
 
   return {
     anchorUnit,
-    attackStrength: displayedUnits.reduce((total, unit) => total + getReadyUnitAttackStrength(unit, catalog), 0),
+    attackStrength: displayedUnits.reduce((total, unit) => total + getUnitAttackStrength(unit, catalog), 0),
     attackReadyCount,
       isActionable: groupMode === 'combat' && units.some((unit) => unit.actionableModes.includes(activeMode)),
       isDestroyed: groupMode === 'combat'
@@ -221,16 +222,6 @@ function buildDefenderGroupFromUnits(
   }
 
   return selectionGroups
-}
-
-function getReadyUnitAttackStrength(unit: BattlefieldUnit, catalog?: SessionCatalog): number {
-  if (unit.weaponDetails !== undefined && unit.weaponDetails.length > 0) {
-    return unit.weaponDetails
-      .filter(isBattlefieldWeaponReady)
-      .reduce((total, weapon) => total + getBattlefieldWeaponAttack(weapon, catalog), 0)
-  }
-
-  return parseRangeValue(parseAttackStats(unit.attack).damage)
 }
 
 function resolveDisplayedStackUnits(
