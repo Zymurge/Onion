@@ -95,6 +95,7 @@ We use an **Axial Coordinate System** (q, r) where:
 The engine's normalized runtime state uses the explicit `onions` map shown above. Scenario authors may use `kind: "stack-group"` with `unitType`, `position`, and `count` for stackable defenders.
 
 ## 3. Victory Conditions
+
 Victory conditions are authored in the scenario under `victoryConditions`. The engine materializes them into runtime objective state, but the scenario file remains the source of truth.
 
 ### Fields

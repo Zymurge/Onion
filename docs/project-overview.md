@@ -43,7 +43,8 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
   | 4 | `DEFENDER_MOVE` | Defender player | — |
   | 5 | `DEFENDER_COMBAT` | Defender player | — |
   | 6 | `GEV_SECOND_MOVE` | Defender player (Big Bad Wolf only) | — |
-  Phase transitions are handled by `advancePhase(state)` in `server/engine/phases.ts`. It mutates `GameState` in place, applies any entry side-effects for the new phase, and auto-advances through engine-controlled phases (`DEFENDER_RECOVERY`) without waiting for player input.
+
+Phase transitions are handled by `advancePhase(state)` in `server/engine/phases.ts`. It mutates `GameState` in place, applies any entry side-effects for the new phase, and auto-advances through engine-controlled phases (`DEFENDER_RECOVERY`) without waiting for player input.
 
 - **`GameState`** is the engine's authoritative mutable game state. It contains:
   - `onions: Record<string, OnionUnit>` — Onion units keyed by ID
