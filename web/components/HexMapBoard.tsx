@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
 import { isBattlefieldWeaponReady, resolveBattlefieldDisplayName, resolveSelectionOwnerUnitId } from '../lib/appViewHelpers'
-import { getBattlefieldPosition, statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
+import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
@@ -137,7 +137,7 @@ function buildMoveValidationState(
       typeId: onion.type,
       role: 'onion' as const,
       friendlyName: onion.friendlyName ?? onion.id,
-      position: getBattlefieldPosition(onion),
+      position: onion.position,
       state: onion.status,
       treads: onion.treads,
       ramsRemaining: onion.rams,
@@ -149,7 +149,7 @@ function buildMoveValidationState(
         typeId: defender.typeId,
         role: 'defender',
         friendlyName: defender.friendlyName,
-        position: getBattlefieldPosition(defender),
+        position: defender.position,
         state: defender.state,
         weapons: defender.weaponDetails ?? [],
         squads: defender.squads,
@@ -233,12 +233,12 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
   const onion = onions.find((unit) => unit.id === selectedPrimaryUnitId) ?? onions[0]
 
   for (const onionUnit of onions) {
-    const key = hexKey(getBattlefieldPosition(onionUnit))
+    const key = hexKey(onionUnit.position)
     occupantMap.set(key, [...(occupantMap.get(key) ?? []), onionUnit])
   }
   for (const defender of defenders) {
     if (!shouldRenderDefender(defender)) continue
-    const key = hexKey(getBattlefieldPosition(defender))
+    const key = hexKey(defender.position)
     const occupants = occupantMap.get(key) ?? []
     occupants.push(defender)
     occupantMap.set(key, occupants)
@@ -274,7 +274,7 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
     ? new Set(
         listReachableMoves({
           map: { ...scenarioMap, occupiedHexes },
-            from: getBattlefieldPosition(selectedOccupant),
+            from: selectedOccupant.position,
           movementAllowance: selectedAllowance,
           movingRole: onions.some((onion) => selectedOccupant.id === onion.id) ? 'onion' : 'defender',
           movingUnitType: selectedOccupant.type,

@@ -1,5 +1,5 @@
 import { useState, type MouseEvent } from 'react'
-import { getBattlefieldPosition, statusTone, type BattlefieldOnionView, type BattlefieldUnit, type Mode } from '../lib/battlefieldView'
+import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type Mode } from '../lib/battlefieldView'
 import {
   buildStackMemberSelectionId,
   buildWeaponSelectionId,
@@ -78,7 +78,7 @@ function buildDefenderLookup(units: ReadonlyArray<BattlefieldUnit>): DefenderMap
       typeId: unit.typeId,
       state: unit.state,
       friendlyName: unit.friendlyName,
-      position: getBattlefieldPosition(unit),
+      position: unit.position,
       weapons: unit.weaponDetails ?? (Array.isArray(unit.weapons) ? unit.weapons : []),
       targetRules: unit.targetRules,
       squads: unit.squads,
@@ -96,7 +96,7 @@ function buildDefenderSelectionState(
       displayedDefenders.map((unit) => [unit.id, {
         unitId: unit.unitId ?? unit.id,
         typeId: unit.typeId ?? unit.type,
-        position: getBattlefieldPosition(unit),
+        position: unit.position,
         state: unit.state ?? unit.status,
         squads: unit.squads,
       }]),
@@ -152,7 +152,7 @@ function buildDefenderGroupFromUnits(
     : resolveBattlefieldDisplayName({
       id: anchorUnit.id,
       type: anchorUnit.type,
-      position: getBattlefieldPosition(anchorUnit),
+      position: anchorUnit.position,
       friendlyName: anchorUnit.friendlyName,
       squads: stackSize,
     }, stackNaming)

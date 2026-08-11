@@ -62,15 +62,13 @@ export function resolveBattlefieldDisplayName(
   unit: {
     id: string
     type: string
-    position?: { q: number; r: number }
-    q?: number
-    r?: number
+    position: { q: number; r: number }
     friendlyName?: string
     squads?: number
   },
   stackNaming?: StackNamingSnapshot,
 ): string {
-  const position = unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
+  const position = unit.position
 
   if (stackNaming !== undefined) {
     const groupKey = buildStackGroupKey(unit.type, position)
@@ -96,9 +94,7 @@ export function resolveBattlefieldFriendlyName(
   unit: {
     id: string
     type: string
-    position?: { q: number; r: number }
-    q?: number
-    r?: number
+    position: { q: number; r: number }
     friendlyName?: string
   },
   stackNaming?: StackNamingSnapshot,
@@ -106,7 +102,7 @@ export function resolveBattlefieldFriendlyName(
   //defenders?: DefenderMap,
   catalog?: SessionCatalog,
 ): string {
-  const position = unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
+  const position = unit.position
   const groupKey = buildStackGroupKey(unit.type, position)
   const rosterGroup = stackRoster === undefined
     ? null
@@ -629,8 +625,6 @@ export function buildBattlefieldDefenderView(
     friendlyName: resolveBattlefieldUnitName(unitType, defender.unitId, defender.friendlyName),
     status: defender.state,
     position: defender.position,
-    q: defender.position.q,
-    r: defender.position.r,
     move,
     weapons,
     weaponSummary: formatWeaponSummary(weapons),
@@ -793,8 +787,8 @@ export function buildCombatRangeSources(
     .filter((unit) => unit.status !== 'destroyed')
     .filter((unit) => activeSelectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unit.id))
     .map((unit) => ({
-      q: unit.q,
-      r: unit.r,
+      q: unit.position.q,
+      r: unit.position.r,
       range: getReadyWeaponRange(unit.weaponDetails, catalog),
     }))
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
+import { buildBattlefieldDefenderView } from '#web/lib/appViewHelpers'
 import { isUnitMoveEligible, statusTone, type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
+import { makeDefender } from '#test/utils/gameStateUtils'
 
 describe('battlefieldView helpers', () => {
 	it('classifies status tones', () => {
@@ -14,8 +16,7 @@ describe('battlefieldView helpers', () => {
 		const onion: BattlefieldOnionView = {
 			id: 'onion-1',
 			type: 'TheOnion',
-			q: 0,
-			r: 0,
+			position: { q: 0, r: 0 },
 			status: 'operational',
 			treads: 33,
 			movesAllowed: 3,
@@ -27,8 +28,7 @@ describe('battlefieldView helpers', () => {
 			id: 'wolf-2',
 			type: 'BigBadWolf',
 			status: 'operational',
-			q: 3,
-			r: 6,
+			position: { q: 3, r: 6 },
 			move: 4,
 			weapons: 'main: ready',
 			attack: '4',
@@ -44,5 +44,13 @@ describe('battlefieldView helpers', () => {
 		expect(isUnitMoveEligible({ ...defender, move: 0 }, 'DEFENDER_MOVE', 'defender')).toBe(false)
 		expect(isUnitMoveEligible(defender, 'GEV_SECOND_MOVE', 'defender')).toBe(true)
 		expect(isUnitMoveEligible(defender, null, 'defender')).toBe(false)
+	})
+
+	it('keeps defender coordinates under position only', () => {
+		const view = buildBattlefieldDefenderView(makeDefender({ position: { q: 3, r: 6 } }))
+
+		expect(view.position).toEqual({ q: 3, r: 6 })
+		expect(view).not.toHaveProperty('q')
+		expect(view).not.toHaveProperty('r')
 	})
 })

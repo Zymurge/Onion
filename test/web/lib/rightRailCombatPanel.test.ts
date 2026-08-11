@@ -31,7 +31,7 @@ describe('rightRailCombatPanel', () => {
       activeCombatRole: 'defender',
       activeRole: 'defender',
       isCombatPhase: true,
-      selectedInspectorDefender: { id: 'pigs-1', type: 'LittlePigs', status: 'operational', q: 4, r: 4, move: 3, weapons: 'main: ready', attack: '1 / rng 1', friendlyName: 'Little Pigs 1' },
+      selectedInspectorDefender: { id: 'pigs-1', type: 'LittlePigs', status: 'operational', position: { q: 4, r: 4 }, move: 3, weapons: 'main: ready', attack: '1 / rng 1', friendlyName: 'Little Pigs 1' },
       selectedCombatTarget: null,
       combatTargetOptions: [],
       rightRailStackPanel: {

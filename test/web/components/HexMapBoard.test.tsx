@@ -10,8 +10,6 @@
 				typeId: 'LittlePigs',
 				state: 'operational',
 				position: { q: 2, r: 2 },
-				q: 2,
-				r: 2,
 				move: 3,
 				weapons: [],
 				attack: '1 / rng 1',
@@ -27,8 +25,6 @@
 				typeId: 'LittlePigs',
 				state: 'operational',
 				position: { q: 2, r: 2 },
-				q: 2,
-				r: 2,
 				move: 3,
 				weapons: [],
 				attack: '1 / rng 1',
@@ -86,8 +82,6 @@
 				typeId: 'LittlePigs',
 				state: 'operational',
 				position: { q: 2, r: 2 },
-				q: 2,
-				r: 2,
 				move: 3,
 				weapons: [],
 				attack: '1 / rng 1',
@@ -103,8 +97,6 @@
 				typeId: 'LittlePigs',
 				state: 'operational',
 				position: { q: 2, r: 2 },
-				q: 2,
-				r: 2,
 				move: 3,
 				weapons: [],
 				attack: '1 / rng 1',
@@ -215,22 +207,20 @@
 			{
 				...defenders[0],
 				id: 'pigs-1',
+				unitId: 'pigs-1',
 				type: 'LittlePigs',
 				typeId: 'LittlePigs',
 				position: { q: 2, r: 2 },
-				q: 2,
-				r: 2,
 				state: 'operational',
 				actionableModes: [],
 			},
 			{
 				...defenders[0],
 				id: 'pigs-2',
+				unitId: 'pigs-2',
 				type: 'LittlePigs',
 				typeId: 'LittlePigs',
 				position: { q: 2, r: 2 },
-				q: 2,
-				r: 2,
 				state: 'operational',
 				actionableModes: ['fire', 'combined'],
 			},
@@ -269,8 +259,6 @@
 			type: 'LittlePigs',
 			typeId: 'LittlePigs',
 			position: { q: 2, r: 2 },
-			q: 2,
-			r: 2,
 			state: 'operational' as const,
 			actionableModes: [],
 		}))
@@ -306,8 +294,6 @@
 			...defenders[0],
 			id: 'bbw-1',
 			friendlyName: 'Big Bad Wolf',
-			q: 0,
-			r: 0,
 			position: { q: 0, r: 0 },
 		}
 
@@ -315,7 +301,7 @@
 			<HexMapBoard
 				scenarioMap={scenarioMap}
 				defenders={[survivingDefender]}
-				onions={[{ ...onion, q: 0, r: 0, position: { q: 0, r: 0 } } as any]}
+				onions={[{ ...onion, position: { q: 0, r: 0 } }]}
 				phase="ONION_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -335,8 +321,6 @@
 			...defenders[0],
 			id: 'bbw-1',
 			position: { q: 0, r: 0 },
-			q: 0,
-			r: 0,
 		}
 
 		render(
@@ -395,21 +379,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { HexMapBoard as ProductionHexMapBoard } from '#web/components/HexMapBoard'
 import { boardPixelSize } from '#web/lib/hex'
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '#web/lib/battlefieldView'
-import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion } from '#test/utils/gameStateUtils'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function HexMapBoard(props: ComponentProps<typeof ProductionHexMapBoard>) {
-	const defenders = props.defenders.map((defender) => ({
-		...defender,
-		unitId: defender.id,
-		typeId: defender.type,
-		state: defender.status,
-		position: { q: defender.q, r: defender.r },
-	}))
-	return <ProductionHexMapBoard {...props} defenders={canonicalizeBattlefieldDefenders(defenders)} onions={props.onions.map(canonicalizeBattlefieldOnion)} />
+	return <ProductionHexMapBoard {...props} />
 }
 
 const scenarioMap = {
@@ -453,8 +429,6 @@ const defenders: BattlefieldUnit[] = [
 		typeId: 'Puss',
 		state: 'operational',
 		position: { q: 1, r: 1 },
-		q: 1,
-		r: 1,
 		move: 3,
 		weapons: [],
 		attack: '4 / rng 2',
@@ -470,8 +444,6 @@ const defenders: BattlefieldUnit[] = [
 		typeId: 'BigBadWolf',
 		state: 'operational',
 		position: { q: 1, r: 2 },
-		q: 1,
-		r: 2,
 		move: 4,
 		weapons: [],
 		attack: '2 / rng 2',
@@ -496,10 +468,10 @@ describe('HexMapBoard', () => {
 			{
 				...defenders[0],
 				id: 'pigs-1',
+				unitId: 'pigs-1',
 				type: 'LittlePigs',
 				friendlyName: 'Little Pigs 1',
-				q: 2,
-				r: 2,
+				position: { q: 2, r: 2 },
 				move: 3,
 					weapons: [],
 				attack: '1 / rng 0',
@@ -508,10 +480,10 @@ describe('HexMapBoard', () => {
 			{
 				...defenders[1],
 				id: 'pigs-2',
+				unitId: 'pigs-2',
 				type: 'LittlePigs',
 				friendlyName: 'Little Pigs 2',
-				q: 2,
-				r: 2,
+				position: { q: 2, r: 2 },
 				move: 3,
 					weapons: [],
 				attack: '1 / rng 0',
@@ -657,8 +629,7 @@ describe('HexMapBoard', () => {
 			type: 'Swamp',
 			friendlyName: 'The Swamp',
 			status: 'destroyed',
-			q: 1,
-			r: 1,
+			position: { q: 1, r: 1 },
 			move: 0,
 			weapons: [],
 			attack: '0 / rng 0',
@@ -691,8 +662,7 @@ describe('HexMapBoard', () => {
 			type: 'Swamp',
 			friendlyName: 'The Swamp',
 			status: 'operational',
-			q: 1,
-			r: 1,
+			position: { q: 1, r: 1 },
 			move: 0,
 			weapons: [],
 			attack: '0 / rng 0',
@@ -737,8 +707,7 @@ describe('HexMapBoard', () => {
 						type: 'Swamp',
 						friendlyName: 'The Swamp',
 						status: 'operational',
-						q: 1,
-						r: 1,
+						position: { q: 1, r: 1 },
 						move: 0,
 									weapons: [],
 						attack: '0 / rng 0',
@@ -840,8 +809,6 @@ describe('HexMapBoard', () => {
 						typeId: 'BigBadWolf',
 						state: 'operational',
 						position: { q: 4, r: 4 },
-						q: 4,
-						r: 4,
 						move: 4,
 						weapons: [],
 						attack: '2 / rng 2',
@@ -1186,8 +1153,7 @@ describe('HexMapBoard', () => {
 		}
 		const sharedDefender: BattlefieldUnit = {
 			...defenders[0],
-			q: 1,
-			r: 1,
+			position: { q: 1, r: 1 },
 		}
 
 		render(

@@ -12,7 +12,7 @@ import type {
 } from '#shared/types/index'
 import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponType } from '#shared/unitDefinitions'
 import { buildBattlefieldDefenderView, buildBattlefieldOnionView } from '#web/lib/appViewHelpers'
-import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
+import { type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
 import { createGameClient, type GameClient, type GameSnapshot, type ScenarioMapSnapshot } from '#web/lib/gameClient'
 
 /**
@@ -124,6 +124,7 @@ export function makeBattlefieldOnion(
 export type BattlefieldDefenderFixture = Omit<Partial<BattlefieldUnit>, 'weaponDetails' | 'weapons'> & {
 	id: string
 	type: string
+	position: { q: number; r: number }
 	status: BattlefieldUnit['status']
 	weapons?: ReadonlyArray<Weapon> | string
 	weaponDetails?: ReadonlyArray<Partial<Weapon> & {
@@ -153,7 +154,7 @@ export function canonicalizeBattlefieldDefenders(defenders: ReadonlyArray<Battle
 		return makeBattlefieldDefender({
 			unitId: view.unitId ?? view.id,
 			typeId: view.typeId ?? view.type,
-			position: getBattlefieldPosition(view),
+			position: view.position,
 			state: view.state ?? view.status,
 			friendlyName: view.friendlyName,
 			weapons: [],
@@ -176,7 +177,7 @@ export function canonicalizeBattlefieldOnion(view: BattlefieldOnionView): Battle
 	return makeBattlefieldOnion({
 		unitId: view.id,
 		typeId: view.type,
-		position: getBattlefieldPosition(view),
+		position: view.position,
 		state: view.status,
 		friendlyName: view.friendlyName,
 		treads: view.treads,

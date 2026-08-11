@@ -36,8 +36,7 @@ describe('resolveBattlefieldDisplayName', () => {
       {
         id: 'pigs-1',
         type: 'LittlePigs',
-        q: 2,
-        r: 2,
+        position: { q: 2, r: 2 },
         friendlyName: 'Little Pigs 1',
       },
       undefined,
@@ -69,8 +68,7 @@ describe('resolveBattlefieldDisplayName', () => {
       {
         id: 'pigs-1',
         type: 'LittlePigs',
-        q: 2,
-        r: 2,
+        position: { q: 2, r: 2 },
         friendlyName: 'Little Pigs 1',
       },
       stackNaming,
@@ -95,8 +93,7 @@ describe('resolveBattlefieldDisplayName', () => {
       {
         id: 'pigs-1',
         type: 'LittlePigs',
-        q: 2,
-        r: 2,
+        position: { q: 2, r: 2 },
         friendlyName: 'Little Pigs 1',
       },
       stackNaming,
@@ -117,8 +114,7 @@ describe('resolveBattlefieldDisplayName', () => {
       {
         id: 'pigs-1',
         type: 'LittlePigs',
-        q: 2,
-        r: 2,
+        position: { q: 2, r: 2 },
       },
       stackNaming,
     )
@@ -149,8 +145,7 @@ describe('resolveBattlefieldDisplayName', () => {
       {
         id: 'pigs-1',
         type: 'LittlePigs',
-        q: 2,
-        r: 2,
+        position: { q: 2, r: 2 },
         friendlyName: 'Little Pigs 1',
       },
       stackNaming,
@@ -166,8 +161,7 @@ describe('resolveBattlefieldDisplayName', () => {
       id: 'puss-1',
       type: 'Puss',
       friendlyName: 'Puss 1',
-      q: 1,
-      r: 1,
+      position: { q: 1, r: 1 },
     })
 
     expect(label).toBe('Puss 1')
