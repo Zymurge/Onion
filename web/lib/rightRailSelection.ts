@@ -1,11 +1,12 @@
 import type { GameAction, StackActionSelection } from './gameClient'
-import { normalizeSelectionIds, parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId, type WebStackSourceState } from './appViewHelpers'
-import type { BattlefieldDefenderView, BattlefieldOnionView } from './battlefieldView'
+import { normalizeSelectionIds, parseStackMemberSelectionId, resolveSelectionOwnerUnitId } from './selectionIds'
+import { resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, type WebStackSourceState } from './stackSelection'
+import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
 import { isSessionUnitTypeStackable } from './sessionCatalog'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState, DefenderMap } from '../../shared/types/index'
 
-type RightRailStackMemberView = BattlefieldDefenderView | BattlefieldOnionView
+type RightRailStackMemberView = BattlefieldUnit | BattlefieldOnionView
 
 export type RightRailStackSelectionModel = {
   anchorUnitId: string | null
@@ -198,7 +199,7 @@ export function buildRightRailStackSelectionViewModel({
   inspectedUnitId: string | null
   selectedStackUnitIds: readonly string[]
   activeSelectedUnitIds: readonly string[]
-  displayedDefenders: readonly BattlefieldDefenderView[]
+  displayedDefenders: readonly BattlefieldUnit[]
   displayedOnion: BattlefieldOnionView | null
 }): RightRailStackSelectionViewModel {
   const selectionModel = buildRightRailStackSelectionModel({
@@ -210,11 +211,11 @@ export function buildRightRailStackSelectionViewModel({
 
   const visibleUnitsById = new Map<string, RightRailStackMemberView>()
   if (displayedOnion !== null) {
-    visibleUnitsById.set(displayedOnion.unitId, displayedOnion)
+    visibleUnitsById.set(displayedOnion.id, displayedOnion)
   }
 
   for (const unit of displayedDefenders) {
-    visibleUnitsById.set(unit.unitId, unit)
+    visibleUnitsById.set(unit.id, unit)
   }
 
   const selectedStackMembers = selectionModel.memberUnitIds

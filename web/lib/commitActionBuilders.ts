@@ -3,8 +3,8 @@ import {
   buildCombatTargetActionId,
   isWeaponSelectionId,
   resolveSelectionOwnerUnitId,
-  type WebStackSourceState,
-} from './appViewHelpers'
+} from './selectionIds'
+import type { WebStackSourceState } from './stackSelection'
 import { buildRightRailCombatSubmissionAction, buildRightRailMoveSubmissionAction } from './rightRailSelection'
 import { isSessionUnitTypeStackable } from './sessionCatalog'
 

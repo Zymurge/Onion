@@ -10,8 +10,7 @@ import {
   selectRightRailStackMembers,
   toggleRightRailStackMemberSelection,
 } from '#web/lib/rightRailSelection'
-import { makeBattlefieldDefender } from '#test/utils/gameStateUtils'
-import { StackSourceUnit } from '#web/lib/appViewHelpers'
+import type { StackSourceUnit } from '#web/lib/stackSelection'
 import { GameState } from '#shared/types/index'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
@@ -130,9 +129,9 @@ describe('rightRailSelection', () => {
         selectedStackUnitIds: ['pigs-1'],
         activeSelectedUnitIds: ['pigs-1', 'pigs-2'],
         displayedDefenders: [
-          makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 } }, { movesRemaining: 3, actionableModes: ['fire', 'combined'] }),
-          makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 } }, { movesRemaining: 3, actionableModes: ['fire', 'combined'] }),
-          makeBattlefieldDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 } }, { movesRemaining: 3, actionableModes: ['fire', 'combined'] }),
+          { id: 'pigs-1', type: 'LittlePigs', q: 4, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
+          { id: 'pigs-2', type: 'LittlePigs', q: 5, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
+          { id: 'wolf-1', type: 'BigBadWolf', q: 6, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
         ],
         displayedOnion: null,
       })).toEqual({
@@ -142,8 +141,8 @@ describe('rightRailSelection', () => {
         selectedUnitIds: ['pigs-1', 'pigs-2'],
         selectedCount: 2,
         selectedStackMembers: [
-          makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 } }, { movesRemaining: 3, actionableModes: ['fire', 'combined'] }),
-          makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 5, r: 4 } }, { movesRemaining: 3, actionableModes: ['fire', 'combined'] }),
+          { id: 'pigs-1', type: 'LittlePigs', q: 4, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
+          { id: 'pigs-2', type: 'LittlePigs', q: 5, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
         ],
         selectedStackSelectionCount: 2,
       })

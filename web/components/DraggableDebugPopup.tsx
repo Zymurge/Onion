@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import ReactJsonPrintImport from 'react-json-print'
 
 import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol'
-import { formatDebugEntrySummary } from '../lib/appViewHelpers'
+import { formatDebugEntrySummary } from '../lib/battlefieldViewBuilders'
 
 const ReactJsonPrint =
   typeof ReactJsonPrintImport === 'function'

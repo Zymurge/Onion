@@ -31,9 +31,7 @@ import type {
   LiveEventSource,
 } from './lib/gameSessionTypes'
 import type { SessionBinding } from './lib/sessionBinding'
-import {
-  getPhaseOwner,
-} from './lib/appViewHelpers'
+import { getPhaseOwner } from './lib/battlefieldViewBuilders'
 import logger from './lib/logger'
 import './App.css'
 

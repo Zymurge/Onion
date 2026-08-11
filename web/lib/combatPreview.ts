@@ -9,7 +9,10 @@ import {
 
 import { type BattlefieldDefenderView, type BattlefieldOnionView, type TerrainHex, type UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
-import { getDisplayDefense, getTerrainValueAt, isWeaponSelectionId, resolveBattlefieldFriendlyName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './appViewHelpers'
+import { resolveBattlefieldFriendlyName } from './battlefieldNaming'
+import { resolveBattlefieldWeaponName } from './weaponStats'
+import { getDisplayDefense, getTerrainValueAt } from './battlefieldViewBuilders'
+import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './selectionIds'
 import { formatCombatTargetId } from '../../shared/combatTarget'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
 import type { StackRosterState, TerrainType } from '../../shared/types/index'

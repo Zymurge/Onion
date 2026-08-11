@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   resolveBattlefieldDisplayName,
   resolveBattlefieldFriendlyName,
-  resolveBattlefieldStacksExpandable,
-  shouldExpandBattlefieldStackGroup,
-  StackSourceUnit,
-} from '../../../web/lib/appViewHelpers'
+} from '../../../web/lib/battlefieldNaming'
+import { resolveBattlefieldStacksExpandable, shouldExpandBattlefieldStackGroup } from '../../../web/lib/stackSelection'
+import type { StackSourceUnit } from '../../../web/lib/stackSelection'
 import { UnitStatus } from '#shared/types/index'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '../../../web/lib/sessionCatalog'
