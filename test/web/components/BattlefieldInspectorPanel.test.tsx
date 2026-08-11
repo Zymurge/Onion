@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { BattlefieldInspectorPanel } from '#web/components/BattlefieldInspectorPanel'
-import type { BattlefieldOnionView, BattlefieldUnit } from '#web/lib/battlefieldView'
+import { makeBattlefieldDefender, makeBattlefieldOnion } from '#test/utils/gameStateUtils'
 
 describe('BattlefieldInspectorPanel', () => {
   function getLabeledValue(label: string): string {
@@ -18,18 +18,7 @@ describe('BattlefieldInspectorPanel', () => {
   }
 
   it('uses canonical stack counts for grouped defenders and renders the swamp summary when objectives are present', () => {
-    const defender: BattlefieldUnit = {
-      id: 'pigs-1',
-      type: 'LittlePigs',
-      friendlyName: 'Little Pigs 1',
-      status: 'operational',
-      position: { q: 4, r: 4 },
-      move: 3,
-      weapons: 'main: ready',
-      attack: '1 / rng 1',
-      actionableModes: ['fire', 'combined'],
-      squads: 1,
-    }
+    const defender = makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', position: { q: 4, r: 4 } }, { movesRemaining: 3, stackSize: 1, actionableModes: ['fire', 'combined'] })
 
     render(
       <BattlefieldInspectorPanel
@@ -52,17 +41,7 @@ describe('BattlefieldInspectorPanel', () => {
   })
 
   it('renders the swamp victory summary when objectives are present', () => {
-    const swamp: BattlefieldUnit = {
-      id: 'swamp-1',
-      type: 'Swamp',
-      friendlyName: 'The Swamp',
-      status: 'operational',
-      position: { q: 3, r: 5 },
-      move: 0,
-      weapons: 'main: ready',
-      attack: '0 / rng 0',
-      actionableModes: ['fire'],
-    }
+    const swamp = makeBattlefieldDefender({ unitId: 'swamp-1', typeId: 'Swamp', friendlyName: 'The Swamp', position: { q: 3, r: 5 } }, { movesRemaining: 0, stackSize: 1, actionableModes: ['fire'] })
 
     render(
       <BattlefieldInspectorPanel
@@ -84,19 +63,7 @@ describe('BattlefieldInspectorPanel', () => {
   })
 
   it('renders onion inspector stats and keeps stack count fixed at one', () => {
-    const onion: BattlefieldOnionView = {
-      id: 'onion-1',
-      type: 'TheOnion',
-      friendlyName: 'TheOnion',
-      position: { q: 0, r: 0 },
-      status: 'operational',
-      treads: 33,
-      movesAllowed: 3,
-      movesRemaining: 2,
-      rams: 1,
-      weapons: 'laser: ready',
-      weaponDetails: [],
-    }
+    const onion = makeBattlefieldOnion({ unitId: 'onion-1', friendlyName: 'TheOnion', position: { q: 0, r: 0 }, treads: 33, ramsRemaining: 1, weapons: [] }, { movesAllowed: 3, movesRemaining: 2 })
 
     render(
       <BattlefieldInspectorPanel
@@ -117,18 +84,7 @@ describe('BattlefieldInspectorPanel', () => {
   })
 
   it('throws when the selected unit has no resolved inspector label', () => {
-    const defender: BattlefieldUnit = {
-      id: 'pigs-1',
-      type: 'LittlePigs',
-      friendlyName: 'Little Pigs 1',
-      status: 'operational',
-      position: { q: 4, r: 4 },
-      move: 3,
-      weapons: 'main: ready',
-      attack: '1 / rng 1',
-      actionableModes: ['fire', 'combined'],
-      squads: 1,
-    }
+    const defender = makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', position: { q: 4, r: 4 } }, { movesRemaining: 3, stackSize: 1, actionableModes: ['fire', 'combined'] })
 
     expect(() => {
       render(
@@ -146,18 +102,7 @@ describe('BattlefieldInspectorPanel', () => {
   })
 
   it('throws when a grouped defender is missing a selected stack member count', () => {
-    const defender: BattlefieldUnit = {
-      id: 'pigs-1',
-      type: 'LittlePigs',
-      friendlyName: 'Little Pigs 1',
-      status: 'operational',
-      position: { q: 4, r: 4 },
-      move: 3,
-      weapons: 'main: ready',
-      attack: '1 / rng 1',
-      actionableModes: ['fire', 'combined'],
-      squads: 1,
-    }
+    const defender = makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', position: { q: 4, r: 4 } }, { movesRemaining: 3, stackSize: 1, actionableModes: ['fire', 'combined'] })
 
     expect(() => {
       render(

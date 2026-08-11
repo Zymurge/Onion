@@ -281,6 +281,7 @@ describe('BattlefieldLeftRail', () => {
             },
           }
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -431,6 +432,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={onSelectUnit}
       />,
     )
@@ -508,6 +510,7 @@ describe('BattlefieldLeftRail', () => {
             },
           },
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -587,6 +590,7 @@ describe('BattlefieldLeftRail', () => {
             },
           }
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -678,6 +682,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={onSelectUnit}
       />,
     )
@@ -939,6 +944,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 1"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )

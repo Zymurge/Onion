@@ -5,7 +5,7 @@ import { BattlefieldInspectorPanel } from './BattlefieldInspectorPanel'
 import { InactiveEventStream } from './InactiveEventStream'
 import { isWeaponSelectionId, resolveBattlefieldUnitName } from '../lib/appViewHelpers'
 import { buildRightRailCombatPanelViewModel } from '../lib/rightRailCombatPanel'
-import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
+import type { BattlefieldDefenderView, BattlefieldOnionView } from '../lib/battlefieldView'
 import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
 import type { Weapon } from '../../shared/types/index'
@@ -14,6 +14,7 @@ import { routeInteraction, type InteractionRoutingRequest } from '../lib/interac
 import { routeRightRailControl, type RightRailControlRequest } from '../lib/rightRailControlRouting'
 import logger from '../lib/logger'
 import { parseCombatTargetId } from '../../shared/combatTarget'
+import type { SessionCatalog } from '../lib/sessionCatalog'
 
 type RamPrompt = {
   unitId: string
@@ -36,17 +37,18 @@ type BattlefieldRightRailProps = {
   selectedCombatTarget: CombatTargetOption | null
   selectedCombatTargetId: string | null
   selectedInspectorLabel: string | null
-  selectedInspectorDefender: BattlefieldUnit | null
+  selectedInspectorDefender: BattlefieldDefenderView | null
   selectedInspectorOnion: BattlefieldOnionView | null
   readyWeaponDetails: ReadonlyArray<Weapon>
   rightRailStackPanel: {
     isVisible: boolean
-    selectedStackMembers: ReadonlyArray<BattlefieldUnit | BattlefieldOnionView>
+    selectedStackMembers: ReadonlyArray<BattlefieldDefenderView | BattlefieldOnionView>
     selectedStackSelectionCount: number
     selectedStackSelectionIds: ReadonlyArray<string>
   }
   victoryObjectives: ReadonlyArray<VictoryObjectiveState>
   escapeHexes: ReadonlyArray<VictoryEscapeHex>
+  catalog?: SessionCatalog
   inactiveEventStream: {
     entries: ReadonlyArray<TimelineEvent>
     errorMessage: string | null
@@ -86,6 +88,7 @@ export function BattlefieldRightRail({
   rightRailStackPanel,
   victoryObjectives,
   escapeHexes,
+  catalog,
   inactiveEventStream,
   combatTargetOptions,
   onConfirmCombat,
@@ -134,18 +137,18 @@ export function BattlefieldRightRail({
       </div>
       <div className="attacker-selection-list stack-selection-list">
         {rightRailStackPanel.selectedStackMembers.map((unit) => {
-          const isSelected = rightRailStackPanel.selectedStackSelectionIds.includes(unit.id)
+          const isSelected = rightRailStackPanel.selectedStackSelectionIds.includes(unit.unitId)
           const isCombatReady = activeCombatRole !== 'defender' || !('actionableModes' in unit) || unit.actionableModes.includes('fire')
           const isDisabled = isInteractionLocked || (activeCombatRole === 'defender' && !isCombatReady)
           return (
             <button
-              key={unit.id}
+              key={unit.unitId}
               type="button"
               className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}${isDisabled ? ' is-disabled' : ''}`}
               aria-pressed={isSelected}
               disabled={isDisabled}
               data-selected={isSelected}
-              data-testid={`stack-member-${unit.id}`}
+              data-testid={`stack-member-${unit.unitId}`}
               onClick={() => {
                 const decision = routeRightRailInteraction({
                   viewerRole: activeCombatRole ?? activeRole ?? 'defender',
@@ -167,11 +170,11 @@ export function BattlefieldRightRail({
                 })
 
                 if (decision.intent === 'toggle-actor') {
-                  onToggleStackMember(unit.id)
+                  onToggleStackMember(unit.unitId)
                 }
               }}
             >
-              <div className="weapon-card-name">{resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)}</div>
+              <div className="weapon-card-name">{resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName)}</div>
               <div className="weapon-card-stats">Toggle in stack</div>
             </button>
           )
@@ -252,6 +255,7 @@ export function BattlefieldRightRail({
       activeSelectedUnitCount={activeSelectedUnitCount}
       victoryObjectives={victoryObjectives}
       escapeHexes={escapeHexes}
+      catalog={catalog}
     />
   ) : null
 

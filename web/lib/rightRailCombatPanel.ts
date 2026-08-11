@@ -1,9 +1,9 @@
 import type { CombatTargetOption } from './combatPreview'
-import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
+import type { BattlefieldDefenderView, BattlefieldOnionView } from './battlefieldView'
 
 type RightRailStackPanelState = {
   isVisible: boolean
-  selectedStackMembers: ReadonlyArray<BattlefieldUnit | BattlefieldOnionView>
+  selectedStackMembers: ReadonlyArray<BattlefieldDefenderView | BattlefieldOnionView>
   selectedStackSelectionCount: number
   selectedStackSelectionIds: ReadonlyArray<string>
 }
@@ -31,7 +31,7 @@ export function buildRightRailCombatPanelViewModel({
   activeCombatRole: 'onion' | 'defender' | null
   activeRole: 'onion' | 'defender' | null
   isCombatPhase: boolean
-  selectedInspectorDefender: BattlefieldUnit | null
+  selectedInspectorDefender: BattlefieldDefenderView | null
   selectedCombatTarget: CombatTargetOption | null
   combatTargetOptions: ReadonlyArray<CombatTargetOption>
   rightRailStackPanel: RightRailStackPanelState

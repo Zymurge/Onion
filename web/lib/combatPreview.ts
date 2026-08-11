@@ -7,7 +7,7 @@ import {
 	isTargetAllowedByRules,
 	} from '../../shared/targetRules.js'
 
-import { type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex, type UnitStatus } from './battlefieldView'
+import { type BattlefieldDefenderView, type BattlefieldOnionView, type TerrainHex, type UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
 import { getDisplayDefense, getTerrainValueAt, isWeaponSelectionId, resolveBattlefieldFriendlyName, resolveBattlefieldWeaponName, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './appViewHelpers'
 import { formatCombatTargetId } from '../../shared/combatTarget'
@@ -35,7 +35,7 @@ export type CombatTargetOption = {
 type CombatPreviewInput = {
 	activeCombatRole: CombatRole | null
 	combatRangeHexKeys: ReadonlySet<string>
-	displayedDefenders: ReadonlyArray<BattlefieldUnit>
+	displayedDefenders: ReadonlyArray<BattlefieldDefenderView>
 	displayedOnion: BattlefieldOnionView | null
 	stackRoster?: StackRosterState | null
 	stackNaming?: StackNamingSnapshot | null
@@ -53,7 +53,7 @@ function isStackableUnitType(unitType: string, catalog?: SessionCatalog): boolea
 	return catalog !== undefined && isSessionUnitTypeStackable(catalog, unitType)
 }
 
-function getStackedDefenderKeys(displayedDefenders: ReadonlyArray<BattlefieldUnit>, catalog?: SessionCatalog): Set<string> {
+function getStackedDefenderKeys(displayedDefenders: ReadonlyArray<BattlefieldDefenderView>, catalog?: SessionCatalog): Set<string> {
 	const stackedCountsByPosition = new Map<string, number>()
 	const stackedKeys = new Set<string>()
 
@@ -64,7 +64,7 @@ function getStackedDefenderKeys(displayedDefenders: ReadonlyArray<BattlefieldUni
 
 		const position = unit.position
 		const key = `${unit.typeId}:${position.q},${position.r}`
-		if ((unit.squads ?? 1) > 1) {
+		if (unit.stackSize > 1) {
 			stackedKeys.add(key)
 			continue
 		}
@@ -104,7 +104,7 @@ function getSelectedAttackerIds(activeCombatRole: CombatRole, selectedUnitIds: R
 }
 
 function getWeaponDetails(displayedOnion: BattlefieldOnionView): ReadonlyArray<Weapon> {
-	return displayedOnion.weaponDetails ?? []
+	return displayedOnion.weapons
 }
 
 function getSelectedWeapons(displayedOnion: BattlefieldOnionView, selectedAttackerIds: ReadonlyArray<string>): ReadonlyArray<Weapon> {
@@ -115,7 +115,7 @@ function getSelectedWeapons(displayedOnion: BattlefieldOnionView, selectedAttack
 function buildCombatCalculatorInputForDefenderTarget(
 	selectedAttackerIds: ReadonlyArray<string>,
 	displayedOnion: BattlefieldOnionView,
-	target: BattlefieldUnit,
+	target: BattlefieldDefenderView,
 	stackSize: number,
 	displayedScenarioMap: CombatPreviewInput['displayedScenarioMap'],
 ): CombatCalculatorInput {
@@ -123,13 +123,13 @@ function buildCombatCalculatorInputForDefenderTarget(
 
 	for (const attackerId of selectedAttackerIds) {
 		units[attackerId] = {
-			typeId: displayedOnion.type,
+			typeId: displayedOnion.typeId,
 			weaponIds: [attackerId],
 			weapons: getWeaponDetails(displayedOnion),
 		}
 	}
 
-	units[target.id] = {
+	units[target.unitId] = {
 		typeId: target.typeId,
 		stackSize,
 		terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
@@ -137,14 +137,14 @@ function buildCombatCalculatorInputForDefenderTarget(
 
 	return {
 		attackerGroupIds: [...selectedAttackerIds],
-		targetId: target.id,
+		targetId: target.unitId,
 		combatState: { units },
 	}
 }
 
 function buildCombatCalculatorInputForWeaponTarget(
 	selectedAttackerIds: ReadonlyArray<string>,
-	displayedDefenders: ReadonlyArray<BattlefieldUnit>,
+	displayedDefenders: ReadonlyArray<BattlefieldDefenderView>,
 	displayedOnion: BattlefieldOnionView,
 	weapon: Weapon,
 	displayedScenarioMap: CombatPreviewInput['displayedScenarioMap'],
@@ -152,15 +152,15 @@ function buildCombatCalculatorInputForWeaponTarget(
 	const units: CombatCalculatorInput['combatState']['units'] = {}
 
 	for (const attackerId of selectedAttackerIds) {
-		const attacker = displayedDefenders.find((unit) => unit.id === resolveSelectionOwnerUnitId(attackerId))
+		const attacker = displayedDefenders.find((unit) => unit.unitId === resolveSelectionOwnerUnitId(attackerId))
 		if (attacker !== undefined) {
 			units[attackerId] = { typeId: attacker.typeId }
 		}
 	}
 
 	const displayedOnionPosition = displayedOnion.position
-	units[displayedOnion.id] = {
-		typeId: displayedOnion.type,
+	units[displayedOnion.unitId] = {
+		typeId: displayedOnion.typeId,
 		weaponId: weapon.id,
 		weapons: getWeaponDetails(displayedOnion),
 		terrainType: terrainTypeAt(displayedScenarioMap, displayedOnionPosition.q, displayedOnionPosition.r),
@@ -168,7 +168,7 @@ function buildCombatCalculatorInputForWeaponTarget(
 
 	return {
 		attackerGroupIds: [...selectedAttackerIds],
-		targetId: displayedOnion.id,
+		targetId: displayedOnion.unitId,
 		combatState: { units },
 	}
 }
@@ -177,8 +177,8 @@ function buildTargetModifiers(modifiers: ReadonlyArray<{ label: string }>, extra
 	return [...extraLabels, ...modifiers.map((modifier) => modifier.label)]
 }
 
-function resolveGroupedDefenderStackSize(groupUnitIds: ReadonlyArray<string>, displayedDefenders: ReadonlyArray<BattlefieldUnit>): number {
-	return groupUnitIds.filter((groupUnitId) => displayedDefenders.some((unit) => unit.id === groupUnitId)).length
+function resolveGroupedDefenderStackSize(groupUnitIds: ReadonlyArray<string>, displayedDefenders: ReadonlyArray<BattlefieldDefenderView>): number {
+	return groupUnitIds.filter((groupUnitId) => displayedDefenders.some((unit) => unit.unitId === groupUnitId)).length
 }
 
 export function buildCombatTargetOptions({
@@ -204,13 +204,13 @@ export function buildCombatTargetOptions({
 		: buildStackRosterIndex(
 			stackRoster,
 			Object.fromEntries(
-				displayedDefenders.map((unit) => [unit.id, {
+				displayedDefenders.map((unit) => [unit.unitId, {
 					role: unit.role,
 					unitId: unit.unitId,
 					typeId: unit.typeId,
 					position: unit.position,
 					state: unit.state,
-					weapons: unit.weaponDetails ?? (Array.isArray(unit.weapons) ? unit.weapons : []),
+					weapons: unit.weapons,
 					friendlyName: unit.friendlyName,
 				}]),
 			),
@@ -240,27 +240,27 @@ export function buildCombatTargetOptions({
 						},
 						{
 							unitType: unit.typeId,
-							targetRules: unit.targetRules ?? (catalog === undefined ? undefined : getSessionUnitType(catalog, unit.typeId)?.targetRules),
+							targetRules: catalog === undefined ? undefined : getSessionUnitType(catalog, unit.typeId)?.targetRules,
 						},
 					),
 				),
 			)
 
-		const groupedTargets = new Map<string, BattlefieldUnit>()
+		const groupedTargets = new Map<string, BattlefieldDefenderView>()
 		for (const unit of validDefenders) {
-			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.id) ?? null
+			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.unitId) ?? null
 			const unitPosition = unit.position
 			if (rosterGroup === null && stackedDefenderKeys.has(`${unit.typeId}:${unitPosition.q},${unitPosition.r}`)) {
-				throw new Error(`Missing stackRoster entry for grouped unit ${unit.id}`)
+				throw new Error(`Missing stackRoster entry for grouped unit ${unit.unitId}`)
 			}
-			const groupId = rosterGroup !== null && rosterGroup.unitIds.length > 1 ? rosterGroup.groupId : unit.id
+			const groupId = rosterGroup !== null && rosterGroup.unitIds.length > 1 ? rosterGroup.groupId : unit.unitId
 			if (!groupedTargets.has(groupId)) {
 				groupedTargets.set(groupId, unit)
 			}
 		}
 
 		return [...groupedTargets.values()].map((unit) => {
-			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.id) ?? null
+			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.unitId) ?? null
 			const stackSize = rosterGroup !== null && rosterGroup.unitIds.length > 1
 				? resolveGroupedDefenderStackSize(rosterGroup.unitIds, validDefenders)
 				: 1
@@ -269,7 +269,7 @@ export function buildCombatTargetOptions({
 			const defense = getDisplayDefense(unit.typeId, stackSize, terrainType)
 			const targetId = rosterGroup !== null && rosterGroup.unitIds.length > 1
 				? rosterGroup.groupId
-				: unit.id
+				: unit.unitId
 			const result = combatCalculator.calculateResult(
 				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, {
 					...unit,
@@ -283,8 +283,8 @@ export function buildCombatTargetOptions({
 				r: unitPosition.r,
 				status: unit.state,
 				label: resolveBattlefieldFriendlyName({
-					id: unit.id,
-					type: unit.typeId,
+					unitId: unit.unitId,
+					typeId: unit.typeId,
 					position: unitPosition,
 					friendlyName: unit.friendlyName,
 				}, stackNaming ?? undefined, stackRoster ?? undefined, catalog),
@@ -333,11 +333,11 @@ export function buildCombatTargetOptions({
 
 	return [
 		{
-			id: formatCombatTargetId({ kind: 'treads', onionId: displayedOnion.id }),
+			id: formatCombatTargetId({ kind: 'treads', onionId: displayedOnion.unitId }),
 			kind: 'onion' as const,
 			q: onionPosition.q,
 			r: onionPosition.r,
-			status: displayedOnion.status as UnitStatus,
+			status: displayedOnion.state as UnitStatus,
 			label: 'Treads',
 			defense: selectedAttackStrength,
 			modifiers: selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],

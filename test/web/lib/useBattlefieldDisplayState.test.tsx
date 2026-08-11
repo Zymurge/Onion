@@ -290,7 +290,7 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
 
-	it('throws when a defender snapshot is missing a friendly name', () => {
+	it('preserves a defender snapshot when its friendly name is missing', () => {
 		const snapshot = createSnapshot()
 		const authoritativeState = snapshot.authoritativeState!
 		authoritativeState.defenders['pigs-1'] = {
@@ -313,16 +313,16 @@ describe('useBattlefieldDisplayState', () => {
 			}
 		}
 
-		expect(() =>
-			renderHook(() =>
+		const { result } = renderHook(() =>
 				useBattlefieldDisplayState({
 					combatBaseSnapshot: null,
 					interactionState: createInteractionState(),
 					sessionState: createSessionState(snapshot),
 					activeSessionBinding: null,
 				}),
-			),
-		).toThrow(/Missing friendly name for unit pigs-1/)
+		)
+		expect(result.current.error).toBeNull()
+		expect(result.current.displayedDefenders[0]?.friendlyName).toBeUndefined()
 	})
 
 })

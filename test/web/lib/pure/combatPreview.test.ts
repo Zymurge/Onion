@@ -213,8 +213,7 @@ describe('buildCombatTargetOptions', () => {
 			combatRangeHexKeys: new Set(['1,0', '1,1', '2,1']),
 			displayedDefenders: [
 				makeBattlefieldDefender(
-					{ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 } },
-					{ targetRules: { allowedAttackerUnitTypes: ['BigBadWolf'] } },
+					  { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 1, r: 1 } },
 				),
 			],
 			displayedOnion: makeBattlefieldOnion({

@@ -1,7 +1,7 @@
 import { getUnitMovementAllowance } from '../../shared/unitMovement.js'
 import type { DefenderMap, DefenderUnit, GameState, OnionUnit, TurnPhase, UnitState, Weapon } from '../../shared/types/index.js'
 import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol.js'
-import type { BattlefieldOnionView, BattlefieldUnit, Mode, TerrainHex } from './battlefieldView.js'
+import type { BattlefieldDefenderView, BattlefieldOnionView, Mode, TerrainHex } from './battlefieldView.js'
 import type { ServerGameSnapshot, StackActionSelection } from './gameClient.js'
 import type { LiveConnectionStatus } from './gameSessionTypes.js'
 import { getSessionUnitType, getSessionWeaponType, isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog.js'
@@ -35,8 +35,8 @@ export function isBattlefieldUnitCombatReady(unit: { actionableModes: ReadonlyAr
 
 const STACK_MEMBER_SELECTION_PREFIX = 'stack-member:'
 
-export function getBattlefieldStackSize(unit: { squads?: number }): number {
-  return Math.max(unit.squads ?? 1, 1)
+export function getBattlefieldStackSize(unit: { stackSize?: number }): number {
+  return Math.max(unit.stackSize ?? 1, 1)
 }
 
 export function resolveBattlefieldStackLabel(
@@ -60,40 +60,40 @@ export function resolveBattlefieldStackLabel(
 
 export function resolveBattlefieldDisplayName(
   unit: {
-    id: string
-    type: string
+    unitId: string
+    typeId: string
     position: { q: number; r: number }
     friendlyName?: string
-    squads?: number
+    stackSize?: number
   },
   stackNaming?: StackNamingSnapshot,
 ): string {
   const position = unit.position
 
   if (stackNaming !== undefined) {
-    const groupKey = buildStackGroupKey(unit.type, position)
+    const groupKey = buildStackGroupKey(unit.typeId, position)
     const group = stackNaming.groupsInUse.find((entry) => entry.groupKey === groupKey)
     if (group !== undefined) {
       return resolveSelectionName({ kind: 'group', groupKey: group.groupKey, stackNaming })
     }
 
     if (getBattlefieldStackSize(unit) > 1) {
-      throw new Error(`Missing stackNaming entry for grouped unit ${unit.id} at ${groupKey}`)
+      throw new Error(`Missing stackNaming entry for grouped unit ${unit.unitId} at ${groupKey}`)
     }
   }
 
   return resolveSelectionName({
     kind: 'unit',
-    unitId: unit.id,
-    unitType: unit.type,
+    unitId: unit.unitId,
+    unitType: unit.typeId,
     friendlyName: unit.friendlyName,
   })
 }
 
 export function resolveBattlefieldFriendlyName(
   unit: {
-    id: string
-    type: string
+    unitId: string
+    typeId: string
     position: { q: number; r: number }
     friendlyName?: string
   },
@@ -103,41 +103,41 @@ export function resolveBattlefieldFriendlyName(
   catalog?: SessionCatalog,
 ): string {
   const position = unit.position
-  const groupKey = buildStackGroupKey(unit.type, position)
+  const groupKey = buildStackGroupKey(unit.typeId, position)
   const rosterGroup = stackRoster === undefined
     ? null
     : Object.entries(stackRoster.groupsById ?? {})
       .map(([groupId, group]) => ({ groupId, group }))
-      .find(({ group }) => Array.isArray(group.unitIds) && group.unitIds.includes(unit.id))
+      .find(({ group }) => Array.isArray(group.unitIds) && group.unitIds.includes(unit.unitId))
       ?.group ?? null
-  const isStackable = isStackableUnitType(unit.type, catalog)
+  const isStackable = isStackableUnitType(unit.typeId, catalog)
   const namingGroup = stackNaming?.groupsInUse.find((entry) => entry.groupKey === groupKey) ?? null
 
   if (isStackable) {
     if (stackRoster === undefined) {
-      return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)
+      return resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName)
     }
 
     if (stackNaming === undefined) {
-      throw new Error(`Missing stackNaming for grouped unit ${unit.id}`)
+      throw new Error(`Missing stackNaming for grouped unit ${unit.unitId}`)
     }
 
     if (rosterGroup === null) {
-      throw new Error(`Missing roster group for grouped unit ${unit.id} at ${groupKey}`)
+      throw new Error(`Missing roster group for grouped unit ${unit.unitId} at ${groupKey}`)
     }
 
     if (namingGroup === null) {
-      throw new Error(`Missing stackNaming entry for grouped unit ${unit.id} at ${groupKey}`)
+      throw new Error(`Missing stackNaming entry for grouped unit ${unit.unitId} at ${groupKey}`)
     }
 
     if (rosterGroup.groupName !== namingGroup.groupName) {
-      throw new Error(`Conflicting stacked-unit labels for ${unit.id}: roster=${rosterGroup.groupName}, naming=${namingGroup.groupName}`)
+      throw new Error(`Conflicting stacked-unit labels for ${unit.unitId}: roster=${rosterGroup.groupName}, naming=${namingGroup.groupName}`)
     }
 
     return resolveSelectionName({ kind: 'group', groupKey: namingGroup.groupKey, stackNaming })
   }
 
-  return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)
+  return resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName)
 }
 
 export type StackSourceUnit = {
@@ -599,40 +599,21 @@ export function buildBattlefieldDefenderView(
   {
     move = 0,
     stackSize = 1,
-    terrainValue,
     activePhase = null,
     activeTurnActive = false,
-    catalog,
   }: {
     move?: number
     stackSize?: number
-    terrainValue?: number
     activePhase?: TurnPhase | null
     activeTurnActive?: boolean
-    catalog?: SessionCatalog
   } = {},
-): BattlefieldUnit {
+): BattlefieldDefenderView {
   const weapons = defender.weapons ?? []
-  const unitType = defender.typeId
 
   return {
-    id: defender.unitId,
-    type: unitType,
-    role: 'defender',
-    unitId: defender.unitId,
-    typeId: unitType,
-    state: defender.state,
-    friendlyName: resolveBattlefieldUnitName(unitType, defender.unitId, defender.friendlyName),
-    status: defender.state,
-    position: defender.position,
-    move,
-    weapons,
-    weaponSummary: formatWeaponSummary(weapons),
-    attack: formatAttackSummary(weapons, catalog),
-    weaponDetails: weapons,
-    targetRules: catalog === undefined ? undefined : getSessionUnitType(catalog, unitType)?.targetRules,
-    defense: getDisplayDefense(unitType, stackSize, terrainValue),
-    squads: stackSize,
+    ...defender,
+    movesRemaining: move,
+    stackSize,
     actionableModes: getActionableModes(defender.state, weapons, activeTurnActive, activePhase),
   }
 }
@@ -642,30 +623,19 @@ export function buildBattlefieldOnionView(
   {
     movesAllowed = 0,
     movesRemaining = 0,
-    catalog,
   }: {
     movesAllowed?: number
     movesRemaining?: number
-    catalog?: SessionCatalog
   } = {},
 ): BattlefieldOnionView {
   return {
-    id: onion.unitId,
-    type: onion.typeId,
-    friendlyName: resolveBattlefieldUnitName(onion.typeId, onion.unitId, onion.friendlyName),
-    position: onion.position,
-    status: onion.state,
-    treads: onion.treads,
+    ...onion,
     movesAllowed,
     movesRemaining,
-    rams: onion.ramsRemaining,
-    weapons: formatWeaponSummary(onion.weapons),
-    weaponDetails: onion.weapons,
-    targetRules: catalog === undefined ? undefined : getSessionUnitType(catalog, onion.typeId)?.targetRules,
   }
 }
 
-export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean, catalog?: SessionCatalog): BattlefieldUnit[] {
+export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldDefenderView[] {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
@@ -691,14 +661,12 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
           stackSize: Math.max(stackSize, 1),
           activePhase,
           activeTurnActive,
-          catalog,
-          terrainValue: getTerrainValueAt(snapshot.scenarioMap, defender.position.q, defender.position.r),
         }),
         rosterOrder: index,
       }
     })
     .sort((left, right) => {
-      const destroyedDelta = Number(left.status === 'destroyed') - Number(right.status === 'destroyed')
+      const destroyedDelta = Number(left.state === 'destroyed') - Number(right.state === 'destroyed')
 
       if (destroyedDelta !== 0) {
         return destroyedDelta
@@ -713,13 +681,13 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
     })
 }
 
-export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, catalog?: SessionCatalog): BattlefieldOnionView {
-  return buildLiveOnions(snapshot, activePhase, catalog)[0] ?? (() => {
+export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
+  return buildLiveOnions(snapshot, activePhase)[0] ?? (() => {
     throw new Error('Missing authoritative onion')
   })()
 }
 
-export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, catalog?: SessionCatalog): BattlefieldOnionView[] {
+export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView[] {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
@@ -730,7 +698,7 @@ export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnP
   return Object.values(authoritativeState.onions).map((onion) => {
     const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance(onion.typeId, activePhase, onion.treads)
     const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.unitId] ?? movesAllowed
-    return buildBattlefieldOnionView(onion, { movesAllowed, movesRemaining, catalog })
+    return buildBattlefieldOnionView(onion, { movesAllowed, movesRemaining })
   })
 }
 
@@ -759,7 +727,7 @@ export function buildCombatRangeSources(
   phase: TurnPhase | null,
   activeCombatRole: 'onion' | 'defender' | null,
   activeSelectedUnitIds: ReadonlyArray<string>,
-  displayedDefenders: ReadonlyArray<BattlefieldUnit>,
+  displayedDefenders: ReadonlyArray<BattlefieldDefenderView>,
   displayedOnion: BattlefieldOnionView | null,
   catalog?: SessionCatalog,
 ) {
@@ -774,7 +742,7 @@ export function buildCombatRangeSources(
 
     const selectedWeaponIds = new Set(activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId))
 
-    return (displayedOnion.weaponDetails ?? [])
+    return displayedOnion.weapons
       .filter((weapon) => weapon.state === 'ready' && selectedWeaponIds.has(weapon.id))
       .map((weapon) => ({
         q: displayedOnion.position.q,
@@ -784,11 +752,11 @@ export function buildCombatRangeSources(
   }
 
   return displayedDefenders
-    .filter((unit) => unit.status !== 'destroyed')
-    .filter((unit) => activeSelectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unit.id))
+    .filter((unit) => unit.state !== 'destroyed')
+    .filter((unit) => activeSelectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unit.unitId))
     .map((unit) => ({
       q: unit.position.q,
       r: unit.position.r,
-      range: getReadyWeaponRange(unit.weaponDetails, catalog),
+      range: getReadyWeaponRange(unit.weapons, catalog),
     }))
 }

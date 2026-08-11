@@ -385,7 +385,36 @@ import { createSessionCatalog } from '#web/lib/sessionCatalog'
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function HexMapBoard(props: ComponentProps<typeof ProductionHexMapBoard>) {
-	return <ProductionHexMapBoard {...props} />
+	const canonicalizeUnit = (unit: Record<string, unknown>) => {
+		if (unit.role === 'onion') {
+			return {
+				...unit,
+				unitId: unit.id ?? unit.unitId,
+				typeId: unit.type ?? unit.typeId,
+				state: unit.status ?? unit.state,
+				weapons: Array.isArray(unit.weaponDetails) ? unit.weaponDetails : Array.isArray(unit.weapons) ? unit.weapons : [],
+				ramsRemaining: unit.ramsRemaining ?? unit.rams,
+			}
+		}
+
+		return {
+			...unit,
+			unitId: unit.id ?? unit.unitId,
+			typeId: unit.type ?? unit.typeId,
+			state: unit.status ?? unit.state,
+			weapons: Array.isArray(unit.weaponDetails) ? unit.weaponDetails : Array.isArray(unit.weapons) ? unit.weapons : [],
+			movesRemaining: unit.movesRemaining ?? unit.move ?? 0,
+			stackSize: unit.stackSize ?? unit.squads ?? 1,
+		}
+	}
+
+	return (
+		<ProductionHexMapBoard
+			{...props}
+			defenders={props.defenders.map((unit) => canonicalizeUnit(unit as unknown as Record<string, unknown>) as never)}
+			onions={props.onions.map((unit) => canonicalizeUnit(unit as unknown as Record<string, unknown>) as never)}
+		/>
+	)
 }
 
 const scenarioMap = {

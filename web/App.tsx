@@ -625,7 +625,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       anchorUnitId: activeCombatRole === 'defender' ? selectedInspectorUnitId : null,
       selectedUnitIds: selectedCombatAttackerIds,
       targetId: selectedCombatTarget.id,
-      onionId: displayedOnion.id,
+      onionId: displayedOnion.unitId,
     })
 
     if (!combatAction.ok && combatAction.reason === 'empty-stack-selection') {
@@ -862,6 +862,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           readyWeaponDetails={readyWeaponDetails}
           rightRailStackPanel={rightRailStackPanel}
           escapeHexes={escapeHexes}
+          catalog={sessionState.catalog ?? undefined}
           victoryObjectives={victoryObjectives}
           inactiveEventStream={inactiveEventStream}
           combatTargetOptions={combatTargetOptions}

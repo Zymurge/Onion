@@ -34,8 +34,8 @@ describe('resolveBattlefieldDisplayName', () => {
 
     expect(() => resolveBattlefieldFriendlyName(
       {
-        id: 'pigs-1',
-        type: 'LittlePigs',
+        unitId: 'pigs-1',
+        typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
         friendlyName: 'Little Pigs 1',
       },
@@ -66,8 +66,8 @@ describe('resolveBattlefieldDisplayName', () => {
 
     expect(() => resolveBattlefieldFriendlyName(
       {
-        id: 'pigs-1',
-        type: 'LittlePigs',
+        unitId: 'pigs-1',
+        typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
         friendlyName: 'Little Pigs 1',
       },
@@ -91,8 +91,8 @@ describe('resolveBattlefieldDisplayName', () => {
 
     expect(() => resolveBattlefieldFriendlyName(
       {
-        id: 'pigs-1',
-        type: 'LittlePigs',
+        unitId: 'pigs-1',
+        typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
         friendlyName: 'Little Pigs 1',
       },
@@ -112,8 +112,8 @@ describe('resolveBattlefieldDisplayName', () => {
 
     const label = resolveBattlefieldDisplayName(
       {
-        id: 'pigs-1',
-        type: 'LittlePigs',
+        unitId: 'pigs-1',
+        typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
       },
       stackNaming,
@@ -143,8 +143,8 @@ describe('resolveBattlefieldDisplayName', () => {
 
     const label = resolveBattlefieldFriendlyName(
       {
-        id: 'pigs-1',
-        type: 'LittlePigs',
+        unitId: 'pigs-1',
+        typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
         friendlyName: 'Little Pigs 1',
       },
