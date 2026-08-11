@@ -1,6 +1,6 @@
 # UI Fallback Hardening Issue
 
-**Status:** Draft
+**Status:** Active; remaining work is tracked here.
 **Scope:** Remove UI-side fallback recovery for incomplete authoritative game state. Keep only validated, immutable scenario data caching for fields that cannot change during a game.
 
 ## Rule Of Record

@@ -43,8 +43,7 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
   | 4 | `DEFENDER_MOVE` | Defender player | — |
   | 5 | `DEFENDER_COMBAT` | Defender player | — |
   | 6 | `GEV_SECOND_MOVE` | Defender player (Big Bad Wolf only) | — |
-
-  Phase transitions are handled by `advancePhase(state)` in `src/engine/phases.ts`. It mutates `GameState` in place, applies any entry side-effects for the new phase, and auto-advances through engine-controlled phases (`DEFENDER_RECOVERY`) without waiting for player input.
+  Phase transitions are handled by `advancePhase(state)` in `server/engine/phases.ts`. It mutates `GameState` in place, applies any entry side-effects for the new phase, and auto-advances through engine-controlled phases (`DEFENDER_RECOVERY`) without waiting for player input.
 
 - **`GameState`** is the engine's authoritative mutable game state. It contains:
   - `onions: Record<string, OnionUnit>` — Onion units keyed by ID
@@ -74,7 +73,7 @@ The "Onion" project is a distributed system designed for persistent, multiplayer
   - `matches` — id, scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.
   - `game_state` — match_id (FK), state JSONB, updated_at.
 - **`game_state` JSONB Shape**: A mutable copy of the scenario's `initialState`, evolved in place by gameplay. Contains: Onion position/treads/weapons, all defender unit positions/statuses and weapons. Victory conditions and map terrain remain static in the `matches` row (copied from scenario at game creation) and are never stored in `game_state`.
-- **Authentication**: JWT (stateless). Issued on login, required for all game API calls. Simple and infrastructure-free for Phase 1. Future phases can layer in refresh tokens or third-party OAuth if needed.
+- **Authentication**: Bearer tokens are issued on login and required for all game API calls. The current implementation uses a temporary `stub.{userId}` format; signed JWT issuance and verification remain open work.
 
 ### Frontend (Client Tier)
 
@@ -88,7 +87,7 @@ The web client keeps the backend-authoritative snapshot, local interaction state
 
 - Manual matching: **done**
 - Web UI Phase 0: **done**
-- Web UI Phase 1: **partial**
+- Web UI Phase 1: **complete for the current scenario and contract surface**
 - Action affordance and turn presentation: **done**
 
 ### AI Tier (The Swamp Brain)
@@ -118,7 +117,7 @@ These smoke tests run as part of the default Vitest regression suite, so both pa
 
 The `DbAdapter` interface provides a clean separation between business logic and storage implementation:
 
-- **Interface**: `src/db/adapter.ts` defines the contract with methods for user auth, match CRUD, state updates, and event queries.
+- **Interface**: `server/db/adapter.ts` defines the contract with methods for user auth, match CRUD, state updates, and event queries.
 - **In-Memory Implementation**: `InMemoryDb` for unit tests — stores data in Maps, no external dependencies.
 - **PostgreSQL Implementation**: `PostgresDb` for production — executes SQL queries against a real database.
 - **Benefits**: Easy to test (swap implementations), future-proof (can add Redis caching without changing routes), clear boundaries (routes call named operations, not raw SQL).
@@ -160,9 +159,7 @@ Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md).
 
 ### Stacked Unit Management
 
-**TODO:** See docs/todo.md (Epic: Stacked unit management)
-
-*Planned:* Add UI and logic for selecting, splitting, and combining units in a stack; support for independent and combined moves and combat actions. Backend and scenario schema impacts to be defined. This section will be fleshed out when feature work begins.
+**Implemented:** Canonical stack roster state, naming lifecycle, split/merge reconciliation, stack-aware map and rail presentation, subgroup selection, combat/ramming behavior, and automated regression coverage are complete. See [stacked-unit-management-spec.md](stacked-unit-management-spec.md) for the current contract.
 
 ### Game Lobby & Matchmaking
 
@@ -174,19 +171,11 @@ Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md).
 
 **TODO:** See docs/todo.md (Epic: JWT authentication)
 
-*Planned:* Migrate to @fastify/jwt for authentication. Update API contract and error codes as needed. Details will be added when migration is scheduled.
-
-### Error Handling Improvements
-
-**TODO:** See docs/todo.md (Epic: Improve error handling)
-
-*Planned:* Improve error handling in both UI and backend. Add error overlays, normalize API error responses, and clarify error flows. This section will be detailed during implementation.
+*Planned:* Replace the current `stub.{userId}` bearer token with signed JWT issuance and verification using the installed `@fastify/jwt` dependency. Update auth tests and API documentation when scheduled.
 
 ### Shared Data Model for Units & Weapons
 
-**TODO:** See docs/todo.md (Epic: Externalize unit and weapon definitions)
-
-*Planned:* Externalize unit and weapon definitions so types, stats, and target rules can move to a shared data file or schema. Details to be defined when this work is prioritized.
+**Implemented:** Unit and weapon definitions are externalized in `shared/config/unitCatalog.json`, normalized by `shared/unitDefinitions.ts`, and consumed by engine and web rules/projection code.
 
 ## Name Changes
 
@@ -202,13 +191,8 @@ To avoid proprietary issues and add a fun, thematic twist, we'll rename elements
 - **Little Pigs**: Infantry squads.
 - **The Swamp**: Command Post.
 
-## Next Steps (Phase 1)
+## Current Next Steps
 
-- **Project scaffolding**: Initialize Node.js/TypeScript repo structure, Fastify server, and Docker Compose dev environment.
-- **Turn engine**: Implement the state machine for movement, combat, and recovery phases against the scenario schema.
-- **API surface**: Define REST endpoints for game creation, player actions, state sync, and event inspection. WebSocket support can be added later without changing the command/event model.
-- **CLI client**: Build the minimal TypeScript terminal client described in [cli-spec.md](cli-spec.md).
-
-### Future Work TODOs
-
-- **Authentication hardening**: Replace current stub bearer token auth (`stub.{userId}`) with real JWT validation via `@fastify/jwt` once client integration stabilizes.
+- Finish the remaining scenario deployment and dynamic movement-projection work listed in [todo.md](todo.md).
+- Replace stub bearer tokens with signed JWT authentication.
+- Build lobby/matchmaking UX and complete the accessibility audit when those features are prioritized.

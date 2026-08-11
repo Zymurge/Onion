@@ -83,7 +83,7 @@ The UI may show objective completion state in the inspector, and should surface 
 ### Unit Special Abilities
 
 - **Big Bad Wolf (GEV)**: Can move 4 hexes, fire, and then move an additional 3 hexes (Second Move Phase).
-- **Little Pigs (Infantry)**: Can stack up to 3 squads per hex. Their defense is the sum of squads. They are the only units that can benefit from certain terrain cover. Attacks of "D" on a stack reduce it by 1 squad; "X" destroys the entire stack.
+- **Little Pigs (Infantry)**: Can stack up to 5 squads per hex. Their defense is the sum of squads. They are the only units that can benefit from certain terrain cover. Attacks of "D" on a stack reduce it by 1 squad; "X" destroys the entire stack.
 - **Lord Farquaad (Howitzer)**: Immobile once placed.
 - **Dragon (Superheavy)**: A powerful conventional unit with two 6-strength attacks.
 - **The Swamp (Command Post)**: The primary objective. Defense 0. Any "X" result against it wins the game for the Onion.
@@ -110,7 +110,7 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
 ### 1. Hexagonal Grid & Movement
 
 - **Standard Movement**: Units move up to their Movement Allowance (MA).
-- **Through Movement**: Units can move through hexes occupied by friendly units but **cannot** end their movement in the same hex (Stacking limit of 1 unit per hex, except for up to 3 Little Pigs squads).
+- **Through Movement**: Units can move through hexes occupied by friendly units but **cannot** end their movement in the same hex (stacking limit of 1 unit per hex, except for up to 5 Little Pigs squads).
 - **Ramming**:
   - The Onion can ram up to **two** units per turn during its movement phase.
   - Ramming **Infantry (Little Pigs)** costs the Onion **0 treads**.
@@ -163,7 +163,7 @@ The Onion does not follow the standard CRT for destruction. Attackers must targe
 
 #### Tread Attacks (Special Rule 7.13.2)
 
-- **Individual Attacks Only**: Each unit attacking Treads must make an **individual attack**. Multiple units cannot combine fire against treads (Exception: up to 3 Little Pigs squads in the same hex may combine fire).
+- **Individual Attacks Only**: Each unit attacking Treads must make an **individual attack**. Multiple units cannot combine fire against treads. The current API rejects multi-attacker tread fire uniformly.
 - **1-to-1 Odds**: All attacks on treads are resolved at **1:1 odds**, regardless of the attacker's strength.
 - **Tread Damage**: On a roll of **5 or 6 (X result)**, the Onion loses a number of tread units equal to the **Attack Strength** of the attacking unit (e.g., a hit from **Puss** costs the Onion 4 treads).
 

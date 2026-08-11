@@ -1,6 +1,6 @@
 # Client/Server State Boundary Refactor Plan
 
-**Status:** Active; target-ID migration complete, manual QA pending
+**Status:** Complete; retained as an archived implementation record
 **Date:** 2026-04-25
 **Branch:** `feature/stacking-refactor`
 
@@ -11,9 +11,8 @@ Re-establish a hard architectural boundary between backend-authoritative game st
 This plan treats the backend as the authority for all committed game-state changes and treats the browser as the owner of only transient per-user interaction state, transport/sync state, and pure derived view models.
 
 This document is transient planning guidance. The explicit combat target-ID
-boundary is complete; the broader state-boundary implementation is also in
-place, but the remaining manual QA and documentation consolidation are still
-tracked below until the surrounding architecture documentation is finalized.
+boundary and broader state-boundary implementation are complete; permanent
+architecture documentation now describes the resulting ownership model.
 
 ## Decision Summary
 
@@ -541,6 +540,8 @@ Validation:
 
 ### Step 9. Update Permanent Docs
 
+Status: Completed. The state boundary is documented in [web-ui-spec.md](../web-ui-spec.md), [project-overview.md](../project-overview.md), and the current session-controller architecture documentation.
+
 Goal:
 
 - Make the new model the documented architecture and retire this transient plan.
@@ -594,22 +595,3 @@ The refactor is successful when all of the following are true:
 6. Stack selection behavior is deterministic before and after reload.
 7. Permanent architecture docs describe the same boundary the code implements.
 
-## Immediate Next Step
-
-The first implementation task should be Step 2: remove UI-local fields from the snapshot contract and transport cache. That step creates the strongest boundary improvement with the least ambiguity and sets up every later simplification.
-
-## Boundary Drift And Repair Plan
-
-The intended model in this plan is a strict split: backend state is authoritative, browser interaction state is transient, and the UI derives everything else from those two inputs. The codebase drifted away from that target in a few places. The current client snapshot type still mixes server data with UI-local fields, the HTTP transport still synthesizes fallback snapshot state, and the app/test fixtures have had to keep up with that mixed model instead of enforcing the stricter boundary.
-
-That drift is why we are not fully at the planned end state yet. The browser still tolerates a fabricated initial snapshot and still carries local fields in the same snapshot-shaped object as server data. The result is that the code is part authoritative-server model and part transitional compatibility layer.
-
-The repair sequence is:
-
-1. Split the snapshot contract into an authoritative server snapshot and a transient client/session state shape.
-2. Remove transport fallback/merge logic so the client stops inventing placeholder server state.
-3. Move any remaining UI-local fields out of snapshot-shaped types and into interaction state.
-4. Keep derived battlefield state pure and recomputable from server snapshot plus interaction state.
-5. Retire the compatibility shims and update permanent docs once the split is complete.
-
-That is the shortest path back to the boundary described above and the clearest way to prevent more mixed-model drift.

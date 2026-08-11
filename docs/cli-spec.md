@@ -736,7 +736,7 @@ Everything else is optional until a complete manual game can be played end to en
 One reasonable structure is:
 
 ```text
-src/cli/
+server/cli/
   index.ts              # process entrypoint
   repl.ts               # main loop
   commands/
@@ -775,7 +775,7 @@ Event fetching exists for manual inspection and recovery, not mandatory backgrou
 
 ### Step 1. Scaffold the CLI package
 
-- Add `src/cli` entrypoint
+- Add the `server/cli` entrypoint
 - Add CLI scripts to `package.json`
 - Add minimal configuration for running via `tsx`
 

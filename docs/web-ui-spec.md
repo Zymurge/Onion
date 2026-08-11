@@ -231,7 +231,7 @@ For expanded right-rail stack editing, member clicks should resolve to `toggle-a
 - The Swamp renders on top of the authored terrain for its hex rather than replacing it with clear terrain
 - The Swamp remains on the map when destroyed, switches to a destroyed visual state, and stays selectable for inspection.
 - The Swamp appears in the right rail and inspector panels, and its status, objective details, and completion state are surfaced in passive toasts and event streams.
-- Victory objectives are scenario-defined, each objective can be shown individually in the inspector, and the match ends when all required objectives are complete. Inspector presentation is TBD.
+- Victory objectives are scenario-defined, each objective can be shown individually in the inspector, and the match ends when all required objectives are complete. The inspector presents objective status and completion details alongside the selected unit/objective.
 - Escape hex objectives do not become active until Onion turn 2
 - Victory feedback distinguishes objective completion from overall match end state.
 - Zoom is supported through mouse wheel and a floating slider overlay in the lower-left corner.

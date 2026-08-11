@@ -22,11 +22,11 @@ This schema is designed for authoring flexibility and robust normalization. The 
   - Defender units cycle: `operational` → `disabled` (if hit) → `recovering` (start of next turn) → `operational` (start of Recovery Phase).
   - The engine manages all status transitions automatically.
 - **IDs:**
-  - Any `id` fields in scenario JSON are ignored; the engine assigns unique IDs at game start for all units.
+  - The keys in `initialState.onions` and `initialState.defenders` are the authored unit IDs for non-stack defenders and Onions. Stack-group keys are used as the source for deterministic member ID bases; the engine expands each group into unique member IDs.
 - **Victory Conditions:**
   - Scenario JSON specifies victory conditions, but the engine enforces and tracks win/loss state.
 
-See also: [server/engine/units.ts] for canonical unit/weapon definitions and rules.
+See also: [shared/config/unitCatalog.json] and [shared/unitDefinitions.ts] for canonical unit/weapon definitions and rules.
 
 ## 1. Map Configuration (Axial Hex Coordinates)
 
@@ -60,23 +60,24 @@ We use an **Axial Coordinate System** (q, r) where:
     ]
   },
   "initialState": {
-    "onion": {
-      "type": "MkIII",
-      "position": { "q": 0, "r": 10 },
-      "status": "operational"
+    "onions": {
+      "onion-1": {
+        "type": "TheOnion",
+        "position": { "q": 0, "r": 10 },
+        "status": "operational"
+      }
     },
     "defenders": {
       "swamp-1": { "type": "Swamp", "position": { "q": 5, "r": 5 }, "status": "operational" }
     }
   },
   "victoryConditions": {
-    "maxTurns": 20,
     "objectives": [
       {
         "id": "destroy-swamp",
         "label": "Destroy The Swamp",
         "kind": "destroy-unit",
-        "unitType": "Swamp",
+        "unitId": "swamp-1",
         "required": true
       },
       {
@@ -85,13 +86,15 @@ We use an **Axial Coordinate System** (q, r) where:
         "kind": "escape-map",
         "required": true
       }
-    ]
+    ],
+    "onion": { "escapeHexes": [{ "q": 2, "r": 9 }] }
   }
 }
 ```
 
-## 3. Victory Conditions
+The engine's normalized runtime state uses the explicit `onions` map shown above. Scenario authors may use `kind: "stack-group"` with `unitType`, `position`, and `count` for stackable defenders.
 
+## 3. Victory Conditions
 Victory conditions are authored in the scenario under `victoryConditions`. The engine materializes them into runtime objective state, but the scenario file remains the source of truth.
 
 ### Fields
@@ -142,33 +145,41 @@ Defender units cycle through three states. The engine is responsible for advanci
 
 ## 7. Zod Implementation Notes
 
-We will define the following TS interfaces:
+The scenario schema is implemented in `server/engine/scenarioSchema.ts` and
+uses string unit types so the shared catalog remains the runtime authority:
 
 ```typescript
 const ScenarioSchema = z.object({
   id: z.string(),
   name: z.string(),
-  displayName: z.string(),
+  displayName: z.string().optional(),
   description: z.string(),
   map: MapSchema,
   initialState: InitialStateSchema,
-  victoryConditions: VictoryConditionsSchema
+  victoryConditions: z.object({}).passthrough()
 });
 
 const HexSchema = z.object({
   q: z.number(),
   r: z.number(),
-  t: z.nativeEnum(TerrainType)
+  t: z.number()
 });
 
-const UnitStatusSchema = z.enum(["operational", "disabled", "recovering"]);
+const UnitStatusSchema = z.enum(["operational", "disabled", "recovering", "destroyed"]);
 
-const UnitSchema = z.object({
-  id: z.string(),
-  type: z.enum(["Puss", "Witch", "BigBadWolf", "LittlePigs", "Dragon", "LordFarquaad"]),
+const OnionSchema = z.object({
+  type: z.string().min(1),
   position: z.object({ q: z.number(), r: z.number() }),
-  status: UnitStatusSchema.default("operational"),
-  squads: z.number().optional() // For Little Pigs stacks only
+  status: UnitStatusSchema.optional()
+});
+
+const DefenderStackGroupSchema = z.object({
+  kind: z.literal("stack-group"),
+  unitType: z.string().min(1),
+  position: z.object({ q: z.number(), r: z.number() }),
+  count: z.number().int().positive(),
+  groupName: z.string().optional(),
+  status: UnitStatusSchema.optional()
 });
 ```
 

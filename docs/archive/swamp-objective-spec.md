@@ -1,5 +1,7 @@
 # Swamp Objective (HQ) Spec
 
+**Status:** Implementation complete. The unit catalog, scenario objective normalization, combat/ramming behavior, assets, inspector, event stream, and victory regression coverage are in place.
+
 ## Overview
 
 The Swamp (HQ) is a new, first-class defender unit type representing one or more scenario-defined victory objectives for the Onion scenario. It is a selectable, attackable, and rammable unit with no movement or weapons. Scenario authors define which objectives exist, the game marks each one individually when achieved, the inspector can surface their completion state, and the match ends when all required objectives are complete.
@@ -26,7 +28,7 @@ The Swamp (HQ) is a new, first-class defender unit type representing one or more
 - For the Swamp scenario, the core objectives are:
   - **Destroy The Swamp**
   - **Escape the Onion off-map after The Swamp is destroyed**
-- A future UI design can decide how these objectives are grouped or displayed in the inspector.
+- The inspector displays objective completion and prerequisite state alongside the selected objective/unit.
 - If the Onion is immobilized or destroyed before all objectives are completed, the defender wins.
 
 ## Combat & Ramming
@@ -54,15 +56,15 @@ The Swamp (HQ) is a new, first-class defender unit type representing one or more
 - Model victory as scenario-defined objectives that can be completed individually and then collectively end the match
 - Update UI to render The Swamp as a selectable unit with a unique icon
 - Update rules and scenario docs to reflect the new objective and victory conditions
-- Add regression tests for Swamp combat, ramming, and both victory states
+- Regression tests cover Swamp combat, ramming, destruction state, and both victory states.
 
 ---
 
-## Open Questions
+## Resolved Decisions
 
 - What map edge(s) or zone(s) count as escape for total victory?
-  - Defined in the scenario
+  - Defined by the scenario's `victoryConditions.onion.escapeHexes`.
 - Should The Swamp have any special terrain or stacking rules?
   - Treat the Swamp as a defender unit that cannot be stacked. It can be placed on different terrain types and it would inherit those rules accordingly.
 - Is a custom swamp icon available, or should a placeholder be used initially?
-  - will need to create both intact and destroyed swamp icons
+  - Custom intact and destroyed assets are available in `web/assets`.

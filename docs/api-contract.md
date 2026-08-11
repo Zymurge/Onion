@@ -32,7 +32,9 @@ use.
 
 ## Authentication
 
-All game endpoints require `Authorization: Bearer <jwt>` header.
+All game endpoints require `Authorization: Bearer <token>` header. The current
+implementation uses a temporary `stub.{userId}` token format; signed JWT
+issuance and verification are tracked as open work in [todo.md](todo.md).
 
 ### `POST /auth/register`
 
@@ -163,12 +165,7 @@ in this response or in `GameState`.
 }
 ```
 
-Temporary refactor note:
-
-- The defender/group normalization refactor is currently governed by `docs/temp-defender-group-refactor-plan.md`.
-- If this section conflicts with that plan, the temporary refactor plan takes precedence until the API contract is migrated to the new canonical model.
-
-Planned `GameState` stack roster shape:
+Current `GameState` stack roster shape:
 
 ```json
 {
@@ -489,28 +486,49 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from
 
 ```typescript
 {
-  onion: {
-    position: HexPos,
-    treads: number,
-    weapons: Array<{
-      id: string,
+  onions: {
+    [unitId: string]: {
+      unitId: string,
       typeId: string,
-      weaponClass: "main" | "secondary" | "ap" | "missile",
-      state: "ready" | "spent" | "destroyed",
-      friendlyName: string,
-      ammo?: number
-    }>
+      position: HexPos,
+      state: UnitState,
+      treads: number,
+      weapons: Array<{
+        id: string,
+        typeId: string,
+        weaponClass: "main" | "secondary" | "ap" | "missile",
+        state: "ready" | "spent" | "destroyed",
+        friendlyName: string,
+        ammo?: number
+      }>,
+      movementSpent: Partial<Record<TurnPhase, number>>,
+      ramsRemaining: number
+    }
   },
   defenders: {
     [unitId: string]: {
-      type:     string,
+      unitId: string,
+      typeId:   string,
       position: HexPos,
-      status:   UnitStatus,
-      squads:   number | undefined   // LittlePigs only; undefined for all others
+      state:    UnitState,
+      friendlyName: string,
+      movementSpent: Partial<Record<TurnPhase, number>>
+    }
+  },
+  stackRoster: {
+    groupsById: {
+      [groupId: string]: {
+        groupName: string,
+        unitType: string,
+        position: HexPos,
+        unitIds: string[]
+      }
     }
   }
 }
 ```
+
+`stackRoster` is the canonical source of stack membership and group identity. `defenders` is a unit projection and must not be used to infer stack membership from co-location. `movementRemainingByUnit` remains in the current game response for compatibility; its planned removal is tracked in [todo.md](todo.md).
 
 ---
 
