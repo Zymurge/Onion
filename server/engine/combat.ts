@@ -190,7 +190,7 @@ function buildCombatCalculatorInput(
         const unitIds = group.unitIds
         units[target.id] = {
           typeId: group.unitType,
-          squads: unitIds.length,
+          stackSize: unitIds.length,
           terrainType: getTerrainTypeAt(map, group.position),
           weapons: undefined,
         }

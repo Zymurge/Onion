@@ -22,7 +22,7 @@ export function isUnitMoveEligible(
 export type Mode = 'fire' | 'combined' | 'end-phase'
 export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
 
-export type BattlefieldUnitView = Omit<DefenderUnit, 'id'> & {
+export type BattlefieldUnitView = Omit<DefenderUnit, 'id' | 'weapons'> & {
   id: string
   type: string
   status: UnitState

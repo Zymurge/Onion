@@ -575,6 +575,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   const isControlledSession = activeSessionBinding !== null
   const shouldShowGameOverToast = sessionWinner !== null && sessionWinnerToastKey !== null && dismissedGameOverToastKey !== sessionWinnerToastKey
+  const appState = sessionState.status === 'loading' ? 'loading' : headerHasSnapshot ? 'loaded' : 'empty'
 
   const {
     debugEntries,
@@ -661,8 +662,10 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     <div
       className={`shell${inactiveEventScreenLocked ? ' inactive-event-screen-locked' : ''}`}
       data-phase={shellPhase}
+      data-state={appState}
       data-testid="app-shell"
     >
+      <span data-testid={`app-${appState}-state`} hidden aria-hidden="true" />
       {headerHasSnapshot ? <span data-testid="app-ready" hidden aria-hidden="true" /> : null}
       <span
         data-testid="session-sync-probe"
@@ -717,7 +720,11 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           <div className={`phase-chip phase-chip-turn${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}>
             <span>Turn {activeTurnNumber ?? 'waiting'}</span>
           </div>
-          <div className={`phase-chip phase-chip-state${activeTurnActive ? ' phase-chip-active' : ''}${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}>
+          <div
+            className={`phase-chip phase-chip-state${activeTurnActive ? ' phase-chip-active' : ''}${headerHasSnapshot ? '' : ' phase-chip-waiting'}`}
+            data-state={appState}
+            data-testid="app-state-chip"
+          >
             <span>{headerHasSnapshot ? activePhaseLabel : 'WAITING'}</span>
           </div>
           {phaseAdvanceLabel !== null ? (

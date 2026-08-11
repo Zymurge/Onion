@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 import { getBattlefieldPosition, statusTone, type BattlefieldOnionView, type BattlefieldUnit, type Mode } from '../lib/battlefieldView'
 import {
   buildStackMemberSelectionId,
@@ -51,7 +51,7 @@ type BattlefieldLeftRailProps = {
   onSelectUnit: (unitId: string, additive?: boolean) => void
 }
 
-type DefenderCombatGroupMember = {
+type DefenderStackGroupMember = {
   selectionId: string
   testId: string
   label: string
@@ -64,15 +64,9 @@ type DefenderCombatGroup = {
   isActionable: boolean
   isDestroyed: boolean
   label: string
-  members: DefenderCombatGroupMember[]
+  members: DefenderStackGroupMember[]
   range: number
   selectedCount: number
-}
-
-type DefenderMoveGroupMember = {
-  selectionId: string
-  testId: string
-  label: string
 }
 
 type DefenderMoveGroup = {
@@ -81,7 +75,7 @@ type DefenderMoveGroup = {
   attackReadyCount: number
   isDestroyed: boolean
   label: string
-  members: DefenderMoveGroupMember[]
+  members: DefenderStackGroupMember[]
   moveAllowance: number
   selectedCount: number
 }
@@ -313,6 +307,135 @@ function resolveDisplayedStackUnits(
   return selectedUnits.length > 0 ? selectedUnits : [...units]
 }
 
+type BattlefieldStackGroup = DefenderCombatGroup | DefenderMoveGroup
+
+type BattlefieldStackGroupProps = {
+  activeMode: Mode
+  activeSelectedUnitIds: readonly string[]
+  activeTurnActive: boolean
+  displayedDefenders: ReadonlyArray<BattlefieldUnit>
+  group: BattlefieldStackGroup
+  groupMode: 'combat' | 'move'
+  isSelectionLocked: boolean
+  stacksExpandable: boolean
+  viewerRole: 'onion' | 'defender'
+  onSelectGroup: (unitId: string, event: MouseEvent<HTMLButtonElement>) => void
+  onSelectMember: (selectionId: string, event: MouseEvent<HTMLButtonElement>) => void
+}
+
+function BattlefieldStackGroup({
+  activeMode,
+  activeSelectedUnitIds,
+  activeTurnActive,
+  displayedDefenders,
+  group,
+  groupMode,
+  isSelectionLocked,
+  stacksExpandable,
+  viewerRole,
+  onSelectGroup,
+  onSelectMember,
+}: BattlefieldStackGroupProps) {
+  const isCombatGroup = groupMode === 'combat'
+  const combatGroup = group as DefenderCombatGroup
+  const moveGroup = group as DefenderMoveGroup
+  const isSelected = group.selectedCount > 0
+  const isActionable = isCombatGroup
+    ? activeTurnActive && viewerRole === 'defender' && combatGroup.isActionable
+    : activeTurnActive && viewerRole === 'defender' && !group.isDestroyed
+  const isExpanded = shouldExpandBattlefieldStackGroup({
+    memberCount: group.members.length,
+    selectedCount: group.selectedCount,
+    stacksExpandable,
+  })
+
+  return (
+    <div
+      key={group.anchorUnit.id}
+      className={`combat-stack-group${isExpanded ? ' is-expanded' : ''}`}
+      data-expanded={isExpanded}
+      data-testid={`${groupMode}-stack-group-${group.anchorUnit.id}`}
+    >
+      <button
+        type="button"
+        className={[
+          isCombatGroup ? 'attacker-card-button' : 'defender-card-button',
+          ...(isCombatGroup ? [] : ['slim-weapon-card']),
+          isSelected ? 'is-selected' : '',
+          isActionable ? 'is-actionable' : '',
+          isSelectionLocked ? 'is-disabled' : '',
+          `tone-${statusTone(group.anchorUnit.status)}`,
+        ].join(' ')}
+        aria-pressed={isSelected}
+        disabled={isSelectionLocked}
+        data-selected={isSelected}
+        data-testid={`combat-unit-${group.anchorUnit.id}`}
+        title={isCombatGroup && activeTurnActive && viewerRole === 'defender'
+          ? group.isDestroyed
+            ? 'Destroyed units cannot attack.'
+            : !combatGroup.isActionable
+              ? 'This unit is not eligible to attack.'
+              : undefined
+          : undefined}
+        onClick={(event) => {
+          if (isSelectionLocked) {
+            event.preventDefault()
+            event.stopPropagation()
+            return
+          }
+
+          event.stopPropagation()
+          onSelectGroup(group.anchorUnit.id, event)
+        }}
+      >
+        <div className="combat-stack-card-head">
+          <div className="weapon-card-name">{group.label}</div>
+          {group.members.length > 1 ? <span className="mini-tag">{group.attackReadyCount}/{group.members.length}</span> : null}
+        </div>
+        <div className="weapon-card-stats">
+          {isCombatGroup
+            ? <>Attack: {combatGroup.attackStrength} &nbsp;·&nbsp; Range: {combatGroup.range}</>
+            : <>Move: {moveGroup.moveAllowance} &nbsp;·&nbsp; Attack: {moveGroup.attackStrength}</>}
+        </div>
+      </button>
+      {isExpanded ? (
+        <div className="combat-stack-member-list">
+          {group.members.map((member) => {
+            const isMemberSelected = activeSelectedUnitIds.includes(member.selectionId)
+            const memberUnit = isCombatGroup ? displayedDefenders.find((unit) => unit.id === member.selectionId) : undefined
+            const isMemberActionable = memberUnit?.actionableModes.includes(activeMode) === true
+            const isMemberDisabled = isSelectionLocked || (isCombatGroup && activeTurnActive && viewerRole === 'defender' && !isMemberActionable)
+            return (
+              <button
+                key={member.selectionId}
+                type="button"
+                className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}${isMemberDisabled ? ' is-disabled' : ''}`}
+                aria-pressed={isMemberSelected}
+                disabled={isMemberDisabled}
+                data-selected={isMemberSelected}
+                data-testid={member.testId}
+                onClick={(event) => {
+                  if (isMemberDisabled) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    return
+                  }
+
+                  event.stopPropagation()
+                  onSelectMember(member.selectionId, event)
+                }}
+              >
+                <div className="weapon-card-name">{member.label}</div>
+                <div className="weapon-card-stats">{isCombatGroup ? 'Toggle in attack group' : 'Toggle in move group'}</div>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function buildDefenderMoveGroups(
   displayedDefenders: ReadonlyArray<BattlefieldUnit>,
   activeSelectedUnitIds: string[],
@@ -509,133 +632,67 @@ export function BattlefieldLeftRail({
                 <p className="summary-line">No ready weapons available.</p>
               )
             ) : defenderCombatGroups.length > 0 ? (
-              defenderCombatGroups.map((group) => {
-                const isSelected = group.selectedCount > 0
-                const isCombatActionable = activeTurnActive && viewerRole === 'defender' && group.isActionable
-                const isExpanded = shouldExpandBattlefieldStackGroup({
-                  memberCount: group.members.length,
-                  selectedCount: group.selectedCount,
-                  stacksExpandable,
-                })
-                return (
-                  <div
+              <div data-testid="battlefield-left-rail-combat-groups">
+                {defenderCombatGroups.map((group) => (
+                  <BattlefieldStackGroup
                     key={group.anchorUnit.id}
-                    className={`combat-stack-group${isExpanded ? ' is-expanded' : ''}`}
-                    data-expanded={isExpanded}
-                    data-testid={`combat-stack-group-${group.anchorUnit.id}`}
-                  >
-                    <button
-                      type="button"
-                      className={[
-                        'attacker-card-button',
-                        isSelected ? 'is-selected' : '',
-                        isCombatActionable ? 'is-actionable' : '',
-                        isSelectionLocked ? 'is-disabled' : '',
-                        `tone-${statusTone(group.anchorUnit.status)}`,
-                      ].join(' ')}
-                      aria-pressed={isSelected}
-                      disabled={isSelectionLocked}
-                      data-selected={isSelected}
-                      data-testid={`combat-unit-${group.anchorUnit.id}`}
-                      title={
-                        activeTurnActive && viewerRole === 'defender'
-                          ? group.isDestroyed
-                            ? 'Destroyed units cannot attack.'
-                            : !group.isActionable
-                              ? 'This unit is not eligible to attack.'
-                              : undefined
-                          : undefined
-                      }
-                      onClick={(event) => {
-                        if (isSelectionLocked) {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          return
-                        }
-
-                        event.stopPropagation()
-                        routeSourceSelection(
-                          {
-                            viewerRole,
-                            viewerActivity,
-                            phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
-                            surface: 'left-rail',
-                            gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
-                            subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
-                            subjectKind: 'stack',
-                            subjectCapability: {
-                              inspectable: true,
-                              moveEligible: false,
-                              attackerEligible: isCombatActionable,
-                              targetEligible: false,
-                            },
+                    activeMode={activeMode}
+                    activeSelectedUnitIds={activeSelectedUnitIds}
+                    activeTurnActive={activeTurnActive}
+                    displayedDefenders={displayedDefenders}
+                    group={group}
+                    groupMode="combat"
+                    isSelectionLocked={isSelectionLocked}
+                    stacksExpandable={stacksExpandable}
+                    viewerRole={viewerRole}
+                    onSelectGroup={(unitId, event) => {
+                      const isAdditive = event.ctrlKey || event.metaKey
+                      routeSourceSelection(
+                        {
+                          viewerRole,
+                          viewerActivity,
+                          phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                          surface: 'left-rail',
+                          gesture: isAdditive ? 'primary-additive' : 'primary',
+                          subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
+                          subjectKind: 'stack',
+                          subjectCapability: {
+                            inspectable: true,
+                            moveEligible: false,
+                            attackerEligible: activeTurnActive && viewerRole === 'defender' && group.isActionable,
+                            targetEligible: false,
                           },
-                          group.anchorUnit.id,
-                          event.ctrlKey || event.metaKey,
-                        )
-                      }}
-                    >
-                      <div className="combat-stack-card-head">
-                        <div className="weapon-card-name">{group.label}</div>
-                        {group.members.length > 1 ? <span className="mini-tag">{group.attackReadyCount}/{group.members.length}</span> : null}
-                      </div>
-                      <div className="weapon-card-stats">Attack: {group.attackStrength} &nbsp;·&nbsp; Range: {group.range}</div>
-                    </button>
-                    {isExpanded ? (
-                      <div className="combat-stack-member-list">
-                        {group.members.map((member) => {
-                          const isMemberSelected = activeSelectedUnitIds.includes(member.selectionId)
-                          const memberUnit = displayedDefenders.find((unit) => unit.id === member.selectionId)
-                          const isMemberActionable = memberUnit?.actionableModes.includes(activeMode) === true
-                          const isMemberDisabled = isSelectionLocked || (activeTurnActive && viewerRole === 'defender' && !isMemberActionable)
-                          return (
-                            <button
-                              key={member.selectionId}
-                              type="button"
-                              className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}${isMemberDisabled ? ' is-disabled' : ''}`}
-                              aria-pressed={isMemberSelected}
-                              disabled={isMemberDisabled}
-                              data-selected={isMemberSelected}
-                              data-testid={member.testId}
-                              onClick={(event) => {
-                                if (isMemberDisabled) {
-                                  event.preventDefault()
-                                  event.stopPropagation()
-                                  return
-                                }
-
-                                event.stopPropagation()
-                                routeSourceSelection(
-                                  {
-                                    viewerRole,
-                                    viewerActivity,
-                                    phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
-                                    surface: 'left-rail',
-                                    gesture: 'primary-additive',
-                                    subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
-                                    subjectKind: 'stack',
-                                    subjectCapability: {
-                                      inspectable: true,
-                                      moveEligible: false,
-                                      attackerEligible: activeTurnActive && viewerRole === 'defender' && isMemberActionable,
-                                      targetEligible: false,
-                                    },
-                                  },
-                                  member.selectionId,
-                                  true,
-                                )
-                              }}
-                            >
-                              <div className="weapon-card-name">{member.label}</div>
-                              <div className="weapon-card-stats">Toggle in attack group</div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                )
-              })
+                        },
+                        unitId,
+                        isAdditive,
+                      )
+                    }}
+                    onSelectMember={(selectionId) => {
+                      const memberUnit = displayedDefenders.find((unit) => unit.id === selectionId)
+                      const isMemberActionable = memberUnit?.actionableModes.includes(activeMode) === true
+                      routeSourceSelection(
+                        {
+                          viewerRole,
+                          viewerActivity,
+                          phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                          surface: 'left-rail',
+                          gesture: 'primary-additive',
+                          subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
+                          subjectKind: 'stack',
+                          subjectCapability: {
+                            inspectable: true,
+                            moveEligible: false,
+                            attackerEligible: activeTurnActive && viewerRole === 'defender' && isMemberActionable,
+                            targetEligible: false,
+                          },
+                        },
+                        selectionId,
+                        true,
+                      )
+                    }}
+                  />
+                ))}
+              </div>
             ) : (
               <p className="summary-line">Waiting for battlefield data.</p>
             )}
@@ -711,122 +768,64 @@ export function BattlefieldLeftRail({
               <span className="mini-tag">{displayedDefenders.length} tracked</span>
             </div>
             {defenderMoveGroups.length > 0 ? (
-              <div className="defender-list">
-                {defenderMoveGroups.map((group) => {
-                  const isSelected = group.selectedCount > 0
-                  const isMoveActionable = activeTurnActive && viewerRole === 'defender' && !group.isDestroyed
-                  const isExpanded = shouldExpandBattlefieldStackGroup({
-                    memberCount: group.members.length,
-                    selectedCount: group.selectedCount,
-                    stacksExpandable,
-                  })
-                  return (
-                    <div
-                      key={group.anchorUnit.id}
-                      className={`combat-stack-group${isExpanded ? ' is-expanded' : ''}`}
-                      data-expanded={isExpanded}
-                      data-testid={`move-stack-group-${group.anchorUnit.id}`}
-                    >
-                      <button
-                        type="button"
-                        className={[
-                          'defender-card-button',
-                          'slim-weapon-card',
-                          isSelected ? 'is-selected' : '',
-                          isMoveActionable ? 'is-actionable' : '',
-                          isSelectionLocked ? 'is-disabled' : '',
-                          `tone-${statusTone(group.anchorUnit.status)}`,
-                        ].join(' ')}
-                        aria-pressed={isSelected}
-                        disabled={isSelectionLocked}
-                        data-selected={isSelected}
-                        data-testid={`combat-unit-${group.anchorUnit.id}`}
-                        onClick={(event) => {
-                          if (isSelectionLocked) {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            return
-                          }
-
-                          event.stopPropagation()
-                          routeSourceSelection(
-                            {
-                              viewerRole,
-                              viewerActivity,
-                              phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
-                              surface: 'left-rail',
-                              gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
-                              subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
-                              subjectKind: 'stack',
-                              subjectCapability: {
-                                inspectable: true,
-                                moveEligible: isMoveActionable,
-                                attackerEligible: false,
-                                targetEligible: false,
-                              },
-                            },
-                            group.anchorUnit.id,
-                            event.ctrlKey || event.metaKey,
-                          )
-                        }}
-                      >
-                        <div className="combat-stack-card-head">
-                          <div className="weapon-card-name">{group.label}</div>
-                          {group.members.length > 1 ? <span className="mini-tag">{group.attackReadyCount}/{group.members.length}</span> : null}
-                        </div>
-                        <div className="weapon-card-stats">Move: {group.moveAllowance} &nbsp;·&nbsp; Attack: {group.attackStrength}</div>
-                      </button>
-                      {isExpanded ? (
-                        <div className="combat-stack-member-list">
-                          {group.members.map((member) => {
-                            const isMemberSelected = activeSelectedUnitIds.includes(member.selectionId)
-                            return (
-                              <button
-                                key={member.selectionId}
-                                type="button"
-                                className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}`}
-                                aria-pressed={isMemberSelected}
-                                data-selected={isMemberSelected}
-                                data-testid={member.testId}
-                                onClick={(event) => {
-                                  if (isSelectionLocked) {
-                                    event.preventDefault()
-                                    event.stopPropagation()
-                                    return
-                                  }
-
-                                  event.stopPropagation()
-                                  routeSourceSelection(
-                                    {
-                                      viewerRole,
-                                      viewerActivity,
-                                      phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
-                                      surface: 'left-rail',
-                                      gesture: 'primary-additive',
-                                      subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
-                                      subjectKind: 'stack',
-                                      subjectCapability: {
-                                        inspectable: true,
-                                        moveEligible: isMoveActionable,
-                                        attackerEligible: false,
-                                        targetEligible: false,
-                                      },
-                                    },
-                                    member.selectionId,
-                                    true,
-                                  )
-                                }}
-                              >
-                                <div className="weapon-card-name">{member.label}</div>
-                                <div className="weapon-card-stats">Toggle in move group</div>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      ) : null}
-                    </div>
-                  )
-                })}
+              <div className="defender-list" data-testid="battlefield-left-rail-move-groups">
+                {defenderMoveGroups.map((group) => (
+                  <BattlefieldStackGroup
+                    key={group.anchorUnit.id}
+                    activeMode={activeMode}
+                    activeSelectedUnitIds={activeSelectedUnitIds}
+                    activeTurnActive={activeTurnActive}
+                    displayedDefenders={displayedDefenders}
+                    group={group}
+                    groupMode="move"
+                    isSelectionLocked={isSelectionLocked}
+                    stacksExpandable={stacksExpandable}
+                    viewerRole={viewerRole}
+                    onSelectGroup={(unitId, event) => {
+                      const isAdditive = event.ctrlKey || event.metaKey
+                      routeSourceSelection(
+                        {
+                          viewerRole,
+                          viewerActivity,
+                          phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                          surface: 'left-rail',
+                          gesture: isAdditive ? 'primary-additive' : 'primary',
+                          subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
+                          subjectKind: 'stack',
+                          subjectCapability: {
+                            inspectable: true,
+                            moveEligible: activeTurnActive && viewerRole === 'defender' && !group.isDestroyed,
+                            attackerEligible: false,
+                            targetEligible: false,
+                          },
+                        },
+                        unitId,
+                        isAdditive,
+                      )
+                    }}
+                    onSelectMember={(selectionId) => {
+                      routeSourceSelection(
+                        {
+                          viewerRole,
+                          viewerActivity,
+                          phaseMode: isCombatPhase ? 'combat' : isMovementPhase ? 'movement' : 'locked',
+                          surface: 'left-rail',
+                          gesture: 'primary-additive',
+                          subjectRelation: viewerRole === 'defender' ? 'self' : 'opponent',
+                          subjectKind: 'stack',
+                          subjectCapability: {
+                            inspectable: true,
+                            moveEligible: activeTurnActive && viewerRole === 'defender' && !group.isDestroyed,
+                            attackerEligible: false,
+                            targetEligible: false,
+                          },
+                        },
+                        selectionId,
+                        true,
+                      )
+                    }}
+                  />
+                ))}
               </div>
             ) : (
               <p className="summary-line">Waiting for battlefield data.</p>

@@ -231,9 +231,6 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
     return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onions[0]?.id ?? null : null
   }, [onions, selectedUnitIds])
   const onion = onions.find((unit) => unit.id === selectedPrimaryUnitId) ?? onions[0]
-  if (onion === undefined) {
-    return null
-  }
 
   for (const onionUnit of onions) {
     const key = hexKey(getBattlefieldPosition(onionUnit))
@@ -409,6 +406,10 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
       slider.removeEventListener('wheel', handleWheel)
     }
   }, [])
+
+  if (onion === undefined) {
+    return null
+  }
 
   function getCombatTargetIdForOccupant(occupant: HexOccupant): string {
     if (activeCombatRole === 'defender' && occupant.id === onion.id) {

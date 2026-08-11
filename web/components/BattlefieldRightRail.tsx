@@ -1,4 +1,5 @@
 import { AttackPlanningConfirmationView } from './AttackPlanningConfirmationView'
+import { ConfirmationSurface } from './ConfirmationSurface'
 import { CombatTargetList } from './CombatTargetList'
 import { BattlefieldInspectorPanel } from './BattlefieldInspectorPanel'
 import { InactiveEventStream } from './InactiveEventStream'
@@ -275,7 +276,39 @@ export function BattlefieldRightRail({
             </div>
             <span className="mini-tag mini-tag-live">confirmation</span>
           </div>
-          <div className="combat-confirmation-view ram-confirmation-view" data-testid="ram-confirmation-view">
+          <ConfirmationSurface dataTestId="ram-confirmation-view"
+            summary={<p className="summary-line">Choose whether to ram the occupied hex or continue the move without ramming.</p>}
+            actions={(
+              <>
+                <button className="combat-confirm-button" type="button" disabled={isInteractionLocked} onClick={() => {
+                  const decision = routeRightRailControlAction({
+                    surface: 'right-rail',
+                    control: 'attempt-ram',
+                    enabled: !isInteractionLocked,
+                  })
+
+                  if (decision.intent === 'attempt-ram') {
+                    onAttemptRam()
+                  }
+                }}>
+                  Attempt ram
+                </button>
+                <button className="combat-confirm-button combat-confirm-button-secondary" type="button" disabled={isInteractionLocked} onClick={() => {
+                  const decision = routeRightRailControlAction({
+                    surface: 'right-rail',
+                    control: 'decline-ram',
+                    enabled: !isInteractionLocked,
+                  })
+
+                  if (decision.intent === 'decline-ram') {
+                    onDeclineRam()
+                  }
+                }}>
+                  Move without ram
+                </button>
+              </>
+            )}
+          >
             <div className="combat-confirmation-stats">
               <div className="combat-confirmation-stat">
                 <span className="stat-label-small">Target</span>
@@ -290,36 +323,7 @@ export function BattlefieldRightRail({
                 <strong>{pendingRamPrompt.to.q}, {pendingRamPrompt.to.r}</strong>
               </div>
             </div>
-            <p className="summary-line">Choose whether to ram the occupied hex or continue the move without ramming.</p>
-            <div className="combat-confirmation-actions">
-              <button className="combat-confirm-button" type="button" disabled={isInteractionLocked} onClick={() => {
-                const decision = routeRightRailControlAction({
-                  surface: 'right-rail',
-                  control: 'attempt-ram',
-                  enabled: !isInteractionLocked,
-                })
-
-                if (decision.intent === 'attempt-ram') {
-                  onAttemptRam()
-                }
-              }}>
-                Attempt ram
-              </button>
-              <button className="combat-confirm-button combat-confirm-button-secondary" type="button" disabled={isInteractionLocked} onClick={() => {
-                const decision = routeRightRailControlAction({
-                  surface: 'right-rail',
-                  control: 'decline-ram',
-                  enabled: !isInteractionLocked,
-                })
-
-                if (decision.intent === 'decline-ram') {
-                  onDeclineRam()
-                }
-              }}>
-                Move without ram
-              </button>
-            </div>
-          </div>
+          </ConfirmationSurface>
         </section>
       ) : null}
       {shouldShowCombatPanel && selectedInspectorOnion === null ? (

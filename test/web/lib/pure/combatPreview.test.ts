@@ -32,6 +32,38 @@ function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRos
 }
 
 describe('buildCombatTargetOptions', () => {
+	it('builds roster indexes from display-formatted defender weapons', () => {
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['3,2']),
+			displayedDefenders: [
+				makeBattlefieldDefender(
+					{ unitId: 'near-1', typeId: 'LittlePigs', position: { q: 3, r: 2 } },
+					{ weapons: 'Main Weapon 1', weaponDetails: [makeWeapon({ id: 'main-1' })] },
+				),
+			],
+			displayedOnion: makeBattlefieldOnion({
+				position: { q: 0, r: 1 },
+				weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' })],
+			}),
+			...makeStackView({
+				unitType: 'LittlePigs',
+				position: { q: 3, r: 2 },
+				unitIds: ['near-1'],
+			}),
+			selectedUnitIds: ['weapon:main-1'],
+			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: {
+				width: 8,
+				height: 8,
+				hexes: [],
+			},
+		})
+
+		expect(options).toHaveLength(1)
+	})
+
 	it('builds shared combat preview data for ridgeline targets', () => {
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',

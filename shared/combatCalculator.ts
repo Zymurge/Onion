@@ -50,7 +50,7 @@ export type CombatModifier = {
 export type CombatCombatantState = {
 	typeId: string
 	friendlyName?: string
-	squads?: number
+	stackSize?: number
 	terrainType?: TerrainType
 	weapons?: ReadonlyArray<Weapon>
 	weaponIds?: ReadonlyArray<string>
@@ -229,17 +229,17 @@ function resolveDefenseStrength(
 		return weapon.defense ?? definition.defense
 	}
 
-	// If the unit type supports stacking, require a squads count on the
+	// If the unit type supports stacking, require a stack size on the
 	// live combatant state and use it as the defense baseline. This makes the
 	// logic generic across all stackable infantry types rather than hardcoding
 	// specific unit names.
 	const maxStacks = (definition.abilities?.maxStacks ?? 1)
 	if (maxStacks > 1) {
-		if (typeof target.squads !== 'number') {
-			throw new Error(`Stack target '${targetId}' of type '${definition.typeId}' is missing squads in the live combat state`)
+		if (typeof target.stackSize !== 'number') {
+			throw new Error(`Stack target '${targetId}' of type '${definition.typeId}' is missing stackSize in the live combat state`)
 		}
 
-		const stackSize = target.squads
+		const stackSize = target.stackSize
 		return stackSize + getTerrainDefenseBonus(staticRules, target)
 	}
 

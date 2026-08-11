@@ -1,5 +1,5 @@
 declare module 'pino/browser.js' {
-  const pino: any
+  const pino: typeof import('pino')
   export default pino
-  export type Logger = any
+  export type Logger = import('pino').Logger
 }

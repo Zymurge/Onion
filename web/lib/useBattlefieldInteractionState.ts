@@ -219,10 +219,12 @@ export function useBattlefieldInteractionState({
       clientSnapshot === null
       || !isCombatSnapshotPhase(clientSnapshotPhase)
     ) {
-      setPendingCombatSnapshot(null)
-      setPendingCombatResolution(null)
-      setCombatBaseSnapshot(null)
-      setSelectedCombatTargetId(null)
+      queueMicrotask(() => {
+        setPendingCombatSnapshot(null)
+        setPendingCombatResolution(null)
+        setCombatBaseSnapshot(null)
+        setSelectedCombatTargetId(null)
+      })
     }
   }, [clientSnapshot, clientSnapshotPhase])
 

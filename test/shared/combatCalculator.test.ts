@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { TerrainType } from '#shared/engineTypes'
+import type { TerrainType } from '#shared/types/index'
 import { getUnitTypeCatalog } from '#shared/unitDefinitions'
 import {
 	createCombatCalculator,
@@ -76,7 +76,7 @@ describe('combatCalculator', () => {
 				units: {
 					'attack-1': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 1' },
 					'attack-2': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 2' },
-					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', squads: 2, terrainType: 'ridgeline' },
+					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', stackSize: 2, terrainType: 'ridgeline' },
 				},
 			},
 		}
@@ -95,7 +95,7 @@ describe('combatCalculator', () => {
 			combatState: {
 				units: {
 					'attack-1': { typeId: 'Puss' },
-					'target-1': { typeId: 'LittlePigs', squads: 2 },
+					'target-1': { typeId: 'LittlePigs', stackSize: 2 },
 				},
 			},
 		}
@@ -113,7 +113,7 @@ describe('combatCalculator', () => {
 			combatState: {
 				units: {
 					'attack-1': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 1' },
-					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', squads: 3, terrainType: 'ridgeline' },
+					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', stackSize: 3, terrainType: 'ridgeline' },
 				},
 			},
 		}
@@ -196,8 +196,8 @@ describe('combatCalculator', () => {
 						typeId: 'Dragon',
 						weaponIds: ['main_1', 'main_2'],
 						weapons: [
-							{ id: 'main_1', typeId: 'Dragon.main_1', friendlyName: 'A', state: 'ready', ammo: 1 },
-							{ id: 'main_2', typeId: 'Dragon.main_2', friendlyName: 'B', state: 'ready', ammo: 1 },
+							{ id: 'main_1', typeId: 'Dragon.main_1', weaponClass: 'main', friendlyName: 'A', state: 'ready', ammo: 1 },
+							{ id: 'main_2', typeId: 'Dragon.main_2', weaponClass: 'main', friendlyName: 'B', state: 'ready', ammo: 1 },
 						],
 					},
 					'target-1': { typeId: 'Puss' },
@@ -262,7 +262,7 @@ describe('combatCalculator', () => {
 		expect(result.odds).toBe('1:1')
 	})
 
-	it('throws when a Little Pigs target is missing squads in live combat state', () => {
+	it('throws when a Little Pigs target is missing stackSize in live combat state', () => {
 		const input: CombatCalculatorInput = {
 			attackerGroupIds: ['attack-1'],
 			targetId: 'target-1',
@@ -274,7 +274,7 @@ describe('combatCalculator', () => {
 			},
 		}
 
-		expect(() => calculator.calculateResult(input)).toThrow("Stack target 'target-1' of type 'LittlePigs' is missing squads in the live combat state")
+		expect(() => calculator.calculateResult(input)).toThrow("Stack target 'target-1' of type 'LittlePigs' is missing stackSize in the live combat state")
 	})
 
 	it('uses terrain-eligible live combat state when calculating ridgeline cover', () => {

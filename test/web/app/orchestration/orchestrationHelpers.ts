@@ -1,15 +1,9 @@
-import { vi } from 'vitest'
-import type { DefenderMap, DefenderUnit, HexPos, StackRosterState, UnitStatus, Weapon } from '#shared/types/index'
-import type { GameState } from '#shared/types/index'
+import type { DefenderMap, DefenderUnit, HexPos, OnionMap, StackRosterState, UnitState, Weapon } from '#shared/types/index'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
 import { buildStackGroupKey } from '#shared/stackNaming'
 import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
 import { getAllUnitDefinitions, isUnitTypeStackable } from '#shared/unitDefinitions'
-import { createTestClient, makeDefender, makeOnion, makeScenarioSnapshot, makeWeapon, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
-
-// ---- Shared type alias ----
-
-export type AuthoritativeBattlefieldSnapshot = TestScenarioSnapshot
+import { makeDefender, makeOnion, makeScenarioSnapshot, makeWeapon, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 
 // ---- Async test utility ----
 
@@ -32,7 +26,7 @@ export function createDeferred<T>() {
  * snapshot. Useful for tests that verify the app reads authoritative state
  * rather than falling back to local fixtures.
  */
-export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefieldSnapshot {
+export function createAuthoritativeBattlefieldSnapshot(): TestScenarioSnapshot {
 	return makeScenarioSnapshot({
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
@@ -84,8 +78,8 @@ export function createAuthoritativeBattlefieldSnapshot(): AuthoritativeBattlefie
  * override individual fields after the fact.
  */
 export function createConnectedBattlefieldSnapshot(
-	overrides: Partial<AuthoritativeBattlefieldSnapshot> = {},
-): AuthoritativeBattlefieldSnapshot {
+	overrides: Partial<TestScenarioSnapshot> = {},
+): TestScenarioSnapshot {
 	return makeScenarioSnapshot({
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
@@ -141,7 +135,7 @@ export function createConnectedBattlefieldSnapshot(
  * Two-defender snapshot with the wolf moved to `{q:1,r:1}` (adjacent to the
  * onion) and both onion weapons included, so combat-range tests can fire.
  */
-export function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot {
+export function createInRangeCombatSnapshot(): TestScenarioSnapshot {
 	const snapshot = createConnectedBattlefieldSnapshot()
 	return {
 		...snapshot,
@@ -175,7 +169,7 @@ export function createInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot 
  * that wolf-2 and puss-1 are in different hex positions (needed for tests that
  * check grouped vs. un-grouped selection).
  */
-export function createGroupedInRangeCombatSnapshot(): AuthoritativeBattlefieldSnapshot {
+export function createGroupedInRangeCombatSnapshot(): TestScenarioSnapshot {
 	const snapshot = createInRangeCombatSnapshot()
 
 	return {
@@ -194,18 +188,29 @@ export function createGroupedInRangeCombatSnapshot(): AuthoritativeBattlefieldSn
 }
 
 /**
- * Returns a snapshot in `ONION_MOVE` phase using `createMoveGameState` for the
+ * Returns a snapshot in `ONION_MOVE` phase using `makeScenarioSnapshot` for the
  * authoritative onion state with the given tread count.
  */
-export function createSnapshotWithTreads(treads: number, movementRemaining: number): AuthoritativeBattlefieldSnapshot {
+export type TreadsSnapshotOptions = {
+	onions?: OnionMap
+	defenders?: DefenderMap
+	movementRemainingByUnit?: Record<string, number>
+}
+
+export function createSnapshotWithTreads(
+	treads: number,
+	movementRemaining: number,
+	options: TreadsSnapshotOptions = {},
+): TestScenarioSnapshot {
 	return makeScenarioSnapshot({
 		phase: 'ONION_MOVE',
 		authoritativeState: {
-			onions: {
+			onions: options.onions ?? {
 				'onion-1': makeOnion({ position: { q: 0, r: 1 }, treads, friendlyName: 'The Onion' }),
 			},
+			...(options.defenders === undefined ? {} : { defenders: options.defenders }),
 		},
-		movementRemainingByUnit: {
+		movementRemainingByUnit: options.movementRemainingByUnit ?? {
 			'onion-1': movementRemaining,
 			'wolf-2': 4,
 			'puss-1': 3,
@@ -234,7 +239,7 @@ export function createSnapshotWithTreads(treads: number, movementRemaining: numb
  *
  * Do NOT mutate this object directly.
  */
-export const baseOrchestrationSnapshot: AuthoritativeBattlefieldSnapshot = createConnectedBattlefieldSnapshot()
+export const baseOrchestrationSnapshot: TestScenarioSnapshot = createConnectedBattlefieldSnapshot()
 
 // ---- Defender-tree builder ----
 
@@ -257,10 +262,9 @@ export type UnitInput = {
 	id: string
 	type: string
 	pos: HexPos
-	status?: UnitStatus
+	state?: UnitState
 	/** Explicit weapon list. Omit to get unit-definition defaults, all marked ready. */
 	weapons?: ReadonlyArray<Weapon>
-	squads?: number
 	friendlyName?: string
 }
 
@@ -311,9 +315,8 @@ export function buildDefenderTree(opts: {
 			unitId: unit.id,
 			typeId: unit.type,
 			position: unit.pos,
-			state: unit.status ?? 'operational',
+			state: unit.state ?? 'operational',
 			weapons: unit.weapons ?? getDefaultWeapons(unit.type),
-			squads: unit.squads ?? (isUnitTypeStackable(unit.type) ? 1 : undefined),
 			friendlyName: unit.friendlyName,
 		})
 	}
@@ -324,7 +327,6 @@ export function buildDefenderTree(opts: {
 		typeId: d.typeId,
 		position: d.position,
 		state: d.state,
-		squads: d.squads,
 		weapons: d.weapons,
 		friendlyName: d.friendlyName,
 	}))

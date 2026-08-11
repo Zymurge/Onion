@@ -12,6 +12,7 @@ import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinition
 import type { SessionInitPayload } from '#shared/types/index'
 import { makeScenarioSnapshot, makeStackFixture, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 import type { LiveEventSource, LiveSessionSignal } from '../../../web/lib/gameSessionTypes'
+import { expectMirroredUnitSelection } from './assertions'
 
 const testSessionCatalog: SessionInitPayload = {
 	unitTypes: getUnitTypeCatalog(),
@@ -87,7 +88,28 @@ describe('App UI', () => {
 		expect(screen.queryByText(/waiting for game state/i)).not.toBeNull()
 		expect(screen.queryByRole('button', { name: /puss-1/i })).toBeNull()
 		expect(screen.queryByText(/battlefield will appear once the game state loads/i)).not.toBeNull()
+		expect(screen.getByTestId('app-empty-state')).not.toBeNull()
 		expect(screen.queryByTestId('hex-unit-wolf-2')).toBeNull()
+	})
+
+	it('exposes stable loading and loaded state hooks around the initial session load', async () => {
+		let resolveState!: (value: { snapshot: TestScenarioSnapshot; session: { role: 'defender' } }) => void
+		const statePromise = new Promise<{ snapshot: TestScenarioSnapshot; session: { role: 'defender' } }>((resolve) => {
+			resolveState = resolve
+		})
+		const snapshot = makeScenarioSnapshot()
+		const client = createGameClient({
+			getState: vi.fn().mockReturnValue(statePromise),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByTestId('app-loading-state')).not.toBeNull()
+		resolveState({ snapshot, session: { role: 'defender' } })
+		expect(await screen.findByTestId('app-loaded-state')).not.toBeNull()
+		expect(screen.getByTestId('app-state-chip').getAttribute('data-state')).toBe('loaded')
 	})
 
 	it('keeps selection state on the rail and map in sync when loaded', async () => {
@@ -101,21 +123,17 @@ describe('App UI', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const wolfButton = await screen.findByTestId('combat-unit-wolf-2')
-		const wolfUnit = await screen.findByTestId('hex-unit-wolf-2')
-		expect(wolfButton.getAttribute('data-selected')).toBe('false')
-		expect(wolfUnit.getAttribute('data-selected')).toBe('false')
+		await screen.findByTestId('combat-unit-wolf-2')
+		await screen.findByTestId('hex-unit-wolf-2')
+		expectMirroredUnitSelection('wolf-2', false)
 
 		const pussButton = screen.getByTestId('combat-unit-puss-1')
 		await user.click(pussButton)
-		expect(pussButton.getAttribute('data-selected')).toBe('false')
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
-		expect(wolfButton.getAttribute('data-selected')).toBe('false')
-		expect(wolfUnit.getAttribute('data-selected')).toBe('false')
+		expectMirroredUnitSelection('puss-1', false)
+		expectMirroredUnitSelection('wolf-2', false)
 
 		await user.click(screen.getByTestId('hex-cell-0-0'))
-		expect(pussButton.getAttribute('data-selected')).toBe('false')
-		expect(screen.getByTestId('hex-unit-puss-1').getAttribute('data-selected')).toBe('false')
+		expectMirroredUnitSelection('puss-1', false)
 	})
 
 	it('does not seed attack selection when a synthetic stack group is rendered', async () => {

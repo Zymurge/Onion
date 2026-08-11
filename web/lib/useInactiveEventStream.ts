@@ -595,9 +595,10 @@ export function useInactiveEventStream({
 			activeGameId === null ||
 			pollEvents === undefined
 		) {
-			setIsLoading(false)
 			return
 		}
+		const activeGameIdForLoad = activeGameId
+		const pollEventsForLoad = pollEvents
 
 		const loadedThroughSeq = loadedThroughSeqRef.current
 		if (loadedThroughSeq !== null && lastAppliedEventSeq <= loadedThroughSeq) {
@@ -615,15 +616,10 @@ export function useInactiveEventStream({
 		inFlightAfterSeqRef.current = afterSeq
 
 		async function loadEvents() {
-			// Guard pollEvents and arguments
-			if (pollEvents === undefined || activeGameId === null) {
-				setIsLoading(false)
-				return undefined
-			}
 			setIsLoading(true)
 			setErrorMessage(null)
 			try {
-				const events = await pollEvents(Number(activeGameId), Number(afterSeq))
+				const events = await pollEventsForLoad(Number(activeGameIdForLoad), Number(afterSeq))
 				if (cancelled) {
 					return undefined
 				}

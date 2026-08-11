@@ -599,15 +599,17 @@ export function getActionableModes(status: UnitState | undefined, weapons: Reado
 }
 
 export function buildBattlefieldDefenderView(
-  defender: DefenderUnit & { squads?: number },
+  defender: DefenderUnit,
   {
     move = 0,
+    stackSize = 1,
     terrainValue,
     activePhase = null,
     activeTurnActive = false,
     catalog,
   }: {
     move?: number
+    stackSize?: number
     terrainValue?: number
     activePhase?: TurnPhase | null
     activeTurnActive?: boolean
@@ -635,8 +637,8 @@ export function buildBattlefieldDefenderView(
     attack: formatAttackSummary(weapons, catalog),
     weaponDetails: weapons,
     targetRules: catalog === undefined ? undefined : getSessionUnitType(catalog, unitType)?.targetRules,
-    defense: getDisplayDefense(unitType, defender.squads, terrainValue),
-    squads: defender.squads,
+    defense: getDisplayDefense(unitType, stackSize, terrainValue),
+    squads: stackSize,
     actionableModes: getActionableModes(defender.state, weapons, activeTurnActive, activePhase),
   }
 }
@@ -678,20 +680,25 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
 
   const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   const defenderEntries = Object.entries(authoritativeState.defenders)
+  const stackRosterIndex = buildStackRosterIndex(authoritativeState.stackRoster, authoritativeState.defenders)
 
   return defenderEntries
     .map(([defenderId, defender], index) => {
-      const canonicalDefender = defender as DefenderUnit & { squads?: number }
-      const resolvedDefenderId = canonicalDefender.unitId || defenderId
+      const resolvedDefenderId = defender.unitId || defenderId
       const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
+      const rosterGroup = stackRosterIndex.getUnitGroup(resolvedDefenderId)
+      const stackSize = rosterGroup === null
+        ? 1
+        : rosterGroup.units.filter((member) => member.state !== 'destroyed').length
 
       return {
-        ...buildBattlefieldDefenderView(canonicalDefender, {
+        ...buildBattlefieldDefenderView(defender, {
           move: activePhase === null ? 0 : snapshotMovementRemaining ?? 0,
+          stackSize: Math.max(stackSize, 1),
           activePhase,
           activeTurnActive,
           catalog,
-          terrainValue: getTerrainValueAt(snapshot.scenarioMap, canonicalDefender.position.q, canonicalDefender.position.r),
+          terrainValue: getTerrainValueAt(snapshot.scenarioMap, defender.position.q, defender.position.r),
         }),
         rosterOrder: index,
       }

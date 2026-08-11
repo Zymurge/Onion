@@ -3,16 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { BattlefieldLeftRail } from '#web/components/BattlefieldLeftRail'
-import type { BattlefieldOnionView, BattlefieldUnit } from '#web/lib/battlefieldView'
-import { canonicalizeBattlefieldDefenders } from '#test/utils/gameStateUtils'
+import type { BattlefieldOnionView } from '#web/lib/battlefieldView'
+import { canonicalizeBattlefieldDefenders, type BattlefieldDefenderFixture } from '#test/utils/gameStateUtils'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import type { StackNamingSnapshot } from '#shared/stackNaming'
+import type { StackRosterState } from '#shared/types/index'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
-
-function createDefendersMap(defenders: BattlefieldUnit[]) {
-  return Object.fromEntries(defenders.map((unit) => [unit.id, { id: unit.id, status: unit.status, friendlyName: unit.friendlyName }]))
-}
 
 describe('BattlefieldLeftRail', () => {
   it('renders onion weapon metadata from the session catalog', () => {
@@ -30,6 +28,7 @@ describe('BattlefieldLeftRail', () => {
       weaponDetails: [{
         id: 'main-1',
         typeId: 'TheOnion.main',
+        weaponClass: 'main',
         state: 'ready',
         friendlyName: 'Runtime Main',
       }],
@@ -49,7 +48,7 @@ describe('BattlefieldLeftRail', () => {
         isSelectionLocked={false}
         stacksExpandable={false}
         onionWeapons={{ operationalWeapons: 1, operationalMissiles: 0 }}
-        readyWeaponDetails={onion.weaponDetails}
+        readyWeaponDetails={onion.weaponDetails ?? []}
         selectedCombatAttackLabel="Attack 0"
         catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
@@ -63,7 +62,7 @@ describe('BattlefieldLeftRail', () => {
   })
 
   it('renders one combat group card from canonical roster membership even when members are on different hexes', () => {
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -137,20 +136,21 @@ describe('BattlefieldLeftRail', () => {
         onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
         readyWeaponDetails={[]}
         selectedCombatAttackLabel="Attack 0"
-        stackNaming={stackNaming as any}
-        stackRoster={stackRoster as any}
+        stackNaming={stackNaming as StackNamingSnapshot}
+        stackRoster={stackRoster as StackRosterState}
         onSelectUnit={vi.fn()}
       />,
     )
 
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs group 1')
+    expect(screen.getByTestId('battlefield-left-rail-combat-groups')).not.toBeNull()
     expect(screen.getByTestId('combat-stack-group-pigs-1').dataset.expanded).toBe('false')
     expect(screen.queryByTestId('combat-stack-member-pigs-1')).toBeNull()
     expect(screen.queryByTestId('combat-stack-member-pigs-2')).toBeNull()
   })
 
   it('shows the canonical stack name instead of the first member friendly name', () => {
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-4',
         type: 'LittlePigs',
@@ -224,8 +224,8 @@ describe('BattlefieldLeftRail', () => {
         onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
         readyWeaponDetails={[]}
         selectedCombatAttackLabel="Attack 0"
-        stackNaming={stackNaming as any}
-        stackRoster={stackRoster as any}
+        stackNaming={stackNaming as StackNamingSnapshot}
+        stackRoster={stackRoster as StackRosterState}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -235,7 +235,7 @@ describe('BattlefieldLeftRail', () => {
   })
 
   it('renders singleton stack-roster placeholders with the unit label instead of a group fallback', () => {
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -284,7 +284,7 @@ describe('BattlefieldLeftRail', () => {
         stackNaming={{
           groupsInUse: [],
           usedGroupNames: ['Little Pigs group 1'],
-        } as any}
+        } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {
             'LittlePigs:4,8': {
@@ -294,7 +294,7 @@ describe('BattlefieldLeftRail', () => {
               unitIds: ['pigs-1'],
             },
           }
-        } as any}
+        } as StackRosterState}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -305,7 +305,7 @@ describe('BattlefieldLeftRail', () => {
   })
 
   it('shows a diagnostic error overlay instead of crashing when grouped move data is missing', () => {
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-5',
         type: 'LittlePigs',
@@ -352,7 +352,7 @@ describe('BattlefieldLeftRail', () => {
         onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
         readyWeaponDetails={[]}
         selectedCombatAttackLabel="Attack 0"
-        stackNaming={{ groupsInUse: [], usedGroupNames: [] } as any}
+        stackNaming={{ groupsInUse: [], usedGroupNames: [] } as StackNamingSnapshot}
         stackRoster={undefined}
         onSelectUnit={vi.fn()}
       />,
@@ -366,7 +366,7 @@ describe('BattlefieldLeftRail', () => {
 
   it('renders Little Pigs as a grouped move card with individually toggle-able members', () => {
     const onSelectUnit = vi.fn()
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -450,8 +450,8 @@ describe('BattlefieldLeftRail', () => {
         onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
         readyWeaponDetails={[]}
         selectedCombatAttackLabel="Attack 0"
-        stackNaming={stackNaming as any}
-        stackRoster={stackRoster as any}
+        stackNaming={stackNaming as StackNamingSnapshot}
+        stackRoster={stackRoster as StackRosterState}
         onSelectUnit={onSelectUnit}
       />,
     )
@@ -459,13 +459,14 @@ describe('BattlefieldLeftRail', () => {
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs group 1')
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('3/3')
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Move: 3')
+    expect(screen.getByTestId('battlefield-left-rail-move-groups')).not.toBeNull()
     expect(screen.getByTestId('move-stack-group-pigs-1').dataset.expanded).toBe('false')
     fireEvent.click(screen.getByTestId('combat-unit-pigs-1'))
     expect(onSelectUnit).toHaveBeenCalledWith('pigs-1', false)
   })
 
   it('keeps all roster defenders available when another move group is selected', () => {
-    const displayedDefenders: BattlefieldUnit[] = [1, 2, 3, 4, 5].map((unitNumber) => ({
+    const displayedDefenders: BattlefieldDefenderFixture[] = [1, 2, 3, 4, 5].map((unitNumber) => ({
       id: `pigs-${unitNumber}`,
       type: 'LittlePigs',
       friendlyName: `Little Pigs ${unitNumber}`,
@@ -512,7 +513,7 @@ describe('BattlefieldLeftRail', () => {
             { groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
           ],
           usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
-        } as any}
+        } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {
             'LittlePigs:4,7': {
@@ -528,7 +529,7 @@ describe('BattlefieldLeftRail', () => {
               unitIds: ['pigs-4', 'pigs-5'],
             },
           },
-        } as any}
+        } as StackRosterState}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -539,7 +540,7 @@ describe('BattlefieldLeftRail', () => {
   })
 
   it('shows the movement badge for an Onion viewer during defender movement', () => {
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -602,7 +603,7 @@ describe('BattlefieldLeftRail', () => {
             { groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
           ],
           usedGroupNames: ['Little Pigs group 1'],
-        } as any}
+        } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {
             'LittlePigs:4,4': {
@@ -612,7 +613,7 @@ describe('BattlefieldLeftRail', () => {
               unitIds: ['pigs-1', 'pigs-2'],
             },
           }
-        } as any}
+        } as StackRosterState}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -622,7 +623,7 @@ describe('BattlefieldLeftRail', () => {
 
   it('expands defender combat stacks so individual members can be selected for partial attacks', () => {
     const onSelectUnit = vi.fn()
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -708,8 +709,8 @@ describe('BattlefieldLeftRail', () => {
         onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
         readyWeaponDetails={[]}
         selectedCombatAttackLabel="Attack 0"
-        stackNaming={stackNaming as any}
-        stackRoster={stackRoster as any}
+        stackNaming={stackNaming as StackNamingSnapshot}
+        stackRoster={stackRoster as StackRosterState}
         onSelectUnit={onSelectUnit}
       />,
     )
@@ -725,7 +726,7 @@ describe('BattlefieldLeftRail', () => {
   })
 
   it('renders grouped combat attack totals as numeric sums instead of concatenated strings', () => {
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -811,8 +812,8 @@ describe('BattlefieldLeftRail', () => {
         onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
         readyWeaponDetails={[]}
         selectedCombatAttackLabel="Attack 3"
-        stackNaming={stackNaming as any}
-        stackRoster={stackRoster as any}
+        stackNaming={stackNaming as StackNamingSnapshot}
+        stackRoster={stackRoster as StackRosterState}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -820,7 +821,7 @@ describe('BattlefieldLeftRail', () => {
   })
 
   it('shows 0/2 when every defender in a combat stack has already fired', () => {
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -900,8 +901,8 @@ describe('BattlefieldLeftRail', () => {
         onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
         readyWeaponDetails={[]}
         selectedCombatAttackLabel="Attack 0"
-        stackNaming={stackNaming as any}
-        stackRoster={stackRoster as any}
+        stackNaming={stackNaming as StackNamingSnapshot}
+        stackRoster={stackRoster as StackRosterState}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -911,7 +912,7 @@ describe('BattlefieldLeftRail', () => {
   })
 
   it('shows the selected subset attack when only part of a defender stack is selected', () => {
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -985,8 +986,8 @@ describe('BattlefieldLeftRail', () => {
         onionWeapons={{ operationalWeapons: 0, operationalMissiles: 0 }}
         readyWeaponDetails={[]}
         selectedCombatAttackLabel="Attack 1"
-        stackNaming={stackNaming as any}
-        stackRoster={stackRoster as any}
+        stackNaming={stackNaming as StackNamingSnapshot}
+        stackRoster={stackRoster as StackRosterState}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -996,7 +997,7 @@ describe('BattlefieldLeftRail', () => {
   })
 
   it('keeps grouped defender stacks collapsed for inactive viewers', () => {
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -1059,7 +1060,7 @@ describe('BattlefieldLeftRail', () => {
             { groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
           ],
           usedGroupNames: ['Little Pigs group 1'],
-        } as any}
+        } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {
             'LittlePigs:4,4': {
@@ -1069,7 +1070,7 @@ describe('BattlefieldLeftRail', () => {
               unitIds: ['pigs-1', 'pigs-2'],
             },
           }
-        } as any}
+        } as StackRosterState}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -1081,7 +1082,7 @@ describe('BattlefieldLeftRail', () => {
 
   it('lets an inactive Onion player inspect defender stacks from the left rail during defender combat', () => {
     const onSelectUnit = vi.fn()
-    const displayedDefenders: BattlefieldUnit[] = [
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-1',
         type: 'LittlePigs',
@@ -1144,7 +1145,7 @@ describe('BattlefieldLeftRail', () => {
             { groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
           ],
           usedGroupNames: ['Little Pigs group 1'],
-        } as any}
+        } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {
             'LittlePigs:4,4': {
@@ -1154,7 +1155,7 @@ describe('BattlefieldLeftRail', () => {
               unitIds: ['pigs-1', 'pigs-2'],
             },
           }
-        } as any}
+        } as StackRosterState}
         onSelectUnit={onSelectUnit}
       />,
     )

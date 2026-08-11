@@ -116,6 +116,7 @@ function buildCombatCalculatorInputForDefenderTarget(
 	selectedAttackerIds: ReadonlyArray<string>,
 	displayedOnion: BattlefieldOnionView,
 	target: BattlefieldUnit,
+	stackSize: number,
 	displayedScenarioMap: CombatPreviewInput['displayedScenarioMap'],
 ): CombatCalculatorInput {
 	const units: CombatCalculatorInput['combatState']['units'] = {}
@@ -130,7 +131,7 @@ function buildCombatCalculatorInputForDefenderTarget(
 
 	units[target.id] = {
 		typeId: target.typeId,
-		squads: target.squads,
+		stackSize,
 		terrainType: terrainTypeAt(displayedScenarioMap, target.q, target.r),
 	}
 
@@ -177,10 +178,7 @@ function buildTargetModifiers(modifiers: ReadonlyArray<{ label: string }>, extra
 }
 
 function resolveGroupedDefenderStackSize(groupUnitIds: ReadonlyArray<string>, displayedDefenders: ReadonlyArray<BattlefieldUnit>): number {
-	return groupUnitIds.reduce((total, groupUnitId) => {
-		const candidate = displayedDefenders.find((unit) => unit.id === groupUnitId)
-		return total + (candidate?.squads ?? 1)
-	}, 0)
+	return groupUnitIds.filter((groupUnitId) => displayedDefenders.some((unit) => unit.id === groupUnitId)).length
 }
 
 export function buildCombatTargetOptions({
@@ -212,9 +210,8 @@ export function buildCombatTargetOptions({
 					typeId: unit.typeId,
 					position: getBattlefieldPosition(unit),
 					state: unit.state,
-					weapons: unit.weapons,
+					weapons: unit.weaponDetails ?? (Array.isArray(unit.weapons) ? unit.weapons : []),
 					friendlyName: unit.friendlyName,
-					squads: unit.squads,
 				}]),
 			),
 		)
@@ -266,7 +263,7 @@ export function buildCombatTargetOptions({
 			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.id) ?? null
 			const stackSize = rosterGroup !== null && rosterGroup.unitIds.length > 1
 				? resolveGroupedDefenderStackSize(rosterGroup.unitIds, validDefenders)
-				: unit.squads
+				: 1
 			const unitPosition = getBattlefieldPosition(unit)
 			const terrainType = getTerrainValueAt(displayedScenarioMap, unitPosition.q, unitPosition.r)
 			const defense = getDisplayDefense(unit.typeId, stackSize, terrainType)
@@ -276,8 +273,7 @@ export function buildCombatTargetOptions({
 			const result = combatCalculator.calculateResult(
 				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, {
 					...unit,
-					squads: stackSize,
-				}, displayedScenarioMap),
+					}, stackSize, displayedScenarioMap),
 			)
 
 			return {

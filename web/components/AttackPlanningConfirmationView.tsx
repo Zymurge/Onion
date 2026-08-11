@@ -1,5 +1,6 @@
 import { calculateCombatOdds } from '../lib/combatOdds'
 import logger from '../lib/logger'
+import { ConfirmationSurface } from './ConfirmationSurface'
 
 type BaseAttackPlanningConfirmationViewProps = {
   title: string
@@ -46,13 +47,12 @@ export function AttackPlanningConfirmationView({
   const odds = hasTarget ? calculateCombatOdds(attackStrength, modeProps.defenseStrength) : null
 
   return (
-    <article className="combat-confirmation-view" data-testid={dataTestId}>
+    <ConfirmationSurface dataTestId={dataTestId}>
       <div className="card-head combat-confirmation-head">
         <div>
           <h3>{title}</h3>
         </div>
       </div>
-
       <div className="combat-confirmation-stats">
         <div className="combat-confirmation-stat">
           <span className="stat-label-small">Attack</span>
@@ -107,6 +107,6 @@ export function AttackPlanningConfirmationView({
           </button>
         </div>
       ) : null}
-    </article>
+    </ConfirmationSurface>
   )
 }

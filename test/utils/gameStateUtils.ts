@@ -6,12 +6,11 @@ import type {
 	GameState,
 	HexPos,
 	OnionUnit,
-	SessionInitPayload,
 	StackRosterGroupState,
 	StackRosterState,
 	Weapon,
 } from '#shared/types/index'
-import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponType, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponType } from '#shared/unitDefinitions'
 import { buildBattlefieldDefenderView, buildBattlefieldOnionView } from '#web/lib/appViewHelpers'
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
 import { createGameClient, type GameClient, type GameSnapshot, type ScenarioMapSnapshot } from '#web/lib/gameClient'
@@ -101,15 +100,13 @@ export function makeBattlefieldDefender(
 	viewOverrides: Partial<BattlefieldUnit> = {},
 ): BattlefieldUnit {
 	const defender = makeDefender(unitOverrides)
-	const definition = getUnitTypeCatalog()[defender.typeId]
-	const squads = definition?.role === 'defender' ? definition.squads ?? 1 : undefined
 
 	return {
-		...buildBattlefieldDefenderView({ ...defender, squads }, {
+		...buildBattlefieldDefenderView(defender, {
 			activePhase: 'DEFENDER_COMBAT',
 			activeTurnActive: true,
+			stackSize: viewOverrides.squads ?? 1,
 		}),
-		squads,
 		...viewOverrides,
 	}
 }
@@ -124,19 +121,52 @@ export function makeBattlefieldOnion(
 	}
 }
 
-export function canonicalizeBattlefieldDefenders(defenders: ReadonlyArray<BattlefieldUnit>): BattlefieldUnit[] {
-	return defenders.map((view) => makeBattlefieldDefender({
-		unitId: view.unitId ?? view.id,
-		typeId: view.typeId ?? view.type,
-		position: getBattlefieldPosition(view),
-		state: view.state ?? view.status,
-		friendlyName: view.friendlyName,
-		weapons: [],
-	}, view))
+export type BattlefieldDefenderFixture = Omit<Partial<BattlefieldUnit>, 'weaponDetails' | 'weapons'> & {
+	id: string
+	type: string
+	status: BattlefieldUnit['status']
+	weapons?: ReadonlyArray<Weapon> | string
+	weaponDetails?: ReadonlyArray<Partial<Weapon> & {
+		name?: string
+		status?: Weapon['state']
+		attack?: number
+		range?: number
+		defense?: number
+		individuallyTargetable?: boolean
+	}>
+}
+
+export function canonicalizeBattlefieldDefenders(defenders: ReadonlyArray<BattlefieldDefenderFixture>): BattlefieldUnit[] {
+	return defenders.map((view) => {
+		const { weaponDetails: legacyWeaponDetails, ...viewWithoutWeaponDetails } = view
+		const weaponDetails = legacyWeaponDetails?.map((weapon) => {
+			const weaponId = weapon.id ?? 'main'
+			return makeWeapon({
+				...weapon,
+				id: weaponId,
+				typeId: weapon.typeId ?? getUnitTypeCatalog()[view.type]?.weapons[0]?.typeId ?? 'Puss.main',
+				state: weapon.state ?? weapon.status ?? 'ready',
+				friendlyName: weapon.friendlyName ?? weapon.name ?? 'Main Weapon',
+			})
+		})
+
+		return makeBattlefieldDefender({
+			unitId: view.unitId ?? view.id,
+			typeId: view.typeId ?? view.type,
+			position: getBattlefieldPosition(view),
+			state: view.state ?? view.status,
+			friendlyName: view.friendlyName,
+			weapons: [],
+		}, {
+			...viewWithoutWeaponDetails,
+			...(weaponDetails === undefined ? {} : { weaponDetails }),
+		})
+	})
 }
 
 export function canonicalizeBattlefieldOnion(view: BattlefieldOnionView): BattlefieldOnionView {
-	const { weaponDetails: _legacyWeaponDetails, ...viewWithoutWeaponDetails } = view
+	const viewWithoutWeaponDetails = { ...view }
+	delete viewWithoutWeaponDetails.weaponDetails
 	const weapons = (view.weaponDetails ?? []).map((weapon) => makeWeapon({
 		...weapon,
 		typeId: weapon.typeId ?? `${view.type}.${weapon.id.replace(/-\d+$/, '')}`,
