@@ -7,7 +7,11 @@ export function isBattlefieldUnitCombatReady(unit: { actionableModes: ReadonlyAr
   return unit.actionableModes.includes('fire')
 }
 
-/** Resolves a weapon's friendly name from the live catalog when available. */
+/**
+ * Resolves a weapon name from the live catalog when available.
+ * Without a catalog, the dynamic type ID is the only available label. A
+ * supplied catalog is authoritative, so an unknown type ID is an error.
+ */
 export function resolveBattlefieldWeaponName(weapon: Weapon, catalog?: SessionCatalog): string {
   return catalog === undefined ? weapon.typeId : getSessionWeaponType(catalog, weapon.typeId).name
 }
@@ -56,12 +60,20 @@ export function isBattlefieldWeaponReady(weapon: Weapon): boolean {
   return weapon.state === 'ready'
 }
 
-/** Returns a catalog weapon's attack strength or zero without a catalog. */
+/**
+ * Returns a catalog weapon's attack strength.
+ * Zero means that no catalog was available; a supplied catalog must contain
+ * the weapon type and throws when it does not.
+ */
 export function getBattlefieldWeaponAttack(weapon: Weapon, catalog?: SessionCatalog): number {
   return catalog === undefined ? 0 : getSessionWeaponType(catalog, weapon.typeId).attack
 }
 
-/** Formats the strongest catalog weapon attack and range. */
+/**
+ * Formats the strongest supplied weapon by attack, then range.
+ * Equal attack and range retain the first weapon. This summary does not
+ * filter by weapon state. Without a catalog, numeric values are unavailable.
+ */
 export function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined, catalog?: SessionCatalog) {
   if (weapons === undefined || weapons.length === 0) {
     return '0 / rng 0'
@@ -91,7 +103,11 @@ export function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined, 
   return `${primaryWeaponType.attack} / rng ${primaryWeaponType.range}`
 }
 
-/** Returns the maximum range among ready weapons. */
+/**
+ * Returns the maximum catalog range among ready weapons only.
+ * Spent and destroyed weapons are ignored. Without a catalog, each available
+ * range is zero because numeric weapon metadata cannot be inferred safely.
+ */
 export function getReadyWeaponRange(weapons: ReadonlyArray<Weapon> | undefined, catalog?: SessionCatalog): number {
   if (weapons === undefined || weapons.length === 0) {
     return 0
@@ -108,7 +124,11 @@ export function parseRangeValue(rangeText: string): number {
   return Number.isNaN(parsedRange) ? 0 : parsedRange
 }
 
-/** Returns combat actions available for the unit in the current phase. */
+/**
+ * Returns combat actions available for the unit in the current phase.
+ * Precedence is: destroyed or disabled status, DEFENDER_COMBAT's defender
+ * override, ONION_COMBAT's no-action rule, inactive turn, then ready weapons.
+ */
 export function getActionableModes(status: UnitState | undefined, weapons: ReadonlyArray<Weapon> | undefined, activeTurnActive: boolean, activePhase: TurnPhase | null): Mode[] {
   if (status === 'destroyed' || status === 'disabled') {
     return []

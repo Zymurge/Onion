@@ -5,6 +5,45 @@ import { clearApiProtocolTraffic, getApiProtocolTrafficSnapshot } from '#shared/
 
 clearApiProtocolTraffic()
 
+function minimalJsonResponse(body: unknown, status = 200) {
+	return {
+		ok: status >= 200 && status < 300,
+		status,
+		text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+	}
+}
+
+function minimalStateResponse(overrides: Record<string, unknown> = {}) {
+	return {
+		gameId: 123,
+		role: 'defender',
+		phase: 'DEFENDER_MOVE',
+		scenarioName: 'Contract scenario',
+		turnNumber: 1,
+		state: { onions: {}, defenders: {}, stackRoster: { groupsById: {} } },
+		movementRemainingByUnit: {},
+		victoryObjectives: [],
+		scenarioMap: {
+			width: 1,
+			height: 1,
+			cells: [{ q: 0, r: 0 }],
+			hexes: [{ q: 0, r: 0, t: 0 }],
+		},
+		eventSeq: 1,
+		...overrides,
+	}
+}
+
+function minimalActionResponse(overrides: Record<string, unknown> = {}) {
+	return {
+		...minimalStateResponse(),
+		ok: true,
+		seq: 2,
+		events: [],
+		...overrides,
+	}
+}
+
 describe('http game client adapter contract', () => {
 	it('loads state and polls events over HTTP', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
@@ -1178,6 +1217,112 @@ describe('http game client adapter contract', () => {
 					},
 				},
 			},
+		})
+	})
+
+	it.each([
+		['missing scenario map', { scenarioMap: undefined }, 'Missing scenario map in game state response'],
+		['missing scenario map cells', { scenarioMap: { width: 1, height: 1, hexes: [] } }, 'Missing scenario map cells in game state response'],
+		['empty scenario map cells', { scenarioMap: { width: 1, height: 1, cells: [], hexes: [] } }, 'Scenario map cells must not be empty in game state response'],
+		['missing stack roster', { state: { onions: {}, defenders: {} } }, 'Missing stack roster in game state response'],
+		['invalid stack roster group', { state: { onions: {}, defenders: {}, stackRoster: { groupsById: { bad: { unitIds: null } } } } }, 'Invalid stack roster group shape for bad'],
+		['missing roster defender', { state: { onions: {}, defenders: {}, stackRoster: { groupsById: { bad: { unitIds: ['missing'] } } } } }, 'Missing stack roster defender missing for bad'],
+	] as const)('rejects %s', async (_name, overrides, message) => {
+		const fetchImpl = vi.fn().mockResolvedValue(minimalJsonResponse(minimalStateResponse(overrides)))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await expect(client.getState(123)).rejects.toThrow(message)
+	})
+
+	it.each([
+		[404, 'not-found'],
+		[400, 'invalid-action'],
+		[422, 'invalid-action'],
+		[500, 'transport'],
+	] as const)('maps HTTP status %s into the %s error category', async (status, kind) => {
+		const fetchImpl = vi.fn().mockResolvedValue(minimalJsonResponse({ error: 'backend rejected request' }, status))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await expect(client.getState(123)).rejects.toMatchObject({
+			kind,
+			message: 'backend rejected request',
+		})
+	})
+
+	it('normalizes supported, lowercase, and unknown phases at the HTTP boundary', async () => {
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ phase: 'onion_move' })))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ phase: 'NOT_A_PHASE' })))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ phase: null })))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await expect(client.getState(123)).resolves.toMatchObject({ snapshot: { phase: 'ONION_MOVE' } })
+		await expect(client.getState(123)).resolves.toMatchObject({ snapshot: { phase: 'DEFENDER_MOVE' } })
+		await expect(client.getState(123)).resolves.toMatchObject({ snapshot: { phase: 'DEFENDER_MOVE' } })
+	})
+
+	it('maps every supported action and preserves optional MOVE fields', async () => {
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse()))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalActionResponse({ eventSeq: 2 })))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalActionResponse({ eventSeq: 3 })))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalActionResponse({ eventSeq: 4 })))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalActionResponse({ eventSeq: 5 })))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ eventSeq: 6 })))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await client.getState(123)
+		await client.submitAction(123, { type: 'end-phase' })
+		await client.submitAction(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 1, r: 0 }, attemptRam: true })
+		await client.submitAction(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 0, r: 1 } })
+		await client.submitAction(123, { type: 'FIRE', attackers: ['main'], targetId: 'def-1', onionId: 'onion-1' })
+		await client.submitAction(123, { type: 'refresh' })
+
+		expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ type: 'END_PHASE' })
+		expect(JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body))).toEqual({
+			type: 'MOVE',
+			movers: ['onion-1'],
+			to: { q: 1, r: 0 },
+			attemptRam: true,
+		})
+		expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({
+			type: 'MOVE',
+			movers: ['onion-1'],
+			to: { q: 0, r: 1 },
+		})
+		expect(JSON.parse(String(fetchImpl.mock.calls[4]?.[1]?.body))).toEqual({
+			type: 'FIRE',
+			attackers: ['main'],
+			targetId: 'def-1',
+			onionId: 'onion-1',
+		})
+		expect(fetchImpl.mock.calls[5]?.[0]).toBe('https://onion.test/api/games/123')
+		expect(fetchImpl.mock.calls[5]?.[1]?.method).toBe('GET')
+	})
+
+	it('returns an empty list when polling omits the events field', async () => {
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ eventSeq: 7 })))
+			.mockResolvedValueOnce(minimalJsonResponse({}))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await client.getState(123)
+		await expect(client.pollEvents(123, 7)).resolves.toEqual([])
+	})
+
+	it('normalizes network failures and unsupported actions', async () => {
+		const networkClient = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl: vi.fn().mockRejectedValue(new Error('network down')),
+		})
+		await expect(networkClient.getState(123)).rejects.toMatchObject({ kind: 'transport', message: 'network down' })
+
+		const fetchImpl = vi.fn().mockResolvedValue(minimalJsonResponse(minimalStateResponse()))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+		await client.getState(123)
+		await expect(client.submitAction(123, { type: 'unknown-action' } as never)).rejects.toMatchObject({
+			kind: 'transport',
+			message: 'Action is not supported by the HTTP game transport',
 		})
 	})
 })

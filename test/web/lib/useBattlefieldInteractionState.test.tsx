@@ -572,4 +572,119 @@ describe('useBattlefieldInteractionState', () => {
 		expect(result.current.pendingCombatResolution).toBeNull()
 		expect(result.current.selectedUnitIds).toEqual([])
 	})
+
+	it('reconciles selected units and weapons against the next authoritative snapshot', async () => {
+		const controller = createController()
+		const { result, rerender } = renderHook(
+			({ snapshot }: { snapshot: GameSnapshot }) => useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: snapshot,
+				clientSnapshotPhase: snapshot.phase,
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+			{ initialProps: { snapshot: createSnapshot() } },
+		)
+
+		await act(async () => {
+			result.current.setSelectedUnitIds(['def-1', 'weapon:main'])
+		})
+
+		const nextSnapshot = createSnapshot({
+			lastEventSeq: 11,
+			authoritativeState: {
+				onions: {
+					'onion-1': {
+						...createSnapshot().authoritativeState!.onions['onion-1'],
+						weapons: [],
+					},
+				},
+				defenders: {},
+				ramsThisTurn: 0,
+			},
+		})
+		rerender({ snapshot: nextSnapshot })
+
+		await waitFor(() => {
+			expect(result.current.selectedUnitIds).toEqual([])
+		})
+	})
+
+	it('reports failed movement submissions and clears the attempted selection', async () => {
+		const submitAction = vi.fn().mockRejectedValue(new Error('move exploded'))
+		const controller = createController()
+		controller.submitAction = submitAction
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: createSnapshot(),
+				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			result.current.handleSelectUnit('onion-1')
+			await result.current.handleMoveUnit('onion-1', { q: 1, r: 0 })
+		})
+
+		expect(submitAction).toHaveBeenCalledWith({
+			type: 'MOVE',
+			movers: ['onion-1'],
+			to: { q: 1, r: 0 },
+		})
+		expect(result.current.actionError).toContain('move exploded')
+		expect(result.current.selectedUnitIds).toEqual([])
+	})
+
+	it('submits a normal move when an Onion has no ram capacity', async () => {
+		const submitAction = vi.fn().mockResolvedValue(createSnapshot({ lastEventSeq: 11 }))
+		const controller = createController()
+		controller.submitAction = submitAction
+		const snapshot = createSnapshot({
+			authoritativeState: {
+				onions: {
+					'onion-1': {
+						...createSnapshot().authoritativeState!.onions['onion-1'],
+						ramsRemaining: 0,
+					},
+				},
+				defenders: createSnapshot().authoritativeState!.defenders,
+				ramsThisTurn: 0,
+			},
+		})
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: snapshot,
+				clientSnapshotPhase: 'ONION_MOVE',
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			result.current.handleSelectUnit('onion-1')
+			await result.current.handleMoveUnit('onion-1', { q: 0, r: 1 })
+		})
+
+		expect(result.current.pendingRamPrompt).toBeNull()
+		expect(submitAction).toHaveBeenCalledWith({
+			type: 'MOVE',
+			movers: ['onion-1'],
+			to: { q: 0, r: 1 },
+		})
+	})
 })
