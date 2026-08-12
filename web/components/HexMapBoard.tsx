@@ -7,8 +7,7 @@ import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { buildStackRosterIndex } from '../../shared/stackRoster'
-import type { DefenderMap, StackRosterState, TurnPhase } from '../../shared/types/index'
+import type { StackRosterState, TurnPhase } from '../../shared/types/index'
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
 import {
   buildOccupantMap,
@@ -20,6 +19,7 @@ import {
 } from '../lib/hexMapOccupancy'
 import { getCombatTargetIdForOccupant, isCombatTargetSelected, isCombatTargetSelectable } from '../lib/hexMapCombatTargeting'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
+import { buildBattlefieldRosterProjection } from '../lib/battlefieldGroupProjection'
 import { useHexMapZoom } from '../lib/useHexMapZoom'
 import type { SessionCatalog } from '../lib/sessionCatalog'
 import logger from '../lib/logger'
@@ -133,25 +133,14 @@ export function HexMapBoard({
   } = useHexMapZoom(bounds)
   const occupantMap = buildOccupantMap({ onions, defenders })
   const escapeHexSet = new Set((escapeHexes ?? []).map((hex) => hexKey(hex)))
-  const stackRosterIndex = useMemo(() => {
+  const battlefieldRosterProjection = useMemo(() => {
     if (stackRoster === undefined) {
       return null
     }
 
-    const defenderLookup = Object.fromEntries(
-      defenders.map((defender) => [defender.unitId, {
-        unitId: defender.unitId,
-        typeId: defender.typeId,
-        role: 'defender' as const,
-        friendlyName: defender.friendlyName,
-        position: defender.position,
-        state: defender.state,
-        weapons: defender.weapons,
-      }]),
-    ) as DefenderMap
-
-    return buildStackRosterIndex(stackRoster, defenderLookup)
+    return buildBattlefieldRosterProjection(defenders, stackRoster)
   }, [defenders, stackRoster])
+  const stackRosterIndex = battlefieldRosterProjection?.index ?? null
 
   if (stackRosterIndex === null && hasStackedOccupants(defenders, catalog)) {
     throw new Error('Missing stackRoster for grouped defenders')

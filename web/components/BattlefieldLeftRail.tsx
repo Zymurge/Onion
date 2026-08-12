@@ -10,10 +10,10 @@ import { getBattlefieldStackSize, resolveBattlefieldDisplayName, resolveBattlefi
 import { getBattlefieldWeaponAttack, parseWeaponStats, resolveBattlefieldWeaponName } from '../lib/weaponStats'
 import { getGroupAttackReadyCount, getUnitAttackStrength } from '../lib/stackReadiness'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { buildStackRosterIndex } from '../../shared/stackRoster'
-import type { DefenderMap, StackRosterState, Weapon } from '../../shared/types/index'
+import type { StackRosterState, Weapon } from '../../shared/types/index'
 import { getSessionWeaponType, type SessionCatalog } from '../lib/sessionCatalog'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
+import { buildBattlefieldRosterProjection } from '../lib/battlefieldGroupProjection'
 import logger from '../lib/logger'
 import { ErrorOverlay } from './ErrorOverlay'
 
@@ -59,20 +59,6 @@ type DefenderStackGroup = {
   range: number
   moveAllowance: number
   selectedCount: number
-}
-
-function buildDefenderLookup(units: ReadonlyArray<BattlefieldUnit>): DefenderMap {
-  return Object.fromEntries(
-    units.map((unit) => [unit.unitId, {
-      role: 'defender' as const,
-      unitId: unit.unitId,
-      typeId: unit.typeId,
-      state: unit.state,
-      friendlyName: unit.friendlyName,
-      position: getBattlefieldPosition(unit),
-      weapons: unit.weapons,
-    }]),
-  )
 }
 
 function buildDefenderSelectionState(
@@ -187,17 +173,17 @@ function buildDefenderGroupFromUnits(
   stackRoster: StackRosterState | undefined,
   catalog: SessionCatalog | undefined,
 ): DefenderStackGroup[] {
-  const rosterIndex = stackRoster !== undefined
-    ? buildStackRosterIndex(stackRoster, buildDefenderLookup(displayedDefenders))
+  const projection = stackRoster !== undefined
+    ? buildBattlefieldRosterProjection(displayedDefenders, stackRoster)
     : null
   const selectionState = buildDefenderSelectionState(displayedDefenders, stackRoster, catalog)
   const selectionGroups: DefenderStackGroup[] = []
   const consumedUnitIds = new Set<string>()
 
-  if (rosterIndex !== null) {
-    for (const rosterGroup of Object.values(rosterIndex.groupsById)) {
+  if (projection !== null) {
+    for (const rosterGroup of Object.values(projection.index.groupsById)) {
       const units = rosterGroup.unitIds
-        .map((unitId) => displayedDefenders.find((unit) => unit.unitId === unitId))
+        .map((unitId) => projection.defendersById.get(unitId))
         .filter((unit): unit is BattlefieldUnit => unit !== undefined)
 
       if (units.length === 0) {
@@ -384,8 +370,7 @@ export function BattlefieldLeftRail({
   let renderError: string | null = null
   let defenderCombatGroups: DefenderStackGroup[] = []
   let defenderMoveGroups: DefenderStackGroup[] = []
-  const defenderLookup = buildDefenderLookup(displayedDefenders)
-  const defenderLookupKeys = Object.keys(defenderLookup)
+  const defenderLookupKeys = displayedDefenders.map((unit) => unit.unitId)
 
   try {
     defenderCombatGroups = activeCombatRole === 'defender' && isCombatPhase

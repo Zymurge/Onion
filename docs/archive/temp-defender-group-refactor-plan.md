@@ -16,6 +16,7 @@ Current implementation note:
 
 - Move reconciliation is now owned by `server/engine/movement.ts`, not the HTTP route.
 - Web display-state projection now rejects stacked defenders that lack canonical `stackRoster` data instead of deriving membership from co-location.
+- Battlefield UI grouped consumption now uses one shared roster projection adapter for the left rail and map.
 - The remaining work in this plan is doc cleanup and any polish that does not change canonical stack ownership.
 
 ## Decisions Locked In
@@ -123,7 +124,10 @@ Recommended authored shape:
 
 ### Phase 6. Refactor UI to consume shared grouped projections
 
-// ...existing code...
+- [x] Add a battlefield projection adapter that builds the shared roster index and defender lookup from canonical battlefield views.
+- [x] Route `BattlefieldLeftRail` grouped rendering through the shared projection.
+- [x] Route `HexMapBoard` grouped selection and movement validation through the shared projection.
+- [x] Preserve grouped-card and grouped-map behavior with focused projection, rail, and map tests.
 
 ### Phase 7. Scenario migration and cleanup
 
