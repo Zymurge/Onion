@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useMemo } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -8,7 +8,7 @@ import App from '../../../../web/App'
 import { createFakeGameBackend } from '../../../../web/lib/fakeGameBackend'
 import { createGameSessionController } from '../../../../web/lib/gameSessionController'
 import { createGameClient, type GameSnapshot, type GameSessionContext } from '../../../../web/lib/gameClient'
-import { makeScenarioSnapshot, type ScenarioSnapshotOptions, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
+import { makeScenarioSnapshot, makeStackFixture, type ScenarioSnapshotOptions, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 import { useGameSession } from '../../../../web/lib/useGameSession'
 
 function createSnapshot({ overrides = {} }: { overrides?: Partial<GameSnapshot> } = {}): GameSnapshot {
@@ -192,6 +192,96 @@ describe('App fake backend vertical slice', () => {
 		} finally {
 			vi.useRealTimers()
 		}
+	})
+
+	it('reconciles selected stack members against a later authoritative snapshot', async () => {
+		const session: GameSessionContext = { role: 'defender' }
+		const stack = makeStackFixture({
+			groups: {
+				'LittlePigs:1,1': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 1, r: 1 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		})
+		const initialSnapshot = createAppShellSnapshot({
+			authoritativeState: {
+				...createAppShellSnapshot().authoritativeState,
+				defenders: {
+					...createAppShellSnapshot().authoritativeState.defenders,
+					...stack.defenders,
+				},
+				stackRoster: stack.stackRoster,
+				stackNaming: stack.stackNaming,
+			},
+		})
+		const backend = createFakeGameBackend({ initialSnapshot, session })
+		const client = createGameClient(backend.requestTransport)
+		const user = userEvent.setup()
+
+		render(
+			<App
+				gameClient={client}
+				gameId={123}
+				liveEventSource={backend.liveEventSource}
+				runtimeConfig={{ apiBaseUrl: null, gameId: 123, liveRefreshQuietWindowMs: 0, clientLogLevel: 'info' }}
+			/>,
+		)
+
+		await user.click(await screen.findByRole('button', { name: /begin turn/i }))
+		const groupButton = await screen.findByTestId('combat-unit-pigs-1')
+		await user.click(groupButton)
+		expect(await screen.findByTestId('combat-stack-member-pigs-1')).toHaveAttribute('data-selected', 'true')
+		expect(await screen.findByTestId('combat-stack-member-pigs-2')).toHaveAttribute('data-selected', 'true')
+
+		const refreshedStack = makeStackFixture({
+			groups: {
+				'LittlePigs:1,1': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 1, r: 1 },
+					unitIds: ['pigs-1'],
+				},
+			},
+		})
+		const remainingDefenders = Object.fromEntries(
+			Object.entries(initialSnapshot.authoritativeState.defenders).filter(([unitId]) => unitId !== 'pigs-2'),
+		)
+		backend.queueRefresh(
+			{
+				...initialSnapshot,
+				scenarioName: 'Stack member refresh snapshot',
+				lastEventSeq: 81,
+				authoritativeState: {
+					...initialSnapshot.authoritativeState,
+					defenders: {
+						...remainingDefenders,
+						...refreshedStack.defenders,
+					},
+					stackRoster: refreshedStack.stackRoster,
+					stackNaming: refreshedStack.stackNaming,
+				},
+			},
+			session,
+		)
+
+		act(() => {
+			backend.emitLiveSignal({
+				kind: 'event',
+				gameId: 123,
+				eventSeq: 81,
+				eventType: 'UNIT_MOVED',
+			})
+		})
+
+		await waitFor(() => {
+			expect(screen.getByTestId('session-sync-probe')).toHaveAttribute('data-snapshot-event-seq', '81')
+		})
+		expect(screen.getByText('Stack member refresh snapshot')).not.toBeNull()
+		expect(screen.getByTestId('combat-unit-pigs-1')).toHaveAttribute('data-selected', 'true')
+		expect(screen.queryByTestId('combat-stack-member-pigs-2')).toBeNull()
 	})
 
 	it('wires App shell actions through the fake backend request transport', async () => {
