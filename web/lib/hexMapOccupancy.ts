@@ -62,12 +62,12 @@ export function getStackOffset(index: number, total: number): { dx: number; dy: 
 
 /** Reports whether a defender remains visible on the battlefield. */
 export function shouldRenderDefender(defender: BattlefieldUnit): boolean {
-  return defender.status !== 'destroyed' || defender.type === 'Swamp'
+  return defender.state !== 'destroyed' || defender.typeId === 'Swamp'
 }
 
 /** Resolves the display label for a non-Swamp occupant marker. */
 export function getUnitMarkerText(occupant: HexOccupant, stackNaming?: Parameters<typeof resolveBattlefieldDisplayName>[1]): string | null {
-  if (occupant.type === 'Swamp') {
+  if (occupant.typeId === 'Swamp') {
     return null
   }
 
@@ -82,16 +82,16 @@ export function hasStackedOccupants(
   const stackedCountsByPosition = new Map<string, number>()
 
   for (const defender of defenders) {
-    if (catalog === undefined || !isSessionUnitTypeStackable(catalog, defender.type)) {
+    if (catalog === undefined || !isSessionUnitTypeStackable(catalog, defender.typeId)) {
       continue
     }
 
-    if ((defender.squads ?? 1) > 1) {
+    if ((defender.stackSize ?? 1) > 1) {
       return true
     }
 
     const position = getBattlefieldPosition(defender)
-    const key = `${defender.type}:${position.q},${position.r}`
+    const key = `${defender.typeId}:${position.q},${position.r}`
     const nextCount = (stackedCountsByPosition.get(key) ?? 0) + 1
     stackedCountsByPosition.set(key, nextCount)
     if (nextCount > 1) {
@@ -111,7 +111,7 @@ export function collapseStackedOccupants(
   const renderedGroupIds = new Set<string>()
 
   for (const occupant of occupants) {
-    const rosterGroup = rosterIndex?.getUnitGroup(occupant.id) ?? null
+    const rosterGroup = rosterIndex?.getUnitGroup(occupant.unitId) ?? null
 
     if (rosterGroup !== null) {
       if (renderedGroupIds.has(rosterGroup.groupId)) {
@@ -119,8 +119,8 @@ export function collapseStackedOccupants(
       }
 
       renderedGroupIds.add(rosterGroup.groupId)
-      const anchorUnitId = rosterGroup.unitIds.find((unitId) => occupants.some((candidate) => candidate.id === unitId)) ?? occupant.id
-      renderedOccupants.push(occupants.find((candidate) => candidate.id === anchorUnitId) ?? occupant)
+      const anchorUnitId = rosterGroup.unitIds.find((unitId) => occupants.some((candidate) => candidate.unitId === unitId)) ?? occupant.unitId
+      renderedOccupants.push(occupants.find((candidate) => candidate.unitId === anchorUnitId) ?? occupant)
       continue
     }
 
@@ -136,15 +136,15 @@ export function resolveCanonicalOccupant(
   rosterIndex: OccupantRosterIndex | null,
 ): HexOccupant | undefined {
   for (const occupant of occupants) {
-    const rosterGroup = rosterIndex?.getUnitGroup(occupant.id) ?? null
+    const rosterGroup = rosterIndex?.getUnitGroup(occupant.unitId) ?? null
 
     if (rosterGroup === null) {
       return occupant
     }
 
-    const anchorUnitId = rosterGroup.unitIds.find((unitId) => occupants.some((candidate) => candidate.id === unitId))
+    const anchorUnitId = rosterGroup.unitIds.find((unitId) => occupants.some((candidate) => candidate.unitId === unitId))
     if (anchorUnitId !== undefined) {
-      return occupants.find((candidate) => candidate.id === anchorUnitId) ?? occupant
+      return occupants.find((candidate) => candidate.unitId === anchorUnitId) ?? occupant
     }
   }
 

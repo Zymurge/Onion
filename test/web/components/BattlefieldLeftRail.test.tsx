@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { BattlefieldLeftRail } from '#web/components/BattlefieldLeftRail'
 import type { BattlefieldOnionView } from '#web/lib/battlefieldView'
-import { canonicalizeBattlefieldDefenders, type BattlefieldDefenderFixture } from '#test/utils/gameStateUtils'
+import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion, type BattlefieldDefenderFixture } from '#test/utils/gameStateUtils'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
@@ -42,7 +42,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={[]}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -123,7 +123,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -133,6 +133,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -206,7 +207,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -216,6 +217,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -259,7 +261,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -327,7 +329,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -337,6 +339,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={{ groupsInUse: [], usedGroupNames: [] } as StackNamingSnapshot}
         stackRoster={undefined}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -422,7 +425,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -479,7 +482,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2', 'pigs-3']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -566,7 +569,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -672,7 +675,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -770,7 +773,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2', 'pigs-3']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -780,6 +783,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 3"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -854,7 +858,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -864,6 +868,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -934,7 +939,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -999,7 +1004,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -1023,6 +1028,7 @@ describe('BattlefieldLeftRail', () => {
             },
           }
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -1079,7 +1085,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -1103,6 +1109,7 @@ describe('BattlefieldLeftRail', () => {
             },
           }
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={onSelectUnit}
       />,
     )

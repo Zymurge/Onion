@@ -211,11 +211,11 @@ export function buildRightRailStackSelectionViewModel({
 
   const visibleUnitsById = new Map<string, RightRailStackMemberView>()
   if (displayedOnion !== null) {
-    visibleUnitsById.set(displayedOnion.id, displayedOnion)
+    visibleUnitsById.set(displayedOnion.unitId, displayedOnion)
   }
 
   for (const unit of displayedDefenders) {
-    visibleUnitsById.set(unit.id, unit)
+    visibleUnitsById.set(unit.unitId, unit)
   }
 
   const selectedStackMembers = selectionModel.memberUnitIds

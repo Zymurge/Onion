@@ -138,19 +138,19 @@ export function HexMapCell({
         />
       ) : null}
       {renderedOccupants.map((occupant, index) => {
-        const rosterGroup = rosterIndex?.getUnitGroup(occupant.id) ?? null
+        const rosterGroup = rosterIndex?.getUnitGroup(occupant.unitId) ?? null
         const isOccupantSelected = rosterGroup !== null
           ? rosterGroup.unitIds.some((unitId) => selectedUnitIds.has(unitId))
-          : selectedUnitIds.has(occupant.id)
+          : selectedUnitIds.has(occupant.unitId)
         const combatMembers = rosterGroup === null
           ? [occupant]
           : rosterGroup.unitIds
-            .map((unitId) => cellOccupants.find((cellOccupant) => cellOccupant.id === unitId))
+            .map((unitId) => cellOccupants.find((cellOccupant) => cellOccupant.unitId === unitId))
             .filter((member): member is HexOccupant => member !== undefined)
 
         return (
           <HexMapUnitMarker
-            key={occupant.id}
+            key={occupant.unitId}
             activeCombatRole={activeCombatRole}
             center={center}
             combatMembers={combatMembers}

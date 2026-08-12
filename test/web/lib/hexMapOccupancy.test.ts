@@ -9,32 +9,27 @@ import {
 } from '#web/lib/hexMapOccupancy'
 
 const onion: BattlefieldOnionView = {
-  id: 'onion-1',
-  type: 'TheOnion',
+  unitId: 'onion-1',
+  typeId: 'TheOnion',
+  role: 'onion',
+  friendlyName: 'The Onion',
   position: { q: 1, r: 1 },
-  status: 'operational',
+  state: 'operational',
   treads: 33,
-  movesAllowed: 3,
+  ramsRemaining: 0,
   movesRemaining: 3,
-  rams: 0,
-  weapons: 'main: ready',
+  movesAllowed: 3,
+  weapons: [],
 }
 
 function defender(overrides: Partial<BattlefieldUnit> = {}): BattlefieldUnit {
   return {
-    id: 'pigs-1',
-    type: 'LittlePigs',
-    status: 'operational',
-    role: 'defender',
     unitId: 'pigs-1',
     typeId: 'LittlePigs',
+    role: 'defender',
     state: 'operational',
     position: { q: 1, r: 1 },
-    q: 1,
-    r: 1,
-    move: 3,
     weapons: [],
-    attack: '1 / rng 1',
     actionableModes: ['fire'],
     ...overrides,
   }
@@ -46,30 +41,30 @@ describe('hexMapOccupancy', () => {
       onions: [onion],
       defenders: [
         defender(),
-        defender({ id: 'destroyed-pigs', status: 'destroyed', state: 'destroyed' }),
-        defender({ id: 'swamp', type: 'Swamp', status: 'destroyed', state: 'destroyed' }),
+        defender({ unitId: 'destroyed-pigs', state: 'destroyed' }),
+        defender({ unitId: 'swamp', typeId: 'Swamp', state: 'destroyed' }),
       ],
     })
 
-    expect(occupants.get('1,1')?.map((unit) => unit.id)).toEqual(['onion-1', 'pigs-1', 'swamp'])
+    expect(occupants.get('1,1')?.map((unit) => unit.unitId)).toEqual(['onion-1', 'pigs-1', 'swamp'])
   })
 
   it('collapses a roster group to its first visible canonical member', () => {
-    const first = defender({ id: 'pigs-1' })
-    const second = defender({ id: 'pigs-2' })
+    const first = defender({ unitId: 'pigs-1' })
+    const second = defender({ unitId: 'pigs-2' })
     const rosterIndex = {
       getUnitGroup: (unitId: string) => unitId.startsWith('pigs-')
         ? { groupId: 'stack-a', unitIds: ['pigs-2', 'pigs-1'] }
         : null,
     }
 
-    expect(resolveCanonicalOccupant([first, second], rosterIndex as any)?.id).toBe('pigs-2')
+    expect(resolveCanonicalOccupant([first, second], rosterIndex as any)?.unitId).toBe('pigs-2')
   })
 
   it('recognizes stackable units sharing a position or squads', () => {
     const catalog = { unitTypes: { LittlePigs: { stackable: true } } }
-    expect(hasStackedOccupants([defender({ squads: 2 })], catalog as any)).toBe(true)
-    expect(hasStackedOccupants([defender(), defender({ id: 'pigs-2' })], catalog as any)).toBe(true)
+    expect(hasStackedOccupants([defender({ stackSize: 2 })], catalog as any)).toBe(true)
+    expect(hasStackedOccupants([defender(), defender({ unitId: 'pigs-2' })], catalog as any)).toBe(true)
   })
 
   it('keeps the two-unit offset vertical and centers a singleton', () => {
@@ -79,7 +74,7 @@ describe('hexMapOccupancy', () => {
   })
 
   it('renders destroyed Swamp defenders but not other destroyed defenders', () => {
-    expect(shouldRenderDefender(defender({ status: 'destroyed', state: 'destroyed' }))).toBe(false)
-    expect(shouldRenderDefender(defender({ type: 'Swamp', status: 'destroyed', state: 'destroyed' }))).toBe(true)
+    expect(shouldRenderDefender(defender({ state: 'destroyed' }))).toBe(false)
+    expect(shouldRenderDefender(defender({ typeId: 'Swamp', state: 'destroyed' }))).toBe(true)
   })
 })

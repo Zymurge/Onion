@@ -1,10 +1,10 @@
 import { getUnitMovementAllowance } from '../../shared/unitMovement.js'
 import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol.js'
 import type { DefenderUnit, OnionUnit, TurnPhase } from '../../shared/types/index.js'
-import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from './battlefieldView.js'
+import type { BattlefieldDefenderView, BattlefieldOnionView, BattlefieldUnit, TerrainHex } from './battlefieldView.js'
 import type { ServerGameSnapshot } from './gameClient.js'
 import type { LiveConnectionStatus } from './gameSessionTypes.js'
-import { getSessionUnitType, getSessionWeaponType, type SessionCatalog } from './sessionCatalog.js'
+import { getSessionWeaponType, type SessionCatalog } from './sessionCatalog.js'
 import { buildStackRosterIndex } from '../../shared/stackRoster.js'
 import {
   resolveBattlefieldUnitName,
@@ -15,8 +15,6 @@ import {
   stripWeaponSelectionId,
 } from './selectionIds.js'
 import {
-  formatAttackSummary,
-  formatWeaponSummary,
   getActionableModes,
   getReadyWeaponRange,
 } from './weaponStats.js'
@@ -138,42 +136,22 @@ export function buildBattlefieldDefenderView(
   {
     move = 0,
     stackSize = 1,
-    terrainValue,
     activePhase = null,
     activeTurnActive = false,
-    catalog,
   }: {
     move?: number
     stackSize?: number
-    terrainValue?: number
     activePhase?: TurnPhase | null
     activeTurnActive?: boolean
-    catalog?: SessionCatalog
   } = {},
-): BattlefieldUnit {
+): BattlefieldDefenderView {
   const weapons = defender.weapons ?? []
-  const unitType = defender.typeId
 
   return {
-    id: defender.unitId,
-    type: unitType,
-    role: 'defender',
-    unitId: defender.unitId,
-    typeId: unitType,
-    state: defender.state,
-    friendlyName: resolveBattlefieldUnitName(unitType, defender.unitId, defender.friendlyName),
-    status: defender.state,
-    position: defender.position,
-    q: defender.position.q,
-    r: defender.position.r,
-    move,
-    weapons,
-    weaponSummary: formatWeaponSummary(weapons),
-    attack: formatAttackSummary(weapons, catalog),
-    weaponDetails: weapons,
-    targetRules: catalog === undefined ? undefined : getSessionUnitType(catalog, unitType)?.targetRules,
-    defense: getDisplayDefense(unitType, stackSize, terrainValue),
-    squads: stackSize,
+    ...defender,
+    friendlyName: resolveBattlefieldUnitName(defender.typeId, defender.unitId, defender.friendlyName),
+    movesRemaining: move,
+    stackSize,
     actionableModes: getActionableModes(defender.state, weapons, activeTurnActive, activePhase),
   }
 }
@@ -184,31 +162,21 @@ export function buildBattlefieldOnionView(
   {
     movesAllowed = 0,
     movesRemaining = 0,
-    catalog,
   }: {
     movesAllowed?: number
     movesRemaining?: number
-    catalog?: SessionCatalog
   } = {},
 ): BattlefieldOnionView {
   return {
-    id: onion.unitId,
-    type: onion.typeId,
+    ...onion,
     friendlyName: resolveBattlefieldUnitName(onion.typeId, onion.unitId, onion.friendlyName),
-    position: onion.position,
-    status: onion.state,
-    treads: onion.treads,
     movesAllowed,
     movesRemaining,
-    rams: onion.ramsRemaining,
-    weapons: formatWeaponSummary(onion.weapons),
-    weaponDetails: onion.weapons,
-    targetRules: catalog === undefined ? undefined : getSessionUnitType(catalog, onion.typeId)?.targetRules,
   }
 }
 
 /** Builds ordered defender display models from a live snapshot. */
-export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean, catalog?: SessionCatalog): BattlefieldUnit[] {
+export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldUnit[] {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
@@ -234,14 +202,12 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
           stackSize: Math.max(stackSize, 1),
           activePhase,
           activeTurnActive,
-          catalog,
-          terrainValue: getTerrainValueAt(snapshot.scenarioMap, defender.position.q, defender.position.r),
         }),
         rosterOrder: index,
       }
     })
     .sort((left, right) => {
-      const destroyedDelta = Number(left.status === 'destroyed') - Number(right.status === 'destroyed')
+      const destroyedDelta = Number(left.state === 'destroyed') - Number(right.state === 'destroyed')
 
       if (destroyedDelta !== 0) {
         return destroyedDelta
@@ -257,14 +223,14 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
 }
 
 /** Returns the authoritative Onion display model from a live snapshot. */
-export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, catalog?: SessionCatalog): BattlefieldOnionView {
-  return buildLiveOnions(snapshot, activePhase, catalog)[0] ?? (() => {
+export function buildLiveOnion(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView {
+  return buildLiveOnions(snapshot, activePhase)[0] ?? (() => {
     throw new Error('Missing authoritative onion')
   })()
 }
 
 /** Builds all Onion display models from a live snapshot. */
-export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, catalog?: SessionCatalog): BattlefieldOnionView[] {
+export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null): BattlefieldOnionView[] {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
@@ -275,7 +241,7 @@ export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnP
   return Object.values(authoritativeState.onions).map((onion) => {
     const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance(onion.typeId, activePhase, onion.treads)
     const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.unitId] ?? movesAllowed
-    return buildBattlefieldOnionView(onion, { movesAllowed, movesRemaining, catalog })
+    return buildBattlefieldOnionView(onion, { movesAllowed, movesRemaining })
   })
 }
 
@@ -321,7 +287,7 @@ export function buildCombatRangeSources(
 
     const selectedWeaponIds = new Set(activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId))
 
-    return (displayedOnion.weaponDetails ?? [])
+    return displayedOnion.weapons
       .filter((weapon) => weapon.state === 'ready' && selectedWeaponIds.has(weapon.id))
       .map((weapon) => ({
         q: displayedOnion.position.q,
@@ -331,11 +297,11 @@ export function buildCombatRangeSources(
   }
 
   return displayedDefenders
-    .filter((unit) => unit.status !== 'destroyed')
-    .filter((unit) => activeSelectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unit.id))
+    .filter((unit) => unit.state !== 'destroyed')
+    .filter((unit) => activeSelectedUnitIds.some((selectionId) => resolveSelectionOwnerUnitId(selectionId) === unit.unitId))
     .map((unit) => ({
-      q: unit.q,
-      r: unit.r,
-      range: getReadyWeaponRange(unit.weaponDetails, catalog),
+      q: unit.position.q,
+      r: unit.position.r,
+      range: getReadyWeaponRange(unit.weapons, catalog),
     }))
 }

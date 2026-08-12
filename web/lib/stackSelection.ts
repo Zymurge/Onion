@@ -13,7 +13,7 @@ export type StackSourceUnit = {
   typeId: string
   position: { q: number; r: number }
   state: UnitState
-  squads?: number
+  stackSize?: number
 }
 
 /** Canonical web-facing source state for stack membership resolution. */
@@ -32,13 +32,13 @@ function isStackableUnitType(unitType: string | undefined, catalog?: SessionCata
   return catalog !== undefined && isSessionUnitTypeStackable(catalog, unitType)
 }
 
-function toStackSourceUnit(unit: StackSourceUnit, squads?: number): StackSourceUnit {
+function toStackSourceUnit(unit: StackSourceUnit, stackSize?: number): StackSourceUnit {
   return {
     unitId: unit.unitId,
     typeId: unit.typeId,
     position: unit.position,
     state: unit.state,
-    squads,
+    stackSize,
   }
 }
 

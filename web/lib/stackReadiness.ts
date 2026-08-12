@@ -1,22 +1,21 @@
 import type { Weapon } from '../../shared/types/index.js'
 import type { Mode } from './battlefieldView.js'
-import { getBattlefieldWeaponAttack, isBattlefieldWeaponReady, parseAttackStats, parseRangeValue } from './weaponStats.js'
+import { getBattlefieldWeaponAttack, isBattlefieldWeaponReady } from './weaponStats.js'
 import type { SessionCatalog } from './sessionCatalog.js'
 
 type ReadinessUnit = {
-  status?: string
+  state?: string
   actionableModes?: ReadonlyArray<Mode>
-  weaponDetails?: ReadonlyArray<Weapon>
-  attack?: string
+  weapons?: ReadonlyArray<Weapon>
 }
 
 /** Reports combat readiness from defender actions or Onion weapon state. */
 export function isUnitCombatReady(unit: ReadinessUnit): boolean {
   if (unit.actionableModes !== undefined) {
-    return unit.status === 'operational' && unit.actionableModes.includes('fire')
+    return unit.state === 'operational' && unit.actionableModes.includes('fire')
   }
 
-  return (unit.weaponDetails ?? []).some(isBattlefieldWeaponReady)
+  return (unit.weapons ?? []).some(isBattlefieldWeaponReady)
 }
 
 /** Counts combat-ready members in a stack or unit group. */
@@ -34,16 +33,16 @@ export function getGroupAttackReadyCount(
 
 /** Reports whether every member of a non-empty group is unavailable for combat. */
 export function isGroupCombatDisabled(units: ReadonlyArray<ReadinessUnit>): boolean {
-  return units.length > 0 && units.every((unit) => unit.status === 'destroyed' || unit.status === 'disabled')
+  return units.length > 0 && units.every((unit) => unit.state === 'destroyed' || unit.state === 'disabled')
 }
 
 /** Returns ready weapon strength, falling back to the displayed attack value. */
 export function getUnitAttackStrength(unit: ReadinessUnit, catalog?: SessionCatalog): number {
-  if (unit.weaponDetails !== undefined && unit.weaponDetails.length > 0) {
-    return unit.weaponDetails
+  if (unit.weapons !== undefined && unit.weapons.length > 0) {
+    return unit.weapons
       .filter(isBattlefieldWeaponReady)
       .reduce((total, weapon) => total + getBattlefieldWeaponAttack(weapon, catalog), 0)
   }
 
-  return parseRangeValue(parseAttackStats(unit.attack ?? '0').damage)
+  return 0
 }

@@ -28,6 +28,8 @@ export type BattlefieldDefenderView = DefenderUnit & {
   actionableModes: Mode[]
 }
 
+export type BattlefieldUnit = BattlefieldDefenderView
+
 export type BattlefieldOnionView = OnionUnit & {
   movesAllowed: number
   movesRemaining: number
@@ -44,6 +46,11 @@ export type TimelineEvent = {
 }
 
 export type TerrainHex = HexPos & { t: number }
+
+export function getBattlefieldPosition(unit: { position: HexPos }): HexPos {
+  return unit.position
+}
+
 
 export function statusTone(status: UnitStatus): string {
   switch (status) {

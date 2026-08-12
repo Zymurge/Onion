@@ -76,10 +76,10 @@ function buildMoveMapSnapshot(snapshot: ServerGameSnapshot, movingUnitId: string
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
     ...Object.values(authoritativeState.onions)
       .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
-      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'onion' as const, unitType: unit.typeId, squads: 1 })),
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'onion' as const, unitType: unit.typeId })),
     ...Object.values(authoritativeState.defenders)
       .filter((unit) => unit.unitId !== movingUnitId && unit.state !== 'destroyed')
-      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.typeId, squads: (unit as typeof unit & { squads?: number }).squads })),
+      .map((unit) => ({ q: unit.position.q, r: unit.position.r, role: 'defender' as const, unitType: unit.typeId })),
   ]
 
   return {

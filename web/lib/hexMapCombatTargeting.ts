@@ -10,11 +10,11 @@ export function getCombatTargetIdForOccupant(
   activeCombatRole: CombatRole,
   onion: BattlefieldOnionView,
 ): string {
-  if (activeCombatRole === 'defender' && occupant.id === onion.id) {
-    return formatCombatTargetId({ kind: 'treads', onionId: onion.id })
+  if (activeCombatRole === 'defender' && occupant.unitId === onion.unitId) {
+    return formatCombatTargetId({ kind: 'treads', onionId: onion.unitId })
   }
 
-  return occupant.id
+  return occupant.unitId
 }
 
 /** Reports whether an occupant is a legal target for the active combat role. */
@@ -26,8 +26,8 @@ export function isCombatTargetSelectable(
 ): boolean {
   const combatTargetId = getCombatTargetIdForOccupant(occupant, activeCombatRole, onion)
   const isOpponent = activeCombatRole === 'onion'
-    ? occupant.id !== onion.id
-    : activeCombatRole === 'defender' && occupant.id === onion.id
+    ? occupant.unitId !== onion.unitId
+    : activeCombatRole === 'defender' && occupant.unitId === onion.unitId
 
   return isOpponent && (combatTargetIds === undefined || combatTargetIds.has(combatTargetId))
 }
@@ -45,7 +45,7 @@ export function isCombatTargetSelected(
 
   const combatTargetId = getCombatTargetIdForOccupant(occupant, activeCombatRole, onion)
   return combatTargetId === selectedCombatTargetId
-    || (activeCombatRole === 'defender' && occupant.id === onion.id && (
-      selectedCombatTargetId.startsWith(`${onion.id}:`) || selectedCombatTargetId.startsWith('weapon:')
+    || (activeCombatRole === 'defender' && occupant.unitId === onion.unitId && (
+      selectedCombatTargetId.startsWith(`${onion.unitId}:`) || selectedCombatTargetId.startsWith('weapon:')
     ))
 }

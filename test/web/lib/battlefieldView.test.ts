@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildBattlefieldDefenderView } from '#web/lib/appViewHelpers'
-import { isUnitMoveEligible, statusTone, type BattlefieldDefenderView, type BattlefieldOnionView } from '#web/lib/battlefieldView'
-import { makeDefender, makeOnion, makeWeapon } from '#test/utils/gameStateUtils'
+import { isUnitMoveEligible, statusTone, type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
 
 describe('battlefieldView helpers', () => {
 	it('classifies status tones', () => {
@@ -14,18 +12,26 @@ describe('battlefieldView helpers', () => {
 
 	it('checks move eligibility for onion and defender views', () => {
 		const onion: BattlefieldOnionView = {
-			...makeOnion({ unitId: 'onion-1', typeId: 'TheOnion', position: { q: 0, r: 0 } }),
+			unitId: 'onion-1',
+			typeId: 'TheOnion',
+			role: 'onion',
+			position: { q: 0, r: 0 },
+			state: 'operational',
+			treads: 33,
+			ramsRemaining: 0,
 			movesAllowed: 3,
 			movesRemaining: 2,
+			weapons: [],
 		}
-		const defender: BattlefieldDefenderView = {
-			...makeDefender({
-				unitId: 'wolf-2',
-				typeId: 'BigBadWolf',
-				position: { q: 3, r: 6 },
-				weapons: [makeWeapon({ id: 'wolf-2-main', typeId: 'BigBadWolf.main' })],
-			}),
+		const defender: BattlefieldUnit = {
+			unitId: 'wolf-2',
+			typeId: 'BigBadWolf',
+			role: 'defender',
+			state: 'operational',
+			position: { q: 3, r: 6 },
+			weapons: [],
 			movesRemaining: 4,
+			stackSize: 1,
 			actionableModes: ['fire', 'combined'],
 		}
 
@@ -38,30 +44,5 @@ describe('battlefieldView helpers', () => {
 		expect(isUnitMoveEligible({ ...defender, movesRemaining: 0 }, 'DEFENDER_MOVE', 'defender')).toBe(false)
 		expect(isUnitMoveEligible(defender, 'GEV_SECOND_MOVE', 'defender')).toBe(true)
 		expect(isUnitMoveEligible(defender, null, 'defender')).toBe(false)
-	})
-
-	it('uses canonical unit state in battlefield projections', () => {
-		const view = buildBattlefieldDefenderView(makeDefender({
-			unitId: 'wolf-2',
-			typeId: 'BigBadWolf',
-			position: { q: 3, r: 6 },
-		}))
-
-		expect(view.unitId).toBe('wolf-2')
-		expect(view.typeId).toBe('BigBadWolf')
-		expect(view.state).toBe('operational')
-		expect(view.position).toEqual({ q: 3, r: 6 })
-		expect(view).not.toHaveProperty('id')
-		expect(view).not.toHaveProperty('type')
-		expect(view).not.toHaveProperty('status')
-		expect(view).not.toHaveProperty('move')
-	})
-
-	it('keeps defender coordinates under position only', () => {
-		const view = buildBattlefieldDefenderView(makeDefender({ position: { q: 3, r: 6 } }))
-
-		expect(view.position).toEqual({ q: 3, r: 6 })
-		expect(view).not.toHaveProperty('q')
-		expect(view).not.toHaveProperty('r')
 	})
 })

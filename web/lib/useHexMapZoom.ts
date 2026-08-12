@@ -67,6 +67,8 @@ export function useHexMapZoom(bounds: { width: number; height: number }) {
       return undefined
     }
 
+    const activeViewport = viewport
+
     function handleWheel(event: WheelEvent) {
       if (event.deltaX === 0 && event.deltaY === 0) {
         return
@@ -74,17 +76,17 @@ export function useHexMapZoom(bounds: { width: number; height: number }) {
 
       event.preventDefault()
 
-      if (typeof viewport.scrollBy === 'function') {
-        viewport.scrollBy({ left: event.deltaX, top: event.deltaY, behavior: 'auto' })
+      if (typeof activeViewport.scrollBy === 'function') {
+        activeViewport.scrollBy({ left: event.deltaX, top: event.deltaY, behavior: 'auto' })
         return
       }
 
-      viewport.scrollLeft += event.deltaX
-      viewport.scrollTop += event.deltaY
+      activeViewport.scrollLeft += event.deltaX
+      activeViewport.scrollTop += event.deltaY
     }
 
-    viewport.addEventListener('wheel', handleWheel, { passive: false })
-    return () => viewport.removeEventListener('wheel', handleWheel)
+    activeViewport.addEventListener('wheel', handleWheel, { passive: false })
+    return () => activeViewport.removeEventListener('wheel', handleWheel)
   }, [])
 
   useEffect(() => {

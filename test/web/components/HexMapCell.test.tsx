@@ -6,16 +6,17 @@ import { HexMapCell } from '#web/components/HexMapCell'
 import type { BattlefieldOnionView } from '#web/lib/battlefieldView'
 
 const onion: BattlefieldOnionView = {
-  id: 'onion-1',
-  type: 'TheOnion',
+  unitId: 'onion-1',
+  typeId: 'TheOnion',
+  role: 'onion',
   friendlyName: 'The Onion',
   position: { q: 2, r: 3 },
-  status: 'operational',
+  state: 'operational',
   treads: 33,
+  ramsRemaining: 0,
   movesAllowed: 3,
   movesRemaining: 3,
-  rams: 0,
-  weapons: 'main: ready',
+  weapons: [],
 }
 
 describe('HexMapCell', () => {

@@ -67,28 +67,26 @@ function buildMoveValidationState(
   }
 
   return {
-    onions: Object.fromEntries(onions.map((onion) => [onion.id, {
-      unitId: onion.id,
-      typeId: onion.type,
+    onions: Object.fromEntries(onions.map((onion) => [onion.unitId, {
+      unitId: onion.unitId,
+      typeId: onion.typeId,
       role: 'onion' as const,
-      friendlyName: onion.friendlyName ?? onion.id,
+      friendlyName: onion.friendlyName,
       position: onion.position,
-      state: onion.status,
+      state: onion.state,
       treads: onion.treads,
-      ramsRemaining: onion.rams,
-      weapons: onion.weaponDetails ?? [],
+      ramsRemaining: onion.ramsRemaining,
+      weapons: onion.weapons,
     }])),
     defenders: Object.fromEntries(
-      defenders.map((defender) => [defender.id, {
+      defenders.map((defender) => [defender.unitId, {
         unitId: defender.unitId,
         typeId: defender.typeId,
         role: 'defender',
         friendlyName: defender.friendlyName,
         position: defender.position,
         state: defender.state,
-        weapons: defender.weaponDetails ?? [],
-        squads: defender.squads,
-        targetRules: defender.targetRules,
+        weapons: defender.weapons,
       }]),
     ),
     stackNaming: stackNaming ?? { groupsInUse: [], usedGroupNames: [] },
@@ -141,16 +139,14 @@ export function HexMapBoard({
     }
 
     const defenderLookup = Object.fromEntries(
-      defenders.map((defender) => [defender.id, {
+      defenders.map((defender) => [defender.unitId, {
         unitId: defender.unitId,
         typeId: defender.typeId,
         role: 'defender' as const,
         friendlyName: defender.friendlyName,
         position: defender.position,
         state: defender.state,
-        weapons: defender.weaponDetails ?? [],
-        targetRules: defender.targetRules,
-        squads: defender.squads,
+        weapons: defender.weapons,
       }]),
     ) as DefenderMap
 
@@ -175,7 +171,7 @@ export function HexMapBoard({
 
     for (const selectionId of selectedUnitIds) {
       if (selectionId.startsWith('weapon:')) {
-        selectedIds.add(onions[0]?.id ?? '')
+        selectedIds.add(onions[0]?.unitId ?? '')
         continue
       }
 
@@ -190,31 +186,29 @@ export function HexMapBoard({
       return resolveSelectionOwnerUnitId(directSelection)
     }
 
-    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onions[0]?.id ?? null : null
+    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onions[0]?.unitId ?? null : null
   }, [onions, selectedUnitIds])
-  const onion = onions.find((unit) => unit.id === selectedPrimaryUnitId) ?? onions[0]
+  const onion = onions.find((unit) => unit.unitId === selectedPrimaryUnitId) ?? onions[0]
 
   const selectedOccupant = selectedPrimaryUnitId === null
     ? null
-    : onions.find((unit) => unit.id === selectedPrimaryUnitId) ??
-      defenders.find((unit) => unit.id === selectedPrimaryUnitId) ?? null
+    : onions.find((unit) => unit.unitId === selectedPrimaryUnitId) ??
+      defenders.find((unit) => unit.unitId === selectedPrimaryUnitId) ?? null
   const selectedAllowance = selectedOccupant
-    ? onions.some((unit) => unit.id === selectedOccupant.id)
+    ? onions.some((unit) => unit.unitId === selectedOccupant.unitId)
       ? (selectedOccupant as BattlefieldOnionView).movesRemaining
-      : 'move' in selectedOccupant
-        ? selectedOccupant.move
-        : 0
+      : (selectedOccupant as BattlefieldUnit).movesRemaining
     : 0
   const occupiedHexes = Array.from(occupantMap.entries())
     .flatMap(([key, occupants]) => {
       const [q, r] = key.split(',').map(Number)
       return occupants
-        .filter((occupant) => occupant.id !== selectedPrimaryUnitId && (occupant.status !== 'destroyed' || occupant.type === 'Swamp'))
+        .filter((occupant) => occupant.unitId !== selectedPrimaryUnitId && (occupant.state !== 'destroyed' || occupant.typeId === 'Swamp'))
         .map((occupant) => ({
           q,
           r,
-          role: onions.some((onionUnit) => occupant.id === onionUnit.id) ? ('onion' as const) : ('defender' as const),
-          unitType: occupant.type,
+          role: onions.some((onionUnit) => occupant.unitId === onionUnit.unitId) ? ('onion' as const) : ('defender' as const),
+          unitType: occupant.typeId,
         }))
     })
   const playerRole = canSubmitMove && phase
@@ -225,7 +219,7 @@ export function HexMapBoard({
         : null
     : null
   const selectedIsEligible = !!(
-    selectedOccupant && playerRole && isMovementPhase && selectedOccupant.status === 'operational' && selectedAllowance > 0
+    selectedOccupant && playerRole && isMovementPhase && selectedOccupant.state === 'operational' && selectedAllowance > 0
   )
   const reachableHexKeys = selectedIsEligible && selectedOccupant
     ? new Set(
@@ -233,8 +227,8 @@ export function HexMapBoard({
           map: { ...scenarioMap, occupiedHexes },
           from: getBattlefieldPosition(selectedOccupant),
           movementAllowance: selectedAllowance,
-          movingRole: onions.some((onionUnit) => selectedOccupant.id === onionUnit.id) ? 'onion' : 'defender',
-          movingUnitType: selectedOccupant.type,
+          movingRole: onions.some((onionUnit) => selectedOccupant.unitId === onionUnit.unitId) ? 'onion' : 'defender',
+          movingUnitType: selectedOccupant.typeId,
         }).map((move) => hexKey(move.to)),
       )
     : new Set<string>()
@@ -252,7 +246,7 @@ export function HexMapBoard({
     return validateMove(
       { ...scenarioMap, occupiedHexes },
       validationState,
-      { type: 'MOVE', unitId: selectedOccupant.id, to },
+      { type: 'MOVE', unitId: selectedOccupant.unitId, to },
     )
   }
 
@@ -332,15 +326,15 @@ export function HexMapBoard({
               ))
               const targetOccupant = resolveCanonicalOccupant(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)
               const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
-                if (!playerRole || !isMovementPhase || occupant.status !== 'operational') {
+                if (!playerRole || !isMovementPhase || occupant.state !== 'operational') {
                   return false
                 }
 
-                if (occupant.id === onion.id) {
+                if (occupant.unitId === onion.unitId) {
                   return onion.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance('TheOnion', phase, onion.treads) > 0)
                 }
 
-                return 'move' in occupant && (occupant.move > 0 || (phase !== null && getUnitMovementAllowance(occupant.type, phase) > 0))
+                return 'movesRemaining' in occupant && (occupant.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance(occupant.typeId, phase) > 0))
               })
 
               return (
@@ -356,9 +350,9 @@ export function HexMapBoard({
                   escapePatternId={escapePatternId}
                   hasSharedOccupancy={cellOccupants.length > 1}
                   isMoveReady={isMoveReady}
-                  isOnion={cellOccupants.some((occupant) => occupant.id === onion.id)}
+                  isOnion={cellOccupants.some((occupant) => occupant.unitId === onion.unitId)}
                   isReachable={isReachable}
-                  isSelected={cellOccupants.some((occupant) => selectedUnitSet.has(occupant.id))}
+                  isSelected={cellOccupants.some((occupant) => selectedUnitSet.has(occupant.unitId))}
                   isSelectionLocked={isSelectionLocked}
                   onBackgroundClick={() => {
                     if (isSelectionLocked) {
@@ -397,7 +391,7 @@ export function HexMapBoard({
                       subjectRelation: cellOccupants.length > 0 ? 'opponent' : 'background',
                       subjectKind: 'hex',
                       subjectCapability: {
-                        inspectable: cellOccupants.some((occupant) => occupant.status !== 'destroyed'),
+                        inspectable: cellOccupants.some((occupant) => occupant.state !== 'destroyed'),
                         moveEligible: selectedIsEligible,
                         attackerEligible: false,
                         targetEligible: targetOccupant !== undefined && isCombatTargetSelectable(targetOccupant, activeCombatRole, onion, combatTargetIds),
@@ -411,7 +405,7 @@ export function HexMapBoard({
                     }
 
                     if (decision.intent === 'submit-move' && canSubmitMove && selectedIsEligible && selectedOccupant !== null) {
-                      onMoveUnit(selectedOccupant.id, coord)
+                      onMoveUnit(selectedOccupant.unitId, coord)
                       return
                     }
 

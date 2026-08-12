@@ -6,8 +6,8 @@ import {
   isCombatTargetSelected,
 } from '#web/lib/hexMapCombatTargeting'
 
-const onion = { id: 'onion-1', type: 'TheOnion' } as BattlefieldOnionView
-const defender = { id: 'puss-1', type: 'Puss' } as BattlefieldUnit
+const onion = { unitId: 'onion-1', typeId: 'TheOnion' } as BattlefieldOnionView
+const defender = { unitId: 'puss-1', typeId: 'Puss' } as BattlefieldUnit
 
 describe('hexMapCombatTargeting', () => {
   it('uses the canonical tread target for defender combat', () => {

@@ -14,50 +14,48 @@ const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeC
 describe('stackReadiness', () => {
   it('recognizes an Onion with a ready weapon', () => {
     expect(isUnitCombatReady({
-      status: 'operational',
-      weaponDetails: [{ id: 'main', typeId: 'Puss.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main' }],
+      state: 'operational',
+      weapons: [{ id: 'main', typeId: 'Puss.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main' }],
     })).toBe(true)
   })
 
   it('recognizes defenders with fire readiness and rejects non-fire modes', () => {
-    expect(isUnitCombatReady({ status: 'operational', actionableModes: ['fire'] })).toBe(true)
-    expect(isUnitCombatReady({ status: 'operational', actionableModes: ['combined'] })).toBe(false)
+    expect(isUnitCombatReady({ state: 'operational', actionableModes: ['fire'] })).toBe(true)
+    expect(isUnitCombatReady({ state: 'operational', actionableModes: ['combined'] })).toBe(false)
   })
 
   it('counts ready members in a mixed group', () => {
     expect(getGroupCombatReadyCount([
-      { status: 'operational', actionableModes: ['fire'] },
-      { status: 'operational', actionableModes: [] },
-      { status: 'disabled', actionableModes: [] },
+      { state: 'operational', actionableModes: ['fire'] },
+      { state: 'operational', actionableModes: [] },
+      { state: 'disabled', actionableModes: [] },
     ])).toBe(1)
   })
 
   it('marks groups disabled only when every member is destroyed or disabled', () => {
     expect(isGroupCombatDisabled([
-      { status: 'destroyed' },
-      { status: 'disabled' },
+      { state: 'destroyed' },
+      { state: 'disabled' },
     ])).toBe(true)
     expect(isGroupCombatDisabled([
-      { status: 'destroyed' },
-      { status: 'operational' },
+      { state: 'destroyed' },
+      { state: 'operational' },
     ])).toBe(false)
   })
 
-  it('uses live ready weapon strength before the attack-string fallback', () => {
+  it('uses live ready weapon strength from canonical weapon instances', () => {
     expect(getUnitAttackStrength({
-      attack: '1 / rng 1',
-      weaponDetails: [{ id: 'main', typeId: 'Puss.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main' }],
+      weapons: [{ id: 'main', typeId: 'Puss.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main' }],
     }, sessionCatalog)).toBeGreaterThan(0)
     expect(getUnitAttackStrength({
-      attack: '4 / rng 1',
-      weaponDetails: [],
-    }, sessionCatalog)).toBe(4)
+      weapons: [],
+    }, sessionCatalog)).toBe(0)
   })
 
   it('counts group attack readiness from positive displayed strength', () => {
     expect(getGroupAttackReadyCount([
-      { attack: '4 / rng 1', weaponDetails: [] },
-      { attack: '0 / rng 1', weaponDetails: [] },
+      { weapons: [ { id: 'main', typeId: 'Puss.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main' } ] },
+      { weapons: [] },
     ], sessionCatalog)).toBe(1)
   })
 })

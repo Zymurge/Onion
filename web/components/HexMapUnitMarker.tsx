@@ -68,11 +68,11 @@ export function HexMapUnitMarker({
   onDeselect,
   onSelectUnit,
 }: HexMapUnitMarkerProps) {
-  const isOccupantOnion = occupant.id === onion.id
+  const isOccupantOnion = occupant.unitId === onion.unitId
   const offset = getStackOffset(offsetIndex, renderedOccupantCount)
-  const isSwamp = occupant.type === 'Swamp'
-  const isDestroyed = occupant.status === 'destroyed'
-  const isDisabled = occupant.status === 'disabled'
+  const isSwamp = occupant.typeId === 'Swamp'
+  const isDestroyed = occupant.state === 'destroyed'
+  const isDisabled = occupant.state === 'disabled'
   const isMovementPhaseActiveSide = phase === 'ONION_MOVE'
     ? isOccupantOnion
     : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
@@ -82,7 +82,7 @@ export function HexMapUnitMarker({
   const combatIsDisabled = isGroupCombatDisabled(combatMembers)
   const moveHasRemaining = isOccupantOnion
     ? onion.movesRemaining > 0
-    : 'move' in occupant && occupant.move > 0
+    : 'movesRemaining' in occupant && occupant.movesRemaining > 0
   const combatEligibilityClass = !isCombatPhase
     ? ''
     : isDestroyed || isDisabled
@@ -148,9 +148,9 @@ export function HexMapUnitMarker({
           : resolvedViewerRole === 'defender' ? 'self' : 'opponent',
       subjectKind: rosterGroup !== null ? 'stack' : 'unit',
       subjectCapability: {
-        inspectable: occupant.status !== 'destroyed' || isSwamp,
-        moveEligible: isMovementPhase && occupant.status === 'operational' && (
-          isOccupantOnion ? onion.movesRemaining > 0 : 'move' in occupant && occupant.move > 0
+        inspectable: occupant.state !== 'destroyed' || isSwamp,
+        moveEligible: isMovementPhase && occupant.state === 'operational' && (
+          isOccupantOnion ? onion.movesRemaining > 0 : 'movesRemaining' in occupant && occupant.movesRemaining > 0
         ),
         attackerEligible: isCombatPhase && !combatIsDisabled && (
           isOccupantOnion
@@ -171,12 +171,12 @@ export function HexMapUnitMarker({
       return
     }
 
-    onSelectUnit(occupant.id, event.ctrlKey || event.metaKey || decision.intent === 'toggle-actor')
+    onSelectUnit(occupant.unitId, event.ctrlKey || event.metaKey || decision.intent === 'toggle-actor')
   }
 
   return (
     <g
-      data-testid={`hex-unit-${occupant.id}`}
+      data-testid={`hex-unit-${occupant.unitId}`}
       data-selected={isOccupantSelected}
       className={[
         'hex-unit-stack',
@@ -185,7 +185,7 @@ export function HexMapUnitMarker({
         isOccupantSelected ? 'hex-unit-stack-selected' : '',
         isMovementPhase && movementEligibilityClass === 'hex-unit-rect-move-eligible' ? 'hex-unit-stack-move-ready' : '',
         isDisabled ? 'hex-unit-stack-disabled' : '',
-        isSwamp ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral') : `tone-${statusTone(occupant.status)}`,
+        isSwamp ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral') : `tone-${statusTone(occupant.state)}`,
       ].join(' ')}
       transform={`translate(${offset.dx}, ${offset.dy})`}
       onClick={handleClick}
@@ -217,7 +217,7 @@ export function HexMapUnitMarker({
       ) : null}
       {isSwamp ? (
         <image
-          href={getSwampSpriteHref(occupant.status)}
+          href={getSwampSpriteHref(occupant.state)}
           x={center.x - 19}
           y={center.y - 19}
           width={38}

@@ -15,7 +15,7 @@ import { createSessionCatalog } from '#web/lib/sessionCatalog'
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function buildCombatTargetOptions(input: Parameters<typeof buildCombatTargetOptionsWithCatalog>[0]) {
-	return buildCombatTargetOptionsWithCatalog({ ...input, catalog: sessionCatalog })
+	return buildCombatTargetOptionsWithCatalog({ ...input, catalog: input.catalog ?? sessionCatalog })
 }
 
 function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRosterGroupState, 'position' | 'unitIds'>) {
@@ -208,12 +208,20 @@ describe('buildCombatTargetOptions', () => {
 	})
 
 	it('honors target-unit restrictions in the target selector', () => {
+		const restrictedCatalog = createSessionCatalog({
+			...getUnitTypeCatalog(),
+			LittlePigs: {
+				...getUnitTypeCatalog().LittlePigs,
+				targetRules: { allowedAttackerUnitTypes: ['BigBadWolf'] },
+			},
+		}, getWeaponTypeCatalog())
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',
 			combatRangeHexKeys: new Set(['1,0', '1,1', '2,1']),
 			displayedDefenders: [
 				makeBattlefieldDefender(
-					  { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 1, r: 1 } },
+					{ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 } },
+					  {},
 				),
 			],
 			displayedOnion: makeBattlefieldOnion({
@@ -227,6 +235,7 @@ describe('buildCombatTargetOptions', () => {
 				height: 8,
 				hexes: [],
 			},
+			catalog: restrictedCatalog,
 		})
 
 		expect(options.map((option) => option.id)).toEqual([])

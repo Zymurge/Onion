@@ -23,8 +23,8 @@ export function resolveBattlefieldUnitName(unitType: string, unitId: string | un
 }
 
 /** Returns the minimum effective stack size for a unit. */
-export function getBattlefieldStackSize(unit: { squads?: number }): number {
-  return Math.max(unit.squads ?? 1, 1)
+export function getBattlefieldStackSize(unit: { stackSize?: number }): number {
+  return Math.max(unit.stackSize ?? 1, 1)
 }
 
 /** Resolves a grouped or unit battlefield label. */
@@ -50,34 +50,32 @@ export function resolveBattlefieldStackLabel(
 /** Resolves a map display name using canonical stack naming when available. */
 export function resolveBattlefieldDisplayName(
   unit: {
-    id: string
-    type: string
-    position?: { q: number; r: number }
-    q?: number
-    r?: number
+    unitId: string
+    typeId: string
+    position: { q: number; r: number }
     friendlyName?: string
-    squads?: number
+    stackSize?: number
   },
   stackNaming?: StackNamingSnapshot,
 ): string {
-  const position = unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
+  const position = unit.position
 
   if (stackNaming !== undefined) {
-    const groupKey = buildStackGroupKey(unit.type, position)
+    const groupKey = buildStackGroupKey(unit.typeId, position)
     const group = stackNaming.groupsInUse.find((entry) => entry.groupKey === groupKey)
     if (group !== undefined) {
       return resolveSelectionName({ kind: 'group', groupKey: group.groupKey, stackNaming })
     }
 
     if (getBattlefieldStackSize(unit) > 1) {
-      throw new Error(`Missing stackNaming entry for grouped unit ${unit.id} at ${groupKey}`)
+      throw new Error(`Missing stackNaming entry for grouped unit ${unit.unitId} at ${groupKey}`)
     }
   }
 
   return resolveSelectionName({
     kind: 'unit',
-    unitId: unit.id,
-    unitType: unit.type,
+    unitId: unit.unitId,
+    unitType: unit.typeId,
     friendlyName: unit.friendlyName,
   })
 }
@@ -85,51 +83,49 @@ export function resolveBattlefieldDisplayName(
 /** Resolves a unit's friendly name while validating roster and naming metadata. */
 export function resolveBattlefieldFriendlyName(
   unit: {
-    id: string
-    type: string
-    position?: { q: number; r: number }
-    q?: number
-    r?: number
+    unitId: string
+    typeId: string
+    position: { q: number; r: number }
     friendlyName?: string
   },
   stackNaming?: StackNamingSnapshot,
   stackRoster?: StackRosterState,
   catalog?: SessionCatalog,
 ): string {
-  const position = unit.position ?? { q: unit.q ?? 0, r: unit.r ?? 0 }
-  const groupKey = buildStackGroupKey(unit.type, position)
+  const position = unit.position
+  const groupKey = buildStackGroupKey(unit.typeId, position)
   const rosterGroup = stackRoster === undefined
     ? null
     : Object.entries(stackRoster.groupsById ?? {})
       .map(([, group]) => group)
-      .find((group) => Array.isArray(group.unitIds) && group.unitIds.includes(unit.id))
+      .find((group) => Array.isArray(group.unitIds) && group.unitIds.includes(unit.unitId))
       ?? null
-  const isStackable = isStackableUnitType(unit.type, catalog)
+  const isStackable = isStackableUnitType(unit.typeId, catalog)
   const namingGroup = stackNaming?.groupsInUse.find((entry) => entry.groupKey === groupKey) ?? null
 
   if (isStackable) {
     if (stackRoster === undefined) {
-      return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)
+      return resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName)
     }
 
     if (stackNaming === undefined) {
-      throw new Error(`Missing stackNaming for grouped unit ${unit.id}`)
+      throw new Error(`Missing stackNaming for grouped unit ${unit.unitId}`)
     }
 
     if (rosterGroup === null) {
-      throw new Error(`Missing roster group for grouped unit ${unit.id} at ${groupKey}`)
+      throw new Error(`Missing roster group for grouped unit ${unit.unitId} at ${groupKey}`)
     }
 
     if (namingGroup === null) {
-      throw new Error(`Missing stackNaming entry for grouped unit ${unit.id} at ${groupKey}`)
+      throw new Error(`Missing stackNaming entry for grouped unit ${unit.unitId} at ${groupKey}`)
     }
 
     if (rosterGroup.groupName !== namingGroup.groupName) {
-      throw new Error(`Conflicting stacked-unit labels for ${unit.id}: roster=${rosterGroup.groupName}, naming=${namingGroup.groupName}`)
+      throw new Error(`Conflicting stacked-unit labels for ${unit.unitId}: roster=${rosterGroup.groupName}, naming=${namingGroup.groupName}`)
     }
 
     return resolveSelectionName({ kind: 'group', groupKey: namingGroup.groupKey, stackNaming })
   }
 
-  return resolveBattlefieldUnitName(unit.type, unit.id, unit.friendlyName)
+  return resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName)
 }

@@ -129,9 +129,9 @@ describe('rightRailSelection', () => {
         selectedStackUnitIds: ['pigs-1'],
         activeSelectedUnitIds: ['pigs-1', 'pigs-2'],
         displayedDefenders: [
-          { id: 'pigs-1', type: 'LittlePigs', q: 4, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
-          { id: 'pigs-2', type: 'LittlePigs', q: 5, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
-          { id: 'wolf-1', type: 'BigBadWolf', q: 6, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
+          { unitId: 'pigs-1', typeId: 'LittlePigs', role: 'defender', friendlyName: 'Little Pigs 1', position: { q: 4, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
+          { unitId: 'pigs-2', typeId: 'LittlePigs', role: 'defender', friendlyName: 'Little Pigs 2', position: { q: 5, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
+          { unitId: 'wolf-1', typeId: 'BigBadWolf', role: 'defender', friendlyName: 'Big Bad Wolf 1', position: { q: 6, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
         ],
         displayedOnion: null,
       })).toEqual({
@@ -141,8 +141,8 @@ describe('rightRailSelection', () => {
         selectedUnitIds: ['pigs-1', 'pigs-2'],
         selectedCount: 2,
         selectedStackMembers: [
-          { id: 'pigs-1', type: 'LittlePigs', q: 4, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
-          { id: 'pigs-2', type: 'LittlePigs', q: 5, r: 4, status: 'operational', move: 3, weapons: 'main', attack: '1 / rng 1', actionableModes: ['fire', 'combined'] },
+          { unitId: 'pigs-1', typeId: 'LittlePigs', role: 'defender', friendlyName: 'Little Pigs 1', position: { q: 4, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
+          { unitId: 'pigs-2', typeId: 'LittlePigs', role: 'defender', friendlyName: 'Little Pigs 2', position: { q: 5, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
         ],
         selectedStackSelectionCount: 2,
       })
