@@ -89,6 +89,17 @@ export function createGameSessionController(options: GameSessionControllerOption
 		})
 	}
 
+	function restoreSnapshotEventState() {
+		if (state.snapshot === null) {
+			return
+		}
+
+		setState({
+			lastAppliedEventSeq: state.snapshot.lastEventSeq,
+			lastAppliedEventType: null,
+		})
+	}
+
 	function updateObservedSignal(signal: LiveSessionSignal) {
 		if (signal.kind === 'event') {
 			debugLog('received live event signal', {
@@ -117,13 +128,13 @@ export function createGameSessionController(options: GameSessionControllerOption
 		}
 	}
 
-	function scheduleLiveRefresh() {
+	function scheduleLiveRefresh(allowPhaseRefreshRetry = false) {
 		if (disposed || state.snapshot === null || latestObservedEventSeq === null) {
 			return
 		}
 
 		const currentSnapshotSeq = state.snapshot.lastEventSeq
-		if (latestObservedEventSeq <= currentSnapshotSeq && !phaseRefreshRetryPending) {
+		if (latestObservedEventSeq <= currentSnapshotSeq && (!phaseRefreshRetryPending || !allowPhaseRefreshRetry)) {
 			clearRefreshTimer()
 			if (latestObservedEventSeq <= currentSnapshotSeq) {
 				phaseRefreshRetryPending = false
@@ -260,6 +271,9 @@ export function createGameSessionController(options: GameSessionControllerOption
 				true,
 			)
 			acceptedSnapshot = accepted ? envelope.snapshot : null
+			if (!accepted) {
+				restoreSnapshotEventState()
+			}
 			debugLog('refreshLiveSnapshot success', {
 				gameId: options.gameId,
 				accepted,
@@ -275,6 +289,8 @@ export function createGameSessionController(options: GameSessionControllerOption
 			setState({
 				status: 'error',
 				error: normalizeTransportError(error),
+				lastAppliedEventSeq: state.snapshot?.lastEventSeq ?? null,
+				lastAppliedEventType: null,
 			})
 		} finally {
 			liveRefreshInFlight = false
@@ -285,9 +301,8 @@ export function createGameSessionController(options: GameSessionControllerOption
 					state.snapshot !== null
 					&& latestObservedEventSeq !== null
 					&& latestObservedEventSeq > state.snapshot.lastEventSeq
-					&& latestObservedEventSeq !== liveRefreshRequestedSeq
 				) {
-					scheduleLiveRefresh()
+					scheduleLiveRefresh(true)
 				}
 			} else {
 				const currentSnapshotSeq = state.snapshot?.lastEventSeq ?? null
@@ -320,7 +335,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 						&& currentLiveSeq !== liveRefreshRequestedSeq
 					)
 				) {
-					scheduleLiveRefresh()
+					scheduleLiveRefresh(true)
 				}
 			}
 		}

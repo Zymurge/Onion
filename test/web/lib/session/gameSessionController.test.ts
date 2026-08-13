@@ -474,8 +474,8 @@ describe('createGameSessionController', () => {
 				status: 'error',
 				error: expect.any(GameClientSeamError),
 				snapshot: initialSnapshot,
-				lastAppliedEventSeq: 11,
-				lastAppliedEventType: 'PHASE_CHANGED',
+				lastAppliedEventSeq: 10,
+				lastAppliedEventType: null,
 			})
 			expect(controller.getSnapshot().error?.message).toBe('temporary refresh failure')
 
@@ -527,6 +527,154 @@ describe('createGameSessionController', () => {
 		expect(secondListener).toHaveBeenCalledTimes(2)
 
 		unsubscribeSecond()
+	})
+
+	it('ignores signals for another game and ignores a load that resolves after disposal', async () => {
+		const initialLoad = createDeferred<{ snapshot: GameSnapshot; session: { role: 'defender' } }>()
+		const getState = vi.fn().mockReturnValue(initialLoad.promise)
+		const liveEventSource = createLiveEventSource()
+		const controller = createGameSessionController({
+			gameId: 123,
+			requestTransport: createTransport(getState),
+			liveEventSource,
+		})
+		const listener = vi.fn()
+		controller.subscribe(listener)
+
+		const loadPromise = controller.load()
+		liveEventSource.emit({ kind: 'connection', gameId: 456, status: 'connected' })
+		liveEventSource.emit({ kind: 'event', gameId: 456, eventSeq: 99, eventType: 'WRONG_GAME' })
+		expect(controller.getSnapshot()).toMatchObject({ status: 'loading', liveConnection: 'idle' })
+
+		listener.mockClear()
+		controller.dispose()
+		initialLoad.resolve({
+			snapshot: createSnapshot({ phase: 'DEFENDER_MOVE', lastEventSeq: 1 }),
+			session: { role: 'defender' },
+		})
+		await loadPromise
+
+		expect(controller.getSnapshot()).toMatchObject({ status: 'loading', snapshot: null })
+		expect(liveEventSource.disconnect).toHaveBeenCalledWith(123)
+		expect(listener).not.toHaveBeenCalled()
+	})
+
+	it('queues a refresh requested while another live refresh is in flight', async () => {
+		vi.useFakeTimers()
+		try {
+			const firstRefresh = createDeferred<{ snapshot: GameSnapshot; session: { role: 'defender' } }>()
+			const secondRefresh = createDeferred<{ snapshot: GameSnapshot; session: { role: 'defender' } }>()
+			const initialSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT', lastEventSeq: 10 })
+			const firstSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT', lastEventSeq: 11 })
+			const secondSnapshot = createSnapshot({ phase: 'ONION_MOVE', lastEventSeq: 12 })
+			const getState = vi.fn()
+				.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
+				.mockReturnValueOnce(firstRefresh.promise)
+				.mockReturnValueOnce(secondRefresh.promise)
+			const { controller, liveEventSource } = await createLoadedController({
+				getState,
+				liveRefreshQuietWindowMs: 5,
+			})
+
+			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 11, eventType: 'UNIT_MOVED' })
+			vi.advanceTimersByTime(5)
+			await flushMicrotasks()
+			expect(getState).toHaveBeenCalledTimes(2)
+
+			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 12, eventType: 'PHASE_CHANGED' })
+			vi.advanceTimersByTime(5)
+			await flushMicrotasks()
+			firstRefresh.resolve({ snapshot: firstSnapshot, session: { role: 'defender' } })
+			await flushMicrotasks()
+			vi.advanceTimersByTime(5)
+			await flushMicrotasks()
+
+			expect(getState).toHaveBeenCalledTimes(3)
+			secondRefresh.resolve({ snapshot: secondSnapshot, session: { role: 'defender' } })
+			await flushMicrotasks()
+			expect(controller.getSnapshot()).toMatchObject({ snapshot: secondSnapshot, lastAppliedEventSeq: 12 })
+
+			controller.dispose()
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it('cancels a pending phase retry when an equal-sequence snapshot catches up', async () => {
+		vi.useFakeTimers()
+		try {
+			const initialSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT', lastEventSeq: 10 })
+			const caughtUpSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT', lastEventSeq: 11 })
+			const getState = vi.fn()
+				.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
+				.mockResolvedValueOnce({ snapshot: caughtUpSnapshot, session: { role: 'defender' as const } })
+				.mockResolvedValueOnce({ snapshot: caughtUpSnapshot, session: { role: 'defender' as const } })
+			const { controller, liveEventSource } = await createLoadedController({
+				getState,
+				liveRefreshQuietWindowMs: 5,
+			})
+
+			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 11, eventType: 'PHASE_CHANGED' })
+			await vi.advanceTimersByTimeAsync(5)
+			expect(getState).toHaveBeenCalledTimes(2)
+			expect(controller.getSnapshot()).toMatchObject({ snapshot: caughtUpSnapshot, lastAppliedEventSeq: 11 })
+
+			await flushMicrotasks()
+			liveEventSource.emit({ kind: 'snapshot', gameId: 123, eventSeq: 11 })
+			await vi.advanceTimersByTimeAsync(100)
+
+			expect(getState).toHaveBeenCalledTimes(2)
+			controller.dispose()
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it('ignores stale submit responses after a newer action has been accepted', async () => {
+		const firstAction = createDeferred<GameSnapshot>()
+		const secondAction = createDeferred<GameSnapshot>()
+		const submitAction = vi.fn()
+			.mockReturnValueOnce(firstAction.promise)
+			.mockReturnValueOnce(secondAction.promise)
+		const getState = vi.fn().mockResolvedValue({
+			snapshot: createSnapshot({ phase: 'DEFENDER_MOVE', lastEventSeq: 10 }),
+			session: { role: 'defender' as const },
+		})
+		const controller = createGameSessionController({
+			gameId: 123,
+			requestTransport: createTransport(getState, submitAction),
+			liveEventSource: createLiveEventSource(),
+		})
+		await controller.load()
+
+		const firstPromise = controller.submitAction({ type: 'end-phase' })
+		const secondPromise = controller.submitAction({ type: 'refresh' })
+		const newerSnapshot = createSnapshot({ phase: 'ONION_MOVE', lastEventSeq: 12 })
+		secondAction.resolve(newerSnapshot)
+		expect(await secondPromise).toBe(newerSnapshot)
+
+		const staleSnapshot = createSnapshot({ phase: 'DEFENDER_MOVE', lastEventSeq: 11 })
+		firstAction.resolve(staleSnapshot)
+		expect(await firstPromise).toBeNull()
+		expect(controller.getSnapshot()).toMatchObject({ snapshot: newerSnapshot, lastAppliedEventSeq: 12 })
+		controller.dispose()
+	})
+
+	it('loads state when refresh is requested before any snapshot exists', async () => {
+		const snapshot = createSnapshot({ phase: 'DEFENDER_MOVE', lastEventSeq: 3 })
+		const getState = vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } })
+		const liveEventSource = createLiveEventSource()
+		const controller = createGameSessionController({
+			gameId: 123,
+			requestTransport: createTransport(getState),
+			liveEventSource,
+		})
+
+		await controller.refresh('live-event')
+
+		expect(getState).toHaveBeenCalledWith(123)
+		expect(controller.getSnapshot()).toMatchObject({ status: 'ready', snapshot, session: { role: 'defender' } })
+		controller.dispose()
 	})
 
 	it('coalesces rapid live hints into a single refresh and tracks the newest event sequence', async () => {
@@ -632,8 +780,8 @@ describe('createGameSessionController', () => {
 			await flushMicrotasks()
 			expect(controller.getSnapshot()).toMatchObject({
 				snapshot: initialSnapshot,
-				lastAppliedEventSeq: 50,
-				lastAppliedEventType: 'PHASE_CHANGED',
+				lastAppliedEventSeq: 47,
+				lastAppliedEventType: null,
 			})
 
 			vi.advanceTimersByTime(10)

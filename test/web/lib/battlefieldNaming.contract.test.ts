@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   resolveBattlefieldDisplayName,
   resolveBattlefieldFriendlyName,
-  resolveBattlefieldStacksExpandable,
-  shouldExpandBattlefieldStackGroup,
-  StackSourceUnit,
-} from '../../../web/lib/appViewHelpers'
+} from '../../../web/lib/battlefieldNaming'
+import { resolveBattlefieldStacksExpandable, shouldExpandBattlefieldStackGroup } from '../../../web/lib/stackSelection'
+import type { StackSourceUnit } from '../../../web/lib/stackSelection'
 import { UnitStatus } from '#shared/types/index'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '../../../web/lib/sessionCatalog'
@@ -37,6 +36,7 @@ describe('resolveBattlefieldDisplayName', () => {
         unitId: 'pigs-1',
         typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
+        state: 'operational',
         friendlyName: 'Little Pigs 1',
       },
       undefined,
@@ -69,6 +69,7 @@ describe('resolveBattlefieldDisplayName', () => {
         unitId: 'pigs-1',
         typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
+        state: 'operational',
         friendlyName: 'Little Pigs 1',
       },
       stackNaming,
@@ -94,6 +95,7 @@ describe('resolveBattlefieldDisplayName', () => {
         unitId: 'pigs-1',
         typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
+        state: 'operational',
         friendlyName: 'Little Pigs 1',
       },
       stackNaming,
@@ -115,6 +117,7 @@ describe('resolveBattlefieldDisplayName', () => {
         unitId: 'pigs-1',
         typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
+        state: 'operational',
       },
       stackNaming,
     )
@@ -146,6 +149,7 @@ describe('resolveBattlefieldDisplayName', () => {
         unitId: 'pigs-1',
         typeId: 'LittlePigs',
         position: { q: 2, r: 2 },
+        state: 'operational',
         friendlyName: 'Little Pigs 1',
       },
       stackNaming,
@@ -158,10 +162,11 @@ describe('resolveBattlefieldDisplayName', () => {
 
   it('falls back to the unit name for single units', () => {
     const label = resolveBattlefieldDisplayName({
-      id: 'puss-1',
-      type: 'Puss',
+      unitId: 'puss-1',
+      typeId: 'Puss',
       friendlyName: 'Puss 1',
       position: { q: 1, r: 1 },
+      state: 'operational',
     })
 
     expect(label).toBe('Puss 1')

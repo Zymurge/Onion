@@ -2,33 +2,24 @@ import { useMemo } from 'react'
 import type { ServerGameSnapshot } from './gameClient'
 import {
   buildCombatRangeSources,
-  buildWebStackSourceState,
   buildLiveDefenders,
   buildLiveOnions,
   buildScenarioMap,
-  countSelectedBattlefieldStackGroups,
   formatLiveConnectionStatus,
-  getBattlefieldWeaponAttack,
   getPhaseAdvanceLabel,
   getPhaseOwner,
-  isWeaponSelectionId,
-  isBattlefieldUnitCombatReady,
-  parseWeaponStats,
-  resolveBattlefieldStacksExpandable,
-  resolveBattlefieldFriendlyName,
-  resolveBattlefieldWeaponName,
-  resolveBattlefieldStackMemberIds,
-  resolveSelectionOwnerUnitId,
-  stripWeaponSelectionId,
-  isBattlefieldWeaponReady,
-} from './appViewHelpers'
+} from './battlefieldViewBuilders'
+import { buildWebStackSourceState, countSelectedBattlefieldStackGroups, resolveBattlefieldStackMemberIds, resolveBattlefieldStacksExpandable } from './stackSelection'
+import { resolveBattlefieldFriendlyName } from './battlefieldNaming'
+import { getBattlefieldWeaponAttack, isBattlefieldUnitCombatReady, isBattlefieldWeaponReady, parseWeaponStats, resolveBattlefieldWeaponName } from './weaponStats'
+import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './selectionIds'
 import { buildCombatRangeHexKeys } from './combatRange'
 import { buildCombatTargetOptions } from './combatPreview'
 import { buildRightRailStackSelectionViewModel } from './rightRailSelection'
 import type { GameSessionViewState } from './gameSessionTypes'
 import type { SessionBinding } from './sessionBinding'
 import type { GameState, TurnPhase } from '../../shared/types/index'
-import { isSessionUnitTypeStackable } from './sessionCatalog'
+import { getSessionUnitType, isSessionUnitTypeStackable } from './sessionCatalog'
 import { validateStackRosterConsistency } from '../../shared/stackRoster'
 import type { BattlefieldInteractionState } from './useBattlefieldInteractionState'
 
@@ -179,7 +170,7 @@ export function useBattlefieldDisplayState({
     const selectedOnionId = activeSelectedUnitIds.map(resolveSelectionOwnerUnitId).find((unitId) => displayedOnions.some((onion) => onion.unitId === unitId))
     const displayedOnion = displayedOnions.find((onion) => onion.unitId === selectedOnionId) ?? displayedOnions[0] ?? null
     const stackNaming = hasValidationError ? null : authoritativeState?.stackNaming ?? null
-    const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? [])
+    const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
     const readyWeaponDetails = displayedOnion?.weapons.filter(isBattlefieldWeaponReady) ?? []
     const readyDefenderUnitIds = new Set(
       displayedDefenders
@@ -209,7 +200,7 @@ export function useBattlefieldDisplayState({
 
         return displayedDefenders
           .filter((unit) => selectedUnitIdSet.has(unit.unitId))
-          .reduce((total, unit) => total + unit.weapons.filter(isBattlefieldWeaponReady).reduce((strength, weapon) => strength + getBattlefieldWeaponAttack(weapon, catalog ?? undefined), 0), 0)
+          .reduce((total, unit) => total + (catalog === null ? 0 : getSessionUnitType(catalog, unit.typeId).weapons.reduce((unitTotal, weapon) => unitTotal + weapon.attack, 0)), 0)
       })()
     const selectedCombatAttackMemberLabels = hasValidationError
       ? []

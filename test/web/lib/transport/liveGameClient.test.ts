@@ -4,6 +4,43 @@ import { materializeScenarioMap } from '../../../../shared/scenarioMap'
 
 import { createLiveGameClient, type LiveGameClientState } from '../../../../web/lib/liveGameClient'
 
+function jsonResponse(body: unknown, status = 200) {
+	return {
+		ok: status >= 200 && status < 300,
+		status,
+		text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+	}
+}
+
+function createStateResponse(gameId: number, eventSeq: number, phase = 'DEFENDER_MOVE') {
+	return {
+		gameId,
+		role: 'defender',
+		phase,
+		scenarioName: `Game ${gameId}`,
+		turnNumber: 1,
+		state: { onions: {}, defenders: {}, stackRoster: { groupsById: {} } },
+		movementRemainingByUnit: {},
+		victoryObjectives: [],
+		scenarioMap: {
+			width: 1,
+			height: 1,
+			cells: [{ q: 0, r: 0 }],
+			hexes: [{ q: 0, r: 0, t: 0 }],
+		},
+		eventSeq,
+	}
+}
+
+function createActionResponse(gameId: number, eventSeq: number, phase = 'DEFENDER_MOVE') {
+	return {
+		...createStateResponse(gameId, eventSeq, phase),
+		ok: true,
+		seq: eventSeq,
+		events: [],
+	}
+}
+
 class FakeWebSocket {
 	static CONNECTING = 0;
 	static OPEN = 1;
@@ -135,5 +172,116 @@ describe('createLiveGameClient', () => {
 		expect(fetchImpl).toHaveBeenCalledTimes(1)
 
 		unsubscribe()
+	})
+
+	it('submits actions and polls events through the HTTP client', async () => {
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(jsonResponse(createStateResponse(123, 7)))
+			.mockResolvedValueOnce(jsonResponse(createActionResponse(123, 8, 'ONION_COMBAT')))
+			.mockResolvedValueOnce(jsonResponse({ events: [] }))
+		const client = createLiveGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+		})
+
+		await client.getState(123)
+		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toMatchObject({
+			gameId: 123,
+			phase: 'ONION_COMBAT',
+			lastEventSeq: 8,
+		})
+		await expect(client.pollEvents(123, 8)).resolves.toEqual([])
+
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123/actions')
+		expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ type: 'END_PHASE' })
+		expect(fetchImpl.mock.calls[2]?.[0]).toBe('https://onion.test/api/games/123/events?after=8')
+	})
+
+	it('keeps live state signals associated with each game', async () => {
+		const sockets: FakeWebSocket[] = []
+		const updates: LiveGameClientState[] = []
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(jsonResponse(createStateResponse(123, 10)))
+			.mockResolvedValueOnce(jsonResponse(createStateResponse(456, 20)))
+		const client = createLiveGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			webSocketFactory: (url) => {
+				const socket = new FakeWebSocket(url)
+				sockets.push(socket)
+				return socket
+			},
+		})
+		client.subscribeLiveState((state) => updates.push(state))
+
+		await client.getState(123)
+		await client.getState(456)
+		sockets[0]?.open()
+		sockets[1]?.open()
+		sockets[0]?.receive({ kind: 'EVENT', event: { seq: 11, type: 'GAME_ONE_EVENT', timestamp: '2026-04-02T00:00:00.000Z' } })
+		sockets[1]?.receive({ kind: 'EVENT', event: { seq: 21, type: 'GAME_TWO_EVENT', timestamp: '2026-04-02T00:00:00.000Z' } })
+
+		expect(updates).toContainEqual(expect.objectContaining({ gameId: 123, lastEventSeq: 11, lastEventType: 'GAME_ONE_EVENT' }))
+		expect(updates).toContainEqual(expect.objectContaining({ gameId: 456, lastEventSeq: 21, lastEventType: 'GAME_TWO_EVENT' }))
+		expect(client.getLiveState()).toMatchObject({ gameId: 456, lastEventSeq: 21, lastEventType: 'GAME_TWO_EVENT' })
+	})
+
+	it('projects snapshot, error, and disconnect signals and honors unsubscribe', async () => {
+		const socket = new FakeWebSocket('wss://onion.test/games/123/ws')
+		const listener = vi.fn()
+		const client = createLiveGameClient({
+			baseUrl: 'https://onion.test',
+			fetchImpl: vi.fn().mockResolvedValue(jsonResponse(createStateResponse(123, 3))),
+			webSocketFactory: () => socket,
+		})
+		const unsubscribe = client.subscribeLiveState(listener)
+
+		await client.getState(123)
+		const callsBeforeUnsubscribe = listener.mock.calls.length
+		socket.open()
+		socket.receive({ kind: 'STATE_SNAPSHOT', snapshot: { eventSeq: 4 } })
+		socket.receive({ kind: 'ERROR', message: 'socket failed' })
+		socket.close()
+
+		expect(listener.mock.calls.slice(callsBeforeUnsubscribe)).toEqual([
+			[expect.objectContaining({ connectionStatus: 'connected' })],
+			[expect.objectContaining({ lastEventSeq: 4, lastEventType: null })],
+			[expect.objectContaining({ connectionStatus: 'disconnected' })],
+			[expect.objectContaining({ connectionStatus: 'disconnected' })],
+			[expect.objectContaining({ connectionStatus: 'disconnected' })],
+		])
+		const callsAfterSignals = listener.mock.calls.length
+		unsubscribe()
+		socket.open()
+		socket.receive({ kind: 'EVENT', event: { seq: 5, type: 'IGNORED', timestamp: '2026-04-02T00:00:00.000Z' } })
+		expect(listener).toHaveBeenCalledTimes(callsAfterSignals)
+	})
+
+	it('reconnects and resumes from the latest live event sequence', async () => {
+		const sockets: FakeWebSocket[] = []
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(jsonResponse(createStateResponse(123, 7)))
+			.mockResolvedValueOnce(jsonResponse(createStateResponse(123, 7)))
+		const client = createLiveGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			webSocketFactory: (url) => {
+				const socket = new FakeWebSocket(url)
+				sockets.push(socket)
+				return socket
+			},
+		})
+
+		await client.getState(123)
+		sockets[0]?.open()
+		sockets[0]?.receive({ kind: 'EVENT', event: { seq: 9, type: 'UNIT_MOVED', timestamp: '2026-04-02T00:00:00.000Z' } })
+		sockets[0]?.close()
+
+		await client.getState(123)
+		sockets[1]?.open()
+
+		expect(sockets[1]?.sentMessages).toEqual([
+			JSON.stringify({ kind: 'RESUME', afterSeq: 9 }),
+		])
 	})
 })

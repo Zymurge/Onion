@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react'
 
 import { BattlefieldStage } from './BattlefieldStage'
 
-type AppBattlefieldStageProps = ComponentProps<typeof BattlefieldStage> & {
+type AppBattlefieldStageProps = Omit<ComponentProps<typeof BattlefieldStage>, 'scenarioMap'> & {
   scenarioMap: ComponentProps<typeof BattlefieldStage>['scenarioMap'] | null
 }
 
