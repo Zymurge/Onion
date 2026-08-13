@@ -1,16 +1,59 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import type { ComponentProps } from 'react'
 
 import { BattlefieldLeftRail } from '#web/components/BattlefieldLeftRail'
 import type { BattlefieldOnionView } from '#web/lib/battlefieldView'
-import { canonicalizeBattlefieldDefenders, type BattlefieldDefenderFixture } from '#test/utils/gameStateUtils'
+import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion, type BattlefieldDefenderFixture } from '#test/utils/gameStateUtils'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
 import type { StackRosterState } from '#shared/types/index'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
+type LeftRailProps = ComponentProps<typeof BattlefieldLeftRail>
+
+function createOnion(overrides: Partial<BattlefieldOnionView> = {}): BattlefieldOnionView {
+  return {
+    id: 'onion-1',
+    type: 'TheOnion',
+    position: { q: 0, r: 0 },
+    status: 'operational',
+    treads: 33,
+    movesAllowed: 3,
+    movesRemaining: 3,
+    rams: 0,
+    weapons: 'main: ready',
+    weaponDetails: [],
+    ...overrides,
+  }
+}
+
+function createLeftRailProps(overrides: Partial<LeftRailProps> = {}): LeftRailProps {
+  return {
+    activeCombatRole: null,
+    activeRole: 'onion',
+    activeTurnActive: true,
+    activeMode: 'fire',
+    activeSelectedUnitIds: [],
+    displayedDefenders: [],
+    displayedOnion: null,
+    isCombatPhase: false,
+    isMovementPhase: false,
+    isSelectionLocked: false,
+    stacksExpandable: false,
+    onionWeapons: { operationalWeapons: 0, operationalMissiles: 0 },
+    readyWeaponDetails: [],
+    selectedCombatAttackLabel: 'Attack 0',
+    onSelectUnit: vi.fn(),
+    ...overrides,
+  }
+}
+
+function renderLeftRail(overrides: Partial<LeftRailProps> = {}) {
+  return render(<BattlefieldLeftRail {...createLeftRailProps(overrides)} />)
+}
 
 describe('BattlefieldLeftRail', () => {
   it('renders onion weapon metadata from the session catalog', () => {
@@ -42,7 +85,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={[]}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -123,7 +166,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -133,6 +176,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -206,7 +250,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -216,6 +260,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -259,7 +304,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -281,6 +326,7 @@ describe('BattlefieldLeftRail', () => {
             },
           }
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -326,7 +372,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -336,6 +382,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={{ groupsInUse: [], usedGroupNames: [] } as StackNamingSnapshot}
         stackRoster={undefined}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -344,6 +391,9 @@ describe('BattlefieldLeftRail', () => {
     expect(alert.textContent).toContain('Missing stackNaming entry for grouped unit pigs-5')
     expect(alert.textContent).toContain('selectedUnitId=pigs-5')
     expect(alert.textContent).toContain('stackRosterGroups=none')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss error' }))
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('renders Little Pigs as a grouped move card with individually toggle-able members', () => {
@@ -421,7 +471,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -431,6 +481,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={onSelectUnit}
       />,
     )
@@ -477,7 +528,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2', 'pigs-3']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -508,6 +559,7 @@ describe('BattlefieldLeftRail', () => {
             },
           },
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -563,7 +615,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase={false}
         isMovementPhase
         isSelectionLocked={false}
@@ -587,6 +639,7 @@ describe('BattlefieldLeftRail', () => {
             },
           }
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -668,7 +721,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -678,6 +731,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={onSelectUnit}
       />,
     )
@@ -765,7 +819,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2', 'pigs-3']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -775,6 +829,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 3"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -849,7 +904,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -859,6 +914,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -929,7 +985,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -939,6 +995,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 1"
         stackNaming={stackNaming as StackNamingSnapshot}
         stackRoster={stackRoster as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -993,7 +1050,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={['pigs-1', 'pigs-2']}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -1017,6 +1074,7 @@ describe('BattlefieldLeftRail', () => {
             },
           }
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
       />,
     )
@@ -1073,7 +1131,7 @@ describe('BattlefieldLeftRail', () => {
         activeMode="fire"
         activeSelectedUnitIds={[]}
         displayedDefenders={canonicalizeBattlefieldDefenders(displayedDefenders)}
-        displayedOnion={onion}
+        displayedOnion={canonicalizeBattlefieldOnion(onion)}
         isCombatPhase
         isMovementPhase={false}
         isSelectionLocked={false}
@@ -1097,6 +1155,7 @@ describe('BattlefieldLeftRail', () => {
             },
           }
         } as StackRosterState}
+        catalog={sessionCatalog}
         onSelectUnit={onSelectUnit}
       />,
     )
@@ -1106,5 +1165,301 @@ describe('BattlefieldLeftRail', () => {
 
     fireEvent.click(groupButton)
     expect(onSelectUnit).toHaveBeenCalledWith('pigs-1', false)
+  })
+
+  it('routes Onion weapon selection with additive gestures', () => {
+    const onSelectUnit = vi.fn()
+    const weapon = {
+      id: 'main-1',
+      typeId: 'TheOnion.main',
+      weaponClass: 'main' as const,
+      state: 'ready' as const,
+      friendlyName: 'Main gun',
+    }
+
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isCombatPhase: true,
+      displayedOnion: createOnion({ weaponDetails: [weapon] }),
+      readyWeaponDetails: [weapon],
+      catalog: sessionCatalog,
+      onSelectUnit,
+    })
+
+    const weaponCard = screen.getByTestId('combat-weapon-main-1')
+    fireEvent.click(weaponCard)
+    fireEvent.click(weaponCard, { ctrlKey: true })
+
+    expect(onSelectUnit).toHaveBeenNthCalledWith(1, 'weapon:main-1', false)
+    expect(onSelectUnit).toHaveBeenNthCalledWith(2, 'weapon:main-1', true)
+  })
+
+  it('routes Onion movement selection with additive gestures', () => {
+    const onSelectUnit = vi.fn()
+
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isMovementPhase: true,
+      displayedOnion: canonicalizeBattlefieldOnion(createOnion()),
+      onSelectUnit,
+    })
+
+    const onionCard = screen.getByTestId('combat-unit-onion-1')
+    fireEvent.click(onionCard)
+    fireEvent.click(onionCard, { ctrlKey: true })
+
+    expect(onSelectUnit).toHaveBeenNthCalledWith(1, 'onion-1', false)
+    expect(onSelectUnit).toHaveBeenNthCalledWith(2, 'onion-1', true)
+  })
+
+  it('shows the Onion movement waiting state when no Onion is available', () => {
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isMovementPhase: true,
+    })
+
+    expect(screen.getByText('Waiting for battlefield data.')).not.toBeNull()
+  })
+
+  it('shows the empty and locked Onion weapon states', () => {
+    const onSelectUnit = vi.fn()
+    const weapon = {
+      id: 'main-1',
+      typeId: 'TheOnion.main',
+      weaponClass: 'main' as const,
+      state: 'ready' as const,
+      friendlyName: 'Main gun',
+    }
+
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isCombatPhase: true,
+      onSelectUnit,
+    })
+    expect(screen.getByText('No ready weapons available.')).not.toBeNull()
+
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isCombatPhase: true,
+      isSelectionLocked: true,
+      readyWeaponDetails: [weapon],
+      catalog: sessionCatalog,
+      onSelectUnit,
+    })
+
+    const weaponCard = screen.getByTestId('combat-weapon-main-1')
+    expect(weaponCard).toBeDisabled()
+    fireEvent.click(weaponCard)
+    expect(onSelectUnit).not.toHaveBeenCalled()
+  })
+
+  it('disables a non-ready combat member while keeping the stack group available', () => {
+    const onSelectUnit = vi.fn()
+    const displayedDefenders = canonicalizeBattlefieldDefenders([
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 1',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+      {
+        id: 'pigs-2',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 2',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: spent',
+        attack: '1 / rng 1',
+        actionableModes: [],
+      },
+    ])
+    const stackNaming = {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 1'],
+    } as StackNamingSnapshot
+    const stackRoster = {
+      groupsById: {
+        'LittlePigs:4,4': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 4 },
+          unitIds: ['pigs-1', 'pigs-2'],
+        },
+      },
+    } as StackRosterState
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      activeMode: 'fire',
+      isCombatPhase: true,
+      activeSelectedUnitIds: ['pigs-1', 'pigs-2'],
+      displayedDefenders,
+      stackNaming,
+      stackRoster,
+      stacksExpandable: true,
+      catalog: sessionCatalog,
+      onSelectUnit,
+    })
+
+    expect(screen.getByTestId('combat-unit-pigs-1')).not.toBeDisabled()
+    expect(screen.getByTestId('combat-stack-member-pigs-1')).not.toBeDisabled()
+    expect(screen.getByTestId('combat-stack-member-pigs-2')).toBeDisabled()
+
+    fireEvent.click(screen.getByTestId('combat-stack-member-pigs-1'))
+    fireEvent.click(screen.getByTestId('combat-stack-member-pigs-2'))
+
+    expect(onSelectUnit).toHaveBeenCalledOnce()
+    expect(onSelectUnit).toHaveBeenCalledWith('pigs-1', true)
+  })
+
+  it('disables defender groups and members when the left rail is selection-locked', () => {
+    const onSelectUnit = vi.fn()
+    const displayedDefenders = canonicalizeBattlefieldDefenders([
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 1',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire'],
+      },
+      {
+        id: 'pigs-2',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 2',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire'],
+      },
+    ])
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      isCombatPhase: true,
+      isSelectionLocked: true,
+      activeSelectedUnitIds: ['pigs-1', 'pigs-2'],
+      displayedDefenders,
+      stackNaming: {
+        groupsInUse: [
+          { groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        ],
+        usedGroupNames: ['Little Pigs group 1'],
+      } as StackNamingSnapshot,
+      stackRoster: {
+        groupsById: {
+          'LittlePigs:4,4': {
+            groupName: 'Little Pigs group 1',
+            unitType: 'LittlePigs',
+            position: { q: 4, r: 4 },
+            unitIds: ['pigs-1', 'pigs-2'],
+          },
+        },
+      } as StackRosterState,
+      stacksExpandable: true,
+      catalog: sessionCatalog,
+      onSelectUnit,
+    })
+
+    expect(screen.getByTestId('combat-unit-pigs-1')).toBeDisabled()
+    expect(screen.getByTestId('combat-stack-member-pigs-1')).toBeDisabled()
+    fireEvent.click(screen.getByTestId('combat-unit-pigs-1'))
+    fireEvent.click(screen.getByTestId('combat-stack-member-pigs-1'))
+    expect(onSelectUnit).not.toHaveBeenCalled()
+  })
+
+  it('routes an expanded defender move member as an additive selection', () => {
+    const onSelectUnit = vi.fn()
+    const displayedDefenders = canonicalizeBattlefieldDefenders([
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 1',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+      {
+        id: 'pigs-2',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 2',
+        status: 'operational',
+        q: 4,
+        r: 4,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: ['fire', 'combined'],
+      },
+    ])
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      isMovementPhase: true,
+      activeSelectedUnitIds: ['pigs-1'],
+      displayedDefenders,
+      stackNaming: {
+        groupsInUse: [
+          { groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        ],
+        usedGroupNames: ['Little Pigs group 1'],
+      } as StackNamingSnapshot,
+      stackRoster: {
+        groupsById: {
+          'LittlePigs:4,4': {
+            groupName: 'Little Pigs group 1',
+            unitType: 'LittlePigs',
+            position: { q: 4, r: 4 },
+            unitIds: ['pigs-1', 'pigs-2'],
+          },
+        },
+      } as StackRosterState,
+      stacksExpandable: true,
+      catalog: sessionCatalog,
+      onSelectUnit,
+    })
+
+    fireEvent.click(screen.getByTestId('combat-stack-member-pigs-2'))
+
+    expect(onSelectUnit).toHaveBeenCalledWith('pigs-2', true)
+  })
+
+  it('shows the combat waiting state when no defenders are available', () => {
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      isCombatPhase: true,
+    })
+
+    expect(screen.getByText('Waiting for battlefield data.')).not.toBeNull()
   })
 })

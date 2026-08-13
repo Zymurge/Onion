@@ -1,24 +1,29 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hex'
-import { isBattlefieldWeaponReady, resolveBattlefieldDisplayName, resolveSelectionOwnerUnitId } from '../lib/appViewHelpers'
-import { statusTone, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
+import { resolveSelectionOwnerUnitId } from '../lib/selectionIds'
+import { HexMapCell } from './HexMapCell'
 import { hexKey } from '../../shared/hex'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
-import { formatCombatTargetId } from '../../shared/combatTarget'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { buildStackRosterIndex } from '../../shared/stackRoster'
-import type { DefenderMap, StackRosterState, TurnPhase } from '../../shared/types/index'
-import { isSessionUnitTypeStackable, type SessionCatalog } from '../lib/sessionCatalog'
+import type { StackRosterState, TurnPhase } from '../../shared/types/index'
+import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
+import {
+  buildOccupantMap,
+  collapseStackedOccupants,
+  hasStackedOccupants,
+  resolveCanonicalOccupant,
+  type HexOccupant,
+  type OccupantRosterIndex,
+} from '../lib/hexMapOccupancy'
+import { getCombatTargetIdForOccupant, isCombatTargetSelected, isCombatTargetSelectable } from '../lib/hexMapCombatTargeting'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
+import { buildBattlefieldRosterProjection } from '../lib/battlefieldGroupProjection'
+import { useHexMapZoom } from '../lib/useHexMapZoom'
+import type { SessionCatalog } from '../lib/sessionCatalog'
 import logger from '../lib/logger'
 import './HexMapBoard.css'
-
-import swampDestroyedSprite from '../assets/The Swamp - destroyed.png'
-import swampIntactSprite from '../assets/The Swamp - intact.png'
-
-type HexOccupant = BattlefieldUnit | BattlefieldOnionView
 
 type HexMapBoardProps = {
   scenarioMap: {
@@ -49,76 +54,6 @@ type HexMapBoardProps = {
 
 const HEX_SIZE = 36
 const MAP_PADDING = 28
-const ZOOM_MIN = 0.5
-const ZOOM_MAX = 2.0
-const ZOOM_STEP = 0.05
-const ZOOM_PERCENT_MIN = Math.round(ZOOM_MIN * 100)
-const ZOOM_PERCENT_MAX = Math.round(ZOOM_MAX * 100)
-const ZOOM_PERCENT_STEP = Math.round(ZOOM_STEP * 100)
-
-function clampZoomPercent(value: number) {
-  return Math.max(ZOOM_PERCENT_MIN, Math.min(ZOOM_PERCENT_MAX, value))
-}
-
-function getStackOffset(index: number, total: number): { dx: number; dy: number } {
-  if (total <= 1) {
-    return { dx: 0, dy: 0 }
-  }
-
-  if (total === 2) {
-    return { dx: 0, dy: index === 0 ? -11 : 11 }
-  }
-
-  const radius = 11
-  const angle = (Math.PI * 2 * index) / total - Math.PI / 2
-  return {
-    dx: Math.round(Math.cos(angle) * radius),
-    dy: Math.round(Math.sin(angle) * radius),
-  }
-}
-
-function shouldRenderDefender(defender: BattlefieldUnit) {
-  return defender.status !== 'destroyed' || defender.type === 'Swamp'
-}
-
-function getSwampSpriteHref(status: string) {
-  return status === 'destroyed' ? swampDestroyedSprite : swampIntactSprite
-}
-
-function getUnitMarkerText(occupant: HexOccupant, stackNaming?: StackNamingSnapshot): string | null {
-  if (occupant.type === 'Swamp') {
-    return null
-  }
-
-  return resolveBattlefieldDisplayName(occupant, stackNaming)
-}
-
-function isStackableUnitType(unitType: string, catalog?: SessionCatalog): boolean {
-  return catalog !== undefined && isSessionUnitTypeStackable(catalog, unitType)
-}
-
-function hasStackedOccupants(defenders: ReadonlyArray<BattlefieldUnit>, catalog?: SessionCatalog): boolean {
-  const stackedCountsByPosition = new Map<string, number>()
-
-  for (const defender of defenders) {
-    if (!isStackableUnitType(defender.type, catalog)) {
-      continue
-    }
-
-    if ((defender.squads ?? 1) > 1) {
-      return true
-    }
-
-    const key = `${defender.type}:${defender.position.q},${defender.position.r}`
-    const nextCount = (stackedCountsByPosition.get(key) ?? 0) + 1
-    stackedCountsByPosition.set(key, nextCount)
-    if (nextCount > 1) {
-      return true
-    }
-  }
-
-  return false
-}
 
 function buildMoveValidationState(
   phase: string | null,
@@ -132,28 +67,26 @@ function buildMoveValidationState(
   }
 
   return {
-    onions: Object.fromEntries(onions.map((onion) => [onion.id, {
-      unitId: onion.id,
-      typeId: onion.type,
+    onions: Object.fromEntries(onions.map((onion) => [onion.unitId, {
+      unitId: onion.unitId,
+      typeId: onion.typeId,
       role: 'onion' as const,
-      friendlyName: onion.friendlyName ?? onion.id,
+      friendlyName: onion.friendlyName,
       position: onion.position,
-      state: onion.status,
+      state: onion.state,
       treads: onion.treads,
-      ramsRemaining: onion.rams,
-      weapons: onion.weaponDetails ?? [],
+      ramsRemaining: onion.ramsRemaining,
+      weapons: onion.weapons,
     }])),
     defenders: Object.fromEntries(
-      defenders.map((defender) => [defender.id, {
+      defenders.map((defender) => [defender.unitId, {
         unitId: defender.unitId,
         typeId: defender.typeId,
         role: 'defender',
         friendlyName: defender.friendlyName,
         position: defender.position,
         state: defender.state,
-        weapons: defender.weaponDetails ?? [],
-        squads: defender.squads,
-        targetRules: defender.targetRules,
+        weapons: defender.weapons,
       }]),
     ),
     stackNaming: stackNaming ?? { groupsInUse: [], usedGroupNames: [] },
@@ -163,32 +96,51 @@ function buildMoveValidationState(
   }
 }
 
-export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole = null, selectedUnitIds, selectedCombatTargetId, combatRangeHexKeys, combatTargetIds, escapeHexes, stackNaming, stackRoster, catalog, canSubmitMove = true, isSelectionLocked = false, onSelectUnit, onSelectCombatTarget, onDeselect, onMoveUnit }: HexMapBoardProps) {
-  void viewerRole
-
+/** Renders the battlefield map and coordinates its derived state and interactions. */
+export function HexMapBoard({
+  scenarioMap,
+  defenders,
+  onions,
+  phase,
+  viewerRole = null,
+  selectedUnitIds,
+  selectedCombatTargetId,
+  combatRangeHexKeys,
+  combatTargetIds,
+  escapeHexes,
+  stackNaming,
+  stackRoster,
+  catalog,
+  canSubmitMove = true,
+  isSelectionLocked = false,
+  onSelectUnit,
+  onSelectCombatTarget,
+  onDeselect,
+  onMoveUnit,
+}: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
-  const occupantMap = new Map<string, HexOccupant[]>()
-  const stackRosterIndex = useMemo(() => {
+  const renderedCells = scenarioMap.cells
+  const bounds = boardPixelSize(renderedCells, HEX_SIZE, MAP_PADDING)
+  const {
+    maxZoomPercent,
+    minZoomPercent,
+    scaledBounds,
+    scrollViewportRef,
+    setZoomPercent,
+    stepZoomPercent,
+    zoomPercent,
+    zoomSliderRef,
+  } = useHexMapZoom(bounds)
+  const occupantMap = buildOccupantMap({ onions, defenders })
+  const escapeHexSet = new Set((escapeHexes ?? []).map((hex) => hexKey(hex)))
+  const battlefieldRosterProjection = useMemo(() => {
     if (stackRoster === undefined) {
       return null
     }
 
-    const defenderLookup = Object.fromEntries(
-      defenders.map((defender) => [defender.id, {
-        unitId: defender.unitId,
-        typeId: defender.typeId,
-        role: 'defender' as const,
-        friendlyName: defender.friendlyName,
-        position: defender.position,
-        state: defender.state,
-        weapons: defender.weaponDetails ?? [],
-        targetRules: defender.targetRules,
-        squads: defender.squads,
-      }]),
-    ) as DefenderMap
-
-    return buildStackRosterIndex(stackRoster, defenderLookup)
+    return buildBattlefieldRosterProjection(defenders, stackRoster)
   }, [defenders, stackRoster])
+  const stackRosterIndex = battlefieldRosterProjection?.index ?? null
 
   if (stackRosterIndex === null && hasStackedOccupants(defenders, catalog)) {
     throw new Error('Missing stackRoster for grouped defenders')
@@ -196,24 +148,19 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
 
   const escapePatternId = useId().replaceAll(':', '')
   const [moveError, setMoveError] = useState<string | null>(null)
-  const [zoomPercent, setZoomPercent] = useState(100)
-  const scrollViewportRef = useRef<HTMLDivElement | null>(null)
-  const zoomSliderRef = useRef<HTMLInputElement | null>(null)
-  const previousZoomRef = useRef(1)
   const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
   const activeCombatRole = phase === 'ONION_COMBAT' ? 'onion' : phase === 'DEFENDER_COMBAT' ? 'defender' : null
   const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
   const resolvedViewerRole = viewerRole ?? (phase?.startsWith('DEFENDER') ? 'defender' : 'onion')
   const resolvedViewerActivity = isSelectionLocked ? 'inactive' : 'active'
   const resolvedPhaseMode = isMovementPhase ? 'movement' : isCombatPhase ? 'combat' : 'locked'
-  const zoomLevel = zoomPercent / 100
 
   const selectedUnitSet = useMemo(() => {
     const selectedIds = new Set<string>()
 
     for (const selectionId of selectedUnitIds) {
       if (selectionId.startsWith('weapon:')) {
-        selectedIds.add(onions[0]?.id ?? '')
+        selectedIds.add(onions[0]?.unitId ?? '')
         continue
       }
 
@@ -228,56 +175,49 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
       return resolveSelectionOwnerUnitId(directSelection)
     }
 
-    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onions[0]?.id ?? null : null
+    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onions[0]?.unitId ?? null : null
   }, [onions, selectedUnitIds])
-  const onion = onions.find((unit) => unit.id === selectedPrimaryUnitId) ?? onions[0]
+  const onion = onions.find((unit) => unit.unitId === selectedPrimaryUnitId) ?? onions[0]
 
-  for (const onionUnit of onions) {
-    const key = hexKey(onionUnit.position)
-    occupantMap.set(key, [...(occupantMap.get(key) ?? []), onionUnit])
-  }
-  for (const defender of defenders) {
-    if (!shouldRenderDefender(defender)) continue
-    const key = hexKey(defender.position)
-    const occupants = occupantMap.get(key) ?? []
-    occupants.push(defender)
-    occupantMap.set(key, occupants)
-  }
-
-  const selectedOccupant =
-    selectedPrimaryUnitId === null
-      ? null
-      : onions.find((unit) => unit.id === selectedPrimaryUnitId) ??
-        defenders.find((unit) => unit.id === selectedPrimaryUnitId) ?? null
+  const selectedOccupant = selectedPrimaryUnitId === null
+    ? null
+    : onions.find((unit) => unit.unitId === selectedPrimaryUnitId) ??
+      defenders.find((unit) => unit.unitId === selectedPrimaryUnitId) ?? null
   const selectedAllowance = selectedOccupant
-    ? onions.some((unit) => unit.id === selectedOccupant.id)
-    ? (selectedOccupant as BattlefieldOnionView).movesRemaining
-      : 'move' in selectedOccupant
-        ? selectedOccupant.move
-        : 0
+    ? onions.some((unit) => unit.unitId === selectedOccupant.unitId)
+      ? (selectedOccupant as BattlefieldOnionView).movesRemaining
+      : (selectedOccupant as BattlefieldUnit).movesRemaining
     : 0
   const occupiedHexes = Array.from(occupantMap.entries())
     .flatMap(([key, occupants]) => {
       const [q, r] = key.split(',').map(Number)
       return occupants
-        .filter((occupant) => occupant.id !== selectedPrimaryUnitId && (occupant.status !== 'destroyed' || occupant.type === 'Swamp'))
+        .filter((occupant) => occupant.unitId !== selectedPrimaryUnitId && (occupant.state !== 'destroyed' || occupant.typeId === 'Swamp'))
         .map((occupant) => ({
           q,
           r,
-          role: onions.some((onion) => occupant.id === onion.id) ? ('onion' as const) : ('defender' as const),
-          unitType: occupant.type,
+          role: onions.some((onionUnit) => occupant.unitId === onionUnit.unitId) ? ('onion' as const) : ('defender' as const),
+          unitType: occupant.typeId,
         }))
     })
-  const playerRole = canSubmitMove && phase && (phase.startsWith('ONION') ? 'onion' : phase.startsWith('DEFENDER') || phase === 'GEV_SECOND_MOVE' ? 'defender' : null)
-  const selectedIsEligible = !!(selectedOccupant && playerRole && isMovementPhase && selectedOccupant.status === 'operational' && selectedAllowance > 0)
+  const playerRole = canSubmitMove && phase
+    ? phase.startsWith('ONION')
+      ? 'onion'
+      : phase.startsWith('DEFENDER') || phase === 'GEV_SECOND_MOVE'
+        ? 'defender'
+        : null
+    : null
+  const selectedIsEligible = !!(
+    selectedOccupant && playerRole && isMovementPhase && selectedOccupant.state === 'operational' && selectedAllowance > 0
+  )
   const reachableHexKeys = selectedIsEligible && selectedOccupant
     ? new Set(
         listReachableMoves({
           map: { ...scenarioMap, occupiedHexes },
-            from: selectedOccupant.position,
+          from: getBattlefieldPosition(selectedOccupant),
           movementAllowance: selectedAllowance,
-          movingRole: onions.some((onion) => selectedOccupant.id === onion.id) ? 'onion' : 'defender',
-          movingUnitType: selectedOccupant.type,
+          movingRole: onions.some((onionUnit) => selectedOccupant.unitId === onionUnit.unitId) ? 'onion' : 'defender',
+          movingUnitType: selectedOccupant.typeId,
         }).map((move) => hexKey(move.to)),
       )
     : new Set<string>()
@@ -295,7 +235,7 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
     return validateMove(
       { ...scenarioMap, occupiedHexes },
       validationState,
-      { type: 'MOVE', unitId: selectedOccupant.id, to },
+      { type: 'MOVE', unitId: selectedOccupant.unitId, to },
     )
   }
 
@@ -312,169 +252,24 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
     }
   }, [moveError])
 
-  const renderedCells = scenarioMap.cells
-  const escapeHexSet = new Set((escapeHexes ?? []).map((hex) => hexKey(hex)))
-  const bounds = boardPixelSize(renderedCells, HEX_SIZE, MAP_PADDING)
-  const scaledBounds = {
-    width: bounds.width * zoomLevel,
-    height: bounds.height * zoomLevel,
-  }
-
-  function adjustZoom(direction: 1 | -1) {
-    setZoomPercent((current) => clampZoomPercent(current + direction * ZOOM_PERCENT_STEP))
-  }
-
-  useLayoutEffect(() => {
-    const viewport = scrollViewportRef.current
-
-    if (!viewport) {
-      previousZoomRef.current = zoomLevel
-      return
-    }
-
-    const previousZoom = previousZoomRef.current
-    if (previousZoom === zoomLevel) {
-      return
-    }
-
-    const centerX = (viewport.scrollLeft + viewport.clientWidth / 2) / previousZoom
-    const centerY = (viewport.scrollTop + viewport.clientHeight / 2) / previousZoom
-    const nextScrollLeft = Math.max(0, Math.min(centerX * zoomLevel - viewport.clientWidth / 2, scaledBounds.width - viewport.clientWidth))
-    const nextScrollTop = Math.max(0, Math.min(centerY * zoomLevel - viewport.clientHeight / 2, scaledBounds.height - viewport.clientHeight))
-
-    if (typeof viewport.scrollTo === 'function') {
-      viewport.scrollTo({ left: nextScrollLeft, top: nextScrollTop, behavior: 'auto' })
-    } else {
-      viewport.scrollLeft = nextScrollLeft
-      viewport.scrollTop = nextScrollTop
-    }
-
-    previousZoomRef.current = zoomLevel
-  }, [scaledBounds.height, scaledBounds.width, zoomLevel])
-
-  useEffect(() => {
-    const viewport = scrollViewportRef.current
-
-    if (!viewport) {
-      return undefined
-    }
-
-    const viewportElement = viewport
-
-    function handleWheel(event: WheelEvent) {
-      if (event.deltaX === 0 && event.deltaY === 0) {
-        return
-      }
-
-      event.preventDefault()
-
-      if (typeof viewportElement.scrollBy === 'function') {
-        viewportElement.scrollBy({ left: event.deltaX, top: event.deltaY, behavior: 'auto' })
-        return
-      }
-
-      viewportElement.scrollLeft += event.deltaX
-      viewportElement.scrollTop += event.deltaY
-    }
-
-    viewportElement.addEventListener('wheel', handleWheel, { passive: false })
-
-    return () => {
-      viewportElement.removeEventListener('wheel', handleWheel)
-    }
-  }, [])
-
-  useEffect(() => {
-    const slider = zoomSliderRef.current
-
-    if (!slider) {
-      return undefined
-    }
-
-    function handleWheel(event: WheelEvent) {
-      if (event.deltaY === 0) {
-        return
-      }
-
-      event.preventDefault()
-      adjustZoom(event.deltaY < 0 ? 1 : -1)
-    }
-
-    slider.addEventListener('wheel', handleWheel, { passive: false })
-
-    return () => {
-      slider.removeEventListener('wheel', handleWheel)
-    }
-  }, [])
-
   if (onion === undefined) {
     return null
   }
 
-  function getCombatTargetIdForOccupant(occupant: HexOccupant): string {
-    if (activeCombatRole === 'defender' && occupant.id === onion.id) {
-      return formatCombatTargetId({ kind: 'treads', onionId: onion.id })
-    }
-
-    return occupant.id
-  }
-
-  function selectCombatTarget(occupant: HexOccupant) {
-    const combatTargetId = getCombatTargetIdForOccupant(occupant)
-
-    if (activeCombatRole === 'onion' && occupant.id !== onion.id && (combatTargetIds === undefined || combatTargetIds.has(combatTargetId))) {
-      onSelectCombatTarget?.(combatTargetId)
-      return true
-    }
-
-    if (activeCombatRole === 'defender' && occupant.id === onion.id && (combatTargetIds === undefined || combatTargetIds.has(combatTargetId))) {
-      onSelectCombatTarget?.(combatTargetId)
-      return true
-    }
-
-    return false
-  }
-
-  function isCombatTargetSelectable(occupant: HexOccupant) {
-    const combatTargetId = getCombatTargetIdForOccupant(occupant)
-
-    if (activeCombatRole === 'onion' && occupant.id !== onion.id) {
-      return combatTargetIds === undefined || combatTargetIds.has(combatTargetId)
-    }
-
-    if (activeCombatRole === 'defender' && occupant.id === onion.id) {
-      return combatTargetIds === undefined || combatTargetIds.has(combatTargetId)
-    }
-
-    return false
-  }
-
   function routeMapInteraction(request: InteractionRoutingRequest) {
-    const decision = routeInteraction(request, (trace) => {
+    return routeInteraction(request, (trace) => {
       logger.debug('[interaction-debug] map routed', {
         ts: Date.now(),
         ...trace,
       })
     })
-
-    return decision
   }
 
-  function resolveCanonicalOccupant(occupants: HexOccupant[]): HexOccupant | undefined {
-  for (const occupant of occupants) {
-    const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
-
-    if (rosterGroup === null) {
-      return occupant
+  function selectCombatTarget(occupant: HexOccupant) {
+    const combatTargetId = getCombatTargetIdForOccupant(occupant, activeCombatRole, onion)
+    if (isCombatTargetSelectable(occupant, activeCombatRole, onion, combatTargetIds)) {
+      onSelectCombatTarget?.(combatTargetId)
     }
-
-    const anchorUnitId = rosterGroup.unitIds.find((unitId) => occupants.some((candidate) => candidate.id === unitId))
-    if (anchorUnitId !== undefined) {
-      return occupants.find((candidate) => candidate.id === anchorUnitId) ?? occupant
-    }
-  }
-
-  return occupants[0]
   }
 
   return (
@@ -509,59 +304,46 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
             {renderedCells.map((coord) => {
               const center = axialToPixel(coord, HEX_SIZE)
               const polygonPoints = pointsToString(hexCorners(center, HEX_SIZE - 1))
-              const terrainType = terrain.get(hexKey(coord))
-              const cellOccupants = occupantMap.get(hexKey(coord)) ?? []
-              const hasSharedOccupancy = cellOccupants.length > 1
-              const renderedTerrainType = terrainType
-              const isOnion = cellOccupants.some((occupant) => occupant.id === onion.id)
-              const isSelected = cellOccupants.some((occupant) => selectedUnitSet.has(occupant.id))
-              const isCombatTargetSelected = selectedCombatTargetId !== undefined && selectedCombatTargetId !== null && cellOccupants.some((occupant) => {
-                const combatTargetId = getCombatTargetIdForOccupant(occupant)
-
-                return combatTargetId === selectedCombatTargetId
-                  || (activeCombatRole === 'defender' && occupant.id === onion.id && (
-                    selectedCombatTargetId.startsWith(`${onion.id}:`) || selectedCombatTargetId.startsWith('weapon:')
-                  ))
-              })
-              const isCombatRange = combatRangeHexKeys?.has(hexKey(coord)) ?? false
-              const isEscapeHex = escapeHexSet.has(hexKey(coord))
+              const cellKey = hexKey(coord)
+              const cellOccupants = occupantMap.get(cellKey) ?? []
+              const isReachable = canSubmitMove && reachableHexKeys.has(cellKey)
+              const targetSelected = cellOccupants.some((occupant) => isCombatTargetSelected(
+                occupant,
+                activeCombatRole,
+                onion,
+                selectedCombatTargetId,
+              ))
+              const targetOccupant = resolveCanonicalOccupant(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)
               const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
-                if (!playerRole || !isMovementPhase || occupant.status !== 'operational') {
+                if (!playerRole || !isMovementPhase || occupant.state !== 'operational') {
                   return false
                 }
 
-                if (occupant.id === onion.id) {
+                if (occupant.unitId === onion.unitId) {
                   return onion.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance('TheOnion', phase, onion.treads) > 0)
                 }
 
-                if (!('move' in occupant)) {
-                  return false
-                }
-
-                return occupant.move > 0 || (phase !== null && getUnitMovementAllowance(occupant.type, phase) > 0)
+                return 'movesRemaining' in occupant && (occupant.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance(occupant.typeId, phase) > 0))
               })
-              const isReachable = canSubmitMove && reachableHexKeys.has(hexKey(coord))
-              const terrainImg = renderedTerrainType === 1 ? '/terrain/ridges.svg' : renderedTerrainType === 2 ? '/terrain/craters.svg' : '/terrain/default.svg'
-              const imgSize = HEX_SIZE * 2
 
               return (
-                <g
+                <HexMapCell
                   key={`${coord.q}-${coord.r}`}
-                  data-testid={`hex-cell-${coord.q}-${coord.r}`}
-                  className={[
-                    'hex-cell',
-                      renderedTerrainType ? `hex-terrain-${renderedTerrainType}` : 'hex-terrain-default',
-                    isSelected ? 'hex-cell-selected' : '',
-                    isCombatTargetSelected ? 'hex-cell-selected' : '',
-                    isCombatRange ? 'hex-cell-combat-range' : '',
-                    isEscapeHex ? 'hex-cell-escape' : '',
-                    isMoveReady ? 'hex-cell-move-ready' : '',
-                    isReachable ? 'hex-cell-reachable' : '',
-                    isOnion ? 'hex-cell-onion' : '',
-                    cellOccupants.length > 0 ? 'hex-cell-occupied' : '',
-                    hasSharedOccupancy ? 'hex-cell-shared-occupancy' : '',
-                  ].join(' ')}
-                  onClick={() => {
+                  activeCombatRole={activeCombatRole}
+                  center={center}
+                  cellOccupants={cellOccupants}
+                  combatRange={combatRangeHexKeys?.has(cellKey) ?? false}
+                  combatTargetSelected={targetSelected}
+                  coord={coord}
+                  escapeHex={escapeHexSet.has(cellKey)}
+                  escapePatternId={escapePatternId}
+                  hasSharedOccupancy={cellOccupants.length > 1}
+                  isMoveReady={isMoveReady}
+                  isOnion={cellOccupants.some((occupant) => occupant.unitId === onion.unitId)}
+                  isReachable={isReachable}
+                  isSelected={cellOccupants.some((occupant) => selectedUnitSet.has(occupant.unitId))}
+                  isSelectionLocked={isSelectionLocked}
+                  onBackgroundClick={() => {
                     if (isSelectionLocked) {
                       return
                     }
@@ -574,28 +356,21 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
                       gesture: 'primary',
                       subjectRelation: 'background',
                       subjectKind: 'background',
-                      subjectCapability: {
-                        inspectable: false,
-                        moveEligible: false,
-                        attackerEligible: false,
-                        targetEligible: false,
-                      },
+                      subjectCapability: { inspectable: false, moveEligible: false, attackerEligible: false, targetEligible: false },
                     })
 
                     if (decision.intent === 'clear-local-selection') {
                       onDeselect()
                     }
                   }}
-                  onContextMenu={(event) => {
+                  onCellContextMenu={(event) => {
                     event.preventDefault()
-
                     if (isSelectionLocked) {
                       return
                     }
 
                     const validation = validateMoveTarget(coord)
                     const destinationReachable = isReachable || validation?.valid === true
-                    const targetOccupant = resolveCanonicalOccupant(cellOccupants)
                     const decision = routeMapInteraction({
                       viewerRole: resolvedViewerRole,
                       viewerActivity: resolvedViewerActivity,
@@ -605,284 +380,43 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
                       subjectRelation: cellOccupants.length > 0 ? 'opponent' : 'background',
                       subjectKind: 'hex',
                       subjectCapability: {
-                        inspectable: cellOccupants.some((occupant) => occupant.status !== 'destroyed'),
+                        inspectable: cellOccupants.some((occupant) => occupant.state !== 'destroyed'),
                         moveEligible: selectedIsEligible,
                         attackerEligible: false,
-                          targetEligible: targetOccupant !== undefined ? isCombatTargetSelectable(targetOccupant) : false,
+                        targetEligible: targetOccupant !== undefined && isCombatTargetSelectable(targetOccupant, activeCombatRole, onion, combatTargetIds),
                       },
-                      interactionMode: {
-                        destinationReachable,
-                      },
+                      interactionMode: { destinationReachable },
                     })
 
-                      if (decision.intent === 'select-target' && targetOccupant !== undefined) {
-                        selectCombatTarget(targetOccupant)
-                        return
-                      }
+                    if (decision.intent === 'select-target' && targetOccupant !== undefined) {
+                      selectCombatTarget(targetOccupant)
+                      return
+                    }
 
-                    if (decision.intent === 'submit-move' && canSubmitMove && selectedIsEligible) {
-                      onMoveUnit(selectedOccupant.id, coord)
+                    if (decision.intent === 'submit-move' && canSubmitMove && selectedIsEligible && selectedOccupant !== null) {
+                      onMoveUnit(selectedOccupant.unitId, coord)
                       return
                     }
 
                     if (decision.intent === 'show-illegal-local-feedback' && canSubmitMove && selectedIsEligible) {
-                      const message = validation !== null && validation.valid === false ? validation.error : 'Illegal move'
-                      setMoveError(message)
+                      setMoveError(validation !== null && validation.valid === false ? validation.error : 'Illegal move')
                     }
                   }}
-                >
-                  <clipPath id={`hex-clip-${coord.q}-${coord.r}`}><polygon points={polygonPoints} /></clipPath>
-                  <image
-                    href={terrainImg}
-                    x={center.x - HEX_SIZE}
-                    y={center.y - HEX_SIZE}
-                    width={imgSize}
-                    height={imgSize}
-                    clipPath={`url(#hex-clip-${coord.q}-${coord.r})`}
-                    preserveAspectRatio="xMidYMid slice"
-                  />
-                  <polygon className="hex-shape" points={polygonPoints} fill="none" />
-                  {isEscapeHex ? (
-                    <polygon
-                      className="hex-shape hex-shape-escape-overlay"
-                      points={polygonPoints}
-                      style={{ fill: `url(#${escapePatternId})`, fillOpacity: 0.5, opacity: 0.5 }}
-                      pointerEvents="none"
-                    />
-                  ) : null}
-                  {isEscapeHex ? (
-                    <polygon
-                      className="hex-shape hex-shape-escape-ring"
-                      points={polygonPoints}
-                      fill="none"
-                      pointerEvents="none"
-                    />
-                  ) : null}
-                  {hasSharedOccupancy ? (
-                    <polygon
-                      className="hex-shape hex-shared-occupancy-ring"
-                      points={polygonPoints}
-                      fill="none"
-                      pointerEvents="none"
-                    />
-                  ) : null}
-                    {(() => {
-                      const renderedOccupants: HexOccupant[] = []
-                      const renderedGroupIds = new Set<string>()
-
-                      for (const occupant of cellOccupants) {
-                        const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
-
-                        if (rosterGroup !== null) {
-                          if (renderedGroupIds.has(rosterGroup.groupId)) {
-                            continue
-                          }
-
-                          renderedGroupIds.add(rosterGroup.groupId)
-                          const anchorUnitId = rosterGroup.unitIds.find((unitId) => cellOccupants.some((cellOccupant) => cellOccupant.id === unitId)) ?? occupant.id
-                          renderedOccupants.push(cellOccupants.find((cellOccupant) => cellOccupant.id === anchorUnitId) ?? occupant)
-                          continue
-                        }
-
-                        renderedOccupants.push(occupant)
-                      }
-
-                      return renderedOccupants.map((occupant, index) => {
-                        const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
-                        const isOccupantOnion = occupant.id === onion.id
-                        const isOccupantSelected = rosterGroup !== null
-                          ? rosterGroup.unitIds.some((unitId) => selectedUnitSet.has(unitId))
-                          : selectedUnitSet.has(occupant.id)
-                        const offset = getStackOffset(index, renderedOccupants.length)
-                        const isSwamp = occupant.type === 'Swamp'
-                        const isDestroyed = occupant.status === 'destroyed'
-                        const isDisabled = occupant.status === 'disabled'
-                        const isCombatPhase = phase === 'ONION_COMBAT' || phase === 'DEFENDER_COMBAT'
-                        const isMovementPhaseActiveSide = phase === 'ONION_MOVE' ? isOccupantOnion : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE' ? !isOccupantOnion : false
-                        const combatMembers = rosterGroup === null
-                          ? [occupant]
-                          : rosterGroup.unitIds
-                            .map((unitId) => cellOccupants.find((cellOccupant) => cellOccupant.id === unitId))
-                            .filter((member): member is HexOccupant => member !== undefined)
-                        const combatHasReadyAttack = isOccupantOnion
-                          ? (occupant.weaponDetails ?? []).some(isBattlefieldWeaponReady)
-                          : combatMembers.some((member) => member.status === 'operational' && 'actionableModes' in member && member.actionableModes.includes('fire'))
-                        const combatIsDisabled = combatMembers.length > 0 && combatMembers.every((member) => member.status === 'destroyed' || member.status === 'disabled')
-                        const moveHasRemaining = isOccupantOnion
-                          ? onion.movesRemaining > 0
-                          : 'move' in occupant && occupant.move > 0
-                        const combatEligibilityClass = !isCombatPhase
-                          ? ''
-                          : isDestroyed || isDisabled
-                            ? 'hex-unit-rect-combat-disabled'
-                            : activeCombatRole === 'onion'
-                              ? isOccupantOnion
-                                ? combatHasReadyAttack
-                                  ? 'hex-unit-rect-combat-eligible'
-                                  : 'hex-unit-rect-combat-ineligible'
-                                : 'hex-unit-rect-combat-inspectable'
-                              : activeCombatRole === 'defender'
-                                ? !isOccupantOnion
-                                  ? combatHasReadyAttack
-                                    ? 'hex-unit-rect-combat-eligible'
-                                    : 'hex-unit-rect-combat-ineligible'
-                                  : 'hex-unit-rect-combat-inspectable'
-                                : ''
-                        const movementEligibilityClass = !isMovementPhase
-                          ? ''
-                          : isSwamp
-                            ? isDestroyed ? 'hex-unit-rect-swamp-destroyed' : 'hex-unit-rect-swamp'
-                            : combatIsDisabled
-                            ? 'hex-unit-rect-move-disabled'
-                            : isMovementPhaseActiveSide
-                              ? moveHasRemaining
-                                ? 'hex-unit-rect-move-eligible'
-                                : 'hex-unit-rect-move-ineligible'
-                              : 'hex-unit-rect-move-inspectable'
-                        const swampRectClass = isSwamp
-                          ? isDestroyed || isDisabled
-                            ? 'hex-unit-rect-swamp-destroyed'
-                            : 'hex-unit-rect-swamp'
-                          : ''
-                        const unitRectX = isSwamp ? center.x - 24 : center.x - 16
-                        const unitRectY = isSwamp ? center.y - 24 : center.y - 11
-                        const unitRectWidth = isSwamp ? 48 : 32
-                        const unitRectHeight = isSwamp ? 48 : 22
-                        const markerText = getUnitMarkerText(occupant, stackNaming)
-                        const markerToneClass = (!isSwamp && (movementEligibilityClass === 'hex-unit-rect-move-inspectable' || combatEligibilityClass === 'hex-unit-rect-combat-inspectable'))
-                          ? 'tone-dim'
-                          : ''
-
-                        return (
-                          <g
-                            key={occupant.id}
-                            data-testid={`hex-unit-${occupant.id}`}
-                            data-selected={isOccupantSelected}
-                            className={[
-                              'hex-unit-stack',
-                              isOccupantOnion ? 'hex-unit-stack-onion' : 'hex-unit-stack-defender',
-                              isSwamp ? 'hex-unit-stack-swamp' : '',
-                              isOccupantSelected ? 'hex-unit-stack-selected' : '',
-                              isMovementPhase && movementEligibilityClass === 'hex-unit-rect-move-eligible' ? 'hex-unit-stack-move-ready' : '',
-                              isDisabled ? 'hex-unit-stack-disabled' : '',
-                              isSwamp ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral') : `tone-${statusTone(occupant.status)}`,
-                            ].join(' ')}
-                            transform={`translate(${offset.dx}, ${offset.dy})`}
-                            onClick={(event) => {
-                              if (isSelectionLocked) {
-                                event.stopPropagation()
-                                return
-                              }
-
-                              event.stopPropagation()
-
-                              const rosterGroup = stackRosterIndex?.getUnitGroup(occupant.id) ?? null
-                              const decision = routeMapInteraction({
-                                viewerRole: resolvedViewerRole,
-                                viewerActivity: resolvedViewerActivity,
-                                phaseMode: resolvedPhaseMode,
-                                surface: 'map',
-                                gesture: event.ctrlKey || event.metaKey ? 'primary-additive' : 'primary',
-                                subjectRelation: occupant.type === 'Swamp'
-                                  ? 'neutral/system'
-                                  : occupant.id === onion.id
-                                    ? resolvedViewerRole === 'onion'
-                                      ? 'self'
-                                      : 'opponent'
-                                    : resolvedViewerRole === 'defender'
-                                      ? 'self'
-                                      : 'opponent',
-                                subjectKind: rosterGroup !== null ? 'stack' : 'unit',
-                                subjectCapability: {
-                                  inspectable: occupant.status !== 'destroyed' || occupant.type === 'Swamp',
-                                  moveEligible: isMovementPhase && occupant.status === 'operational' && (occupant.id === onion.id ? onion.movesRemaining > 0 : 'move' in occupant && occupant.move > 0),
-                                  attackerEligible: isCombatPhase && !combatIsDisabled && (occupant.id === onion.id
-                                    ? resolvedViewerRole === 'onion' && combatHasReadyAttack
-                                    : resolvedViewerRole === 'defender' && combatHasReadyAttack),
-                                  targetEligible: false,
-                                },
-                                interactionMode: rosterGroup !== null ? { groupExpansionTarget: true } : undefined,
-                              })
-
-                              if (decision.intent === 'clear-local-selection') {
-                                onDeselect()
-                                return
-                              }
-
-                              if (decision.intent === 'noop') {
-                                return
-                              }
-
-                              onSelectUnit(occupant.id, event.ctrlKey || event.metaKey || decision.intent === 'toggle-actor')
-                            }}
-                          >
-                            <rect
-                              className={[
-                                'hex-unit-rect',
-                                isSwamp ? swampRectClass : isOccupantOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
-                                isOccupantSelected ? 'hex-unit-rect-selected' : '',
-                                isSwamp ? '' : movementEligibilityClass,
-                                isDisabled ? 'hex-unit-rect-disabled' : '',
-                                isSwamp ? '' : combatEligibilityClass,
-                              ].join(' ')}
-                              x={unitRectX}
-                              y={unitRectY}
-                              width={unitRectWidth}
-                              height={unitRectHeight}
-                              rx={isSwamp ? 4 : 2}
-                            />
-                            {markerText !== null ? (
-                              <text
-                                className={['hex-unit-marker', markerToneClass].join(' ')}
-                                x={center.x}
-                                y={center.y + 4}
-                                textAnchor="middle"
-                              >
-                                {markerText}
-                              </text>
-                            ) : null}
-                            {occupant.type === 'Swamp' ? (
-                              <image
-                                href={getSwampSpriteHref(occupant.status)}
-                                x={center.x - 19}
-                                y={center.y - 19}
-                                width={38}
-                                height={38}
-                                preserveAspectRatio="xMidYMid meet"
-                              />
-                            ) : null}
-                            {isDisabled && (
-                              <g className="hex-unit-disabled-indicator">
-                                <rect
-                                  x={center.x - 16}
-                                  y={center.y - 11}
-                                  width={32}
-                                  height={22}
-                                  rx={2}
-                                  fill="#888"
-                                  opacity="0.18"
-                                />
-                                <text
-                                  x={center.x + 12}
-                                  y={center.y - 7}
-                                  fontSize="13"
-                                  fill="#b71c1c"
-                                  fontWeight="bold"
-                                  textAnchor="middle"
-                                  className="hex-unit-disabled-icon"
-                                >
-                                  &#9888;
-                                </text>
-                              </g>
-                            )}
-                          </g>
-                        )
-                      })
-                    })()}
-                  <text className="hex-coord" x={center.x} y={center.y + 18} textAnchor="middle">
-                        {coord.q},{coord.r}
-                  </text>
-                </g>
+                  onion={onion}
+                  phase={phase}
+                  polygonPoints={polygonPoints}
+                  renderedOccupants={collapseStackedOccupants(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)}
+                  renderedTerrainType={terrain.get(cellKey)}
+                  resolvedPhaseMode={resolvedPhaseMode}
+                  resolvedViewerActivity={resolvedViewerActivity}
+                  resolvedViewerRole={resolvedViewerRole}
+                  routeMapInteraction={routeMapInteraction}
+                  rosterIndex={stackRosterIndex as OccupantRosterIndex | null}
+                  selectedUnitIds={selectedUnitSet}
+                  stackNaming={stackNaming}
+                  onDeselect={onDeselect}
+                  onSelectUnit={onSelectUnit}
+                />
               )
             })}
           </g>
@@ -894,9 +428,9 @@ export function HexMapBoard({ scenarioMap, defenders, onions, phase, viewerRole 
           id="hex-map-zoom-slider"
           className="hex-map-zoom-slider"
           type="range"
-          min={ZOOM_PERCENT_MIN}
-          max={ZOOM_PERCENT_MAX}
-          step={ZOOM_PERCENT_STEP}
+          min={minZoomPercent}
+          max={maxZoomPercent}
+          step={stepZoomPercent}
           value={zoomPercent}
           aria-label="Map zoom"
           onChange={(event) => setZoomPercent(Number(event.target.value))}

@@ -1,5 +1,6 @@
 import type { GameAction, StackActionSelection } from './gameClient'
-import { normalizeSelectionIds, parseStackMemberSelectionId, resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, resolveSelectionOwnerUnitId, type WebStackSourceState } from './appViewHelpers'
+import { normalizeSelectionIds, parseStackMemberSelectionId, resolveSelectionOwnerUnitId } from './selectionIds'
+import { resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, type WebStackSourceState } from './stackSelection'
 import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
 import { isSessionUnitTypeStackable } from './sessionCatalog'
 import { buildStackRosterIndex } from '../../shared/stackRoster'
@@ -210,11 +211,11 @@ export function buildRightRailStackSelectionViewModel({
 
   const visibleUnitsById = new Map<string, RightRailStackMemberView>()
   if (displayedOnion !== null) {
-    visibleUnitsById.set(displayedOnion.id, displayedOnion)
+    visibleUnitsById.set(displayedOnion.unitId, displayedOnion)
   }
 
   for (const unit of displayedDefenders) {
-    visibleUnitsById.set(unit.id, unit)
+    visibleUnitsById.set(unit.unitId, unit)
   }
 
   const selectedStackMembers = selectionModel.memberUnitIds

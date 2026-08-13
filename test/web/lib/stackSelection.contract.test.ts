@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { countSelectedBattlefieldStackGroups, countSelectedBattlefieldStackMembers, resolveBattlefieldStackMemberIds } from '#web/lib/appViewHelpers'
+import { countSelectedBattlefieldStackGroups, countSelectedBattlefieldStackMembers, resolveBattlefieldStackMemberIds } from '#web/lib/stackSelection'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
-describe('appViewHelpers stack-grouping contract', () => {
+describe('stackSelection grouping contract', () => {
   it('resolves stack members from explicit stackRoster membership instead of raw co-location', () => {
     const state = {
       catalog: sessionCatalog,

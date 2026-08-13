@@ -25,7 +25,8 @@ export type LiveConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconn
 /**
  * Live signal emitted by the transport boundary.
  *
- * The controller treats these signals as hints for refresh and lifecycle updates.
+ * The controller treats these signals as refresh and lifecycle hints. They never
+ * replace or synthesize values in the last accepted server snapshot.
  */
 export type LiveSessionSignal =
 	| { kind: 'connection'; status: LiveConnectionStatus; gameId: number }

@@ -1,8 +1,8 @@
-import type { DefenderUnit, TargetRules, UnitState, Weapon } from '../../shared/types/index.js'
+import type { DefenderUnit, HexPos, OnionUnit } from '../../shared/types/index.js'
 
 // Returns true if the unit is eligible to move for the given player and phase
 export function isUnitMoveEligible(
-  unit: BattlefieldUnit | BattlefieldOnionView,
+  unit: BattlefieldDefenderView | BattlefieldOnionView,
   phase: string | null,
   playerRole: 'onion' | 'defender'
 ): boolean {
@@ -11,50 +11,28 @@ export function isUnitMoveEligible(
   const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
   if (!isMovementPhase) return false
   // Only allow movement for player's own units
-  if (playerRole === 'onion' && 'movesRemaining' in unit) {
-    return unit.status === 'operational' && unit.movesRemaining > 0
+  if (playerRole === 'onion' && 'movesAllowed' in unit) {
+    return unit.state === 'operational' && unit.movesRemaining > 0
   }
-  if (playerRole === 'defender' && 'move' in unit) {
-    return unit.status === 'operational' && unit.move > 0
+  if (playerRole === 'defender' && 'actionableModes' in unit) {
+    return unit.state === 'operational' && unit.movesRemaining > 0
   }
   return false
 }
 export type Mode = 'fire' | 'combined' | 'end-phase'
 export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'
 
-export type BattlefieldUnitView = Omit<DefenderUnit, 'id' | 'weapons'> & {
-  id: string
-  type: string
-  status: UnitState
-  position: DefenderUnit['position']
-  move: number
-  attack: string
-  // Derived display label for weapon state; the canonical weapon data stays
-  // in `weapons` and mirrors the defender record.
-  weaponSummary?: string
-  weapons: ReadonlyArray<Weapon> | string
-  weaponDetails?: ReadonlyArray<Weapon>
-  defense?: number
-  targetRules?: TargetRules
-  squads?: number
+export type BattlefieldDefenderView = DefenderUnit & {
+  movesRemaining: number
+  stackSize: number
   actionableModes: Mode[]
 }
 
-export type BattlefieldUnit = BattlefieldUnitView
+export type BattlefieldUnit = BattlefieldDefenderView
 
-export type BattlefieldOnionView = {
-  id: string
-  type: string
-  friendlyName?: string
-  position: { q: number; r: number }
-  status: UnitStatus
-  treads: number
+export type BattlefieldOnionView = OnionUnit & {
   movesAllowed: number
   movesRemaining: number
-  rams: number
-  weapons: string
-  weaponDetails?: ReadonlyArray<Weapon>
-  targetRules?: TargetRules
 }
 
 export type TimelineEvent = {
@@ -67,11 +45,12 @@ export type TimelineEvent = {
   payload?: Readonly<Record<string, unknown>>
 }
 
-export type TerrainHex = {
-  q: number
-  r: number
-  t: number
+export type TerrainHex = HexPos & { t: number }
+
+export function getBattlefieldPosition(unit: { position: HexPos }): HexPos {
+  return unit.position
 }
+
 
 export function statusTone(status: UnitStatus): string {
   switch (status) {

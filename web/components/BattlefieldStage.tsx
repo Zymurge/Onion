@@ -1,12 +1,12 @@
 import { HexMapBoard } from './HexMapBoard'
-import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
+import type { BattlefieldDefenderView, BattlefieldOnionView } from '../lib/battlefieldView'
 import type { StackRosterState } from '../../shared/types/index'
 import type { SessionCatalog } from '../lib/sessionCatalog'
 
 type BattlefieldStageProps = {
   activePhase: string | null
   activeTurnActive: boolean
-  defenders: ReadonlyArray<BattlefieldUnit>
+  defenders: ReadonlyArray<BattlefieldDefenderView>
   onions: ReadonlyArray<BattlefieldOnionView>
   stackNaming?: import('../../shared/stackNaming').StackNamingSnapshot
   stackRoster?: StackRosterState
@@ -16,7 +16,7 @@ type BattlefieldStageProps = {
     height: number
     cells: ReadonlyArray<{ q: number; r: number }>
     hexes: ReadonlyArray<{ q: number; r: number; t: number }>
-  }
+  } | null
   selectedCombatTargetId: string | null
   selectedUnitIds: ReadonlyArray<string>
   combatRangeHexKeys: ReadonlySet<string>
@@ -58,27 +58,29 @@ export function BattlefieldStage({
   return (
     <section className="panel map-stage" data-testid="app-battlefield-stage">
       <div className="map-frame">
-        <HexMapBoard
-          scenarioMap={scenarioMap}
-          defenders={defenders}
-          onions={onions}
-          stackNaming={stackNaming}
-          stackRoster={stackRoster}
-          catalog={catalog}
-          phase={activePhase}
-          viewerRole={viewerRole}
-          selectedUnitIds={selectedUnitIds}
-          selectedCombatTargetId={selectedCombatTargetId}
-          combatRangeHexKeys={combatRangeHexKeys}
-          combatTargetIds={combatTargetIds}
-          escapeHexes={escapeHexes}
-          canSubmitMove={canSubmitMove && activeTurnActive && !isInteractionLocked}
-          isSelectionLocked={isSelectionLocked}
-          onSelectUnit={onSelectUnit}
-          onSelectCombatTarget={onSelectCombatTarget}
-          onDeselect={onDeselect}
-          onMoveUnit={onMoveUnit}
-        />
+        {scenarioMap === null ? <p className="summary-line">Waiting for battlefield data.</p> : (
+          <HexMapBoard
+            scenarioMap={scenarioMap}
+            defenders={defenders}
+            onions={onions}
+            stackNaming={stackNaming}
+            stackRoster={stackRoster}
+            catalog={catalog}
+            phase={activePhase}
+            viewerRole={viewerRole}
+            selectedUnitIds={selectedUnitIds}
+            selectedCombatTargetId={selectedCombatTargetId}
+            combatRangeHexKeys={combatRangeHexKeys}
+            combatTargetIds={combatTargetIds}
+            escapeHexes={escapeHexes}
+            canSubmitMove={canSubmitMove && activeTurnActive && !isInteractionLocked}
+            isSelectionLocked={isSelectionLocked}
+            onSelectUnit={onSelectUnit}
+            onSelectCombatTarget={onSelectCombatTarget}
+            onDeselect={onDeselect}
+            onMoveUnit={onMoveUnit}
+          />
+        )}
       </div>
     </section>
   )

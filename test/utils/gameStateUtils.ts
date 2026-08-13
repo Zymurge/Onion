@@ -11,8 +11,8 @@ import type {
 	Weapon,
 } from '#shared/types/index'
 import { buildFriendlyName, DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponType } from '#shared/unitDefinitions'
-import { buildBattlefieldDefenderView, buildBattlefieldOnionView } from '#web/lib/appViewHelpers'
-import { type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
+import { buildBattlefieldDefenderView, buildBattlefieldOnionView } from '#web/lib/battlefieldViewBuilders'
+import type { BattlefieldOnionView, BattlefieldUnit, UnitStatus } from '#web/lib/battlefieldView'
 import { createGameClient, type GameClient, type GameSnapshot, type ScenarioMapSnapshot } from '#web/lib/gameClient'
 
 /**
@@ -97,17 +97,30 @@ export function makeOnion(overrides: Partial<OnionUnit> = {}): OnionUnit {
 
 export function makeBattlefieldDefender(
 	unitOverrides: Partial<DefenderUnit> = {},
-	viewOverrides: Partial<BattlefieldUnit> = {},
+	viewOverrides: Partial<BattlefieldDefenderFixture> = {},
 ): BattlefieldUnit {
 	const defender = makeDefender(unitOverrides)
+	const weapons = Array.isArray(viewOverrides.weapons)
+		? viewOverrides.weapons
+		: viewOverrides.weaponDetails?.map((weapon) => makeWeapon({
+			...weapon,
+			id: weapon.id ?? 'main',
+			friendlyName: weapon.friendlyName ?? weapon.name ?? 'Main Weapon',
+			state: weapon.state ?? weapon.status ?? 'ready',
+		}))
+	const baseView = buildBattlefieldDefenderView(defender, {
+		activePhase: 'DEFENDER_COMBAT',
+		activeTurnActive: true,
+		stackSize: viewOverrides.stackSize ?? viewOverrides.squads ?? 1,
+	})
 
 	return {
-		...buildBattlefieldDefenderView(defender, {
-			activePhase: 'DEFENDER_COMBAT',
-			activeTurnActive: true,
-			stackSize: viewOverrides.squads ?? 1,
-		}),
-		...viewOverrides,
+		...baseView,
+		...(weapons === undefined ? {} : { weapons }),
+		...(viewOverrides.movesRemaining === undefined && viewOverrides.move === undefined
+			? {}
+			: { movesRemaining: viewOverrides.movesRemaining ?? viewOverrides.move ?? 0 }),
+		...(viewOverrides.actionableModes === undefined ? {} : { actionableModes: viewOverrides.actionableModes }),
 	}
 }
 
@@ -121,11 +134,10 @@ export function makeBattlefieldOnion(
 	}
 }
 
-export type BattlefieldDefenderFixture = Omit<Partial<BattlefieldUnit>, 'weaponDetails' | 'weapons'> & {
-	id: string
-	type: string
-	position: { q: number; r: number }
-	status: BattlefieldUnit['status']
+export type BattlefieldDefenderFixture = Omit<Partial<BattlefieldUnit>, 'weapons'> & {
+	id?: string
+	type?: string
+	status?: UnitStatus
 	weapons?: ReadonlyArray<Weapon> | string
 	weaponDetails?: ReadonlyArray<Partial<Weapon> & {
 		name?: string
@@ -135,55 +147,80 @@ export type BattlefieldDefenderFixture = Omit<Partial<BattlefieldUnit>, 'weaponD
 		defense?: number
 		individuallyTargetable?: boolean
 	}>
+	squads?: number
+	move?: number
+	q?: number
+	r?: number
 }
 
 export function canonicalizeBattlefieldDefenders(defenders: ReadonlyArray<BattlefieldDefenderFixture>): BattlefieldUnit[] {
 	return defenders.map((view) => {
-		const { weaponDetails: legacyWeaponDetails, ...viewWithoutWeaponDetails } = view
-		const weaponDetails = legacyWeaponDetails?.map((weapon) => {
+		const weaponDetails = view.weaponDetails?.map((weapon) => {
 			const weaponId = weapon.id ?? 'main'
 			return makeWeapon({
 				...weapon,
 				id: weaponId,
-				typeId: weapon.typeId ?? getUnitTypeCatalog()[view.type]?.weapons[0]?.typeId ?? 'Puss.main',
+				typeId: weapon.typeId ?? getUnitTypeCatalog()[view.typeId ?? view.type ?? 'Puss']?.weapons[0]?.typeId ?? 'Puss.main',
 				state: weapon.state ?? weapon.status ?? 'ready',
 				friendlyName: weapon.friendlyName ?? weapon.name ?? 'Main Weapon',
 			})
 		})
 
-		return makeBattlefieldDefender({
-			unitId: view.unitId ?? view.id,
-			typeId: view.typeId ?? view.type,
-			position: view.position,
-			state: view.state ?? view.status,
+		const defenderOverrides: Partial<DefenderUnit> = {
+			unitId: view.unitId ?? view.id ?? 'puss-1',
+			typeId: view.typeId ?? view.type ?? 'Puss',
+			position: view.position ?? { q: view.q ?? 0, r: view.r ?? 0 },
+			state: view.state ?? view.status ?? 'operational',
 			friendlyName: view.friendlyName,
-			weapons: [],
-		}, {
-			...viewWithoutWeaponDetails,
+		}
+		if (weaponDetails !== undefined) {
+			defenderOverrides.weapons = weaponDetails
+		} else if (Array.isArray(view.weapons)) {
+			defenderOverrides.weapons = view.weapons
+		}
+
+		return makeBattlefieldDefender(defenderOverrides, {
+			...view,
 			...(weaponDetails === undefined ? {} : { weaponDetails }),
 		})
 	})
 }
 
-export function canonicalizeBattlefieldOnion(view: BattlefieldOnionView): BattlefieldOnionView {
-	const viewWithoutWeaponDetails = { ...view }
-	delete viewWithoutWeaponDetails.weaponDetails
-	const weapons = (view.weaponDetails ?? []).map((weapon) => makeWeapon({
+export type BattlefieldOnionFixture = Partial<BattlefieldOnionView> & {
+	id?: string
+	type?: string
+	status?: UnitStatus
+	q?: number
+	r?: number
+	rams?: number
+	weaponDetails?: ReadonlyArray<Partial<Weapon> & { name?: string; status?: Weapon['state'] }>
+	weapons?: ReadonlyArray<Weapon> | string
+}
+
+export function canonicalizeBattlefieldOnion(view: BattlefieldOnionFixture): BattlefieldOnionView {
+	const weapons = (view.weaponDetails ?? (Array.isArray(view.weapons) ? view.weapons : [])).map((weapon) => makeWeapon({
 		...weapon,
-		typeId: weapon.typeId ?? `${view.type}.${weapon.id.replace(/-\d+$/, '')}`,
+		typeId: weapon.typeId ?? `${view.typeId ?? view.type ?? DEFAULT_ONION_UNIT_TYPE_ID}.${weapon.id.replace(/-\d+$/, '')}`,
 		state: weapon.state ?? (weapon as Weapon & { status?: Weapon['state'] }).status ?? 'ready',
 	}))
 
-	return makeBattlefieldOnion({
-		unitId: view.id,
-		typeId: view.type,
-		position: view.position,
-		state: view.status,
-		friendlyName: view.friendlyName,
+	const onionOverrides: Partial<OnionUnit> = {
+		unitId: view.unitId ?? view.id ?? 'onion-1',
+		typeId: view.typeId ?? view.type ?? DEFAULT_ONION_UNIT_TYPE_ID,
+		position: view.position ?? { q: view.q ?? 0, r: view.r ?? 0 },
+		state: view.state ?? view.status ?? 'operational',
 		treads: view.treads,
-		ramsRemaining: view.rams,
+		ramsRemaining: view.ramsRemaining ?? view.rams,
 		weapons,
-	}, viewWithoutWeaponDetails)
+	}
+	if (view.friendlyName !== undefined) {
+		onionOverrides.friendlyName = view.friendlyName
+	}
+
+	return makeBattlefieldOnion(onionOverrides, {
+		movesAllowed: view.movesAllowed,
+		movesRemaining: view.movesRemaining,
+	})
 }
 
 /**

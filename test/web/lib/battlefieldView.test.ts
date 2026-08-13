@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildBattlefieldDefenderView } from '#web/lib/appViewHelpers'
 import { isUnitMoveEligible, statusTone, type BattlefieldOnionView, type BattlefieldUnit } from '#web/lib/battlefieldView'
-import { makeDefender } from '#test/utils/gameStateUtils'
 
 describe('battlefieldView helpers', () => {
 	it('classifies status tones', () => {
@@ -14,43 +12,37 @@ describe('battlefieldView helpers', () => {
 
 	it('checks move eligibility for onion and defender views', () => {
 		const onion: BattlefieldOnionView = {
-			id: 'onion-1',
-			type: 'TheOnion',
+			unitId: 'onion-1',
+			typeId: 'TheOnion',
+			role: 'onion',
 			position: { q: 0, r: 0 },
-			status: 'operational',
+			state: 'operational',
 			treads: 33,
+			ramsRemaining: 0,
 			movesAllowed: 3,
 			movesRemaining: 2,
-			rams: 0,
-			weapons: 'main: ready',
+			weapons: [],
 		}
 		const defender: BattlefieldUnit = {
-			id: 'wolf-2',
-			type: 'BigBadWolf',
-			status: 'operational',
+			unitId: 'wolf-2',
+			typeId: 'BigBadWolf',
+			role: 'defender',
+			state: 'operational',
 			position: { q: 3, r: 6 },
-			move: 4,
-			weapons: 'main: ready',
-			attack: '4',
+			weapons: [],
+			movesRemaining: 4,
+			stackSize: 1,
 			actionableModes: ['fire', 'combined'],
 		}
 
 		expect(isUnitMoveEligible(onion, 'ONION_MOVE', 'onion')).toBe(true)
 		expect(isUnitMoveEligible(onion, 'DEFENDER_COMBAT', 'onion')).toBe(false)
-		expect(isUnitMoveEligible({ ...onion, status: 'destroyed' }, 'ONION_MOVE', 'onion')).toBe(false)
+		expect(isUnitMoveEligible({ ...onion, state: 'destroyed' }, 'ONION_MOVE', 'onion')).toBe(false)
 		expect(isUnitMoveEligible({ ...onion, movesRemaining: 0 }, 'ONION_MOVE', 'onion')).toBe(false)
 		expect(isUnitMoveEligible(defender, 'DEFENDER_MOVE', 'defender')).toBe(true)
-		expect(isUnitMoveEligible({ ...defender, status: 'disabled' }, 'DEFENDER_MOVE', 'defender')).toBe(false)
-		expect(isUnitMoveEligible({ ...defender, move: 0 }, 'DEFENDER_MOVE', 'defender')).toBe(false)
+		expect(isUnitMoveEligible({ ...defender, state: 'disabled' }, 'DEFENDER_MOVE', 'defender')).toBe(false)
+		expect(isUnitMoveEligible({ ...defender, movesRemaining: 0 }, 'DEFENDER_MOVE', 'defender')).toBe(false)
 		expect(isUnitMoveEligible(defender, 'GEV_SECOND_MOVE', 'defender')).toBe(true)
 		expect(isUnitMoveEligible(defender, null, 'defender')).toBe(false)
-	})
-
-	it('keeps defender coordinates under position only', () => {
-		const view = buildBattlefieldDefenderView(makeDefender({ position: { q: 3, r: 6 } }))
-
-		expect(view.position).toEqual({ q: 3, r: 6 })
-		expect(view).not.toHaveProperty('q')
-		expect(view).not.toHaveProperty('r')
 	})
 })

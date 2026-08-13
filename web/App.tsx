@@ -31,9 +31,7 @@ import type {
   LiveEventSource,
 } from './lib/gameSessionTypes'
 import type { SessionBinding } from './lib/sessionBinding'
-import {
-  getPhaseOwner,
-} from './lib/appViewHelpers'
+import { getPhaseOwner } from './lib/battlefieldViewBuilders'
 import logger from './lib/logger'
 import './App.css'
 
@@ -625,7 +623,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       anchorUnitId: activeCombatRole === 'defender' ? selectedInspectorUnitId : null,
       selectedUnitIds: selectedCombatAttackerIds,
       targetId: selectedCombatTarget.id,
-      onionId: displayedOnion.id,
+      onionId: displayedOnion.unitId,
     })
 
     if (!combatAction.ok && combatAction.reason === 'empty-stack-selection') {
@@ -862,6 +860,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
           readyWeaponDetails={readyWeaponDetails}
           rightRailStackPanel={rightRailStackPanel}
           escapeHexes={escapeHexes}
+          catalog={sessionState.catalog ?? undefined}
           victoryObjectives={victoryObjectives}
           inactiveEventStream={inactiveEventStream}
           combatTargetOptions={combatTargetOptions}

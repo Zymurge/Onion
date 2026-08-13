@@ -19,16 +19,16 @@ describe('BattlefieldInspectorPanel', () => {
 
   it('uses canonical stack counts for grouped defenders and renders the swamp summary when objectives are present', () => {
     const defender: BattlefieldUnit = {
-      id: 'pigs-1',
-      type: 'LittlePigs',
+      unitId: 'pigs-1',
+      typeId: 'LittlePigs',
+      role: 'defender',
       friendlyName: 'Little Pigs 1',
-      status: 'operational',
+      state: 'operational',
       position: { q: 4, r: 4 },
-      move: 3,
-      weapons: 'main: ready',
-      attack: '1 / rng 1',
+      weapons: [],
+      movesRemaining: 3,
+      stackSize: 1,
       actionableModes: ['fire', 'combined'],
-      squads: 1,
     }
 
     render(
@@ -53,14 +53,15 @@ describe('BattlefieldInspectorPanel', () => {
 
   it('renders the swamp victory summary when objectives are present', () => {
     const swamp: BattlefieldUnit = {
-      id: 'swamp-1',
-      type: 'Swamp',
+      unitId: 'swamp-1',
+      typeId: 'Swamp',
+      role: 'defender',
       friendlyName: 'The Swamp',
-      status: 'operational',
+      state: 'operational',
       position: { q: 3, r: 5 },
-      move: 0,
-      weapons: 'main: ready',
-      attack: '0 / rng 0',
+      movesRemaining: 0,
+      stackSize: 1,
+      weapons: [],
       actionableModes: ['fire'],
     }
 
@@ -85,17 +86,17 @@ describe('BattlefieldInspectorPanel', () => {
 
   it('renders onion inspector stats and keeps stack count fixed at one', () => {
     const onion: BattlefieldOnionView = {
-      id: 'onion-1',
-      type: 'TheOnion',
+      unitId: 'onion-1',
+      typeId: 'TheOnion',
+      role: 'onion',
       friendlyName: 'TheOnion',
       position: { q: 0, r: 0 },
-      status: 'operational',
+      state: 'operational',
       treads: 33,
+      ramsRemaining: 1,
       movesAllowed: 3,
       movesRemaining: 2,
-      rams: 1,
-      weapons: 'laser: ready',
-      weaponDetails: [],
+      weapons: [],
     }
 
     render(
@@ -118,16 +119,16 @@ describe('BattlefieldInspectorPanel', () => {
 
   it('throws when the selected unit has no resolved inspector label', () => {
     const defender: BattlefieldUnit = {
-      id: 'pigs-1',
-      type: 'LittlePigs',
+      unitId: 'pigs-1',
+      typeId: 'LittlePigs',
+      role: 'defender',
       friendlyName: 'Little Pigs 1',
-      status: 'operational',
+      state: 'operational',
       position: { q: 4, r: 4 },
-      move: 3,
-      weapons: 'main: ready',
-      attack: '1 / rng 1',
+      weapons: [],
+      movesRemaining: 3,
+      stackSize: 1,
       actionableModes: ['fire', 'combined'],
-      squads: 1,
     }
 
     expect(() => {
@@ -147,16 +148,16 @@ describe('BattlefieldInspectorPanel', () => {
 
   it('throws when a grouped defender is missing a selected stack member count', () => {
     const defender: BattlefieldUnit = {
-      id: 'pigs-1',
-      type: 'LittlePigs',
+      unitId: 'pigs-1',
+      typeId: 'LittlePigs',
+      role: 'defender',
       friendlyName: 'Little Pigs 1',
-      status: 'operational',
+      state: 'operational',
       position: { q: 4, r: 4 },
-      move: 3,
-      weapons: 'main: ready',
-      attack: '1 / rng 1',
+      weapons: [],
+      movesRemaining: 3,
+      stackSize: 1,
       actionableModes: ['fire', 'combined'],
-      squads: 1,
     }
 
     expect(() => {

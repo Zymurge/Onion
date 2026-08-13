@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
-import { parseAttackStats, parseWeaponStats } from '../lib/appViewHelpers'
+import { getPrimaryWeaponStats, parseWeaponStats } from '../lib/weaponStats'
 import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import { resolveInspectorStackCount } from '../lib/rightRailInspector'
+import type { SessionCatalog } from '../lib/sessionCatalog'
 
 type BattlefieldInspectorPanelProps = {
   selectedInspectorLabel: string | null
@@ -12,6 +13,7 @@ type BattlefieldInspectorPanelProps = {
   activeSelectedUnitCount: number
   victoryObjectives: ReadonlyArray<VictoryObjectiveState>
   escapeHexes: ReadonlyArray<VictoryEscapeHex>
+  catalog?: SessionCatalog
   dataTestId?: string
 }
 
@@ -23,6 +25,7 @@ export function BattlefieldInspectorPanel({
   activeSelectedUnitCount,
   victoryObjectives,
   escapeHexes,
+  catalog,
   dataTestId = 'battlefield-inspector',
 }: BattlefieldInspectorPanelProps) {
   if (selectedInspectorOnion !== null && selectedInspectorDefender !== null) {
@@ -31,11 +34,11 @@ export function BattlefieldInspectorPanel({
 
   const selectedUnit = selectedInspectorOnion ?? selectedInspectorDefender
   if (selectedUnit !== null && selectedInspectorLabel === null) {
-    throw new Error(`Missing inspector label for selected unit ${selectedUnit.id}`)
+    throw new Error(`Missing inspector label for selected unit ${selectedUnit.unitId}`)
   }
 
   const selectedLabel = selectedUnit !== null ? selectedInspectorLabel : null
-  const subjectDataTestId = selectedUnit !== null ? `battlefield-inspector-subject-${selectedUnit.id}` : undefined
+  const subjectDataTestId = selectedUnit !== null ? `battlefield-inspector-subject-${selectedUnit.unitId}` : undefined
 
   if (selectedInspectorOnion !== null) {
     return renderInspectorPanel({
@@ -59,15 +62,15 @@ export function BattlefieldInspectorPanel({
           </div>
           <div>
             <dt>Rams remaining</dt>
-            <dd>{selectedInspectorOnion.rams}</dd>
+            <dd>{selectedInspectorOnion.ramsRemaining}</dd>
           </div>
           <div>
             <dt>Weapons</dt>
-            <dd>{parseWeaponStats(selectedInspectorOnion.weaponDetails ?? []).operationalWeapons}</dd>
+            <dd>{parseWeaponStats(selectedInspectorOnion.weapons).operationalWeapons}</dd>
           </div>
           <div>
             <dt>Missiles</dt>
-            <dd>{parseWeaponStats(selectedInspectorOnion.weaponDetails ?? []).operationalMissiles}</dd>
+            <dd>{parseWeaponStats(selectedInspectorOnion.weapons).operationalMissiles}</dd>
           </div>
         </dl>
       ),
@@ -76,7 +79,7 @@ export function BattlefieldInspectorPanel({
 
   if (selectedInspectorDefender !== null) {
     const stackCount = resolveInspectorStackCount(selectedInspectorDefender, selectedStackMemberCount)
-    const attackStats = parseAttackStats(selectedInspectorDefender.attack)
+    const attackStats = getPrimaryWeaponStats(selectedInspectorDefender.weapons, catalog)
     const completedVictoryObjectives = victoryObjectives.filter((objective) => objective.completed)
 
     return renderInspectorPanel({
@@ -93,11 +96,11 @@ export function BattlefieldInspectorPanel({
             </div>
             <div>
               <dt>Status</dt>
-              <dd>{selectedInspectorDefender.status}</dd>
+              <dd>{selectedInspectorDefender.state}</dd>
             </div>
             <div>
               <dt>Damage</dt>
-              <dd>{attackStats.damage}</dd>
+              <dd>{attackStats.attack}</dd>
             </div>
             <div>
               <dt>Range</dt>
@@ -105,14 +108,14 @@ export function BattlefieldInspectorPanel({
             </div>
             <div>
               <dt>Move</dt>
-              <dd>{selectedInspectorDefender.move}</dd>
+              <dd>{selectedInspectorDefender.movesRemaining}</dd>
             </div>
             <div>
               <dt>Selected</dt>
               <dd>{activeSelectedUnitCount}</dd>
             </div>
           </dl>
-          {selectedInspectorDefender.type === 'Swamp' && victoryObjectives.length > 0 ? (
+          {selectedInspectorDefender.typeId === 'Swamp' && victoryObjectives.length > 0 ? (
             <div className="section-block">
               <div className="card-head">
                 <div>
