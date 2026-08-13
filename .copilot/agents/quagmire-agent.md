@@ -53,13 +53,13 @@ prompts:
     recommendedModel: gpt-5.3-codex
   - id: session-controller-implementation
     intent: "Implement GameSessionController per spec"
-    recommendedModel: gpt-5.4
+    recommendedModel: gpt-5.6-terra
   - id: app-delegation-shell-reduction
     intent: "Rewire App.tsx to use GameSessionController"
     recommendedModel: gpt-5.3-codex
   - id: fake-backend-harness
     intent: "Create a deterministic fake backend harness for controller tests"
-    recommendedModel: claude-sonnet-4.6
+    recommendedModel: claude-sonnet-5
 ```
 
 Human-readable prompts and copyable subagent prompts remain in the specialized agent doc for convenience.
