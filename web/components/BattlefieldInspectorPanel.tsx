@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { formatAttackSummary, parseAttackStats, parseWeaponStats } from '../lib/weaponStats'
+import { getPrimaryWeaponStats, parseWeaponStats } from '../lib/weaponStats'
 import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import { resolveInspectorStackCount } from '../lib/rightRailInspector'
@@ -79,7 +79,7 @@ export function BattlefieldInspectorPanel({
 
   if (selectedInspectorDefender !== null) {
     const stackCount = resolveInspectorStackCount(selectedInspectorDefender, selectedStackMemberCount)
-    const attackStats = parseAttackStats(formatAttackSummary(selectedInspectorDefender.weapons, catalog))
+    const attackStats = getPrimaryWeaponStats(selectedInspectorDefender.weapons, catalog)
     const completedVictoryObjectives = victoryObjectives.filter((objective) => objective.completed)
 
     return renderInspectorPanel({
@@ -100,7 +100,7 @@ export function BattlefieldInspectorPanel({
             </div>
             <div>
               <dt>Damage</dt>
-              <dd>{attackStats.damage}</dd>
+              <dd>{attackStats.attack}</dd>
             </div>
             <div>
               <dt>Range</dt>

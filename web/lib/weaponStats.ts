@@ -39,13 +39,6 @@ export function parseWeaponStats(weapons: ReadonlyArray<Weapon> | string) {
 }
 
 /** Parses a display attack string into damage and range text. */
-export function parseAttackStats(attackString: string) {
-  const parts = attackString.split('/')
-  const damage = parts[0].trim()
-  const range = parts[1]?.includes('rng') ? parts[1].trim().replace('rng', '').trim() : '0'
-  return { damage, range }
-}
-
 /** Formats the live weapon states for display. */
 export function formatWeaponSummary(weapons: ReadonlyArray<Weapon> | undefined) {
   if (weapons === undefined || weapons.length === 0) {
@@ -75,8 +68,14 @@ export function getBattlefieldWeaponAttack(weapon: Weapon, catalog?: SessionCata
  * filter by weapon state. Without a catalog, numeric values are unavailable.
  */
 export function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined, catalog?: SessionCatalog) {
-  if (weapons === undefined || weapons.length === 0) {
-    return '0 / rng 0'
+  const primaryWeaponStats = getPrimaryWeaponStats(weapons, catalog)
+  return `${primaryWeaponStats.attack} / rng ${primaryWeaponStats.range}`
+}
+
+/** Returns the strongest supplied weapon's numeric attack and range. */
+export function getPrimaryWeaponStats(weapons: ReadonlyArray<Weapon> | undefined, catalog?: SessionCatalog): { attack: number; range: number } {
+  if (weapons === undefined || weapons.length === 0 || catalog === undefined) {
+    return { attack: 0, range: 0 }
   }
 
   const primaryWeapon = weapons.reduce((strongest, weapon) => {
@@ -96,11 +95,8 @@ export function formatAttackSummary(weapons: ReadonlyArray<Weapon> | undefined, 
     return strongest
   })
 
-  const primaryWeaponType = catalog === undefined ? undefined : getSessionWeaponType(catalog, primaryWeapon.typeId)
-  if (primaryWeaponType === undefined) {
-    return '0 / rng 0'
-  }
-  return `${primaryWeaponType.attack} / rng ${primaryWeaponType.range}`
+  const primaryWeaponType = getSessionWeaponType(catalog, primaryWeapon.typeId)
+  return { attack: primaryWeaponType.attack, range: primaryWeaponType.range }
 }
 
 /**
@@ -116,12 +112,6 @@ export function getReadyWeaponRange(weapons: ReadonlyArray<Weapon> | undefined, 
   return weapons
     .filter((weapon) => weapon.state === 'ready')
     .reduce((maxRange, weapon) => Math.max(maxRange, catalog === undefined ? 0 : getSessionWeaponType(catalog, weapon.typeId).range), 0)
-}
-
-/** Parses a range string, returning zero for non-numeric values. */
-export function parseRangeValue(rangeText: string): number {
-  const parsedRange = Number.parseInt(rangeText, 10)
-  return Number.isNaN(parsedRange) ? 0 : parsedRange
 }
 
 /**

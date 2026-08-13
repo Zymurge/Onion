@@ -7,11 +7,10 @@ import {
   formatWeaponSummary,
   getActionableModes,
   getBattlefieldWeaponAttack,
+  getPrimaryWeaponStats,
   getReadyWeaponRange,
   isBattlefieldUnitCombatReady,
   isBattlefieldWeaponReady,
-  parseAttackStats,
-  parseRangeValue,
   parseWeaponStats,
   resolveBattlefieldWeaponName,
 } from '../../../web/lib/weaponStats'
@@ -55,6 +54,8 @@ describe('weaponStats', () => {
 		expect(resolveBattlefieldWeaponName(readyWeapon)).toBe('test.high')
 		expect(getBattlefieldWeaponAttack(readyWeapon, catalog)).toBe(8)
 		expect(getBattlefieldWeaponAttack(readyWeapon)).toBe(0)
+    expect(getPrimaryWeaponStats([readyWeapon], catalog)).toEqual({ attack: 8, range: 2 })
+    expect(getPrimaryWeaponStats([readyWeapon])).toEqual({ attack: 0, range: 0 })
 		expect(formatAttackSummary([readyWeapon], catalog)).toBe('8 / rng 2')
 		expect(formatAttackSummary([readyWeapon])).toBe('0 / rng 0')
 		expect(getReadyWeaponRange([readyWeapon], catalog)).toBe(2)
@@ -109,16 +110,6 @@ describe('weaponStats', () => {
       createWeapon('test.spent-long', 'spent'),
       createWeapon('test.destroyed-long', 'destroyed'),
     ], catalog)).toBe(6)
-  })
-
-  it('parses attack and range text conservatively', () => {
-    expect(parseAttackStats(' 4 / rng 7 ')).toEqual({ damage: '4', range: '7' })
-    expect(parseAttackStats('4')).toEqual({ damage: '4', range: '0' })
-    expect(parseAttackStats('4 / 7')).toEqual({ damage: '4', range: '0' })
-    expect(parseRangeValue('12')).toBe(12)
-    expect(parseRangeValue('12px')).toBe(12)
-    expect(parseRangeValue('rng 7')).toBe(0)
-    expect(parseRangeValue('')).toBe(0)
   })
 
   it('reports weapon readiness and combat readiness', () => {
