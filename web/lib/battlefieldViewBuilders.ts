@@ -149,7 +149,6 @@ export function buildBattlefieldDefenderView(
 
   return {
     ...defender,
-    friendlyName: resolveBattlefieldUnitName(defender.typeId, defender.unitId, defender.friendlyName),
     movesRemaining: move,
     stackSize,
     actionableModes: getActionableModes(defender.state, weapons, activeTurnActive, activePhase),
@@ -169,7 +168,6 @@ export function buildBattlefieldOnionView(
 ): BattlefieldOnionView {
   return {
     ...onion,
-    friendlyName: resolveBattlefieldUnitName(onion.typeId, onion.unitId, onion.friendlyName),
     movesAllowed,
     movesRemaining,
   }

@@ -80,6 +80,26 @@ export function createGameSessionController(options: GameSessionControllerOption
 		}
 	}
 
+	function syncObservedEventState() {
+		const snapshotSeq = state.snapshot?.lastEventSeq ?? null
+		const lastAppliedEventSeq = latestObservedEventSeq ?? snapshotSeq ?? null
+		setState({
+			lastAppliedEventSeq,
+			lastAppliedEventType: latestObservedEventType,
+		})
+	}
+
+	function restoreSnapshotEventState() {
+		if (state.snapshot === null) {
+			return
+		}
+
+		setState({
+			lastAppliedEventSeq: state.snapshot.lastEventSeq,
+			lastAppliedEventType: null,
+		})
+	}
+
 	function updateObservedSignal(signal: LiveSessionSignal) {
 		if (signal.kind === 'event') {
 			debugLog('received live event signal', {
@@ -91,6 +111,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 			if (latestObservedEventSeq === signal.eventSeq) {
 				latestObservedEventType = signal.eventType
 			}
+			syncObservedEventState()
 			return
 		}
 
@@ -103,6 +124,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 			if (latestObservedEventSeq === signal.eventSeq) {
 				latestObservedEventType = null
 			}
+			syncObservedEventState()
 		}
 	}
 
@@ -249,6 +271,9 @@ export function createGameSessionController(options: GameSessionControllerOption
 				true,
 			)
 			acceptedSnapshot = accepted ? envelope.snapshot : null
+			if (!accepted) {
+				restoreSnapshotEventState()
+			}
 			debugLog('refreshLiveSnapshot success', {
 				gameId: options.gameId,
 				accepted,
@@ -264,6 +289,8 @@ export function createGameSessionController(options: GameSessionControllerOption
 			setState({
 				status: 'error',
 				error: normalizeTransportError(error),
+				lastAppliedEventSeq: state.snapshot?.lastEventSeq ?? null,
+				lastAppliedEventType: null,
 			})
 		} finally {
 			liveRefreshInFlight = false

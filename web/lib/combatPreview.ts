@@ -106,13 +106,9 @@ function getSelectedAttackerIds(activeCombatRole: CombatRole, selectedUnitIds: R
 	return [...selectedUnitIds]
 }
 
-function getWeaponDetails(displayedOnion: BattlefieldOnionView): ReadonlyArray<Weapon> {
-	return displayedOnion.weapons
-}
-
 function getSelectedWeapons(displayedOnion: BattlefieldOnionView, selectedAttackerIds: ReadonlyArray<string>): ReadonlyArray<Weapon> {
 	const selectedWeaponIds = new Set(selectedAttackerIds)
-	return getWeaponDetails(displayedOnion).filter((weapon) => selectedWeaponIds.has(weapon.id))
+	return displayedOnion.weapons.filter((weapon) => selectedWeaponIds.has(weapon.id))
 }
 
 function buildCombatCalculatorInputForDefenderTarget(
@@ -128,7 +124,7 @@ function buildCombatCalculatorInputForDefenderTarget(
 		units[attackerId] = {
 			typeId: displayedOnion.typeId,
 			weaponIds: [attackerId],
-			weapons: getWeaponDetails(displayedOnion),
+			weapons: displayedOnion.weapons,
 		}
 	}
 
@@ -165,7 +161,7 @@ function buildCombatCalculatorInputForWeaponTarget(
 	units[displayedOnion.unitId] = {
 		typeId: displayedOnion.typeId,
 		weaponId: weapon.id,
-		weapons: getWeaponDetails(displayedOnion),
+		weapons: displayedOnion.weapons,
 		terrainType: terrainTypeAt(displayedScenarioMap, displayedOnionPosition.q, displayedOnionPosition.r),
 	}
 
@@ -307,7 +303,7 @@ export function buildCombatTargetOptions({
 		return []
 	}
 
-	const readyWeaponTargets = getWeaponDetails(displayedOnion)
+	const readyWeaponTargets = displayedOnion.weapons
 		.filter((weapon) => catalog !== undefined && getSessionWeaponType(catalog, weapon.typeId).individuallyTargetable && weapon.state === 'ready')
 		.map((weapon) => {
 			const result = combatCalculator.calculateResult(
