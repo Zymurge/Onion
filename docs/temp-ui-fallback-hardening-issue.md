@@ -25,10 +25,7 @@
 
 ## Remaining Work
 
-- [ ] Harden `useBattlefieldDisplayState` so non-static missing state does not quietly collapse to empty arrays, nulls, or derived defaults.
-- [ ] Add broken-state tests for `useBattlefieldDisplayState` and `BattlefieldLeftRail` that prove missing non-static state does not quietly recover.
-- [ ] Add orchestration coverage that injects incomplete game state and verifies the standard error overlay appears instead of inferred UI state.
-- [ ] Decide whether a shared snapshot-completeness guard should be added for render-time validation, with targeted guards kept in action handlers for user-triggered paths.
+See the atomic task breakdown in [todo.md](todo.md#ui-fallback-hardening-remaining-work-from-temp-ui-fallback-hardening-issuemd) for the independently-implementable steps (audit, broken-state tests, hardening, orchestration coverage, and the shared-guard decision).
 
 ## Notes
 

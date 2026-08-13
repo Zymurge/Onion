@@ -160,7 +160,7 @@ Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md).
 
 ### Stacked Unit Management
 
-**Implemented:** Canonical stack roster state, naming lifecycle, split/merge reconciliation, stack-aware map and rail presentation, subgroup selection, combat/ramming behavior, and automated regression coverage are complete. See [stacked-unit-management-spec.md](stacked-unit-management-spec.md) for the current contract.
+**Implemented:** Canonical stack roster state, naming lifecycle, split/merge reconciliation, stack-aware map and rail presentation, subgroup selection, combat/ramming behavior, and automated regression coverage are complete. See [archive/stacked-unit-management-spec.md](archive/stacked-unit-management-spec.md) for the finalized contract record.
 
 ### Game Lobby & Matchmaking
 

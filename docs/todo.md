@@ -5,21 +5,101 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [ ] Complete scenario-driven unit deployment after the unit-catalog refactor.
-  - [ ] Define finite-ammunition metadata in global weapon definitions and an authored scenario override keyed by weapon type for starting ammunition; normalize it into dynamic weapon state without accepting unused ammo fields.
-  - [ ] Move faction/side assignment out of global unit definitions and into scenario deployment data so a scenario can assign supporting units to the Onion side.
-  - [ ] Rework the runtime unit maps and phase/combat assumptions around the special Onion vehicle versus a player side, then migrate scenario authoring and tests together.
-- [ ] Remove the redundant `movementRemainingByUnit` response projection after the unit-state refactor.
-  - [ ] Derive remaining movement client-side from each unit's `movementSpent`, the current phase, and the session catalog.
-  - [ ] Remove the field from HTTP/WebSocket payload types, adapters, API documentation, and regression fixtures once all consumers use the shared movement helper.
+- [ ] Complete scenario-driven unit deployment after the unit-catalog refactor. See atomic breakdown below.
+- [ ] Remove the redundant `movementRemainingByUnit` response projection after the unit-state refactor. See atomic breakdown below.
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
 - [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability.
   - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.
   - [ ] Replace tooltip-only detail exposure with explicit accessible disclosure patterns where details are important to gameplay comprehension.
   - [ ] Known issue: `InactiveEventStream` currently exposes event details only through the row `title` tooltip, which is not a sufficient keyboard/screen-reader interaction path.
 
+## Atomic Task Breakdown
+
+Each task below is scoped to be independently implementable and testable, with a test-first order and concrete files to touch.
+
+### Scenario-Driven Unit Deployment
+
+Primary files: `shared/config/unitCatalog.json`, `shared/unitDefinitions.ts`, `shared/types/index.ts`, `shared/unitWeapons.ts`, `shared/scenarioMap.ts`, `docs/scenario-schema.md`, `scenarios/*.json`, `server/engine/phases.ts`.
+
+- [ ] **Task 1: Weapon-type ammo metadata**
+  - Add optional `maxAmmo` to the global weapon-type catalog entries in `shared/config/unitCatalog.json` and the `ExternalWeaponType`/`WeaponType` shapes in `shared/unitDefinitions.ts` / `shared/types/index.ts`.
+  - Reject unknown/unused ammo-shaped fields already caught by `assertCatalogConfig` in `shared/unitDefinitions.ts`.
+  - Done when: a weapon type can declare `maxAmmo`, and catalog validation rejects malformed values.
+  - Test-first: extend `test/shared/unitWeapons.test.ts` / catalog-loading tests for the new field before wiring it up.
+
+- [ ] **Task 2: Scenario-authored starting ammo override**
+  - Add an optional per-weapon-type starting-ammo override to the scenario deployment schema (`docs/scenario-schema.md`, scenario JSON authoring, and the zod schema near `DefenderStackGroupSchema`/`OnionSchema`).
+  - Normalize the override into each unit's dynamic `weapons[].ammo` at scenario load, falling back to the catalog `maxAmmo` when the scenario omits it; reject scenario fields that don't map to a known weapon type.
+  - Done when: a scenario can start a weapon with reduced ammo without introducing new unused fields on the runtime `Weapon` type.
+  - Test-first: add scenario-normalization tests (`test/server/engine/scenarioNormalizer.test.ts`) proving override precedence and rejection of unknown fields before implementing.
+
+- [ ] **Task 3: Move side/faction assignment into scenario deployment data**
+  - Remove the hardcoded `role: 'onion' | 'defender'` from the global unit-type catalog (`shared/config/unitCatalog.json`, `shared/unitDefinitions.ts`); a unit type should describe capabilities only, not which side it plays for in a given scenario.
+  - Add a per-deployment `side`/`role` field to the scenario's unit and stack-group deployment records so a scenario can assign a normally-defender unit type to the Onion side (or vice versa).
+  - Done when: role/side is resolved from scenario deployment data at load time, not from the static unit-type definition.
+  - Test-first: add a scenario fixture that assigns a supporting unit type to the Onion side and prove normalization produces the expected runtime map membership before changing the catalog contract.
+
+- [ ] **Task 4: Rework runtime unit maps around side instead of Onion-vehicle identity**
+  - Rework `GameState.onions`/`GameState.defenders` (and phase/combat code in `server/engine/phases.ts`, `server/engine/combat.ts`, `server/engine/movement.ts` that currently assumes "Onion" means the single special vehicle) to key off resolved scenario side rather than a hardcoded vehicle type.
+  - Update phase-machine side effects (`ONION_MOVE`/`ONION_COMBAT` actor checks) so they operate on "the Onion side" rather than assuming only the Onion vehicle type can occupy that map.
+  - Migrate scenario authoring (`scenarios/*.json`) and engine/API/web tests together once the new contract lands; do not keep a dual-path compatibility layer.
+  - Done when: a scenario with a non-Onion-vehicle unit assigned to the Onion side plays through movement, combat, and phase transitions correctly, and no engine code special-cases the Onion vehicle type by name.
+  - Test-first: add an engine-level scenario test with a mixed-side deployment before reworking the phase/combat assumptions.
+
+### Remove `movementRemainingByUnit` Response Projection
+
+Primary files: `server/api/gamesHelpers.ts`, `server/api/games.ts`, `shared/apiProtocol.ts`, `shared/types/index.ts`, `web/lib/httpGameClient.ts`, `web/lib/gameClient.ts`, `web/lib/useBattlefieldDisplayState.ts`, `web/lib/useBattlefieldInteractionState.ts`, `web/lib/battlefieldViewBuilders.ts`, `docs/api-contract.md`.
+
+- [ ] **Task 1: Add a shared client-side remaining-movement helper**
+  - Add (or confirm/extend) a shared helper that computes remaining movement allowance from `movementSpent`, current phase, and the session catalog, matching the server's `getRemainingUnitMovementAllowance` logic used in `buildMovementRemainingByUnit` (`server/api/gamesHelpers.ts`).
+  - Done when: `web/lib/useBattlefieldInteractionState.ts` and `web/lib/battlefieldViewBuilders.ts` can compute remaining movement without reading `snapshot.movementRemainingByUnit`.
+  - Test-first: add shared/web unit tests proving the client helper matches server output for onion and defender units across phases, before switching call sites.
+
+- [ ] **Task 2: Switch web consumers off `movementRemainingByUnit`**
+  - Update `web/lib/useBattlefieldDisplayState.ts`, `web/lib/useBattlefieldInteractionState.ts`, and `web/lib/battlefieldViewBuilders.ts` to use the new shared helper instead of `snapshot.movementRemainingByUnit`.
+  - Done when: no `web/lib/**` production code reads `movementRemainingByUnit` from a snapshot.
+  - Test-first: update the affected test suites (`useBattlefieldDisplayState.test.tsx`, `useBattlefieldInteractionState.test.tsx`, `battlefieldViewBuilders.test.ts`) to stop asserting on the field before deleting it from fixtures.
+
+- [ ] **Task 3: Remove the field from server response building and transport types**
+  - Remove `buildMovementRemainingByUnit` and its call sites in `server/api/games.ts` / `server/api/gamesHelpers.ts`.
+  - Remove `movementRemainingByUnit` from `shared/apiProtocol.ts`, `shared/types/index.ts`, `web/lib/gameClient.ts`, and `web/lib/httpGameClient.ts`.
+  - Done when: the field no longer exists anywhere in the HTTP/WebSocket contract types or adapters.
+  - Test-first: update `test/server/api/games.state.test.ts`, `test/shared/apiProtocol.test.ts`, and `test/shared/websocketProtocol.test.ts` to assert the field's absence before deleting the production code.
+
+- [ ] **Task 4: Clean up fixtures and documentation**
+  - Remove `movementRemainingByUnit` from all test fixtures/helpers (`test/utils/gameStateUtils.ts`, `test/web/app/orchestration/orchestrationHelpers.ts`, and the transport/contract test files that currently set it).
+  - Update `docs/api-contract.md` to remove the field from the response shape and the compatibility note referencing this TODO item.
+  - Done when: `movementRemainingByUnit` has zero remaining references in the repository outside of this TODO's history/changelog context.
+  - Test-first: run a full-repo search for the field as the final verification step after Tasks 1-3 land.
+
+### UI Fallback Hardening (remaining work from `temp-ui-fallback-hardening-issue.md`)
+
+Primary files: `web/lib/useBattlefieldDisplayState.ts`, `web/components/BattlefieldLeftRail.tsx`, `test/web/lib/useBattlefieldDisplayState.test.tsx`, `test/web/components/BattlefieldLeftRail.test.tsx`, `test/web/app/orchestration/App.orchestration.test.tsx`.
+
+- [ ] **Task 1: Audit `useBattlefieldDisplayState` for silent recovery on non-static missing state**
+  - Identify every place `useBattlefieldDisplayState.ts` currently substitutes an empty array, `null`, or a derived default when non-static authoritative fields (roster, positions, statuses, stack data) are missing, as opposed to the already-allowed static `victoryObjectives`/`escapeHexes` caching.
+  - Done when: a written list of offending call sites exists as inline comments or a short PR description; no behavior change yet.
+
+- [ ] **Task 2: Add broken-state tests before hardening**
+  - Add tests to `test/web/lib/useBattlefieldDisplayState.test.tsx` and `test/web/components/BattlefieldLeftRail.test.tsx` that supply incomplete non-static snapshot data and assert the current (soon-to-be-wrong) silent-recovery behavior, so the tests fail once hardening lands and can be flipped to assert the error path.
+  - Done when: each identified call site from Task 1 has a corresponding failing-on-purpose test.
+
+- [ ] **Task 3: Replace silent recovery with explicit failure**
+  - Change `useBattlefieldDisplayState.ts` (and any dependent `BattlefieldLeftRail.tsx` rendering) so missing non-static state surfaces the standard error overlay path instead of collapsing to an empty/default view.
+  - Done when: the Task 2 tests now assert the error-overlay path and pass.
+
+- [ ] **Task 4: Add orchestration coverage for the end-to-end error path**
+  - Add a case to `test/web/app/orchestration/App.orchestration.test.tsx` that injects an incomplete authoritative snapshot and verifies the standard error overlay renders instead of any inferred UI state.
+  - Done when: the orchestration test fails against the pre-Task-3 behavior and passes after it.
+
+- [ ] **Task 5: Decide on a shared snapshot-completeness guard**
+  - Evaluate whether a single shared render-time validation guard (versus targeted per-handler guards for user-triggered actions) reduces duplication without weakening the "fail fast, no inference" rule.
+  - Done when: a decision is recorded in `docs/temp-ui-fallback-hardening-issue.md` (or its eventual archive) and, if adopted, the guard is implemented with tests; if rejected, the reasoning is documented and the remaining targeted guards are confirmed sufficient.
+
 ## Done
 
+- [x] Complete Issue 36 refactor hardening across transport boundaries, controller sequencing, projection ownership, and authoritative snapshot handling.
+- [x] Expand direct component and lower-level contract coverage for battlefield rails and interaction routing, including locked/disabled paths and stack selection controls.
 - [x] Stacked unit management: canonical stack identity, split/merge naming, per-unit action selection, stack-aware combat and ramming, UI presentation, and automated regression coverage.
   - [x] Render Little Pigs stack size directly inside the marker and keep yellow/inactive marker text dark for readability.
   - [x] Extract the shared stack naming engine into a standalone module that can track used group names and active groups.

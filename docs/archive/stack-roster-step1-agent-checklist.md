@@ -5,7 +5,7 @@ Each task is intended to be implementable and testable independently.
 
 Primary source requirements:
 
-- [docs/stacked-unit-management-spec.md](docs/stacked-unit-management-spec.md)
+- [docs/archive/stacked-unit-management-spec.md](docs/archive/stacked-unit-management-spec.md)
 - [docs/todo.md](docs/todo.md)
 
 ## Goal
@@ -209,12 +209,12 @@ PR checklist for merging `feature/stacking`:
 
 - Ensure all tests pass (`pnpm test` / `npx vitest run`).
 - Remove any temporary debug traces (none remain in shared modules).
-- Add a short migration note to `docs/stacked-unit-management-spec.md` and this checklist documenting the required fixture changes.
+- Add a short migration note to `docs/archive/stacked-unit-management-spec.md` and this checklist documenting the required fixture changes.
 - Create the PR with clear description of the contract change and listing tests that were updated.
 
 If you want, I can now:
 
-- update `docs/stacked-unit-management-spec.md` with a short migration paragraph, and
+- update `docs/archive/stacked-unit-management-spec.md` with a short migration paragraph, and
 - add an integration test exercising move+merge+name-allocation.
 
 Suggested ownership:

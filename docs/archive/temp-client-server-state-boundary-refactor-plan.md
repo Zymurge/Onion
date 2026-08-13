@@ -509,6 +509,12 @@ Definition of done:
 - reload-specific regressions are reproducible in tests
 - stack selection survives as a derivation, not as hidden cached authority
 
+Status:
+
+- Completed on 2026-08-12.
+- Hard reload, reconnect, live refresh, stale-result, and authoritative stack-selection regressions are covered.
+- App-level refresh synchronization uses the deterministic `session-sync-probe` marker rather than timer-based waiting.
+
 Validation:
 
 - targeted orchestration and session-controller tests
@@ -594,4 +600,3 @@ The refactor is successful when all of the following are true:
 5. The display model is pure and recomputable.
 6. Stack selection behavior is deterministic before and after reload.
 7. Permanent architecture docs describe the same boundary the code implements.
-
