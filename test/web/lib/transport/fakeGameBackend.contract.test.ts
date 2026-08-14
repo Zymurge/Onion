@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createFakeGameBackend } from '#web/lib/fakeGameBackend'
 import { createGameSessionController } from '#web/lib/gameSessionController'
 import type { GameSessionContext, GameSnapshot } from '#web/lib/gameClient'
-import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
+import { makeDefender, makeOnion, makeScenarioSnapshot, makeStackFixture, makeWeapon, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 
 function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	return {
@@ -17,78 +17,56 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 	}
 }
 
-function createStackSnapshot(phase: 'DEFENDER_MOVE' | 'DEFENDER_COMBAT', turnNumber: number, lastEventSeq: number): GameSnapshot {
-	const stackRoster = buildStackRosterFromUnits([
-		{ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational', friendlyName: 'Little Pigs 1' },
-		{ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational', friendlyName: 'Little Pigs 2' },
-	])
+function createStackSnapshot(phase: 'DEFENDER_MOVE' | 'DEFENDER_COMBAT', turnNumber: number, lastEventSeq: number): TestScenarioSnapshot {
+	const stack = makeStackFixture({
+		groups: {
+			'LittlePigs:4,4': {
+				groupName: 'Little Pigs 1',
+				unitType: 'LittlePigs',
+				position: { q: 4, r: 4 },
+				unitIds: ['pigs-1', 'pigs-2'],
+			},
+		},
+		unitOverrides: {
+			'pigs-1': { friendlyName: 'Little Pigs 1', weapons: [] },
+			'pigs-2': { friendlyName: 'Little Pigs 2', weapons: [] },
+		},
+	})
 
-	const defenders = {
-		'wolf-2': {
-			unitId: 'wolf-2',
-			typeId: 'BigBadWolf',
-			role: 'defender',
-			friendlyName: 'Big Bad Wolf 2',
-			position: { q: 3, r: 6 },
-			state: 'operational',
-			weapons: [],
-		},
-		'puss-1': {
-			unitId: 'puss-1',
-			typeId: 'Puss',
-			role: 'defender',
-			friendlyName: 'Puss 1',
-			position: { q: 4, r: 4 },
-			state: 'operational',
-			weapons: [],
-		},
-		'pigs-1': {
-			unitId: 'pigs-1',
-			typeId: 'LittlePigs',
-			role: 'defender',
-			friendlyName: 'Little Pigs 1',
-			position: { q: 4, r: 4 },
-			state: 'operational',
-			weapons: [],
-		},
-		'pigs-2': {
-			unitId: 'pigs-2',
-			typeId: 'LittlePigs',
-			role: 'defender',
-			friendlyName: 'Little Pigs 2',
-			position: { q: 4, r: 4 },
-			state: 'operational',
-			weapons: [],
-		}
-	 } as Record<string, any>
-
-	return {
-		gameId: 123,
+	return makeScenarioSnapshot({
 		phase,
-		scenarioName: phase === 'DEFENDER_MOVE' ? 'Stack move snapshot' : 'Stack combat snapshot',
 		turnNumber,
+		scenarioName: phase === 'DEFENDER_MOVE' ? 'Stack move snapshot' : 'Stack combat snapshot',
 		lastEventSeq,
-		victoryObjectives: [],
 		authoritativeState: {
 			onions: {
-					'onion-1': {
-						unitId: 'onion-1',
-						typeId: 'TheOnion',
-						role: 'onion',
-						friendlyName: 'The Onion 1',
-						position: { q: 0, r: 1 },
-						treads: 33,
-						state: 'operational',
-						weapons: [{ id: 'main', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' }],
-					},
+				'onion-1': makeOnion({
+					position: { q: 0, r: 1 },
+					friendlyName: 'The Onion 1',
+					treads: 33,
+					weapons: [makeWeapon({ id: 'main', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' })],
+				}),
 			},
-			defenders,
-			stackRoster,
-			stackNaming: refreshStackRosterNamingSnapshot( stackRoster, undefined, defenders ),
-			ramsThisTurn: 0,
-			movementSpent: {},
+			defenders: {
+				'wolf-2': makeDefender({
+					unitId: 'wolf-2',
+					typeId: 'BigBadWolf',
+					friendlyName: 'Big Bad Wolf 2',
+					position: { q: 3, r: 6 },
+					weapons: [],
+				}),
+				'puss-1': makeDefender({
+					unitId: 'puss-1',
+					friendlyName: 'Puss 1',
+					position: { q: 4, r: 4 },
+					weapons: [],
+				}),
+				...stack.defenders,
+			},
+			stackRoster: stack.stackRoster,
+			stackNaming: stack.stackNaming,
 		},
-	}
+	})
 }
 
 describe('createFakeGameBackend', () => {

@@ -6,59 +6,56 @@ import { useBattlefieldDisplayState } from '#web/lib/useBattlefieldDisplayState'
 import type { GameSnapshot } from '#web/lib/gameClient'
 import type { GameSessionViewState } from '#web/lib/gameSessionTypes'
 import type { BattlefieldInteractionState } from '#web/lib/useBattlefieldInteractionState'
-import { DefenderUnit, makeDefender, makeGameState, makeOnion, makeWeapon, StackRosterState } from '#test/utils/gameStateUtils'
+import { DefenderUnit, makeDefender, makeOnion, makeScenarioSnapshot, makeWeapon, StackRosterState } from '#test/utils/gameStateUtils'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createSnapshot(): GameSnapshot {
-	const authoritativeState = makeGameState({
-		onions: {
-			'onion-live': makeOnion({
-				unitId: 'onion-live',
-				position: { q: 1, r: 1 },
-				treads: 27,
-				weapons: [],
-			}),
-		},
-		defenders: {
-			'pigs-1': makeDefender({
-				unitId: 'pigs-1',
-				typeId: 'LittlePigs',
-				position: { q: 4, r: 4 },
-				friendlyName: 'Little Pigs 1',
-				weapons: [makeWeapon({ id: 'pigs-1-main', typeId: 'LittlePigs.rifle' })],
-			}),
-			'pigs-2': makeDefender({
-				unitId: 'pigs-2',
-				typeId: 'LittlePigs',
-				position: { q: 4, r: 4 },
-				friendlyName: 'Little Pigs 2',
-				weapons: [makeWeapon({ id: 'pigs-2-main', typeId: 'LittlePigs.rifle' })],
-			}),
-		},
-		stackNaming: undefined,
-		stackRoster: undefined,
-		currentPhase: 'DEFENDER_COMBAT',
-		turn: 8,
-	})
-
-	return {
+	return makeScenarioSnapshot({
 		gameId: 123,
 		phase: 'DEFENDER_COMBAT',
 		scenarioName: 'Display state invariant scenario',
 		turnNumber: 8,
 		lastEventSeq: 47,
-		authoritativeState,
-		victoryObjectives: [],
+		authoritativeState: {
+			onions: {
+				'onion-live': makeOnion({
+					unitId: 'onion-live',
+					position: { q: 1, r: 1 },
+					treads: 27,
+					weapons: [],
+				}),
+			},
+			defenders: {
+				'pigs-1': makeDefender({
+					unitId: 'pigs-1',
+					typeId: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					friendlyName: 'Little Pigs 1',
+					weapons: [makeWeapon({ id: 'pigs-1-main', typeId: 'LittlePigs.rifle' })],
+				}),
+				'pigs-2': makeDefender({
+					unitId: 'pigs-2',
+					typeId: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					friendlyName: 'Little Pigs 2',
+					weapons: [makeWeapon({ id: 'pigs-2-main', typeId: 'LittlePigs.rifle' })],
+				}),
+			},
+			stackNaming: undefined,
+			stackRoster: undefined,
+			currentPhase: 'DEFENDER_COMBAT',
+			turn: 8,
+		},
 		scenarioMap: {
 			width: 8,
 			height: 8,
 			cells: [],
 			hexes: [],
 		},
-	}
+	})
 }
 
 function createSessionState(snapshot: GameSnapshot): GameSessionViewState {
