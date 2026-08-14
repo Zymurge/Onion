@@ -271,7 +271,6 @@ export interface ActionOkResponse {
   seq: number
   events: EventEnvelope[]
   state: GameState
-  movementRemainingByUnit: Record<string, number>
 }
 
 /**

@@ -8,12 +8,12 @@ import { ScenarioSchema, type InitialState } from '#server/engine/scenarioSchema
 import type { GameStateResponse, VictoryEscapeHex, VictoryObjectiveState } from '#shared/apiProtocol'
 import { hexKey } from '#shared/hex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
-import { getRemainingUnitMovementAllowance } from '#shared/unitMovement'
 import type { ActionOkResponse, Command, EventEnvelope, GameState, SessionInitPayload, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
 import { getUnitDefinition, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { MovementResult } from '#server/engine/movement'
+import { CombatExecutionResult } from '#server/engine/combat'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import { getDefender, getOnionOrDefender } from '#shared/unitState'
-import type { StackNamingSourceUnit } from '#shared/stackNaming'
 import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 import { resolveScenariosDir } from '#server/api/scenarioPaths'
@@ -341,19 +341,6 @@ export function buildEngineState(match: MatchRecord): GameState {
   }
 }
 
-export function buildMovementRemainingByUnit(state: GameState, phase: TurnPhase): Record<string, number> {
-  const movementRemainingByUnit: Record<string, number> = {}
-  for (const onion of Object.values(state.onions)) {
-    movementRemainingByUnit[onion.unitId] = getRemainingUnitMovementAllowance(onion, phase)
-  }
-
-  for (const defender of Object.values(state.defenders)) {
-    movementRemainingByUnit[defender.unitId] = getRemainingUnitMovementAllowance(defender, phase)
-  }
-
-  return movementRemainingByUnit
-}
-
 function isOnionEscaped(
   scenarioMap: ScenarioMapSnapshot,
   state: GameState,
@@ -456,7 +443,7 @@ export function getWeaponTypeFromId(weaponId: string) {
 export function buildCombatEvents(
   startSeq: number,
   command: Extract<Command, { type: 'FIRE' }>,
-  result: any,
+  result: CombatExecutionResult,
   state: GameState,
   phase?: TurnPhase,
 ): EventEnvelope[] {
@@ -545,7 +532,7 @@ export function buildMoveEvents(
   startSeq: number,
   moveUnitId: string,
   command: SingleUnitMoveCommand,
-  result: any,
+  result: MovementResult,
   state: GameState,
   phase?: TurnPhase,
 ): EventEnvelope[] {
@@ -772,7 +759,6 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
       defenders,
       stackRoster,
     },
-    movementRemainingByUnit: buildMovementRemainingByUnit(match.state, match.phase),
     victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber),
     escapeHexes,
     scenarioMap,
@@ -805,18 +791,12 @@ export function buildActionResponse(
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
-  const responseStackRoster: StackRosterState | undefined = (() => {
-    const roster = state.stackRoster ?? { groupsById: {} }
-    const groupsById = roster.groupsById ?? {}
-    return { groupsById }
-  })()
 
   return {
     ok: true,
     seq: eventSeq,
     events,
     state,
-    movementRemainingByUnit: buildMovementRemainingByUnit(state, phase),
     turnNumber,
     eventSeq,
     phase,

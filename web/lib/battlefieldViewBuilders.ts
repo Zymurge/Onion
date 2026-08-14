@@ -1,4 +1,4 @@
-import { getUnitMovementAllowance } from '../../shared/unitMovement.js'
+import { getRemainingUnitMovementAllowance, getUnitMovementAllowance } from '../../shared/unitMovement.js'
 import type { ApiProtocolTrafficEntry } from '../../shared/apiProtocol.js'
 import type { DefenderUnit, OnionUnit, TurnPhase } from '../../shared/types/index.js'
 import type { BattlefieldDefenderView, BattlefieldOnionView, BattlefieldUnit, TerrainHex } from './battlefieldView.js'
@@ -6,9 +6,6 @@ import type { ServerGameSnapshot } from './gameClient.js'
 import type { LiveConnectionStatus } from './gameSessionTypes.js'
 import { getSessionWeaponType, type SessionCatalog } from './sessionCatalog.js'
 import { buildStackRosterIndex } from '../../shared/stackRoster.js'
-import {
-  resolveBattlefieldUnitName,
-} from './battlefieldNaming.js'
 import {
   isWeaponSelectionId,
   resolveSelectionOwnerUnitId,
@@ -181,14 +178,12 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
     return []
   }
 
-  const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   const defenderEntries = Object.entries(authoritativeState.defenders)
   const stackRosterIndex = buildStackRosterIndex(authoritativeState.stackRoster, authoritativeState.defenders)
 
   return defenderEntries
     .map(([defenderId, defender], index) => {
       const resolvedDefenderId = defender.unitId || defenderId
-      const snapshotMovementRemaining = movementRemainingByUnit[resolvedDefenderId]
       const rosterGroup = stackRosterIndex.getUnitGroup(resolvedDefenderId)
       const stackSize = rosterGroup === null
         ? 1
@@ -196,7 +191,7 @@ export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: Tu
 
       return {
         ...buildBattlefieldDefenderView(defender, {
-          move: activePhase === null ? 0 : snapshotMovementRemaining ?? 0,
+          move: activePhase === null ? 0 : getRemainingUnitMovementAllowance(defender, activePhase),
           stackSize: Math.max(stackSize, 1),
           activePhase,
           activeTurnActive,
@@ -235,10 +230,9 @@ export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnP
     throw new Error('Missing authoritative state')
   }
 
-  const movementRemainingByUnit = snapshot.movementRemainingByUnit ?? {}
   return Object.values(authoritativeState.onions).map((onion) => {
     const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance(onion.typeId, activePhase, onion.treads)
-    const movesRemaining = activePhase === null ? 0 : movementRemainingByUnit[onion.unitId] ?? movesAllowed
+    const movesRemaining = activePhase === null ? 0 : getRemainingUnitMovementAllowance(onion, activePhase)
     return buildBattlefieldOnionView(onion, { movesAllowed, movesRemaining })
   })
 }

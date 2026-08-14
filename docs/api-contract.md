@@ -160,7 +160,6 @@ in this response or in `GameState`.
     "hexes": [ { "q": number, "r": number, "t": number } ]
   },
   "state": GameState,
-  "movementRemainingByUnit": { [unitId: string]: number },
   "eventSeq":    number   // highest event sequence number so far
 }
 ```
@@ -528,7 +527,7 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from
 }
 ```
 
-`stackRoster` is the canonical source of stack membership and group identity. `defenders` is a unit projection and must not be used to infer stack membership from co-location. `movementRemainingByUnit` remains in the current game response for compatibility; its planned removal is tracked in [todo.md](todo.md).
+`stackRoster` is the canonical source of stack membership and group identity. `defenders` is a unit projection and must not be used to infer stack membership from co-location. Remaining movement is derived from each unit's authoritative `movementSpent` state and the current phase.
 
 ---
 

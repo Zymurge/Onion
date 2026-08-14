@@ -20,16 +20,36 @@ const testSessionCatalog: SessionInitPayload = {
 }
 
 function createDefenderMoveSnapshot(): TestScenarioSnapshot {
-	return makeScenarioSnapshot({
+	const snapshot = makeScenarioSnapshot({
 		phase: 'DEFENDER_MOVE',
-		movementRemainingByUnit: { 'onion-1': 0, 'wolf-2': 0, 'puss-1': 3 },
 	})
+
+	return {
+		...snapshot,
+		authoritativeState: {
+			...snapshot.authoritativeState,
+			defenders: {
+				...snapshot.authoritativeState.defenders,
+				'wolf-2': {
+					...snapshot.authoritativeState.defenders['wolf-2'],
+					movementSpent: { DEFENDER_MOVE: 4 },
+				},
+			},
+		},
+	}
 }
 
 function createOnionMoveSnapshot(onionMovesRemaining = 4): TestScenarioSnapshot {
 	return makeScenarioSnapshot({
 		phase: 'ONION_MOVE',
-		movementRemainingByUnit: { 'onion-1': onionMovesRemaining, 'wolf-2': 4, 'puss-1': 3 },
+		authoritativeState: {
+			onions: {
+				'onion-1': {
+					...makeScenarioSnapshot().authoritativeState.onions['onion-1'],
+					movementSpent: { ONION_MOVE: Math.max(3 - onionMovesRemaining, 0) },
+				},
+			},
+		},
 	})
 }
 

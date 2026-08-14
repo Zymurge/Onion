@@ -159,13 +159,9 @@ export function useBattlefieldDisplayState({
     const victoryObjectives = clientSnapshot?.victoryObjectives ?? []
     const escapeHexes = clientSnapshot?.escapeHexes ?? []
 
-    const scenarioMapSnapshot = clientSnapshot === null ? null : buildScenarioMap(clientSnapshot)
-    const movementRemainingSnapshot = clientSnapshot?.movementRemainingByUnit ?? null
-    const displayedDefenders = authoritativeState === null || hasValidationError ? [] : buildLiveDefenders({
-      authoritativeState,
-      scenarioMap: scenarioMapSnapshot,
-      movementRemainingByUnit: movementRemainingSnapshot,
-    } as ServerGameSnapshot, activePhase, activeTurnActive)
+    const displayedDefenders = authoritativeState === null || hasValidationError || clientSnapshot === null
+      ? []
+      : buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive)
     const displayedOnions = clientSnapshot === null || hasValidationError ? [] : buildLiveOnions(clientSnapshot, activePhase)
     const selectedOnionId = activeSelectedUnitIds.map(resolveSelectionOwnerUnitId).find((unitId) => displayedOnions.some((onion) => onion.unitId === unitId))
     const displayedOnion = displayedOnions.find((onion) => onion.unitId === selectedOnionId) ?? displayedOnions[0] ?? null

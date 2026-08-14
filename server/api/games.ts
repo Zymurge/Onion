@@ -21,7 +21,6 @@ import {
   buildMoveEvents,
   buildVictoryObjectiveStates,
   computeWinnerUserId,
-  buildMovementRemainingByUnit,
   extractUserId,
   extractUserIdFromAuth,
   getScenarioEscapeHexes,

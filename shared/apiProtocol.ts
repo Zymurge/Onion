@@ -252,7 +252,6 @@ export type GameStateResponse = {
 		defender: string | null
 	}
 	state: GameState
-	movementRemainingByUnit: Record<string, number>
 	victoryObjectives: VictoryObjectiveState[]
 	escapeHexes?: VictoryEscapeHex[]
 	/**

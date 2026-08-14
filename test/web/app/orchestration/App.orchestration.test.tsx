@@ -144,19 +144,8 @@ describe('rendering and display', () => {
 		expect(screen.queryByText('14,21')).toBeNull()
 	})
 
-	it('renders backend-provided onion movement remaining at the first band', async () => {
-		const snapshot = createSnapshotWithTreads(15, 2)
-		const session = { role: 'onion' as const }
-		const client = createTestClient(snapshot, session)
-
-		render(<App gameClient={client} gameId={123} />)
-
-		const onionCard = await screen.findByTestId('combat-unit-onion-1')
-		expect(onionCard.textContent).toContain('Moves 2')
-	})
-
-	it('renders backend-provided onion movement remaining at the second band', async () => {
-		const snapshot = createSnapshotWithTreads(16, 1)
+	it('renders onion movement remaining at the first band', async () => {
+		const snapshot = createSnapshotWithTreads(15)
 		const session = { role: 'onion' as const }
 		const client = createTestClient(snapshot, session)
 
@@ -164,6 +153,17 @@ describe('rendering and display', () => {
 
 		const onionCard = await screen.findByTestId('combat-unit-onion-1')
 		expect(onionCard.textContent).toContain('Moves 1')
+	})
+
+	it('renders onion movement remaining at the second band', async () => {
+		const snapshot = createSnapshotWithTreads(16)
+		const session = { role: 'onion' as const }
+		const client = createTestClient(snapshot, session)
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const onionCard = await screen.findByTestId('combat-unit-onion-1')
+		expect(onionCard.textContent).toContain('Moves 2')
 	})
 
 	it('renders from the current game snapshot', async () => {
@@ -189,15 +189,11 @@ describe('rendering and display', () => {
 // ---- movement ----
 
 describe('movement', () => {
-	it('falls back to onion tread allowance when remaining movement is not provided', async () => {
-		// treads=16 → onionMovementAllowance(16) = 2; movementRemainingByUnit omitted to test the fallback path
-		const snapshot = {
-			...createSnapshotWithTreads(16, 2),
-			movementRemainingByUnit: undefined,
-		}
+	it('derives movement from onion treads', async () => {
+		const snapshot = createSnapshotWithTreads(16)
 		const session = { role: 'onion' as const }
 		const submitAction = vi.fn().mockResolvedValue(snapshot)
-		const client = createTestClient(snapshot as TestScenarioSnapshot, session, { submitAction })
+		const client = createTestClient(snapshot, session, { submitAction })
 
 		await renderAppAndAcknowledgeTurn(client)
 
@@ -273,14 +269,13 @@ describe('movement', () => {
 
 describe('ram flow', () => {
 	it('prompts before a ram-capable Onion move and can skip the ram', async () => {
-		const snapshot = createSnapshotWithTreads(45, 3, {
+		const snapshot = createSnapshotWithTreads(45, {
 			onions: {
 				'onion-1': makeOnion({ position: { q: 0, r: 0 }, treads: 45, friendlyName: 'The Onion' }),
 			},
 			defenders: {
 				'd1': makeDefender({ unitId: 'd1', typeId: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, weapons: [] }),
 			},
-			movementRemainingByUnit: { 'onion-1': 3 },
 		})
 
 		const submitAction = vi.fn().mockResolvedValue(snapshot)
@@ -303,7 +298,7 @@ describe('ram flow', () => {
 
 	it('renders one ram toast per resolved target', async () => {
 		const user = userEvent.setup()
-		const snapshot = createSnapshotWithTreads(45, 3, {
+		const snapshot = createSnapshotWithTreads(45, {
 			onions: {
 				'onion-1': makeOnion({ position: { q: 0, r: 0 }, treads: 45, friendlyName: 'The Onion' }),
 			},
@@ -311,7 +306,6 @@ describe('ram flow', () => {
 				'd1': makeDefender({ unitId: 'd1', typeId: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, weapons: [] }),
 				'd2': makeDefender({ unitId: 'd2', typeId: 'BigBadWolf', friendlyName: 'Big Bad Wolf 2', position: { q: 1, r: 1 }, weapons: [] }),
 			},
-			movementRemainingByUnit: { 'onion-1': 3 },
 		})
 
 		const ramSnapshot = {
@@ -340,14 +334,13 @@ describe('ram flow', () => {
 
 	it('renders ram toast fallback details and dismisses it from the app shell', async () => {
 		const user = userEvent.setup()
-		const snapshot = createSnapshotWithTreads(45, 3, {
+		const snapshot = createSnapshotWithTreads(45, {
 			onions: {
 				'onion-1': makeOnion({ position: { q: 0, r: 0 }, treads: 45, friendlyName: 'The Onion' }),
 			},
 			defenders: {
 				'd1': makeDefender({ unitId: 'd1', typeId: 'Puss', friendlyName: 'Puss 1', position: { q: 0, r: 1 }, weapons: [] }),
 			},
-			movementRemainingByUnit: { 'onion-1': 3 },
 		})
 
 		const ramSnapshot = {
@@ -408,14 +401,13 @@ describe('ram flow', () => {
 
 	it('keeps a survived ram target after the move response enters Onion combat', async () => {
 		const user = userEvent.setup()
-		const snapshot = createSnapshotWithTreads(45, 3, {
+		const snapshot = createSnapshotWithTreads(45, {
 			onions: {
 				'onion-1': makeOnion({ position: { q: 0, r: 0 }, treads: 45, friendlyName: 'The Onion' }),
 			},
 			defenders: {
 				'd1': makeDefender({ unitId: 'd1', typeId: 'BigBadWolf', friendlyName: 'Big Bad Wolf 1', position: { q: 0, r: 1 }, weapons: [] }),
 			},
-			movementRemainingByUnit: { 'onion-1': 3 },
 		})
 		const ramSnapshot = {
 			...snapshot,
@@ -788,7 +780,6 @@ describe('combat', () => {
 				stackRoster,
 				stackNaming,
 			},
-			movementRemainingByUnit: { ...baseOrchestrationSnapshot.movementRemainingByUnit },
 		}
 		const session = { role: 'onion' as const }
 		const client = createTestClient(snapshot, session)

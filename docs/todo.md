@@ -6,7 +6,7 @@ break down into features/tasks as needed.
 ## In progress
 
 - [ ] Complete scenario-driven unit deployment after the unit-catalog refactor. See atomic breakdown below.
-- [ ] Remove the redundant `movementRemainingByUnit` response projection after the unit-state refactor. See atomic breakdown below.
+- [x] Remove the redundant `movementRemainingByUnit` response projection after the unit-state refactor. See completed atomic breakdown below.
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
 - [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability.
   - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.
@@ -50,23 +50,23 @@ Primary files: `shared/config/unitCatalog.json`, `shared/unitDefinitions.ts`, `s
 
 Primary files: `server/api/gamesHelpers.ts`, `server/api/games.ts`, `shared/apiProtocol.ts`, `shared/types/index.ts`, `web/lib/httpGameClient.ts`, `web/lib/gameClient.ts`, `web/lib/useBattlefieldDisplayState.ts`, `web/lib/useBattlefieldInteractionState.ts`, `web/lib/battlefieldViewBuilders.ts`, `docs/api-contract.md`.
 
-- [ ] **Task 1: Add a shared client-side remaining-movement helper**
-  - Add (or confirm/extend) a shared helper that computes remaining movement allowance from `movementSpent`, current phase, and the session catalog, matching the server's `getRemainingUnitMovementAllowance` logic used in `buildMovementRemainingByUnit` (`server/api/gamesHelpers.ts`).
+- [x] **Task 1: Confirm shared client-side remaining-movement calculation**
+  - Confirmed that the shared `getRemainingUnitMovementAllowance` helper computes remaining movement allowance from `movementSpent`, current phase, and the shared unit catalog.
   - Done when: `web/lib/useBattlefieldInteractionState.ts` and `web/lib/battlefieldViewBuilders.ts` can compute remaining movement without reading `snapshot.movementRemainingByUnit`.
   - Test-first: add shared/web unit tests proving the client helper matches server output for onion and defender units across phases, before switching call sites.
 
-- [ ] **Task 2: Switch web consumers off `movementRemainingByUnit`**
+- [x] **Task 2: Switch web consumers off `movementRemainingByUnit`**
   - Update `web/lib/useBattlefieldDisplayState.ts`, `web/lib/useBattlefieldInteractionState.ts`, and `web/lib/battlefieldViewBuilders.ts` to use the new shared helper instead of `snapshot.movementRemainingByUnit`.
   - Done when: no `web/lib/**` production code reads `movementRemainingByUnit` from a snapshot.
   - Test-first: update the affected test suites (`useBattlefieldDisplayState.test.tsx`, `useBattlefieldInteractionState.test.tsx`, `battlefieldViewBuilders.test.ts`) to stop asserting on the field before deleting it from fixtures.
 
-- [ ] **Task 3: Remove the field from server response building and transport types**
+- [x] **Task 3: Remove the field from server response building and transport types**
   - Remove `buildMovementRemainingByUnit` and its call sites in `server/api/games.ts` / `server/api/gamesHelpers.ts`.
   - Remove `movementRemainingByUnit` from `shared/apiProtocol.ts`, `shared/types/index.ts`, `web/lib/gameClient.ts`, and `web/lib/httpGameClient.ts`.
   - Done when: the field no longer exists anywhere in the HTTP/WebSocket contract types or adapters.
   - Test-first: update `test/server/api/games.state.test.ts`, `test/shared/apiProtocol.test.ts`, and `test/shared/websocketProtocol.test.ts` to assert the field's absence before deleting the production code.
 
-- [ ] **Task 4: Clean up fixtures and documentation**
+- [x] **Task 4: Clean up fixtures and documentation**
   - Remove `movementRemainingByUnit` from all test fixtures/helpers (`test/utils/gameStateUtils.ts`, `test/web/app/orchestration/orchestrationHelpers.ts`, and the transport/contract test files that currently set it).
   - Update `docs/api-contract.md` to remove the field from the response shape and the compatibility note referencing this TODO item.
   - Done when: `movementRemainingByUnit` has zero remaining references in the repository outside of this TODO's history/changelog context.

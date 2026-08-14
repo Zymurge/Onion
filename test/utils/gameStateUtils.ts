@@ -407,11 +407,6 @@ export function makeScenarioSnapshot(options: ScenarioSnapshotOptions = {}): Tes
 		turnNumber: 11,
 		lastEventSeq: 47,
 		authoritativeState,
-		movementRemainingByUnit: {
-			'onion-1': 0,
-			'wolf-2': 4,
-			'puss-1': 3,
-		},
 		victoryObjectives: [],
 		scenarioMap: {
 			width: 8,

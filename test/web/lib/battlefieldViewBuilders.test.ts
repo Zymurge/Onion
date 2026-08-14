@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makeDefender, makeOnion, makeWeapon } from '#test/utils/gameStateUtils'
+import { makeDefender, makeOnion, makeScenarioSnapshot, makeWeapon, type ScenarioSnapshotOptions } from '#test/utils/gameStateUtils'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '../../../web/lib/sessionCatalog'
 import {
@@ -20,12 +20,14 @@ import { isUnitMoveEligible } from '../../../web/lib/battlefieldView'
 
 const catalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
-function createLiveSnapshot(overrides: Partial<ServerGameSnapshot> = {}): ServerGameSnapshot {
-  return {
+function createLiveSnapshot(overrides: ScenarioSnapshotOptions = {}): ServerGameSnapshot {
+  const { authoritativeState, scenarioMap, ...snapshotOverrides } = overrides
+  const snapshot = makeScenarioSnapshot({
     gameId: 123,
     phase: 'DEFENDER_MOVE',
     scenarioName: 'Builder scenario',
     lastEventSeq: 4,
+    ...snapshotOverrides,
     authoritativeState: {
       onions: {
         'onion-1': makeOnion({ unitId: 'onion-1', position: { q: 0, r: 0 } }),
@@ -33,19 +35,23 @@ function createLiveSnapshot(overrides: Partial<ServerGameSnapshot> = {}): Server
       defenders: {
         'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 }, state: 'operational' }),
         'pigs-2': makeDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 1, r: 1 }, state: 'destroyed' }),
-        'wolf-1': makeDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 2, r: 2 }, state: 'operational' }),
+        'wolf-1': makeDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 2, r: 2 }, state: 'operational', movementSpent: { DEFENDER_MOVE: 4 } }),
       },
-      ramsThisTurn: 0,
+      ...authoritativeState,
     },
-    movementRemainingByUnit: { 'onion-1': 2, 'pigs-1': 3, 'wolf-1': 0 },
     scenarioMap: {
       width: 3,
       height: 3,
       cells: [{ q: 0, r: 0 }, { q: 1, r: 1 }, { q: 2, r: 2 }],
       hexes: [{ q: 0, r: 0, t: 0 }, { q: 1, r: 1, t: 1 }, { q: 2, r: 2, t: 2 }],
+      ...scenarioMap,
     },
-    victoryObjectives: [],
-    ...overrides,
+  })
+
+  return {
+    ...snapshot,
+    ...('authoritativeState' in overrides && authoritativeState === undefined ? { authoritativeState: undefined } : {}),
+    ...('scenarioMap' in overrides && scenarioMap === undefined ? { scenarioMap: undefined } : {}),
   }
 }
 
@@ -117,20 +123,20 @@ describe('battlefieldViewBuilders', () => {
     const views = buildLiveDefenders(createLiveSnapshot(), 'DEFENDER_MOVE', true)
 
     expect(views.map((unit) => unit.unitId)).toEqual(['pigs-1', 'wolf-1', 'pigs-2'])
-    expect(views.find((unit) => unit.unitId === 'pigs-1')).toMatchObject({ stackSize: 1, movesRemaining: 3 })
+    expect(views.find((unit) => unit.unitId === 'pigs-1')).toMatchObject({ stackSize: 1, movesRemaining: 1 })
     expect(views.find((unit) => unit.unitId === 'wolf-1')).toMatchObject({ stackSize: 1, movesRemaining: 0 })
     expect(buildLiveDefenders(createLiveSnapshot({ authoritativeState: undefined }), 'DEFENDER_MOVE', true)).toEqual([])
   })
 
   it('derives Onion movement allowance and rejects snapshots without authoritative state', () => {
-    const snapshot = createLiveSnapshot({ phase: 'ONION_MOVE', movementRemainingByUnit: undefined })
+    const snapshot = createLiveSnapshot({ phase: 'ONION_MOVE' })
     const onion = buildLiveOnion(snapshot, 'ONION_MOVE')
 
     expect(onion.movesAllowed).toBeGreaterThan(0)
     expect(onion.movesRemaining).toBe(onion.movesAllowed)
-    expect(buildLiveOnions(createLiveSnapshot({ phase: null }), null)[0]?.movesAllowed).toBe(0)
+    expect(buildLiveOnions(createLiveSnapshot(), null)[0]?.movesAllowed).toBe(0)
     expect(() => buildLiveOnions(createLiveSnapshot({ authoritativeState: undefined }), 'ONION_MOVE')).toThrow('Missing authoritative state')
-    expect(() => buildLiveOnion(createLiveSnapshot({ authoritativeState: { onions: {}, defenders: {}, ramsThisTurn: 0 } }), 'ONION_MOVE')).toThrow('Missing authoritative onion')
+    expect(() => buildLiveOnion(createLiveSnapshot({ authoritativeState: { onions: {}, defenders: {} } }), 'ONION_MOVE')).toThrow('Missing authoritative onion')
   })
 
   it('validates and reads scenario map data', () => {

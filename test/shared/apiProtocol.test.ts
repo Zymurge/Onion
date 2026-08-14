@@ -30,7 +30,6 @@ describe('apiProtocol traffic logging', () => {
 				onion: { position: { q: 0, r: 0 }, treads: 45 },
 				defenders: {},
 			},
-			movementRemainingByUnit: {},
 			escapeHexes: [{ q: 7, r: 5 }],
 			scenarioMap: {
 				width: 2,

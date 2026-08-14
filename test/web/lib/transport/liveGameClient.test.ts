@@ -20,7 +20,6 @@ function createStateResponse(gameId: number, eventSeq: number, phase = 'DEFENDER
 		scenarioName: `Game ${gameId}`,
 		turnNumber: 1,
 		state: { onions: {}, defenders: {}, stackRoster: { groupsById: {} } },
-		movementRemainingByUnit: {},
 		victoryObjectives: [],
 		scenarioMap: {
 			width: 1,
@@ -110,7 +109,6 @@ describe('createLiveGameClient', () => {
 					scenarioName: "The Siege of Shrek's Swamp",
 					turnNumber: 8,
 					state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
-					movementRemainingByUnit: { 'onion-1': 0 },
 					eventSeq: 47,
 					scenarioMap,
 				})),
@@ -125,7 +123,6 @@ describe('createLiveGameClient', () => {
 					scenarioName: "The Siege of Shrek's Swamp",
 					turnNumber: 8,
 					state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
-					movementRemainingByUnit: { 'onion-1': 0 },
 					eventSeq: 48,
 					scenarioMap,
 				})),

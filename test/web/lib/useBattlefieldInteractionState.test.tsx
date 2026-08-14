@@ -8,11 +8,13 @@ import type { GameSessionController } from '#web/lib/gameSessionTypes'
 import type { GameSnapshot } from '#web/lib/gameClient'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
+import { makeDefender, makeOnion, makeScenarioSnapshot, makeWeapon } from '#test/utils/gameStateUtils'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
-	return {
+	const { authoritativeState, scenarioMap, ...snapshotOverrides } = overrides
+	const baseSnapshot = makeScenarioSnapshot({
 		gameId: 123,
 		phase: 'ONION_MOVE',
 		scenarioName: 'Interaction state scenario',
@@ -20,32 +22,21 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 		lastEventSeq: 10,
 		authoritativeState: {
 			onions: {
-				'onion-1': {
-					unitId: 'onion-1',
-					typeId: 'TheOnion',
-					role: 'onion',
-					friendlyName: 'The Onion 1',
-					state: 'operational',
+				'onion-1': makeOnion({
 					position: { q: 0, r: 0 },
 					treads: 33,
-					weapons: [{ id: 'main', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' }],
-				},
+					weapons: [makeWeapon({ id: 'main', typeId: 'TheOnion.main' })],
+					ramsRemaining: 1,
+				}),
 			},
 			defenders: {
-				'def-1': {
+				'def-1': makeDefender({
 					unitId: 'def-1',
-					typeId: 'Puss',
-					role: 'defender',
-					friendlyName: 'Puss 1',
-					state: 'operational',
 					position: { q: 0, r: 1 },
 					weapons: [],
-				},
+				}),
 			},
-			ramsThisTurn: 0,
 		},
-		movementRemainingByUnit: { 'onion-1': 3 },
-		victoryObjectives: [],
 		scenarioMap: {
 			width: 3,
 			height: 3,
@@ -62,7 +53,13 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 				{ q: 1, r: 1, t: 0 },
 			],
 		},
-		...overrides,
+	})
+
+	return {
+		...baseSnapshot,
+		...snapshotOverrides,
+		...(authoritativeState === undefined ? {} : { authoritativeState }),
+		...(scenarioMap === undefined ? {} : { scenarioMap }),
 	}
 }
 function createController() {
@@ -81,26 +78,18 @@ function createGroupedDefenderSnapshot(options?: {
 	includeRosterEntryForSecondUnit?: boolean
 }): GameSnapshot {
 	const defenders = {
-		'pigs-1': {
+		'pigs-1': makeDefender({
 			unitId: 'pigs-1',
 			typeId: 'LittlePigs',
-			role: 'defender' as const,
 			position: { q: 1, r: 1 },
-			state: 'operational' as const,
-			friendlyName: 'Little Pigs 1',
 			weapons: [],
-			squads: 1,
-		},
-		'pigs-2': {
+		}),
+		'pigs-2': makeDefender({
 			unitId: 'pigs-2',
 			typeId: 'LittlePigs',
-			role: 'defender' as const,
 			position: { q: 1, r: 1 },
-			state: 'operational' as const,
-			friendlyName: 'Little Pigs 2',
 			weapons: [],
-			squads: 1,
-		},
+		}),
 	}
 
 	const stackRoster = options?.includeStackRoster === false
@@ -118,26 +107,25 @@ function createGroupedDefenderSnapshot(options?: {
 			}
 			: buildStackRosterFromUnits(Object.values(defenders))
 
+	const baseSnapshot = createSnapshot({ phase: 'DEFENDER_MOVE' })
+	const baseState = {
+		...baseSnapshot.authoritativeState!,
+		defenders,
+		currentPhase: 'DEFENDER_MOVE' as const,
+		turn: 3,
+		...(stackRoster === undefined ? {} : { stackRoster }),
+	}
+	const authoritativeState = stackRoster === undefined
+		? (() => {
+			const { stackRoster: stackRosterToOmit, ...stateWithoutRoster } = baseState
+			void stackRosterToOmit
+			return stateWithoutRoster as unknown as NonNullable<GameSnapshot['authoritativeState']>
+		})()
+		: baseState
+
 	return createSnapshot({
 		phase: 'DEFENDER_MOVE',
-		authoritativeState: {
-			onions: {
-				'onion-1': {
-					unitId: 'onion-1',
-					typeId: 'TheOnion',
-					role: 'onion',
-					friendlyName: 'The Onion 1',
-					state: 'operational',
-					position: { q: 0, r: 0 },
-					treads: 33,
-					weapons: [{ id: 'main', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' }],
-					},
-			},
-			defenders,
-			ramsThisTurn: 0,
-			...(stackRoster === undefined ? {} : { stackRoster }),
-		},
-		movementRemainingByUnit: { 'pigs-1': 3, 'pigs-2': 3 },
+		authoritativeState,
 	})
 }
 
@@ -317,41 +305,28 @@ describe('useBattlefieldInteractionState', () => {
 		const submitAction = vi.fn().mockResolvedValue(createSnapshot({ lastEventSeq: 11, phase: 'DEFENDER_MOVE' }))
 		const controller = createController()
 		controller.submitAction = submitAction
-		const snapshot = {
-			gameId: 123,
-			phase: 'DEFENDER_MOVE' as const,
-			scenarioName: 'Interaction state scenario',
-			turnNumber: 3,
-			lastEventSeq: 10,
+		const snapshot = createSnapshot({
+			phase: 'DEFENDER_MOVE',
 			authoritativeState: {
+				...createSnapshot().authoritativeState!,
 				onions: {
-					'onion-1': {
-						unitId: 'onion-1',
-						typeId: 'TheOnion',
-						role: 'onion',
-						friendlyName: 'The Onion 1',
-						state: 'operational',
-								position: { q: 0, r: 0 },
-								treads: 33,
-								weapons: [],
-								weapons: [{ id: 'main', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' }],
-					},
+					'onion-1': makeOnion({
+						position: { q: 0, r: 0 },
+						treads: 33,
+						weapons: [makeWeapon({ id: 'main', typeId: 'TheOnion.main' })],
+					}),
 				},
 				defenders: {
-					'wolf-2': {
+					'wolf-2': makeDefender({
 						unitId: 'wolf-2',
 						typeId: 'BigBadWolf',
-						role: 'defender',
-						friendlyName: 'Big Bad Wolf 2',
-						state: 'operational',
 						position: { q: 1, r: 1 },
 						weapons: [],
-						squads: 2,
-					},
+					}),
 				},
-				ramsThisTurn: 0,
+				currentPhase: 'DEFENDER_MOVE',
+				turn: 3,
 			},
-			movementRemainingByUnit: { 'wolf-2': 4 },
 			victoryObjectives: [],
 			scenarioMap: {
 				width: 3,
@@ -371,7 +346,7 @@ describe('useBattlefieldInteractionState', () => {
 					{ q: 2, r: 2, t: 0 },
 				],
 			},
-		} satisfies GameSnapshot
+		})
 
 		const { result } = renderHook(() =>
 			useBattlefieldInteractionState({
@@ -596,14 +571,13 @@ describe('useBattlefieldInteractionState', () => {
 		const nextSnapshot = createSnapshot({
 			lastEventSeq: 11,
 			authoritativeState: {
+				...createSnapshot().authoritativeState!,
 				onions: {
-					'onion-1': {
-						...createSnapshot().authoritativeState!.onions['onion-1'],
-						weapons: [],
-					},
+					'onion-1': makeOnion({ position: { q: 0, r: 0 }, weapons: [] }),
 				},
 				defenders: {},
-				ramsThisTurn: 0,
+			currentPhase: 'ONION_MOVE',
+			turn: 3,
 			},
 		})
 		rerender({ snapshot: nextSnapshot })
@@ -651,14 +625,13 @@ describe('useBattlefieldInteractionState', () => {
 		controller.submitAction = submitAction
 		const snapshot = createSnapshot({
 			authoritativeState: {
+				...createSnapshot().authoritativeState!,
 				onions: {
-					'onion-1': {
-						...createSnapshot().authoritativeState!.onions['onion-1'],
-						ramsRemaining: 0,
-					},
+					'onion-1': makeOnion({ ramsRemaining: 0 }),
 				},
 				defenders: createSnapshot().authoritativeState!.defenders,
-				ramsThisTurn: 0,
+			currentPhase: 'ONION_MOVE',
+			turn: 3,
 			},
 		})
 

@@ -46,7 +46,6 @@ export type ServerGameSnapshot = {
 		defender: string | null
 	}
 	authoritativeState?: GameState
-	movementRemainingByUnit?: Record<string, number>
 	scenarioMap?: ScenarioMapSnapshot
 	victoryObjectives: Array<{
 		id: string

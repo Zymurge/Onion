@@ -72,7 +72,6 @@ describe('websocketProtocol definitions', () => {
 			winner: 'onion' | 'defender' | null
 			players: { onion: string | null; defender: string | null }
 			state: GameState
-			movementRemainingByUnit: Record<string, number>
 			eventSeq: number
 		}>()
 	})

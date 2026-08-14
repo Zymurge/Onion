@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
-import { getUnitMovementAllowance } from '../../shared/unitMovement'
+import { getRemainingUnitMovementAllowance } from '../../shared/unitMovement'
 import type { GameAction, ServerGameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
 import { getAuthoritativeOnion, resolveBattlefieldStackSelectionIds } from './stackSelection'
@@ -109,7 +109,7 @@ function buildRamPrompt(snapshot: ServerGameSnapshot | null, unitId: string, to:
     return null
   }
 
-  const movementAllowance = snapshot.movementRemainingByUnit?.[unitId] ?? getUnitMovementAllowance(onion.typeId, snapshot.phase, onion.treads)
+  const movementAllowance = getRemainingUnitMovementAllowance(onion, snapshot.phase)
   const moveMap = buildMoveMapSnapshot(snapshot, unitId)
   if (moveMap === null) {
     return null

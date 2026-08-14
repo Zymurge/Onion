@@ -396,10 +396,6 @@ describe('App fake backend vertical slice', () => {
 						},
 					},
 				},
-				movementRemainingByUnit: {
-					...createAppShellSnapshot().movementRemainingByUnit,
-					'wolf-2': 3,
-				},
 			},
 			session,
 		)

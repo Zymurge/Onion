@@ -30,10 +30,6 @@ describe('http game request transport contract', () => {
 					   },
 						stackRoster: { groupsById: {} },
 				   },
-				movementRemainingByUnit: {
-					'onion-1': 0,
-					'wolf-2': 0,
-				},
 				scenarioMap: {
 					width: 15,
 					height: 22,
@@ -64,10 +60,6 @@ describe('http game request transport contract', () => {
 								weapons: [],
 							}),
 						}),
-					}),
-					movementRemainingByUnit: expect.objectContaining({
-						'onion-1': 0,
-						'wolf-2': 0,
 					}),
 					gameId: 123,
 					phase: 'DEFENDER_COMBAT',
@@ -107,7 +99,6 @@ describe('http game request transport contract', () => {
 					scenarioName: "The Siege of Shrek's Swamp",
 					turnNumber: 8,
 					state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
-					movementRemainingByUnit: { 'wolf-2': 4 },
 					scenarioMap: {
 						width: 15,
 						height: 22,
@@ -123,7 +114,6 @@ describe('http game request transport contract', () => {
 					seq: 48,
 					events: [{ seq: 48, type: 'UNIT_MOVED', timestamp: '2026-03-26T12:00:00.000Z', unitId: 'wolf-2', to: { q: 7, r: 6 } }],
 					state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
-					movementRemainingByUnit: { 'wolf-2': 3 },
 					phase: 'DEFENDER_MOVE',
 					scenarioName: "The Siege of Shrek's Swamp",
 					scenarioMap: {
@@ -150,7 +140,6 @@ describe('http game request transport contract', () => {
 				gameId: 123,
 				phase: 'DEFENDER_MOVE',
 				lastEventSeq: 48,
-				movementRemainingByUnit: { 'wolf-2': 3 },
 			}),
 		)
 
@@ -182,7 +171,6 @@ describe('http game request transport contract', () => {
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
-				movementRemainingByUnit: { 'wolf-2': 4 },
 				scenarioMap: {
 					width: 15,
 					height: 22,

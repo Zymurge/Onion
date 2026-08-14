@@ -6,7 +6,7 @@ import { useBattlefieldDisplayState } from '#web/lib/useBattlefieldDisplayState'
 import type { GameSnapshot } from '#web/lib/gameClient'
 import type { GameSessionViewState } from '#web/lib/gameSessionTypes'
 import type { BattlefieldInteractionState } from '#web/lib/useBattlefieldInteractionState'
-import { makeDefender, makeGameState, makeOnion, makeWeapon } from '#test/utils/gameStateUtils'
+import { DefenderUnit, makeDefender, makeGameState, makeOnion, makeWeapon, StackRosterState } from '#test/utils/gameStateUtils'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 
@@ -38,8 +38,8 @@ function createSnapshot(): GameSnapshot {
 				weapons: [makeWeapon({ id: 'pigs-2-main', typeId: 'LittlePigs.rifle' })],
 			}),
 		},
-		stackNaming: undefined as any,
-		stackRoster: undefined as any,
+		stackNaming: undefined,
+		stackRoster: undefined,
 		currentPhase: 'DEFENDER_COMBAT',
 		turn: 8,
 	})
@@ -51,11 +51,6 @@ function createSnapshot(): GameSnapshot {
 		turnNumber: 8,
 		lastEventSeq: 47,
 		authoritativeState,
-		movementRemainingByUnit: {
-			'onion-live': 3,
-			'pigs-1': 3,
-			'pigs-2': 3,
-		},
 		victoryObjectives: [],
 		scenarioMap: {
 			width: 8,
@@ -177,7 +172,7 @@ describe('useBattlefieldDisplayState', () => {
 		const snapshot = createSnapshot()
 		const authoritativeState = snapshot.authoritativeState!
 		// Remove pigs-2 from defenders so the roster group references a unit that doesn't exist
-		delete (authoritativeState.defenders as any)['pigs-2']
+		delete (authoritativeState.defenders as Record<string, DefenderUnit>)['pigs-2']
 		authoritativeState.stackRoster = {
 			groupsById: {
 				'LittlePigs:4,4': {
@@ -187,7 +182,7 @@ describe('useBattlefieldDisplayState', () => {
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 			},
-		} as any
+		} as StackRosterState
 
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
@@ -234,13 +229,16 @@ describe('useBattlefieldDisplayState', () => {
 		const snapshot = createSnapshot()
 		snapshot.phase = 'DEFENDER_MOVE'
 		const authoritativeState = snapshot.authoritativeState!
-		authoritativeState.defenders['pigs-5'] = makeDefender({
-			unitId: 'pigs-5',
-			typeId: 'LittlePigs',
-			friendlyName: 'Little Pigs 5',
-			position: { q: 4, r: 8 },
-			weapons: [makeWeapon({ id: 'pigs-5-main', typeId: 'LittlePigs.rifle' })],
-		})
+		authoritativeState.defenders = {
+			...authoritativeState.defenders,
+			'pigs-5': makeDefender({
+				unitId: 'pigs-5',
+				typeId: 'LittlePigs',
+				friendlyName: 'Little Pigs 5',
+				position: { q: 4, r: 8 },
+				weapons: [makeWeapon({ id: 'pigs-5-main', typeId: 'LittlePigs.rifle' })],
+			}),
+		}
 		authoritativeState.stackRoster = {
 			groupsById: {
 				'LittlePigs:4,4': {
@@ -293,15 +291,18 @@ describe('useBattlefieldDisplayState', () => {
 	it('preserves a defender snapshot when its friendly name is missing', () => {
 		const snapshot = createSnapshot()
 		const authoritativeState = snapshot.authoritativeState!
-		authoritativeState.defenders['pigs-1'] = {
-			...makeDefender({
-				unitId: 'pigs-1',
-				typeId: 'LittlePigs',
-				position: { q: 4, r: 4 },
-				weapons: [makeWeapon({ id: 'pigs-1-main', typeId: 'LittlePigs.rifle' })],
-			}),
-			friendlyName: undefined,
-		} as any
+		authoritativeState.defenders = {
+			...authoritativeState.defenders,
+			'pigs-1': {
+				...makeDefender({
+					unitId: 'pigs-1',
+					typeId: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					weapons: [makeWeapon({ id: 'pigs-1-main', typeId: 'LittlePigs.rifle' })],
+				}),
+				friendlyName: undefined,
+			} as unknown as DefenderUnit,
+		}
 		authoritativeState.stackRoster = {
 			groupsById: {
 				'LittlePigs:4,4': {

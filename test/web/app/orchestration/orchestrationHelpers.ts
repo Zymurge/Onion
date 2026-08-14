@@ -55,10 +55,6 @@ export function createAuthoritativeBattlefieldSnapshot(): TestScenarioSnapshot {
 			stackRoster: { groupsById: {} },
 			stackNaming: { groupsInUse: [], usedGroupNames: [] },
 		},
-		movementRemainingByUnit: {
-			'onion-live': 0,
-			'dragon-7': 0,
-		},
 		scenarioMap: {
 			width: 2,
 			height: 2,
@@ -114,11 +110,6 @@ export function createConnectedBattlefieldSnapshot(
 			},
 			stackRoster: { groupsById: {} },
 			stackNaming: { groupsInUse: [], usedGroupNames: [] },
-		},
-		movementRemainingByUnit: {
-			'onion-1': 0,
-			'wolf-2': 4,
-			'puss-1': 3,
 		},
 		scenarioMap: {
 			width: 8,
@@ -194,12 +185,10 @@ export function createGroupedInRangeCombatSnapshot(): TestScenarioSnapshot {
 export type TreadsSnapshotOptions = {
 	onions?: OnionMap
 	defenders?: DefenderMap
-	movementRemainingByUnit?: Record<string, number>
 }
 
 export function createSnapshotWithTreads(
 	treads: number,
-	movementRemaining: number,
 	options: TreadsSnapshotOptions = {},
 ): TestScenarioSnapshot {
 	return makeScenarioSnapshot({
@@ -209,11 +198,6 @@ export function createSnapshotWithTreads(
 				'onion-1': makeOnion({ position: { q: 0, r: 1 }, treads, friendlyName: 'The Onion' }),
 			},
 			...(options.defenders === undefined ? {} : { defenders: options.defenders }),
-		},
-		movementRemainingByUnit: options.movementRemainingByUnit ?? {
-			'onion-1': movementRemaining,
-			'wolf-2': 4,
-			'puss-1': 3,
 		},
 	})
 }

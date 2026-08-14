@@ -88,13 +88,6 @@ function createStackSnapshot(phase: 'DEFENDER_MOVE' | 'DEFENDER_COMBAT', turnNum
 			ramsThisTurn: 0,
 			movementSpent: {},
 		},
-		movementRemainingByUnit: {
-			'onion-1': 0,
-			'wolf-2': 4,
-			'puss-1': 3,
-			'pigs-1': 3,
-			'pigs-2': 3,
-		},
 	}
 }
 
