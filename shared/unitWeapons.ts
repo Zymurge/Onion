@@ -69,7 +69,7 @@ export class UnitWeapons {
 
 	recharge(weaponId: string): boolean {
 		const weapon = this.findById(weaponId)
-		if (weapon === undefined || weapon.state !== 'spent') {
+		if (weapon === undefined || weapon.state !== 'spent' || (weapon.ammo !== undefined && weapon.ammo <= 0)) {
 			return false
 		}
 
@@ -79,7 +79,7 @@ export class UnitWeapons {
 
 	rechargeSpent(): void {
 		for (const weapon of this.weapons) {
-			if (weapon.state === 'spent') {
+			if (weapon.state === 'spent' && (weapon.ammo === undefined || weapon.ammo > 0)) {
 				weapon.state = 'ready'
 			}
 		}

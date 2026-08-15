@@ -1,4 +1,4 @@
-import type { GameState, TurnPhase, UnitStatus } from './types/index.js'
+import type { GameState, PlayerRole, TurnPhase, UnitStatus } from './types/index.js'
 import { onionMovementAllowance } from './movementAllowance.js'
 import { getUnitTypeCatalog } from './unitDefinitions.js'
 import { canUnitCrossRidgeline } from './movementRules.js'
@@ -25,8 +25,28 @@ export function isUnitImmobile(unitType: string): boolean {
 	return getDefinition(unitType)?.abilities.immobile === true
 }
 
-export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, treads?: number): number {
+export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, treads?: number, side?: PlayerRole): number {
 	const definition = getDefinition(unitType)
+
+	if (side === 'onion') {
+		if (phase !== 'ONION_MOVE') {
+			return 0
+		}
+
+		return unitType === 'TheOnion' ? onionMovementAllowance(treads ?? 0) : definition?.movement ?? 0
+	}
+
+	if (side === 'defender') {
+		if (phase === 'GEV_SECOND_MOVE') {
+			return canUnitSecondMove(unitType) ? definition?.abilities.secondMoveAllowance ?? 0 : 0
+		}
+
+		if (phase !== 'DEFENDER_MOVE') {
+			return 0
+		}
+
+		return definition?.movement ?? 0
+	}
 
 	if (unitType === 'TheOnion') {
 		if (phase !== 'ONION_MOVE') {
@@ -52,7 +72,7 @@ export function getUnitMovementSpent(unit: Pick<UnitStatus, 'movementSpent'> | n
 }
 
 export function getRemainingUnitMovementAllowance(
-	unit: Pick<UnitStatus, 'typeId' | 'movementSpent'> & { treads?: number } | null | undefined,
+	unit: Pick<UnitStatus, 'typeId' | 'movementSpent' | 'side'> & { treads?: number } | null | undefined,
 	phase: TurnPhase,
 ): number {
 	if (unit === null || unit === undefined) {
@@ -60,7 +80,7 @@ export function getRemainingUnitMovementAllowance(
 	}
 
 	return Math.max(
-		getUnitMovementAllowance(unit.typeId, phase, unit.treads) - getUnitMovementSpent(unit, phase),
+		getUnitMovementAllowance(unit.typeId, phase, unit.treads, unit.side) - getUnitMovementSpent(unit, phase),
 		0,
 	)
 }

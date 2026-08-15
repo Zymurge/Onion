@@ -7,6 +7,7 @@ import {
 	type CombatCalculatorInput,
 	type CombatStaticRules,
 } from '#shared/combatCalculator'
+import { combatParityFixtures } from '#test/utils/combatParityFixtures'
 
 const staticRules = {
 	unitTypes: getUnitTypeCatalog(),
@@ -44,6 +45,14 @@ const terrainAdeptRules = {
 const terrainAdeptCalculator = createCombatCalculator(terrainAdeptRules)
 
 describe('combatCalculator', () => {
+	it.each(combatParityFixtures)('matches the shared parity contract for $name', (fixture) => {
+		const result = calculator.calculateResult(fixture.input)
+
+		expect(result).toMatchObject(fixture.expected)
+		expect(calculator.calculateOdds(fixture.input)).toBe(result.odds)
+		expect(calculator.calculateModifiers(fixture.input)).toEqual(result.modifiers)
+	})
+
 	it('exposes a working factory instance', () => {
 		expect(calculator).toMatchObject({
 			calculateOdds: expect.any(Function),

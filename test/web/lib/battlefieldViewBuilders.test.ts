@@ -17,6 +17,8 @@ import {
 } from '../../../web/lib/battlefieldViewBuilders'
 import type { ServerGameSnapshot } from '../../../web/lib/gameClient'
 import { isUnitMoveEligible } from '../../../web/lib/battlefieldView'
+import { makeMixedSideInitialState } from '#test/utils/mixedSideScenario'
+import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
 
 const catalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
@@ -137,6 +139,31 @@ describe('battlefieldViewBuilders', () => {
     expect(buildLiveOnions(createLiveSnapshot(), null)[0]?.movesAllowed).toBe(0)
     expect(() => buildLiveOnions(createLiveSnapshot({ authoritativeState: undefined }), 'ONION_MOVE')).toThrow('Missing authoritative state')
     expect(() => buildLiveOnion(createLiveSnapshot({ authoritativeState: { onions: {}, defenders: {} } }), 'ONION_MOVE')).toThrow('Missing authoritative onion')
+  })
+
+  it('projects mixed-side runtime units with side-aware movement allowances', () => {
+    const state = normalizeInitialStateToGameState(makeMixedSideInitialState())
+    const snapshot = createLiveSnapshot({
+      phase: 'ONION_MOVE',
+      authoritativeState: state,
+    })
+
+    const onionSidePuss = buildLiveOnions(snapshot, 'ONION_MOVE').find((unit) => unit.unitId === 'onion-puss')
+    const defenderSideOnion = buildLiveDefenders(snapshot, 'DEFENDER_MOVE', true).find((unit) => unit.unitId === 'defender-onion')
+
+    expect(onionSidePuss).toMatchObject({
+      typeId: 'Puss',
+      role: 'onion',
+      side: 'onion',
+      movesAllowed: 3,
+      movesRemaining: 3,
+    })
+    expect(defenderSideOnion).toMatchObject({
+      typeId: 'TheOnion',
+      role: 'defender',
+      side: 'defender',
+      movesRemaining: 3,
+    })
   })
 
   it('validates and reads scenario map data', () => {

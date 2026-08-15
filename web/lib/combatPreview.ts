@@ -1,6 +1,6 @@
 import {
 	createCombatCalculator,
-	type CombatCalculatorInput,
+	type CombatExchangeInput,
 	} from '../../shared/combatCalculator.js'
 import { ONION_STATIC_RULES } from '../../shared/staticRules.js'
 import {
@@ -117,27 +117,32 @@ function buildCombatCalculatorInputForDefenderTarget(
 	target: BattlefieldUnit,
 	stackSize: number,
 	displayedScenarioMap: CombatPreviewInput['displayedScenarioMap'],
-): CombatCalculatorInput {
-	const units: CombatCalculatorInput['combatState']['units'] = {}
-
-	for (const attackerId of selectedAttackerIds) {
-		units[attackerId] = {
-			typeId: displayedOnion.typeId,
-			weaponIds: [attackerId],
-			weapons: displayedOnion.weapons,
+): CombatExchangeInput {
+	const attackers: CombatExchangeInput['attackers'] = selectedAttackerIds.map((attackerId) => {
+		const weapon = displayedOnion.weapons.find((candidate) => candidate.id === attackerId)
+		if (weapon === undefined) {
+			throw new Error(`Selected Onion weapon '${attackerId}' was not found`)
 		}
-	}
 
-	units[target.unitId] = {
-		typeId: target.typeId,
-		stackSize,
-		terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
-	}
+		return { id: attackerId, typeId: displayedOnion.typeId, weaponTypeIds: [weapon.typeId] }
+	})
 
 	return {
-		attackerGroupIds: [...selectedAttackerIds],
-		targetId: target.unitId,
-		combatState: { units },
+		attackers,
+		target: stackSize > 1
+			? {
+					kind: 'stack',
+					id: target.unitId,
+					typeId: target.typeId,
+					size: stackSize,
+					terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
+				}
+			: {
+					kind: 'unit',
+					id: target.unitId,
+					typeId: target.typeId,
+					terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
+				},
 	}
 }
 
@@ -146,29 +151,31 @@ function buildCombatCalculatorInputForWeaponTarget(
 	displayedDefenders: ReadonlyArray<BattlefieldUnit>,
 	displayedOnion: BattlefieldOnionView,
 	weapon: Weapon,
-	displayedScenarioMap: CombatPreviewInput['displayedScenarioMap'],
-): CombatCalculatorInput {
-	const units: CombatCalculatorInput['combatState']['units'] = {}
+): CombatExchangeInput {
+	const attackers: CombatExchangeInput['attackers'] = []
 
 	for (const attackerId of selectedAttackerIds) {
 		const attacker = displayedDefenders.find((unit) => unit.unitId === resolveSelectionOwnerUnitId(attackerId))
 		if (attacker !== undefined) {
-			units[attackerId] = { typeId: attacker.typeId }
+			const readyWeapons = attacker.weapons.filter((candidate) => candidate.state === 'ready')
+			attackers.push({
+				id: attackerId,
+				typeId: attacker.typeId,
+				weaponTypeIds: readyWeapons.length > 0
+					? readyWeapons.map((weapon) => weapon.typeId)
+					: attacker.weapons.map((weapon) => weapon.typeId),
+			})
 		}
 	}
 
-	const displayedOnionPosition = getBattlefieldPosition(displayedOnion)
-	units[displayedOnion.unitId] = {
-		typeId: displayedOnion.typeId,
-		weaponId: weapon.id,
-		weapons: displayedOnion.weapons,
-		terrainType: terrainTypeAt(displayedScenarioMap, displayedOnionPosition.q, displayedOnionPosition.r),
-	}
-
 	return {
-		attackerGroupIds: [...selectedAttackerIds],
-		targetId: displayedOnion.unitId,
-		combatState: { units },
+		attackers,
+		target: {
+			kind: 'onion-weapon',
+			id: displayedOnion.unitId,
+			typeId: displayedOnion.typeId,
+			weaponTypeId: weapon.typeId,
+		},
 	}
 }
 
@@ -269,7 +276,7 @@ export function buildCombatTargetOptions({
 			const targetId = rosterGroup !== null && rosterGroup.unitIds.length > 1
 				? rosterGroup.groupId
 				: unit.unitId
-			const result = combatCalculator.calculateResult(
+			const result = combatCalculator.calculate(
 				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, { ...unit }, stackSize, displayedScenarioMap),
 			)
 
@@ -306,8 +313,8 @@ export function buildCombatTargetOptions({
 	const readyWeaponTargets = displayedOnion.weapons
 		.filter((weapon) => catalog !== undefined && getSessionWeaponType(catalog, weapon.typeId).individuallyTargetable && weapon.state === 'ready')
 		.map((weapon) => {
-			const result = combatCalculator.calculateResult(
-				buildCombatCalculatorInputForWeaponTarget(selectedAttackerIds, displayedDefenders, displayedOnion, weapon, displayedScenarioMap),
+			const result = combatCalculator.calculate(
+				buildCombatCalculatorInputForWeaponTarget(selectedAttackerIds, displayedDefenders, displayedOnion, weapon),
 			)
 
 			const defense = catalog === undefined ? 0 : getSessionWeaponDefense(catalog, weapon.typeId)

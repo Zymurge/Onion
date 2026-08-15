@@ -70,6 +70,17 @@ describe('UnitWeapons', () => {
 		expect(missile).toEqual({ ...missile, ammo: 0, state: 'ready' })
 	})
 
+	it('does not recharge a missile after its ammo reaches zero', () => {
+		const missile = makeWeapon({ id: 'missile-1', weaponClass: 'missile', ammo: 1 })
+		const weapons = new UnitWeapons([missile])
+
+		expect(weapons.consumeAmmo('missile-1')).toBe(true)
+		expect(missile).toMatchObject({ ammo: 0, state: 'spent' })
+		expect(weapons.recharge('missile-1')).toBe(false)
+		weapons.rechargeSpent()
+		expect(missile).toMatchObject({ ammo: 0, state: 'spent' })
+	})
+
 	it.todo('AMMO-001 preserves omitted maxAmmo as unlimited in the normalized weapon catalog')
 	it.todo('AMMO-002 accepts positive integer maxAmmo values in the normalized weapon catalog')
 	it.todo('AMMO-003 rejects zero, negative, fractional, and non-numeric maxAmmo values')

@@ -6,6 +6,8 @@ import type { GameState } from '#shared/types/index'
 import { buildGameStateResponse } from '#server/api/gamesHelpers'
 import { DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { makeDefender, makeGameState, makeOnion, makeStackFixture, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
+import { makeMixedSideInitialState } from '#test/utils/mixedSideScenario'
+import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
 
 let state: GameState = makeGameState()
 
@@ -409,6 +411,38 @@ describe('buildVictoryObjectiveStates', () => {
       position: { q: 1, r: 1 },
       unitIds: ['pigs-1', 'pigs-2'],
     })
+  })
+
+  it('projects mixed-side deployments into the correct API collections', () => {
+      const mixedSideState = normalizeInitialStateToGameState(makeMixedSideInitialState())
+      const response = buildGameStateResponse(
+        {
+          gameId: 3,
+          scenarioId: 'mixed-side-scenario',
+          scenarioSnapshot: { name: 'Mixed Side Scenario', map: { width: 3, height: 1, cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }], hexes: [] } },
+          players: { onion: 'onion-1', defender: 'defender-1' },
+          phase: 'ONION_MOVE',
+          turnNumber: 1,
+          winner: null,
+          state: mixedSideState,
+          events: [],
+        },
+        'onion-1',
+      )
+
+      expect(response.state.onions['onion-puss']).toMatchObject({
+        typeId: 'Puss',
+        role: 'onion',
+        side: 'onion',
+      })
+      expect(response.state.onions['onion-puss']).not.toHaveProperty('treads')
+      expect(response.state.defenders['defender-onion']).toMatchObject({
+        typeId: 'TheOnion',
+        role: 'defender',
+        side: 'defender',
+        treads: 45,
+      })
+      expect(response.state.defenders['defender-onion']).not.toHaveProperty('rams')
   })
 
   it('keeps stack groups as metadata-only references with unitIds and no embedded unit detail copies', () => {

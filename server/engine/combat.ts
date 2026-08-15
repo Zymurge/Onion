@@ -12,14 +12,12 @@ import { hexDistance } from '#shared/hex'
 import {
   createCombatCalculator,
   calculateOdds as sharedCalculateOdds,
-  type CombatCalculatorInput,
+  type CombatExchangeInput,
 } from '#shared/combatCalculator'
 import { ONION_STATIC_RULES } from '#shared/staticRules'
 import { isTargetAllowedByRules } from '#shared/targetRules'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import { getUnitDefinition, getWeaponType } from '#shared/unitDefinitions'
-import { buildStackRosterIndex } from '#shared/stackRoster'
-import { getWeaponDefense } from '#shared/unitDefinitions'
 import { destroyWeapon, getAvailableWeapons, getOnion } from '#shared/unitState'
 import { UnitWeapons } from '#shared/unitWeapons'
 
@@ -191,73 +189,86 @@ function buildCombatCalculatorInput(
   target: CombatTarget,
   attackerIds: string[],
   onionId: string,
-): CombatCalculatorInput {
-  const units: CombatCalculatorInput['combatState']['units'] = {}
+): CombatExchangeInput {
   const onion = requireOnion(state, onionId)
 
   if (state.currentPhase === 'ONION_COMBAT') {
-    // Onion weapon ids are used as attacker ids because the calculator's
-    // generic attacker-group contract needs one entry per firing weapon.
-    for (const attackerId of attackerIds) {
-      units[attackerId] = {
+    const attackers = attackerIds.map((attackerId) => {
+      const weapon = onion.weapons.find((candidate) => candidate.id === attackerId)
+      if (weapon === undefined) {
+        throw new Error(`Weapon '${attackerId}' was not found on Onion '${onion.unitId}'`)
+      }
+
+      return {
+        id: attackerId,
         typeId: onion.typeId,
-        weapons: onion.weapons,
-        weaponIds: [attackerId],
+        weaponTypeIds: [weapon.typeId],
+      }
+    })
+
+    const defender: DefenderUnit | undefined = state.defenders[target.id]
+    if (defender) {
+      return {
+        attackers,
+        target: {
+          kind: 'unit',
+          id: defender.unitId,
+          typeId: defender.typeId,
+          terrainType: getTerrainTypeAt(map, defender.position),
+        },
       }
     }
 
-    // A defender target may be an individual unit or a stack group. Groups do
-    // not exist as units in the canonical defender map, so represent one with
-    // its type, position, and current member count for defense calculation.
-    const defender: DefenderUnit | undefined = state.defenders[target.id]
-    if (defender) {
-      units[target.id] = {
-        typeId: defender.typeId,
-        terrainType: getTerrainTypeAt(map, defender.position),
-        weapons: defender.weapons,
-      }
-    } else {
-      const group = state.stackRoster?.groupsById?.[target.id]
-      if (group) {
-        const unitIds = group.unitIds
-        units[target.id] = {
-          typeId: group.unitType,
-          stackSize: unitIds.length,
-          terrainType: getTerrainTypeAt(map, group.position),
-          weapons: undefined,
-        }
-      }
+    const group = state.stackRoster?.groupsById?.[target.id]
+    if (group === undefined) {
+      throw new Error(`Defender target '${target.id}' was not found while building combat input`)
     }
 
     return {
-      attackerGroupIds: [...attackerIds],
-      targetId: target.id,
-      combatState: { units },
+      attackers,
+      target: {
+        kind: 'stack',
+        id: target.id,
+        typeId: group.unitType,
+        size: group.unitIds.length,
+        terrainType: getTerrainTypeAt(map, group.position),
+      },
     }
   }
 
-  // Defender attackers are represented by their runtime units. Omitting
-  // weaponIds tells the calculator to sum their ready live weapons.
-  for (const attackerId of attackerIds) {
+  const attackers = attackerIds.map((attackerId) => {
     const attacker = state.defenders[attackerId]
-    if (attacker) {
-      units[attackerId] = { typeId: attacker.typeId, weapons: attacker.weapons }
+    if (attacker === undefined) {
+      throw new Error(`Defender attacker '${attackerId}' was not found while building combat input`)
+    }
+
+    return {
+      id: attackerId,
+      typeId: attacker.typeId,
+      weaponTypeIds: getAvailableWeapons(attacker).map((weapon) => weapon.typeId),
+    }
+  })
+
+  if (target.kind === 'treads') {
+    return {
+      attackers,
+      target: { kind: 'onion-treads', id: target.id, typeId: onion.typeId },
     }
   }
 
-  // For subsystem fire, the target weapon id changes the Onion's defense from
-  // its tread defense to the selected weapon's defense.
-  units[onion.unitId] = {
-    typeId: onion.typeId,
-    weaponId: target.kind === 'weapon' ? target.id : undefined,
-    terrainType: getTerrainTypeAt(map, onion.position),
-    weapons: onion.weapons,
+  const targetWeapon = onion.weapons.find((weapon) => weapon.id === target.id)
+  if (targetWeapon === undefined) {
+    throw new Error(`Unknown weapon target: ${target.id}`)
   }
 
   return {
-    attackerGroupIds: [...attackerIds],
-    targetId: onion.unitId,
-    combatState: { units },
+    attackers,
+    target: {
+      kind: 'onion-weapon',
+      id: target.id,
+      typeId: onion.typeId,
+      weaponTypeId: targetWeapon.typeId,
+    },
   }
 }
 
@@ -440,8 +451,6 @@ export function validateCombatAction(
     const seen = new Set<string>()
     const weaponIds: string[] = []
     const weapons: Array<OnionUnit['weapons'][number]> = []
-    let attackStrength = 0
-
     for (const attackerId of command.attackers) {
       if (seen.has(attackerId)) {
         return { ok: false, code: 'DUPLICATE_ATTACKER', error: `Duplicate attacker '${attackerId}'` }
@@ -452,13 +461,17 @@ export function validateCombatAction(
       if (!weapon) {
         return { ok: false, code: 'WEAPON_NOT_FOUND', error: `Attacker '${attackerId}' not found` }
       }
-      if (weapon.state !== 'ready') {
+      if (weapon.state !== 'ready' || (weapon.ammo !== undefined && weapon.ammo <= 0)) {
         return { ok: false, code: 'WEAPON_EXHAUSTED', error: `Attacker '${attackerId}' is already destroyed or exhausted` }
       }
 
       weaponIds.push(weapon.id)
       weapons.push(weapon)
-      attackStrength += getWeaponType(weapon.typeId).attack
+    }
+
+    const missileCount = weapons.filter((weapon) => getWeaponType(weapon.typeId).weaponClass === 'missile').length
+    if (missileCount > 1) {
+      return { ok: false, code: 'WEAPON_EXHAUSTED', error: 'Only one missile may be launched per turn' }
     }
 
     for (let index = 0; index < weapons.length; index += 1) {
@@ -511,7 +524,7 @@ export function validateCombatAction(
     // The calculator is the authoritative source for effective strengths. It
     // reconstructs attack from the selected weapon ids and defense from the
     // target representation built above, including stack-size modifiers.
-    const combatResult = combatCalculator.calculateResult(
+    const combatResult = combatCalculator.calculate(
       buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.unitId }, [...command.attackers], onion.unitId),
     )
 
@@ -537,19 +550,10 @@ export function validateCombatAction(
   }
 
   if (target.kind === 'treads' && command.attackers.length > 1) {
-    const rosterIndex = state.stackRoster === undefined ? null : buildStackRosterIndex(state.stackRoster, state.defenders)
-    const firstAttackerGroupId = rosterIndex?.getUnitGroup(command.attackers[0])?.groupId ?? null
-    const sameStackAttack =
-      firstAttackerGroupId !== null &&
-      command.attackers.every((attackerId) => rosterIndex?.getUnitGroup(attackerId)?.groupId === firstAttackerGroupId)
-
-    if (!sameStackAttack) {
-      return { ok: false, code: 'MULTI_ATTACK_TREAD_TARGET', error: 'Multiple attackers cannot target Onion treads in one attack' }
-    }
+    return { ok: false, code: 'MULTI_ATTACK_TREAD_TARGET', error: 'Multiple attackers cannot target Onion treads in one attack' }
   }
 
   const seen = new Set<string>()
-  let attackStrength = 0
 
   for (const attackerId of command.attackers) {
     if (seen.has(attackerId)) {
@@ -574,12 +578,11 @@ export function validateCombatAction(
       return { ok: false, code: 'TARGET_OUT_OF_RANGE', error: `Attacker '${attackerId}' is out of range` }
     }
 
-    attackStrength += availableWeapons.reduce((total, weapon) => total + getWeaponType(weapon.typeId).attack, 0)
   }
 
   // For defender fire, the calculator sums each attacker's ready live weapons
   // and resolves the Onion's tread or subsystem defense from the target kind.
-  const combatResult = combatCalculator.calculateResult(
+  const combatResult = combatCalculator.calculate(
     buildCombatCalculatorInput(map, state, target, [...command.attackers], onion.unitId),
   )
 
@@ -599,12 +602,7 @@ export function validateCombatAction(
       onionId: onion.unitId,
       target,
       attackStrength: combatResult.attackStrength,
-      defense:
-        target.kind === 'weapon'
-          ? getWeaponDefense(targetWeapon!.typeId)
-          : target.kind === 'treads'
-            ? combatResult.attackStrength
-            : combatResult.defenseStrength,
+      defense: combatResult.defenseStrength,
     },
   }
 }
@@ -632,12 +630,17 @@ export function executeCombatAction(
       }
     }
 
-    const defender = resolveDefenderTarget(state, plan.target.id)
-    if (!defender) {
+    const stack = state.stackRoster?.groupsById?.[plan.target.id]
+    const defenders = stack === undefined
+      ? [resolveDefenderTarget(state, plan.target.id)].filter((unit): unit is DefenderUnit => unit !== null)
+      : stack.unitIds
+        .map((unitId) => state.defenders[unitId])
+        .filter((unit): unit is DefenderUnit => unit !== undefined && unit.state !== 'destroyed')
+    if (defenders.length === 0) {
       return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: formatResolvedTargetId(plan.target), error: 'Target not found' }
     }
 
-    if (defender.state === 'destroyed') {
+    if (defenders.every((defender) => defender.state === 'destroyed')) {
       return {
         success: false,
         actionType: plan.actionType,
@@ -662,19 +665,30 @@ export function executeCombatAction(
       firingWeapons.push(weapon)
     }
 
-    const previousStatus = defender.state
-    const damage = applyDamage(defender, combatRoll.result, plan.attackStrength)
+    const affectedDefenders = stack !== undefined && combatRoll.result !== 'X' ? defenders.slice(0, 1) : defenders
+    const statusChanges: Array<{ unitId: string; from: string; to: string }> = []
+    for (const defender of affectedDefenders) {
+      const previousStatus = defender.state
+      applyDamage(defender, combatRoll.result, plan.attackStrength)
+      if (defender.state !== previousStatus) {
+        statusChanges.push({ unitId: defender.unitId, from: previousStatus, to: defender.state })
+      }
+    }
+
     for (const firedWeapon of firingWeapons) {
       if (getWeaponType(firedWeapon.typeId).weaponClass === 'missile') {
-        onionWeapons.destroy(firedWeapon.id)
+        if (!onionWeapons.consumeAmmo(firedWeapon.id)) {
+          return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: formatResolvedTargetId(plan.target), error: `Weapon '${firedWeapon.id}' has no ammunition` }
+        }
+        for (const missile of onion.weapons) {
+          if (missile.id !== firedWeapon.id && getWeaponType(missile.typeId).weaponClass === 'missile' && missile.state === 'ready') {
+            onionWeapons.spend(missile.id)
+          }
+        }
       } else {
         onionWeapons.spend(firedWeapon.id)
       }
     }
-
-    const statusChanges = defender.state !== previousStatus
-      ? [{ unitId: defender.unitId, from: previousStatus, to: defender.state }]
-      : undefined
 
     return {
       success: true,
@@ -683,17 +697,9 @@ export function executeCombatAction(
       onionId: plan.onionId,
       targetId: plan.target.id,
       roll: combatRoll,
-      statusChanges,
+      statusChanges: statusChanges.length > 0 ? statusChanges : undefined,
     }
   }
-
-  const targetedWeaponPreviousStatus =
-    plan.target.kind === 'weapon'
-      ? (() => {
-        const targetedWeapon = onion.weapons.find((weapon) => weapon.id === plan.target.id)
-        return targetedWeapon?.state
-      })()
-      : undefined
 
   const damage = applyDamage(
     onion,
@@ -702,7 +708,6 @@ export function executeCombatAction(
     plan.target.kind === 'weapon' ? plan.target.id : undefined
   )
   if (damage.weaponDestroyed) {
-    const previousStatus = targetedWeaponPreviousStatus ?? 'ready'
     destroyWeapon(onion, damage.weaponDestroyed)
   }
 

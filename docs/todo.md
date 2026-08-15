@@ -5,7 +5,7 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [ ] Complete scenario-driven unit deployment after the unit-catalog refactor. See atomic breakdown below.
+- [x] Complete scenario-driven unit deployment after the unit-catalog refactor. See atomic breakdown below.
 - [x] Remove the redundant `movementRemainingByUnit` response projection after the unit-state refactor. See completed atomic breakdown below.
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
 - [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability.
@@ -17,11 +17,11 @@ break down into features/tasks as needed.
 
 Each task below is scoped to be independently implementable and testable, with a test-first order and concrete files to touch.
 
-### Scenario-Driven Unit Deployment
+### DONE - Scenario-Driven Unit Deployment
 
 Primary files: `shared/config/unitCatalog.json`, `shared/unitDefinitions.ts`, `shared/types/index.ts`, `shared/unitWeapons.ts`, `shared/scenarioMap.ts`, `docs/scenario-schema.md`, `scenarios/*.json`, `server/engine/scenarioNormalizer.ts`, `server/engine/phases.ts`.
 
-- [ ] **Task 1: Define the standalone catalog and deployment contract**
+- [x] **Task 1: Define the standalone catalog and deployment contract**
   - Specify the end-state boundary between static unit capabilities and scenario-authored deployment data before changing the runtime engine.
   - Keep unit and weapon definitions responsible for intrinsic capabilities such as movement, defense, abilities, terrain rules, ram profiles, weapon references, and weapon stats; keep side/role, position, stack membership, and starting runtime state in scenario deployment data.
   - Define the pure catalog/deployment normalization result that resolves `typeId`, deployment side, position, stack membership, and starting weapon ammo into dynamic unit instances without embedding runtime state in the static catalog.
@@ -29,32 +29,32 @@ Primary files: `shared/config/unitCatalog.json`, `shared/unitDefinitions.ts`, `s
   - Test-first coverage goals: add red tests for every catalog entry loading and normalizing; static/dynamic field separation; malformed and unknown catalog fields; valid and invalid deployment side values; unknown weapon references and ammo override keys; catalog `maxAmmo` fallback versus scenario override precedence; and a mixed deployment proving a normally defender-oriented type can normalize into the Onion-side collection.
   - Test locations: extend `test/shared/unitCatalog.test.ts` and `test/shared/unitWeapons.test.ts`; add `test/server/engine/scenarioNormalizer.test.ts` for deployment normalization and rejection behavior.
 
-- [ ] **Task 2: Weapon-type ammo metadata**
+- [x] **Task 2: Weapon-type ammo metadata**
   - Add optional `maxAmmo` to the global weapon-type catalog entries in `shared/config/unitCatalog.json` and the `ExternalWeaponType`/`WeaponType` shapes in `shared/unitDefinitions.ts` / `shared/types/index.ts`.
   - Reject unknown/unused ammo-shaped fields already caught by `assertCatalogConfig` in `shared/unitDefinitions.ts`.
   - Done when: a weapon type can declare `maxAmmo`, and catalog validation rejects malformed values.
   - Test-first: extend `test/shared/unitWeapons.test.ts` / catalog-loading tests for the new field before wiring it up.
 
-- [ ] **Task 3: Scenario-authored starting ammo override**
+- [x] **Task 3: Scenario-authored starting ammo override**
   - Add an optional per-weapon-type starting-ammo override to the scenario deployment schema (`docs/scenario-schema.md`, scenario JSON authoring, and the zod schema near `DefenderStackGroupSchema`/`OnionSchema`).
   - Normalize the override into each unit's dynamic `weapons[].ammo` at scenario load, falling back to the catalog `maxAmmo` when the scenario omits it; reject scenario fields that don't map to a known weapon type.
   - Done when: a scenario can start a weapon with reduced ammo without introducing new unused fields on the runtime `Weapon` type.
   - Test-first: add scenario-normalization tests (`test/server/engine/scenarioNormalizer.test.ts`) proving override precedence and rejection of unknown fields before implementing.
 
-- [ ] **Task 4: Move side/faction assignment into scenario deployment data**
+- [x] **Task 4: Move side/faction assignment into scenario deployment data**
   - Remove the hardcoded `role: 'onion' | 'defender'` from the global unit-type catalog (`shared/config/unitCatalog.json`, `shared/unitDefinitions.ts`); a unit type should describe capabilities only, not which side it plays for in a given scenario.
   - Add a per-deployment `side`/`role` field to the scenario's unit and stack-group deployment records so a scenario can assign a normally-defender unit type to the Onion side (or vice versa).
   - Done when: role/side is resolved from scenario deployment data at load time, not from the static unit-type definition.
   - Test-first: add a scenario fixture that assigns a supporting unit type to the Onion side and prove normalization produces the expected runtime map membership before changing the catalog contract.
 
-- [ ] **Task 5: Rework runtime unit maps around side instead of Onion-vehicle identity**
+- [x] **Task 5: Rework runtime unit maps around side instead of Onion-vehicle identity**
   - Rework `GameState.onions`/`GameState.defenders` (and phase/combat code in `server/engine/phases.ts`, `server/engine/combat.ts`, `server/engine/movement.ts` that currently assumes "Onion" means the single special vehicle) to key off resolved scenario side rather than a hardcoded vehicle type.
   - Update phase-machine side effects (`ONION_MOVE`/`ONION_COMBAT` actor checks) so they operate on "the Onion side" rather than assuming only the Onion vehicle type can occupy that map.
   - Migrate scenario authoring (`scenarios/*.json`) and engine/API/web tests together once the new contract lands; do not keep a dual-path compatibility layer.
   - Done when: a scenario with a non-Onion-vehicle unit assigned to the Onion side plays through movement, combat, and phase transitions correctly, and no engine code special-cases the Onion vehicle type by name.
   - Test-first: add an engine-level scenario test with a mixed-side deployment before reworking the phase/combat assumptions.
 
-### Remove `movementRemainingByUnit` Response Projection
+### DONE - Remove `movementRemainingByUnit` Response Projection
 
 Primary files: `server/api/gamesHelpers.ts`, `server/api/games.ts`, `shared/apiProtocol.ts`, `shared/types/index.ts`, `web/lib/httpGameClient.ts`, `web/lib/gameClient.ts`, `web/lib/useBattlefieldDisplayState.ts`, `web/lib/useBattlefieldInteractionState.ts`, `web/lib/battlefieldViewBuilders.ts`, `docs/api-contract.md`.
 

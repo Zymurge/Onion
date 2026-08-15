@@ -11,6 +11,7 @@ import {
 } from '#test/utils/gameStateUtils'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
+import { combatParityFixtures } from '#test/utils/combatParityFixtures'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
@@ -32,6 +33,70 @@ function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRos
 }
 
 describe('buildCombatTargetOptions', () => {
+	it('matches the shared parity fixture for an Onion attack against a ridgeline stack', () => {
+		const fixture = combatParityFixtures.find((candidate) => candidate.name.startsWith('Onion main weapon'))
+		if (fixture === undefined) throw new Error('Missing Onion parity fixture')
+
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['1,1']),
+			displayedDefenders: [
+				makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
+				makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
+				makeBattlefieldDefender({ unitId: 'pigs-3', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
+			],
+			displayedOnion: makeBattlefieldOnion({
+				position: { q: 0, r: 0 },
+				weapons: [makeWeapon({ id: 'main', typeId: 'TheOnion.main' })],
+			}),
+			...makeStackView({
+				unitType: 'LittlePigs',
+				position: { q: 1, r: 1 },
+				unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+			}),
+			selectedUnitIds: ['weapon:main'],
+			selectedAttackStrength: fixture.expected.attackStrength,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: {
+				width: 8,
+				height: 8,
+				hexes: [{ q: 1, r: 1, t: 1 }],
+			},
+		})
+
+		expect(options[0]).toMatchObject({
+			id: 'LittlePigs:1,1',
+			defense: fixture.expected.defenseStrength,
+			modifiers: ['Ridgeline cover: +1 defense'],
+		})
+	})
+
+	it('matches the shared parity fixture for a defender attack against Onion treads', () => {
+		const fixture = combatParityFixtures.find((candidate) => candidate.name === 'Puss against Onion treads')
+		if (fixture === undefined) throw new Error('Missing Onion tread parity fixture')
+
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'defender',
+			combatRangeHexKeys: new Set(['0,0']),
+			displayedDefenders: [
+				makeBattlefieldDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 1, r: 0 } }),
+			],
+			displayedOnion: makeBattlefieldOnion({ position: { q: 0, r: 0 } }),
+			selectedUnitIds: ['puss-1'],
+			selectedAttackStrength: fixture.expected.attackStrength,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: {
+				width: 8,
+				height: 8,
+				hexes: [],
+			},
+		})
+
+		expect(options.find((option) => option.id === 'onion-1:treads')).toMatchObject({
+			defense: fixture.expected.defenseStrength,
+		})
+	})
+
 	it('builds roster indexes from display-formatted defender weapons', () => {
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',

@@ -320,10 +320,10 @@ export function HexMapBoard({
                 }
 
                 if (occupant.unitId === onion.unitId) {
-                  return onion.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance('TheOnion', phase, onion.treads) > 0)
+                  return onion.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance(onion.typeId, phase, onion.treads, onion.side) > 0)
                 }
 
-                return 'movesRemaining' in occupant && (occupant.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance(occupant.typeId, phase) > 0))
+                return 'movesRemaining' in occupant && (occupant.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance(occupant.typeId, phase, undefined, occupant.side) > 0))
               })
 
               return (

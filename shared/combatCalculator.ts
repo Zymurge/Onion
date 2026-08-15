@@ -28,15 +28,23 @@ import type { TerrainType, UnitTypeBase, Weapon, WeaponType } from './types/inde
  * - persisting results
  */
 
+/** Identifies the rule source for a combat modifier. */
 export type CombatModifierKind = 'terrain' | 'stacking' | 'special' | 'combined-fire' | 'target-specific'
 
+/** Identifies whether a combat modifier changes attack or defense. */
 export type CombatModifierScope = 'attack' | 'defense'
 
+/** A normalized modifier surfaced to both the engine and the web preview. */
 export type CombatModifier = {
+	/** Rule category that produced the modifier. */
 	kind: CombatModifierKind
+	/** Combat strength that the modifier changes. */
 	scope: CombatModifierScope
+	/** Human-readable explanation of the modifier. */
 	label: string
+	/** Signed strength adjustment. */
 	value: number
+	/** Optional combatant or target id to which the modifier applies. */
 	appliesTo?: string
 }
 
@@ -58,6 +66,7 @@ export type CombatCombatantState = {
 }
 
 export type CombatLiveState = {
+	/** Live combatants keyed by the ids used in a calculator input. */
 	units: Record<string, CombatCombatantState>
 }
 
@@ -83,22 +92,88 @@ export type CombatStaticRules = {
  * Live combat inputs supplied per calculation.
  */
 export type CombatCalculatorInput = {
+	/** Attacker or weapon ids resolved from the caller-owned live state. */
 	attackerGroupIds: ReadonlyArray<string>
+	/** Target id resolved from the caller-owned live state. */
 	targetId: string
+	/** Live state used only to resolve ids and current weapon/stack data. */
 	combatState: CombatLiveState
+	/** Additional caller-supplied modifiers appended to calculated modifiers. */
 	modifiers?: ReadonlyArray<CombatModifier>
 }
 
+/** Explicit contribution from one attacker in a combat exchange. */
+export type CombatAttackerContribution = {
+	/** Caller-owned attacker or firing weapon id. */
+	id: string
+	/** Unit type that owns the contributing weapons. */
+	typeId: string
+	/** Weapon type ids whose attack values are included for this contribution. */
+	weaponTypeIds: ReadonlyArray<string>
+}
+
+/** Explicit target branches supported by the pure combat calculator. */
+export type CombatExchangeTarget =
+	| {
+			/** A single defender unit target. */
+			kind: 'unit'
+			id: string
+			typeId: string
+			terrainType?: TerrainType
+		}
+	| {
+			/** A grouped defender target whose size contributes to defense. */
+			kind: 'stack'
+			id: string
+			typeId: string
+			size: number
+			terrainType?: TerrainType
+		}
+	| {
+			/** The Onion tread subsystem; its defense equals the attack strength. */
+			kind: 'onion-treads'
+			id: string
+			typeId: string
+		}
+	| {
+			/** An individually targetable Onion weapon subsystem. */
+			kind: 'onion-weapon'
+			id: string
+			typeId: string
+			weaponTypeId: string
+		}
+
+/** Fully explicit, state-free description of one combat exchange. */
+export type CombatExchangeInput = {
+	/** Attacker contributions to sum for this exchange. */
+	attackers: ReadonlyArray<CombatAttackerContribution>
+	/** Target branch and values used to resolve defense. */
+	target: CombatExchangeTarget
+	/** Additional caller-supplied modifiers appended to calculated modifiers. */
+	modifiers?: ReadonlyArray<CombatModifier>
+}
+
+/** Effective strengths, CRT odds, and modifiers calculated for an exchange. */
 export type CombatCalculatorResult = {
+	/** Sum of the selected weapon attack values. */
 	attackStrength: number
+	/** Effective target defense after target-specific and terrain rules. */
 	defenseStrength: number
+	/** CRT odds band derived from effective attack and defense. */
 	odds: string
+	/** Normalized modifiers included in the exchange. */
 	modifiers: ReadonlyArray<CombatModifier>
 }
 
+/** Shared calculator API used by the server and web preview. */
 export type CombatCalculator = {
+	/** Calculate one exchange from an explicit attacker/target contract. */
+	calculate(input: CombatExchangeInput): CombatCalculatorResult
+	/** Calculate only the CRT odds for a compatibility input. */
 	calculateOdds(input: CombatCalculatorInput): string
+	/** Calculate only the normalized modifiers for a compatibility input. */
 	calculateModifiers(input: CombatCalculatorInput): ReadonlyArray<CombatModifier>
+	/** Calculate the complete result for a compatibility input. */
 	calculateResult(input: CombatCalculatorInput): CombatCalculatorResult
 }
 
@@ -125,38 +200,6 @@ function findWeaponType(definition: UnitTypeBase, weaponTypeId: string): WeaponT
 	return definition.weapons.find((candidate) => candidate.typeId === weaponTypeId || candidate.typeId.endsWith(`.${weaponTypeId}`))
 }
 
-function getWeaponAttack(definition: UnitTypeBase, combatant: CombatCombatantState | undefined, weaponId: string): number {
-	const liveWeapon = combatant?.weapons?.find((candidate) => candidate.id === weaponId)
-	if (liveWeapon !== undefined) {
-		const staticWeapon = findWeaponType(definition, liveWeapon.typeId)
-		if (staticWeapon !== undefined) {
-			return staticWeapon.attack
-		}
-	}
-
-	const weapon = findWeaponType(definition, weaponId)
-	if (weapon === undefined) {
-		throw new Error(`Weapon '${weaponId}' was not found on unit type '${definition.typeId}'`)
-	}
-
-	return weapon.attack
-}
-
-function getBaseAttack(definition: UnitTypeBase, combatant: CombatCombatantState, weaponIds?: ReadonlyArray<string>): number {
-	if (weaponIds !== undefined && weaponIds.length > 0) {
-		return weaponIds.reduce((total, weaponId) => total + getWeaponAttack(definition, combatant, weaponId), 0)
-	}
-
-	if (combatant.weapons !== undefined) {
-		return combatant.weapons
-			.filter((weapon) => weapon.state === 'ready')
-			.reduce((total, weapon) => total + getWeaponAttack(definition, combatant, weapon.id), 0)
-	}
-
-	return definition.weapons
-		.reduce((total, weapon) => total + weapon.attack, 0)
-}
-
 function getTerrainRule(staticRules: CombatStaticRules, terrainType: TerrainType | undefined): CombatTerrainRule | undefined {
 	if (terrainType === undefined) {
 		return undefined
@@ -169,126 +212,150 @@ function canUseTerrainCover(definition: UnitTypeBase, terrainType: TerrainType):
 	return definition.abilities.terrainRules?.[terrainType]?.canAccessCover === true
 }
 
-function getTerrainDefenseBonus(staticRules: CombatStaticRules, combatant: CombatCombatantState): number {
-	if (combatant.terrainType === undefined) {
-		return 0
-	}
-
-	if (combatant.terrainType !== 'ridgeline') {
-		return 0
-	}
-
-	const definition = getUnitDefinitionByType(staticRules, combatant.typeId)
-	if (!canUseTerrainCover(definition, combatant.terrainType)) {
-		return 0
-	}
-
-	const terrainRule = getTerrainRule(staticRules, combatant.terrainType)
-	if (terrainRule === undefined || terrainRule.defenseBonus === undefined) {
-		return 0
-	}
-
-	if (terrainRule.appliesToTypes !== undefined && !terrainRule.appliesToTypes.includes(combatant.typeId)) {
-		return 0
-	}
-
-	return terrainRule.defenseBonus
-}
-
-/**
- * Sum the attack contribution for each calculator attacker.
- *
- * When `weaponIds` is present, it is an explicit selection, as used for Onion
- * weapon attacks. Otherwise the combatant's ready live weapons are summed,
- * which is the defender attack path.
- */
-function resolveAttackStrength(staticRules: CombatStaticRules, liveState: CombatLiveState, attackerGroupIds: ReadonlyArray<string>): number {
-	return attackerGroupIds.reduce((total, attackerId) => {
-		const attacker = getCombatant(staticRules, liveState, attackerId)
+function resolveExplicitAttackStrength(
+	staticRules: CombatStaticRules,
+	attackers: ReadonlyArray<CombatAttackerContribution>,
+): number {
+	return attackers.reduce((total, attacker) => {
 		const definition = getUnitDefinitionByType(staticRules, attacker.typeId)
-		return total + getBaseAttack(definition, attacker, attacker.weaponIds)
+		return total + attacker.weaponTypeIds.reduce((attack, weaponTypeId) => {
+			const weapon = findWeaponType(definition, weaponTypeId)
+			if (weapon === undefined) {
+				throw new Error(`Weapon '${weaponTypeId}' was not found on unit type '${definition.typeId}'`)
+			}
+
+			return attack + weapon.attack
+		}, 0)
 	}, 0)
 }
 
-/**
- * Resolve the target's effective defense.
- *
- * Onion tread defense is deliberately derived from the attack strength. A
- * selected Onion weapon instead uses that weapon's subsystem defense. Regular
- * units use their static defense, while stackable units use live stack size;
- * terrain cover is added only when the static rules allow it.
- */
-function resolveDefenseStrength(
+function resolveExplicitTerrainModifier(
 	staticRules: CombatStaticRules,
-	liveState: CombatLiveState,
-	targetId: string,
+	target: Extract<CombatExchangeTarget, { kind: 'unit' | 'stack' }>,
+): CombatModifier | undefined {
+	if (target.terrainType === undefined) return undefined
+
+	const definition = getUnitDefinitionByType(staticRules, target.typeId)
+	if (!canUseTerrainCover(definition, target.terrainType)) return undefined
+
+	const terrainRule = getTerrainRule(staticRules, target.terrainType)
+	if (terrainRule?.defenseBonus === undefined) return undefined
+	if (terrainRule.appliesToTypes !== undefined && !terrainRule.appliesToTypes.includes(target.typeId)) return undefined
+
+	return {
+		kind: 'terrain',
+		scope: 'defense',
+		label: 'Ridgeline cover: +1 defense',
+		value: terrainRule.defenseBonus,
+		appliesTo: target.id,
+	}
+}
+
+function resolveExplicitDefenseStrength(
+	staticRules: CombatStaticRules,
+	target: CombatExchangeTarget,
 	attackStrength: number,
 ): number {
-	const target = getCombatant(staticRules, liveState, targetId)
 	const definition = getUnitDefinitionByType(staticRules, target.typeId)
+
+	switch (target.kind) {
+		case 'onion-treads':
+			return attackStrength
+		case 'onion-weapon': {
+			const weapon = findWeaponType(definition, target.weaponTypeId)
+			if (weapon === undefined) {
+				throw new Error(`Unknown target weapon '${target.weaponTypeId}' for unit type '${definition.typeId}'`)
+			}
+
+			return weapon.defense ?? definition.defense
+		}
+		case 'stack':
+			return target.size + (resolveExplicitTerrainModifier(staticRules, target)?.value ?? 0)
+		case 'unit':
+			return definition.defense + (resolveExplicitTerrainModifier(staticRules, target)?.value ?? 0)
+	}
+}
+
+/**
+ * Calculate a combat exchange from explicit attacker contributions and a
+ * discriminated target branch.
+ *
+ * This is the single pure calculation path used by the calculator factory.
+ * It reads only static rules and the supplied input, and does not load or
+ * mutate game state.
+ *
+ * @param staticRules Immutable unit, weapon, and terrain rules.
+ * @param input Explicit attacker and target data for one exchange.
+ * @returns Effective strengths, CRT odds, and normalized modifiers.
+ */
+export function calculateCombatExchange(
+	staticRules: CombatStaticRules,
+	input: CombatExchangeInput,
+): CombatCalculatorResult {
+	const attackStrength = resolveExplicitAttackStrength(staticRules, input.attackers)
+	const terrainModifier = input.target.kind === 'unit' || input.target.kind === 'stack'
+		? resolveExplicitTerrainModifier(staticRules, input.target)
+		: undefined
+
+	return {
+		attackStrength,
+		defenseStrength: resolveExplicitDefenseStrength(staticRules, input.target, attackStrength),
+		odds: calculateOdds(attackStrength, resolveExplicitDefenseStrength(staticRules, input.target, attackStrength)),
+		modifiers: [
+			...(terrainModifier === undefined ? [] : [terrainModifier]),
+			...(input.modifiers ?? []),
+		],
+	}
+}
+
+function toExplicitInput(staticRules: CombatStaticRules, input: CombatCalculatorInput): CombatExchangeInput {
+	const attackers = input.attackerGroupIds.map((attackerId) => {
+		const combatant = getCombatant(staticRules, input.combatState, attackerId)
+		const definition = getUnitDefinitionByType(staticRules, combatant.typeId)
+		const weaponTypeIds = combatant.weaponIds
+			?? combatant.weapons?.filter((weapon) => weapon.state === 'ready').map((weapon) => weapon.typeId)
+			?? definition.weapons.map((weapon) => weapon.typeId)
+
+		return { id: attackerId, typeId: combatant.typeId, weaponTypeIds }
+	})
+
+	const target = getCombatant(staticRules, input.combatState, input.targetId)
+	const definition = getUnitDefinitionByType(staticRules, target.typeId)
+	let exchangeTarget: CombatExchangeTarget
 
 	if (definition.treads !== undefined) {
 		if (target.weaponId === undefined) {
-			return attackStrength
+			exchangeTarget = { kind: 'onion-treads', id: input.targetId, typeId: target.typeId }
+		} else {
+			const liveWeapon = target.weapons?.find((weapon) => weapon.id === target.weaponId)
+			exchangeTarget = {
+				kind: 'onion-weapon',
+				id: input.targetId,
+				typeId: target.typeId,
+				weaponTypeId: liveWeapon?.typeId ?? target.weaponId,
+			}
 		}
-
-		const weaponId = target.weaponId
-		const liveWeapon = target.weapons?.find((candidate) => candidate.id === weaponId)
-		const weapon = liveWeapon === undefined
-			? findWeaponType(definition, weaponId)
-			: findWeaponType(definition, liveWeapon.typeId)
-		if (weapon === undefined) {
-			throw new Error(`Unknown target weapon '${weaponId}' for unit type '${definition.typeId}'`)
-		}
-
-		return weapon.defense ?? definition.defense
-	}
-
-	// If the unit type supports stacking, require a stack size on the
-	// live combatant state and use it as the defense baseline. This makes the
-	// logic generic across all stackable infantry types rather than hardcoding
-	// specific unit names.
-	const maxStacks = (definition.abilities?.maxStacks ?? 1)
-	if (maxStacks > 1) {
+	} else if ((definition.abilities.maxStacks ?? 1) > 1) {
 		if (typeof target.stackSize !== 'number') {
-			throw new Error(`Stack target '${targetId}' of type '${definition.typeId}' is missing stackSize in the live combat state`)
+			throw new Error(`Stack target '${input.targetId}' of type '${definition.typeId}' is missing stackSize in the live combat state`)
 		}
-
-		const stackSize = target.stackSize
-		return stackSize + getTerrainDefenseBonus(staticRules, target)
+		exchangeTarget = {
+			kind: 'stack',
+			id: input.targetId,
+			typeId: target.typeId,
+			size: target.stackSize,
+			terrainType: target.terrainType,
+		}
+	} else {
+		exchangeTarget = {
+			kind: 'unit',
+			id: input.targetId,
+			typeId: target.typeId,
+			terrainType: target.terrainType,
+		}
 	}
 
-	return definition.defense + getTerrainDefenseBonus(staticRules, target)
-}
-
-function resolveModifiers(staticRules: CombatStaticRules, liveState: CombatLiveState, targetId: string): ReadonlyArray<CombatModifier> {
-	const target = getCombatant(staticRules, liveState, targetId)
-	const definition = getUnitDefinitionByType(staticRules, target.typeId)
-	if (target.terrainType === undefined || !canUseTerrainCover(definition, target.terrainType)) {
-		return []
-	}
-	if (target.terrainType !== 'ridgeline') {
-		return []
-	}
-
-	const terrainRule = getTerrainRule(staticRules, target.terrainType)
-	if (terrainRule === undefined || terrainRule.defenseBonus === undefined) {
-		return []
-	}
-
-	if (terrainRule.appliesToTypes !== undefined && !terrainRule.appliesToTypes.includes(target.typeId)) {
-		return []
-	}
-
-	return [
-		{
-			kind: 'terrain',
-			scope: 'defense',
-			label: 'Ridgeline cover: +1 defense',
-			value: terrainRule.defenseBonus,
-			appliesTo: targetId,
-		},
-	]
+	return { attackers, target: exchangeTarget, modifiers: input.modifiers }
 }
 
 /**
@@ -296,20 +363,15 @@ function resolveModifiers(staticRules: CombatStaticRules, liveState: CombatLiveS
  * defense, terrain/stack modifiers, and the resulting CRT odds band.
  */
 function calculateResultFromRules(staticRules: CombatStaticRules, input: CombatCalculatorInput): CombatCalculatorResult {
-	const attackStrength = resolveAttackStrength(staticRules, input.combatState, input.attackerGroupIds)
-	const defenseStrength = resolveDefenseStrength(staticRules, input.combatState, input.targetId, attackStrength)
-	const modifiers = resolveModifiers(staticRules, input.combatState, input.targetId)
-
-	return {
-		attackStrength,
-		defenseStrength,
-		odds: calculateOdds(attackStrength, defenseStrength),
-		modifiers: [...modifiers, ...(input.modifiers ?? [])],
-	}
+	return calculateCombatExchange(staticRules, toExplicitInput(staticRules, input))
 }
 
 /**
  * Calculate the CRT odds band for a combat exchange.
+ *
+ * @param attackStrength Effective attack strength.
+ * @param defenseStrength Effective defense strength.
+ * @returns The normalized CRT odds band.
  */
 export function calculateOdds(attackStrength: number, defenseStrength: number): string {
 	if (defenseStrength <= 0) {
@@ -327,8 +389,21 @@ export function calculateOdds(attackStrength: number, defenseStrength: number): 
 	return '1:3'
 }
 
+/**
+ * Create a calculator bound to an immutable static rules bundle.
+ *
+ * The compatibility methods adapt the legacy live-state input into the
+ * explicit exchange contract before using the same pure calculation path as
+ * {@link CombatCalculator.calculate}.
+ *
+ * @param staticRules Immutable unit, weapon, and terrain rules.
+ * @returns A calculator implementation for server and web consumers.
+ */
 export function createCombatCalculator(staticRules: CombatStaticRules): CombatCalculator {
 	return {
+		calculate(input) {
+			return calculateCombatExchange(staticRules, input)
+		},
 		calculateOdds(input) {
 			return calculateResultFromRules(staticRules, input).odds
 		},

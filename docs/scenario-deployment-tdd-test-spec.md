@@ -520,9 +520,12 @@ Implement in these batches so each failure points to one contract boundary.
    scenario fixtures in the same cutover, without compatibility parsing.
 4. **Pure normalizer:** NORM-001 through NORM-017.
 5. **Runtime type boundary:** TYPE-001 through TYPE-003.
-6. **Phase 2 integration:** only after all prior batches pass, add engine tests
-   proving mixed-side units move, attack, receive phase effects, and appear in
-   API/web projections correctly.
+6. **Phase 2 integration:** completed after all prior batches passed. The mixed-
+  side integration coverage proves that units move, attack, receive phase
+  effects, and appear correctly in API and web projections through
+  `test/server/engine/mixedSideScenario.test.ts`,
+  `test/server/api/gamesHelpers.test.ts`, and
+  `test/web/lib/battlefieldViewBuilders.test.ts`.
 
 Do not commit intentionally failing tests between batches. Within a working
 session, demonstrate the expected red failure, implement the smallest matching
