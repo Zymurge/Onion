@@ -412,8 +412,8 @@ describe('GameState', () => {
       currentPhase: 'ONION_MOVE',
       turn: 1,
     }
-    state.onions.onion.ramsRemaining--
-    state.onions.onion.ramsRemaining--
+    state.onions.onion.ramsRemaining!--
+    state.onions.onion.ramsRemaining!--
     expect(state.onions.onion.ramsRemaining).toBe(0)
   })
 })

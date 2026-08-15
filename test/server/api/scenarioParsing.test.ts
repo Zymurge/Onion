@@ -11,13 +11,13 @@ const validScenario = {
     hexes: [],
   },
   initialState: {
-    onions: {
+    deployments: {
       'onion-1': {
         type: 'TheOnion',
+        side: 'onion',
         position: { q: 1, r: 1 },
       },
     },
-    defenders: {},
   },
   victoryConditions: {},
 }
@@ -55,6 +55,16 @@ const targetDeploymentScenario = {
   victoryConditions: {},
 }
 
+const legacySplitScenario = {
+  ...validScenario,
+  initialState: {
+    onions: {
+      'onion-1': { type: 'TheOnion', position: { q: 1, r: 1 } },
+    },
+    defenders: {},
+  },
+}
+
 describe('parseScenarioSnapshot', () => {
   it('validates and materializes a complete authored scenario', () => {
     const scenario = parseScenarioSnapshot(validScenario)
@@ -69,18 +79,19 @@ describe('parseScenarioSnapshot', () => {
       ...validScenario,
       initialState: {
         ...validScenario.initialState,
-        onions: {
-          ...validScenario.initialState.onions,
+          deployments: {
+            ...validScenario.initialState.deployments,
           'onion-2': {
             type: 'TheOnion',
+              side: 'onion',
             position: { q: 2, r: 2 },
           },
         },
       },
     })
 
-    expect(Object.keys(scenario.initialState.onions ?? {})).toEqual(['onion-1', 'onion-2'])
-    expect(scenario.initialState.onions?.['onion-2']?.position).toEqual({ q: 1, r: 2 })
+    expect(Object.keys(scenario.initialState.deployments ?? {})).toEqual(['onion-1', 'onion-2'])
+    expect(scenario.initialState.deployments['onion-2']?.position).toEqual({ q: 1, r: 2 })
   })
 
   it('DEP-001 accepts regular deployments for either side', () => {
@@ -128,7 +139,7 @@ describe('parseScenarioSnapshot', () => {
   })
 
   it('DEP-010 rejects the legacy split deployment shape after cutover', () => {
-    expect(() => parseScenarioSnapshot(validScenario)).toThrow(ScenarioValidationError)
+    expect(() => parseScenarioSnapshot(legacySplitScenario)).toThrow(ScenarioValidationError)
   })
 
   it.todo('DEP-008 rejects scenarios with no Onion-side deployment')
@@ -153,7 +164,7 @@ describe('parseScenarioSnapshot', () => {
       ...validScenario,
       initialState: {
         ...validScenario.initialState,
-        onions: { ...validScenario.initialState.onions, 'onion-1': { ...validScenario.initialState.onions['onion-1'], status: 'unknown' } },
+        deployments: { ...validScenario.initialState.deployments, 'onion-1': { ...validScenario.initialState.deployments['onion-1'], status: 'unknown' } },
       },
     }],
     ['empty explicit map', {
@@ -164,10 +175,10 @@ describe('parseScenarioSnapshot', () => {
       ...validScenario,
       initialState: {
         ...validScenario.initialState,
-        onions: {
-          ...validScenario.initialState.onions,
+        deployments: {
+          ...validScenario.initialState.deployments,
           'onion-1': {
-            ...validScenario.initialState.onions['onion-1'],
+            ...validScenario.initialState.deployments['onion-1'],
             treads: 45,
             unexpectedWeaponMetadata: { main: 1, secondary: 4, ap: 8 },
             weapons: [],

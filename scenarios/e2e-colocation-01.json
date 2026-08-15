@@ -8,28 +8,30 @@
     "hexes": []
   },
   "initialState": {
-    "onions": {
+    "deployments": {
       "onion-1": {
         "type": "TheOnion",
+        "side": "onion",
         "position": { "q": 3, "r": 3 },
         "status": "operational"
-      }
-    },
-    "defenders": {
+      },
       "pigs-stack-1": {
         "kind": "stack-group",
         "unitType": "LittlePigs",
+        "side": "defender",
         "position": { "q": 2, "r": 2 },
         "count": 3,
         "status": "operational"
       },
       "puss-1": {
         "type": "Puss",
+        "side": "defender",
         "position": { "q": 3, "r": 2 },
         "status": "operational"
       },
       "wolf-1": {
         "type": "BigBadWolf",
+        "side": "defender",
         "position": { "q": 2, "r": 3 },
         "status": "operational"
       }

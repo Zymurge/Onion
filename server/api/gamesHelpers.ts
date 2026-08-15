@@ -255,26 +255,12 @@ export function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined)
 
       return {
         ...state,
-        onions: state.onions
-          ? Object.fromEntries(
-            Object.entries(state.onions).map(([key, onion]) => [
-              key,
-              onion.position
-                ? { ...onion, position: translateScenarioCoord(onion.position, radius) }
-                : onion,
-            ]),
-          )
-          : state.onions,
-        defenders: state.defenders
-          ? Object.fromEntries(
-            Object.entries(state.defenders).map(([key, defender]) => [
-              key,
-              defender.position
-                ? { ...defender, position: translateScenarioCoord(defender.position, radius) }
-                : defender,
-            ]),
-          )
-            : state.defenders,
+        deployments: Object.fromEntries(
+          Object.entries(state.deployments).map(([key, deployment]) => [
+            key,
+            { ...deployment, position: translateScenarioCoord(deployment.position, radius) },
+          ]),
+        ),
           } as InitialState
     })()
     : initial.initialState
@@ -420,7 +406,7 @@ export function computeWinnerUserId(
     }
 
     const onions = Object.values(state.onions)
-    if (onions.length > 0 && onions.every((candidate) => candidate.treads <= 0 || candidate.state === 'destroyed')) {
+    if (onions.length > 0 && onions.every((candidate) => candidate.treads === undefined || candidate.treads <= 0 || candidate.state === 'destroyed')) {
       return match.players.defender
     }
 

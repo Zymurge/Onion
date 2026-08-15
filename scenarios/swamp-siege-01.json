@@ -16,22 +16,22 @@
     ]
   },
   "initialState": {
-    "onions": {
+    "deployments": {
       "onion-1": {
         "type": "TheOnion",
+        "side": "onion",
         "position": { "q": 3, "r": 10 },
         "status": "operational"
-      }
-    },
-    "defenders": {
-      "swamp-1": { "type": "Swamp", "position": { "q": 7, "r": 5 }, "status": "operational" },
-      "wolf-1":  { "type": "BigBadWolf", "position": { "q": 5,  "r": 6 }, "status": "operational" },
-      "wolf-2":  { "type": "BigBadWolf", "position": { "q": 6,  "r": 6 }, "status": "operational" },
-      "puss-1":  { "type": "Puss",       "position": { "q": 6,  "r": 4 }, "status": "operational" },
-      "witch-1": { "type": "Witch",      "position": { "q": 7,  "r": 3 }, "status": "operational" },
+      },
+      "swamp-1": { "type": "Swamp", "side": "defender", "position": { "q": 7, "r": 5 }, "status": "operational" },
+      "wolf-1":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 5,  "r": 6 }, "status": "operational" },
+      "wolf-2":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 6,  "r": 6 }, "status": "operational" },
+      "puss-1":  { "type": "Puss", "side": "defender", "position": { "q": 6,  "r": 4 }, "status": "operational" },
+      "witch-1": { "type": "Witch", "side": "defender", "position": { "q": 7, "r": 3 }, "status": "operational" },
       "pigs-stack-1": {
         "kind": "stack-group",
         "unitType": "LittlePigs",
+        "side": "defender",
         "position": { "q": 4, "r": 7 },
         "count": 3,
         "status": "operational"
@@ -39,6 +39,7 @@
       "pigs-stack-2": {
         "kind": "stack-group",
         "unitType": "LittlePigs",
+        "side": "defender",
         "position": { "q": 5, "r": 7 },
         "count": 2,
         "status": "operational"

@@ -1,7 +1,6 @@
 {
   "unitTypes": {
     "Puss": {
-      "role": "defender",
       "name": "Puss",
       "friendlyNameTemplate": "Puss {{ordinal}}",
       "movement": 3,
@@ -11,7 +10,6 @@
       "weaponTypeIds": ["Puss.main"]
     },
     "BigBadWolf": {
-      "role": "defender",
       "name": "Big Bad Wolf",
       "friendlyNameTemplate": "Big Bad Wolf {{ordinal}}",
       "movement": 4,
@@ -21,7 +19,6 @@
       "weaponTypeIds": ["BigBadWolf.main"]
     },
     "Witch": {
-      "role": "defender",
       "name": "Witch",
       "friendlyNameTemplate": "Witch {{ordinal}}",
       "movement": 2,
@@ -31,7 +28,6 @@
       "weaponTypeIds": ["Witch.main"]
     },
     "LordFarquaad": {
-      "role": "defender",
       "name": "Lord Farquaad",
       "friendlyNameTemplate": "Lord Farquaad {{ordinal}}",
       "movement": 0,
@@ -41,7 +37,6 @@
       "weaponTypeIds": ["LordFarquaad.main"]
     },
     "Pinocchio": {
-      "role": "defender",
       "name": "Pinocchio",
       "friendlyNameTemplate": "Pinocchio {{ordinal}}",
       "movement": 2,
@@ -51,7 +46,6 @@
       "weaponTypeIds": ["Pinocchio.main"]
     },
     "Dragon": {
-      "role": "defender",
       "name": "Dragon",
       "friendlyNameTemplate": "Dragon {{ordinal}}",
       "movement": 5,
@@ -61,7 +55,6 @@
       "weaponTypeIds": ["Dragon.main_1", "Dragon.main_2"]
     },
     "LittlePigs": {
-      "role": "defender",
       "name": "Little Pigs",
       "friendlyNameTemplate": "Little Pigs {{ordinal}}",
       "movement": 1,
@@ -71,7 +64,6 @@
       "weaponTypeIds": ["LittlePigs.rifle"]
     },
     "Swamp": {
-      "role": "defender",
       "name": "The Swamp",
       "friendlyNameTemplate": "The Swamp",
       "movement": 0,
@@ -80,7 +72,6 @@
       "weaponTypeIds": []
     },
     "TheOnion": {
-      "role": "onion",
       "name": "The Onion",
       "friendlyNameTemplate": "The Onion {{ordinal}}",
       "movement": 3,
@@ -130,7 +121,7 @@
     "TheOnion.ap_6": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
     "TheOnion.ap_7": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
     "TheOnion.ap_8": { "name": "AP Gun", "weaponClass": "ap", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": true, "targetRules": { "allowedTargetUnitTypes": ["LittlePigs"] }, "friendlyNameTemplate": "AP Gun {{ordinal}}" },
-    "TheOnion.missile_1": { "name": "Missile", "weaponClass": "missile", "attack": 6, "range": 5, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Missile {{ordinal}}" },
-    "TheOnion.missile_2": { "name": "Missile", "weaponClass": "missile", "attack": 6, "range": 5, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Missile {{ordinal}}" }
+    "TheOnion.missile_1": { "name": "Missile", "weaponClass": "missile", "attack": 6, "range": 5, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Missile {{ordinal}}", "maxAmmo": 1 },
+    "TheOnion.missile_2": { "name": "Missile", "weaponClass": "missile", "attack": 6, "range": 5, "defense": 3, "individuallyTargetable": true, "friendlyNameTemplate": "Missile {{ordinal}}", "maxAmmo": 1 }
   }
 }

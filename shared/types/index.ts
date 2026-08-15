@@ -70,6 +70,7 @@ export interface WeaponType {
   defense?: number
   targetRules?: TargetRules
   friendlyNameTemplate?: string
+  maxAmmo?: number
 }
 
 /**
@@ -107,7 +108,6 @@ export interface Weapon {
  */
 export interface UnitTypeBase {
   typeId: UnitTypeId
-  role: PlayerRole
   name: string
   stackable: boolean
   friendlyNameTemplate?: string
@@ -117,6 +117,10 @@ export interface UnitTypeBase {
   abilities: UnitAbilities
   weapons: ReadonlyArray<WeaponType>
   targetRules?: TargetRules
+  treads?: number
+  treadsPerMove?: number
+  ramsPerTurn?: number
+  squads?: number
 }
 
 /**
@@ -126,22 +130,14 @@ export interface UnitTypeBase {
  * @property treadsPerMove The number of treads required per movement point (range=treads/treadsPerMove).
  * @property ramsPerTurn The number of rams allowed per turn for the onion unit.
  */
-export interface OnionUnitType extends UnitTypeBase {
-  role: 'onion'
-  treads: number
-  treadsPerMove: number
-  ramsPerTurn: number
-}
+export type OnionUnitType = UnitTypeBase
 
 /**
  * Represents the static attributes of a defender unit in the game, extending the common UnitTypeBase interface.
  * 
  * @property squads The maximnum number of squads in the unit for this type. Set to 1 for non-stackable units.
  */
-export interface DefenderUnitType extends UnitTypeBase {
-  role: 'defender'
-  squads?: number
-}
+export type DefenderUnitType = UnitTypeBase
 
 /**
  * Represents the dynamic status of a unit in the game
@@ -169,6 +165,7 @@ export interface UnitStatus {
   typeId: string
   position: HexPos
   state: UnitState
+  side: PlayerRole
   weapons: ReadonlyArray<Weapon>
   friendlyName: string
   movementSpent?: MovementSpent
@@ -182,8 +179,8 @@ export interface UnitStatus {
  */
 export interface OnionUnit extends UnitStatus {
   role: 'onion'
-  treads: number
-  ramsRemaining: number
+  treads?: number
+  ramsRemaining?: number
 }
 
 /**
@@ -191,6 +188,8 @@ export interface OnionUnit extends UnitStatus {
  */
 export interface DefenderUnit extends UnitStatus {
   role: 'defender'
+  treads?: number
+  ramsRemaining?: number
 }
 
 // Canonical state maps are read-only at the type boundary; call sites

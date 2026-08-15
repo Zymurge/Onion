@@ -3,7 +3,7 @@ import { getNeighbors, hexDistance, type HexPos } from '#shared/hex'
 import { translateScenarioCoord } from '#shared/scenarioMap'
 import { getUnitTypeCatalog } from '#shared/unitDefinitions'
 import type { DefenderUnit, OnionUnit, StackRosterGroupState } from '#shared/types/index'
-import type { InitialState } from '#server/engine/scenarioSchema'
+import type { Deployment, InitialState } from '#server/engine/scenarioSchema'
 import { getUnitDefinition, onionMovementAllowance } from '#server/engine/units'
 import { listReachableMoves, type MoveMapSnapshot } from '#shared/movePlanner'
 
@@ -35,28 +35,18 @@ export function buildExpectedState(initialState: ExpectedStateInput): ExpectedSt
   }
 
   const onions: Record<string, ExpectedOnion> = {}
-  for (const [unitId, authoredOnion] of Object.entries(initialState.onions)) {
-    const onion = clone(authoredOnion)
-    const definition = getUnitTypeCatalog()[onion.type]
-    if (definition?.role !== 'onion') {
-      throw new Error(`Unknown onion type: ${onion.type}`)
-    }
-
-    onions[unitId] = {
-      unitId,
-      typeId: onion.type,
-      state: onion.status ?? 'operational',
-      position: translateScenarioCoord(onion.position, radius),
-      treads: definition.treads,
-    }
-  }
-
   const defenders: Record<string, ExpectedDefender> = {}
+  const deployments = Object.entries(initialState.deployments) as Array<[string, Deployment]>
   // Track ordinals for each stack group type to ensure unique IDs across multiple groups
   const stackOrdinals: Record<string, number> = {}
-  for (const [key, def] of Object.entries(initialState.defenders)) {
+  for (const [key, def] of deployments) {
+    const unitType = 'kind' in def ? def.unitType : def.type
+    const definition = getUnitTypeCatalog()[unitType]
+    if (definition === undefined) {
+      throw new Error(`Unknown unit type: ${unitType}`)
+    }
+
     if ('kind' in def) {
-      const unitType = def.unitType
       const count = def.count
       const position = translateScenarioCoord(def.position, radius)
       // Use the same base as scenarioNormalizer
@@ -64,23 +54,33 @@ export function buildExpectedState(initialState: ExpectedStateInput): ExpectedSt
       let ordinal = stackOrdinals[unitIdBase] || 0
       for (let i = 1; i <= count; i++) {
         const unitId = `${unitIdBase}-${ordinal + i}`
-        defenders[unitId] = {
+        const expectedUnit = {
           unitId,
           typeId: unitType,
           position,
           state: def.status ?? 'operational',
           weapons: [],
         }
+        if (def.side === 'onion') {
+          onions[unitId] = { ...expectedUnit, treads: definition.treads }
+        } else {
+          defenders[unitId] = expectedUnit
+        }
       }
       stackOrdinals[unitIdBase] = ordinal + count
     } else {
       const position = translateScenarioCoord(def.position, radius)
-      defenders[key] = {
+      const expectedUnit = {
         unitId: key,
         typeId: def.type,
         position,
         state: def.status ?? 'operational',
         weapons: [],
+      }
+      if (def.side === 'onion') {
+        onions[key] = { ...expectedUnit, treads: definition.treads }
+      } else {
+        defenders[key] = expectedUnit
       }
     }
   }

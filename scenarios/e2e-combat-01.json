@@ -8,22 +8,23 @@
     "hexes": []
   },
   "initialState": {
-    "onions": {
+    "deployments": {
       "onion-1": {
         "type": "TheOnion",
+        "side": "onion",
         "position": { "q": 0, "r": 0 },
         "status": "operational"
-      }
-    },
-    "defenders": {
+      },
       "puss-1": {
         "type": "Puss",
+        "side": "defender",
         "position": { "q": 1, "r": 0 },
         "status": "operational"
       },
       "pigs-stack-1": {
         "kind": "stack-group",
         "unitType": "LittlePigs",
+        "side": "defender",
         "position": { "q": 1, "r": 1 },
         "count": 2,
         "status": "operational"

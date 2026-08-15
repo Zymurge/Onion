@@ -11,7 +11,6 @@ import { isInBounds } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
 import { calculateRamming as calculateSharedRamming, resolveRammingOutcome } from '#shared/rammingCalculator'
 import { spendUnitMovement } from '#shared/unitMovement'
-import { isUnitTypeStackable } from '#shared/unitDefinitions'
 import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
@@ -259,7 +258,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan, options: Mo
     if (!hasTreads(unit)) {
       return { success: false, error: 'Ramming requires an Onion unit' }
     }
-    unit.ramsRemaining = Math.max(0, unit.ramsRemaining - plan.ramCapacityUsed)
+    unit.ramsRemaining = Math.max(0, (unit.ramsRemaining ?? 0) - plan.ramCapacityUsed)
     for (const rammedUnitId of plan.rammedUnitIds) {
       const rammedUnit = state.defenders[rammedUnitId]
       if (!rammedUnit) continue
@@ -278,7 +277,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan, options: Mo
 
   const treadDamage = plan.capabilities.hasTreads ? plan.treadCost : 0
   if (treadDamage > 0 && hasTreads(unit)) {
-    unit.treads = Math.max(0, unit.treads - treadDamage)
+    unit.treads = Math.max(0, (unit.treads ?? 0) - treadDamage)
   }
 
   if (options.reconcileStackRoster !== false) {

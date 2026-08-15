@@ -91,7 +91,7 @@ export function checkVictoryConditions(
 ): 'onion' | 'defender' | null {
   // Defenders win only when every Onion is immobilized or destroyed.
   const onions = Object.values(state.onions)
-  if (onions.length > 0 && onions.every((onion) => onion.treads <= 0 || onion.state === 'destroyed')) {
+  if (onions.length > 0 && onions.every((onion) => onion.treads === undefined || onion.treads <= 0 || onion.state === 'destroyed')) {
     return 'defender'
   }
 

@@ -8,26 +8,25 @@
     "hexes": []
   },
   "initialState": {
-    "onions": {
+    "deployments": {
       "onion-1": {
         "type": "TheOnion",
+        "side": "onion",
         "position": { "q": 5, "r": 5 },
         "status": "operational"
-      }
-    },
-    "defenders": {
-      "wolf-1":  { "type": "BigBadWolf", "position": { "q": 5, "r": 3 }, "status": "operational" },
-      "wolf-2":  { "type": "BigBadWolf", "position": { "q": 6, "r": 3 }, "status": "operational" },
-      "wolf-3":  { "type": "BigBadWolf", "position": { "q": 7, "r": 4 }, "status": "operational" },
-      "wolf-4":  { "type": "BigBadWolf", "position": { "q": 7, "r": 5 }, "status": "operational" },
-      "wolf-5":  { "type": "BigBadWolf", "position": { "q": 7, "r": 6 }, "status": "operational" },
-      "wolf-6":  { "type": "BigBadWolf", "position": { "q": 6, "r": 7 }, "status": "operational" },
-      "wolf-7":  { "type": "BigBadWolf", "position": { "q": 5, "r": 7 }, "status": "operational" },
-      "wolf-8":  { "type": "BigBadWolf", "position": { "q": 4, "r": 7 }, "status": "operational" },
-      "wolf-9":  { "type": "BigBadWolf", "position": { "q": 3, "r": 6 }, "status": "operational" },
-      "wolf-10": { "type": "BigBadWolf", "position": { "q": 3, "r": 5 }, "status": "operational" },
-      "wolf-11": { "type": "BigBadWolf", "position": { "q": 3, "r": 4 }, "status": "operational" },
-      "wolf-12": { "type": "BigBadWolf", "position": { "q": 4, "r": 3 }, "status": "operational" }
+      },
+      "wolf-1":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 5, "r": 3 }, "status": "operational" },
+      "wolf-2":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 6, "r": 3 }, "status": "operational" },
+      "wolf-3":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 7, "r": 4 }, "status": "operational" },
+      "wolf-4":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 7, "r": 5 }, "status": "operational" },
+      "wolf-5":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 7, "r": 6 }, "status": "operational" },
+      "wolf-6":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 6, "r": 7 }, "status": "operational" },
+      "wolf-7":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 5, "r": 7 }, "status": "operational" },
+      "wolf-8":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 4, "r": 7 }, "status": "operational" },
+      "wolf-9":  { "type": "BigBadWolf", "side": "defender", "position": { "q": 3, "r": 6 }, "status": "operational" },
+      "wolf-10": { "type": "BigBadWolf", "side": "defender", "position": { "q": 3, "r": 5 }, "status": "operational" },
+      "wolf-11": { "type": "BigBadWolf", "side": "defender", "position": { "q": 3, "r": 4 }, "status": "operational" },
+      "wolf-12": { "type": "BigBadWolf", "side": "defender", "position": { "q": 4, "r": 3 }, "status": "operational" }
     }
   },
   "victoryConditions": {

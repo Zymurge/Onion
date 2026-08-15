@@ -8,7 +8,7 @@ const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
 
 function getStaticSquadCount(unitType: string): number | undefined {
 	const definition = UNIT_TYPE_CATALOG[unitType]
-	return definition?.role === 'defender' ? definition.squads : undefined
+	return definition?.squads
 }
 
 type StackRosterSourceUnit = {

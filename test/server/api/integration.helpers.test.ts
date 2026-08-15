@@ -10,19 +10,19 @@ import type { InitialState } from '#server/engine/scenarioSchema'
 
 		try {
 			const initialState: InitialState = {
-				onions: {
+				deployments: {
 					'onion-1': {
 						type: 'TheOnion',
+						side: 'onion',
 					position: { q: 3, r: 10 },
 					},
 					'onion-2': {
 						type: 'TheOnion',
+						side: 'onion',
 						position: { q: 4, r: 11 },
 					},
-				},
-				defenders: {
-					'wolf-1': { type: 'BigBadWolf', position: { q: 5, r: 6 }, status: 'operational' },
-					'pigs-1': { type: 'LittlePigs', position: { q: 4, r: 7 }, status: 'operational' },
+					'wolf-1': { type: 'BigBadWolf', side: 'defender', position: { q: 5, r: 6 }, status: 'operational' },
+					'pigs-1': { type: 'LittlePigs', side: 'defender', position: { q: 4, r: 7 }, status: 'operational' },
 				},
 			}
 
@@ -33,8 +33,8 @@ import type { InitialState } from '#server/engine/scenarioSchema'
 			expect(expectedState.onions['onion-2'].position).toEqual({ q: 0, r: 11 })
 			expect(expectedState.defenders['wolf-1'].position).toEqual({ q: 6, r: 6 })
 			expect(expectedState.defenders['pigs-1'].position).toEqual({ q: 4, r: 7 })
-			expect(initialState.onions['onion-1'].position).toEqual({ q: 3, r: 10 })
-			expect(initialState.defenders['wolf-1'].position).toEqual({ q: 5, r: 6 })
+			expect(initialState.deployments['onion-1'].position).toEqual({ q: 3, r: 10 })
+			expect(initialState.deployments['wolf-1'].position).toEqual({ q: 5, r: 6 })
 		} finally {
 			translateScenarioCoord.lastRadius = previousRadius
 		}

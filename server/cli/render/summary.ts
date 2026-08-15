@@ -52,7 +52,7 @@ function defenderReadinessRank(defender: DefenderUnit): number {
 
 function defenderLine(defender: DefenderUnit): string {
   const definition = getUnitDefinition(defender.typeId)
-  const squads = definition?.role === 'defender' && definition.squads ? ` squads=${definition.squads}` : ''
+  const squads = definition?.squads ? ` squads=${definition.squads}` : ''
   const weapons = weaponSummary(defender.weapons, defender.state)
   return `  ${defender.unitId} ${defender.typeId} ${defender.state} at ${posText(defender.position)} weapons: ${weapons}${squads ? ` (${squads})` : ''}`
 }
@@ -102,7 +102,7 @@ export function renderGameSummary(session: SessionStore, state: GameState | null
     for (const defender of sortDefenders(Object.values(state.defenders))) {
       const definition = getUnitDefinition(defender.typeId)
       const weapons = weaponSummary(defender.weapons, defender.state)
-      const squads = definition?.role === 'defender' && definition.squads ? ` (squads=${definition.squads})` : ''
+      const squads = definition?.squads ? ` (squads=${definition.squads})` : ''
       lines.push(`    id=${defender.unitId} type=${defender.typeId} status=${defender.state} at ${posText(defender.position)} weapons: ${weapons}${squads}`)
     }
   }

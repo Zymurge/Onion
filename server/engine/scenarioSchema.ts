@@ -13,38 +13,41 @@ const TerrainHexSchema = z.object({
   t: z.number(),
 })
 
-export const OnionSchema = z.object({
-  type: z.string().min(1), // e.g., 'TheOnion', 'MkIII', etc.
+const StartingAmmoByWeaponTypeSchema = z.record(z.string().min(1), z.number().int().nonnegative())
+
+const DeploymentBaseSchema = {
+  side: z.enum(['onion', 'defender']),
   position: HexPosSchema,
   status: UnitStateSchema.optional(),
-}).strict()
+  startingAmmoByWeaponType: StartingAmmoByWeaponTypeSchema.optional(),
+}
 
-export const DefenderSchema = z.object({
+export const UnitDeploymentSchema = z.object({
   type: z.string().min(1),
-  position: HexPosSchema,
-  status: UnitStateSchema.optional(),
+  ...DeploymentBaseSchema,
 }).strict()
 
-export const DefenderStackGroupSchema = z.object({
+export const StackGroupDeploymentSchema = z.object({
   kind: z.literal('stack-group'),
   unitType: z.string().min(1),
-  position: HexPosSchema,
   count: z.number().int().positive(),
   groupName: z.string().optional(),
-  status: UnitStateSchema.optional(),
+  ...DeploymentBaseSchema,
 }).strict()
 
-export const DefenderEntrySchema = z.union([
-  DefenderSchema,
-  DefenderStackGroupSchema,
-])
+export const DeploymentSchema = z.union([UnitDeploymentSchema, StackGroupDeploymentSchema])
 
-export const DefendersRecordSchema = z.record(z.string(), DefenderEntrySchema)
+export const DeploymentsRecordSchema = z.record(z.string().min(1), DeploymentSchema)
 
-export const InitialStateSchema = z.object({
-  onions: z.record(z.string().min(1), OnionSchema).refine((onions) => Object.keys(onions).length > 0, 'At least one Onion is required'),
-  defenders: DefendersRecordSchema,
-}).strict()
+export const InitialStateSchema = z
+  .object({
+    deployments: DeploymentsRecordSchema,
+  })
+  .strict()
+  .refine(
+    (initialState) => Object.values(initialState.deployments).some((deployment) => deployment.side === 'onion'),
+    'At least one Onion deployment is required',
+  )
 
 export const ScenarioSchema = z.object({
   id: z.string().min(1),
@@ -70,3 +73,4 @@ export const ScenarioSchema = z.object({
 
 export type Scenario = z.infer<typeof ScenarioSchema>
 export type InitialState = z.infer<typeof InitialStateSchema>
+export type Deployment = z.infer<typeof DeploymentSchema>

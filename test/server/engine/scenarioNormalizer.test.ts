@@ -21,16 +21,15 @@ const mockedLogger = logger as unknown as {
 }
 
 const validInitialState = {
-  onions: {
+  deployments: {
     'onion-1': {
       type: 'TheOnion',
+      side: 'onion',
       position: { q: 0, r: 10 },
       status: 'operational',
     },
-  },
-  defenders: {
-    'wolf-1': { type: 'BigBadWolf', position: { q: 5, r: 6 }, status: 'operational' },
-    'pigs-1': { type: 'LittlePigs', position: { q: 4, r: 7 } },
+    'wolf-1': { type: 'BigBadWolf', side: 'defender', position: { q: 5, r: 6 }, status: 'operational' },
+    'pigs-1': { type: 'LittlePigs', side: 'defender', position: { q: 4, r: 7 } },
   },
 }
 
@@ -42,12 +41,12 @@ beforeEach(() => {
 })
 
 describe('normalizeInitialStateToGameState', () => {
-  it('rejects legacy defender squads entries', () => {
+  it('rejects legacy stack squads entries', () => {
     const parsed = InitialStateSchema.safeParse({
       ...validInitialState,
-      defenders: {
-        ...validInitialState.defenders,
-        'pigs-group-1': { kind: 'stack-group', unitType: 'LittlePigs', position: { q: 4, r: 7 }, count: 3, squads: 3 },
+      deployments: {
+        ...validInitialState.deployments,
+        'pigs-group-1': { kind: 'stack-group', unitType: 'LittlePigs', side: 'defender', position: { q: 4, r: 7 }, count: 3, squads: 3 },
       },
     })
 
@@ -87,10 +86,11 @@ describe('normalizeInitialStateToGameState', () => {
   it('normalizes every authored Onion entry using its map key and global definition defaults', () => {
     const parsed = InitialStateSchema.parse({
       ...validInitialState,
-      onions: {
-        'onion-1': validInitialState.onions['onion-1'],
+      deployments: {
+        'onion-1': validInitialState.deployments['onion-1'],
         'onion-2': {
           type: 'TheOnion',
+          side: 'onion',
           position: { q: 2, r: 10 },
           status: 'disabled',
         },
@@ -113,10 +113,10 @@ describe('normalizeInitialStateToGameState', () => {
   it('defaults missing status to operational', () => {
     const noStatus = {
       ...validInitialState,
-      onions: { ...validInitialState.onions, 'onion-1': { ...validInitialState.onions['onion-1'], status: undefined } },
-      defenders: {
-        ...validInitialState.defenders,
-        'wolf-1': { ...validInitialState.defenders['wolf-1'], status: undefined },
+      deployments: {
+        ...validInitialState.deployments,
+        'onion-1': { ...validInitialState.deployments['onion-1'], status: undefined },
+        'wolf-1': { ...validInitialState.deployments['wolf-1'], status: undefined },
       },
     }
     const parsed = InitialStateSchema.parse(noStatus)
@@ -125,76 +125,74 @@ describe('normalizeInitialStateToGameState', () => {
     expect(gameState.defenders['wolf-1'].state).toBe('operational')
   })
 
-  it('logs error and throws for unknown onion type', () => {
+  it('logs error and throws for unknown unit type', () => {
     const badState = {
       ...validInitialState,
-      onions: { ...validInitialState.onions, 'onion-1': { ...validInitialState.onions['onion-1'], type: 'UnknownOnion' } },
+      deployments: { ...validInitialState.deployments, 'onion-1': { ...validInitialState.deployments['onion-1'], type: 'UnknownOnion' } },
     }
     const parsed = InitialStateSchema.parse(badState)
-    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unknown onion type')
+    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unknown unit type')
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'UnknownOnion' }),
-      expect.stringContaining('unknown onion type')
+      expect.stringContaining('unknown unit type')
     )
   })
 
   it('logs error and throws for unknown defender type', () => {
     const badState = {
       ...validInitialState,
-      defenders: {
-        ...validInitialState.defenders,
-        bad: { type: 'UnknownDefender', position: { q: 1, r: 1 } },
+      deployments: {
+        ...validInitialState.deployments,
+        bad: { type: 'UnknownDefender', side: 'defender', position: { q: 1, r: 1 } },
       },
     }
     const parsed = InitialStateSchema.parse(badState)
-    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unknown defender type')
+    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unknown unit type')
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'UnknownDefender', key: 'bad' }),
-      expect.stringContaining('unknown defender type')
+      expect.stringContaining('unknown unit type')
     )
   })
 
-  it('rejects an onion type in a regular defender entry', () => {
+  it('accepts a treaded chassis on the defender side', () => {
     const badState = {
       ...validInitialState,
-      defenders: {
-        ...validInitialState.defenders,
-        bad: { type: 'TheOnion', position: { q: 1, r: 1 } },
+      deployments: {
+        ...validInitialState.deployments,
+        bad: { type: 'TheOnion', side: 'defender', position: { q: 1, r: 1 } },
       },
     }
     const parsed = InitialStateSchema.parse(badState)
-    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unit type is not a defender')
+    expect(normalizeInitialStateToGameState(parsed).defenders.bad).toMatchObject({ typeId: 'TheOnion', treads: 45, ramsRemaining: 2 })
   })
 
-  it('rejects an onion type in a stack group entry', () => {
+  it('accepts a non-treaded chassis on the Onion side', () => {
     const badState = {
       ...validInitialState,
-      defenders: {
-        'onion-group-1': {
-          kind: 'stack-group',
-          unitType: 'TheOnion',
-          position: { q: 1, r: 1 },
-          count: 2,
-        },
+      deployments: {
+        ...validInitialState.deployments,
+        bad: { type: 'Puss', side: 'onion', position: { q: 1, r: 1 } },
       },
     }
-    const parsed = InitialStateSchema.parse(badState as unknown as object)
-    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Unit type is not a defender')
+    const parsed = InitialStateSchema.parse(badState)
+    expect(normalizeInitialStateToGameState(parsed).onions.bad).toMatchObject({ typeId: 'Puss', side: 'onion' })
+    expect(normalizeInitialStateToGameState(parsed).onions.bad).not.toHaveProperty('treads')
   })
 
   it('expands authored Little Pigs stack groups into individual defenders with group membership metadata', () => {
     const groupedInitialState = {
-      onions: validInitialState.onions,
-      defenders: {
+      deployments: {
+        'onion-1': validInitialState.deployments['onion-1'],
         'pigs-group-1': {
           kind: 'stack-group',
           unitType: 'LittlePigs',
+          side: 'defender',
           position: { q: 4, r: 7 },
           count: 3,
           status: 'operational',
           groupName: 'Little Pigs group 1',
         },
-        'wolf-1': { type: 'BigBadWolf', position: { q: 5, r: 6 }, status: 'operational' },
+        'wolf-1': { type: 'BigBadWolf', side: 'defender', position: { q: 5, r: 6 }, status: 'operational' },
       },
     }
 
@@ -217,11 +215,12 @@ describe('normalizeInitialStateToGameState', () => {
 
   it('throws when an authored stack group name conflicts with canonical naming', () => {
     const groupedInitialState = {
-      onions: validInitialState.onions,
-      defenders: {
+      deployments: {
+        'onion-1': validInitialState.deployments['onion-1'],
         'pigs-group-1': {
           kind: 'stack-group',
           unitType: 'LittlePigs',
+          side: 'defender',
           position: { q: 4, r: 7 },
           count: 3,
           status: 'operational',
@@ -237,11 +236,12 @@ describe('normalizeInitialStateToGameState', () => {
 
   it('assigns Little Pigs ids and friendly names from a single ordinal sequence across stack groups', () => {
     const groupedInitialState = {
-      onions: validInitialState.onions,
-      defenders: {
+      deployments: {
+        'onion-1': validInitialState.deployments['onion-1'],
         'pigs-stack-1': {
           kind: 'stack-group',
           unitType: 'LittlePigs',
+          side: 'defender',
           position: { q: 4, r: 7 },
           count: 2,
           status: 'operational',
@@ -249,6 +249,7 @@ describe('normalizeInitialStateToGameState', () => {
         'pigs-stack-2': {
           kind: 'stack-group',
           unitType: 'LittlePigs',
+          side: 'defender',
           position: { q: 5, r: 7 },
           count: 3,
           status: 'operational',

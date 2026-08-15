@@ -137,10 +137,22 @@ const COMBAT_STATIC_RULES = ONION_STATIC_RULES
 
 const combatCalculator = createCombatCalculator(COMBAT_STATIC_RULES)
 
+/**
+ * Resolve the terrain at a unit's current position for the shared combat
+ * calculator. Missing map entries intentionally produce `undefined`, which
+ * means that the calculator applies no terrain modifier.
+ */
 function getTerrainTypeAt(map: GameMap, position: { q: number; r: number }) {
   return map.hexes[`${position.q},${position.r}`]?.terrain
 }
 
+/**
+ * Resolve an Onion reference through the canonical Onion map.
+ *
+ * Commands may carry an alias that `getOnion` understands, while the rest of
+ * combat needs the concrete runtime entity. Throwing here keeps downstream
+ * combat code from operating on a partially resolved target.
+ */
 function requireOnion(state: GameState, onionId: string): OnionUnit {
   const resolvedOnionId = getOnion(onionId, state)
   if (resolvedOnionId === undefined) {
@@ -155,6 +167,24 @@ function requireOnion(state: GameState, onionId: string): OnionUnit {
   return onion
 }
 
+/**
+ * Build the calculator's phase-neutral combat snapshot from live game state.
+ *
+ * The shared calculator does not know about Onion/defender maps, stack roster
+ * storage, or the command model. This adapter translates those structures into
+ * combatant ids and static unit type ids:
+ *
+ * - During Onion combat, each attacker id represents one selected Onion
+ *   weapon, so it is passed as both a combatant id and that combatant's
+ *   `weaponIds` entry. The target is either a real defender or a synthesized
+ *   stack group with its member count.
+ * - During defender combat, attacker ids identify defender units and their
+ *   ready live weapons are used. The Onion is the target; a weapon target is
+ *   carried as `weaponId` so the calculator can resolve subsystem defense.
+ *
+ * This function only adapts input. It does not calculate odds, mutate state,
+ * or apply combat damage.
+ */
 function buildCombatCalculatorInput(
   map: GameMap,
   state: GameState,
@@ -166,6 +196,8 @@ function buildCombatCalculatorInput(
   const onion = requireOnion(state, onionId)
 
   if (state.currentPhase === 'ONION_COMBAT') {
+    // Onion weapon ids are used as attacker ids because the calculator's
+    // generic attacker-group contract needs one entry per firing weapon.
     for (const attackerId of attackerIds) {
       units[attackerId] = {
         typeId: onion.typeId,
@@ -174,9 +206,9 @@ function buildCombatCalculatorInput(
       }
     }
 
-    // Defender target may be a stack group id or an individual unit id. If
-    // it's a group id, synthesize a combatant with squads derived from the
-    // stack roster. Otherwise use the explicit defender entry.
+    // A defender target may be an individual unit or a stack group. Groups do
+    // not exist as units in the canonical defender map, so represent one with
+    // its type, position, and current member count for defense calculation.
     const defender: DefenderUnit | undefined = state.defenders[target.id]
     if (defender) {
       units[target.id] = {
@@ -204,6 +236,8 @@ function buildCombatCalculatorInput(
     }
   }
 
+  // Defender attackers are represented by their runtime units. Omitting
+  // weaponIds tells the calculator to sum their ready live weapons.
   for (const attackerId of attackerIds) {
     const attacker = state.defenders[attackerId]
     if (attacker) {
@@ -211,6 +245,8 @@ function buildCombatCalculatorInput(
     }
   }
 
+  // For subsystem fire, the target weapon id changes the Onion's defense from
+  // its tread defense to the selected weapon's defense.
   units[onion.unitId] = {
     typeId: onion.typeId,
     weaponId: target.kind === 'weapon' ? target.id : undefined,
@@ -225,6 +261,11 @@ function buildCombatCalculatorInput(
   }
 }
 
+/**
+ * Convert a command target into the normalized Onion target forms understood
+ * by combat planning. Tread ids must belong to the selected Onion; weapon
+ * targets must refer to an individually targetable live weapon.
+ */
 function resolveOnionTarget(state: GameState, onionId: string, targetId: string): CombatTarget | null {
   const onion = requireOnion(state, onionId)
   const parsedTarget = parseCombatTargetId(targetId)
@@ -244,6 +285,12 @@ function formatResolvedTargetId(target: CombatTarget): string {
   return target.id
 }
 
+/**
+ * Resolve either a direct defender id or a stack group id to a live defender.
+ * For stacks, the first non-destroyed member is the representative used when
+ * applying the result; the calculator receives the group separately through
+ * `buildCombatCalculatorInput`.
+ */
 function resolveDefenderTarget(
   state: GameState,
   targetId: string,
@@ -306,6 +353,21 @@ export function resolveCombatOutcome(
   return { targetId, effect: 'destroyed', result }
 }
 
+/**
+ * Validate a FIRE command and produce the immutable combat plan consumed by
+ * `executeCombatAction`.
+ *
+ * Validation has two responsibilities:
+ * 1. Check command legality: phase, ids, readiness, target legality, range,
+ *    duplicate attackers, and special multi-attacker restrictions.
+ * 2. Build the calculator input and ask the shared rules engine for effective
+ *    attack and defense strengths, including stack and terrain modifiers.
+ *
+ * The local attack-strength accumulation below predates the shared calculator.
+ * It is not the value returned in the plan; `combatResult.attackStrength` is.
+ * Keeping both paths is confusing and is the main simplification candidate
+ * for the next refactor.
+ */
 export function validateCombatAction(
   map: GameMap,
   state: GameState,
@@ -359,6 +421,7 @@ export function validateCombatAction(
         unitId: command.targetId,
         typeId: group.unitType,
         role: 'defender',
+        side: 'defender',
         position: group.position,
         state: allDestroyed ? 'destroyed' : (representative?.state ?? 'operational'),
         weapons: representative?.weapons ?? [],
@@ -445,6 +508,9 @@ export function validateCombatAction(
       }
     }
 
+    // The calculator is the authoritative source for effective strengths. It
+    // reconstructs attack from the selected weapon ids and defense from the
+    // target representation built above, including stack-size modifiers.
     const combatResult = combatCalculator.calculateResult(
       buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.unitId }, [...command.attackers], onion.unitId),
     )
@@ -511,6 +577,8 @@ export function validateCombatAction(
     attackStrength += availableWeapons.reduce((total, weapon) => total + getWeaponType(weapon.typeId).attack, 0)
   }
 
+  // For defender fire, the calculator sums each attacker's ready live weapons
+  // and resolves the Onion's tread or subsystem defense from the target kind.
   const combatResult = combatCalculator.calculateResult(
     buildCombatCalculatorInput(map, state, target, [...command.attackers], onion.unitId),
   )
@@ -729,7 +797,7 @@ export function applyDamage(
     case 'tread-loss': {
       const onion = target as OnionUnit
       const lost = outcome.treadsLost ?? attackStrength
-      onion.treads = Math.max(0, onion.treads - lost)
+      onion.treads = Math.max(0, (onion.treads ?? 0) - lost)
       return { treads: lost }
     }
     case 'weapon-destroyed': {

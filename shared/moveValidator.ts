@@ -261,7 +261,7 @@ export function validateMove(
 	const rammedUnits = capabilities.canRam && attemptRam ? collectRammedUnits(state, pathResult.path, command.unitId) : []
 	const ramCapacityUsed = rammedUnits.length
 	const ramCapacityLimit = role === 'onion'
-		? Math.min(getUnitRamCapacity(unitType), unit.ramsRemaining)
+		? Math.min(getUnitRamCapacity(unitType), unit.ramsRemaining ?? 0)
 		: getUnitRamCapacity(unitType)
 
 	if (capabilities.canRam && ramCapacityUsed > ramCapacityLimit) {

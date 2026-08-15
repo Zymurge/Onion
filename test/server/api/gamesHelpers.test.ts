@@ -55,6 +55,10 @@ describe('buildCombatEvents', () => {
       10,
       { type: 'FIRE', attackers: ['pigs-1'], targetId: 'onion-1:treads', onionId: 'onion-1' },
       {
+        success: true,
+        actionType: 'FIRE',
+        attackerIds: ['pigs-1'],
+        onionId: 'onion-1',
         targetId: 'onion-1:treads',
         roll: { roll: 6, result: 'X', odds: '1:1' },
         treadsLost: 2,
@@ -81,6 +85,10 @@ describe('buildCombatEvents', () => {
       20,
       { type: 'FIRE', attackers: ['pigs-1'], targetId: 'ap_1', onionId: 'onion-1' },
       {
+        success: true,
+        actionType: 'FIRE',
+        attackerIds: ['pigs-1'],
+        onionId: 'onion-1',
         targetId: 'ap_1',
         roll: { roll: 1, result: 'NE', odds: '1:1' },
       },
@@ -127,7 +135,7 @@ describe('buildCombatEvents', () => {
         rammedUnitResults: [{
           unitId: 'puss-1',
           unitType: 'Puss',
-          outcome: { effect: 'survived', roll: 6, treadCost: 1 },
+          outcome: { effect: 'survived', roll: 6, treadCost: 1, destroyed: false },
         }],
         treadDamage: 1,
       },
@@ -174,6 +182,10 @@ describe('buildCombatEvents', () => {
       50,
       { type: 'FIRE', attackers: ['main'], targetId: 'pigs-1', onionId: 'onion-1' },
       {
+        success: true,
+        actionType: 'FIRE',
+        attackerIds: ['main'],
+        onionId: 'onion-1',
         targetId: 'pigs-1',
         roll: { roll: 6, result: 'X', odds: '1:1' },
         statusChanges: [{ unitId: 'pigs-1', from: 'operational', to: 'destroyed' }],
@@ -198,6 +210,10 @@ describe('buildCombatEvents', () => {
       30,
       { type: 'FIRE', attackers: ['onion-1'], targetId: 'pigs-1', onionId: 'onion-1' },
       {
+        success: true,
+        actionType: 'FIRE',
+        attackerIds: ['onion-1'],
+        onionId: 'onion-1',
         targetId: 'pigs-1',
         roll: { roll: 3, result: 'D', odds: '1:1' },
         squadsLost: 1,

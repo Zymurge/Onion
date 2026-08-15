@@ -195,6 +195,13 @@ function getTerrainDefenseBonus(staticRules: CombatStaticRules, combatant: Comba
 	return terrainRule.defenseBonus
 }
 
+/**
+ * Sum the attack contribution for each calculator attacker.
+ *
+ * When `weaponIds` is present, it is an explicit selection, as used for Onion
+ * weapon attacks. Otherwise the combatant's ready live weapons are summed,
+ * which is the defender attack path.
+ */
 function resolveAttackStrength(staticRules: CombatStaticRules, liveState: CombatLiveState, attackerGroupIds: ReadonlyArray<string>): number {
 	return attackerGroupIds.reduce((total, attackerId) => {
 		const attacker = getCombatant(staticRules, liveState, attackerId)
@@ -203,6 +210,14 @@ function resolveAttackStrength(staticRules: CombatStaticRules, liveState: Combat
 	}, 0)
 }
 
+/**
+ * Resolve the target's effective defense.
+ *
+ * Onion tread defense is deliberately derived from the attack strength. A
+ * selected Onion weapon instead uses that weapon's subsystem defense. Regular
+ * units use their static defense, while stackable units use live stack size;
+ * terrain cover is added only when the static rules allow it.
+ */
 function resolveDefenseStrength(
 	staticRules: CombatStaticRules,
 	liveState: CombatLiveState,
@@ -212,7 +227,7 @@ function resolveDefenseStrength(
 	const target = getCombatant(staticRules, liveState, targetId)
 	const definition = getUnitDefinitionByType(staticRules, target.typeId)
 
-	if (definition.role === 'onion') {
+	if (definition.treads !== undefined) {
 		if (target.weaponId === undefined) {
 			return attackStrength
 		}
@@ -276,6 +291,10 @@ function resolveModifiers(staticRules: CombatStaticRules, liveState: CombatLiveS
 	]
 }
 
+/**
+ * Run the complete pure calculation pipeline: effective attack, effective
+ * defense, terrain/stack modifiers, and the resulting CRT odds band.
+ */
 function calculateResultFromRules(staticRules: CombatStaticRules, input: CombatCalculatorInput): CombatCalculatorResult {
 	const attackStrength = resolveAttackStrength(staticRules, input.combatState, input.attackerGroupIds)
 	const defenseStrength = resolveDefenseStrength(staticRules, input.combatState, input.targetId, attackStrength)
