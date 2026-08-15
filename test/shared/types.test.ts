@@ -69,3 +69,8 @@ void invalidDynamicMovement
 void invalidDynamicDefense
 void invalidDynamicAbilities
 void invalidDynamicSquads
+
+it.todo('TYPE-001 static unit types do not accept side or role')
+it.todo('TYPE-002 runtime units accept either side independently of chassis capabilities')
+it.todo('TYPE-003 side collections admit every valid runtime chassis')
+it.todo('AMMO-005 WeaponType accepts maxAmmo while Weapon accepts only dynamic ammo')

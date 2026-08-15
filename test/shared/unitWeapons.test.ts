@@ -60,4 +60,18 @@ describe('UnitWeapons', () => {
 		expect(weapons.destroy('main-1')).toBe(true)
 		expect(weapon.state).toBe('destroyed')
 	})
+
+	it('does not expose a zero-ammo ready weapon as available', () => {
+		const missile = makeWeapon({ id: 'missile-1', weaponClass: 'missile', ammo: 0 })
+		const weapons = new UnitWeapons([missile])
+
+		expect(weapons.getReadyWeapons()).toEqual([])
+		expect(weapons.consumeAmmo('missile-1')).toBe(false)
+		expect(missile).toEqual({ ...missile, ammo: 0, state: 'ready' })
+	})
+
+	it.todo('AMMO-001 preserves omitted maxAmmo as unlimited in the normalized weapon catalog')
+	it.todo('AMMO-002 accepts positive integer maxAmmo values in the normalized weapon catalog')
+	it.todo('AMMO-003 rejects zero, negative, fractional, and non-numeric maxAmmo values')
+	it.todo('AMMO-004 rejects runtime and unknown ammo-shaped weapon catalog fields')
 })
