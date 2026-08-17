@@ -43,6 +43,10 @@ test('co-located stack and adjacent units render consistently for active and ina
 			onionBattlefield.waitForAuthoritativePhase('Defender Movement'),
 			defenderBattlefield.waitForAuthoritativePhase('Defender Movement'),
 		])
+		await expect(onionPage.locator('.role-badge')).toHaveText('Defender')
+		await expect(defenderPage.locator('.role-badge')).toHaveText('Defender')
+		await expect(onionPage.locator('.phase-chip-state')).not.toHaveClass(/phase-chip-active/)
+		await expect(defenderPage.locator('.phase-chip-state')).toHaveClass(/phase-chip-active/)
 
 		const renderOptions = {
 			cellKeys: ['3-2', '4-2', '2-3'],

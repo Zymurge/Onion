@@ -29,7 +29,10 @@ test('Onion and Defender see the same destroyed ram result', async ({ browser, t
 		await expect(toast).toContainText('DestroyedYes')
 		await onionBattlefield.expectDestroyed('puss-1')
 		await defenderBattlefield.expectInactiveResult(expectedResult)
+		await defenderBattlefield.expectInactiveDetail('Target: puss-1')
 		await defenderBattlefield.expectDestroyed('puss-1')
+		await expect(onionPage.getByTestId('combat-unit-onion-1')).toContainText('Rams remaining 0')
+		await expect(defenderPage.getByTestId('combat-unit-onion-1')).toContainText('Rams remaining 0')
 	} finally {
 		await Promise.all([onionContext.close(), defenderContext.close()])
 	}

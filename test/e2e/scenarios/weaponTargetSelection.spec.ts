@@ -28,7 +28,10 @@ test('Defender selects the intended Onion weapon target and Onion sees the resul
 		await defenderBattlefield.waitForAuthoritativePhase('Defender Movement')
 		await defenderBattlefield.beginTurn()
 		await defenderBattlefield.advancePhase('Start Combat')
-		await onionBattlefield.waitForAuthoritativePhase('Defender Combat')
+		await Promise.all([
+			defenderBattlefield.waitForAuthoritativePhase('Defender Combat'),
+			onionBattlefield.waitForAuthoritativePhase('Defender Combat'),
+		])
 		await defenderBattlefield.selectCombatUnit('puss-1')
 		await defenderBattlefield.selectCombatTarget('weapon:main')
 		await defenderBattlefield.expectCombatTargetSelected('weapon:main')
@@ -39,11 +42,13 @@ test('Defender selects the intended Onion weapon target and Onion sees the resul
 		await onionBattlefield.expectInactiveResult('Fire on Main Weapon: destroyed')
 		await onionBattlefield.expectInactiveDetail('Weapon destroyed: Main Weapon')
 		await onionBattlefield.expectUnitCombatReady('puss-1', false)
+		await defenderBattlefield.expectUnitCombatReady('puss-1', false)
 		await onionBattlefield.inspectUnit('puss-1')
 		await onionBattlefield.expectInspectorSubject('puss-1', 'Puss 1')
 		await expect(onionPage.getByTestId('battlefield-inspector')).toContainText('Status')
 		await expect(onionPage.getByTestId('battlefield-inspector')).toContainText('operational')
 		await expect(onionPage.getByTestId('combat-target-list')).toHaveCount(0)
+		await expect(defenderPage.getByTestId('combat-target-list')).toHaveCount(0)
 	} finally {
 		await Promise.all([onionContext.close(), defenderContext.close()])
 	}

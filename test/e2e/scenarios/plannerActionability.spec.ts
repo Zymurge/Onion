@@ -33,8 +33,10 @@ test('planner actionability follows authoritative movement remaining state', asy
 		}
 
 		await expect(onionPage.getByTestId('combat-unit-onion-1')).toContainText('Moves 0')
+		await expect(defenderPage.getByTestId('combat-unit-onion-1')).toContainText('Moves 0')
 		await onionBattlefield.expectUnitMoveReady('onion-1', false)
 		await expect(onionPage.locator('.hex-cell-reachable')).toHaveCount(0)
+		await expect(defenderPage.locator('.hex-cell-reachable')).toHaveCount(0)
 		await expect(defenderPage.getByTestId('hex-unit-onion-1')).toHaveClass(/hex-unit-stack-onion/)
 		await defenderBattlefield.expectUnitMoveReady('onion-1', false)
 	} finally {

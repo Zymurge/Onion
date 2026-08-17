@@ -45,6 +45,7 @@ test('authoritative phase refresh clears grouped target and stack selections', a
 			defenderBattlefield.waitForAuthoritativePhase('Defender Movement'),
 		])
 		await onionBattlefield.expectCombatSelectionCleared()
+		await defenderBattlefield.expectCombatSelectionCleared()
 
 		await defenderBattlefield.beginTurn()
 		await defenderBattlefield.selectCombatUnit('pigs-1')
@@ -54,6 +55,7 @@ test('authoritative phase refresh clears grouped target and stack selections', a
 			onionBattlefield.waitForAuthoritativePhase('Defender Combat'),
 		])
 		await defenderBattlefield.expectStackSelectionCleared('pigs-1')
+		await onionBattlefield.expectStackSelectionCleared('pigs-1')
 	} finally {
 		await Promise.all([onionContext.close(), defenderContext.close()])
 	}
