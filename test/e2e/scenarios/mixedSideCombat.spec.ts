@@ -20,9 +20,9 @@ test('Onion resolves grouped-target fire and Defender sees the authoritative res
 			new LoginPage(defenderPage).connect(runtime, twoPlayerGame.defender, twoPlayerGame.gameId),
 		])
 
+		await onionBattlefield.beginTurn()
 		await onionBattlefield.advancePhase('Start Combat')
 		await onionBattlefield.waitForAuthoritativePhase('Onion Combat')
-		await onionBattlefield.beginTurn()
 		await onionBattlefield.selectCombatWeapon('main')
 		await onionBattlefield.selectCombatTargetByName('Little Pigs group 1')
 		await onionBattlefield.expectCombatTargetSelectedByName('Little Pigs group 1')
@@ -30,7 +30,10 @@ test('Onion resolves grouped-target fire and Defender sees the authoritative res
 		const toast = await onionBattlefield.resolveCombat()
 		await expect(toast).toContainText('Combat resolved on Little Pigs group 1')
 		await expect(toast).toContainText('Outcome')
-		await expect(defenderPage.getByTestId('inactive-event-stream')).toContainText('Target: Little Pigs group 1')
+		const defenderBattlefield = new BattlefieldPage(defenderPage)
+		await defenderBattlefield.expectInactiveResult('Fire on LittlePigs:2,1: destroyed')
+		await defenderBattlefield.expectInactiveDetail('Target: LittlePigs:2,1')
+		await defenderBattlefield.expectInactiveDetail('Unit: Little Pigs group 1: operational → destroyed')
 	} finally {
 		await Promise.all([onionContext.close(), defenderContext.close()])
 	}

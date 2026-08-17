@@ -111,7 +111,7 @@ export async function startRuntimeSupervisor(
 			web = adapters.processes.spawn({
 				command: 'pnpm',
 				args: ['--dir', 'web', 'dev', '--host', '127.0.0.1', '--port', String(port)],
-				env: { ...process.env, VITE_ONION_API_URL: engineUrl },
+				env: { ...process.env, E2E_RUNTIME_FILE: options.runtimeFile, VITE_ONION_API_URL: engineUrl },
 				logPath: join(paths.logDir, 'web.log'),
 			})
 			await adapters.http.waitForStatus(webUrl, '/', options.startupTimeoutMs)

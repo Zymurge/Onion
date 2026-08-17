@@ -16,6 +16,7 @@ export default defineConfig({
   },
   server: {
     open: '/index.html',
+    watch: process.env.E2E_RUNTIME_FILE ? null : undefined,
     fs: {
       allow: ['..'],
     },
