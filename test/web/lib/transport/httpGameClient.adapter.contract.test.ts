@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createHttpGameClient } from '#web/lib/httpGameClient'
+import { createHttpGameClient, createHttpGameRequestTransport } from '#web/lib/httpGameClient'
 import { clearApiProtocolTraffic, getApiProtocolTrafficSnapshot } from '#shared/apiProtocol'
 
 clearApiProtocolTraffic()
@@ -44,6 +44,40 @@ function minimalActionResponse(overrides: Record<string, unknown> = {}) {
 }
 
 describe('http game client adapter contract', () => {
+	it('posts a client diagnostic with the authenticated game request transport', async () => {
+		const reportId = '550e8400-e29b-41d4-a716-446655440000'
+		const fetchImpl = vi.fn().mockResolvedValue(minimalJsonResponse({ ok: true, reportId }, 202))
+		const transport = createHttpGameRequestTransport({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+			token: 'stub.token',
+		})
+
+		await transport.reportDiagnostic!(123, {
+			reportId,
+			code: 'CLIENT_SESSION_READY',
+			message: 'Client loaded an authoritative game snapshot',
+			snapshot: {
+				gameId: 123,
+				scenarioName: 'Contract scenario',
+				phase: 'DEFENDER_MOVE',
+				turnNumber: 1,
+				lastEventSeq: 2,
+			},
+			client: { build: 'web-test-build', userAgent: 'vitest' },
+			protocolTraffic: [],
+		})
+
+		expect(fetchImpl).toHaveBeenCalledWith(
+			'https://onion.test/api/games/123/client-diagnostics',
+			expect.objectContaining({
+				method: 'POST',
+				headers: expect.objectContaining({ authorization: 'Bearer stub.token' }),
+				body: expect.stringContaining('CLIENT_SESSION_READY'),
+			}),
+		)
+	})
+
 	it('loads state and polls events over HTTP', async () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,

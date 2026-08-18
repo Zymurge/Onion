@@ -10,6 +10,7 @@ import { AppShellHeader } from './components/AppShellHeader'
 import { BattlefieldLeftRail } from './components/BattlefieldLeftRail'
 import { BattlefieldRightRail } from './components/BattlefieldRightRail'
 import {
+	type ClientDiagnosticReport,
   type GameAction,
   type GameClient,
 } from './lib/gameClient'
@@ -224,6 +225,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     sessionTurnActive: boolean
     loggedAtMs: number
   } | null>(null)
+  const reportedSessionDiagnosticGameIdRef = useRef<number | null>(null)
 
   const runtimeConnectionSeeded = showConnectionGate
   const liveRefreshQuietWindowMs = runtimeConfig?.liveRefreshQuietWindowMs ?? 500
@@ -288,6 +290,46 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   const activeTurnOwner = getPhaseOwner(sessionPhase)
   const sessionTurnActive = sessionState.snapshot !== null && sessionRole !== null && activeTurnOwner === sessionRole
   const activeGameIdForGate = activeSessionBinding?.gameId ?? null
+
+  useEffect(() => {
+    const reportDiagnostic = activeSessionBinding?.requestTransport.reportDiagnostic
+    const snapshot = sessionState.snapshot
+    const gameId = activeSessionBinding?.gameId
+    if (reportDiagnostic === undefined || snapshot === null || gameId === undefined || sessionState.status !== 'ready') {
+      return
+    }
+
+    if (reportedSessionDiagnosticGameIdRef.current === gameId) {
+      return
+    }
+
+    reportedSessionDiagnosticGameIdRef.current = gameId
+    const diagnostic: ClientDiagnosticReport = {
+      reportId: crypto.randomUUID(),
+      code: 'CLIENT_SESSION_READY',
+      message: 'Client loaded an authoritative game snapshot',
+      snapshot: {
+        gameId: snapshot.gameId,
+        scenarioName: snapshot.scenarioName,
+        phase: snapshot.phase,
+        turnNumber: snapshot.turnNumber ?? 0,
+        lastEventSeq: snapshot.lastEventSeq,
+      },
+      client: {
+        build: 'web-client',
+        userAgent: navigator.userAgent,
+      },
+      protocolTraffic: [],
+    }
+
+    void reportDiagnostic(gameId, diagnostic).catch((error: unknown) => {
+      logger.warn('[app] client diagnostic report failed', {
+        gameId,
+        reportId: diagnostic.reportId,
+        error,
+      })
+    })
+  }, [activeSessionBinding, sessionState.snapshot, sessionState.status])
   const currentActiveTurnKey = buildAcknowledgementTurnKey({
     activeGameId: activeGameIdForGate,
     currentTurnNumber: sessionTurnNumber,

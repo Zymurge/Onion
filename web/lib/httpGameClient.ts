@@ -6,6 +6,7 @@ import {
 	type GameStateEnvelope,
 	type ServerGameSnapshot,
 } from './gameClient'
+import type { ClientDiagnosticReport } from './gameClient'
 import type { GameRequestTransport } from './gameSessionTypes'
 
 	import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../shared/apiProtocol'
@@ -154,6 +155,20 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 	const fetchImpl = options.fetchImpl ?? fetch
 	const baseUrl = trimTrailingSlash(options.baseUrl)
 	let currentSnapshot: ServerGameSnapshot | null = null
+	async function reportDiagnostic(gameId: number, diagnostic: ClientDiagnosticReport): Promise<void> {
+		const result = await requestJson<{ ok: true; reportId: string }>({
+			baseUrl,
+			path: `games/${gameId}/client-diagnostics`,
+			method: 'POST',
+			token: options.token,
+			body: diagnostic,
+			fetchImpl,
+		})
+
+		if (!result.ok) {
+			throw buildError(result)
+		}
+	}
 	const requestTransport = {
 		async getState(gameId: number) {
 			const result = await requestJson<GameStateResponse>({
@@ -268,6 +283,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 			}
 
 		},
+		reportDiagnostic,
 	} as GameRequestTransport
 
 	async function pollEvents(gameId: number, afterSeq: number) {

@@ -48,12 +48,9 @@ const CreateGameSchema = z.object({
   role: z.enum(['onion', 'defender']),
 })
 
-const ClientDiagnosticSchema = z.object({
+const ClientDiagnosticContextSchema = z.object({
   reportId: z.string().uuid(),
-  code: z.literal('SNAPSHOT_INVALID'),
-  path: z.string().min(1).max(500),
   message: z.string().min(1).max(4_000),
-  refreshAttempt: z.number().int().min(0).max(3),
   snapshot: z.object({
     gameId: z.number().int().positive(),
     scenarioName: z.string().min(1).max(200),
@@ -72,6 +69,17 @@ const ClientDiagnosticSchema = z.object({
     status: z.number().int().min(100).max(599),
   })).max(50),
 })
+
+const ClientDiagnosticSchema = z.discriminatedUnion('code', [
+  ClientDiagnosticContextSchema.extend({
+    code: z.literal('SNAPSHOT_INVALID'),
+    path: z.string().min(1).max(500),
+    refreshAttempt: z.number().int().min(0).max(3),
+  }),
+  ClientDiagnosticContextSchema.extend({
+    code: z.literal('CLIENT_SESSION_READY'),
+  }),
+])
 
 /**
  * Game management routes for creating, joining, and playing matches.

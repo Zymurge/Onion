@@ -14,7 +14,7 @@
  * - `GameSessionViewState` is the snapshot consumed by React and test helpers.
  */
 
-import type { GameAction, GameClientSeamError, GameSessionContext, GameStateEnvelope, ServerGameSnapshot } from './gameClient.js'
+import type { ClientDiagnosticReport, GameAction, GameClientSeamError, GameSessionContext, GameStateEnvelope, ServerGameSnapshot } from './gameClient.js'
 import type { EventEnvelope, SessionInitPayload } from '../../shared/types/index.js'
 
 /**
@@ -107,6 +107,7 @@ export type GameRequestTransport = {
 	getState(gameId: number): Promise<GameStateEnvelope>
 	submitAction(gameId: number, action: GameAction): Promise<ServerGameSnapshot>
 	pollEvents?(gameId: number, afterSeq: number): Promise<ReadonlyArray<EventEnvelope>>
+	reportDiagnostic?(gameId: number, diagnostic: ClientDiagnosticReport): Promise<void>
 }
 
 /**

@@ -63,6 +63,29 @@ export type ServerGameSnapshot = {
 
 export type GameSnapshot = ServerGameSnapshot
 
+export type ClientDiagnosticReport = {
+	reportId: string
+	code: 'CLIENT_SESSION_READY' | 'SNAPSHOT_INVALID'
+	message: string
+	snapshot: {
+		gameId: number
+		scenarioName: string
+		phase: TurnPhase
+		turnNumber: number
+		lastEventSeq: number
+	}
+	client: {
+		build: string
+		userAgent: string
+	}
+	protocolTraffic: ReadonlyArray<{
+		direction: 'request' | 'response'
+		method: string
+		path: string
+		status: number
+	}>
+}
+
 export type GameSessionContext = {
 	role: 'onion' | 'defender'
 }
