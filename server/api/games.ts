@@ -19,11 +19,9 @@ import {
   buildActionResponse,
   buildSessionInitPayload,
   buildMoveEvents,
-  buildVictoryObjectiveStates,
   computeWinnerUserId,
   extractUserId,
   extractUserIdFromAuth,
-  getScenarioEscapeHexes,
   getScenarioMapSnapshot,
   logActionOutcome,
   logSentEvents,
@@ -34,9 +32,7 @@ import {
   serializeWsMessage,
   type ScenarioSnapshot,
 } from '#server/api/gamesHelpers'
-import { buildStackRosterIndex, relocateStackRosterUnits } from '#shared/stackRoster'
 import type {
-  WebSocketClientMessage,
   WebSocketServerErrorMessage,
   WebSocketServerEventMessage,
   WebSocketServerSessionInitMessage,
@@ -375,7 +371,11 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
       const scenarioMap: Record<string, string> = {}
       for (const scenarioId of scenarioIds) {
         const scenario = await loadScenario(scenarioId)
-        scenarioMap[scenarioId] = (scenario as any)?.displayName ?? (scenario as any)?.name ?? scenarioId
+        if (scenario === null) {
+          logger.error({ scenarioId }, 'Required game scenario could not be loaded')
+          return reply.status(500).send({ ok: false, error: 'Required game scenario could not be loaded', code: 'INTERNAL_ERROR' })
+        }
+        scenarioMap[scenarioId] = scenario.displayName ?? scenario.name ?? scenarioId
       }
       return reply.send({ games: games.map((g) => ({
         gameId: g.gameId,
@@ -420,8 +420,8 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
       const errorInfo = {
         type: typeof err,
         isError: err instanceof Error,
-        message: err && typeof err === 'object' && 'message' in err ? (err as any).message : String(err),
-        stack: err && typeof err === 'object' && 'stack' in err ? (err as any).stack : undefined,
+        message: err && typeof err === 'object' && 'message' in err ? err.message : String(err),
+        stack: err && typeof err === 'object' && 'stack' in err ? err.stack : undefined,
       };
       // Warn: always log the problem summary
       logger.warn({ message: errorInfo.message }, '500 error during game state fetch')
@@ -508,6 +508,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
               }
             }
           } catch (err) {
+            logger.error(
+              { gameId, afterSeq: parsed.afterSeq, err },
+              'Failed to resume websocket stream',
+            )
             const errorMessage: WebSocketServerErrorMessage = {
               kind: 'ERROR',
               message: 'Failed to resume websocket stream',
@@ -550,6 +554,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
             logger.warn({ gameId, err }, 'Failed to send WS STATE_SNAPSHOT')
           }
         } catch (err) {
+          logger.error(
+            { gameId, err },
+            'Failed to initialize websocket stream',
+          )
           const errorMessage: WebSocketServerErrorMessage = {
             kind: 'ERROR',
             message: 'Failed to initialize websocket stream',
@@ -670,9 +678,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
       const causeId = String(req.id)
       const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
       const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
-      const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
-      const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
-      const matchPhase = match.phase
+      // const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
+      // const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
+      // const matchPhase = match.phase
 
       if (command.type === 'END_PHASE') {
         logger.info({ gameId: match.gameId, phase: match.phase }, 'Advancing phase')
@@ -902,6 +910,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
       const events = await db.getEvents(match.gameId, after)
       return reply.send({ events })
     } catch (err) {
+      logger.error({ err }, 'Error polling game events')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })

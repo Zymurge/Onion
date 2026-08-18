@@ -298,6 +298,29 @@ describe('GET /games', () => {
     expect(body.games[0].scenarioDisplayName).toBe('The Siege of Shrek\'s Swamp')
   })
 
+  it('returns 500 when a persisted game references a missing scenario', async () => {
+    const userId = '00000000-0000-4000-8000-000000000001'
+    const app = buildApp({
+      listMatchesByUserId: async () => [{
+        gameId: 1,
+        scenarioId: 'missing-scenario',
+        phase: 'ONION_MOVE',
+        turnNumber: 1,
+        winner: null,
+        players: { onion: userId, defender: null },
+      }],
+    })
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games',
+      headers: { authorization: `Bearer stub.${userId}` },
+    })
+
+    expect(res.statusCode).toBe(500)
+    expect(res.json()).toMatchObject({ ok: false, code: 'INTERNAL_ERROR' })
+  })
+
   it('returns games the user joined', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
