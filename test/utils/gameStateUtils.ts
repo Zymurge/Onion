@@ -439,6 +439,7 @@ export function createTestClient(
 		getState?: GameClient['getState']
 		submitAction?: GameClient['submitAction']
 		pollEvents?: GameClient['pollEvents']
+		reportDiagnostic?: GameClient['reportDiagnostic']
 	} = {},
 ): GameClient {
 	const defaultGetState: GameClient['getState'] = async () => ({ snapshot, session })
@@ -452,6 +453,7 @@ export function createTestClient(
 		},
 		submitAction: overrides.submitAction ?? defaultSubmitAction,
 		pollEvents: overrides.pollEvents ?? defaultPollEvents,
+		reportDiagnostic: overrides.reportDiagnostic,
 	})
 }
 

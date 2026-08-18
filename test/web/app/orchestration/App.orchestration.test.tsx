@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render as renderWithTestingLibrary, screen, within } from '@testing-library/react'
+import { act, fireEvent, render as renderWithTestingLibrary, screen, waitFor, within } from '@testing-library/react'
 import { cloneElement, type ComponentProps, type ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -71,6 +71,25 @@ async function renderAppAndAcknowledgeTurn(client: ReturnType<typeof createTestC
 }
 
 describe('rendering and display', () => {
+	it('reports one client diagnostic when the authoritative session becomes ready', async () => {
+		const reportDiagnostic = vi.fn().mockResolvedValue(undefined)
+		const client = createTestClient(baseOrchestrationSnapshot, { role: 'defender' }, { reportDiagnostic })
+
+		await renderAppAndWaitForReady(client)
+
+		await waitFor(() => {
+			expect(reportDiagnostic).toHaveBeenCalledTimes(1)
+		})
+		expect(reportDiagnostic).toHaveBeenCalledWith(123, expect.objectContaining({
+			code: 'CLIENT_SESSION_READY',
+			message: 'Client loaded an authoritative game snapshot',
+			snapshot: expect.objectContaining({
+				gameId: 123,
+				lastEventSeq: baseOrchestrationSnapshot.lastEventSeq,
+			}),
+		}))
+	})
+
 	it('renders defender roster and inspector details from authoritative game state instead of mock battlefield data', async () => {
 		const snapshot = createAuthoritativeBattlefieldSnapshot()
 		const session = { role: 'defender' as const }

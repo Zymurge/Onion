@@ -179,6 +179,7 @@ function createRequestTransportFromGameClient(
         throw error
       }
     },
+    ...(gameClient.reportDiagnostic === undefined ? {} : { reportDiagnostic: gameClient.reportDiagnostic }),
   }
 }
 

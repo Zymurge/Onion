@@ -116,6 +116,7 @@ export type GameClient = {
 	getState(gameId: number): Promise<GameStateEnvelope>
 	submitAction(gameId: number, action: GameAction): Promise<ServerGameSnapshot>
 	pollEvents(gameId: number, afterSeq: number): Promise<ReadonlyArray<EventEnvelope>>
+	reportDiagnostic?(gameId: number, diagnostic: ClientDiagnosticReport): Promise<void>
 }
 
 export class GameClientSeamError extends Error {
@@ -165,5 +166,14 @@ export function createGameClient(transport: GameClientTransport): GameClient {
 				throw normalizeTransportError(error)
 			}
 		},
+		reportDiagnostic: transport.reportDiagnostic === undefined
+			? undefined
+			: async (gameId: number, diagnostic: ClientDiagnosticReport) => {
+				try {
+					await transport.reportDiagnostic!(gameId, diagnostic)
+				} catch (error) {
+					throw normalizeTransportError(error)
+				}
+			},
 	}
 }
