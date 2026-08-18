@@ -100,8 +100,32 @@ export function createGameSessionController(options: GameSessionControllerOption
 		})
 	}
 
+	function abortSession(message: string) {
+		if (disposed || state.status === 'aborted') {
+			return
+		}
+
+		clearRefreshTimer()
+		phaseRefreshRetryPending = false
+		phaseRefreshRetrySeq = null
+		liveRefreshQueued = false
+		requestVersion += 1
+		state = {
+			...state,
+			status: 'aborted',
+			error: new GameClientSeamError('transport', message),
+		}
+		emit()
+		options.liveEventSource.disconnect(options.gameId)
+	}
+
 	function updateObservedSignal(signal: LiveSessionSignal) {
 		if (signal.kind === 'event') {
+			if (signal.eventType === 'GAME_ABORTED') {
+				abortSession('The game was aborted because a client reported an invalid snapshot.')
+				return
+			}
+
 			debugLog('received live event signal', {
 				gameId: signal.gameId,
 				eventSeq: signal.eventSeq,
@@ -129,7 +153,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 	}
 
 	function scheduleLiveRefresh(allowPhaseRefreshRetry = false) {
-		if (disposed || state.snapshot === null || latestObservedEventSeq === null) {
+		if (disposed || state.status === 'aborted' || state.snapshot === null || latestObservedEventSeq === null) {
 			return
 		}
 
@@ -230,7 +254,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 	}
 
 	async function refreshLiveSnapshot() {
-		if (disposed || state.snapshot === null) {
+		if (disposed || state.status === 'aborted' || state.snapshot === null) {
 			return
 		}
 
@@ -342,7 +366,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 	}
 
 	async function loadOrRefresh(reason: GameSessionRefreshReason) {
-		if (disposed) {
+		if (disposed || state.status === 'aborted') {
 			return
 		}
 
@@ -364,6 +388,10 @@ export function createGameSessionController(options: GameSessionControllerOption
 				? state.snapshot?.lastEventSeq ?? latestObservedEventSeq ?? null
 				: latestObservedEventSeq ?? state.snapshot?.lastEventSeq ?? null
 			const { envelope, version } = await getStateWithVersion()
+			if (envelope.snapshot.aborted) {
+				abortSession('The game was aborted because a client reported an invalid snapshot.')
+				return
+			}
 			const applied = applySnapshot(
 				envelope.snapshot,
 				envelope.session,
@@ -456,7 +484,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 			await loadOrRefresh(reason)
 		},
 		async submitAction(action) {
-			if (disposed) {
+			if (disposed || state.status === 'aborted') {
 				return null
 			}
 
@@ -475,6 +503,10 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 			try {
 				const nextSnapshot = await options.requestTransport.submitAction(options.gameId, action)
+				if (nextSnapshot.aborted) {
+					abortSession('The game was aborted because a client reported an invalid snapshot.')
+					return null
+				}
 				debugLog('submitAction response', {
 					gameId: options.gameId,
 					action,
@@ -526,6 +558,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 				throw normalizedError
 			}
 		},
+		abort: abortSession,
 		dispose() {
 			if (disposed) {
 				return

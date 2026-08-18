@@ -713,6 +713,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
   const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
+  const aborted = match.events.some((event) => event.type === 'GAME_ABORTED')
   const role: GameStateResponse['role'] = match.players.onion === userId ? 'onion' : 'defender'
   const winner: GameStateResponse['winner'] =
     match.winner === null
@@ -739,6 +740,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     phase: match.phase,
     turnNumber: match.turnNumber,
     winner,
+    aborted,
     players: match.players,
     state: {
       ...match.state,

@@ -247,6 +247,7 @@ export type GameStateResponse = {
 	phase: string
 	turnNumber: number
 	winner: 'onion' | 'defender' | null
+	aborted: boolean
 	players: {
 		onion: string | null
 		defender: string | null

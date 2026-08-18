@@ -219,6 +219,34 @@ describe('createGameSessionController', () => {
 		controller.dispose()
 	})
 
+	it('aborts the session, reports the error, and disconnects live updates', async () => {
+		const getState = vi.fn().mockResolvedValue({
+			snapshot: createSnapshot({
+				phase: 'DEFENDER_COMBAT',
+				lastEventSeq: 10,
+				scenarioName: 'Abort snapshot',
+			}),
+			session: { role: 'defender' as const },
+		})
+		const liveEventSource = createLiveEventSource()
+		const controller = createGameSessionController({
+			gameId: 123,
+			requestTransport: createTransport(getState),
+			liveEventSource,
+		})
+
+		await controller.load()
+		controller.abort('Loaded game snapshot is invalid')
+
+		expect(controller.getSnapshot()).toMatchObject({
+			status: 'aborted',
+			error: expect.objectContaining({ message: 'Loaded game snapshot is invalid' }),
+		})
+		expect(liveEventSource.disconnect).toHaveBeenCalledWith(123)
+		await expect(controller.refresh()).resolves.toBeUndefined()
+		expect(getState).toHaveBeenCalledTimes(1)
+	})
+
 	it('stores session initialization separately and preserves it across snapshot refreshes', async () => {
 		const initialSnapshot = createSnapshot({
 			phase: 'DEFENDER_COMBAT',

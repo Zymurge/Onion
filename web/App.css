@@ -464,6 +464,28 @@
   height: 100vh;
 }
 
+.game-aborted {
+  align-items: center;
+  background: var(--app-bg, #10151c);
+  color: var(--app-text, #f4f0e8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  text-align: center;
+}
+
+.game-aborted h1 {
+  margin: 0 0 0.75rem;
+}
+
+.game-aborted p {
+  color: var(--app-muted, #aeb7c2);
+  margin: 0;
+  max-width: 34rem;
+}
+
 .shell > header {
   flex-shrink: 0;
 }

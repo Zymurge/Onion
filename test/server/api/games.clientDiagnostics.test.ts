@@ -42,7 +42,7 @@ afterEach(() => {
 })
 
 describe('POST /games/:id/client-diagnostics API contract', () => {
-  it('accepts one structured snapshot diagnostic from a game participant and logs it without mutating the match', async () => {
+   it('accepts one structured snapshot diagnostic, logs it, and aborts the match', async () => {
     const app = buildApp()
     const reporter = await register(app, 'shrek')
     const { gameId } = await createGame(app, reporter.token, 'onion')
@@ -86,7 +86,11 @@ describe('POST /games/:id/client-diagnostics API contract', () => {
       headers: { authorization: `Bearer ${reporter.token}` },
     })
     expect(after.statusCode).toBe(200)
-    expect(after.json()).toEqual(before.json())
+    expect(after.json()).toMatchObject({
+      aborted: true,
+      eventSeq: expect.any(Number),
+    })
+    expect(after.json()).not.toEqual(before.json())
   })
 
   it('requires authentication and participant membership', async () => {

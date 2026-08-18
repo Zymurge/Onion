@@ -90,6 +90,40 @@ describe('rendering and display', () => {
 		}))
 	})
 
+	it('reports an invalid snapshot once and renders the aborted state', async () => {
+		const { defenders } = buildDefenderTree({
+			units: [
+				{ id: 'invalid-pigs-1', type: 'LittlePigs', friendlyName: 'Invalid Pigs 1', pos: { q: 2, r: 2 } },
+				{ id: 'invalid-pigs-2', type: 'LittlePigs', friendlyName: 'Invalid Pigs 2', pos: { q: 2, r: 2 } },
+			],
+		})
+		const reportDiagnostic = vi.fn().mockResolvedValue(undefined)
+		const client = createTestClient(
+			{
+				...baseOrchestrationSnapshot,
+				authoritativeState: {
+					...baseOrchestrationSnapshot.authoritativeState,
+					defenders,
+					stackNaming: undefined,
+					stackRoster: undefined,
+				},
+			},
+			{ role: 'defender' },
+			{ reportDiagnostic },
+		)
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByTestId('game-aborted')).not.toBeNull()
+		expect(screen.queryByTestId('app-ready')).toBeNull()
+		expect(reportDiagnostic).toHaveBeenCalledWith(123, expect.objectContaining({
+			code: 'SNAPSHOT_INVALID',
+			path: 'authoritativeState',
+			refreshAttempt: 0,
+		}))
+		expect(reportDiagnostic.mock.calls.filter(([, diagnostic]) => diagnostic.code === 'SNAPSHOT_INVALID')).toHaveLength(1)
+	})
+
 	it('renders defender roster and inspector details from authoritative game state instead of mock battlefield data', async () => {
 		const snapshot = createAuthoritativeBattlefieldSnapshot()
 		const session = { role: 'defender' as const }
@@ -531,20 +565,20 @@ describe('selection behavior', () => {
 // ---- error handling ----
 
 describe('error handling', () => {
-	it('surfaces a diagnostic overlay for an incomplete authoritative snapshot', async () => {
+	it('aborts the game for an incomplete authoritative snapshot', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot()
 		delete (snapshot as { authoritativeState?: unknown }).authoritativeState
 		const client = createTestClient(snapshot, { role: 'defender' })
 
-		await renderAppAndWaitForReady(client)
+		render(<App gameClient={client} gameId={123} />)
 
-		const alert = await screen.findByRole('alert')
+		const alert = await screen.findByTestId('game-aborted')
 		expect(alert.textContent).toContain('authoritativeState is missing')
 		expect(alert.textContent).toContain('gameId=123')
 		expect(alert.textContent).toContain('scenario=The Siege of Shrek\'s Swamp')
 		expect(alert.textContent).toContain('lastEventSeq=47')
-		expect(alert.textContent).toContain('Refresh the game')
 		expect(screen.queryByTestId('hex-unit-wolf-2')).toBeNull()
+		expect(screen.queryByTestId('app-ready')).toBeNull()
 	})
 
 	it('surfaces errors from move submission as a banner', async () => {

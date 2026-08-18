@@ -41,7 +41,7 @@ export type LiveSessionSignal =
  * Keep this snapshot-driven and free of transport-specific details.
  */
 export type GameSessionViewState = {
-	status: 'idle' | 'loading' | 'ready' | 'refreshing' | 'error'
+	status: 'idle' | 'loading' | 'ready' | 'refreshing' | 'error' | 'aborted'
 	catalog: SessionInitPayload | null
 	snapshot: ServerGameSnapshot | null
 	session: GameSessionContext | null
@@ -86,6 +86,7 @@ export type GameSessionController = {
 	load(): Promise<void>
 	refresh(reason?: GameSessionRefreshReason): Promise<void>
 	submitAction(action: GameAction): Promise<ServerGameSnapshot | null>
+	abort(message: string): void
 	dispose(): void
 }
 

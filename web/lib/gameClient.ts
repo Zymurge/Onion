@@ -38,6 +38,7 @@ export type ServerGameSnapshot = {
 	scenarioName: string
 	turnNumber?: number
 	winner?: 'onion' | 'defender' | null
+	aborted?: boolean
 	lastEventSeq: number
 	scenarioId?: string
 	role?: 'onion' | 'defender'
@@ -63,9 +64,8 @@ export type ServerGameSnapshot = {
 
 export type GameSnapshot = ServerGameSnapshot
 
-export type ClientDiagnosticReport = {
+type ClientDiagnosticContext = {
 	reportId: string
-	code: 'CLIENT_SESSION_READY' | 'SNAPSHOT_INVALID'
 	message: string
 	snapshot: {
 		gameId: number
@@ -85,6 +85,10 @@ export type ClientDiagnosticReport = {
 		status: number
 	}>
 }
+
+export type ClientDiagnosticReport =
+	| (ClientDiagnosticContext & { code: 'CLIENT_SESSION_READY' })
+	| (ClientDiagnosticContext & { code: 'SNAPSHOT_INVALID'; path: string; refreshAttempt: number })
 
 export type GameSessionContext = {
 	role: 'onion' | 'defender'

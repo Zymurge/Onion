@@ -596,6 +596,17 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
 
     const diagnostic = parsed.data
     logger.error({ gameId, reportId: diagnostic.reportId, diagnostic }, 'Client reported invalid game snapshot')
+      if (diagnostic.code === 'SNAPSHOT_INVALID' && !match.events.some((event) => event.type === 'GAME_ABORTED')) {
+        const event: EventEnvelope = {
+          seq: (match.events.at(-1)?.seq ?? 0) + 1,
+          type: 'GAME_ABORTED',
+          timestamp: new Date().toISOString(),
+          causeId: diagnostic.reportId,
+          reason: diagnostic.message,
+        }
+        await db.appendEvents(gameId, [event])
+        broadcastGameEvents(gameId, [event])
+      }
     return reply.status(202).send({ ok: true, reportId: diagnostic.reportId })
   })
 
@@ -634,6 +645,11 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
       if (!match) {
         logger.warn({ id: req.params.id }, 'Game not found for action')
         return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
+
+      if (match.events.some((event) => event.type === 'GAME_ABORTED')) {
+        logger.info({ gameId: match.gameId }, 'Action attempted on aborted game')
+        return reply.status(409).send({ ok: false, error: 'Game is aborted', code: 'GAME_ABORTED', currentPhase: match.phase })
       }
 
       if (match.winner) {

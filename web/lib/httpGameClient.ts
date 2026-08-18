@@ -23,6 +23,7 @@ type ActionSuccessResponse = ActionOkResponse & {
 	victoryObjectives: NonNullable<ServerGameSnapshot['victoryObjectives']>
 	escapeHexes?: ServerGameSnapshot['escapeHexes']
 	winner?: GameStateResponse['winner']
+	aborted?: boolean
 }
 
 type HttpGameClientOptions = {
@@ -113,6 +114,7 @@ function mapServerSnapshot(
 			gameId: response.gameId ?? gameId,
 			phase: normalizePhase(response.phase),
 			winner: response.winner,
+			aborted: response.aborted,
 			scenarioName: response.scenarioName,
 			turnNumber: response.turnNumber,
 			lastEventSeq: response.eventSeq,
@@ -137,6 +139,7 @@ function mapActionSnapshot(
 		gameId,
 		phase: response.phase,
 		winner: response.winner,
+		aborted: response.aborted,
 		scenarioName: response.scenarioName,
 		turnNumber: response.turnNumber,
 		lastEventSeq: response.eventSeq,

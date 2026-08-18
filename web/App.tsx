@@ -83,6 +83,7 @@ const idleSessionController: GameSessionController = {
   async submitAction() {
     return null
   },
+  abort() {},
   dispose() {},
 }
 
@@ -227,6 +228,7 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     loggedAtMs: number
   } | null>(null)
   const reportedSessionDiagnosticGameIdRef = useRef<number | null>(null)
+	const reportedSnapshotDiagnosticGameIdRef = useRef<number | null>(null)
 
   const runtimeConnectionSeeded = showConnectionGate
   const liveRefreshQuietWindowMs = runtimeConfig?.liveRefreshQuietWindowMs ?? 500
@@ -348,6 +350,16 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     lastAppliedEventSeq: sessionState.lastAppliedEventSeq,
     pollEvents: activeSessionBinding?.requestTransport.pollEvents,
   })
+
+  const hasRemoteGameAbort = inactiveEventStream.entries.some((entry) => entry.type === 'GAME_ABORTED')
+
+  useEffect(() => {
+    if (!hasRemoteGameAbort || activeSessionController === null || sessionState.status === 'aborted') {
+      return
+    }
+
+    activeSessionController.abort('The game was aborted because a client reported an invalid snapshot.')
+  }, [activeSessionController, hasRemoteGameAbort, sessionState.status])
 
   const inactiveEventAcknowledgementPending =
     currentActiveTurnKey !== null &&
@@ -553,6 +565,53 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   } = displayState
 
   useEffect(() => {
+    const reportDiagnostic = activeSessionBinding?.requestTransport.reportDiagnostic
+    const snapshot = sessionState.snapshot
+    const gameId = activeSessionBinding?.gameId
+    if (displayError === null || snapshot === null || gameId === undefined || sessionState.status !== 'ready') {
+      return
+    }
+
+    if (reportedSnapshotDiagnosticGameIdRef.current === gameId) {
+      return
+    }
+
+    reportedSnapshotDiagnosticGameIdRef.current = gameId
+    activeSessionController?.abort(displayError)
+    if (reportDiagnostic === undefined) {
+      return
+    }
+
+    const diagnostic: ClientDiagnosticReport = {
+      reportId: crypto.randomUUID(),
+      code: 'SNAPSHOT_INVALID',
+      path: 'authoritativeState',
+      refreshAttempt: 0,
+      message: displayError,
+      snapshot: {
+        gameId: snapshot.gameId,
+        scenarioName: snapshot.scenarioName,
+        phase: snapshot.phase,
+        turnNumber: snapshot.turnNumber ?? 0,
+        lastEventSeq: snapshot.lastEventSeq,
+      },
+      client: {
+        build: 'web-client',
+        userAgent: navigator.userAgent,
+      },
+      protocolTraffic: [],
+    }
+
+    void reportDiagnostic(gameId, diagnostic).catch((error: unknown) => {
+      logger.warn('[app] invalid snapshot diagnostic report failed', {
+        gameId,
+        reportId: diagnostic.reportId,
+        error,
+      })
+    })
+  }, [activeSessionBinding, activeSessionController, displayError, sessionState.snapshot, sessionState.status])
+
+  useEffect(() => {
     if (typeof window === 'undefined') {
       return
     }
@@ -749,6 +808,15 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
   if (!isControlledSession && runtimeConnectionSeeded) {
     return <ConnectGate runtimeConfig={runtimeConfig} onConnectedSession={setConnectedSession} />
+  }
+
+  if (sessionState.status === 'aborted') {
+    return (
+      <div className="game-aborted" data-testid="game-aborted" role="alert">
+        <h1>Game aborted</h1>
+        <p>{sessionState.error?.message ?? 'This game was stopped because its state could not be verified.'}</p>
+      </div>
+    )
   }
 
   return (
