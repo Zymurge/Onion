@@ -49,8 +49,8 @@ export function MoveResolutionToast({ title, resolution, onDismiss }: MoveResolu
 				<span className="stat-label-small">Effects</span>
 				{resolution.details.length > 0 ? (
 					<ul className="combat-resolution-list">
-						{resolution.details.map((detail) => (
-							<li key={detail}>{detail}</li>
+						{resolution.details.map((detail, index) => (
+							<li key={`${detail}-${index}`}>{detail}</li>
 						))}
 					</ul>
 				) : (

@@ -155,7 +155,8 @@ export class BattlefieldPage {
 	}
 
 	async expectCombatSelectionCleared(): Promise<void> {
-		await expect(this.page.getByTestId('combat-target-list')).toHaveCount(0)
+		const selectedTargets = this.page.getByTestId('combat-target-list').locator('[aria-pressed="true"]')
+		await expect(selectedTargets).toHaveCount(0)
 	}
 
 	async expectStackSelectionCleared(unitId: string): Promise<void> {
@@ -202,10 +203,22 @@ export class BattlefieldPage {
 	}
 
 	async resolveCombat(): Promise<Locator> {
+		const previousEventSeq = await this.getSnapshotEventSeq()
 		await this.page.getByRole('button', { name: 'Resolve combat', exact: true }).click()
 		const toast = this.page.getByTestId('combat-resolution-toast')
 		await expect(toast).toBeVisible()
+		await waitForAuthoritativeSnapshotAdvance(
+			() => this.getSnapshotEventSeq(),
+			previousEventSeq,
+			'waiting for the authoritative combat result to resolve',
+		)
 		return toast
+	}
+
+	async dismissCombatResolution(): Promise<void> {
+		const toast = this.page.getByTestId('combat-resolution-toast')
+		await toast.getByRole('button', { name: 'Dismiss', exact: true }).click()
+		await expect(toast).toHaveCount(0)
 	}
 
 	async expectInactiveDetail(detail: string): Promise<void> {

@@ -52,8 +52,8 @@ export function CombatResolutionToast({ title, resolution, modifiers, onDismiss 
 				<span className="stat-label-small">Relevant modifiers</span>
 				{modifiers.length > 0 ? (
 					<ul className="combat-resolution-list">
-						{modifiers.map((modifier) => (
-							<li key={modifier}>{modifier}</li>
+						{modifiers.map((modifier, index) => (
+							<li key={`${modifier}-${index}`}>{modifier}</li>
 						))}
 					</ul>
 				) : (
@@ -65,8 +65,8 @@ export function CombatResolutionToast({ title, resolution, modifiers, onDismiss 
 				<span className="stat-label-small">Effects</span>
 				{resolution.details.length > 0 ? (
 					<ul className="combat-resolution-list">
-						{resolution.details.map((detail) => (
-							<li key={detail}>{detail}</li>
+						{resolution.details.map((detail, index) => (
+							<li key={`${detail}-${index}`}>{detail}</li>
 						))}
 					</ul>
 				) : (

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
+import { getUnitTypeCatalog } from '#shared/unitDefinitions'
 
 type Deployment = {
   type?: string
@@ -204,9 +205,99 @@ describe('scenario deployment normalization contract', () => {
     expect(initial).toEqual(before)
   })
 
-  it.todo('NORM-009 rejects a starting ammo override above catalog maxAmmo')
-  it.todo('NORM-011 rejects an override for an unlimited weapon')
-  it.todo('NORM-013 preserves deterministic stack IDs and friendly names across groups')
-  it.todo('NORM-016 keeps static combat data out of runtime units and weapons')
-  it.todo('NORM-017 resolves every runtime type reference through the supplied catalog')
+  it('NORM-009 rejects a starting ammo override above catalog maxAmmo', () => {
+    expect(() => normalizeTargetState(makeInitialState({
+      'onion-1': {
+        type: 'TheOnion',
+        side: 'onion',
+        position: { q: 1, r: 1 },
+        startingAmmoByWeaponType: { 'TheOnion.missile_1': 2 },
+      },
+    }))).toThrow(/TheOnion\.missile_1.*above maxAmmo 1/)
+  })
+
+  it('NORM-011 rejects an override for an unlimited weapon', () => {
+    expect(() => normalizeTargetState(makeInitialState({
+      'puss-1': {
+        type: 'Puss',
+        side: 'onion',
+        position: { q: 1, r: 1 },
+        startingAmmoByWeaponType: { 'Puss.main': 1 },
+      },
+    }))).toThrow(/unlimited.*Puss\.main/)
+  })
+
+  it('NORM-013 preserves deterministic stack IDs and friendly names across groups', () => {
+    const state = normalizeTargetState(makeInitialState({
+      'pigs-stack-1': {
+        kind: 'stack-group',
+        unitType: 'LittlePigs',
+        side: 'onion',
+        position: { q: 1, r: 1 },
+        count: 2,
+      },
+      'pigs-stack-2': {
+        kind: 'stack-group',
+        unitType: 'LittlePigs',
+        side: 'onion',
+        position: { q: 2, r: 1 },
+        count: 2,
+      },
+    }))
+
+    expect(Object.values(state.onions).map((unit) => [unit.unitId, unit.friendlyName])).toEqual([
+      ['pigs-1', 'Little Pigs 1'],
+      ['pigs-2', 'Little Pigs 2'],
+      ['pigs-3', 'Little Pigs 3'],
+      ['pigs-4', 'Little Pigs 4'],
+    ])
+    expect(Object.values(state.stackRoster.groupsById)).toEqual([
+      expect.objectContaining({
+        groupName: 'Little Pigs group 1',
+        unitIds: ['pigs-1', 'pigs-2'],
+      }),
+      expect.objectContaining({
+        groupName: 'Little Pigs group 2',
+        unitIds: ['pigs-3', 'pigs-4'],
+      }),
+    ])
+  })
+
+  it('NORM-016 keeps static combat data out of runtime units and weapons', () => {
+    const state = normalizeTargetState(makeInitialState({
+      'onion-1': { type: 'TheOnion', side: 'onion', position: { q: 1, r: 1 } },
+      'puss-1': { type: 'Puss', side: 'defender', position: { q: 2, r: 1 } },
+    }))
+
+    for (const unit of [...Object.values(state.onions), ...Object.values(state.defenders)]) {
+      for (const field of ['name', 'movement', 'defense', 'abilities', 'stackable', 'weaponTypeIds']) {
+        expect(unit).not.toHaveProperty(field)
+      }
+      for (const weapon of unit.weapons) {
+        for (const field of ['name', 'attack', 'range', 'defense', 'targetRules', 'maxAmmo']) {
+          expect(weapon).not.toHaveProperty(field)
+        }
+      }
+    }
+  })
+
+  it('NORM-017 resolves every catalog unit type into a runtime reference', () => {
+    const catalog = getUnitTypeCatalog()
+    const deployments = Object.fromEntries(Object.keys(catalog).map((typeId, index) => [
+      `${typeId.toLowerCase()}-${index + 1}`,
+      {
+        type: typeId,
+        side: index % 2 === 0 ? 'onion' : 'defender',
+        position: { q: index + 1, r: 1 },
+      },
+    ])) as Record<string, Deployment>
+
+    const state = normalizeTargetState(makeInitialState(deployments))
+    const runtimeUnits = [...Object.values(state.onions), ...Object.values(state.defenders)]
+
+    expect(runtimeUnits).toHaveLength(Object.keys(catalog).length)
+    for (const unitTypeId of Object.keys(catalog)) {
+      expect(runtimeUnits.some((unit) => unit.typeId === unitTypeId)).toBe(true)
+    }
+  })
 })

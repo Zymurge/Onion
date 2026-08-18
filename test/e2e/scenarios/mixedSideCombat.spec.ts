@@ -38,6 +38,7 @@ test('Onion resolves grouped-target fire and Defender sees the authoritative res
 		const toast = await onionBattlefield.resolveCombat()
 		await expect(toast).toContainText('Combat resolved on Little Pigs group 1')
 		await expect(toast).toContainText('Outcome')
+		await onionBattlefield.dismissCombatResolution()
 		await onionBattlefield.expectDestroyed('pigs-1')
 		await onionBattlefield.expectCombatSelectionCleared()
 		await defenderBattlefield.expectInactiveResult('Fire on LittlePigs:2,1: destroyed')

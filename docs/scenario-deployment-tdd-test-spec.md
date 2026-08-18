@@ -12,6 +12,19 @@ Tests marked **red** describe target behavior that the current implementation
 does not support. Tests marked **green** preserve behavior that must survive the
 refactor.
 
+## Implementation Status
+
+The scenario-driven deployment implementation and Phase 2 integration slice are
+complete as of 2026-08-17. The red/green labels below are preserved as the
+original test-first handoff record and describe the state before implementation;
+they are not a current production-status report. The current status is tracked
+in `docs/todo.md`.
+
+All 19 explicit contract-test TODOs for catalog parsing, ammo metadata, type
+boundaries, scenario validation, and normalizer edge cases were implemented in
+the focused contract batch. They do not indicate a missing mixed-side engine,
+API, web, or browser path.
+
 ## Target Contract Decisions
 
 These decisions remove ambiguity for the test implementation model.
@@ -48,7 +61,11 @@ These decisions remove ambiguity for the test implementation model.
 10. No dual-path compatibility layer is required for the old
     `initialState.onions`/`initialState.defenders` shape or catalog `role` field.
 
-## Current-State Evidence
+## Historical Current-State Evidence
+
+The following evidence records the pre-implementation baseline used to write
+this handoff. It is retained for traceability and should not be read as the
+current architecture.
 
 - `shared/config/unitCatalog.json` is the static source of unit and weapon data.
   Unit entries currently contain `role`; weapon entries do not contain

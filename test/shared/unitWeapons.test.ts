@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { parseUnitCatalog } from '#shared/unitDefinitions'
 import { UnitWeapons } from '#shared/unitWeapons'
 import type { Weapon } from '#shared/types/index'
 
@@ -11,6 +12,31 @@ function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
 		state: 'ready',
 		friendlyName: 'Main Weapon',
 		...overrides,
+	}
+}
+
+const validWeaponCatalogEntry = {
+	name: 'Test Weapon',
+	weaponClass: 'main',
+	attack: 1,
+	range: 1,
+	individuallyTargetable: false,
+}
+
+function makeWeaponCatalogConfig(weaponOverrides: Record<string, unknown> = {}) {
+	return {
+		unitTypes: {
+			TestUnit: {
+				name: 'Test Unit',
+				movement: 1,
+				defense: 1,
+				abilities: { maxStacks: 1 },
+				weaponTypeIds: ['TestUnit.main'],
+			},
+		},
+		weaponTypes: {
+			'TestUnit.main': { ...validWeaponCatalogEntry, ...weaponOverrides },
+		},
 	}
 }
 
@@ -81,8 +107,23 @@ describe('UnitWeapons', () => {
 		expect(missile).toMatchObject({ ammo: 0, state: 'spent' })
 	})
 
-	it.todo('AMMO-001 preserves omitted maxAmmo as unlimited in the normalized weapon catalog')
-	it.todo('AMMO-002 accepts positive integer maxAmmo values in the normalized weapon catalog')
-	it.todo('AMMO-003 rejects zero, negative, fractional, and non-numeric maxAmmo values')
-	it.todo('AMMO-004 rejects runtime and unknown ammo-shaped weapon catalog fields')
+	it('AMMO-001 preserves omitted maxAmmo as unlimited in the normalized weapon catalog', () => {
+		const catalog = parseUnitCatalog(makeWeaponCatalogConfig())
+
+		expect(catalog.weaponTypes['TestUnit.main']).not.toHaveProperty('maxAmmo')
+	})
+
+	it.each([1, 3])('AMMO-002 accepts positive integer maxAmmo value %s in the normalized weapon catalog', (maxAmmo) => {
+		const catalog = parseUnitCatalog(makeWeaponCatalogConfig({ maxAmmo }))
+
+		expect(catalog.weaponTypes['TestUnit.main']).toHaveProperty('maxAmmo', maxAmmo)
+	})
+
+	it.each([0, -1, 1.5, '1', true, null])('AMMO-003 rejects invalid maxAmmo value %s', (maxAmmo) => {
+		expect(() => parseUnitCatalog(makeWeaponCatalogConfig({ maxAmmo }))).toThrow(/Invalid maxAmmo.*TestUnit\.main/)
+	})
+
+	it.each(['ammo', 'startingAmmo', 'currentAmmo', 'unexpectedField'])('AMMO-004 rejects runtime or unknown ammo-shaped field %s', (field) => {
+		expect(() => parseUnitCatalog(makeWeaponCatalogConfig({ [field]: 1 }))).toThrow(/TestUnit\.main/)
+	})
 })

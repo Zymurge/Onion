@@ -13,6 +13,14 @@ break down into features/tasks as needed.
   - [ ] Replace tooltip-only detail exposure with explicit accessible disclosure patterns where details are important to gameplay comprehension.
   - [ ] Known issue: `InactiveEventStream` currently exposes event details only through the row `title` tooltip, which is not a sufficient keyboard/screen-reader interaction path.
 
+## Verification Status (2026-08-17)
+
+- Scenario-driven deployment and side-aware runtime behavior are implemented and covered by focused engine, API, web, and browser tests.
+- The managed browser suite passes all 8 Playwright scenarios through the repository-owned PostgreSQL, engine, Vite, and Chromium lifecycle.
+- `pnpm build` passes. The focused contract batch passes 80 tests, and all 19 explicit contract-test TODOs have been implemented.
+- Direct Testcontainers suites (`pnpm test` integration files and `pnpm test:integration`) still require a container runtime when run outside the managed E2E supervisor.
+- The catalog, ammo, deployment, normalizer, and type-boundary contract tests now have no remaining explicit TODO markers.
+
 ## Atomic Task Breakdown
 
 Each task below is scoped to be independently implementable and testable, with a test-first order and concrete files to touch.

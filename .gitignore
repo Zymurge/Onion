@@ -6,3 +6,4 @@ coverage/
 .pnpm-store/
 .vscode/settings.local.json
 .e2e-runtime/*
+docs/api/*

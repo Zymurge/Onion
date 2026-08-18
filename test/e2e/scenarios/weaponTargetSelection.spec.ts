@@ -39,6 +39,7 @@ test('Defender selects the intended Onion weapon target and Onion sees the resul
 		const toast = await defenderBattlefield.resolveCombat()
 		await expect(toast).toContainText('Combat resolved on Main Weapon')
 		await expect(toast).toContainText('Destroyed weapon: Main Weapon')
+		await defenderBattlefield.dismissCombatResolution()
 		await onionBattlefield.expectInactiveResult('Fire on Main Weapon: destroyed')
 		await onionBattlefield.expectInactiveDetail('Weapon destroyed: Main Weapon')
 		await onionBattlefield.expectUnitCombatReady('puss-1', false)

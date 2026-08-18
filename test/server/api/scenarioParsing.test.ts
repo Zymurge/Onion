@@ -142,7 +142,18 @@ describe('parseScenarioSnapshot', () => {
     expect(() => parseScenarioSnapshot(legacySplitScenario)).toThrow(ScenarioValidationError)
   })
 
-  it.todo('DEP-008 rejects scenarios with no Onion-side deployment')
+  it('DEP-008 rejects scenarios with no Onion-side deployment', () => {
+    const defenderOnlyScenario = {
+      ...targetDeploymentScenario,
+      initialState: {
+        deployments: {
+          'pigs-stack-1': targetDeploymentScenario.initialState.deployments['pigs-stack-1'],
+        },
+      },
+    }
+
+    expect(() => parseScenarioSnapshot(defenderOnlyScenario)).toThrow(ScenarioValidationError)
+  })
 
   it.each([
     ['missing initialState', (() => {

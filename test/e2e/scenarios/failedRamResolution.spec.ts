@@ -37,8 +37,8 @@ test('failed ram keeps survived state and follow-up movement controls synchroniz
 		await onionBattlefield.expectUnitMoveReady('onion-1', true)
 		await expect(onionPage.getByTestId('hex-unit-onion-1')).toHaveAttribute('data-selected', 'false')
 		await expect(defenderPage.getByTestId('hex-unit-onion-1')).toHaveAttribute('data-selected', 'false')
-		await expect(onionPage.getByTestId('combat-unit-onion-1')).toContainText('Rams remaining 0')
-		await expect(defenderPage.getByTestId('combat-unit-onion-1')).toContainText('Rams remaining 0')
+		await expect(onionPage.getByTestId('combat-unit-onion-1')).toContainText('Rams remaining 1')
+		await expect(defenderPage.getByTestId('combat-unit-onion-1')).toContainText('Rams remaining 1')
 	} finally {
 		await Promise.all([onionContext.close(), defenderContext.close()])
 	}

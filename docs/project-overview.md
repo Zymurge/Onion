@@ -194,6 +194,6 @@ To avoid proprietary issues and add a fun, thematic twist, we'll rename elements
 
 ## Current Next Steps
 
-- Finish the remaining scenario deployment and dynamic movement-projection work listed in [todo.md](todo.md).
+- Establish the managed container-runtime path as the standard way to run direct PostgreSQL integration tests.
 - Replace stub bearer tokens with signed JWT authentication.
 - Build lobby/matchmaking UX and complete the accessibility audit when those features are prioritized.

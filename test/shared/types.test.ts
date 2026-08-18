@@ -1,10 +1,11 @@
 import { expect, describe, it } from 'vitest'
-import type { DefenderUnit, OnionUnit, Weapon } from '#shared/types/index'
+import type { DefenderMap, DefenderUnit, OnionMap, OnionUnit, UnitTypeBase, Weapon, WeaponType } from '#shared/types/index'
 import { DEFAULT_ONION_UNIT_TYPE_ID } from '#shared/unitDefinitions'
 
 const weapon: Weapon = {
   id: 'main-1',
   typeId: 'main-weapon',
+  weaponClass: 'main',
   state: 'ready',
   ammo: 1,
   friendlyName: 'Main Weapon',
@@ -18,7 +19,6 @@ const onion: OnionUnit = {
   position: { q: 0, r: 0 },
   state: 'operational',
   weapons: [weapon],
-  movesRemaining: 3,
   friendlyName: 'The Onion 1',
   treads: 45,
   ramsRemaining: 2,
@@ -32,8 +32,7 @@ const defender: DefenderUnit = {
   position: { q: 1, r: 0 },
   state: 'operational',
   weapons: [],
-  movesRemaining: 1,
-  squads: 1,
+  friendlyName: 'Heavy Tank 1',
 }
 
 describe('canonical dynamic unit types', () => {
@@ -41,11 +40,83 @@ describe('canonical dynamic unit types', () => {
     expect(onion.role).toBe('onion')
     expect(onion.treads).toBe(45)
     expect(defender.role).toBe('defender')
-    expect(defender.squads).toBe(1)
     expect(weapon.typeId).toBe('main-weapon')
     expect(weapon.state).toBe('ready')
   })
 })
+
+const staticUnit: UnitTypeBase = {
+  typeId: 'TestUnit',
+  name: 'Test Unit',
+  stackable: false,
+  movement: 1,
+  defense: 1,
+  abilities: { maxStacks: 1 },
+  weapons: [],
+}
+
+// @ts-expect-error: static unit types must not encode scenario allegiance
+const invalidStaticSide: UnitTypeBase = { ...staticUnit, side: 'onion' }
+
+// @ts-expect-error: static unit types must not encode player role
+const invalidStaticRole: UnitTypeBase = { ...staticUnit, role: 'onion' }
+
+const onionSidePuss: OnionUnit = {
+  ...onion,
+  typeId: 'Puss',
+  side: 'onion',
+  treads: undefined,
+  ramsRemaining: undefined,
+}
+
+const defenderSideOnion: DefenderUnit = {
+  ...defender,
+  typeId: DEFAULT_ONION_UNIT_TYPE_ID,
+  side: 'defender',
+  treads: 45,
+  ramsRemaining: 2,
+}
+
+const onionSideDefender: DefenderUnit = { ...defender, side: 'onion' }
+const defenderSideOnionRole: OnionUnit = { ...onion, side: 'defender' }
+const onionMapWithPuss: OnionMap = { 'puss-1': onionSidePuss }
+const defenderMapWithOnion: DefenderMap = { 'onion-1': defenderSideOnion }
+
+const { side: _missingSide, ...unitWithoutSide } = onion
+void _missingSide
+
+// @ts-expect-error: runtime units must always carry an authoritative side
+const invalidMissingSide: OnionUnit = unitWithoutSide
+
+const staticWeapon: WeaponType = {
+  typeId: 'TestUnit.main',
+  name: 'Main Gun',
+  weaponClass: 'main',
+  attack: 1,
+  range: 1,
+  individuallyTargetable: false,
+  maxAmmo: 1,
+}
+
+const dynamicWeapon: Weapon = { ...weapon, ammo: 0 }
+
+// @ts-expect-error: static weapon types must not carry current ammo
+const invalidStaticAmmo: WeaponType = { ...staticWeapon, ammo: 1 }
+
+// @ts-expect-error: dynamic weapon instances must not carry static ammo capacity
+const invalidDynamicMaxAmmo: Weapon = { ...dynamicWeapon, maxAmmo: 1 }
+
+void invalidStaticSide
+void invalidStaticRole
+void onionSideDefender
+void defenderSideOnionRole
+void onionMapWithPuss
+void defenderMapWithOnion
+void invalidMissingSide
+void staticWeapon
+void dynamicWeapon
+void invalidStaticAmmo
+void invalidDynamicMaxAmmo
 
 // @ts-expect-error: dynamic weapon instances must not embed static attack data
 const invalidWeapon: Weapon = { ...weapon, attack: 4 }
@@ -71,8 +142,3 @@ void invalidDynamicMovement
 void invalidDynamicDefense
 void invalidDynamicAbilities
 void invalidDynamicSquads
-
-it.todo('TYPE-001 static unit types do not accept side or role')
-it.todo('TYPE-002 runtime units accept either side independently of chassis capabilities')
-it.todo('TYPE-003 side collections admit every valid runtime chassis')
-it.todo('AMMO-005 WeaponType accepts maxAmmo while Weapon accepts only dynamic ammo')

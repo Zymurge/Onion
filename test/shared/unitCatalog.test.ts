@@ -1,9 +1,42 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildFriendlyName, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { buildFriendlyName, getUnitTypeCatalog, getWeaponTypeCatalog, parseUnitCatalog } from '#shared/unitDefinitions'
 import type { UnitTypeId } from '#shared/types/index'
 
 const configuredTypeId: UnitTypeId = 'configured-unit-from-external-catalog'
+
+const validUnitCatalogEntry = {
+  name: 'Test Unit',
+  friendlyNameTemplate: 'Test Unit {{ordinal}}',
+  movement: 1,
+  defense: 1,
+  abilities: { maxStacks: 1 },
+  weaponTypeIds: [],
+}
+
+function makeCatalogConfig(unitOverrides: Record<string, unknown> = {}, weaponTypes: Record<string, unknown> = {}) {
+  return {
+    unitTypes: { TestUnit: { ...validUnitCatalogEntry, ...unitOverrides } },
+    weaponTypes,
+  }
+}
+
+function omitField(record: Record<string, unknown>, field: string): Record<string, unknown> {
+  const copy = { ...record }
+  delete copy[field]
+  return copy
+}
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null) {
+    Object.freeze(value)
+    for (const child of Object.values(value as Record<string, unknown>)) {
+      deepFreeze(child)
+    }
+  }
+
+  return value
+}
 
 describe('static unit and weapon catalogs', () => {
   it('treats unit type IDs as open configuration identifiers', () => {
@@ -116,11 +149,49 @@ describe('static unit and weapon catalogs', () => {
     }
   })
 
-  it.todo('CAT-006 rejects malformed required unit attributes through the pure catalog parser')
-  it.todo('CAT-007 rejects unknown unit fields, including legacy role, through the pure catalog parser')
-  it.todo('CAT-008 rejects dynamic aliases on unit definitions through the pure catalog parser')
-  it.todo('CAT-010 rejects a missing weapon reference through the pure catalog parser')
-  it.todo('CAT-012 leaves frozen catalog input unchanged during normalization')
+  it.each([
+    ['name', omitField(validUnitCatalogEntry, 'name')],
+    ['movement', { ...validUnitCatalogEntry, movement: '1' }],
+    ['defense', { ...validUnitCatalogEntry, defense: '1' }],
+    ['abilities', { ...validUnitCatalogEntry, abilities: undefined }],
+    ['abilities.maxStacks', { ...validUnitCatalogEntry, abilities: { maxStacks: 1.5 } }],
+    ['weaponTypeIds', { ...omitField(validUnitCatalogEntry, 'weaponTypeIds') }],
+  ])('CAT-006 rejects malformed required unit attribute %s through the pure catalog parser', (_field, unit) => {
+    expect(() => parseUnitCatalog({ unitTypes: { TestUnit: unit }, weaponTypes: {} })).toThrow(/TestUnit/)
+  })
+
+  it.each([
+    ['legacy role', { role: 'defender' }],
+    ['arbitrary field', { misspelledField: true }],
+  ])('CAT-007 rejects %s through the pure catalog parser', (_field, extraFields) => {
+    expect(() => parseUnitCatalog(makeCatalogConfig(extraFields))).toThrow(/TestUnit/)
+  })
+
+  it.each(['id', 'unitId', 'type', 'state', 'status', 'position', 'movementSpent', 'side', 'ramsRemaining'])('CAT-008 rejects dynamic unit alias %s through the pure catalog parser', (field) => {
+    expect(() => parseUnitCatalog(makeCatalogConfig({ [field]: field === 'position' ? { q: 0, r: 0 } : 'runtime-value' }))).toThrow(/TestUnit/)
+  })
+
+  it('CAT-010 rejects a missing weapon reference through the pure catalog parser', () => {
+    expect(() => parseUnitCatalog(makeCatalogConfig({ weaponTypeIds: ['TestUnit.missing'] }))).toThrow(/TestUnit.*TestUnit\.missing/)
+  })
+
+  it('CAT-012 leaves frozen catalog input unchanged during normalization', () => {
+    const catalogConfig = deepFreeze(makeCatalogConfig({
+      weaponTypeIds: ['TestUnit.main'],
+    }, {
+      'TestUnit.main': {
+        name: 'Main Gun',
+        weaponClass: 'main',
+        attack: 1,
+        range: 1,
+        individuallyTargetable: false,
+      },
+    }))
+    const before = structuredClone(catalogConfig)
+
+    expect(() => parseUnitCatalog(catalogConfig)).not.toThrow()
+    expect(catalogConfig).toEqual(before)
+  })
 
   it('generates deterministic friendly names from static templates', () => {
     const unitCatalog = getUnitTypeCatalog()
