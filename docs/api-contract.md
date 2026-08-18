@@ -21,6 +21,34 @@ testing and can operate without background polling.
 
 Manual refresh or optional polling can use the same events route.
 
+### Authoritative Snapshot and Retry Policy
+
+The server is the single authority for match state. Each accepted action is
+processed in turn order and its resulting events receive monotonically
+increasing sequence numbers. Clients must not infer a competing state from
+event timing, local simulation, or cached projections.
+
+When a client does not have the server data required to render or continue a
+session, it requests the latest state with `GET /games/{id}`. A successful
+response is authoritative, regardless of when a previously delivered event or
+response arrived. Event sequence numbers are delivery and inspection cursors;
+they are not a client-side snapshot versioning or conflict-resolution scheme.
+
+Retries are transport-only:
+
+- A client may retry a state or event `GET` after a transient network failure.
+- HTTP error responses, malformed responses, and semantically invalid
+  snapshots are not retried as transport failures.
+- Action `POST` requests are not automatically retried because the server may
+  have applied the action before the response was lost.
+- Diagnostic `POST` requests are not automatically retried.
+- Clients do not retry for event or phase races. Concurrent game operations are
+  outside this protocol model; the server sequences accepted operations.
+
+If a state refresh still returns an invalid snapshot, the client reports the
+diagnostic and aborts the session for both participants. There is no snapshot
+repair, fallback snapshot, migration, or client-side recovery model.
+
 ### Phase 2+ — WebSocket (additive, not replacing)
 
 A WS connection to `ws://host/games/{id}/ws` carries the same JSON
@@ -149,6 +177,7 @@ in this response or in `GameState`.
   "phase":       TurnPhase,
   "turnNumber":  number,
   "winner":      "onion" | "defender" | null,
+  "aborted":     boolean,
   "players": {
     "onion":    string,   // userId
     "defender": string    // userId
@@ -257,6 +286,10 @@ Response: { "events": Event[] }
 ```
 
 The client should seed `after` from `GET /games/{id}` → `eventSeq` on first connect.
+
+`GAME_ABORTED` is a terminal event. Once present, subsequent state responses
+include `aborted: true`, both participants must stop submitting actions, and
+clients must render their terminal aborted-session state.
 
 ---
 
@@ -434,6 +467,7 @@ ONION_WEAPON_DESTROYED { weaponId: string, weaponType: string }
 PLAYER_JOINED     { userId: string, role: "onion" | "defender" }
 PHASE_CHANGED     { from: TurnPhase, to: TurnPhase, turnNumber: number }
 GAME_OVER         { winner: "onion" | "defender", reason: string }
+GAME_ABORTED      { reason: string, causeId: string }
 ```
 
 PLAYER_JOINED is emitted when a player successfully joins a game

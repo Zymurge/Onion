@@ -72,8 +72,8 @@ Responsibilities:
 2. subscribe to the live event source
 3. decide when an incoming live signal requires a refresh
 4. coalesce bursts of events
-5. reject stale refreshes and stale event-derived updates
-6. manage retry policy for phase-change refresh races
+5. request the latest authoritative state when required data is unavailable
+6. retry only bounded transient transport failures for state/event GET requests
 7. expose one stable subscribe and getSnapshot API for consumers
 8. normalize transport errors into domain-facing session state
 
@@ -119,6 +119,13 @@ Rules:
 1. `web/lib/gameClient.ts`
 2. shared protocol and domain types under `src/shared` and `src/types`
 
+> Historical planning document: the retry and stale-response items below were
+> part of the original refactor exploration. The current product policy is
+> defined by [api-contract.md](../api-contract.md), [web-ui-spec.md](../web-ui-spec.md),
+> and [snapshot-deprecation-policy.md](../snapshot-deprecation-policy.md).
+> In particular, the current model does not use phase-race retries, snapshot
+> versioning, repair, or fallback recovery.
+
 ## Session Ownership Rules
 
 The controller owns session state. The app owns UI state.
@@ -130,8 +137,8 @@ The controller owns session state. The app owns UI state.
 3. live connection status
 4. last applied live sequence
 5. refresh timer and quiet window logic
-6. queueing and retry flags
-7. stale snapshot rejection
+6. transport retry bookkeeping for bounded GET failures only
+7. stale in-flight response protection, without snapshot versioning or conflict resolution
 8. normalized session error state
 
 ### App-Owned State
@@ -162,9 +169,16 @@ Controller behavior to build:
 2. keep the authoritative state in server snapshots
 3. track the latest applied event sequence and event type
 4. coalesce bursts of live signals into a single refresh window
-5. reject stale refresh results that arrive behind a newer live signal
-6. retry the phase-change refresh path when the controller observes a phase transition race
+5. request the latest authoritative snapshot when required data is unavailable
+6. retry only transient transport failures on idempotent state/event GET requests
 7. surface connection state and normalized transport errors through the session snapshot
+
+The controller does not retry because of event or phase races. The server
+sequences accepted turn operations, and event sequence numbers are cursors for
+delivery and inspection rather than a client-side versioning mechanism. Action
+and diagnostic submissions are not retried automatically. An invalid snapshot
+after the refresh check is terminal and follows the diagnostic plus
+`GAME_ABORTED` flow.
 
 ## Fake Backend Design
 
@@ -235,16 +249,16 @@ Deliverables:
 
 1. controller state model
 2. controller subscribe and getSnapshot API
-3. internal refresh scheduling, coalescing, retry, and stale rejection logic moved out of `App.tsx`
+3. internal refresh scheduling and coalescing moved out of `App.tsx`, with bounded transport retry limited to state/event GET requests
 4. `useGameSession` hook as a thin React adapter around the controller
-5. add controller behavior tests covering live-hint refresh, stale refresh rejection, phase-retry handling, and normalized errors
+5. add controller behavior tests covering live-hint refresh, latest-state refresh, transport failures, and normalized errors
 
 Exit criteria:
 
 1. live sync logic no longer lives in `App.tsx`
 2. the controller can be exercised without React rendering
 3. controller contract and behavior tests pass
-4. controller tests cover live-hint refresh, stale refresh rejection, phase-retry handling, and normalized errors
+4. controller tests cover live-hint refresh, latest-state refresh, transport failures, and normalized errors
 
 ### Phase 3: Add Fake Backend Harness
 

@@ -12,7 +12,21 @@ Effective immediately, any snapshot that does not adhere to the canonical `stack
 
 - Servers and clients MUST treat such snapshots as invalid.
 - There is no automatic migration or compatibility shim provided by the platform.
-- Loading an out-of-date snapshot should fail loudly (error response, reject on load, or show a clear "unsupported snapshot format" UI overlay).
+- Loading an out-of-date snapshot should fail loudly (error response, reject on load, or show a clear terminal aborted-session UI).
+
+## Refresh and Recovery Boundary
+
+The server remains the single authoritative source of match state. If a client
+is missing required server data, it requests the latest snapshot. A bounded
+transport retry is allowed only for transient network failures while fetching
+that snapshot or the event history.
+
+Clients must not retry an HTTP error, malformed response, or invalid snapshot
+as though it were a network failure. They must not retry action or diagnostic
+submissions. There is no snapshot repair, fallback snapshot, migration,
+version comparison, or event-race recovery. If the refreshed snapshot is still
+invalid, the client reports `SNAPSHOT_INVALID` and the match is terminated for
+both participants with `GAME_ABORTED`.
 
 ## Rationale
 

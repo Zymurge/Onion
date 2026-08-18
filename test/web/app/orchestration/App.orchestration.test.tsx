@@ -98,16 +98,17 @@ describe('rendering and display', () => {
 			],
 		})
 		const reportDiagnostic = vi.fn().mockResolvedValue(undefined)
-		const client = createTestClient(
-			{
-				...baseOrchestrationSnapshot,
-				authoritativeState: {
-					...baseOrchestrationSnapshot.authoritativeState,
-					defenders,
-					stackNaming: undefined,
-					stackRoster: undefined,
-				},
+		const invalidSnapshot: TestScenarioSnapshot = {
+			...baseOrchestrationSnapshot,
+			authoritativeState: {
+				...baseOrchestrationSnapshot.authoritativeState,
+				defenders,
 			},
+		}
+		Reflect.set(invalidSnapshot.authoritativeState, 'stackNaming', undefined)
+		Reflect.set(invalidSnapshot.authoritativeState, 'stackRoster', undefined)
+		const client = createTestClient(
+			invalidSnapshot,
 			{ role: 'defender' },
 			{ reportDiagnostic },
 		)

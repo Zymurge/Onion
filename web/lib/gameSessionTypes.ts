@@ -10,7 +10,7 @@
  * Intended usage:
  * - `GameRequestTransport` is the request seam for loading state and submitting actions.
  * - `LiveEventSource` is the push seam for connection diagnostics and live hints.
- * - `GameSessionController` owns orchestration, sequencing, retry, and stale-result handling.
+ * - `GameSessionController` owns orchestration, sequencing, and stale-result handling.
  * - `GameSessionViewState` is the snapshot consumed by React and test helpers.
  */
 
@@ -57,7 +57,7 @@ export type GameSessionViewState = {
  *
  * Use these to keep controller tests precise without embedding policy in the app shell.
  */
-export type GameSessionRefreshReason = 'manual' | 'live-event' | 'phase-retry'
+export type GameSessionRefreshReason = 'manual' | 'live-event'
 
 /**
  * Listener shape for observing controller state updates.

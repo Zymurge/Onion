@@ -44,8 +44,6 @@ export function createGameSessionController(options: GameSessionControllerOption
 	let liveRefreshRequestedSeq: number | null = null
 	let latestObservedEventSeq: number | null = null
 	let latestObservedEventType: string | null = null
-	let phaseRefreshRetryPending = false
-	let phaseRefreshRetrySeq: number | null = null
 	let requestVersion = 0
 
 	function debugLog(event: string, details: Record<string, unknown>) {
@@ -106,8 +104,6 @@ export function createGameSessionController(options: GameSessionControllerOption
 		}
 
 		clearRefreshTimer()
-		phaseRefreshRetryPending = false
-		phaseRefreshRetrySeq = null
 		liveRefreshQueued = false
 		requestVersion += 1
 		state = {
@@ -152,18 +148,14 @@ export function createGameSessionController(options: GameSessionControllerOption
 		}
 	}
 
-	function scheduleLiveRefresh(allowPhaseRefreshRetry = false) {
+	function scheduleLiveRefresh() {
 		if (disposed || state.status === 'aborted' || state.snapshot === null || latestObservedEventSeq === null) {
 			return
 		}
 
 		const currentSnapshotSeq = state.snapshot.lastEventSeq
-		if (latestObservedEventSeq <= currentSnapshotSeq && (!phaseRefreshRetryPending || !allowPhaseRefreshRetry)) {
+		if (latestObservedEventSeq <= currentSnapshotSeq) {
 			clearRefreshTimer()
-			if (latestObservedEventSeq <= currentSnapshotSeq) {
-				phaseRefreshRetryPending = false
-				phaseRefreshRetrySeq = null
-			}
 			return
 		}
 
@@ -174,7 +166,6 @@ export function createGameSessionController(options: GameSessionControllerOption
 			requestedSeq: liveRefreshRequestedSeq,
 			currentSnapshotSeq,
 			latestObservedEventSeq,
-			phaseRefreshRetryPending,
 		})
 		liveRefreshTimer = setTimeout(() => {
 			liveRefreshTimer = null
@@ -259,7 +250,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 		}
 
 		const currentSnapshotSeq = state.snapshot.lastEventSeq
-		if (latestObservedEventSeq === null || (latestObservedEventSeq <= currentSnapshotSeq && !phaseRefreshRetryPending)) {
+		if (latestObservedEventSeq === null || latestObservedEventSeq <= currentSnapshotSeq) {
 			return
 		}
 
@@ -269,16 +260,11 @@ export function createGameSessionController(options: GameSessionControllerOption
 		}
 
 		liveRefreshInFlight = true
-		const previousSnapshotPhase = state.snapshot.phase
-		const triggeringEventType = latestObservedEventType
 		let acceptedSnapshot: GameSessionViewState['snapshot'] = null
 		debugLog('refreshLiveSnapshot start', {
 			gameId: options.gameId,
 			currentSnapshotSeq,
 			latestObservedEventSeq,
-			triggeringEventType,
-			previousSnapshotPhase,
-			phaseRefreshRetryPending,
 		})
 
 		setState({ status: 'refreshing' })
@@ -326,7 +312,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 					&& latestObservedEventSeq !== null
 					&& latestObservedEventSeq > state.snapshot.lastEventSeq
 				) {
-					scheduleLiveRefresh(true)
+					scheduleLiveRefresh()
 				}
 			} else {
 				const currentSnapshotSeq = state.snapshot?.lastEventSeq ?? null
@@ -335,23 +321,9 @@ export function createGameSessionController(options: GameSessionControllerOption
 					&& currentSnapshotSeq !== null
 					&& currentLiveSeq !== null
 					&& currentLiveSeq > currentSnapshotSeq
-				const phaseStillStale = triggeringEventType === 'PHASE_CHANGED'
-					&& previousSnapshotPhase !== null
-					&& acceptedSnapshot !== null
-					&& acceptedSnapshot.phase === previousSnapshotPhase
-
-				phaseRefreshRetryPending = Boolean(
-					phaseStillStale
-					&& currentLiveSeq !== null
-					&& phaseRefreshRetrySeq !== currentLiveSeq
-				)
-				if (phaseStillStale && currentLiveSeq !== null) {
-					phaseRefreshRetrySeq = currentLiveSeq
-				}
 
 				if (
-					phaseRefreshRetryPending
-					|| refreshStillStale
+					refreshStillStale
 					|| (
 						currentSnapshotSeq !== null
 						&& currentLiveSeq !== null
@@ -359,7 +331,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 						&& currentLiveSeq !== liveRefreshRequestedSeq
 					)
 				) {
-					scheduleLiveRefresh(true)
+						scheduleLiveRefresh()
 				}
 			}
 		}

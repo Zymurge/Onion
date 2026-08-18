@@ -31,6 +31,28 @@ Primary backend endpoints used by the web client:
 - Unit roster, unit positions, and unit status on the connected battlefield view come from authoritative game state.
 - Terrain, dimensions, and coordinate bounds on the hex board come from the active scenario map snapshot.
 
+### Snapshot Synchronization Policy
+
+The web client uses one authoritative model: the latest successful state
+response from the server is the source of truth. Events are sequenced server
+signals and refresh hints, not a second state model. The client does not infer
+state from event arrival order, perform optimistic authoritative updates, or
+retry because of a phase or event race.
+
+When required server data is unavailable, the client requests the latest state
+with `GET /games/{id}`. Only transient transport failures may cause a bounded
+retry of state or event `GET` requests. HTTP failures, malformed responses,
+invalid snapshots, action submissions, and diagnostic submissions are not
+automatically retried. Action requests are especially non-idempotent because
+the server may have applied an action before its response was lost.
+
+If the refreshed snapshot remains structurally or semantically invalid, the
+client sends one `SNAPSHOT_INVALID` diagnostic, stops the local session, and
+shows the terminal aborted state. The server records and broadcasts
+`GAME_ABORTED`, so the other participant reaches the same terminal state.
+There is no snapshot repair, fallback snapshot, migration, or client-side
+version comparison.
+
 ## Local UI State
 
 - Selected map unit or hex.
@@ -390,7 +412,8 @@ The interaction-routing refactor should minimize embedded checks like `if active
 - Server snapshot is the authoritative backend game state and comes only from session sync.
 - Interaction state owns local selection, targeting, prompts, and dismissal state.
 - Derived view state is computed from the snapshot plus interaction state and stays pure.
-- Sync state owns connection status, refresh bookkeeping, and event sequencing.
+- Sync state owns connection status, explicit latest-state refreshes, transport
+  retry bookkeeping, and event cursors. It does not resolve server-side races.
 
 The Onion web client implements a three-phase contract for turn handoff and acknowledgement:
 
@@ -427,6 +450,11 @@ All UI behaviors are covered by regression tests, including the acknowledgement 
 - User-facing errors show a friendly message and machine-readable details.
 - Expandable diagnostics include `code`, `detailCode`, and `currentPhase`.
 - Failed drafts are preserved where it is safe to retry.
+- Transport retries are limited to transient failures while fetching state or
+  events. Action and diagnostic submissions are not retried automatically.
+- An invalid snapshot is not repaired or replaced with a fallback. After the
+  refresh check fails, the session enters the terminal aborted state for both
+  participants.
 
 ## Testing
 

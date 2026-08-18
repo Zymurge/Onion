@@ -11,6 +11,7 @@ import type {
 	LiveSessionSignal,
 } from '#web/lib/gameSessionTypes'
 import type { TurnPhase } from '#shared/types/index'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 
 function createDeferred<T>() {
 	let resolve!: (value: T | PromiseLike<T>) => void
@@ -37,6 +38,7 @@ function createSnapshot(overrides: {
 		scenarioName: overrides.scenarioName ?? 'Test session',
 		turnNumber: overrides.turnNumber ?? 1,
 		lastEventSeq: overrides.lastEventSeq,
+		victoryObjectives: [],
 	}
 }
 
@@ -263,8 +265,8 @@ describe('createGameSessionController', () => {
 			.mockResolvedValueOnce({ snapshot: refreshedSnapshot, session: { role: 'defender' as const } })
 		const { controller, liveEventSource } = await createLoadedController({ getState })
 		const catalog = {
-			unitTypes: { tank: { typeId: 'tank' } },
-			weaponTypes: { cannon: { typeId: 'cannon' } },
+			unitTypes: getUnitTypeCatalog(),
+			weaponTypes: getWeaponTypeCatalog(),
 		}
 
 		liveEventSource.emit({ kind: 'session-init', gameId: 123, payload: catalog })
@@ -300,8 +302,8 @@ describe('createGameSessionController', () => {
 
 	it('preserves initialization when it arrives before or after the HTTP snapshot', async () => {
 		const catalog = {
-			unitTypes: { tank: { typeId: 'tank' } },
-			weaponTypes: { cannon: { typeId: 'cannon' } },
+			unitTypes: getUnitTypeCatalog(),
+			weaponTypes: getWeaponTypeCatalog(),
 		}
 		const snapshot = createSnapshot({ phase: 'ONION_MOVE', lastEventSeq: 4 })
 		const initialLoad = createDeferred<{ snapshot: GameSnapshot; session: { role: 'onion' } }>()
@@ -628,36 +630,6 @@ describe('createGameSessionController', () => {
 		}
 	})
 
-	it('cancels a pending phase retry when an equal-sequence snapshot catches up', async () => {
-		vi.useFakeTimers()
-		try {
-			const initialSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT', lastEventSeq: 10 })
-			const caughtUpSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT', lastEventSeq: 11 })
-			const getState = vi.fn()
-				.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
-				.mockResolvedValueOnce({ snapshot: caughtUpSnapshot, session: { role: 'defender' as const } })
-				.mockResolvedValueOnce({ snapshot: caughtUpSnapshot, session: { role: 'defender' as const } })
-			const { controller, liveEventSource } = await createLoadedController({
-				getState,
-				liveRefreshQuietWindowMs: 5,
-			})
-
-			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 11, eventType: 'PHASE_CHANGED' })
-			await vi.advanceTimersByTimeAsync(5)
-			expect(getState).toHaveBeenCalledTimes(2)
-			expect(controller.getSnapshot()).toMatchObject({ snapshot: caughtUpSnapshot, lastAppliedEventSeq: 11 })
-
-			await flushMicrotasks()
-			liveEventSource.emit({ kind: 'snapshot', gameId: 123, eventSeq: 11 })
-			await vi.advanceTimersByTimeAsync(100)
-
-			expect(getState).toHaveBeenCalledTimes(2)
-			controller.dispose()
-		} finally {
-			vi.useRealTimers()
-		}
-	})
-
 	it('ignores stale submit responses after a newer action has been accepted', async () => {
 		const firstAction = createDeferred<GameSnapshot>()
 		const secondAction = createDeferred<GameSnapshot>()
@@ -821,68 +793,6 @@ describe('createGameSessionController', () => {
 			expect(controller.getSnapshot()).toMatchObject({
 				snapshot: refreshedSnapshot,
 				lastAppliedEventSeq: 50,
-				lastAppliedEventType: 'PHASE_CHANGED',
-			})
-
-			controller.dispose()
-		} finally {
-			vi.useRealTimers()
-		}
-	})
-
-	it('retries a stale phase refresh once and stops looping for the same live sequence', async () => {
-		vi.useFakeTimers()
-		try {
-			const initialSnapshot = createSnapshot({
-				phase: 'DEFENDER_COMBAT',
-				lastEventSeq: 47,
-				scenarioName: 'Phase retry initial snapshot',
-			})
-			const staleSnapshot = createSnapshot({
-				phase: 'DEFENDER_COMBAT',
-				lastEventSeq: 48,
-				scenarioName: 'Phase retry stale snapshot',
-			})
-			const getState = vi.fn()
-				.mockResolvedValueOnce({
-					snapshot: initialSnapshot,
-					session: { role: 'defender' as const },
-				})
-				.mockResolvedValueOnce({
-					snapshot: staleSnapshot,
-					session: { role: 'defender' as const },
-				})
-				.mockResolvedValueOnce({
-					snapshot: staleSnapshot,
-					session: { role: 'defender' as const },
-				})
-			const liveEventSource = createLiveEventSource()
-			const controller = createGameSessionController({
-				gameId: 123,
-				requestTransport: createTransport(getState),
-				liveEventSource,
-				liveRefreshQuietWindowMs: 10,
-			}) as GameSessionController
-
-			await controller.load()
-			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 48, eventType: 'PHASE_CHANGED' })
-
-			vi.advanceTimersByTime(10)
-			await flushMicrotasks()
-			expect(getState).toHaveBeenCalledTimes(2)
-
-			await flushMicrotasks()
-			vi.advanceTimersByTime(10)
-			await flushMicrotasks()
-			expect(getState).toHaveBeenCalledTimes(3)
-
-			await flushMicrotasks()
-			vi.advanceTimersByTime(100)
-			await flushMicrotasks()
-			expect(getState).toHaveBeenCalledTimes(3)
-			expect(controller.getSnapshot()).toMatchObject({
-				snapshot: staleSnapshot,
-				lastAppliedEventSeq: 48,
 				lastAppliedEventType: 'PHASE_CHANGED',
 			})
 
