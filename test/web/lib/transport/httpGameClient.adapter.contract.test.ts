@@ -1314,4 +1314,50 @@ describe('http game client adapter contract', () => {
 			message: 'Action is not supported by the HTTP game transport',
 		})
 	})
+
+	it('retries transient read failures but does not retry not-found responses', async () => {
+		const recoveredFetch = vi.fn()
+			.mockResolvedValueOnce(minimalJsonResponse({ error: 'temporary failure' }, 503))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse()))
+		const recoveredClient = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl: recoveredFetch })
+
+		await expect(recoveredClient.getState(123)).resolves.toMatchObject({ snapshot: { lastEventSeq: 1 } })
+		expect(recoveredFetch).toHaveBeenCalledTimes(2)
+
+		const missingFetch = vi.fn().mockResolvedValue(minimalJsonResponse({ error: 'game missing' }, 404))
+		const missingClient = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl: missingFetch })
+
+		await expect(missingClient.getState(123)).rejects.toMatchObject({ kind: 'not-found' })
+		expect(missingFetch).toHaveBeenCalledTimes(1)
+	})
+
+	it('does not retry action or diagnostic POST requests', async () => {
+		const actionFetch = vi.fn()
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse()))
+			.mockRejectedValueOnce(new Error('action transport failure'))
+		const actionClient = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl: actionFetch })
+
+		await actionClient.getState(123)
+		await expect(actionClient.submitAction(123, { type: 'end-phase' })).rejects.toThrow('action transport failure')
+		expect(actionFetch).toHaveBeenCalledTimes(2)
+
+		const diagnosticFetch = vi.fn().mockRejectedValue(new Error('diagnostic transport failure'))
+		const diagnosticTransport = createHttpGameRequestTransport({ baseUrl: 'https://onion.test/api', fetchImpl: diagnosticFetch })
+
+		await expect(diagnosticTransport.reportDiagnostic!(123, {
+			reportId: '550e8400-e29b-41d4-a716-446655440000',
+			code: 'CLIENT_SESSION_READY',
+			message: 'ready',
+			snapshot: {
+				gameId: 123,
+				scenarioName: 'Contract scenario',
+				phase: 'DEFENDER_MOVE',
+				turnNumber: 1,
+				lastEventSeq: 1,
+			},
+			client: { build: 'test', userAgent: 'vitest' },
+			protocolTraffic: [],
+		})).rejects.toThrow('diagnostic transport failure')
+		expect(diagnosticFetch).toHaveBeenCalledTimes(1)
+	})
 })

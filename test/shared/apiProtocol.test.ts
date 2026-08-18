@@ -110,4 +110,75 @@ describe('apiProtocol traffic logging', () => {
 		expect(snapshot.at(-1)?.direction).toBe('error')
 		expect(formatApiProtocolTrafficEntry(snapshot.at(-1)!).join('\n')).toContain('offline')
 	})
+
+	it('retries rejected fetch calls up to the configured attempt limit', async () => {
+		const fetchImpl = vi.fn()
+			.mockRejectedValueOnce(new Error('offline'))
+			.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+
+		const result = await requestJson<{ ok: boolean }>({
+			baseUrl: 'http://example.com',
+			path: 'games/123',
+			method: 'GET',
+			retry: { maxAttempts: 2 },
+			fetchImpl,
+		})
+
+		expect(result).toEqual({ ok: true, status: 200, data: { ok: true } })
+		expect(fetchImpl).toHaveBeenCalledTimes(2)
+		expect(getApiProtocolTrafficSnapshot().map((entry) => entry.direction)).toEqual(['request', 'request', 'response'])
+	})
+
+	it('returns the final network failure after exhausting retries', async () => {
+		const fetchImpl = vi.fn().mockRejectedValue(new Error('offline'))
+
+		const result = await requestJson({
+			baseUrl: 'http://example.com',
+			path: 'games/123',
+			method: 'GET',
+			retry: { maxAttempts: 2 },
+			fetchImpl,
+		})
+
+		expect(result).toEqual({
+			ok: false,
+			status: 0,
+			body: null,
+			message: 'offline',
+		})
+		expect(fetchImpl).toHaveBeenCalledTimes(2)
+		expect(getApiProtocolTrafficSnapshot().map((entry) => entry.direction)).toEqual(['request', 'request', 'error'])
+	})
+
+	it('does not retry an HTTP failure', async () => {
+		const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'backend unavailable' }), { status: 503 }))
+
+		const result = await requestJson({
+			baseUrl: 'http://example.com',
+			path: 'games/123',
+			method: 'GET',
+			retry: { maxAttempts: 2 },
+			fetchImpl,
+		})
+
+		expect(result).toMatchObject({ ok: false, status: 503, message: 'backend unavailable' })
+		expect(fetchImpl).toHaveBeenCalledTimes(1)
+	})
+
+	it('retries explicitly retryable HTTP statuses', async () => {
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(new Response(JSON.stringify({ error: 'temporary failure' }), { status: 503 }))
+			.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+
+		const result = await requestJson<{ ok: boolean }>({
+			baseUrl: 'http://example.com',
+			path: 'games/123',
+			method: 'GET',
+			retry: { maxAttempts: 2, retryableStatuses: [503] },
+			fetchImpl,
+		})
+
+		expect(result).toEqual({ ok: true, status: 200, data: { ok: true } })
+		expect(fetchImpl).toHaveBeenCalledTimes(2)
+	})
 })

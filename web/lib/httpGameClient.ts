@@ -9,7 +9,7 @@ import {
 import type { ClientDiagnosticReport } from './gameClient'
 import type { GameRequestTransport } from './gameSessionTypes'
 
-	import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse } from '../../shared/apiProtocol'
+	import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse, type NetworkRetryPolicy } from '../../shared/apiProtocol'
 	import type { ActionOkResponse, EventEnvelope, TurnPhase } from '../../shared/types/index'
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
@@ -30,6 +30,12 @@ type HttpGameClientOptions = {
 	baseUrl: string
 	fetchImpl?: typeof fetch
 	token?: string
+}
+
+const READ_RETRY_POLICY: NetworkRetryPolicy = {
+	maxAttempts: 2,
+	delayMs: 100,
+	retryableStatuses: [408, 429, 500, 502, 503, 504],
 }
 
 function trimTrailingSlash(baseUrl: string) {
@@ -181,6 +187,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 				token: options.token,
 				fetchImpl,
 				captureRawResponseBody: true,
+				retry: READ_RETRY_POLICY,
 			})
 
 			if (!result.ok) {
@@ -271,6 +278,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					token: options.token,
 					fetchImpl,
 					captureRawResponseBody: true,
+					retry: READ_RETRY_POLICY,
 				})
 
 				if (!result.ok) {
@@ -296,6 +304,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 			method: 'GET',
 			token: options.token,
 			fetchImpl,
+			retry: READ_RETRY_POLICY,
 		})
 
 		if (!result.ok) {

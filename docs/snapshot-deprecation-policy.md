@@ -18,12 +18,13 @@ Effective immediately, any snapshot that does not adhere to the canonical `stack
 
 The server remains the single authoritative source of match state. If a client
 is missing required server data, it requests the latest snapshot. A bounded
-transport retry is allowed only for transient network failures while fetching
+transport retry is allowed only for transient network failures or retryable
+server responses (`408`, `429`, `500`, `502`, `503`, or `504`) while fetching
 that snapshot or the event history.
 
-Clients must not retry an HTTP error, malformed response, or invalid snapshot
-as though it were a network failure. They must not retry action or diagnostic
-submissions. There is no snapshot repair, fallback snapshot, migration,
+Clients must not retry other HTTP errors, malformed responses, or invalid
+snapshots. They must not retry action or diagnostic submissions. There is no
+snapshot repair, fallback snapshot, migration,
 version comparison, or event-race recovery. If the refreshed snapshot is still
 invalid, the client reports `SNAPSHOT_INVALID` and the match is terminated for
 both participants with `GAME_ABORTED`.

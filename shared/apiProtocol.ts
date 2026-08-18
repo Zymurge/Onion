@@ -21,6 +21,16 @@ export type ApiFailure = {
 	message: string
 }
 
+/**
+ * Bounds retries for rejected fetch calls and explicitly retryable HTTP
+ * responses. `maxAttempts` includes the initial request.
+ */
+export type NetworkRetryPolicy = {
+	maxAttempts: number
+	delayMs?: number
+	retryableStatuses?: readonly number[]
+}
+
 export type ApiResult<T> = ApiSuccess<T> | ApiFailure
 
 export type VictoryObjectiveKind = 'destroy-unit' | 'escape-map'
@@ -307,35 +317,69 @@ export async function requestJson<T>(options: {
 	token?: string
 	fetchImpl?: typeof fetch
 	captureRawResponseBody?: boolean
+	retry?: NetworkRetryPolicy
 }): Promise<ApiResult<T>> {
 	const fetchImpl = options.fetchImpl ?? fetch
 	const requestBody = options.body === undefined ? undefined : JSON.stringify(options.body)
-	pushApiProtocolTraffic({
-		direction: 'request',
-		method: options.method,
-		path: options.path,
-		requestBody: options.body,
-	})
+	const requestUrl = buildUrl(options.baseUrl, options.path)
+	const maxAttempts = Math.max(1, Math.floor(options.retry?.maxAttempts ?? 1))
+	const delayMs = Math.max(0, options.retry?.delayMs ?? 0)
+	const retryableStatuses = new Set(options.retry?.retryableStatuses ?? [])
 
-	let response: Response
-	try {
-		response = await fetchImpl(buildUrl(options.baseUrl, options.path), {
+	let response: Response | null = null
+	let lastNetworkError: unknown = null
+	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+		pushApiProtocolTraffic({
+			direction: 'request',
 			method: options.method,
-			headers: buildHeaders(options.token),
-			body: requestBody,
+			path: options.path,
+			requestBody: options.body,
 		})
-	} catch (error) {
+
+		try {
+			response = await fetchImpl(requestUrl, {
+				method: options.method,
+				headers: buildHeaders(options.token),
+				body: requestBody,
+			})
+			if (!response.ok && retryableStatuses.has(response.status) && attempt < maxAttempts) {
+				pushApiProtocolTraffic({
+					direction: 'response',
+					method: options.method,
+					path: options.path,
+					status: response.status,
+				})
+				if (delayMs > 0) {
+					await new Promise<void>((resolve) => {
+						setTimeout(resolve, delayMs)
+					})
+				}
+				continue
+			}
+			break
+		} catch (error) {
+			lastNetworkError = error
+			if (attempt < maxAttempts && delayMs > 0) {
+				await new Promise<void>((resolve) => {
+					setTimeout(resolve, delayMs)
+				})
+			}
+		}
+	}
+
+	if (response === null) {
+		const message = lastNetworkError instanceof Error ? lastNetworkError.message : 'Unknown network error'
 		pushApiProtocolTraffic({
 			direction: 'error',
 			method: options.method,
 			path: options.path,
-			message: error instanceof Error ? error.message : 'Unknown network error',
+			message,
 		})
 		return {
 			ok: false,
 			status: 0,
 			body: null,
-			message: error instanceof Error ? error.message : 'Unknown network error',
+			message,
 		}
 	}
 

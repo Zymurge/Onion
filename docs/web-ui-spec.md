@@ -40,11 +40,12 @@ state from event arrival order, perform optimistic authoritative updates, or
 retry because of a phase or event race.
 
 When required server data is unavailable, the client requests the latest state
-with `GET /games/{id}`. Only transient transport failures may cause a bounded
-retry of state or event `GET` requests. HTTP failures, malformed responses,
-invalid snapshots, action submissions, and diagnostic submissions are not
-automatically retried. Action requests are especially non-idempotent because
-the server may have applied an action before its response was lost.
+with `GET /games/{id}`. Only transient transport failures or retryable server
+responses (`408`, `429`, `500`, `502`, `503`, or `504`) may cause a bounded
+retry of state or event `GET` requests. Other HTTP failures, malformed
+responses, invalid snapshots, action submissions, and diagnostic submissions
+are not automatically retried. Action requests are especially non-idempotent
+because the server may have applied an action before its response was lost.
 
 If the refreshed snapshot remains structurally or semantically invalid, the
 client sends one `SNAPSHOT_INVALID` diagnostic, stops the local session, and

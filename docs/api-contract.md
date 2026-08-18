@@ -36,9 +36,10 @@ they are not a client-side snapshot versioning or conflict-resolution scheme.
 
 Retries are transport-only:
 
-- A client may retry a state or event `GET` after a transient network failure.
-- HTTP error responses, malformed responses, and semantically invalid
-  snapshots are not retried as transport failures.
+- A client may retry a state or event `GET` after a transient network failure or
+  a retryable server response (`408`, `429`, `500`, `502`, `503`, or `504`).
+- Other HTTP error responses, malformed responses, and semantically invalid
+  snapshots are not retried.
 - Action `POST` requests are not automatically retried because the server may
   have applied the action before the response was lost.
 - Diagnostic `POST` requests are not automatically retried.
