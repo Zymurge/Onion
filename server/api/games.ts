@@ -48,6 +48,31 @@ const CreateGameSchema = z.object({
   role: z.enum(['onion', 'defender']),
 })
 
+const ClientDiagnosticSchema = z.object({
+  reportId: z.string().uuid(),
+  code: z.literal('SNAPSHOT_INVALID'),
+  path: z.string().min(1).max(500),
+  message: z.string().min(1).max(4_000),
+  refreshAttempt: z.number().int().min(0).max(3),
+  snapshot: z.object({
+    gameId: z.number().int().positive(),
+    scenarioName: z.string().min(1).max(200),
+    phase: z.string().min(1).max(100),
+    turnNumber: z.number().int().min(0),
+    lastEventSeq: z.number().int().min(0),
+  }),
+  client: z.object({
+    build: z.string().min(1).max(200),
+    userAgent: z.string().min(1).max(500),
+  }),
+  protocolTraffic: z.array(z.object({
+    direction: z.enum(['request', 'response']),
+    method: z.string().min(1).max(20),
+    path: z.string().min(1).max(500),
+    status: z.number().int().min(100).max(599),
+  })).max(50),
+})
+
 /**
  * Game management routes for creating, joining, and playing matches.
  *
@@ -527,6 +552,36 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
       })()
     },
   )
+
+  app.post<{ Params: { id: string }; Body: unknown }>('/:id/client-diagnostics', async (req, reply) => {
+    const userId = extractUserId(req.headers.authorization)
+    if (!userId) {
+      return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+    }
+
+    const gameId = parseGameId(req.params.id)
+    if (gameId === null) {
+      return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+    }
+
+    const match = await db.findMatch(gameId)
+    if (!match) {
+      return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+    }
+
+    if (userId !== match.players.onion && userId !== match.players.defender) {
+      return reply.status(403).send({ ok: false, error: 'Forbidden', code: 'FORBIDDEN' })
+    }
+
+    const parsed = ClientDiagnosticSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return reply.status(400).send({ ok: false, error: 'Invalid input', code: 'INVALID_INPUT' })
+    }
+
+    const diagnostic = parsed.data
+    logger.error({ gameId, reportId: diagnostic.reportId, diagnostic }, 'Client reported invalid game snapshot')
+    return reply.status(202).send({ ok: true, reportId: diagnostic.reportId })
+  })
 
   /**
    * Submit a game action.
