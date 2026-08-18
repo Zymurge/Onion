@@ -16,6 +16,7 @@ break down into features/tasks as needed.
 ## Verification Status (2026-08-17)
 
 - Scenario-driven deployment and side-aware runtime behavior are implemented and covered by focused engine, API, web, and browser tests.
+- UI fallback hardening is implemented: loaded snapshots with missing or malformed authoritative state now surface diagnostic error overlays instead of rendering inferred empty/default projections.
 - The managed browser suite passes all 8 Playwright scenarios through the repository-owned PostgreSQL, engine, Vite, and Chromium lifecycle.
 - `pnpm build` passes. The focused contract batch passes 80 tests, and all 19 explicit contract-test TODOs have been implemented.
 - Direct Testcontainers suites (`pnpm test` integration files and `pnpm test:integration`) still require a container runtime when run outside the managed E2E supervisor.
@@ -89,27 +90,27 @@ Primary files: `server/api/gamesHelpers.ts`, `server/api/games.ts`, `shared/apiP
   - Test-first: run a full-repo search for the field as the final verification step after Tasks 1-3 land.
   - Verified 2026-08-14: source, tests, and documentation contain no remaining `movementRemainingByUnit` or `movementByUnit` references; matches only remain in untracked generated `dist/` and `coverage/` artifacts.
 
-### UI Fallback Hardening (remaining work from `temp-ui-fallback-hardening-issue.md`)
+### DONE - UI Fallback Hardening (from `temp-ui-fallback-hardening-issue.md`)
 
 Primary files: `web/lib/useBattlefieldDisplayState.ts`, `web/components/BattlefieldLeftRail.tsx`, `test/web/lib/useBattlefieldDisplayState.test.tsx`, `test/web/components/BattlefieldLeftRail.test.tsx`, `test/web/app/orchestration/App.orchestration.test.tsx`.
 
-- [ ] **Task 1: Audit `useBattlefieldDisplayState` for silent recovery on non-static missing state**
+- [x] **Task 1: Audit `useBattlefieldDisplayState` for silent recovery on non-static missing state**
   - Identify every place `useBattlefieldDisplayState.ts` currently substitutes an empty array, `null`, or a derived default when non-static authoritative fields (roster, positions, statuses, stack data) are missing, as opposed to the already-allowed static `victoryObjectives`/`escapeHexes` caching.
   - Done when: a written list of offending call sites exists as inline comments or a short PR description; no behavior change yet.
 
-- [ ] **Task 2: Add broken-state tests before hardening**
+- [x] **Task 2: Add broken-state tests before hardening**
   - Add tests to `test/web/lib/useBattlefieldDisplayState.test.tsx` and `test/web/components/BattlefieldLeftRail.test.tsx` that supply incomplete non-static snapshot data and assert the current (soon-to-be-wrong) silent-recovery behavior, so the tests fail once hardening lands and can be flipped to assert the error path.
   - Done when: each identified call site from Task 1 has a corresponding failing-on-purpose test.
 
-- [ ] **Task 3: Replace silent recovery with explicit failure**
+- [x] **Task 3: Replace silent recovery with explicit failure**
   - Change `useBattlefieldDisplayState.ts` (and any dependent `BattlefieldLeftRail.tsx` rendering) so missing non-static state surfaces the standard error overlay path instead of collapsing to an empty/default view.
   - Done when: the Task 2 tests now assert the error-overlay path and pass.
 
-- [ ] **Task 4: Add orchestration coverage for the end-to-end error path**
+- [x] **Task 4: Add orchestration coverage for the end-to-end error path**
   - Add a case to `test/web/app/orchestration/App.orchestration.test.tsx` that injects an incomplete authoritative snapshot and verifies the standard error overlay renders instead of any inferred UI state.
   - Done when: the orchestration test fails against the pre-Task-3 behavior and passes after it.
 
-- [ ] **Task 5: Decide on a shared snapshot-completeness guard**
+- [x] **Task 5: Decide on a shared snapshot-completeness guard**
   - Evaluate whether a single shared render-time validation guard (versus targeted per-handler guards for user-triggered actions) reduces duplication without weakening the "fail fast, no inference" rule.
   - Done when: a decision is recorded in `docs/temp-ui-fallback-hardening-issue.md` (or its eventual archive) and, if adopted, the guard is implemented with tests; if rejected, the reasoning is documented and the remaining targeted guards are confirmed sufficient.
 

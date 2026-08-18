@@ -512,6 +512,22 @@ describe('selection behavior', () => {
 // ---- error handling ----
 
 describe('error handling', () => {
+	it('surfaces a diagnostic overlay for an incomplete authoritative snapshot', async () => {
+		const snapshot = createConnectedBattlefieldSnapshot()
+		delete (snapshot as { authoritativeState?: unknown }).authoritativeState
+		const client = createTestClient(snapshot, { role: 'defender' })
+
+		await renderAppAndWaitForReady(client)
+
+		const alert = await screen.findByRole('alert')
+		expect(alert.textContent).toContain('authoritativeState is missing')
+		expect(alert.textContent).toContain('gameId=123')
+		expect(alert.textContent).toContain('scenario=The Siege of Shrek\'s Swamp')
+		expect(alert.textContent).toContain('lastEventSeq=47')
+		expect(alert.textContent).toContain('Refresh the game')
+		expect(screen.queryByTestId('hex-unit-wolf-2')).toBeNull()
+	})
+
 	it('surfaces errors from move submission as a banner', async () => {
 		const user = userEvent.setup()
 		const snapshot = createConnectedBattlefieldSnapshot()

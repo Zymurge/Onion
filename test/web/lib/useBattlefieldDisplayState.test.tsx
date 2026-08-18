@@ -110,6 +110,7 @@ describe('useBattlefieldDisplayState', () => {
 		const snapshot = createSnapshot()
 		snapshot.phase = 'DEFENDER_MOVE'
 		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.currentPhase = 'DEFENDER_MOVE'
 		authoritativeState.stackNaming = {
 			groupsInUse: [
 				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
@@ -226,6 +227,7 @@ describe('useBattlefieldDisplayState', () => {
 		const snapshot = createSnapshot()
 		snapshot.phase = 'DEFENDER_MOVE'
 		const authoritativeState = snapshot.authoritativeState!
+			authoritativeState.currentPhase = 'DEFENDER_MOVE'
 		authoritativeState.defenders = {
 			...authoritativeState.defenders,
 			'pigs-5': makeDefender({
@@ -285,7 +287,101 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
 
-	it('preserves a defender snapshot when its friendly name is missing', () => {
+	it('returns a diagnostic error when authoritative state is missing', () => {
+		const snapshot = createSnapshot()
+		delete (snapshot as { authoritativeState?: unknown }).authoritativeState
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+
+		expect(result.current.error).toContain('authoritativeState is missing')
+		expect(result.current.error).toContain('gameId=123')
+		expect(result.current.error).toContain('lastEventSeq=47')
+		expect(result.current.displayedDefenders).toEqual([])
+		expect(result.current.displayedScenarioMap).toBeNull()
+	})
+
+	it('returns a diagnostic error when scenario map data is missing', () => {
+		const snapshot = createSnapshot()
+		delete (snapshot as { scenarioMap?: unknown }).scenarioMap
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+
+		expect(result.current.error).toContain('scenarioMap is missing')
+		expect(result.current.error).toContain('phase=DEFENDER_COMBAT')
+		expect(result.current.displayedScenarioMap).toBeNull()
+	})
+
+	it('returns a diagnostic error when an authoritative unit map is missing', () => {
+		const snapshot = createSnapshot()
+		delete (snapshot.authoritativeState as { defenders?: unknown }).defenders
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+
+		expect(result.current.error).toContain('authoritativeState.defenders must be a unit map')
+		expect(result.current.error).toContain('scenario=Display state invariant scenario')
+	})
+
+	it('returns a diagnostic error when scenario map coordinates are malformed', () => {
+		const snapshot = createSnapshot()
+		expect(snapshot.scenarioMap).toBeDefined()
+		snapshot.scenarioMap!.cells = [{ q: 1, r: Number.NaN }]
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			})
+		)
+
+		expect(result.current.error).toContain('scenarioMap.cells[0] is missing valid q/r coordinates')
+	})
+
+	it('does not reject authoritative state while the static session catalog is loading', () => {
+		const snapshot = createSnapshot()
+		expect(snapshot.authoritativeState).toBeDefined()
+		snapshot.authoritativeState!.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: { ...createSessionState(snapshot), catalog: null },
+				activeSessionBinding: null,
+			})
+		)
+
+		expect(result.current.error).toBeNull()
+		expect(result.current.clientSnapshot).toBe(snapshot)
+	})
+
+	it('returns a diagnostic error when a unit friendly name is missing', () => {
 		const snapshot = createSnapshot()
 		const authoritativeState = snapshot.authoritativeState!
 		authoritativeState.defenders = {
@@ -319,8 +415,8 @@ describe('useBattlefieldDisplayState', () => {
 					activeSessionBinding: null,
 				}),
 		)
-		expect(result.current.error).toBeNull()
-		expect(result.current.displayedDefenders[0]?.friendlyName).toBeUndefined()
+		expect(result.current.error).toContain('pigs-1 is missing friendlyName')
+		expect(result.current.displayedDefenders).toEqual([])
 	})
 
 })

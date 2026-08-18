@@ -1,6 +1,6 @@
 # UI Fallback Hardening Issue
 
-**Status:** Active; remaining work is tracked here.
+**Status:** Complete as of 2026-08-17.
 **Scope:** Remove UI-side fallback recovery for incomplete authoritative game state. Keep only validated, immutable scenario data caching for fields that cannot change during a game.
 
 ## Rule Of Record
@@ -23,11 +23,12 @@
 - [x] Tests were added to prove the new hard-fail behavior for grouped combat preview and grouped board rendering.
 - [x] Static scenario fields are allowed to remain cached where they are validated and immutable (`victoryObjectives`, `escapeHexes`).
 
-## Remaining Work
+## Implementation Result
 
-See the atomic task breakdown in [todo.md](todo.md#ui-fallback-hardening-remaining-work-from-temp-ui-fallback-hardening-issuemd) for the independently-implementable steps (audit, broken-state tests, hardening, orchestration coverage, and the shared-guard decision).
+`useBattlefieldDisplayState` now validates every loaded snapshot before display projection. Missing or malformed authoritative state, unit maps, unit metadata, weapons, scenario-map coordinates, session catalog, or victory objectives produces a diagnostic error overlay containing game, scenario, phase, and event-sequence context. The hook only retains empty/loading values when no snapshot has loaded yet, and immutable scenario fields remain the only allowed cached data.
+
+The shared render-time snapshot-completeness guard was adopted in the display-state hook. Focused hook coverage and App orchestration coverage verify missing-state, missing-map, missing-catalog, missing-unit-map, malformed-coordinate, and missing-unit-metadata failures.
 
 ## Notes
 
-- The current hardening work already proves the spec direction for labels and stackable commit actions.
-- The remaining work is mostly about deleting recovery logic and replacing it with explicit failures plus negative tests.
+- The hardening work now covers both targeted interaction paths and the loaded-snapshot render boundary.

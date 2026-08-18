@@ -47,6 +47,155 @@ const turnPhaseLabels: Record<TurnPhase, string> = {
   GEV_SECOND_MOVE: 'GEV Second Move',
 }
 
+const turnPhases = new Set<TurnPhase>(Object.keys(turnPhaseLabels) as TurnPhase[])
+const unitStates = new Set(['operational', 'disabled', 'recovering', 'destroyed'])
+const weaponStates = new Set(['ready', 'spent', 'destroyed'])
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function snapshotDiagnosticContext(snapshot: ServerGameSnapshot): string {
+  const rawSnapshot = snapshot as unknown as Record<string, unknown>
+  const gameId = typeof rawSnapshot.gameId === 'number' ? rawSnapshot.gameId : 'unknown'
+  const phase = typeof rawSnapshot.phase === 'string' ? rawSnapshot.phase : 'unknown'
+  const eventSeq = typeof rawSnapshot.lastEventSeq === 'number' ? rawSnapshot.lastEventSeq : 'unknown'
+  const scenario = typeof rawSnapshot.scenarioName === 'string' ? rawSnapshot.scenarioName : 'unknown'
+  return `gameId=${gameId}, scenario=${scenario}, phase=${phase}, lastEventSeq=${eventSeq}`
+}
+
+function describeSnapshotError(snapshot: ServerGameSnapshot, issue: string): string {
+  return `Loaded game snapshot is invalid: ${issue} (${snapshotDiagnosticContext(snapshot)}). Refresh the game and report this diagnostic if it persists.`
+}
+
+function validateUnitMap(
+  mapValue: unknown,
+  mapName: 'onions' | 'defenders',
+  snapshot: ServerGameSnapshot,
+): string | null {
+  if (!isRecord(mapValue)) {
+    return describeSnapshotError(snapshot, `authoritativeState.${mapName} must be a unit map`)
+  }
+
+  for (const [mapUnitId, unitValue] of Object.entries(mapValue)) {
+    if (!isRecord(unitValue)) {
+      return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId} must be a unit record`)
+    }
+
+    if (unitValue.unitId !== mapUnitId || typeof unitValue.unitId !== 'string' || unitValue.unitId.length === 0) {
+      return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId} has an invalid unitId`)
+    }
+    if (typeof unitValue.typeId !== 'string' || unitValue.typeId.length === 0) {
+      return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId} is missing typeId`)
+    }
+    if (unitValue.side !== mapName.slice(0, -1)) {
+      return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId} has side=${String(unitValue.side)}, expected ${mapName.slice(0, -1)}`)
+    }
+    if (typeof unitValue.state !== 'string' || !unitStates.has(unitValue.state)) {
+      return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId} has invalid state=${String(unitValue.state)}`)
+    }
+    if (!isRecord(unitValue.position) || !isFiniteNumber(unitValue.position.q) || !isFiniteNumber(unitValue.position.r)) {
+      return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId} is missing a valid position`)
+    }
+    if (typeof unitValue.friendlyName !== 'string' || unitValue.friendlyName.length === 0) {
+      return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId} is missing friendlyName`)
+    }
+    if (!Array.isArray(unitValue.weapons)) {
+      return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId} is missing weapons data`)
+    }
+    for (const [weaponIndex, weaponValue] of unitValue.weapons.entries()) {
+      if (!isRecord(weaponValue)) {
+        return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId}.weapons[${weaponIndex}] must be a weapon record`)
+      }
+      if (typeof weaponValue.id !== 'string' || weaponValue.id.length === 0 || typeof weaponValue.typeId !== 'string' || weaponValue.typeId.length === 0) {
+        return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId}.weapons[${weaponIndex}] is missing id or typeId`)
+      }
+      if (typeof weaponValue.state !== 'string' || !weaponStates.has(weaponValue.state)) {
+        return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId}.weapons[${weaponIndex}] has invalid state=${String(weaponValue.state)}`)
+      }
+      if (typeof weaponValue.friendlyName !== 'string' || weaponValue.friendlyName.length === 0) {
+        return describeSnapshotError(snapshot, `authoritativeState.${mapName}.${mapUnitId}.weapons[${weaponIndex}] is missing friendlyName`)
+      }
+    }
+  }
+
+  return null
+}
+
+export function validateBattlefieldSnapshot(
+  snapshot: ServerGameSnapshot,
+): string | null {
+  const rawSnapshot = snapshot as unknown as Record<string, unknown>
+  const authoritativeState = rawSnapshot.authoritativeState
+
+  if (typeof rawSnapshot.gameId !== 'number' || !Number.isInteger(rawSnapshot.gameId)) {
+    return describeSnapshotError(snapshot, 'gameId is missing or invalid')
+  }
+  if (typeof rawSnapshot.scenarioName !== 'string' || rawSnapshot.scenarioName.length === 0) {
+    return describeSnapshotError(snapshot, 'scenarioName is missing or invalid')
+  }
+  if (typeof rawSnapshot.phase !== 'string' || !turnPhases.has(rawSnapshot.phase as TurnPhase)) {
+    return describeSnapshotError(snapshot, `phase is missing or invalid: ${String(rawSnapshot.phase)}`)
+  }
+  if (typeof rawSnapshot.lastEventSeq !== 'number' || !Number.isInteger(rawSnapshot.lastEventSeq) || rawSnapshot.lastEventSeq < 0) {
+    return describeSnapshotError(snapshot, 'lastEventSeq is missing or invalid')
+  }
+  if (!isRecord(authoritativeState)) {
+    return describeSnapshotError(snapshot, 'authoritativeState is missing')
+  }
+
+  if (!isFiniteNumber(authoritativeState.turn) || !Number.isInteger(authoritativeState.turn) || authoritativeState.turn < 1) {
+    return describeSnapshotError(snapshot, 'authoritativeState.turn is missing or invalid')
+  }
+
+  const onionMapError = validateUnitMap(authoritativeState.onions, 'onions', snapshot)
+  if (onionMapError !== null) {
+    return onionMapError
+  }
+  if (Object.keys(authoritativeState.onions as object).length === 0) {
+    return describeSnapshotError(snapshot, 'authoritativeState.onions contains no Onion units')
+  }
+  const defenderMapError = validateUnitMap(authoritativeState.defenders, 'defenders', snapshot)
+  if (defenderMapError !== null) {
+    return defenderMapError
+  }
+
+  const scenarioMap = rawSnapshot.scenarioMap
+  if (!isRecord(scenarioMap)) {
+    return describeSnapshotError(snapshot, 'scenarioMap is missing')
+  }
+  if (!isFiniteNumber(scenarioMap.width) || !isFiniteNumber(scenarioMap.height) || scenarioMap.width <= 0 || scenarioMap.height <= 0) {
+    return describeSnapshotError(snapshot, 'scenarioMap width and height are missing or invalid')
+  }
+  if (!Array.isArray(scenarioMap.cells) || !Array.isArray(scenarioMap.hexes)) {
+    return describeSnapshotError(snapshot, 'scenarioMap cells and hexes are missing')
+  }
+  for (const [cellIndex, cell] of scenarioMap.cells.entries()) {
+    if (!isRecord(cell) || !isFiniteNumber(cell.q) || !isFiniteNumber(cell.r)) {
+      return describeSnapshotError(snapshot, `scenarioMap.cells[${cellIndex}] is missing valid q/r coordinates`)
+    }
+  }
+  for (const [hexIndex, hex] of scenarioMap.hexes.entries()) {
+    if (!isRecord(hex) || !isFiniteNumber(hex.q) || !isFiniteNumber(hex.r) || !isFiniteNumber(hex.t)) {
+      return describeSnapshotError(snapshot, `scenarioMap.hexes[${hexIndex}] is missing valid q/r/t coordinates`)
+    }
+  }
+  if (!Array.isArray(rawSnapshot.victoryObjectives)) {
+    return describeSnapshotError(snapshot, 'victoryObjectives are missing')
+  }
+  for (const [objectiveIndex, objective] of rawSnapshot.victoryObjectives.entries()) {
+    if (!isRecord(objective) || typeof objective.id !== 'string' || objective.id.length === 0 || typeof objective.label !== 'string' || objective.label.length === 0) {
+      return describeSnapshotError(snapshot, `victoryObjectives[${objectiveIndex}] is missing id or label`)
+    }
+  }
+
+  return null
+}
+
 function hasImplicitStackedDefenders(authoritativeState: GameState, catalog: GameSessionViewState['catalog']): boolean {
   const stackableUnitCountsByPosition = new Map<string, number>()
 
@@ -121,8 +270,8 @@ export function useBattlefieldDisplayState({
     const activeGameIdProp = activeSessionBinding?.gameId
     const activePhase = clientSnapshot?.phase ?? null
     const authoritativeState = clientSnapshot?.authoritativeState ?? null
-    let error: string | null = null
-    if (authoritativeState !== null) {
+    let error: string | null = clientSnapshot === null ? null : validateBattlefieldSnapshot(clientSnapshot)
+    if (error === null && authoritativeState !== null) {
       const validation = assertCanonicalStackProjection(authoritativeState, catalog)
       if (validation.error !== null) {
         error = validation.error
@@ -133,7 +282,7 @@ export function useBattlefieldDisplayState({
       const selectionId = selectedUnitIds?.find((candidateSelectionId) => !isWeaponSelectionId(candidateSelectionId)) ?? null
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
-    const stackSourceState = authoritativeState === null ? null : buildWebStackSourceState(authoritativeState, catalog ?? undefined)
+    const stackSourceState = authoritativeState === null || hasValidationError ? null : buildWebStackSourceState(authoritativeState, catalog ?? undefined)
     const selectedStackUnitIds = selectedBoardUnitId === null || hasValidationError ? [] : resolveBattlefieldStackMemberIds(stackSourceState, selectedBoardUnitId, catalog ?? undefined)
     const activeSelectedUnitIds = selectedUnitIds ?? []
     const headerHasSnapshot = clientSnapshot !== null
@@ -155,7 +304,7 @@ export function useBattlefieldDisplayState({
       isCombatPhase,
       isMovementPhase,
     })
-    const displayedScenarioMap = buildScenarioMap(clientSnapshot)
+    const displayedScenarioMap = hasValidationError ? null : buildScenarioMap(clientSnapshot)
     const victoryObjectives = clientSnapshot?.victoryObjectives ?? []
     const escapeHexes = clientSnapshot?.escapeHexes ?? []
 

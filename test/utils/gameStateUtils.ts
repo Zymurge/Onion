@@ -404,9 +404,9 @@ export function makeScenarioSnapshot(options: ScenarioSnapshotOptions = {}): Tes
 
 	return {
 		gameId: 123,
-		phase: 'DEFENDER_COMBAT',
+		phase,
 		scenarioName: 'Selection Contract Test',
-		turnNumber: 11,
+		turnNumber,
 		lastEventSeq: 47,
 		authoritativeState,
 		victoryObjectives: [],
