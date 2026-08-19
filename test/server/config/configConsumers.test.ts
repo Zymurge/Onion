@@ -44,4 +44,15 @@ describe('configuration consumers', () => {
 
     expect(getLoggerLevel()).toBe('debug')
   })
+
+  it('registers JWT with the configured signing secret', async () => {
+    const config = loadConfig({ ...process.env, JWT_SECRET: 'test-jwt-secret-that-is-long-enough' })
+    const app = buildApp(undefined, { config })
+    await app.ready()
+    const token = app.jwt.sign({ sub: 'user-1' })
+    const payload = await app.jwt.verify<{ sub: string }>(token)
+
+    expect(payload.sub).toBe('user-1')
+    await app.close()
+  })
 })

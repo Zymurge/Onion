@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import type { FastifyInstance } from 'fastify'
+import fastifyJwt from '@fastify/jwt'
 import websocket from '@fastify/websocket'
 import { authRoutes } from '#server/api/auth'
 import { scenarioRoutes } from '#server/api/scenarios'
@@ -37,6 +38,11 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
   const adapter = resolveAdapter(db)
   const config = options.config ?? loadConfig()
   const app = Fastify({ logger: config.nodeEnv !== 'test' })
+
+  app.register(fastifyJwt, {
+    secret: config.jwtSecret,
+    sign: { algorithm: 'HS256' },
+  })
 
   const corsHeaders = {
     'access-control-allow-origin': '*',

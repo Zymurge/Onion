@@ -15,6 +15,9 @@ describe('POST /auth/register', () => {
     expect(body).toHaveProperty('token')
     expect(typeof body.userId).toBe('string')
     expect(typeof body.token).toBe('string')
+    expect(body.token.startsWith('stub.')).toBe(false)
+    const claims = await app.jwt.verify<{ sub: string }>(body.token)
+    expect(claims.sub).toBe(body.userId)
   })
 
   it('returns 409 when username is already taken', async () => {
@@ -137,6 +140,9 @@ describe('POST /auth/login', () => {
     const body = res.json<{ userId: string; token: string }>()
     expect(body).toHaveProperty('userId')
     expect(body).toHaveProperty('token')
+    expect(body.token.startsWith('stub.')).toBe(false)
+    const claims = await app.jwt.verify<{ sub: string }>(body.token)
+    expect(claims.sub).toBe(body.userId)
   })
 
   it('userId is consistent between register and login', async () => {

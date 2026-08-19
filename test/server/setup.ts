@@ -4,6 +4,7 @@ const requiredTestEnvironment = {
 	PORT: '3000',
 	HOST: '127.0.0.1',
 	DATABASE_URL: 'postgres://onion:onionpass@127.0.0.1:5432/onion-test',
+	JWT_SECRET: 'test-jwt-secret-that-is-long-enough',
 	NODE_ENV: 'test',
 	LOG_LEVEL: 'error',
 	SCENARIOS_DIR: `${process.cwd()}/scenarios`,

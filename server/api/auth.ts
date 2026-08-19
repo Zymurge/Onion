@@ -8,6 +8,8 @@ const CredentialsSchema = z.object({
   password: z.string().min(8),
 })
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 /**
  * Hash a password using scrypt with random salt.
  * @param password - Plain text password
@@ -30,6 +32,27 @@ function verifyPassword(password: string, stored: string): boolean {
   const hash = scryptSync(password, salt, 64)
   const storedBuf = Buffer.from(storedHash, 'hex')
   return timingSafeEqual(hash, storedBuf)
+}
+
+export async function verifyUserId(
+  app: FastifyInstance,
+  authHeader: string | undefined,
+): Promise<string | null> {
+  if (!authHeader?.startsWith('Bearer ')) {
+    return null
+  }
+
+  const token = authHeader.slice('Bearer '.length)
+  if (token.length === 0) {
+    return null
+  }
+
+  try {
+    const payload = await app.jwt.verify<{ sub?: unknown }>(token)
+    return typeof payload.sub === 'string' && UUID_RE.test(payload.sub) ? payload.sub : null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -72,8 +95,7 @@ export const authRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
     }
 
     const { userId } = await db.createUser(username, hashPassword(password))
-    // TODO: replace with @fastify/jwt in next phase
-    const token = `stub.${userId}`
+    const token = app.jwt.sign({ sub: userId })
     return reply.status(201).send({ userId, token })
   })
 
@@ -104,7 +126,7 @@ export const authRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       return reply.status(401).send({ ok: false, error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' })
     }
 
-    const token = `stub.${record.userId}`
+    const token = app.jwt.sign({ sub: record.userId })
     return reply.status(200).send({ userId: record.userId, token })
   })
 }
