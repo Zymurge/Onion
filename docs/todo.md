@@ -6,7 +6,7 @@ break down into features/tasks as needed.
 ## In progress
 
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
-- [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability.
+- [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability. See [accessibility-overview-spec.md](accessibility-overview-spec.md).
   - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.
   - [ ] Replace tooltip-only detail exposure with explicit accessible disclosure patterns where details are important to gameplay comprehension.
   - [ ] Known issue: `InactiveEventStream` currently exposes event details only through the row `title` tooltip, which is not a sufficient keyboard/screen-reader interaction path.
