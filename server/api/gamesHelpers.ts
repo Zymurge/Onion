@@ -16,9 +16,6 @@ import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import { getDefender, getOnionOrDefender } from '#shared/unitState'
 import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
-import { resolveScenariosDir } from '#server/api/scenarioPaths'
-
-const SCENARIOS_DIR = resolveScenariosDir()
 const GAME_ID_RE = /^\d+$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -816,17 +813,17 @@ export function parseWsMessage(rawMessage: string): WebSocketClientMessage | nul
   return null
 }
 
-export async function loadScenario(id: string): Promise<ValidatedScenarioSnapshot | null> {
+export async function loadScenario(id: string, scenariosDir: string): Promise<ValidatedScenarioSnapshot | null> {
   let files: string[]
   try {
-    files = await readdir(SCENARIOS_DIR)
+    files = await readdir(scenariosDir)
   } catch {
     // directory unreadable — treat as not found
     return null
   }
 
   for (const file of files.filter((f) => f.endsWith('.json'))) {
-    const fullPath = join(SCENARIOS_DIR, file)
+    const fullPath = join(scenariosDir, file)
     const raw = await readFile(fullPath, 'utf8')
     let scenario: unknown
     try {

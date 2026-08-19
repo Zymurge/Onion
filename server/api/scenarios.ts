@@ -1,10 +1,7 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyPluginAsync } from 'fastify'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { materializeScenarioMap, type AuthoredScenarioMap } from '#shared/scenarioMap'
-import { resolveScenariosDir } from '#server/api/scenarioPaths'
-
-const SCENARIOS_DIR = resolveScenariosDir()
 
 interface ScenarioSummary {
   id: string
@@ -13,11 +10,11 @@ interface ScenarioSummary {
   description: string
 }
 
-async function loadAll(): Promise<ScenarioSummary[]> {
-  const files = await readdir(SCENARIOS_DIR)
+async function loadAll(scenariosDir: string): Promise<ScenarioSummary[]> {
+  const files = await readdir(scenariosDir)
   const results: ScenarioSummary[] = []
   for (const file of files.filter((f) => f.endsWith('.json'))) {
-    const raw = await readFile(join(SCENARIOS_DIR, file), 'utf8')
+    const raw = await readFile(join(scenariosDir, file), 'utf8')
     const s = JSON.parse(raw) as ScenarioSummary & { displayName?: string }
     results.push({
       id: s.id,
@@ -29,10 +26,10 @@ async function loadAll(): Promise<ScenarioSummary[]> {
   return results
 }
 
-async function loadById(id: string): Promise<any | null> {
-  const files = await readdir(SCENARIOS_DIR)
+async function loadById(id: string, scenariosDir: string): Promise<unknown | null> {
+  const files = await readdir(scenariosDir)
   for (const file of files.filter((f) => f.endsWith('.json'))) {
-    const raw = await readFile(join(SCENARIOS_DIR, file), 'utf8')
+    const raw = await readFile(join(scenariosDir, file), 'utf8')
     const s = JSON.parse(raw) as { id: string; name: string; displayName?: string; map: AuthoredScenarioMap }
     if (s.id === id) {
       return {
@@ -45,7 +42,7 @@ async function loadById(id: string): Promise<any | null> {
   return null
 }
 
-export async function scenarioRoutes(app: FastifyInstance): Promise<void> {
+export const scenarioRoutes: FastifyPluginAsync<{ scenariosDir: string }> = async (app, { scenariosDir }) => {
   /**
    * List all scenarios.
    *
@@ -57,7 +54,7 @@ export async function scenarioRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get('/', async (_req, reply) => {
     try {
-      const scenarios = await loadAll()
+      const scenarios = await loadAll(scenariosDir)
       return reply.send(scenarios)
     } catch {
       return reply.send([])
@@ -75,7 +72,7 @@ export async function scenarioRoutes(app: FastifyInstance): Promise<void> {
    *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
-    const scenario = await loadById(req.params.id)
+    const scenario = await loadById(req.params.id, scenariosDir)
     if (!scenario) {
       return reply.status(404).send({ ok: false, error: 'Scenario not found', code: 'NOT_FOUND' })
     }

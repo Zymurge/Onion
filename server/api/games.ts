@@ -87,8 +87,8 @@ const ClientDiagnosticSchema = z.discriminatedUnion('code', [
  * @param app - Fastify application instance
  * @param opts - Plugin options containing the database adapter
  */
-export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (scenarioId?: string) => RollSource; createCombatRolls?: () => RollSource }> = async (app: FastifyInstance, opts) => {
-  const { db, createRamRolls, createCombatRolls } = opts
+export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: string; createRamRolls?: (scenarioId?: string) => RollSource; createCombatRolls?: () => RollSource }> = async (app: FastifyInstance, opts) => {
+  const { db, scenariosDir, createRamRolls, createCombatRolls } = opts
   const liveConnections = new Map<number, Set<WebSocket>>()
   const ramRollsByGame = new Map<number, RollSource>()
   const combatRollsByGame = new Map<number, RollSource>()
@@ -215,7 +215,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
       logger.debug({ userId }, 'User ID extracted for game creation')
       let scenarioSnapshot
       try {
-        scenarioSnapshot = await loadScenario(scenarioId)
+        scenarioSnapshot = await loadScenario(scenarioId, scenariosDir)
       } catch (err) {
         if (err instanceof ScenarioValidationError) {
           logger.error({ err, scenarioId }, 'Invalid scenario definition')
@@ -370,7 +370,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; createRamRolls?: (s
       const scenarioIds = Array.from(new Set(games.map((g) => g.scenarioId)))
       const scenarioMap: Record<string, string> = {}
       for (const scenarioId of scenarioIds) {
-        const scenario = await loadScenario(scenarioId)
+        const scenario = await loadScenario(scenarioId, scenariosDir)
         if (scenario === null) {
           logger.error({ scenarioId }, 'Required game scenario could not be loaded')
           return reply.status(500).send({ ok: false, error: 'Required game scenario could not be loaded', code: 'INTERNAL_ERROR' })

@@ -8,10 +8,12 @@ import { getPool } from '#server/db/client'
 import type { DbAdapter } from '#server/db/adapter'
 import { InMemoryDb } from '#server/db/memory'
 import type { RollSource } from '#server/engine/movement'
+import { loadConfig, type ServerConfig } from '#server/config/loadConfig'
 
 type BuildAppOptions = {
   createRamRolls?: (scenarioId?: string) => RollSource
   createCombatRolls?: () => RollSource
+  config?: ServerConfig
 }
 
 function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
@@ -33,7 +35,8 @@ function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
 
 export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {}): FastifyInstance {
   const adapter = resolveAdapter(db)
-  const app = Fastify({ logger: process.env.NODE_ENV !== 'test' })
+  const config = options.config ?? loadConfig()
+  const app = Fastify({ logger: config.nodeEnv !== 'test' })
 
   const corsHeaders = {
     'access-control-allow-origin': '*',
@@ -60,7 +63,7 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
 
   app.get('/health/ready', async (_req, reply) => {
     try {
-      await getPool().query('SELECT 1')
+      await getPool(config.databaseUrl).query('SELECT 1')
       return reply.send({ ok: true, db: 'connected' })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -69,12 +72,13 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
   })
 
   app.register(authRoutes, { prefix: '/auth', db: adapter })
-  app.register(scenarioRoutes, { prefix: '/scenarios' })
+  app.register(scenarioRoutes, { prefix: '/scenarios', scenariosDir: config.scenariosDir })
   app.register(gameRoutes, {
     prefix: '/games',
     db: adapter,
     createRamRolls: options.createRamRolls,
     createCombatRolls: options.createCombatRolls,
+    scenariosDir: config.scenariosDir,
   })
 
   // Global error handler

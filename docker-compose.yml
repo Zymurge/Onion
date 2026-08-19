@@ -8,6 +8,7 @@ services:
     environment:
       DATABASE_URL: postgres://onion:onionpass@db:5432/onion
       JWT_SECRET: changeme-dev-only
+      HOST: 0.0.0.0
       PORT: 3000
       NODE_ENV: production
       SCENARIOS_DIR: /app/scenarios

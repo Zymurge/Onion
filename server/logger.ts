@@ -1,3 +1,5 @@
+import { loadConfig } from '#server/config/loadConfig'
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 const levelOrder: Record<LogLevel, number> = {
@@ -5,15 +7,6 @@ const levelOrder: Record<LogLevel, number> = {
   info: 20,
   warn: 30,
   error: 40,
-}
-
-function getInitialLevel(): LogLevel {
-  const envLevel = typeof process !== 'undefined' ? process.env.LOG_LEVEL?.toLowerCase() : undefined
-  if (envLevel === 'debug' || envLevel === 'info' || envLevel === 'warn' || envLevel === 'error') {
-    return envLevel
-  }
-  // Default to 'warn' if not set
-  return 'warn'
 }
 
 function formatLogPayload(args: unknown[]): string {
@@ -79,10 +72,11 @@ class SimpleLogger {
 }
 
 
-const logger = new SimpleLogger(getInitialLevel())
+const config = loadConfig()
+const logger = new SimpleLogger(config.logLevel)
 
 // Log the log level on startup
-if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'test') {
+if (config.nodeEnv !== 'test') {
   logger.warn(`Logger initialized at level: ${logger.level}`)
 }
 

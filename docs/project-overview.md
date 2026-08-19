@@ -142,6 +142,15 @@ The `DbAdapter` interface provides a clean separation between business logic and
 - **Target environments**: Developer laptop (Debian), self-hosted Debian VM. Managed cloud services are out of scope until scale demands it (KISS).
 - **Future cloud path**: If needed, the Compose setup maps cleanly to a single VM on any cloud provider without rearchitecting.
 
+### Server Configuration
+
+Server deployment values are environment-only and are resolved centrally by
+`server/config/loadConfig.ts` using a required Zod schema. `PORT`, `HOST`, `DATABASE_URL`,
+`NODE_ENV`, `LOG_LEVEL`, and `SCENARIOS_DIR` must all be supplied; startup fails when any is
+missing or malformed. See [configuration.md](configuration.md) for the required values and
+deployment guidance. Static game rules and scenario data remain versioned project data rather
+than deployment configuration.
+
 ## Game Mechanics Summary
 
 Core rules are derived from the public domain portions of the [OGRE Designer's Edition Rulebook (v6.0)](https://www.sjgames.com/ogre/kickstarter/ogre_rulebook.pdf) by Steve Jackson Games, adapted and renamed for this project. Detailed rule mappings are in [game-rules.md](game-rules.md).
