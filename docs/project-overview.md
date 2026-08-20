@@ -21,7 +21,7 @@ tanks, infantry, and artillery.
 | Phase | Focus | Key Deliverables |
 | :--- | :--- | :--- |
 | **1 — Core** | Working game | Engine, REST+WS API, PostgreSQL, CLI client, 2 humans matched manually |
-| **2 — Lobby** | Self-service matchmaking | Game creation, join-by-code or invite link, basic session listing |
+| **2 — Lobby** | Self-service matchmaking | See [lobby-overview-spec.md](lobby-overview-spec.md) for the high-level scope and phased work order. |
 | **3 — AI** | Automated opponent | Go-based Swamp Brain service connected as a standard API player |
 
 ## Technical Architecture
