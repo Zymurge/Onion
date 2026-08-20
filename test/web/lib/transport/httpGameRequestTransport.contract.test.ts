@@ -43,7 +43,7 @@ describe('http game request transport contract', () => {
 		const transport = createHttpGameRequestTransport({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await expect(transport.getState(123)).resolves.toEqual(
@@ -75,7 +75,7 @@ describe('http game request transport contract', () => {
 		expect(fetchImpl.mock.calls[0]?.[1]).toEqual(
 			expect.objectContaining({
 				headers: expect.objectContaining({
-					authorization: 'Bearer stub.token',
+					authorization: 'Bearer test.jwt.token',
 					'content-type': 'application/json',
 				}),
 			}),
@@ -131,7 +131,7 @@ describe('http game request transport contract', () => {
 		const transport = createHttpGameRequestTransport({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await transport.getState(123)
@@ -148,7 +148,7 @@ describe('http game request transport contract', () => {
 			expect.objectContaining({
 				method: 'POST',
 				headers: expect.objectContaining({
-					authorization: 'Bearer stub.token',
+					authorization: 'Bearer test.jwt.token',
 					'content-type': 'application/json',
 				}),
 				body: JSON.stringify({ type: 'MOVE', movers: ['wolf-2'], to: { q: 7, r: 6 } }),
@@ -184,7 +184,7 @@ describe('http game request transport contract', () => {
 		const transport = createHttpGameRequestTransport({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await transport.getState(123)

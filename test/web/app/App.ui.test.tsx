@@ -339,7 +339,7 @@ describe('App UI', () => {
 					password: 'secret',
 				},
 				fetchImpl: vi.fn().mockResolvedValue(
-					new Response(JSON.stringify({ userId: 'user-123', token: 'stub.token' }), {
+					new Response(JSON.stringify({ userId: 'user-123', token: 'test.jwt.token' }), {
 						status: 200,
 						headers: { 'content-type': 'application/json' },
 					}),

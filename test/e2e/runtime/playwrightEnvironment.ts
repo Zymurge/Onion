@@ -26,6 +26,7 @@ export function createPlaywrightRuntimeEnvironment(
 ): NodeJS.ProcessEnv {
 	return {
 		...parentEnvironment,
+		...runtime.serverEnvironment,
 		[PLAYWRIGHT_RUNTIME_ENV.webUrl]: runtime.webUrl,
 		[PLAYWRIGHT_RUNTIME_ENV.engineUrl]: runtime.engineUrl,
 		[PLAYWRIGHT_RUNTIME_ENV.runtimeFile]: runtimeFile,

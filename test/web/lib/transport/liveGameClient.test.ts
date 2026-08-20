@@ -131,7 +131,7 @@ describe('createLiveGameClient', () => {
 		const sockets: FakeWebSocket[] = []
 		const client = createLiveGameClient({
 			baseUrl: 'https://onion.test/api',
-			token: 'stub.token',
+			token: 'test.jwt.token',
 			fetchImpl,
 			webSocketFactory: (url) => {
 				const socket = new FakeWebSocket(url)
@@ -155,7 +155,7 @@ describe('createLiveGameClient', () => {
 		})
 
 		await client.getState(123)
-		expect(sockets[0]?.url).toBe('wss://onion.test/api/games/123/ws?token=stub.token')
+		expect(sockets[0]?.url).toBe('wss://onion.test/api/games/123/ws?token=test.jwt.token')
 
 		sockets[0]?.open()
 		sockets[0]?.receive({ kind: 'EVENT', event: { seq: 48, type: 'PLAYER_JOINED', timestamp: '2026-04-02T00:00:00.000Z' } })

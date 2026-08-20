@@ -10,6 +10,15 @@ const runtime: ResolvedRuntime = {
 	engineUrl: 'http://127.0.0.1:3000',
 	webUrl: 'http://127.0.0.1:5173',
 	databaseUrl: 'postgres://test/onion',
+	serverEnvironment: {
+		DATABASE_URL: 'postgres://test/onion',
+		HOST: '127.0.0.1',
+		PORT: '3000',
+		JWT_SECRET: 'test-jwt-secret-that-is-at-least-32-characters-long',
+		NODE_ENV: 'test',
+		LOG_LEVEL: 'error',
+		SCENARIOS_DIR: '/tmp/e2e/scenarios',
+	},
 	logDir: '/tmp/e2e/logs/run-1',
 	artifactFile: '/tmp/e2e/artifacts-run-1.json',
 	ownership: { database: 'owned', engine: 'owned', web: 'owned' },
@@ -21,6 +30,7 @@ describe('Playwright runtime environment', () => {
 
 		expect(environment).toMatchObject({
 			PATH: '/bin',
+			...runtime.serverEnvironment,
 			[PLAYWRIGHT_RUNTIME_ENV.webUrl]: runtime.webUrl,
 			[PLAYWRIGHT_RUNTIME_ENV.engineUrl]: runtime.engineUrl,
 			[PLAYWRIGHT_RUNTIME_ENV.runtimeFile]: '/tmp/e2e/runtime.json',

@@ -21,6 +21,26 @@ describe('POST /games', () => {
     expect(body.role).toBe('onion')
   })
 
+  it('creates a game with the signed JWT returned by registration', async () => {
+    const app = buildApp()
+    const registration = await app.inject({
+      method: 'POST',
+      url: '/auth/register',
+      payload: { username: 'jwt-shrek', password: 'swamp1234' },
+    })
+    const { userId, token } = registration.json<{ userId: string; token: string }>()
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { scenarioId: 'swamp-siege-01', role: 'onion' },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(userId).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
   it('returns 401 without auth token', async () => {
     const app = buildApp()
 
@@ -31,6 +51,75 @@ describe('POST /games', () => {
     })
 
     expect(res.statusCode).toBe(401)
+  })
+
+  it('returns 401 for a legacy token', async () => {
+    const app = buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games',
+      headers: { authorization: 'Bearer legacy.550e8400-e29b-41d4-a716-446655440000' },
+      payload: { scenarioId: 'swamp-siege-01', role: 'onion' },
+    })
+
+    expect(res.statusCode).toBe(401)
+  })
+
+  it.each([
+    ['malformed JWT', 'Bearer not-a-jwt'],
+    ['missing subject', 'signed-within-test'],
+    ['non-UUID subject', 'signed-within-test'],
+    ['tampered JWT', 'signed-within-test'],
+  ])('returns 401 for a %s', async (description, marker) => {
+    const app = buildApp()
+    await app.ready()
+    let authorization = marker
+    if (description === 'missing subject') {
+      authorization = `Bearer ${app.jwt.sign({})}`
+    } else if (description === 'non-UUID subject') {
+      authorization = `Bearer ${app.jwt.sign({ sub: 'user-1' })}`
+    } else if (description === 'tampered JWT') {
+      const token = app.jwt.sign({ sub: '550e8400-e29b-41d4-a716-446655440000' })
+      authorization = `Bearer ${token.slice(0, -1)}${token.endsWith('a') ? 'b' : 'a'}`
+    }
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games',
+      headers: { authorization },
+      payload: { scenarioId: 'swamp-siege-01', role: 'onion' },
+    })
+
+    expect(res.statusCode, description).toBe(401)
+  })
+
+  it('returns 401 for a JWT signed with another secret', async () => {
+    const app = buildApp()
+    const otherApp = buildApp(undefined, {
+      config: {
+        port: 3000,
+        host: '127.0.0.1',
+        databaseUrl: 'postgres://onion:onionpass@127.0.0.1:5432/onion-test',
+        jwtSecret: 'another-test-jwt-secret-that-is-long-enough',
+        nodeEnv: 'test',
+        logLevel: 'error',
+        scenariosDir: `${process.cwd()}/scenarios`,
+      },
+    })
+    await app.ready()
+    await otherApp.ready()
+    const token = otherApp.jwt.sign({ sub: '550e8400-e29b-41d4-a716-446655440000' })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/games',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { scenarioId: 'swamp-siege-01', role: 'onion' },
+    })
+
+    expect(res.statusCode).toBe(401)
+    await app.close()
+    await otherApp.close()
   })
 
   it('returns 400 INVALID_INPUT for invalid role', async () => {
@@ -310,11 +399,13 @@ describe('GET /games', () => {
         players: { onion: userId, defender: null },
       }],
     })
+    await app.ready()
+    const token = app.jwt.sign({ sub: userId })
 
     const res = await app.inject({
       method: 'GET',
       url: '/games',
-      headers: { authorization: `Bearer stub.${userId}` },
+      headers: { authorization: `Bearer ${token}` },
     })
 
     expect(res.statusCode).toBe(500)

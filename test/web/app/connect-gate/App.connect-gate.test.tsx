@@ -68,7 +68,7 @@ function mockAuthenticatedSession(snapshot: GameSnapshot): void {
 	requestJson.mockResolvedValue({
 		ok: true,
 		status: 200,
-		data: { userId: 'user-123', token: 'stub.token' },
+		data: { userId: 'user-123', token: 'test.jwt.token' },
 	})
 	createHttpGameRequestTransport.mockReturnValue({
 		getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' } }),
@@ -134,11 +134,11 @@ describe('App connect gate', () => {
 		)
 		expect(createHttpGameRequestTransport).toHaveBeenCalledWith({
 			baseUrl: 'http://localhost:3000',
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 		expect(createLiveEventSource).toHaveBeenCalledWith({
 			baseUrl: 'http://localhost:3000',
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await screen.findByText(/Turn 11/i)

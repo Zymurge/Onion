@@ -37,13 +37,14 @@ function verifyPassword(password: string, stored: string): boolean {
 export async function verifyUserId(
   app: FastifyInstance,
   authHeader: string | undefined,
+  queryToken?: string,
 ): Promise<string | null> {
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null
-  }
-
-  const token = authHeader.slice('Bearer '.length)
-  if (token.length === 0) {
+  const token = authHeader !== undefined
+    ? authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : undefined
+    : queryToken
+  if (!token) {
     return null
   }
 

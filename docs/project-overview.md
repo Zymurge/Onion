@@ -74,7 +74,7 @@ Phase transitions are handled by `advancePhase(state)` in `server/engine/phases.
   - `matches` — id, scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.
   - `game_state` — match_id (FK), state JSONB, updated_at.
 - **`game_state` JSONB Shape**: A mutable copy of the scenario's `initialState`, evolved in place by gameplay. Contains: Onion position/treads/weapons, all defender unit positions/statuses and weapons. Victory conditions and map terrain remain static in the `matches` row (copied from scenario at game creation) and are never stored in `game_state`.
-- **Authentication**: Bearer tokens are issued on login and required for all game API calls. The current implementation uses a temporary `stub.{userId}` format; signed JWT issuance and verification remain open work.
+- **Authentication**: Signed JWT bearer tokens are issued on registration/login and required for all game API calls. WebSocket clients may provide the same JWT through the `token` query parameter because browser WebSocket APIs cannot set arbitrary Authorization headers.
 
 ### Frontend (Client Tier)
 
@@ -176,12 +176,6 @@ Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md).
 **TODO:** See docs/todo.md (Epic: Game lobby for creation and joining)
 
 *Planned:* Add self-service matchmaking, game creation, join-by-code/invite, and session listing. Backend contract and UI flow to be specified. This section will be expanded when implementation starts.
-
-### JWT Authentication Migration
-
-**TODO:** See docs/todo.md (Epic: JWT authentication)
-
-*Planned:* Replace the current `stub.{userId}` bearer token with signed JWT issuance and verification using the installed `@fastify/jwt` dependency. Update auth tests and API documentation when scheduled.
 
 ### Shared Data Model for Units & Weapons
 

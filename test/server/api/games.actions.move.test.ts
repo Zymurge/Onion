@@ -91,10 +91,12 @@ describe('POST /games/:id/actions MOVE', () => {
 		const ramRolls = { next: vi.fn(() => 1) }
 		const createRamRolls = vi.fn(() => ramRolls)
 		const app = buildApp(mockDb as any, { createRamRolls })
+		await app.ready()
+		const token = app.jwt.sign({ sub: onionId })
 		const res = await app.inject({
 			method: 'POST',
 			url: `/games/${gameId}/actions`,
-			headers: { authorization: `Bearer stub.${onionId}` },
+			headers: { authorization: `Bearer ${token}` },
 			payload: { type: 'MOVE', movers: ['onion'], to: moveTo },
 		})
 

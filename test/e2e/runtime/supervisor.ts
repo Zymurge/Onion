@@ -1,4 +1,5 @@
 import { mkdir } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { cleanupRegisteredArtifacts } from './artifactCleanup.js'
 import { createEmptyArtifactManifest, writeArtifactManifest } from './artifactRegistry.js'
@@ -22,6 +23,34 @@ type SupervisorDependencies = {
 	adapters: RuntimeAdapters
 	pid?: number
 	now?: () => Date
+}
+
+function ownedEngineEnvironment(databaseUrl: string, port: number): NodeJS.ProcessEnv {
+	return {
+		...process.env,
+		DATABASE_URL: databaseUrl,
+		HOST: '127.0.0.1',
+		PORT: String(port),
+		JWT_SECRET: randomBytes(32).toString('hex'),
+		NODE_ENV: 'test',
+		LOG_LEVEL: 'error',
+		SCENARIOS_DIR: join(process.cwd(), 'scenarios'),
+	}
+}
+
+function playwrightServerEnvironment(databaseUrl: string | undefined, engineUrl: string): NodeJS.ProcessEnv {
+	const parsedEngineUrl = new URL(engineUrl)
+	return {
+		DATABASE_URL: databaseUrl ?? process.env.DATABASE_URL ?? 'postgres://e2e:e2e@127.0.0.1:5432/onion',
+		HOST: parsedEngineUrl.hostname,
+		PORT: parsedEngineUrl.port || '80',
+		JWT_SECRET: process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 32
+			? process.env.JWT_SECRET
+			: randomBytes(32).toString('hex'),
+		NODE_ENV: 'test',
+		LOG_LEVEL: 'error',
+		SCENARIOS_DIR: join(process.cwd(), 'scenarios'),
+	}
 }
 
 function runtimePaths(runtimeFile: string, now: Date): { logDir: string; artifactFile: string } {
@@ -69,6 +98,7 @@ export async function startRuntimeSupervisor(
 	let engine: ProcessHandle | undefined
 	let web: ProcessHandle | undefined
 	let runtime: ResolvedRuntime | undefined
+	let serverEnvironment: NodeJS.ProcessEnv | undefined
 	let paths: ReturnType<typeof runtimePaths> | undefined
 
 	try {
@@ -95,14 +125,16 @@ export async function startRuntimeSupervisor(
 			}
 			const port = await adapters.ports.allocate()
 			engineUrl = `http://127.0.0.1:${port}`
+			serverEnvironment = ownedEngineEnvironment(databaseUrl, port)
 			engine = adapters.processes.spawn({
 				command: 'pnpm',
 				args: ['exec', 'tsx', 'server/index.ts'],
-				env: { ...process.env, DATABASE_URL: databaseUrl, HOST: '127.0.0.1', PORT: String(port) },
+				env: serverEnvironment,
 				logPath: join(paths.logDir, 'engine.log'),
 			})
 			await adapters.http.waitForStatus(engineUrl, '/health/ready', options.startupTimeoutMs)
 		}
+		serverEnvironment ??= playwrightServerEnvironment(databaseUrl, engineUrl)
 
 		let webUrl = options.webUrl ?? reusable?.webUrl
 		if (!webUrl) {
@@ -117,7 +149,7 @@ export async function startRuntimeSupervisor(
 			await adapters.http.waitForStatus(webUrl, '/', options.startupTimeoutMs)
 		}
 
-		runtime = { engineUrl, webUrl, databaseUrl, logDir: paths.logDir, artifactFile: paths.artifactFile, ownership }
+		runtime = { engineUrl, webUrl, databaseUrl, serverEnvironment, logDir: paths.logDir, artifactFile: paths.artifactFile, ownership }
 		if (ownership.engine === 'owned' || ownership.web === 'owned' || ownership.database === 'owned') {
 			await adapters.descriptors.write(options.runtimeFile, {
 				version: RUNTIME_DESCRIPTOR_VERSION,

@@ -50,6 +50,8 @@ export type ResolvedRuntime = {
 	engineUrl: string
 	webUrl: string
 	databaseUrl: string | undefined
+	/** Required server values inherited by Playwright-side helpers that import server modules. */
+	serverEnvironment?: NodeJS.ProcessEnv
 	logDir: string
 	artifactFile: string
 	ownership: Record<RuntimeComponent, RuntimeOwnership>

@@ -61,15 +61,16 @@ use.
 
 ## Authentication
 
-All game endpoints require `Authorization: Bearer <token>` header. The current
-implementation uses a temporary `stub.{userId}` token format; signed JWT
-issuance and verification are tracked as open work in [todo.md](todo.md).
+All game endpoints require an `Authorization: Bearer <JWT>` header. Tokens are
+signed and verified by the server using the configured JWT secret. Browser
+WebSocket clients may provide the same JWT in the `token` query parameter
+because browser WebSocket APIs cannot set arbitrary Authorization headers.
 
 ### `POST /auth/register`
 
 ```text
 Request:  { "username": string, "password": string }
-Response: { "userId": string, "token": string }
+Response: { "userId": string, "token": string (signed JWT) }
 Errors:   409 if username taken
           400 INVALID_INPUT for schema validation errors
             400 PAYLOAD_TOO_LARGE if payload exceeds 16KB
@@ -83,7 +84,7 @@ Errors:   409 if username taken
 
 ```text
 Request:  { "username": string, "password": string }
-Response: { "userId": string, "token": string }
+Response: { "userId": string, "token": string (signed JWT) }
 Errors:   401 if credentials invalid
           400 INVALID_INPUT for schema validation errors
             400 PAYLOAD_TOO_LARGE if payload exceeds 16KB

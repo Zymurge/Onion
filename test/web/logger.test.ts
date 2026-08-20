@@ -6,12 +6,12 @@ afterEach(() => {
 })
 
 describe('logger', () => {
-	it('imports when LOG_LEVEL is unset', async () => {
+	it('rejects when LOG_LEVEL is unset', async () => {
 		const previousLogLevel = process.env.LOG_LEVEL
 		delete process.env.LOG_LEVEL
 
 		try {
-			await expect(import('../../server/logger.js')).resolves.toBeTruthy()
+			await expect(import('../../server/logger.js')).rejects.toThrow(/LOG_LEVEL/)
 		} finally {
 			if (previousLogLevel === undefined) {
 				delete process.env.LOG_LEVEL

@@ -56,7 +56,7 @@ describe('live event source contract', () => {
 
 		const source = createLiveEventSource({
 			baseUrl: 'https://onion.test/api',
-			token: 'stub.token',
+			token: 'test.jwt.token',
 			webSocketFactory: (url) => {
 				const socket = new FakeWebSocket(url)
 				sockets.push(socket)
@@ -70,7 +70,7 @@ describe('live event source contract', () => {
 
 		source.connect(123)
 
-		expect(sockets[0]?.url).toBe('wss://onion.test/api/games/123/ws?token=stub.token')
+		expect(sockets[0]?.url).toBe('wss://onion.test/api/games/123/ws?token=test.jwt.token')
 		expect(source.getConnectionState(123)).toBe('connecting')
 		expect(signals).toContainEqual({ kind: 'connection', gameId: 123, status: 'connecting' })
 

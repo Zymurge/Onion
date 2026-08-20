@@ -17,7 +17,6 @@ import { getDefender, getOnionOrDefender } from '#shared/unitState'
 import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 const GAME_ID_RE = /^\d+$/
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export function buildSessionInitPayload(): SessionInitPayload {
   return {
@@ -843,26 +842,6 @@ export async function loadScenario(id: string, scenariosDir: string): Promise<Va
   }
 
   return null
-}
-
-export function extractUserId(authHeader: string | undefined): string | null {
-  if (!authHeader?.startsWith('Bearer stub.')) return null
-  const userId = authHeader.slice('Bearer stub.'.length)
-  return UUID_RE.test(userId) ? userId : null
-}
-
-export function extractUserIdFromAuth(authHeader: string | undefined, token: string | undefined): string | null {
-  const headerUserId = extractUserId(authHeader)
-  if (headerUserId !== null) {
-    return headerUserId
-  }
-
-  if (!token?.startsWith('stub.')) {
-    return null
-  }
-
-  const userId = token.slice('stub.'.length)
-  return UUID_RE.test(userId) ? userId : null
 }
 
 export function parseGameId(rawId: string): number | null {

@@ -20,8 +20,6 @@ import {
   buildSessionInitPayload,
   buildMoveEvents,
   computeWinnerUserId,
-  extractUserId,
-  extractUserIdFromAuth,
   getScenarioMapSnapshot,
   logActionOutcome,
   logSentEvents,
@@ -32,6 +30,7 @@ import {
   serializeWsMessage,
   type ScenarioSnapshot,
 } from '#server/api/gamesHelpers'
+import { verifyUserId } from '#server/api/auth'
 import type {
   WebSocketServerErrorMessage,
   WebSocketServerEventMessage,
@@ -210,7 +209,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       const { scenarioId, role } = parsed.data
       logger.info({ scenarioId, role }, 'Creating new game match')
       logger.debug({ scenarioId, role, body: req.body }, 'Game creation request body')
-      const userId = extractUserId(req.headers.authorization)
+      const userId = await verifyUserId(app, req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for game creation')
       let scenarioSnapshot
@@ -283,7 +282,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
   app.post<{ Params: { id: string } }>('/:id/join', async (req, reply) => {
     try {
       logger.info({ id: req.params.id }, 'User joining game')
-      const userId = extractUserId(req.headers.authorization)
+      const userId = await verifyUserId(app, req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for join')
 
@@ -363,7 +362,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
    */
   app.get('/', async (req, reply) => {
     try {
-      const userId = extractUserId(req.headers.authorization)
+      const userId = await verifyUserId(app, req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       const games = await db.listMatchesByUserId(userId)
       // Fetch scenario display names for all games
@@ -395,7 +394,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
     try {
       logger.info({ id: req.params.id }, 'Fetching game state')
-      const userId = extractUserId(req.headers.authorization)
+      const userId = await verifyUserId(app, req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for state fetch')
 
@@ -426,7 +425,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       // Warn: always log the problem summary
       logger.warn({ message: errorInfo.message }, '500 error during game state fetch')
       // Info: add context (params, user, etc) if info level enabled
-      logger.info({ params: req.params, user: extractUserId(req.headers.authorization) }, 'Request context for 500 error')
+      logger.info({ params: req.params, user: await verifyUserId(app, req.headers.authorization) }, 'Request context for 500 error')
       // Debug: add deep details if debug enabled
       logger.debug({ errorType: errorInfo.type, isError: errorInfo.isError, stack: errorInfo.stack, headers: req.headers }, 'Debug details for 500 error')
 
@@ -439,7 +438,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
     {
       websocket: true,
       preValidation: async (req, reply) => {
-        const userId = extractUserIdFromAuth(req.headers.authorization, req.query.token)
+        const userId = await verifyUserId(app, req.headers.authorization, req.query.token)
         if (!userId) {
           return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
         }
@@ -524,7 +523,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
 
       void (async () => {
         try {
-          const userId = extractUserIdFromAuth(req.headers.authorization, req.query.token)
+          const userId = await verifyUserId(app, req.headers.authorization, req.query.token)
           if (!userId) {
             socket.close()
             return
@@ -570,7 +569,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
   )
 
   app.post<{ Params: { id: string }; Body: unknown }>('/:id/client-diagnostics', async (req, reply) => {
-    const userId = extractUserId(req.headers.authorization)
+    const userId = await verifyUserId(app, req.headers.authorization)
     if (!userId) {
       return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
     }
@@ -632,7 +631,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
   app.post<{ Params: { id: string }; Body: Command }>('/:id/actions', async (req, reply) => {
     try {
       logger.info({ id: req.params.id, command: req.body?.type }, 'Submitting game action')
-      const userId = extractUserId(req.headers.authorization)
+      const userId = await verifyUserId(app, req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       logger.debug({ userId }, 'User ID extracted for action')
 
@@ -911,7 +910,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
    */
   app.get<{ Params: { id: string }; Querystring: { after?: string } }>('/:id/events', async (req, reply) => {
     try {
-      const userId = extractUserId(req.headers.authorization)
+      const userId = await verifyUserId(app, req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
 
       const gameId = parseGameId(req.params.id)

@@ -249,10 +249,12 @@ describe('POST /games/:id/actions END_PHASE', () => {
     }
 
     const app = buildApp(mockDb)
+  await app.ready()
+  const token = app.jwt.sign({ sub: onionId })
     const res = await app.inject({
       method: 'POST',
       url: `/games/${gameId}/actions`,
-      headers: { authorization: `Bearer stub.${onionId}` },
+      headers: { authorization: `Bearer ${token}` },
       payload: { type: 'END_PHASE' },
     })
 

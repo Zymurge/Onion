@@ -11,10 +11,6 @@ export interface CreatedGame {
   role: string
 }
 
-export function makeToken(userId: string) {
-  return `stub.${userId}`
-}
-
 export async function register(
   app: FastifyInstance,
   username: string,
@@ -24,8 +20,8 @@ export async function register(
     url: '/auth/register',
     payload: { username, password: 'swamp1234' },
   })
-  const { userId } = res.json()
-  return { userId, token: makeToken(userId) }
+  const { userId, token } = res.json<RegisteredUser>()
+  return { userId, token }
 }
 
 export async function createGame(

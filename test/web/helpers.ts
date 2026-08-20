@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 
 export function makeToken(userId: string) {
-  return `stub.${userId}`
+  return `test.jwt.${userId}`
 }
 
 export async function register(

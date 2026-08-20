@@ -359,10 +359,12 @@ describe('POST /games/:id/actions combat API contract', () => {
     } as any)
 
     const app = buildApp(mockDb)
+    await app.ready()
+    const token = app.jwt.sign({ sub: onionId })
     const res = await app.inject({
       method: 'POST',
       url: `/games/${gameId}/actions`,
-      headers: { authorization: `Bearer stub.${onionId}` },
+      headers: { authorization: `Bearer ${token}` },
       payload: { type: 'FIRE', attackers: ['main'], targetId: 'wolf-1', onionId: 'onion-1' },
     })
 

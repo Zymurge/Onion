@@ -253,4 +253,17 @@ describe('GET /games/:id/ws', () => {
 
 		await expect(app.injectWS(`/games/${gameId}/ws`)).rejects.toThrow('Unexpected server response: 401')
 	})
+
+	it.each([
+		['legacy', 'legacy.550e8400-e29b-41d4-a716-446655440000'],
+		['malformed', 'not-a-jwt'],
+	])('rejects %s websocket query tokens', async (_description, token) => {
+		const app = buildApp()
+		const shrek = await register(app, 'shrek')
+		const { gameId } = await createGame(app, shrek.token, 'onion')
+		await app.ready()
+
+		await expect(app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(token)}`))
+			.rejects.toThrow('Unexpected server response: 401')
+	})
 })

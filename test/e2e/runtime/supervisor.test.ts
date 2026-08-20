@@ -80,7 +80,15 @@ describe('startRuntimeSupervisor', () => {
 			expect.objectContaining({
 				command: 'pnpm',
 				args: ['exec', 'tsx', 'server/index.ts'],
-				env: expect.objectContaining({ DATABASE_URL: 'postgres://owned/onion', HOST: '127.0.0.1', PORT: '4100' }),
+				env: expect.objectContaining({
+					DATABASE_URL: 'postgres://owned/onion',
+					HOST: '127.0.0.1',
+					PORT: '4100',
+					JWT_SECRET: expect.stringMatching(/^[0-9a-f]{64}$/),
+					NODE_ENV: 'test',
+					LOG_LEVEL: 'error',
+					SCENARIOS_DIR: join(process.cwd(), 'scenarios'),
+				}),
 			}),
 			expect.objectContaining({
 				command: 'pnpm',

@@ -50,7 +50,7 @@ describe('http game client adapter contract', () => {
 		const transport = createHttpGameRequestTransport({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await transport.reportDiagnostic!(123, {
@@ -72,7 +72,7 @@ describe('http game client adapter contract', () => {
 			'https://onion.test/api/games/123/client-diagnostics',
 			expect.objectContaining({
 				method: 'POST',
-				headers: expect.objectContaining({ authorization: 'Bearer stub.token' }),
+				headers: expect.objectContaining({ authorization: 'Bearer test.jwt.token' }),
 				body: expect.stringContaining('CLIENT_SESSION_READY'),
 			}),
 		)
@@ -133,7 +133,7 @@ describe('http game client adapter contract', () => {
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		const loadedState = await client.getState(123)
@@ -188,7 +188,7 @@ describe('http game client adapter contract', () => {
 		expect(fetchImpl.mock.calls[0]?.[1]).toEqual(
 			expect.objectContaining({
 				headers: expect.objectContaining({
-					authorization: 'Bearer stub.token',
+					authorization: 'Bearer test.jwt.token',
 					'content-type': 'application/json',
 				}),
 			}),
@@ -197,7 +197,7 @@ describe('http game client adapter contract', () => {
 		expect(fetchImpl.mock.calls[1]?.[1]).toEqual(
 			expect.objectContaining({
 				headers: expect.objectContaining({
-					authorization: 'Bearer stub.token',
+					authorization: 'Bearer test.jwt.token',
 					'content-type': 'application/json',
 				}),
 			}),
@@ -272,7 +272,7 @@ describe('http game client adapter contract', () => {
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await client.getState(123)
@@ -526,7 +526,7 @@ describe('http game client adapter contract', () => {
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await client.getState(123)
@@ -597,7 +597,7 @@ describe('http game client adapter contract', () => {
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await client.getState(123)
@@ -668,7 +668,7 @@ describe('http game client adapter contract', () => {
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await client.getState(123)
@@ -697,7 +697,7 @@ describe('http game client adapter contract', () => {
 			expect.objectContaining({
 				method: 'POST',
 				headers: expect.objectContaining({
-					authorization: 'Bearer stub.token',
+					authorization: 'Bearer test.jwt.token',
 					'content-type': 'application/json',
 				}),
 				body: JSON.stringify({ type: 'END_PHASE' }),
@@ -754,7 +754,7 @@ describe('http game client adapter contract', () => {
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await client.getState(123)
@@ -782,7 +782,7 @@ describe('http game client adapter contract', () => {
 			expect.objectContaining({
 				method: 'POST',
 				headers: expect.objectContaining({
-					authorization: 'Bearer stub.token',
+					authorization: 'Bearer test.jwt.token',
 					'content-type': 'application/json',
 				}),
 				body: JSON.stringify({ type: 'MOVE', movers: ['onion'], to: { q: 7, r: 6 } }),
@@ -826,7 +826,7 @@ describe('http game client adapter contract', () => {
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await client.getState(123)
@@ -888,7 +888,7 @@ describe('http game client adapter contract', () => {
 		const client = createHttpGameClient({
 			baseUrl: 'https://onion.test/api',
 			fetchImpl,
-			token: 'stub.token',
+			token: 'test.jwt.token',
 		})
 
 		await client.getState(123)
@@ -915,7 +915,7 @@ describe('http game client adapter contract', () => {
 			expect.objectContaining({
 				method: 'POST',
 				headers: expect.objectContaining({
-					authorization: 'Bearer stub.token',
+					authorization: 'Bearer test.jwt.token',
 					'content-type': 'application/json',
 				}),
 				body: JSON.stringify({ type: 'FIRE', attackers: ['wolf-2'], targetId: 'onion-1', onionId: 'onion-1' }),
