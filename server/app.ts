@@ -35,10 +35,26 @@ function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
   }
 }
 
+function getDebugRequestData(req: {
+  params: unknown
+  query: unknown
+  headers: unknown
+  body: unknown
+}): Record<string, unknown> {
+  return {
+    params: req.params,
+    query: req.query,
+    headers: req.headers,
+    body: req.body,
+  }
+}
+
 export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {}): FastifyInstance {
   const adapter = resolveAdapter(db)
   const config = options.config ?? loadConfig()
-  const app = Fastify({ logger: config.nodeEnv !== 'test' })
+  const app = Fastify({
+    logger: config.nodeEnv !== 'test' ? { level: config.logLevel } : false,
+  })
 
   app.register(fastifyJwt, {
     secret: config.jwtSecret,
@@ -57,6 +73,10 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
       reply.headers(corsHeaders)
       return reply.status(204).send()
     }
+  })
+
+  app.addHook('preValidation', async (req) => {
+    req.log.debug(getDebugRequestData(req), 'API request parameters')
   })
 
   app.addHook('onSend', async (_req, reply, payload) => {
@@ -89,10 +109,15 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
   })
 
   // Global error handler
-  app.setErrorHandler((error, _req, reply) => {
+  app.setErrorHandler((error, req, reply) => {
     const errorCode = typeof error === 'object' && error !== null && 'code' in error
       ? String((error as { code?: unknown }).code)
       : undefined
+
+    req.log.debug({
+      ...getDebugRequestData(req),
+      error,
+    }, 'API request failure details')
 
     // Payload too large
     if (errorCode === 'FST_ERR_CTP_BODY_TOO_LARGE') {
