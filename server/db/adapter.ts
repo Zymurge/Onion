@@ -57,20 +57,28 @@ export interface DbAdapter {
   // Auth operations
 
   /**
-   * Find a user by their username.
-   * @param username - The username to search for (case-sensitive)
+   * Find a user by their normalized public username.
+   * @param username - The normalized username to search for
    * @returns User record if found, null otherwise
    */
   findUserByUsername(username: string): Promise<{ userId: string; passwordHash: string } | null>
 
   /**
+   * Find a user by their normalized email address.
+   * @param email - The normalized email to search for
+   * @returns User record if found, null otherwise
+   */
+  findUserByEmail(email: string): Promise<{ userId: string; username: string; email: string; passwordHash: string } | null>
+
+  /**
    * Create a new user account.
-   * @param username - Unique username (enforced by implementation)
+  * @param username - Unique public username (enforced by implementation)
+  * @param email - Unique normalized email address (enforced by implementation)
    * @param passwordHash - Pre-hashed password string
    * @returns The assigned userId
    * @throws Error if username already exists
    */
-  createUser(username: string, passwordHash: string): Promise<{ userId: string }>
+  createUser(username: string, email: string, passwordHash: string): Promise<{ userId: string }>
 
   // Game operations
 

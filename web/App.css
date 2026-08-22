@@ -245,6 +245,26 @@
   margin: 0 0 6px;
 }
 
+.gate-secondary-action {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: rgba(255, 251, 242, 0.72);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.gate-secondary-action:hover {
+  background: rgba(255, 251, 242, 0.96);
+  border-color: var(--signal-live);
+}
+
 .connect-field {
   display: grid;
   gap: 8px;

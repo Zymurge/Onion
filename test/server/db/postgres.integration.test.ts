@@ -57,15 +57,23 @@ beforeEach(async () => {
 
 describe('PostgresDb - auth', () => {
   it('createUser generates a UUID and stores hashed password', async () => {
-    const { userId } = await db.createUser('shrek', 'hashed:pass')
+    const { userId } = await db.createUser('shrek', 'shrek@example.com', 'hashed:pass')
     expect(userId).toMatch(/^[0-9a-f-]{36}$/)
   })
 
   it('findUserByUsername returns the stored record', async () => {
-    const { userId } = await db.createUser('shrek', 'hashed:pass')
+    const { userId } = await db.createUser('shrek', 'shrek@example.com', 'hashed:pass')
     const found = await db.findUserByUsername('shrek')
     expect(found?.userId).toBe(userId)
     expect(found?.passwordHash).toBe('hashed:pass')
+  })
+
+  it('finds usernames and emails case-insensitively', async () => {
+    await db.createUser('ShReK', 'Player@Example.com', 'hashed:pass')
+    expect((await db.findUserByUsername('shrek'))?.userId).toMatch(/^[0-9a-f-]{36}$/)
+    const found = await db.findUserByEmail('player@example.com')
+    expect(found?.username).toBe('ShReK')
+    expect(found?.email).toBe('Player@Example.com')
   })
 
   it('findUserByUsername returns null for unknown user', async () => {
@@ -98,7 +106,7 @@ describe('PostgresDb - games', () => {
   })
 
   it('updateMatchPlayers persists player assignment', async () => {
-    const { userId } = await db.createUser('shrek', 'x')
+    const { userId } = await db.createUser('shrek', 'shrek@example.com', 'x')
     const match = makeMatch()
     const created = await db.createMatch(match)
     await db.updateMatchPlayers(created.gameId, { onion: userId, defender: null })

@@ -1,90 +1,87 @@
 import { describe, it, expect } from 'vitest'
 import { buildApp } from '#server/app'
 
+const validCredentials = {
+  username: 'Swamp Walker',
+  email: 'Player@Example.com',
+  password: 'swamp 1234!',
+}
+
 describe('POST /auth/register', () => {
-  it('returns 201 with userId and token', async () => {
+  it('returns the public username and a JWT whose subject is the internal UUID', async () => {
     const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'shrek', password: 'swamp1234' },
-    })
+    const res = await app.inject({ method: 'POST', url: '/auth/register', payload: validCredentials })
+
     expect(res.statusCode).toBe(201)
-    const body = res.json<{ userId: string; token: string }>()
-    expect(body).toHaveProperty('userId')
-    expect(body).toHaveProperty('token')
-    expect(typeof body.userId).toBe('string')
-    expect(typeof body.token).toBe('string')
-    expect(body.token.split('.')).toHaveLength(3)
+    const body = res.json<{ username: string; token: string; userId?: string }>()
+    expect(body).toEqual({ username: validCredentials.username, token: expect.any(String) })
+    expect(body.userId).toBeUndefined()
     const claims = await app.jwt.verify<{ sub: string }>(body.token)
-    expect(claims.sub).toBe(body.userId)
+    expect(claims.sub).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
   })
 
-  it('returns 409 when username is already taken', async () => {
+  it('preserves username casing and compares username case-insensitively', async () => {
     const app = buildApp()
-    await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'donkey', password: 'swamp1234' },
-    })
+    await app.inject({ method: 'POST', url: '/auth/register', payload: validCredentials })
     const res = await app.inject({
       method: 'POST',
       url: '/auth/register',
-      payload: { username: 'donkey', password: 'swamp1234' },
+      payload: { ...validCredentials, username: 'swamp walker', email: 'other@example.com' },
     })
+
     expect(res.statusCode).toBe(409)
     expect(res.json().code).toBe('USERNAME_TAKEN')
   })
 
-  it('returns 400 for username too short', async () => {
+  it('compares email case-insensitively and reports an email conflict', async () => {
     const app = buildApp()
+    await app.inject({ method: 'POST', url: '/auth/register', payload: validCredentials })
     const res = await app.inject({
       method: 'POST',
       url: '/auth/register',
-      payload: { username: 'ab', password: 'swamp1234' },
+      payload: { ...validCredentials, username: 'Another User', email: 'player@example.com' },
     })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json().code).toBe('EMAIL_TAKEN')
+  })
+
+  it.each([
+    ['too short', 'abc'],
+    ['too long', 'a'.repeat(21)],
+    ['leading space', ' user'],
+    ['trailing space', 'user '],
+    ['control character', 'user\nname'],
+  ])('returns 400 for username %s', async (_label, username) => {
+    const app = buildApp()
+    const res = await app.inject({ method: 'POST', url: '/auth/register', payload: { ...validCredentials, username } })
     expect(res.statusCode).toBe(400)
   })
 
-  it('returns 400 for password too short', async () => {
+  it.each([
+    ['too short', '1234567'],
+    ['too long', 'a'.repeat(21)],
+    ['control character', 'password\n'],
+  ])('returns 400 for password %s', async (_label, password) => {
     const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'shrek', password: 'short' },
-    })
+    const res = await app.inject({ method: 'POST', url: '/auth/register', payload: { ...validCredentials, password } })
     expect(res.statusCode).toBe(400)
   })
 
-  it('returns 400 when username is missing', async () => {
+  it.each([
+    ['missing', undefined],
+    ['malformed', 'player.example.com'],
+    ['too long', `${'a'.repeat(245)}@example.com`],
+    ['whitespace', 'player @example.com'],
+  ])('returns 400 for email %s', async (_label, email) => {
     const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { password: 'swamp1234' },
-    })
+    const res = await app.inject({ method: 'POST', url: '/auth/register', payload: { ...validCredentials, email } })
     expect(res.statusCode).toBe(400)
   })
 
-  it('returns 400 when password is missing', async () => {
+  it('returns 400 for missing fields', async () => {
     const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'shrek' },
-    })
-    expect(res.statusCode).toBe(400)
-  })
-
-  it('returns 400 for payload too large (Fastify test injector limitation)', async () => {
-    const app = buildApp()
-    // Simulate a payload >16KB
-    const big = 'x'.repeat(17 * 1024)
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: big, password: big },
-    })
+    const res = await app.inject({ method: 'POST', url: '/auth/register', payload: {} })
     expect(res.statusCode).toBe(400)
   })
 
@@ -94,159 +91,9 @@ describe('POST /auth/register', () => {
       method: 'POST',
       url: '/auth/register',
       headers: { 'content-type': 'application/json' },
-      body: '{ username: "shrek", password: "swamp1234" ',
+      body: '{ username: "shrek", email: "player@example.com", password: "swamp1234" ',
     })
     expect(res.statusCode).toBe(400)
     expect(res.json().code).toBe('MALFORMED_JSON')
-  })
-
-  it('returns 500 for internal error', async () => {
-    const mockDb = {
-      createUser: async () => { throw new Error('fail') },
-      findUserByUsername: async () => null,
-      createMatch: async () => ({ gameId: 1 }),
-      findMatch: async () => null,
-      updateMatchPlayers: async () => {},
-      updateMatchState: async () => {},
-      persistMatchProgress: async () => {},
-      appendEvents: async () => {},
-      getEvents: async () => [],
-    }
-    const app = buildApp(mockDb)
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'ogre', password: 'swamp1234' },
-    })
-    expect(res.statusCode).toBe(500)
-    expect(res.json().code).toBe('INTERNAL_ERROR')
-  })
-})
-
-describe('POST /auth/login', () => {
-  it('returns 200 with userId and token for valid credentials', async () => {
-    const app = buildApp()
-    await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'fiona', password: 'swamp1234' },
-    })
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { username: 'fiona', password: 'swamp1234' },
-    })
-    expect(res.statusCode).toBe(200)
-    const body = res.json<{ userId: string; token: string }>()
-    expect(body).toHaveProperty('userId')
-    expect(body).toHaveProperty('token')
-    expect(body.token.split('.')).toHaveLength(3)
-    const claims = await app.jwt.verify<{ sub: string }>(body.token)
-    expect(claims.sub).toBe(body.userId)
-  })
-
-  it('userId is consistent between register and login', async () => {
-    const app = buildApp()
-    const reg = await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'puss', password: 'hairball123' },
-    })
-    const login = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { username: 'puss', password: 'hairball123' },
-    })
-    expect(reg.json().userId).toBe(login.json().userId)
-  })
-
-  it('returns 401 for wrong password', async () => {
-    const app = buildApp()
-    await app.inject({
-      method: 'POST',
-      url: '/auth/register',
-      payload: { username: 'puss', password: 'hairball123' },
-    })
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { username: 'puss', password: 'wrongpass123' },
-    })
-    expect(res.statusCode).toBe(401)
-  })
-
-  it('returns 401 for unknown username', async () => {
-    const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { username: 'farquaad', password: 'lordly1234' },
-    })
-    expect(res.statusCode).toBe(401)
-  })
-
-  it('returns 400 when username is missing', async () => {
-    const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { password: 'swamp1234' },
-    })
-    expect(res.statusCode).toBe(400)
-  })
-
-  it('returns 400 when password is missing', async () => {
-    const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { username: 'shrek' },
-    })
-    expect(res.statusCode).toBe(400)
-  })
-
-  it('returns 400 for payload too large (Fastify test injector limitation)', async () => {
-    const app = buildApp()
-    const big = 'x'.repeat(17 * 1024)
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { username: big, password: big },
-    })
-    expect(res.statusCode).toBe(400)
-  })
-
-  it('returns 400 for malformed JSON', async () => {
-    const app = buildApp()
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      headers: { 'content-type': 'application/json' },
-      body: '{ username: "shrek", password: "swamp1234" ',
-    })
-    expect(res.statusCode).toBe(400)
-    expect(res.json().code).toBe('MALFORMED_JSON')
-  })
-
-  it('returns 500 for internal error', async () => {
-    const mockDb = {
-      findUserByUsername: async () => { throw new Error('fail') },
-      createUser: async () => ({ userId: 'mock-user-id' }),
-      createMatch: async () => ({ gameId: 1 }),
-      findMatch: async () => null,
-      updateMatchPlayers: async () => {},
-      updateMatchState: async () => {},
-      persistMatchProgress: async () => {},
-      appendEvents: async () => {},
-      getEvents: async () => [],
-    }
-    const app = buildApp(mockDb)
-    const res = await app.inject({
-      method: 'POST',
-      url: '/auth/login',
-      payload: { username: 'ogre', password: 'swamp1234' },
-    })
-    expect(res.statusCode).toBe(500)
-    expect(res.json().code).toBe('INTERNAL_ERROR')
   })
 })

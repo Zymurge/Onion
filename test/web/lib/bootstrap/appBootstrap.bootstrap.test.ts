@@ -15,6 +15,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: 123,
+			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
 			clientLogLevel: 'info',
 		})
@@ -32,8 +33,23 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: 42,
+			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
 			clientLogLevel: 'info',
+		})
+	})
+
+	it('recognizes the dedicated account creation route', () => {
+		expect(resolveWebRuntimeConfig({}, '?gameId=123', '/user/create')).toMatchObject({
+			gameId: 123,
+			userRoute: 'create',
+		})
+	})
+
+	it('recognizes the dedicated login route', () => {
+		expect(resolveWebRuntimeConfig({}, '?gameId=123', '/user/login/')).toMatchObject({
+			gameId: 123,
+			userRoute: 'login',
 		})
 	})
 
@@ -49,6 +65,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: 42,
+			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
 			clientLogLevel: 'info',
 		})
@@ -66,6 +83,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: null,
+			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
 			clientLogLevel: 'info',
 		})
@@ -83,6 +101,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: null,
 			gameId: null,
+			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
 			clientLogLevel: 'info',
 		})
@@ -101,6 +120,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: null,
+			userRoute: null,
 			liveRefreshQuietWindowMs: 250,
 			clientLogLevel: 'info',
 		})
@@ -119,6 +139,7 @@ describe('appBootstrap bootstrap', () => {
 		).toEqual({
 			apiBaseUrl: 'http://localhost:3000',
 			gameId: null,
+			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
 			clientLogLevel: 'debug',
 		})

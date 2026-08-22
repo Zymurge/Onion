@@ -7,3 +7,4 @@ coverage/
 .vscode/settings.local.json
 .e2e-runtime/*
 docs/api/*
+Container Local.session.sql

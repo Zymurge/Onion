@@ -38,7 +38,6 @@ describe('ConnectGate', () => {
 		})
 
 		render(<ConnectGate onConnectedSession={vi.fn()} />)
-
 		expect(screen.getByRole('heading', { name: /open a live game session/i })).not.toBeNull()
 		expect(screen.getByRole('alert').textContent).toContain('Unable to connect to the backend.')
 		expect((screen.getByLabelText(/api base url/i) as HTMLInputElement).value).toBe('http://localhost:3000')
@@ -58,7 +57,6 @@ describe('ConnectGate', () => {
 		const setConnectDraft = vi.fn()
 		const setConnectError = vi.fn()
 		const submitConnectDraft = vi.fn()
-
 		useConnectionGate.mockReturnValue({
 			connectDraft: {
 				apiBaseUrl: 'http://localhost:3000',
@@ -74,7 +72,6 @@ describe('ConnectGate', () => {
 		})
 
 		render(<ConnectGate onConnectedSession={vi.fn()} />)
-
 		await user.click(screen.getByRole('button', { name: /login as test user 1/i }))
 		expect(setConnectDraft).toHaveBeenCalledWith({
 			apiBaseUrl: 'http://localhost:3000',

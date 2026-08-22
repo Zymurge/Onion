@@ -18,8 +18,8 @@ const MIGRATION_PATH = join(process.cwd(), 'server/db/migrations/001_initial.sql
 
 async function insertUser(username: string): Promise<string> {
   const { rows } = await pool.query<{ id: string }>(
-    'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id',
-    [username, 'hash'],
+    'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id',
+    [username, `${username}@example.com`, 'hash'],
   )
   return rows[0].id
 }

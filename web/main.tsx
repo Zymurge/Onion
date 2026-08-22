@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
+import { RegisterGate } from './components/RegisterGate'
 import { resolveWebRuntimeConfig } from './lib/appBootstrap'
 import { getWebLoggerLevel, setWebLoggerLevel } from './lib/logger'
 
@@ -24,10 +25,14 @@ Object.assign(window, {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppErrorBoundary>
-      <App
-        runtimeConfig={runtimeConfig}
-        showConnectionGate={runtimeConfig.apiBaseUrl !== null || runtimeConfig.gameId !== null}
-      />
+      {runtimeConfig.userRoute === 'create' ? (
+        <RegisterGate runtimeConfig={runtimeConfig} />
+      ) : (
+        <App
+          runtimeConfig={runtimeConfig}
+          showConnectionGate={runtimeConfig.userRoute !== null || runtimeConfig.apiBaseUrl !== null || runtimeConfig.gameId !== null}
+        />
+      )}
     </AppErrorBoundary>
   </StrictMode>,
 )

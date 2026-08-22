@@ -14,7 +14,6 @@ import { createArtifactRegistryClient } from '../support/artifactRegistry.js'
 import { PLAYWRIGHT_RUNTIME_ENV } from '../runtime/playwrightEnvironment.js'
 import { bootstrapTwoPlayerGame } from './twoPlayerGame.js'
 import type { SessionStore } from '#server/cli/session/store'
-
 function createSession(): SessionStore {
 	return {
 		baseUrl: null,
@@ -99,7 +98,7 @@ describe('bootstrapTwoPlayerGame', () => {
 
 	it('leaves the first user registered when the second user setup fails', async () => {
 		const registeredUsers: string[] = []
-		const registerUser = async (_session: SessionStore, username: string) => {
+		const registerUser = async (_session: SessionStore, username: string, password: string) => {
 			if (username === 'defender-player') {
 				return { ok: false as const, status: 409, body: {}, message: 'username already taken' }
 			}
@@ -149,7 +148,7 @@ describe('bootstrapTwoPlayerGame', () => {
 				defender: { username: 'defender-player', password: 'defender-pass' },
 				artifactRegistry,
 				sessionFactory: createSession,
-				registerUser: async (_session, username) => ({
+				registerUser: async (_session, username, password) => ({
 					ok: true as const,
 					status: 201,
 					data: { userId: `${username}-id`, token: `${username}-token` },
@@ -173,7 +172,7 @@ describe('bootstrapTwoPlayerGame', () => {
 			[PLAYWRIGHT_RUNTIME_ENV.artifactFile]: artifactFile,
 			[PLAYWRIGHT_RUNTIME_ENV.logDir]: directory,
 		})
-		const registerUser = async (_session: SessionStore, username: string) => ({
+		const registerUser = async (_session: SessionStore, username: string, password: string) => ({
 			ok: true as const,
 			status: 201,
 			data: { userId: `${username}-id`, token: `${username}-token` },

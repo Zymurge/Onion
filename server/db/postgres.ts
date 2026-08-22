@@ -17,17 +17,26 @@ export class PostgresDb implements DbAdapter {
 
   async findUserByUsername(username: string): Promise<{ userId: string; passwordHash: string } | null> {
     const { rows } = await this.pool.query<{ id: string; password_hash: string }>(
-      'SELECT id, password_hash FROM users WHERE username = $1',
+      'SELECT id, password_hash FROM users WHERE LOWER(username) = $1',
       [username],
     )
     if (rows.length === 0) return null
     return { userId: rows[0].id, passwordHash: rows[0].password_hash }
   }
 
-  async createUser(username: string, passwordHash: string): Promise<{ userId: string }> {
+  async findUserByEmail(email: string): Promise<{ userId: string; username: string; email: string; passwordHash: string } | null> {
+    const { rows } = await this.pool.query<{ id: string; username: string; email: string; password_hash: string }>(
+      'SELECT id, username, email, password_hash FROM users WHERE LOWER(email) = $1',
+      [email],
+    )
+    if (rows.length === 0) return null
+    return { userId: rows[0].id, username: rows[0].username, email: rows[0].email, passwordHash: rows[0].password_hash }
+  }
+
+  async createUser(username: string, email: string, passwordHash: string): Promise<{ userId: string }> {
     const { rows } = await this.pool.query<{ id: string }>(
-      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id',
-      [username, passwordHash],
+      'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id',
+      [username, email, passwordHash],
     )
     return { userId: rows[0].id }
   }

@@ -13,7 +13,8 @@ import logger from '#server/logger'
  * Thread-safe for single-threaded Node.js usage (no external concurrency).
  */
 export class InMemoryDb implements DbAdapter {
-  private users = new Map<string, UserRecord>() // keyed by username
+  private users = new Map<string, UserRecord>() // keyed by normalized username
+  private usersByEmail = new Map<string, UserRecord>()
   private nextMatchId = 1
   private matches = new Map<number, MatchRecord>() // keyed by gameId
 
@@ -22,9 +23,24 @@ export class InMemoryDb implements DbAdapter {
     return record ? { userId: record.userId, passwordHash: record.passwordHash } : null
   }
 
-  async createUser(username: string, passwordHash: string): Promise<{ userId: string }> {
+  async findUserByEmail(email: string): Promise<UserRecord | null> {
+    const record = this.usersByEmail.get(email)
+    return record ? { ...record } : null
+  }
+
+  async createUser(username: string, email: string, passwordHash: string): Promise<{ userId: string }> {
+    const normalizedUsername = username.toLowerCase()
+    const normalizedEmail = email.toLowerCase()
+    if (this.users.has(normalizedUsername)) {
+      throw Object.assign(new Error('Username already exists'), { code: '23505', constraint: 'users_username_ci_idx' })
+    }
+    if (this.usersByEmail.has(normalizedEmail)) {
+      throw Object.assign(new Error('Email already exists'), { code: '23505', constraint: 'users_email_ci_idx' })
+    }
     const userId = randomUUID()
-    this.users.set(username, { userId, passwordHash })
+    const record = { userId, username, email, passwordHash }
+    this.users.set(normalizedUsername, record)
+    this.usersByEmail.set(normalizedEmail, record)
     return { userId }
   }
 
@@ -104,5 +120,7 @@ export class InMemoryDb implements DbAdapter {
 /** Internal user record structure for InMemoryDb */
 interface UserRecord {
   userId: string
+  username: string
+  email: string
   passwordHash: string
 }

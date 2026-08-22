@@ -52,6 +52,12 @@ export function ConnectGate({ runtimeConfig, onConnectedSession }: ConnectGatePr
             onChange={(value) => setConnectDraft((draft) => ({ ...draft, gameId: value }))}
           />
           <button type="submit" className="primary-action">Load Game</button>
+          <a
+            className="gate-secondary-action"
+            href={`/user/create${typeof window === 'undefined' ? '' : window.location.search}`}
+          >
+            Create a New Account
+          </a>
           <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
             <button
               type="button"

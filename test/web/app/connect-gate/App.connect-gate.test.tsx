@@ -15,7 +15,7 @@ const clearApiProtocolTraffic = vi.hoisted(() => vi.fn())
 const getApiProtocolTrafficSnapshot = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const formatApiProtocolTrafficEntry = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const subscribeApiProtocolTraffic = vi.hoisted(() => vi.fn().mockReturnValue(vi.fn()))
-const runtimeConfig = { apiBaseUrl: 'http://localhost:3000', gameId: 123, liveRefreshQuietWindowMs: 5, clientLogLevel: 'info' } as WebRuntimeConfig
+const runtimeConfig = { apiBaseUrl: 'http://localhost:3000', gameId: 123, userRoute: 'login', liveRefreshQuietWindowMs: 5, clientLogLevel: 'info' } as WebRuntimeConfig
 
 vi.mock('#web/lib/httpGameClient', () => ({
 	createHttpGameRequestTransport,
@@ -68,7 +68,7 @@ function mockAuthenticatedSession(snapshot: GameSnapshot): void {
 	requestJson.mockResolvedValue({
 		ok: true,
 		status: 200,
-		data: { userId: 'user-123', token: 'test.jwt.token' },
+		data: { username: 'player-1', token: 'test.jwt.token' },
 	})
 	createHttpGameRequestTransport.mockReturnValue({
 		getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' } }),
@@ -89,31 +89,6 @@ beforeEach(() => {
 })
 
 describe('App connect gate', () => {
-	it('renders a connect form when runtime config is seeded but no client is ready', async () => {
-		render(<App runtimeConfig={runtimeConfig} showConnectionGate />)
-
-		expect(screen.getByRole('heading', { name: /open a live game session/i })).not.toBeNull()
-		expect((screen.getByLabelText(/api base url/i) as HTMLInputElement).value).toBe('http://localhost:3000')
-		expect((screen.getByLabelText(/username/i) as HTMLInputElement).value).toBe('')
-		expect((screen.getByLabelText(/game id/i) as HTMLInputElement).value).toBe('123')
-	})
-
-	it('shows a dismissable overlay when connect validation fails', async () => {
-		const user = userEvent.setup()
-
-		render(<App runtimeConfig={runtimeConfig} showConnectionGate />)
-
-		await user.click(screen.getByRole('button', { name: /load game/i }))
-
-		const alert = await screen.findByRole('alert')
-		expect(alert.classList.contains('error-overlay')).toBe(true)
-		expect(alert.textContent).toMatch(/api base url, username, password, and game id are required/i)
-		expect(screen.getByRole('button', { name: /dismiss error/i })).not.toBeNull()
-
-		await user.click(screen.getByRole('button', { name: /dismiss error/i }))
-		expect(screen.queryByRole('alert')).toBeNull()
-	})
-
 	it('logs in and loads an existing game when the form is submitted', async () => {
 		const timeSpy = vi.spyOn(Date.prototype, 'toLocaleTimeString').mockReturnValue('01:14:15 PM')
 		mockAuthenticatedSession(createLoadedSnapshot('ONION_MOVE'))

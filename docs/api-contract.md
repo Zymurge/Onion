@@ -69,9 +69,10 @@ because browser WebSocket APIs cannot set arbitrary Authorization headers.
 ### `POST /auth/register`
 
 ```text
-Request:  { "username": string, "password": string }
-Response: { "userId": string, "token": string (signed JWT) }
-Errors:   409 if username taken
+Request:  { "username": string, "email": string, "password": string }
+Response: { "username": string, "token": string (signed JWT) }
+Errors:   409 USERNAME_TAKEN if username taken
+          409 EMAIL_TAKEN if email taken
           400 INVALID_INPUT for schema validation errors
             400 PAYLOAD_TOO_LARGE if payload exceeds 16KB
               (note: Fastify test injector returns 400,
@@ -83,8 +84,8 @@ Errors:   409 if username taken
 ### `POST /auth/login`
 
 ```text
-Request:  { "username": string, "password": string }
-Response: { "userId": string, "token": string (signed JWT) }
+Request:  { "email": string, "password": string }
+Response: { "username": string, "token": string (signed JWT) }
 Errors:   401 if credentials invalid
           400 INVALID_INPUT for schema validation errors
             400 PAYLOAD_TOO_LARGE if payload exceeds 16KB

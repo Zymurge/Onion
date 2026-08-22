@@ -22,6 +22,7 @@ function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
 
   return {
     findUserByUsername: db?.findUserByUsername?.bind(db) ?? fallback.findUserByUsername.bind(fallback),
+    findUserByEmail: db?.findUserByEmail?.bind(db) ?? fallback.findUserByEmail.bind(fallback),
     createUser: db?.createUser?.bind(db) ?? fallback.createUser.bind(fallback),
     createMatch: db?.createMatch?.bind(db) ?? fallback.createMatch.bind(fallback),
     findMatch: db?.findMatch?.bind(db) ?? fallback.findMatch.bind(fallback),

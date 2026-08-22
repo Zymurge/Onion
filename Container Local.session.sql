@@ -1,1 +1,1 @@
-SELECT * from users;
+DELETE FROM users WHERE username NOT like 'user%';
