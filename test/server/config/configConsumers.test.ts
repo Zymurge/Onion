@@ -44,7 +44,7 @@ describe('configuration consumers', () => {
 
     expect(getLoggerLevel()).toBe('debug')
   })
-
+   
   it('uses the configured log level for Fastify request logging', async () => {
     const config = loadConfig({ ...process.env, NODE_ENV: 'development', LOG_LEVEL: 'debug' })
     const app = buildApp(undefined, { config })

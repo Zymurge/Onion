@@ -3,6 +3,7 @@ import { requestJson } from '../../shared/apiProtocol'
 import type { WebRuntimeConfig } from './appBootstrap'
 import { createHttpGameRequestTransport } from './httpGameClient'
 import { createLiveEventSource } from './liveEventSource'
+import { saveAuthSession } from './authSession'
 import logger from './logger'
 import type { SessionBinding } from './sessionBinding'
 
@@ -71,6 +72,12 @@ export function useConnectionGate({ runtimeConfig, onConnectedSession }: UseConn
       }
 
       const baseUrl = draft.apiBaseUrl.trim()
+      saveAuthSession({
+        apiBaseUrl: baseUrl,
+        username: draft.username.trim(),
+        userId: loginResult.data.userId,
+        token: loginResult.data.token,
+      })
       if (typeof window !== 'undefined') {
         logger.info('[connection-gate] connected session created', {
           gameId: parsedGameId,

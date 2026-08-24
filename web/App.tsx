@@ -34,6 +34,9 @@ import type {
 import type { SessionBinding } from './lib/sessionBinding'
 import { getPhaseOwner } from './lib/battlefieldViewBuilders'
 import logger from './lib/logger'
+import { getAuthSession } from './lib/authSession'
+import { createHttpGameRequestTransport } from './lib/httpGameClient'
+import { createLiveEventSource } from './lib/liveEventSource'
 import './App.css'
 
 type AppProps = {
@@ -240,6 +243,29 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
 
     return createRequestTransportFromGameClient(gameClient)
   }, [gameClient])
+
+  useEffect(() => {
+    if (providedRequestTransport !== null || gameId === undefined || connectedSession !== null) {
+      return
+    }
+
+    const authSession = getAuthSession()
+    if (authSession === null) {
+      return
+    }
+
+    setConnectedSession({
+      requestTransport: createHttpGameRequestTransport({
+        baseUrl: authSession.apiBaseUrl,
+        token: authSession.token,
+      }),
+      liveEventSource: createLiveEventSource({
+        baseUrl: authSession.apiBaseUrl,
+        token: authSession.token,
+      }),
+      gameId,
+    })
+  }, [connectedSession, gameId, providedRequestTransport])
 
   const activeSessionBinding = useMemo<SessionBinding | null>(() => {
     if (providedRequestTransport !== null && gameId !== undefined) {

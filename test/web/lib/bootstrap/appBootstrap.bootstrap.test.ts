@@ -53,6 +53,13 @@ describe('appBootstrap bootstrap', () => {
 		})
 	})
 
+	it('recognizes the dedicated game creation route', () => {
+		expect(resolveWebRuntimeConfig({}, '', '/game/create/')).toMatchObject({
+			gameId: null,
+			userRoute: 'game-create',
+		})
+	})
+
 	it('still accepts the older gameid path form', () => {
 		expect(
 			resolveWebRuntimeConfig(

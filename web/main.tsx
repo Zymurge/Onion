@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { RegisterGate } from './components/RegisterGate'
+import { GameCreateScreen } from './components/GameCreateScreen'
 import { resolveWebRuntimeConfig } from './lib/appBootstrap'
 import { getWebLoggerLevel, setWebLoggerLevel } from './lib/logger'
 
@@ -27,6 +28,8 @@ createRoot(document.getElementById('root')!).render(
     <AppErrorBoundary>
       {runtimeConfig.userRoute === 'create' ? (
         <RegisterGate runtimeConfig={runtimeConfig} />
+      ) : runtimeConfig.userRoute === 'game-create' ? (
+        <GameCreateScreen runtimeConfig={runtimeConfig} />
       ) : (
         <App
           runtimeConfig={runtimeConfig}
