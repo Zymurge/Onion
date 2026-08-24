@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { clearAuthSession, getAuthSession, saveAuthSession, type AuthSession } from '#web/lib/authSession'
+import {
+	AUTH_SESSION_STORAGE_KEY,
+	clearAuthSession,
+	getAuthSession,
+	isAuthSessionExpired,
+	saveAuthSession,
+	type AuthSession,
+} from '#web/lib/authSession'
 
 const session: AuthSession = {
 	apiBaseUrl: 'http://localhost:3000',
@@ -29,8 +36,53 @@ describe('authSession', () => {
 	})
 
 	it('ignores malformed stored data', () => {
-		window.sessionStorage.setItem('onion.auth.session', '{bad json')
+		window.sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, '{bad json')
 
 		expect(getAuthSession()).toBeNull()
+		expect(window.sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull()
+	})
+
+	it('ignores stored sessions with missing required fields', () => {
+		window.sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify({ token: 'token-1' }))
+
+		expect(getAuthSession()).toBeNull()
+	})
+
+	it('removes stored non-object values', () => {
+		window.sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, 'null')
+
+		expect(getAuthSession()).toBeNull()
+		expect(window.sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull()
+	})
+
+	it('recognizes an expired JWT session', () => {
+		const expiredSession = {
+			...session,
+			token: `header.${btoa(JSON.stringify({ exp: 1 }))}.signature`,
+		}
+
+		expect(isAuthSessionExpired(expiredSession, 2_000)).toBe(true)
+		saveAuthSession(expiredSession)
+
+		expect(getAuthSession(2_000)).toBeNull()
+		expect(window.sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull()
+	})
+
+	it('keeps a JWT session until its expiry timestamp', () => {
+		const activeSession = {
+			...session,
+			token: `header.${btoa(JSON.stringify({ exp: 2 }))}.signature`,
+		}
+		saveAuthSession(activeSession)
+
+		expect(isAuthSessionExpired(activeSession, 1_999)).toBe(false)
+		expect(getAuthSession(1_999)).toEqual(activeSession)
+	})
+
+	it('accepts legacy tokens without an expiry claim', () => {
+		saveAuthSession(session)
+
+		expect(isAuthSessionExpired(session, Number.MAX_SAFE_INTEGER)).toBe(false)
+		expect(getAuthSession(Number.MAX_SAFE_INTEGER)).toEqual(session)
 	})
 })

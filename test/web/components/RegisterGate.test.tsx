@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { RegisterGate } from '#web/components/RegisterGate'
+import { saveAuthSession } from '#web/lib/authSession'
 
 const useRegistrationGate = vi.hoisted(() => vi.fn())
 
@@ -14,6 +15,7 @@ vi.mock('#web/lib/useRegistrationGate', () => ({
 describe('RegisterGate', () => {
 	beforeEach(() => {
 		useRegistrationGate.mockReset()
+		window.sessionStorage.clear()
 	})
 
 	it('renders only account fields and submits the registration form', async () => {
@@ -70,5 +72,38 @@ describe('RegisterGate', () => {
 		expect(screen.getByRole('heading', { name: /welcome, swamp walker/i })).not.toBeNull()
 		expect(screen.getByRole('link', { name: /continue to sign in/i })).toHaveAttribute('href', '/user/login')
 		expect(screen.queryByRole('button', { name: /create account/i })).toBeNull()
+	})
+
+	it('shows the active player and signs out an authenticated user', async () => {
+		const user = userEvent.setup()
+		const navigate = vi.fn()
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'Swamp Walker',
+			userId: 'user-1',
+			token: 'token-1',
+		})
+		useRegistrationGate.mockReturnValue({
+			registrationDraft: {
+				apiBaseUrl: 'http://localhost:3000',
+				username: '',
+				email: '',
+				password: '',
+			},
+			registrationError: null,
+			registeredUsername: null,
+			handleRegistration: vi.fn(),
+			setRegistrationDraft: vi.fn(),
+			setRegistrationError: vi.fn(),
+		})
+
+		render(<RegisterGate navigate={navigate} runtimeConfig={{} as never} />)
+
+		expect(screen.getByRole('heading', { name: /signed in as swamp walker/i })).not.toBeNull()
+		expect(screen.getByText('Player ID: user-1')).not.toBeNull()
+		await user.click(screen.getByRole('button', { name: 'Sign Out' }))
+
+		expect(window.sessionStorage.getItem('onion.auth.session')).toBeNull()
+		expect(navigate).toHaveBeenCalledWith('/user/login')
 	})
 })

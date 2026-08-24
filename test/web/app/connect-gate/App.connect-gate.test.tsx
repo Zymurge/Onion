@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '#web/App'
-import type { GameClient, GameSnapshot } from '#web/lib/gameClient'
+import { GameClientSeamError, type GameClient, type GameSnapshot } from '#web/lib/gameClient'
+import { clearAuthSession, saveAuthSession } from '#web/lib/authSession'
 import { makeScenarioSnapshot, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 import { WebRuntimeConfig } from '#web/lib/appBootstrap'
 
@@ -64,6 +65,10 @@ function createControlledLiveEventSource(connectionStatus: 'connected' | 'idle' 
 	}
 }
 
+function createToken(expirySeconds = Math.floor(Date.now() / 1_000) + 3_600): string {
+	return `eyJhbGciOiJub25lIn0.${btoa(JSON.stringify({ exp: expirySeconds })).replace(/=/g, '')}.signature`
+}
+
 function mockAuthenticatedSession(snapshot: GameSnapshot): void {
 	requestJson.mockResolvedValue({
 		ok: true,
@@ -86,6 +91,7 @@ async function submitConnectForm(): Promise<void> {
 
 beforeEach(() => {
 	vi.clearAllMocks()
+	clearAuthSession()
 })
 
 describe('App connect gate', () => {
@@ -177,5 +183,79 @@ describe('App connect gate', () => {
 		await waitFor(() => {
 			expect(firstLiveEventSource.disconnect).toHaveBeenCalledWith(123)
 		})
+	})
+
+	it('creates authenticated transports from a persisted session', async () => {
+		const snapshot = createLoadedSnapshot('ONION_MOVE')
+		const token = createToken()
+		const liveSource = createControlledLiveEventSource()
+		const requestTransport = {
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' } }),
+			submitAction: vi.fn(),
+		}
+		createHttpGameRequestTransport.mockReturnValue(requestTransport)
+		createLiveEventSource.mockReturnValue(liveSource)
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token,
+		})
+
+		render(<App gameId={123} />)
+
+		await waitFor(() => {
+			expect(createHttpGameRequestTransport).toHaveBeenCalledWith({
+				baseUrl: 'http://localhost:3000',
+				token: expect.any(String),
+			})
+		})
+		expect(createLiveEventSource).toHaveBeenCalledWith({
+			baseUrl: 'http://localhost:3000',
+			token,
+		})
+	})
+
+	it('redirects and clears storage when the persisted JWT expires', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date(1_000_000))
+		const navigate = vi.fn()
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token: 'eyJhbGciOiJub25lIn0.eyJleHAiOjEwMDF9.signature',
+		})
+
+		render(<App gameId={123} navigate={navigate} />)
+
+		await act(async () => {
+			vi.advanceTimersByTime(1_001)
+		})
+		expect(navigate).toHaveBeenCalledWith('/user/login?returnTo=%2F')
+		expect(window.sessionStorage.getItem('onion.auth.session')).toBeNull()
+		vi.useRealTimers()
+	})
+
+	it('redirects and clears storage after a game request returns 401', async () => {
+		const navigate = vi.fn()
+		const client: GameClient = {
+			getState: vi.fn().mockRejectedValue(new GameClientSeamError('transport', 'Unauthorized', undefined, 401)),
+			submitAction: vi.fn(),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		}
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token: createToken(),
+		})
+
+		render(<App gameClient={client} gameId={123} navigate={navigate} />)
+
+		await waitFor(() => {
+			expect(navigate).toHaveBeenCalledWith('/user/login?returnTo=%2F')
+		})
+		expect(window.sessionStorage.getItem('onion.auth.session')).toBeNull()
 	})
 })

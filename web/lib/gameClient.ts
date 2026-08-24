@@ -110,6 +110,7 @@ export type GameAction =
 export type GameClientError = {
 	kind: 'transport' | 'not-found' | 'invalid-action'
 	message: string
+	status?: number
 }
 
 export type GameClientTransport = GameRequestTransport & {
@@ -125,11 +126,13 @@ export type GameClient = {
 
 export class GameClientSeamError extends Error {
 	kind: GameClientError['kind']
+	status?: number
 
-	constructor(kind: GameClientError['kind'], message: string, cause?: unknown) {
+	constructor(kind: GameClientError['kind'], message: string, cause?: unknown, status?: number) {
 		super(message)
 		this.name = 'GameClientSeamError'
 		this.kind = kind
+		this.status = status
 		this.cause = cause
 	}
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CombatResolutionToast } from './components/CombatResolutionToast'
 import { MoveResolutionToast } from './components/MoveResolutionToast'
 import { GameOverToast } from './components/GameOverToast'
@@ -34,7 +34,8 @@ import type {
 import type { SessionBinding } from './lib/sessionBinding'
 import { getPhaseOwner } from './lib/battlefieldViewBuilders'
 import logger from './lib/logger'
-import { getAuthSession } from './lib/authSession'
+import { buildLoginRedirect } from './lib/authRouting'
+import { clearAuthSession, getAuthSession, getAuthSessionExpiresAt, type AuthSession } from './lib/authSession'
 import { createHttpGameRequestTransport } from './lib/httpGameClient'
 import { createLiveEventSource } from './lib/liveEventSource'
 import './App.css'
@@ -43,6 +44,7 @@ type AppProps = {
   gameClient?: GameClient
   gameId?: number
   liveEventSource?: LiveEventSource
+  navigate?: (path: string) => void
   runtimeConfig?: WebRuntimeConfig
   showConnectionGate?: boolean
 }
@@ -204,7 +206,8 @@ function createRequestTransportFromGameClient(
  *
  * See also: docs/web-ui-spec.md (Turn Handoff Contract)
  */
-function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectionGate = false }: AppProps) {
+function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, showConnectionGate = false }: AppProps) {
+  const [authSession] = useState<AuthSession | null>(() => getAuthSession())
   const [connectedSession, setConnectedSession] = useState<SessionBinding | null>(null)
   const [acknowledgedActiveTurnKey, setAcknowledgedActiveTurnKey] = useState<string | null>(null)
   const [dismissedGameOverToastKey, setDismissedGameOverToastKey] = useState<string | null>(null)
@@ -232,9 +235,43 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
   } | null>(null)
   const reportedSessionDiagnosticGameIdRef = useRef<number | null>(null)
 	const reportedSnapshotDiagnosticGameIdRef = useRef<number | null>(null)
+  const authRedirectedRef = useRef(false)
 
   const runtimeConnectionSeeded = showConnectionGate
   const liveRefreshQuietWindowMs = runtimeConfig?.liveRefreshQuietWindowMs ?? 500
+
+  const redirectToLogin = useCallback(() => {
+    if (authRedirectedRef.current || typeof window === 'undefined') {
+      return
+    }
+
+    authRedirectedRef.current = true
+    clearAuthSession()
+    ;(navigate ?? ((path: string) => window.location.replace(path)))(buildLoginRedirect())
+  }, [navigate])
+
+  useEffect(() => {
+    if (authSession === null) {
+      return
+    }
+
+    const expiresAt = getAuthSessionExpiresAt(authSession)
+    if (expiresAt === null) {
+      return
+    }
+
+    const delayMs = expiresAt - Date.now()
+    if (delayMs <= 0) {
+      redirectToLogin()
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      redirectToLogin()
+    }, delayMs)
+
+    return () => window.clearTimeout(timeout)
+  }, [authSession, redirectToLogin])
 
   const providedRequestTransport = useMemo(() => {
     if (gameClient === undefined) {
@@ -244,17 +281,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     return createRequestTransportFromGameClient(gameClient)
   }, [gameClient])
 
-  useEffect(() => {
-    if (providedRequestTransport !== null || gameId === undefined || connectedSession !== null) {
-      return
+  const persistedSessionBinding = useMemo<SessionBinding | null>(() => {
+    if (authSession === null || gameId === undefined) {
+      return null
     }
 
-    const authSession = getAuthSession()
-    if (authSession === null) {
-      return
-    }
-
-    setConnectedSession({
+    return {
       requestTransport: createHttpGameRequestTransport({
         baseUrl: authSession.apiBaseUrl,
         token: authSession.token,
@@ -264,8 +296,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
         token: authSession.token,
       }),
       gameId,
-    })
-  }, [connectedSession, gameId, providedRequestTransport])
+    }
+  }, [authSession, gameId])
 
   const activeSessionBinding = useMemo<SessionBinding | null>(() => {
     if (providedRequestTransport !== null && gameId !== undefined) {
@@ -289,8 +321,8 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
       })
     }
 
-    return connectedSession
-  }, [connectedSession, gameId, liveEventSource, providedRequestTransport])
+    return connectedSession ?? persistedSessionBinding
+  }, [connectedSession, gameId, liveEventSource, persistedSessionBinding, providedRequestTransport])
 
   const activeSessionController = useMemo(() => {
     if (activeSessionBinding === null) {
@@ -309,6 +341,12 @@ function App({ gameClient, gameId, liveEventSource, runtimeConfig, showConnectio
     autoLoad: activeSessionController !== null,
     disposeOnUnmount: true,
   })
+
+  useEffect(() => {
+    if (sessionState.error?.status === 401) {
+      redirectToLogin()
+    }
+  }, [redirectToLogin, sessionState.error])
 
   const sessionPhase = sessionState.snapshot?.phase ?? null
   const sessionRole = sessionState.session?.role ?? null

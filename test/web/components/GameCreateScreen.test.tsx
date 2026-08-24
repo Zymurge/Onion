@@ -70,4 +70,23 @@ describe('GameCreateScreen', () => {
 		expect(createCall?.[1]?.headers).toMatchObject({ authorization: 'Bearer token-1' })
 		expect(navigate).toHaveBeenCalledWith('/game/42')
 	})
+
+	it('shows Sign Out and clears the session for an authenticated player', async () => {
+		const user = userEvent.setup()
+		const navigate = vi.fn()
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token: 'token-1',
+		})
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response([])))
+
+		render(<GameCreateScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost:3000' } as never} />)
+
+		await user.click(screen.getByRole('button', { name: 'Sign Out' }))
+
+		expect(window.sessionStorage.getItem('onion.auth.session')).toBeNull()
+		expect(navigate).toHaveBeenCalledWith('/user/login')
+	})
 })

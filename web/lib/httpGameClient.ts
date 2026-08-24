@@ -99,14 +99,14 @@ function requireStackRoster(response: GameStateResponse) {
 
 function buildError(result: ApiFailure): GameClientSeamError {
 	if (result.status === 404) {
-		return new GameClientSeamError('not-found', result.message)
+		return new GameClientSeamError('not-found', result.message, undefined, result.status)
 	}
 
 	if (result.status === 400 || result.status === 422) {
-		return new GameClientSeamError('invalid-action', result.message)
+		return new GameClientSeamError('invalid-action', result.message, undefined, result.status)
 	}
 
-	return new GameClientSeamError('transport', result.message)
+	return new GameClientSeamError('transport', result.message, undefined, result.status)
 }
 
 function mapServerSnapshot(

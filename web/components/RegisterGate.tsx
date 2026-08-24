@@ -2,12 +2,15 @@ import { ErrorOverlay } from './ErrorOverlay'
 import { ConnectField } from './ConnectField'
 import type { WebRuntimeConfig } from '../lib/appBootstrap'
 import { useRegistrationGate } from '../lib/useRegistrationGate'
+import { clearAuthSession, getAuthSession } from '../lib/authSession'
+import { getSafeReturnTo } from '../lib/authRouting'
 
 type RegisterGateProps = {
   runtimeConfig?: WebRuntimeConfig
+  navigate?: (path: string) => void
 }
 
-export function RegisterGate({ runtimeConfig }: RegisterGateProps) {
+export function RegisterGate({ navigate, runtimeConfig }: RegisterGateProps) {
   const {
     registrationDraft,
     registrationError,
@@ -16,6 +19,16 @@ export function RegisterGate({ runtimeConfig }: RegisterGateProps) {
     setRegistrationDraft,
     setRegistrationError,
   } = useRegistrationGate({ runtimeConfig })
+  const session = getAuthSession()
+  const requestedReturnTo = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('returnTo')
+  const loginPath = requestedReturnTo === null
+    ? '/user/login'
+    : `/user/login?returnTo=${encodeURIComponent(getSafeReturnTo(requestedReturnTo))}`
+
+  function handleSignOut() {
+    clearAuthSession()
+    ;(navigate ?? ((path: string) => window.location.assign(path)))('/user/login')
+  }
 
   return (
     <div className="shell connect-shell">
@@ -32,10 +45,20 @@ export function RegisterGate({ runtimeConfig }: RegisterGateProps) {
             <p className="eyebrow">Account ready</p>
             <h1>Welcome, {registeredUsername}</h1>
             <p>Your player account has been created.</p>
-            <a className="primary-action" href="/user/login">Continue to Sign In</a>
+            <a className="primary-action" href={loginPath}>Continue to Sign In</a>
           </div>
         ) : (
           <>
+              {session ? (
+                <div className="register-session-info">
+                  <div>
+                    <p className="eyebrow">Current session</p>
+                    <h2>Signed in as {session.username}</h2>
+                    <p>Player ID: {session.userId}</p>
+                  </div>
+                  <button type="button" className="gate-secondary-action" onClick={handleSignOut}>Sign Out</button>
+                </div>
+              ) : null}
             <div className="card-head">
               <div>
                 <p className="eyebrow">New player</p>
