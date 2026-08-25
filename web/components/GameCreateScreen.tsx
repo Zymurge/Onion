@@ -3,6 +3,7 @@ import { ErrorOverlay } from './ErrorOverlay'
 import type { WebRuntimeConfig } from '../lib/appBootstrap'
 import { clearAuthSession, getAuthSession } from '../lib/authSession'
 import { requestJson } from '../../shared/apiProtocol'
+import { UserSideMenu } from './UserSideMenu'
 import './GameCreateScreen.css'
 
 type ScenarioSummary = {
@@ -129,21 +130,18 @@ export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenPr
   return (
     <div className="shell create-game-shell">
       {error ? <ErrorOverlay message={error} className="error-overlay-connect" onDismiss={() => setError(null)} /> : null}
-      <main className="create-game-layout">
-        <header className="create-game-header">
-          <div>
-            <p className="eyebrow">New match</p>
-            <h1>Create a game lobby</h1>
-            <p className="create-game-intro">Choose the battlefield and your side. The other player can join after the lobby is created.</p>
-          </div>
-          {session ? (
-            <button type="button" className="gate-secondary-action create-game-back" onClick={handleSignOut}>Sign Out</button>
-          ) : (
-            <a className="gate-secondary-action create-game-back" href="/user/login">Back to Sign In</a>
-          )}
-        </header>
+      <div className="user-page-layout create-game-page-layout">
+        <UserSideMenu activeItem="create-game" onSignOut={handleSignOut} />
+        <main className="create-game-layout">
+          <header className="create-game-header">
+            <div>
+              <p className="eyebrow">New match</p>
+              <h1>Create a game lobby</h1>
+              <p className="create-game-intro">Choose the battlefield and your side. The other player can join after the lobby is created.</p>
+            </div>
+          </header>
 
-        <div className="create-game-columns">
+          <div className="create-game-columns">
           <section className="panel create-game-options">
             <div className="card-head">
               <div>
@@ -201,8 +199,9 @@ export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenPr
               </div>
             ) : null}
           </aside>
-        </div>
-      </main>
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

@@ -5,8 +5,7 @@
 }
 
 .create-game-layout {
-  width: min(1080px, 100%);
-  margin: 0 auto;
+  min-width: 0;
 }
 
 .create-game-header {

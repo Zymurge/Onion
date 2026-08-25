@@ -56,6 +56,7 @@ describe('GameCreateScreen', () => {
 
 		render(<GameCreateScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost:3000' } as never} />)
 
+		expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/user/dashboard')
 		await screen.findByText('Destroy the swamp and escape.')
 		await user.selectOptions(screen.getByLabelText(/your side/i), 'defender')
 		await user.click(screen.getByRole('button', { name: /create lobby/i }))

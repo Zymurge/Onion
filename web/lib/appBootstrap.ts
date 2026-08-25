@@ -7,12 +7,12 @@ export type WebRuntimeEnv = {
 export type WebRuntimeConfig = {
 	apiBaseUrl: string | null
 	gameId: number | null
-	userRoute: 'create' | 'login' | 'game-create' | null
+	userRoute: 'create' | 'login' | 'game-create' | 'dashboard' | null
 	liveRefreshQuietWindowMs: number
 	clientLogLevel: 'debug' | 'info' | 'warn' | 'error'
 }
 
-function parseUserRoute(pathname: string): 'create' | 'login' | 'game-create' | null {
+function parseUserRoute(pathname: string): 'create' | 'login' | 'game-create' | 'dashboard' | null {
 	const normalizedPathname = pathname.replace(/\/+$/, '') || '/'
 	if (normalizedPathname === '/game/create') {
 		return 'game-create'
@@ -22,6 +22,9 @@ function parseUserRoute(pathname: string): 'create' | 'login' | 'game-create' | 
 	}
 	if (normalizedPathname === '/user/login') {
 		return 'login'
+	}
+	if (normalizedPathname === '/user/dashboard') {
+		return 'dashboard'
 	}
 	return null
 }

@@ -45,4 +45,37 @@ describe('RequireAuth', () => {
 		expect(screen.getByText('Protected lobby')).not.toBeNull()
 		expect(navigate).not.toHaveBeenCalled()
 	})
+
+	it('sends an unknown unauthenticated URL to login with the dashboard return path', async () => {
+		window.history.replaceState({}, '', '/hey')
+		const navigate = vi.fn()
+
+		render(
+			<RequireAuth navigate={navigate} returnTo="/user/dashboard">
+				<div>Dashboard</div>
+			</RequireAuth>,
+		)
+
+		await waitFor(() => expect(navigate).toHaveBeenCalledWith('/user/login?returnTo=%2Fuser%2Fdashboard'))
+	})
+
+	it('canonicalizes an unknown authenticated URL to the dashboard', async () => {
+		window.history.replaceState({}, '', '/hey')
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token: 'token-1',
+		})
+		const navigate = vi.fn()
+
+		render(
+			<RequireAuth navigate={navigate} authenticatedRedirectTo="/user/dashboard">
+				<div>Dashboard</div>
+			</RequireAuth>,
+		)
+
+		expect(screen.getByText('Dashboard')).not.toBeNull()
+		await waitFor(() => expect(navigate).toHaveBeenCalledWith('/user/dashboard'))
+	})
 })

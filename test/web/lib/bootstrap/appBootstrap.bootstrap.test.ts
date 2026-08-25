@@ -60,6 +60,13 @@ describe('appBootstrap bootstrap', () => {
 		})
 	})
 
+	it('recognizes the user dashboard route', () => {
+		expect(resolveWebRuntimeConfig({}, '', '/user/dashboard/')).toMatchObject({
+			gameId: null,
+			userRoute: 'dashboard',
+		})
+	})
+
 	it('still accepts the older gameid path form', () => {
 		expect(
 			resolveWebRuntimeConfig(

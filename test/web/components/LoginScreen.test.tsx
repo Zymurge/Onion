@@ -49,7 +49,7 @@ describe('LoginScreen', () => {
 		})
 	})
 
-	it('rejects an external return path and uses the lobby default', async () => {
+	it('rejects an external return path and uses the dashboard default', async () => {
 		const user = userEvent.setup()
 		const navigate = vi.fn()
 		window.history.replaceState({}, '', '/user/login?returnTo=https%3A%2F%2Fevil.example')
@@ -60,7 +60,7 @@ describe('LoginScreen', () => {
 		await user.type(screen.getByLabelText(/password/i), 'secret')
 		await user.click(screen.getByRole('button', { name: /sign in/i }))
 
-		await waitFor(() => expect(navigate).toHaveBeenCalledWith('/game/create'))
+		await waitFor(() => expect(navigate).toHaveBeenCalledWith('/user/dashboard'))
 	})
 
 	it('shows the server error without storing a session', async () => {

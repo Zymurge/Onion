@@ -5,20 +5,27 @@ import { getAuthSession, type AuthSession } from '../lib/authSession'
 export type RequireAuthProps = {
   children: ReactNode
   navigate?: (path: string) => void
+  returnTo?: string
+  authenticatedRedirectTo?: string
 }
 
-export function RequireAuth({ children, navigate }: RequireAuthProps) {
+export function RequireAuth({ authenticatedRedirectTo, children, navigate, returnTo: requestedReturnTo }: RequireAuthProps) {
   const [session] = useState<AuthSession | null>(() => getAuthSession())
-  const [returnTo] = useState(() => getCurrentReturnTo())
+  const [returnTo] = useState(() => requestedReturnTo ?? getCurrentReturnTo())
   const loginPath = buildLoginRedirect(returnTo)
 
   useEffect(() => {
     if (session !== null) {
+      if (authenticatedRedirectTo === undefined || typeof window === 'undefined' || window.location.pathname === authenticatedRedirectTo) {
+        return
+      }
+
+      (navigate ?? ((path: string) => window.location.replace(path)))(authenticatedRedirectTo)
       return
     }
 
     (navigate ?? ((path: string) => window.location.replace(path)))(loginPath)
-  }, [loginPath, navigate, session])
+  }, [authenticatedRedirectTo, loginPath, navigate, session])
 
   if (session !== null) {
     return <>{children}</>

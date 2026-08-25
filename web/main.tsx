@@ -7,6 +7,7 @@ import { RegisterGate } from './components/RegisterGate'
 import { GameCreateScreen } from './components/GameCreateScreen'
 import { LoginScreen } from './components/LoginScreen'
 import { RequireAuth } from './components/RequireAuth'
+import { UserDashboard } from './components/UserDashboard'
 import { resolveWebRuntimeConfig } from './lib/appBootstrap'
 import { getWebLoggerLevel, setWebLoggerLevel } from './lib/logger'
 
@@ -36,15 +37,18 @@ createRoot(document.getElementById('root')!).render(
         <RequireAuth>
           <GameCreateScreen runtimeConfig={runtimeConfig} />
         </RequireAuth>
+      ) : runtimeConfig.userRoute === 'dashboard' ? (
+        <RequireAuth>
+          <UserDashboard />
+        </RequireAuth>
       ) : runtimeConfig.gameId !== null ? (
         <RequireAuth>
           <App runtimeConfig={runtimeConfig} gameId={runtimeConfig.gameId} showConnectionGate={false} />
         </RequireAuth>
       ) : (
-        <App
-          runtimeConfig={runtimeConfig}
-          showConnectionGate={runtimeConfig.userRoute !== null || runtimeConfig.apiBaseUrl !== null || runtimeConfig.gameId !== null}
-        />
+        <RequireAuth returnTo="/user/dashboard" authenticatedRedirectTo="/user/dashboard">
+          <UserDashboard />
+        </RequireAuth>
       )}
     </AppErrorBoundary>
   </StrictMode>,

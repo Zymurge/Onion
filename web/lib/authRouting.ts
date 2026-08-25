@@ -1,4 +1,4 @@
-export const DEFAULT_AUTH_RETURN_TO = '/game/create'
+export const DEFAULT_AUTH_RETURN_TO = '/user/dashboard'
 
 export function getSafeReturnTo(value: string | null | undefined, fallback = DEFAULT_AUTH_RETURN_TO): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\') || value.includes('://')) {
