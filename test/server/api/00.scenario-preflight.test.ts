@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, it } from 'vitest'
 
 import { buildApp } from '#server/app'
 import { register } from './helpers.js'
@@ -13,7 +13,7 @@ describe('scenario/game preflight', () => {
 	it('loads required scenarios and can create games from them', async () => {
 		for (const scenarioId of requiredScenarioIds) {
 			const app = buildApp()
-			const { token } = await register(app, `preflight-${scenarioId}`)
+			const { token } = await register(app, 'preflight-user')
 
 			const scenarioRes = await app.inject({
 				method: 'GET',

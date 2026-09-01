@@ -1,0 +1,20 @@
+.games-browser-panel {
+  min-height: 330px;
+}
+
+.games-join-button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.games-join-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.games-join-button:focus-visible {
+  outline: 2px solid var(--signal-alert);
+  outline-offset: 4px;
+}

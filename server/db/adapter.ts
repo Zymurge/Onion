@@ -44,6 +44,15 @@ export interface PersistMatchProgressInput {
   expectedLastEventSeq: number
 }
 
+export type MatchSummary = Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>
+
+export interface MatchListFilters {
+  participantUserId?: string
+  excludeParticipantUserId?: string
+  completion?: 'all' | 'active' | 'completed'
+  availability?: 'all' | 'open' | 'full'
+}
+
 /**
  * Data Access Layer interface for Onion game persistence.
  *
@@ -97,12 +106,10 @@ export interface DbAdapter {
   findMatch(gameId: number): Promise<MatchRecord | null>
 
   /**
-   * List all matches in which the given user is a participant.
-   * Returns lightweight summaries, not full state/events.
-   * @param userId - The user whose games to list
-   * @returns Array of match summaries ordered by creation (oldest first)
+   * List lightweight match summaries ordered by creation.
+   * Omitting filters returns all matches.
    */
-  listMatchesByUserId(userId: string): Promise<Array<Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>>>
+  listMatches(filters?: MatchListFilters): Promise<MatchSummary[]>
 
   /**
    * Update player assignments for an existing match.

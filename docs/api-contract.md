@@ -146,6 +146,38 @@ Errors:   400 INVALID_INPUT if role is not "onion" or "defender"
 
 The `gameId` is shared out-of-band with the second player.
 
+### `GET /games`
+
+List lightweight summaries for games in which the authenticated caller is a
+participant. The response does not include full game state or event history.
+
+```text
+Response: { "games": Array<{
+  "gameId": number,
+  "scenarioId": string,
+  "scenarioDisplayName": string,
+  "phase": TurnPhase,
+  "turnNumber": number,
+  "winner": string | null,
+  "role": "onion" | "defender"
+}> }
+```
+
+### `GET /games/open`
+
+List active games with exactly one unfilled player slot. The caller's own games
+are excluded. The response contains only lobby-safe summary data.
+
+```text
+Response: { "games": Array<{
+  "gameId": number,
+  "scenarioId": string,
+  "scenarioDisplayName": string,
+  "creatorRole": "onion" | "defender",
+  "openRole": "onion" | "defender"
+}> }
+```
+
 ### `POST /games/{id}/join`
 
 Join an existing game as the remaining role.

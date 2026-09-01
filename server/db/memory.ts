@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
 import { StaleMatchStateError } from '#server/db/adapter'
-import type { DbAdapter, MatchRecord, PersistMatchProgressInput } from '#server/db/adapter'
+import type { DbAdapter, MatchListFilters, MatchRecord, MatchSummary, PersistMatchProgressInput } from '#server/db/adapter'
 import logger from '#server/logger'
 
 /**
@@ -59,12 +59,37 @@ export class InMemoryDb implements DbAdapter {
     return m ? structuredClone(m) : null
   }
 
-  async listMatchesByUserId(userId: string): Promise<Array<Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>>> {
-    const results: Array<Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>> = []
-    for (const m of this.matches.values()) {
-      if (m.players.onion === userId || m.players.defender === userId) {
-        results.push({ gameId: m.gameId, scenarioId: m.scenarioId, phase: m.phase, turnNumber: m.turnNumber, winner: m.winner, players: m.players })
+  async listMatches(filters: MatchListFilters = {}): Promise<MatchSummary[]> {
+    const results: MatchSummary[] = []
+    for (const match of this.matches.values()) {
+      const hasOpenOnionSlot = match.players.onion === null
+      const hasOpenDefenderSlot = match.players.defender === null
+      const isOpen = hasOpenOnionSlot !== hasOpenDefenderSlot
+      const isFull = !hasOpenOnionSlot && !hasOpenDefenderSlot
+      const involvesParticipant = filters.participantUserId === undefined
+        || match.players.onion === filters.participantUserId
+        || match.players.defender === filters.participantUserId
+      const excludesParticipant = filters.excludeParticipantUserId === undefined
+        || match.players.onion !== filters.excludeParticipantUserId && match.players.defender !== filters.excludeParticipantUserId
+      const matchesCompletion = filters.completion === undefined || filters.completion === 'all'
+        || filters.completion === 'active' && match.winner === null
+        || filters.completion === 'completed' && match.winner !== null
+      const matchesAvailability = filters.availability === undefined || filters.availability === 'all'
+        || filters.availability === 'open' && isOpen
+        || filters.availability === 'full' && isFull
+
+      if (!involvesParticipant || !excludesParticipant || !matchesCompletion || !matchesAvailability) {
+        continue
       }
+
+      results.push({
+        gameId: match.gameId,
+        scenarioId: match.scenarioId,
+        phase: match.phase,
+        turnNumber: match.turnNumber,
+        winner: match.winner,
+        players: match.players,
+      })
     }
     return results
   }

@@ -364,7 +364,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
     try {
       const userId = await verifyUserId(app, req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
-      const games = await db.listMatchesByUserId(userId)
+      const games = await db.listMatches({ participantUserId: userId })
       // Fetch scenario display names for all games
       const scenarioIds = Array.from(new Set(games.map((g) => g.scenarioId)))
       const scenarioMap: Record<string, string> = {}
@@ -387,6 +387,44 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       })) })
     } catch (err) {
       logger.error({ err }, 'Error listing games')
+      return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
+    }
+  })
+
+  /**
+   * List unfinished games with one available player slot.
+   * The authenticated user's own games are excluded.
+   *
+   * @route GET /games/open
+   */
+  app.get('/open', async (req, reply) => {
+    try {
+      const userId = await verifyUserId(app, req.headers.authorization)
+      if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      const games = await db.listMatches({
+        excludeParticipantUserId: userId,
+        completion: 'active',
+        availability: 'open',
+      })
+      const scenarioIds = Array.from(new Set(games.map((game) => game.scenarioId)))
+      const scenarioMap: Record<string, string> = {}
+      for (const scenarioId of scenarioIds) {
+        const scenario = await loadScenario(scenarioId, scenariosDir)
+        if (scenario === null) {
+          logger.error({ scenarioId }, 'Required lobby scenario could not be loaded')
+          return reply.status(500).send({ ok: false, error: 'Required lobby scenario could not be loaded', code: 'INTERNAL_ERROR' })
+        }
+        scenarioMap[scenarioId] = scenario.displayName ?? scenario.name ?? scenarioId
+      }
+      return reply.send({ games: games.map((game) => ({
+        gameId: game.gameId,
+        scenarioId: game.scenarioId,
+        scenarioDisplayName: scenarioMap[game.scenarioId],
+        creatorRole: game.players.onion === null ? 'defender' : 'onion',
+        openRole: game.players.onion === null ? 'onion' : 'defender',
+      })) })
+    } catch (err) {
+      logger.error({ err }, 'Error listing open games')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })

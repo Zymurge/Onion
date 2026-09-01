@@ -8,6 +8,7 @@ import { GameCreateScreen } from './components/GameCreateScreen'
 import { LoginScreen } from './components/LoginScreen'
 import { RequireAuth } from './components/RequireAuth'
 import { UserDashboard } from './components/UserDashboard'
+import { GamesScreen } from './components/GamesScreen'
 import { resolveWebRuntimeConfig } from './lib/appBootstrap'
 import { getWebLoggerLevel, setWebLoggerLevel } from './lib/logger'
 
@@ -40,6 +41,10 @@ createRoot(document.getElementById('root')!).render(
       ) : runtimeConfig.userRoute === 'dashboard' ? (
         <RequireAuth>
           <UserDashboard />
+        </RequireAuth>
+      ) : runtimeConfig.userRoute === 'games' ? (
+        <RequireAuth>
+          <GamesScreen />
         </RequireAuth>
       ) : runtimeConfig.gameId !== null ? (
         <RequireAuth>

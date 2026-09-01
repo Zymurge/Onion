@@ -1,12 +1,13 @@
 import './UserSideMenu.css'
 
 type UserSideMenuProps = {
-  activeItem?: 'dashboard' | 'create-game' | 'account'
+  activeItem?: 'dashboard' | 'games' | 'create-game' | 'account'
   onSignOut?: () => void
 }
 
 const menuItems = [
   { key: 'dashboard', label: 'Dashboard', href: '/user/dashboard' },
+  { key: 'games', label: 'Find Game', href: '/games' },
   { key: 'create-game', label: 'Create Game', href: '/game/create' },
   { key: 'account', label: 'Account', href: '/user/create' },
 ] as const

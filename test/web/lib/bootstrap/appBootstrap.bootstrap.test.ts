@@ -67,6 +67,13 @@ describe('appBootstrap bootstrap', () => {
 		})
 	})
 
+	it('recognizes the games route', () => {
+		expect(resolveWebRuntimeConfig({}, '', '/games/')).toMatchObject({
+			gameId: null,
+			userRoute: 'games',
+		})
+	})
+
 	it('still accepts the older gameid path form', () => {
 		expect(
 			resolveWebRuntimeConfig(

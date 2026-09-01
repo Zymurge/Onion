@@ -105,6 +105,35 @@ describe('PostgresDb - games', () => {
     expect(await db.findMatch(999999)).toBeNull()
   })
 
+  it('listMatches applies generic participant, completion, and availability filters', async () => {
+    const shrek = await db.createUser('shrek', 'shrek@example.com', 'x')
+    const fiona = await db.createUser('fiona', 'fiona@example.com', 'x')
+    const donkey = await db.createUser('donkey', 'donkey@example.com', 'x')
+    const openOnion = await db.createMatch(makeMatch({ players: { onion: shrek.userId, defender: null } }))
+    const openDefender = await db.createMatch(makeMatch({ players: { onion: null, defender: fiona.userId } }))
+    const full = await db.createMatch(makeMatch({ players: { onion: shrek.userId, defender: fiona.userId } }))
+    const completed = await db.createMatch(makeMatch({ players: { onion: donkey.userId, defender: fiona.userId }, winner: donkey.userId }))
+
+    expect((await db.listMatches()).map((match) => match.gameId)).toEqual([
+      openOnion.gameId,
+      openDefender.gameId,
+      full.gameId,
+      completed.gameId,
+    ])
+    expect((await db.listMatches({
+      participantUserId: shrek.userId,
+      completion: 'active',
+      availability: 'open',
+    })).map((match) => match.gameId)).toEqual([openOnion.gameId])
+    expect((await db.listMatches({
+      excludeParticipantUserId: shrek.userId,
+      completion: 'active',
+      availability: 'open',
+    })).map((match) => match.gameId)).toEqual([openDefender.gameId])
+    expect((await db.listMatches({ completion: 'completed' })).map((match) => match.gameId)).toEqual([completed.gameId])
+    expect((await db.listMatches({ availability: 'full' })).map((match) => match.gameId)).toEqual([full.gameId, completed.gameId])
+  })
+
   it('updateMatchPlayers persists player assignment', async () => {
     const { userId } = await db.createUser('shrek', 'shrek@example.com', 'x')
     const match = makeMatch()

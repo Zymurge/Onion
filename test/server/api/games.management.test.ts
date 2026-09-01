@@ -26,9 +26,9 @@ describe('POST /games', () => {
     const registration = await app.inject({
       method: 'POST',
       url: '/auth/register',
-      payload: { username: 'jwt-shrek', password: 'swamp1234' },
+      payload: { username: 'jwt-shrek', email: 'jwt-shrek@example.com', password: 'swamp1234' },
     })
-    const { userId, token } = registration.json<{ userId: string; token: string }>()
+    const { token } = registration.json<{ token: string }>()
 
     const res = await app.inject({
       method: 'POST',
@@ -38,7 +38,7 @@ describe('POST /games', () => {
     })
 
     expect(res.statusCode).toBe(201)
-    expect(userId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(token).toEqual(expect.any(String))
   })
 
   it('returns 401 without auth token', async () => {
@@ -390,7 +390,7 @@ describe('GET /games', () => {
   it('returns 500 when a persisted game references a missing scenario', async () => {
     const userId = '00000000-0000-4000-8000-000000000001'
     const app = buildApp({
-      listMatchesByUserId: async () => [{
+      listMatches: async () => [{
         gameId: 1,
         scenarioId: 'missing-scenario',
         phase: 'ONION_MOVE',
@@ -439,6 +439,87 @@ describe('GET /games', () => {
       method: 'GET',
       url: '/games',
     })
+
+    expect(res.statusCode).toBe(401)
+  })
+})
+
+describe('GET /games/open', () => {
+  it('returns empty array when no open games exist', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games/open',
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ games: [] })
+  })
+
+  it('returns a lobby with its available role and scenario name', async () => {
+    const app = buildApp()
+    const creator = await register(app, 'shrek')
+    const visitor = await register(app, 'fiona')
+    const { gameId } = await createGame(app, creator.token, 'onion')
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games/open',
+      headers: { authorization: `Bearer ${visitor.token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({
+      games: [{
+        gameId,
+        scenarioId: 'swamp-siege-01',
+        scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+        creatorRole: 'onion',
+        openRole: 'defender',
+      }],
+    })
+  })
+
+  it('does not return the caller own lobby', async () => {
+    const app = buildApp()
+    const creator = await register(app, 'shrek')
+    await createGame(app, creator.token, 'defender')
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games/open',
+      headers: { authorization: `Bearer ${creator.token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ games: [] })
+  })
+
+  it('excludes full games', async () => {
+    const app = buildApp()
+    const creator = await register(app, 'shrek')
+    const joiner = await register(app, 'fiona')
+    const visitor = await register(app, 'donkey')
+    const { gameId } = await createGame(app, creator.token, 'onion')
+    await joinGame(app, gameId, joiner.token)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/games/open',
+      headers: { authorization: `Bearer ${visitor.token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ games: [] })
+  })
+
+  it('returns 401 without auth token', async () => {
+    const app = buildApp()
+
+    const res = await app.inject({ method: 'GET', url: '/games/open' })
 
     expect(res.statusCode).toBe(401)
   })

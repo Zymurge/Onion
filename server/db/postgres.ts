@@ -1,7 +1,7 @@
 import type { Pool } from 'pg'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
 import { StaleMatchStateError } from '#server/db/adapter'
-import type { DbAdapter, MatchRecord, PersistMatchProgressInput } from '#server/db/adapter'
+import type { DbAdapter, MatchListFilters, MatchRecord, MatchSummary, PersistMatchProgressInput } from '#server/db/adapter'
 import logger from '#server/logger'
 
 /**
@@ -65,7 +65,30 @@ export class PostgresDb implements DbAdapter {
     return { gameId }
   }
 
-  async listMatchesByUserId(userId: string): Promise<Array<Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>>> {
+  async listMatches(filters: MatchListFilters = {}): Promise<MatchSummary[]> {
+    const conditions: string[] = []
+    const values: string[] = []
+
+    if (filters.participantUserId !== undefined) {
+      values.push(filters.participantUserId)
+      conditions.push(`(onion_player_id = $${values.length} OR defender_player_id = $${values.length})`)
+    }
+    if (filters.excludeParticipantUserId !== undefined) {
+      values.push(filters.excludeParticipantUserId)
+      conditions.push(`(onion_player_id IS NULL OR onion_player_id <> $${values.length}) AND (defender_player_id IS NULL OR defender_player_id <> $${values.length})`)
+    }
+    if (filters.completion === 'active') {
+      conditions.push('winner IS NULL')
+    } else if (filters.completion === 'completed') {
+      conditions.push('winner IS NOT NULL')
+    }
+    if (filters.availability === 'open') {
+      conditions.push('(onion_player_id IS NULL) <> (defender_player_id IS NULL)')
+    } else if (filters.availability === 'full') {
+      conditions.push('onion_player_id IS NOT NULL AND defender_player_id IS NOT NULL')
+    }
+
+    const whereClause = conditions.length === 0 ? '' : ` WHERE ${conditions.join(' AND ')}`
     const { rows } = await this.pool.query<{
       id: number
       scenario_id: string
@@ -76,8 +99,8 @@ export class PostgresDb implements DbAdapter {
       defender_player_id: string | null
     }>(
       `SELECT id, scenario_id, current_phase, turn_number, winner, onion_player_id, defender_player_id
-       FROM matches WHERE onion_player_id = $1 OR defender_player_id = $1 ORDER BY created_at ASC`,
-      [userId],
+       FROM matches${whereClause} ORDER BY created_at ASC`,
+      values,
     )
     return rows.map((m) => ({
       gameId: m.id,

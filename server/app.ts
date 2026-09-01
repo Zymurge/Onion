@@ -26,7 +26,7 @@ function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
     createUser: db?.createUser?.bind(db) ?? fallback.createUser.bind(fallback),
     createMatch: db?.createMatch?.bind(db) ?? fallback.createMatch.bind(fallback),
     findMatch: db?.findMatch?.bind(db) ?? fallback.findMatch.bind(fallback),
-    listMatchesByUserId: db?.listMatchesByUserId?.bind(db) ?? fallback.listMatchesByUserId.bind(fallback),
+    listMatches: db?.listMatches?.bind(db) ?? fallback.listMatches.bind(fallback),
     updateMatchPlayers: db?.updateMatchPlayers?.bind(db) ?? fallback.updateMatchPlayers.bind(fallback),
     updateMatchState: db?.updateMatchState?.bind(db) ?? fallback.updateMatchState.bind(fallback),
     persistMatchProgress: db?.persistMatchProgress?.bind(db) ?? fallback.persistMatchProgress.bind(fallback),

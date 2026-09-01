@@ -18,7 +18,7 @@ export async function register(
   const res = await app.inject({
     method: 'POST',
     url: '/auth/register',
-    payload: { username, password: 'swamp1234' },
+    payload: { username, email: `${username}@example.com`, password: 'swamp1234' },
   })
   const { userId, token } = res.json<RegisteredUser>()
   return { userId, token }

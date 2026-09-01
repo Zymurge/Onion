@@ -63,6 +63,11 @@
   margin-top: 24px;
 }
 
+.dashboard-empty-state {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
 .dashboard-game-row {
   display: flex;
   align-items: center;
