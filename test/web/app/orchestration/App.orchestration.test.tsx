@@ -905,7 +905,7 @@ describe('combat', () => {
 		await user.click(screen.getByTestId('combat-target-near-1'))
 
 		const confirmationView = await screen.findByTestId('combat-confirmation-view')
-		expect(confirmationView.textContent).toContain('Attack composition')
+		expect(confirmationView.textContent).toContain('Attackers (1):')
 		expect(confirmationView.textContent).toContain('2:1')
 	})
 
@@ -1010,7 +1010,7 @@ describe('combat', () => {
 
 		expect(target.getAttribute('data-selected')).toBe('true')
 		const confirmationView = await screen.findByTestId('combat-confirmation-view')
-		expect(confirmationView.textContent).toContain('Confirm attack on Main Weapon')
+		expect(confirmationView.textContent).toContain('Target: Main Weapon')
 	})
 
 	it('blocks treads when multiple defender groups are selected', async () => {
@@ -1032,6 +1032,43 @@ describe('combat', () => {
 
 		fireEvent.contextMenu(treadsTarget)
 		expect(treadsTarget.getAttribute('data-selected')).toBe('false')
+	})
+
+	it('clears a selected treads target when a second member of one stack is added', async () => {
+		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
+			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', pos: { q: 1, r: 1 } },
+				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
+			],
+			groups: [
+				{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] },
+			],
+		})
+		const snapshot = {
+			...baseOrchestrationSnapshot,
+			authoritativeState: { ...baseOrchestrationSnapshot.authoritativeState, defenders, stackRoster, stackNaming },
+		}
+		const submitAction = vi.fn()
+		const client = createTestClient(snapshot, { role: 'defender' as const }, { submitAction })
+
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		fireEvent.click(await screen.findByTestId('combat-unit-pigs-1'))
+		const secondMember = await screen.findByTestId('combat-stack-member-pigs-2')
+		fireEvent.click(secondMember)
+
+		const treadsTarget = await screen.findByTestId('combat-target-onion-1:treads')
+		fireEvent.click(treadsTarget)
+		expect(treadsTarget.getAttribute('data-selected')).toBe('true')
+
+		fireEvent.click(secondMember, { ctrlKey: true })
+
+		expect(treadsTarget.getAttribute('data-selected')).toBe('false')
+		const resolveButton = screen.getByRole('button', { name: /resolve combat/i })
+		expect(resolveButton.hasAttribute('disabled')).toBe(true)
+		fireEvent.click(resolveButton)
+		expect(submitAction).not.toHaveBeenCalled()
 	})
 
 	it('greys out spent stack members after one pig has fired', async () => {
@@ -1193,7 +1230,7 @@ describe('combat', () => {
 		await user.click(screen.getByTestId('combat-unit-wolf-2'))
 		await user.click(within(await screen.findByTestId('combat-target-list')).getAllByRole('button')[0])
 
-		expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Confirm attack on Treads')
+		expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Target: Treads')
 		expect(screen.queryByTestId('combat-resolution-toast')).toBeNull()
 
 		await user.click(screen.getByRole('button', { name: /resolve combat/i }))

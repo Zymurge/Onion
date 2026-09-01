@@ -312,6 +312,48 @@ describe('useBattlefieldInteractionState', () => {
 		expect(result.current.selectedCombatTargetId).toBeNull()
 	})
 
+	it('clears a Defender treads target when adding an attacker from another group', async () => {
+		const controller = createController()
+		const baseSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT' })
+		const defenders = {
+			'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 0, r: 1 }, weapons: [] }),
+			'pigs-2': makeDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 1, r: 1 }, weapons: [] }),
+		}
+		const snapshot = createSnapshot({
+			phase: 'DEFENDER_COMBAT',
+			authoritativeState: {
+				...baseSnapshot.authoritativeState!,
+				defenders,
+				stackRoster: buildStackRosterFromUnits(Object.values(defenders)),
+			},
+		})
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: snapshot,
+				clientSnapshotPhase: 'DEFENDER_COMBAT',
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			result.current.setSelectedUnitIds(['pigs-1'])
+			result.current.setSelectedCombatTargetId('onion-1:treads')
+		})
+
+		await act(async () => {
+			result.current.handleSelectUnit('pigs-2', true)
+		})
+
+		expect(result.current.selectedUnitIds).toEqual(['pigs-1', 'pigs-2'])
+		expect(result.current.selectedCombatTargetId).toBeNull()
+	})
+
 	it('falls back to refresh completion when no controller is connected', async () => {
 		vi.useFakeTimers()
 		const { result } = renderHook(() =>

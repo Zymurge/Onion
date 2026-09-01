@@ -51,35 +51,33 @@ export function AttackPlanningConfirmationView({
   return (
     <ConfirmationSurface dataTestId={dataTestId} title={title}>
       <div className="combat-confirmation-stats">
-        <div className="combat-confirmation-stat">
-          <span className="stat-label-small">Attack</span>
-          <strong>{attackStrength}</strong>
-        </div>
-        <div className="combat-confirmation-stat">
-          <span className="stat-label-small">Range</span>
-          <strong>{attackRange}</strong>
-        </div>
-        <div className="combat-confirmation-stat">
-          <span className="stat-label-small">Attackers</span>
-          <strong>{attackMemberCount ?? 0}</strong>
-        </div>
-        {hasTarget ? (
+        <div className="combat-confirmation-stat-row">
           <div className="combat-confirmation-stat">
-            <span className="stat-label-small">Defense</span>
-            <strong>{modeProps.defenseStrength}</strong>
+            <span className="stat-label-small">Attack</span>
+            <strong>{attackStrength}</strong>
           </div>
-        ) : null}
-        {hasTarget ? (
           <div className="combat-confirmation-stat">
-            <span className="stat-label-small">Odds</span>
-            <strong>{odds}</strong>
+            <span className="stat-label-small">Range</span>
+            <strong>{attackRange}</strong>
+          </div>
+        </div>
+        {hasTarget ? (
+          <div className="combat-confirmation-stat-row">
+            <div className="combat-confirmation-stat">
+              <span className="stat-label-small">Defense</span>
+              <strong>{modeProps.defenseStrength}</strong>
+            </div>
+            <div className="combat-confirmation-stat">
+              <span className="stat-label-small">Odds</span>
+              <strong>{odds}</strong>
+            </div>
           </div>
         ) : null}
       </div>
 
       {attackMemberLabels.length > 0 ? (
         <div className="combat-confirmation-section">
-          <span className="stat-label-small">Attack composition</span>
+          <span className="stat-label-small">Attackers ({attackMemberCount ?? attackMemberLabels.length}):</span>
           <ul className="combat-confirmation-modifier-list">
             {attackMemberLabels.map((label, idx) => (
               <li key={`${label}-${idx}`}>{label}</li>

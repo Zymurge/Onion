@@ -8,6 +8,7 @@ import { isWeaponSelectionId, resolveSelectionOwnerUnitId } from './selectionIds
 import { buildMoveCommitAction } from './commitActionBuilders'
 import { clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
 import type { TurnPhase } from '../../shared/types/index'
+import { parseCombatTargetId } from '../../shared/combatTarget'
 import type { Mode } from './battlefieldView'
 import { isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog'
 import logger from './logger'
@@ -393,7 +394,11 @@ export function useBattlefieldInteractionState({
     setSelectedUnitIds(nextSelection)
     setHasExplicitSelection(true)
 
-    if (!isCombatSnapshotPhase(clientSnapshotPhase) || nextSelection.length === 0) {
+    const selectedTargetIsInvalid = clientSnapshotPhase === 'DEFENDER_COMBAT'
+      && parseCombatTargetId(selectedCombatTargetId ?? '')?.kind === 'treads'
+          && new Set(nextSelection.map(resolveSelectionOwnerUnitId)).size > 1
+
+    if (!isCombatSnapshotPhase(clientSnapshotPhase) || nextSelection.length === 0 || selectedTargetIsInvalid) {
       setSelectedCombatTargetId(null)
     }
   }

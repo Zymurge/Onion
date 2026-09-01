@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildRightRailCombatPanelViewModel } from '#web/lib/rightRailCombatPanel'
+import { makeBattlefieldDefender } from '#test/utils/gameStateUtils'
 
 describe('rightRailCombatPanel', () => {
   it('shows the combat panel only during the active combat phase when no inspector target is selected', () => {
@@ -31,7 +32,12 @@ describe('rightRailCombatPanel', () => {
       activeCombatRole: 'defender',
       activeRole: 'defender',
       isCombatPhase: true,
-      selectedInspectorDefender: { id: 'pigs-1', type: 'LittlePigs', status: 'operational', position: { q: 4, r: 4 }, move: 3, weapons: 'main: ready', attack: '1 / rng 1', friendlyName: 'Little Pigs 1' },
+      selectedInspectorDefender: makeBattlefieldDefender({
+        unitId: 'pigs-1',
+        typeId: 'LittlePigs',
+        position: { q: 4, r: 4 },
+        friendlyName: 'Little Pigs 1',
+      }),
       selectedCombatTarget: null,
       combatTargetOptions: [],
       rightRailStackPanel: {
@@ -51,8 +57,28 @@ describe('rightRailCombatPanel', () => {
       activeRole: 'defender',
       isCombatPhase: true,
       selectedInspectorDefender: null,
-      selectedCombatTarget: { id: 'onion-1', label: 'Onion', defense: 3, modifiers: [] },
-      combatTargetOptions: [{ id: 'onion-1', label: 'Onion', defense: 3, modifiers: [] }],
+      selectedCombatTarget: {
+        id: 'onion-1',
+        kind: 'onion',
+        q: 0,
+        r: 0,
+        status: 'operational',
+        label: 'Onion',
+        detail: 'Defense: 3',
+        defense: 3,
+        modifiers: [],
+      },
+      combatTargetOptions: [{
+        id: 'onion-1',
+        kind: 'onion',
+        q: 0,
+        r: 0,
+        status: 'operational',
+        label: 'Onion',
+        detail: 'Defense: 3',
+        defense: 3,
+        modifiers: [],
+      }],
       rightRailStackPanel: {
         isVisible: true,
         selectedStackMembers: [],
@@ -60,7 +86,7 @@ describe('rightRailCombatPanel', () => {
         selectedStackSelectionIds: [],
       },
     })).toMatchObject({
-      selectedCombatTargetTitle: 'Confirm attack on Onion',
+      selectedCombatTargetTitle: 'Target: Onion',
       hasCombatTargets: true,
       hasSelectedTarget: true,
       combatTargetCountLabel: '1 in range',

@@ -391,4 +391,29 @@ describe('buildCombatTargetOptions', () => {
 			disabledTitle: 'Select attackers from one defender stack to target treads.',
 		})
 	})
+
+	it('disables treads when multiple members of one defender stack are selected', () => {
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'defender',
+			combatRangeHexKeys: new Set(['0,0']),
+			displayedDefenders: [
+				makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
+				makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
+			],
+			displayedOnion: makeBattlefieldOnion(),
+			...makeStackView({ unitType: 'LittlePigs', position: { q: 1, r: 1 }, unitIds: ['pigs-1', 'pigs-2'] }),
+			selectedUnitIds: ['pigs-1', 'pigs-2'],
+			selectedAttackStrength: 2,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: {
+				width: 8,
+				height: 8,
+				hexes: [],
+			},
+		})
+
+		expect(options.find((option) => option.id === 'onion-1:treads')).toMatchObject({
+			isDisabled: true,
+		})
+	})
 })

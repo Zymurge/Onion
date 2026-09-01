@@ -166,7 +166,7 @@ describe('BattlefieldRightRail', () => {
     )
 
     expect(screen.getByText('Attack Planning')).not.toBeNull()
-    expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Attack composition')
+    expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Attackers (2):')
     expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Range')
     expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('3')
     expect(screen.getByTestId('confirmation-surface')).not.toBeNull()

@@ -43,7 +43,7 @@ export function buildRightRailCombatPanelViewModel({
     shouldShowCombatPanel,
     combatTargetCount,
     combatTargetCountLabel: `${combatTargetCount} in range`,
-    selectedCombatTargetTitle: selectedCombatTarget === null ? null : `Confirm attack on ${selectedCombatTarget.label}`,
+    selectedCombatTargetTitle: selectedCombatTarget === null ? null : `Target: ${selectedCombatTarget.label}`,
     hasCombatTargets: combatTargetCount > 0,
     hasSelectedTarget: selectedCombatTarget !== null,
     stackSelectionPanelVisible: rightRailStackPanel.isVisible,

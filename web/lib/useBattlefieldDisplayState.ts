@@ -426,8 +426,10 @@ export function useBattlefieldDisplayState({
       catalog: catalog ?? undefined,
     })
     const combatTargetIds = new Set(combatTargetOptions.map((target) => target.id))
-    const selectedCombatTargetIdForRender = selectedCombatTargetId !== null && combatTargetIds.has(selectedCombatTargetId) ? selectedCombatTargetId : null
-    const selectedCombatTarget = selectedCombatTargetIdForRender === null ? null : combatTargetOptions.find((target) => target.id === selectedCombatTargetIdForRender) ?? null
+    const selectedCombatTarget = selectedCombatTargetId === null
+      ? null
+      : combatTargetOptions.find((target) => target.id === selectedCombatTargetId && target.isDisabled !== true) ?? null
+    const selectedCombatTargetIdForRender = selectedCombatTarget?.id ?? null
     const connectionStatus = sessionState.liveConnection
     const connectionLabel = formatLiveConnectionStatus(connectionStatus)
     const lastUpdatedAt = sessionState.lastUpdatedAt ?? lastRefreshAt

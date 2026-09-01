@@ -196,7 +196,6 @@ export function buildCombatTargetOptions({
 	stackNaming,
 	selectedUnitIds,
 	selectedAttackStrength,
-	selectedAttackGroupCount,
 	displayedScenarioMap,
 	catalog,
 }: CombatPreviewInput): CombatTargetOption[] {
@@ -346,9 +345,9 @@ export function buildCombatTargetOptions({
 			defense: selectedAttackStrength,
 			modifiers: selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 			detail: `Treads: ${displayedOnion.treads}`,
-			isDisabled: activeCombatRole === 'defender' && selectedAttackGroupCount > 1,
+				isDisabled: activeCombatRole === 'defender' && selectedAttackerIds.length > 1,
 			disabledTitle:
-				activeCombatRole === 'defender' && selectedAttackGroupCount > 1
+					activeCombatRole === 'defender' && selectedAttackerIds.length > 1
 					? 'Select attackers from one defender stack to target treads.'
 					: undefined,
 		},
