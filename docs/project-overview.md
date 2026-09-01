@@ -173,7 +173,7 @@ Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md).
 
 ### Game Lobby & Matchmaking
 
-**TODO:** See docs/todo.md (Epic: Game lobby for creation and joining)
+**TODO:** See docs/todo.md (Epic: Game lobby for game discovery and joining)
 
 *Planned:* Add self-service matchmaking, game creation, join-by-code/invite, and session listing. Backend contract and UI flow to be specified. This section will be expanded when implementation starts.
 

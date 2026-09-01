@@ -20,7 +20,7 @@ describe('GameCreateScreen', () => {
 		vi.restoreAllMocks()
 	})
 
-	it('loads a scenario preview and creates a lobby with the selected role', async () => {
+	it('loads a scenario preview and creates a game with the selected role', async () => {
 		const user = userEvent.setup()
 		const navigate = vi.fn()
 		saveAuthSession({
@@ -59,7 +59,7 @@ describe('GameCreateScreen', () => {
 		expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/user/dashboard')
 		await screen.findByText('Destroy the swamp and escape.')
 		await user.selectOptions(screen.getByLabelText(/your side/i), 'defender')
-		await user.click(screen.getByRole('button', { name: /create lobby/i }))
+		await user.click(screen.getByRole('button', { name: /create game/i }))
 
 		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
 		const createCall = fetchMock.mock.calls.find(([url]) => url === 'http://localhost:3000/games')

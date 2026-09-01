@@ -473,7 +473,7 @@ describe('GET /games/open', () => {
     expect(res.json()).toEqual({ games: [] })
   })
 
-  it('returns a lobby with its available role and scenario name', async () => {
+  it('returns a waiting game with its available role and scenario name', async () => {
     const app = buildApp()
     const creator = await register(app, 'shrek')
     const visitor = await register(app, 'fiona')
@@ -497,7 +497,7 @@ describe('GET /games/open', () => {
     })
   })
 
-  it('does not return the caller own lobby', async () => {
+  it('does not return the caller own waiting game', async () => {
     const app = buildApp()
     const creator = await register(app, 'shrek')
     await createGame(app, creator.token, 'defender')

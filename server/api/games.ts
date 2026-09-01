@@ -417,8 +417,8 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       for (const scenarioId of scenarioIds) {
         const scenario = await loadScenario(scenarioId, scenariosDir)
         if (scenario === null) {
-          logger.error({ scenarioId }, 'Required lobby scenario could not be loaded')
-          return reply.status(500).send({ ok: false, error: 'Required lobby scenario could not be loaded', code: 'INTERNAL_ERROR' })
+          logger.error({ scenarioId }, 'Required game scenario could not be loaded')
+          return reply.status(500).send({ ok: false, error: 'Required game scenario could not be loaded', code: 'INTERNAL_ERROR' })
         }
         scenarioMap[scenarioId] = scenario.displayName ?? scenario.name ?? scenarioId
       }

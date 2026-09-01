@@ -136,8 +136,8 @@ export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenPr
           <header className="create-game-header">
             <div>
               <p className="eyebrow">New match</p>
-              <h1>Create a game lobby</h1>
-              <p className="create-game-intro">Choose the battlefield and your side. The other player can join after the lobby is created.</p>
+              <h1>Create a game</h1>
+              <p className="create-game-intro">Choose the battlefield and your side. The other player can join after the game is created.</p>
             </div>
           </header>
 
@@ -170,7 +170,7 @@ export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenPr
                   </select>
                 </label>
                 <button type="submit" className="primary-action" disabled={working || !selectedScenarioId || loadingScenarios}>
-                  {working ? 'Creating lobby...' : 'Create Lobby'}
+                  {working ? 'Creating game...' : 'Create Game'}
                 </button>
             </form>
           </section>

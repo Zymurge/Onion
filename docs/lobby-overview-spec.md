@@ -4,7 +4,7 @@
 
 The game lobby is the coordination layer between authenticated users and the
 active gameplay engine. It manages who can create and enter a game, how a game
-moves from an open lobby into active play, and the minimum information clients
+moves from a waiting game into active play, and the minimum information clients
 need to connect to that game.
 
 The lobby does not own turn rules, movement, combat, victory, or authoritative
@@ -42,28 +42,28 @@ account scope.
 
 ## Step 2: Game Creation
 
-Allow an authenticated user to create a new game lobby.
+Allow an authenticated user to create a new game.
 
-- Create a lobby for a selected scenario and assign the creating user as its
+- Create a game for a selected scenario and assign the creating user as its
   initial player and host.
 - Establish the initial game configuration and available player roles needed
   for another player to join.
 
 ## Step 3: Game Membership and Join
 
-Allow eligible authenticated users to enter an existing lobby.
+Allow eligible authenticated users to enter an existing game.
 
-- Join an open lobby and receive an available player role without allowing
+- Join a waiting game and receive an available player role without allowing
   duplicate membership or conflicting role assignments.
 - Track the relationship between users and games so each participant can
   authenticate against the games they belong to.
 
 ## Step 4: Game Lifecycle Management
 
-Define the coarse lifecycle states that control what lobby operations are
+Define the coarse lifecycle states that control what game membership operations are
 allowed.
 
-- Establish the transition from an open lobby to a startable lobby and then to
+- Establish the transition from a waiting game to a startable game and then to
   an active game, with invalid transitions rejected.
 - Allow appropriate pre-start membership changes, while keeping gameplay state
   and turn progression outside the lobby's responsibility.
@@ -72,7 +72,7 @@ allowed.
 
 Allow a game to move from lobby coordination into gameplay.
 
-- Permit the authorized host to start the game when the lobby's required
+- Permit the authorized host to start the game when the game's required
   creation conditions are satisfied.
 - Create or finalize the authoritative gameplay setup exactly once and expose
   the resulting game identity to both participants.
@@ -101,7 +101,7 @@ engine.
 Connect the web and other clients to the lobby flow without redesigning the
 active gameplay surface.
 
-- Replace the current out-of-band game ID sharing flow with lobby-backed
+- Replace the current out-of-band game ID sharing flow with lobby-backed game
   creation, joining, and transition into the existing game screen.
 - Preserve the current JWT authentication, REST operations, WebSocket live
   updates, and authoritative snapshot behavior once a client enters gameplay.

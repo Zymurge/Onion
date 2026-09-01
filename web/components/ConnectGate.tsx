@@ -59,7 +59,7 @@ export function ConnectGate({ runtimeConfig, onConnectedSession }: ConnectGatePr
             Create a New Account
           </a>
           <a className="gate-secondary-action" href="/game/create">
-            Create a Game Lobby
+            Create a Game
           </a>
           <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
             <button
