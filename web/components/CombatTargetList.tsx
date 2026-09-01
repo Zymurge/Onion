@@ -15,7 +15,7 @@ export function CombatTargetList({
   onSelectTarget,
 }: CombatTargetListProps) {
   return (
-    <div className="attacker-selection-list" data-testid="combat-target-list">
+    <div className="attacker-selection-list combat-target-list" data-testid="combat-target-list">
       {targets.map((target) => {
         const isSelected = selectedTargetId === target.id
         const targetIsDisabled = isDisabled || target.isDisabled === true

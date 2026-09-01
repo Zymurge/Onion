@@ -311,7 +311,7 @@ export function buildCombatTargetOptions({
 	}
 
 	const readyWeaponTargets = displayedOnion.weapons
-		.filter((weapon) => catalog !== undefined && getSessionWeaponType(catalog, weapon.typeId).individuallyTargetable && weapon.state === 'ready')
+		.filter((weapon) => catalog !== undefined && getSessionWeaponType(catalog, weapon.typeId).individuallyTargetable && weapon.state !== 'destroyed')
 		.map((weapon) => {
 			const result = combatCalculator.calculate(
 				buildCombatCalculatorInputForWeaponTarget(selectedAttackerIds, displayedDefenders, displayedOnion, weapon),
@@ -324,7 +324,7 @@ export function buildCombatTargetOptions({
 				kind: 'onion' as const,
 				q: onionPosition.q,
 				r: onionPosition.r,
-				status: weapon.state as UnitStatus,
+				status: 'operational' as const,
 				label: resolveBattlefieldWeaponName(weapon, catalog),
 				defense: defense,
 				modifiers: buildTargetModifiers(result.modifiers, [

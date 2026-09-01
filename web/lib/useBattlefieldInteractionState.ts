@@ -389,6 +389,15 @@ export function useBattlefieldInteractionState({
     setHasExplicitSelection(true)
   }
 
+  function applySelection(nextSelection: string[]) {
+    setSelectedUnitIds(nextSelection)
+    setHasExplicitSelection(true)
+
+    if (!isCombatSnapshotPhase(clientSnapshotPhase) || nextSelection.length === 0) {
+      setSelectedCombatTargetId(null)
+    }
+  }
+
   function handleSelectUnit(unitId: string, additive = false) {
     if (isSelectionLocked) {
       debugLog('handleSelectUnit blocked', {
@@ -465,22 +474,13 @@ export function useBattlefieldInteractionState({
       selectedUnitIds,
     })
 
-    setSelectedUnitIds((currentSelection) => {
-      const baseSelection = currentSelection ?? []
+    const nextSelection = !additive
+      ? nextStackSelection ?? [selectionOwnerUnitId]
+      : baseSelection.includes(unitId)
+        ? baseSelection.filter((selectedId) => selectedId !== unitId)
+        : [...baseSelection, unitId]
 
-      if (!additive) {
-        setHasExplicitSelection(true)
-        return nextStackSelection ?? [selectionOwnerUnitId]
-      }
-
-      setHasExplicitSelection(true)
-      if (baseSelection.includes(unitId)) {
-        return baseSelection.filter((selectedId) => selectedId !== unitId)
-      }
-
-      return [...baseSelection, unitId]
-    })
-    setSelectedCombatTargetId(null)
+    applySelection(nextSelection)
     setActionError(null)
   }
 
@@ -495,13 +495,9 @@ export function useBattlefieldInteractionState({
 
     clearPendingCombatResolution(false)
     setPendingRamPrompt(null)
-    setSelectedCombatTargetId(null)
     setActionError(null)
 
-    setSelectedUnitIds((currentSelection) =>
-      toggleRightRailStackMemberSelection(currentSelection, stackMemberIds, unitId),
-    )
-    setHasExplicitSelection(true)
+    applySelection(toggleRightRailStackMemberSelection(selectedUnitIds, stackMemberIds, unitId))
   }
 
   function handleSelectAllStackMembers(stackMemberIds: readonly string[]) {
@@ -515,11 +511,9 @@ export function useBattlefieldInteractionState({
 
     clearPendingCombatResolution(false)
     setPendingRamPrompt(null)
-    setSelectedCombatTargetId(null)
     setActionError(null)
 
-    setSelectedUnitIds(selectRightRailStackMembers(stackMemberIds))
-    setHasExplicitSelection(true)
+    applySelection(selectRightRailStackMembers(stackMemberIds))
   }
 
   function handleClearStackSelection() {
@@ -532,11 +526,9 @@ export function useBattlefieldInteractionState({
 
     clearPendingCombatResolution(false)
     setPendingRamPrompt(null)
-    setSelectedCombatTargetId(null)
     setActionError(null)
 
-    setSelectedUnitIds(clearRightRailStackSelection())
-    setHasExplicitSelection(true)
+    applySelection(clearRightRailStackSelection())
   }
 
   function handleDeselectUnit() {

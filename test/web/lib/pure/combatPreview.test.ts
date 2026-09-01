@@ -332,6 +332,35 @@ describe('buildCombatTargetOptions', () => {
 		expect(options.map((option) => option.id)).toEqual(['onion-1:treads', 'weapon:ap_1'])
 	})
 
+	it('offers spent individually targetable Onion weapons but excludes destroyed weapons', () => {
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'defender',
+			combatRangeHexKeys: new Set(['0,0']),
+			displayedDefenders: [
+				makeBattlefieldDefender(
+					{ unitId: 'wolf-2', typeId: 'BigBadWolf', position: { q: 1, r: 1 } },
+					{ move: 4 },
+				),
+			],
+			displayedOnion: makeBattlefieldOnion({
+				weapons: [
+					makeWeapon({ id: 'secondary_1', typeId: 'TheOnion.secondary_1', state: 'spent' }),
+					makeWeapon({ id: 'secondary_2', typeId: 'TheOnion.secondary_2', state: 'destroyed' }),
+				],
+			}),
+			selectedUnitIds: ['wolf-2'],
+			selectedAttackStrength: 2,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: {
+				width: 8,
+				height: 8,
+				hexes: [],
+			},
+		})
+
+		expect(options.map((option) => option.id)).toEqual(['onion-1:treads', 'weapon:secondary_1'])
+	})
+
 	it('disables treads when multiple defender groups are selected', () => {
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'defender',

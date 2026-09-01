@@ -69,6 +69,7 @@ function createController() {
 		load: vi.fn(),
 		refresh: vi.fn(),
 		submitAction: vi.fn(),
+		abort: vi.fn(),
 		dispose: vi.fn(),
 	} satisfies GameSessionController
 }
@@ -207,6 +208,108 @@ describe('useBattlefieldInteractionState', () => {
 			lastRefreshAt: null,
 			isRefreshing: false,
 		})
+	})
+
+	it('preserves the Onion combat target while changing a non-empty weapon group', async () => {
+		const controller = createController()
+		const snapshot = createSnapshot({
+			phase: 'ONION_COMBAT',
+			authoritativeState: {
+				...createSnapshot().authoritativeState!,
+				onions: {
+					'onion-1': makeOnion({
+						unitId: 'onion-1',
+						weapons: [
+							makeWeapon({ id: 'main', typeId: 'TheOnion.main' }),
+							makeWeapon({ id: 'secondary', typeId: 'TheOnion.secondary_1' }),
+						],
+					}),
+				},
+			},
+		})
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: snapshot,
+				clientSnapshotPhase: 'ONION_COMBAT',
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			result.current.setSelectedUnitIds(['weapon:main', 'weapon:secondary'])
+			result.current.setSelectedCombatTargetId('def-1')
+		})
+
+		await act(async () => {
+			result.current.handleSelectUnit('weapon:secondary', true)
+		})
+
+		expect(result.current.selectedUnitIds).toEqual(['weapon:main'])
+		expect(result.current.selectedCombatTargetId).toBe('def-1')
+
+		await act(async () => {
+			result.current.handleSelectUnit('weapon:main', true)
+		})
+
+		expect(result.current.selectedUnitIds).toEqual([])
+		expect(result.current.selectedCombatTargetId).toBeNull()
+	})
+
+	it('preserves the Defender combat target while changing a non-empty attacker group', async () => {
+		const controller = createController()
+		const baseSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT' })
+		const snapshot = createSnapshot({
+			phase: 'DEFENDER_COMBAT',
+			authoritativeState: {
+				...baseSnapshot.authoritativeState!,
+				defenders: {
+					...baseSnapshot.authoritativeState!.defenders,
+					'def-2': makeDefender({
+						unitId: 'def-2',
+						position: { q: 1, r: 1 },
+						weapons: [],
+					}),
+				},
+			},
+		})
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: controller,
+				activeTurnActive: true,
+				clientSnapshot: snapshot,
+				clientSnapshotPhase: 'DEFENDER_COMBAT',
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			result.current.setSelectedUnitIds(['def-1', 'def-2'])
+			result.current.setSelectedCombatTargetId('onion-1:treads')
+		})
+
+		await act(async () => {
+			result.current.handleSelectUnit('def-2', true)
+		})
+
+		expect(result.current.selectedUnitIds).toEqual(['def-1'])
+		expect(result.current.selectedCombatTargetId).toBe('onion-1:treads')
+
+		await act(async () => {
+			result.current.handleSelectUnit('def-1', true)
+		})
+
+		expect(result.current.selectedUnitIds).toEqual([])
+		expect(result.current.selectedCombatTargetId).toBeNull()
 	})
 
 	it('falls back to refresh completion when no controller is connected', async () => {

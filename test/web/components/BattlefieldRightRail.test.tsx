@@ -8,7 +8,7 @@ import type { BattlefieldUnit } from '#web/lib/battlefieldView'
 
 type RightRailProps = ComponentProps<typeof BattlefieldRightRail>
 
-function createDefender(overrides: Partial<BattlefieldUnit> = {}): BattlefieldUnit {
+function createDefender(overrides: Partial<Omit<BattlefieldUnit, 'side'>> & { side?: BattlefieldUnit['side'] } = {}): BattlefieldUnit {
   return {
     unitId: 'pigs-1',
     typeId: 'LittlePigs',
@@ -21,6 +21,7 @@ function createDefender(overrides: Partial<BattlefieldUnit> = {}): BattlefieldUn
     stackSize: 1,
     actionableModes: ['fire'],
     ...overrides,
+    side: overrides.side ?? 'defender',
   }
 }
 
@@ -128,6 +129,7 @@ describe('BattlefieldRightRail', () => {
         canDismissInactiveEventStream={false}
         pendingRamPrompt={null}
         selectedCombatAttackStrength={2}
+        selectedCombatAttackRange={3}
         selectedCombatAttackerIds={['pigs-1', 'pigs-2']}
         selectedCombatAttackMemberLabels={['Little Pigs 1', 'Little Pigs 2']}
         selectedCombatTarget={null}
@@ -165,6 +167,8 @@ describe('BattlefieldRightRail', () => {
 
     expect(screen.getByText('Attack Planning')).not.toBeNull()
     expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Attack composition')
+    expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Range')
+    expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('3')
     expect(screen.getByTestId('confirmation-surface')).not.toBeNull()
     expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Little Pigs 1')
     expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Little Pigs 2')

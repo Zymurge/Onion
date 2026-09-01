@@ -7,7 +7,7 @@ import {
 } from '../lib/selectionIds'
 import { countSelectedBattlefieldStackMembers, shouldExpandBattlefieldStackGroup, type WebStackSourceState } from '../lib/stackSelection'
 import { getBattlefieldStackSize, resolveBattlefieldDisplayName, resolveBattlefieldStackLabel, resolveBattlefieldUnitName } from '../lib/battlefieldNaming'
-import { getBattlefieldWeaponAttack, parseWeaponStats, resolveBattlefieldWeaponName } from '../lib/weaponStats'
+import { getBattlefieldWeaponAttack, getReadyWeaponRange, parseWeaponStats, resolveBattlefieldWeaponName } from '../lib/weaponStats'
 import { getGroupAttackReadyCount, getUnitAttackStrength } from '../lib/stackReadiness'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import type { StackRosterState, Weapon } from '../../shared/types/index'
@@ -156,9 +156,11 @@ function buildDefenderGroupFromUnits(
         : anchorUnit.state === 'destroyed',
     label,
     members,
-      range: groupMode === 'combat'
-        ? Math.max(...anchorUnit.weapons.filter((weapon) => weapon.state === 'ready').map((weapon) => catalog === undefined ? 0 : getSessionWeaponType(catalog, weapon.typeId).range), 0)
-        : 0,
+    range: groupMode === 'combat'
+      ? displayedUnits.length > 0
+        ? Math.min(...displayedUnits.map((unit) => getReadyWeaponRange(unit.weapons, catalog)))
+        : 0
+      : 0,
       moveAllowance: groupMode === 'move' ? Math.max(...units.map((unit) => unit.movesRemaining)) : 0,
     selectedCount,
   }

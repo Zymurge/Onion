@@ -5,6 +5,7 @@ import { ConfirmationSurface } from './ConfirmationSurface'
 type BaseAttackPlanningConfirmationViewProps = {
   title: string
   attackStrength: number
+  attackRange?: number
   attackMemberCount?: number
   attackMemberLabels?: ReadonlyArray<string>
   confirmLabel?: string
@@ -29,6 +30,7 @@ export type AttackPlanningConfirmationViewProps = AttackPlanningViewProps | Atta
 export function AttackPlanningConfirmationView({
   title,
   attackStrength,
+  attackRange = 0,
   attackMemberCount,
   attackMemberLabels = [],
   confirmLabel,
@@ -52,6 +54,10 @@ export function AttackPlanningConfirmationView({
         <div className="combat-confirmation-stat">
           <span className="stat-label-small">Attack</span>
           <strong>{attackStrength}</strong>
+        </div>
+        <div className="combat-confirmation-stat">
+          <span className="stat-label-small">Range</span>
+          <strong>{attackRange}</strong>
         </div>
         <div className="combat-confirmation-stat">
           <span className="stat-label-small">Attackers</span>

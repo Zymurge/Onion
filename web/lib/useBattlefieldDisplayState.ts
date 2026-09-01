@@ -405,12 +405,13 @@ export function useBattlefieldDisplayState({
       : selectedInspectorDefender !== null
         ? resolveBattlefieldFriendlyName(selectedInspectorDefender, stackNaming ?? undefined, stackRoster, catalog ?? undefined)
         : null
-    const combatRangeHexKeys = !isCombatPhase || displayedScenarioMap === null
-      ? new Set<string>()
-      : buildCombatRangeHexKeys(
-        buildCombatRangeSources(activePhase, activeCombatRole, activeCombatRole === 'defender' ? selectedCombatSelectionIds : activeSelectedUnitIds, displayedDefenders, displayedOnion, catalog ?? undefined),
-        displayedScenarioMap,
-      )
+    const combatRangeSources = !isCombatPhase || displayedScenarioMap === null
+      ? []
+      : buildCombatRangeSources(activePhase, activeCombatRole, activeCombatRole === 'defender' ? selectedCombatSelectionIds : activeSelectedUnitIds, displayedDefenders, displayedOnion, catalog ?? undefined)
+    const combatRangeHexKeys = buildCombatRangeHexKeys(combatRangeSources, displayedScenarioMap ?? undefined)
+    const selectedCombatAttackRange = combatRangeSources.length > 0
+      ? Math.min(...combatRangeSources.map((source) => source.range))
+      : 0
     const combatTargetOptions = buildCombatTargetOptions({
       activeCombatRole,
       combatRangeHexKeys,
@@ -469,6 +470,7 @@ export function useBattlefieldDisplayState({
       selectedCombatAttackMemberLabels,
       selectedCombatAttackGroupCount,
       selectedCombatAttackLabel,
+      selectedCombatAttackRange,
       selectedCombatAttackStrength,
       selectedCombatTarget,
       selectedCombatTargetIdForRender,

@@ -616,6 +616,7 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
     selectedCombatAttackCount,
     selectedCombatAttackMemberLabels,
     selectedCombatAttackLabel,
+    selectedCombatAttackRange,
     selectedCombatAttackStrength,
     selectedCombatTarget,
     selectedInspectorDefender,
@@ -1025,6 +1026,7 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
           canDismissInactiveEventStream={sessionTurnActive}
           pendingRamPrompt={pendingRamPrompt}
           selectedCombatAttackStrength={selectedCombatAttackStrength}
+          selectedCombatAttackRange={selectedCombatAttackRange}
           selectedCombatAttackerIds={selectedCombatAttackerIds}
           selectedCombatAttackMemberLabels={selectedCombatAttackMemberLabels}
           selectedCombatTarget={selectedCombatTarget}

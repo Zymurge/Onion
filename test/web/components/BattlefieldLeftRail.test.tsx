@@ -5,7 +5,7 @@ import type { ComponentProps } from 'react'
 
 import { BattlefieldLeftRail } from '#web/components/BattlefieldLeftRail'
 import type { BattlefieldOnionView } from '#web/lib/battlefieldView'
-import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion, type BattlefieldDefenderFixture } from '#test/utils/gameStateUtils'
+import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion, type BattlefieldDefenderFixture, type BattlefieldOnionFixture } from '#test/utils/gameStateUtils'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import type { StackNamingSnapshot } from '#shared/stackNaming'
@@ -14,8 +14,8 @@ import type { StackRosterState } from '#shared/types/index'
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 type LeftRailProps = ComponentProps<typeof BattlefieldLeftRail>
 
-function createOnion(overrides: Partial<BattlefieldOnionView> = {}): BattlefieldOnionView {
-  return {
+function createOnion(overrides: Partial<BattlefieldOnionFixture> = {}): BattlefieldOnionView {
+  return canonicalizeBattlefieldOnion({
     id: 'onion-1',
     type: 'TheOnion',
     position: { q: 0, r: 0 },
@@ -27,7 +27,7 @@ function createOnion(overrides: Partial<BattlefieldOnionView> = {}): Battlefield
     weapons: 'main: ready',
     weaponDetails: [],
     ...overrides,
-  }
+  })
 }
 
 function createLeftRailProps(overrides: Partial<LeftRailProps> = {}): LeftRailProps {
@@ -58,7 +58,7 @@ function renderLeftRail(overrides: Partial<LeftRailProps> = {}) {
 describe('BattlefieldLeftRail', () => {
   it('renders onion weapon metadata from the session catalog', () => {
     const weaponType = sessionCatalog.weaponTypes['TheOnion.main']
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: { q: 0, r: 0 },
@@ -91,7 +91,7 @@ describe('BattlefieldLeftRail', () => {
         isSelectionLocked={false}
         stacksExpandable={false}
         onionWeapons={{ operationalWeapons: 1, operationalMissiles: 0 }}
-        readyWeaponDetails={onion.weaponDetails ?? []}
+        readyWeaponDetails={canonicalizeBattlefieldOnion(onion).weapons}
         selectedCombatAttackLabel="Attack 0"
         catalog={sessionCatalog}
         onSelectUnit={vi.fn()}
@@ -145,7 +145,7 @@ describe('BattlefieldLeftRail', () => {
         },
       }
     }
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -186,6 +186,61 @@ describe('BattlefieldLeftRail', () => {
     expect(screen.getByTestId('combat-stack-group-pigs-1').dataset.expanded).toBe('false')
     expect(screen.queryByTestId('combat-stack-member-pigs-1')).toBeNull()
     expect(screen.queryByTestId('combat-stack-member-pigs-2')).toBeNull()
+  })
+
+  it('shows the minimum ready-weapon range across a combat group', () => {
+    const displayedDefenders: BattlefieldDefenderFixture[] = [
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 1',
+        status: 'operational',
+        position: { q: 4, r: 4 },
+        move: 3,
+        weaponDetails: [{ id: 'main-1', typeId: 'Witch.main', status: 'ready' }],
+        actionableModes: ['fire', 'combined'],
+      },
+      {
+        id: 'pigs-2',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 2',
+        status: 'operational',
+        position: { q: 5, r: 4 },
+        move: 3,
+        weaponDetails: [{ id: 'main-2', typeId: 'LittlePigs.rifle', status: 'ready' }],
+        actionableModes: ['fire', 'combined'],
+      },
+    ]
+    const stackRoster = {
+      groupsById: {
+        'LittlePigs:4,4': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 4, r: 4 },
+          unitIds: ['pigs-1', 'pigs-2'],
+        },
+      },
+    }
+    const stackNaming = {
+      groupsInUse: [
+        { groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Little Pigs group 1'],
+    }
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      isCombatPhase: true,
+      stacksExpandable: true,
+      displayedDefenders: canonicalizeBattlefieldDefenders(displayedDefenders),
+      stackNaming: stackNaming as StackNamingSnapshot,
+      stackRoster: stackRoster as StackRosterState,
+      catalog: sessionCatalog,
+    })
+
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Range: 1')
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).not.toContain('Range: 4')
   })
 
   it('shows the canonical stack name instead of the first member friendly name', () => {
@@ -229,7 +284,7 @@ describe('BattlefieldLeftRail', () => {
         },
       }
     }
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -283,7 +338,7 @@ describe('BattlefieldLeftRail', () => {
         actionableModes: ['fire', 'combined'],
       },
     ]
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -351,7 +406,7 @@ describe('BattlefieldLeftRail', () => {
         actionableModes: ['fire', 'combined'],
       },
     ]
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -449,7 +504,7 @@ describe('BattlefieldLeftRail', () => {
         },
       }
     }
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: { 
@@ -507,7 +562,7 @@ describe('BattlefieldLeftRail', () => {
       attack: '1 / rng 1',
       actionableModes: ['fire', 'combined'],
     }))
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: { q: 0, r: 0 },
@@ -594,7 +649,7 @@ describe('BattlefieldLeftRail', () => {
         actionableModes: [],
       },
     ]
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -700,7 +755,7 @@ describe('BattlefieldLeftRail', () => {
         },
       }
     }
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -798,7 +853,7 @@ describe('BattlefieldLeftRail', () => {
         },
       }
     }
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -883,7 +938,7 @@ describe('BattlefieldLeftRail', () => {
         },
       }
     }
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -964,7 +1019,7 @@ describe('BattlefieldLeftRail', () => {
         },
       }
     }
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -1029,7 +1084,7 @@ describe('BattlefieldLeftRail', () => {
         actionableModes: ['fire', 'combined'],
       },
     ]
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },
@@ -1110,7 +1165,7 @@ describe('BattlefieldLeftRail', () => {
         actionableModes: [],
       },
     ]
-    const onion: BattlefieldOnionView = {
+    const onion: BattlefieldOnionFixture = {
       id: 'onion-1',
       type: 'TheOnion',
       position: {  q: 0, r: 0  },

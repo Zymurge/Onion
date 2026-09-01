@@ -12,6 +12,7 @@ describe('AttackPlanningConfirmationView', () => {
         mode="build"
         title="Build attack"
         attackStrength={4}
+        attackRange={2}
         attackMemberCount={2}
         attackMemberLabels={['Little Pigs 1', 'Little Pigs 2']}
         dataTestId="combat-confirmation-view"
@@ -21,8 +22,10 @@ describe('AttackPlanningConfirmationView', () => {
     expect(screen.getByTestId('combat-confirmation-view')).not.toBeNull()
     expect(screen.getByText(/^Attack$/i)).not.toBeNull()
     expect(screen.getByText(/^4$/i)).not.toBeNull()
+    expect(screen.getByText(/^Range$/i)).not.toBeNull()
+    expect(screen.getAllByText(/^2$/i)).toHaveLength(2)
     expect(screen.getByText(/^Attackers$/i)).not.toBeNull()
-    expect(screen.getByText(/^2$/i)).not.toBeNull()
+    expect(screen.getAllByText(/^2$/i)).toHaveLength(2)
     expect(screen.queryByText(/^Defense$/i)).toBeNull()
     expect(screen.queryByText(/^Odds$/i)).toBeNull()
     expect(screen.getByText(/Little Pigs 1/i)).not.toBeNull()
@@ -112,7 +115,7 @@ describe('AttackPlanningConfirmationView', () => {
     expect(screen.getByText(/^Attack$/i)).not.toBeNull()
     expect(screen.getByText(/^5$/i)).not.toBeNull()
     expect(screen.getByText(/^Attackers$/i)).not.toBeNull()
-    expect(screen.getByText(/^0$/i)).not.toBeNull()
+    expect(screen.getAllByText(/^0$/i)).toHaveLength(2)
     expect(screen.getByText(/^Defense$/i)).not.toBeNull()
     expect(screen.getByText(/^Odds$/i)).not.toBeNull()
     expect(screen.getByText(/^2:1$/i)).not.toBeNull()

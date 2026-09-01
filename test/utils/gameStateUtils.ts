@@ -140,6 +140,7 @@ export type BattlefieldDefenderFixture = Omit<Partial<BattlefieldUnit>, 'weapons
 	id?: string
 	type?: string
 	status?: UnitStatus
+	attack?: string
 	weapons?: ReadonlyArray<Weapon> | string
 	weaponDetails?: ReadonlyArray<Partial<Weapon> & {
 		name?: string
@@ -188,7 +189,7 @@ export function canonicalizeBattlefieldDefenders(defenders: ReadonlyArray<Battle
 	})
 }
 
-export type BattlefieldOnionFixture = Partial<BattlefieldOnionView> & {
+export type BattlefieldOnionFixture = Omit<Partial<BattlefieldOnionView>, 'weapons'> & {
 	id?: string
 	type?: string
 	status?: UnitStatus

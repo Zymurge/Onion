@@ -33,6 +33,7 @@ type BattlefieldRightRailProps = {
   canDismissInactiveEventStream: boolean
   pendingRamPrompt: RamPrompt | null
   selectedCombatAttackStrength: number
+  selectedCombatAttackRange?: number
   selectedCombatAttackerIds: ReadonlyArray<string>
   selectedCombatAttackMemberLabels: ReadonlyArray<string>
   selectedCombatTarget: CombatTargetOption | null
@@ -78,6 +79,7 @@ export function BattlefieldRightRail({
   canDismissInactiveEventStream,
   pendingRamPrompt,
   selectedCombatAttackStrength,
+  selectedCombatAttackRange = 0,
   selectedCombatAttackerIds,
   selectedCombatAttackMemberLabels,
   selectedCombatTarget,
@@ -273,7 +275,7 @@ export function BattlefieldRightRail({
         />
       ) : null}
       {pendingRamPrompt !== null ? (
-        <section className="section-block panel-subtle">
+        <section className="section-block panel-subtle combat-scaffold">
           <ConfirmationSurface dataTestId="ram-confirmation-view"
             eyebrow="Movement"
             title={`Attempt ram on ${pendingRamPrompt.targetLabel}`}
@@ -328,7 +330,7 @@ export function BattlefieldRightRail({
         </section>
       ) : null}
       {shouldShowCombatPanel && selectedInspectorOnion === null ? (
-        <section className="section-block panel-subtle">
+        <section className="section-block panel-subtle combat-scaffold">
           <div className="card-head">
             <div>
               <p className="eyebrow">Combat</p>
@@ -340,6 +342,7 @@ export function BattlefieldRightRail({
           <AttackPlanningConfirmationView
             {...attackPlanningConfirmationProps}
             attackStrength={selectedCombatAttackStrength}
+            attackRange={selectedCombatAttackRange}
             attackMemberCount={selectedCombatAttackerIds.length}
             attackMemberLabels={selectedCombatAttackMemberLabels}
             confirmLabel="Resolve combat"

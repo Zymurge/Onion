@@ -379,7 +379,7 @@ describe('GET /games', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    const body = res.json<{ games: Array<{ gameId: number; role: string; scenarioId: string; scenarioDisplayName: string }> }>()
+    const body = res.json<{ games: Array<{ gameId: number; role: string; scenarioId: string; scenarioDisplayName: string; status: string }> }>()
     expect(body.games).toHaveLength(1)
     expect(body.games[0].gameId).toBe(gameId)
     expect(body.games[0].role).toBe('onion')
@@ -427,7 +427,7 @@ describe('GET /games', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    const body = res.json<{ games: Array<{ gameId: number; role: string }> }>()
+    const body = res.json<{ games: Array<{ gameId: number; role: string; status: string }> }>()
     expect(body.games).toHaveLength(1)
     expect(body.games[0].gameId).toBe(gameId)
     expect(body.games[0].role).toBe('defender')
