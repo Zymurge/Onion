@@ -69,7 +69,7 @@ describe('GameCreateScreen', () => {
 			role: 'defender',
 		})
 		expect(createCall?.[1]?.headers).toMatchObject({ authorization: 'Bearer token-1' })
-		expect(navigate).toHaveBeenCalledWith('/game/42')
+		expect(navigate).toHaveBeenCalledWith('/user/dashboard')
 	})
 
 	it('shows Sign Out and clears the session for an authenticated player', async () => {

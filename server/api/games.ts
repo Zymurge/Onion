@@ -383,6 +383,12 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         phase: g.phase,
         turnNumber: g.turnNumber,
         winner: g.winner,
+        status: g.winner !== null
+          ? 'completed'
+          : g.players.onion !== null && g.players.defender !== null
+            ? 'ready'
+            : 'waiting',
+        ready: g.players.onion !== null && g.players.defender !== null,
         role: g.players.onion === userId ? 'onion' : 'defender',
       })) })
     } catch (err) {

@@ -14,7 +14,9 @@ type GameSummary = {
   scenarioDisplayName: string
   phase: string
   turnNumber: number
-  winner: 'onion' | 'defender' | null
+  winner: string | null
+  status?: 'waiting' | 'ready' | 'completed'
+  ready?: boolean
   role: 'onion' | 'defender'
 }
 
@@ -26,9 +28,14 @@ function formatPhase(phase: string): string {
     .join(' ')
 }
 
-function getGameStatus(game: GameSummary): string {
-  if (game.winner !== null) {
-    return `${game.winner === game.role ? 'You won' : 'You lost'}`
+function getGameStatus(game: GameSummary, userId: string | undefined): string {
+  const status = game.status ?? (game.ready === true ? 'ready' : 'waiting')
+  if (status === 'waiting') {
+    return 'Waiting for opponent'
+  }
+
+  if (status === 'completed' || game.winner !== null) {
+    return game.winner === userId ? 'You won' : 'You lost'
   }
 
   const yourTurn = game.role === 'onion'
@@ -40,21 +47,22 @@ function getGameStatus(game: GameSummary): string {
 export function UserDashboard({ navigate }: UserDashboardProps) {
   const session = getAuthSession()
   const [games, setGames] = useState<GameSummary[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(session !== null)
   const [error, setError] = useState<string | null>(null)
+  const apiBaseUrl = session?.apiBaseUrl
+  const token = session?.token
 
   useEffect(() => {
-    if (session === null) {
-      setLoading(false)
+    if (apiBaseUrl === undefined || token === undefined) {
       return
     }
 
     let cancelled = false
     void requestJson<{ games: GameSummary[] }>({
-      baseUrl: session.apiBaseUrl,
+      baseUrl: apiBaseUrl,
       path: 'games',
       method: 'GET',
-      token: session.token,
+      token,
     }).then((result) => {
       if (cancelled) return
       if (!result.ok) {
@@ -71,7 +79,7 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
     return () => {
       cancelled = true
     }
-  }, [session?.apiBaseUrl, session?.token])
+  }, [apiBaseUrl, token])
 
   function handleSignOut() {
     clearAuthSession()
@@ -106,11 +114,15 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
                 {!loading && games.map((game) => (
                   <article className="dashboard-game-row" key={game.gameId}>
                     <div>
-                      <p className="dashboard-game-kicker">Game {game.gameId} · {getGameStatus(game)}</p>
+                      <p className="dashboard-game-kicker">Game {game.gameId} · {getGameStatus(game, session?.userId)}</p>
                       <h3>{game.scenarioDisplayName}</h3>
                       <p>Turn {game.turnNumber} · {formatPhase(game.phase)} · {game.role === 'onion' ? 'The Onion' : 'Defenders'}</p>
                     </div>
-                    <a className="dashboard-game-link" href={`/game/${game.gameId}`}>Open Game</a>
+                    {(game.status ?? (game.ready === true ? 'ready' : 'waiting')) !== 'waiting' ? (
+                      <a className="dashboard-game-link" href={`/game/${game.gameId}`}>Open Game</a>
+                    ) : (
+                      <span className="dashboard-game-link dashboard-game-link-disabled">Waiting</span>
+                    )}
                   </article>
                 ))}
               </div>

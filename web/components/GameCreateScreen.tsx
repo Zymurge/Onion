@@ -105,7 +105,7 @@ export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenPr
         return
       }
 
-      (navigate ?? ((path: string) => window.location.assign(path)))(`/game/${result.data.gameId}`)
+      (navigate ?? ((path: string) => window.location.assign(path)))('/user/dashboard')
     } catch {
       setError('Unable to create the game.')
     } finally {

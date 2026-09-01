@@ -159,6 +159,7 @@ Response: { "games": Array<{
   "phase": TurnPhase,
   "turnNumber": number,
   "winner": string | null,
+  "status": "waiting" | "ready" | "completed",
   "role": "onion" | "defender"
 }> }
 ```

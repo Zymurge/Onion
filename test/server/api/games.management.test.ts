@@ -385,6 +385,7 @@ describe('GET /games', () => {
     expect(body.games[0].role).toBe('onion')
     expect(body.games[0].scenarioId).toBe('swamp-siege-01')
     expect(body.games[0].scenarioDisplayName).toBe('The Siege of Shrek\'s Swamp')
+    expect(body.games[0].status).toBe('waiting')
   })
 
   it('returns 500 when a persisted game references a missing scenario', async () => {
@@ -430,6 +431,19 @@ describe('GET /games', () => {
     expect(body.games).toHaveLength(1)
     expect(body.games[0].gameId).toBe(gameId)
     expect(body.games[0].role).toBe('defender')
+    expect(body.games[0].status).toBe('ready')
+
+    const creatorRes = await app.inject({
+      method: 'GET',
+      url: '/games',
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+
+    expect(creatorRes.statusCode).toBe(200)
+    const creatorBody = creatorRes.json<{ games: Array<{ gameId: number; status: string }> }>()
+    expect(creatorBody.games).toHaveLength(1)
+    expect(creatorBody.games[0].gameId).toBe(gameId)
+    expect(creatorBody.games[0].status).toBe('ready')
   })
 
   it('returns 401 without auth token', async () => {

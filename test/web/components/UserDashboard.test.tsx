@@ -59,6 +59,7 @@ describe('UserDashboard', () => {
 				phase: 'ONION_MOVE',
 				turnNumber: 1,
 				winner: null,
+				status: 'ready',
 				role: 'onion',
 			}],
 		}))
@@ -68,6 +69,32 @@ describe('UserDashboard', () => {
 		await screen.findByText('Game 12 · Your turn')
 		expect(screen.getByText('The Siege of Shrek\'s Swamp')).not.toBeNull()
 		expect(screen.getByRole('link', { name: 'Open Game' })).toHaveAttribute('href', '/game/12')
+	})
+
+	it('shows waiting status and does not open an incomplete game', async () => {
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token: 'token-1',
+		})
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(response({
+			games: [{
+				gameId: 12,
+				scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+				phase: 'ONION_MOVE',
+				turnNumber: 1,
+				winner: null,
+				status: 'waiting',
+				role: 'onion',
+			}],
+		}))
+
+		render(<UserDashboard />)
+
+		await screen.findByText('Game 12 · Waiting for opponent')
+		expect(screen.queryByRole('link', { name: 'Open Game' })).toBeNull()
+		expect(screen.getByText('Waiting')).not.toBeNull()
 	})
 
 	it('shows a fetch error instead of inventing games', async () => {
