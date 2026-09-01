@@ -122,7 +122,7 @@ describe('renderLatestEvents', () => {
     expect(renderLatestEvents([])).toMatch(/none/)
   })
   it('renders an event', () => {
-    const events: EventEnvelope[] = [{ seq: 1, type: 'MOVE', timestamp: 0 } as any]
+    const events: EventEnvelope[] = [{ seq: 1, type: 'MOVE', timestamp: '1970-01-01T00:00:00.000Z' }]
     expect(renderLatestEvents(events)).toContain('MOVE')
   })
 })

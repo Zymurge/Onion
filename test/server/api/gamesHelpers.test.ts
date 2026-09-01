@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { buildCombatEvents, buildMoveEvents, buildSessionInitPayload, buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gamesHelpers'
+import { buildCombatEvents, buildMoveEvents, buildSessionInitPayload, buildVictoryObjectiveStates, computeWinnerUserId, type ScenarioSnapshot } from '#server/api/gamesHelpers'
+import type { MatchRecord } from '#server/db/adapter'
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
 import { buildGameStateResponse } from '#server/api/gamesHelpers'
@@ -253,7 +254,7 @@ describe('buildVictoryObjectiveStates', () => {
       hexes: [],
     })
 
-    const objectives = buildVictoryObjectiveStates(scenarioSnapshot as any, scenarioMap, state, 2)
+    const objectives = buildVictoryObjectiveStates(scenarioSnapshot as unknown as ScenarioSnapshot, scenarioMap, state, 2)
 
     expect(objectives).toEqual([
       {
@@ -294,7 +295,7 @@ describe('buildVictoryObjectiveStates', () => {
       hexes: [],
     })
 
-    const objectives = buildVictoryObjectiveStates(scenarioSnapshot as any, scenarioMap, state, 1)
+    const objectives = buildVictoryObjectiveStates(scenarioSnapshot as unknown as ScenarioSnapshot, scenarioMap, state, 1)
 
     expect(objectives).toEqual([
       {
@@ -343,7 +344,7 @@ describe('buildVictoryObjectiveStates', () => {
 
     state.defenders['swamp-1'].state = 'destroyed'
 
-    expect(computeWinnerUserId(match as any, state, 'ONION_MOVE', 1)).toBeNull()
+    expect(computeWinnerUserId(match as unknown as MatchRecord, state, 'ONION_MOVE', 1)).toBeNull()
   })
 
   it('declares defender victory when the Onion is immobilized before completing objectives', () => {
@@ -375,7 +376,7 @@ describe('buildVictoryObjectiveStates', () => {
     state.onions['onion-1'].treads = 0
     state.defenders['swamp-1'].state = 'destroyed'
 
-    expect(computeWinnerUserId(match as any, state, 'ONION_MOVE', 1)).toBe('defender-user')
+    expect(computeWinnerUserId(match as unknown as MatchRecord, state, 'ONION_MOVE', 1)).toBe('defender-user')
   })
 
   it('serializes stackRoster in the game state response', () => {
@@ -497,7 +498,7 @@ describe('buildVictoryObjectiveStates', () => {
         winner: null,
         state: state,
         events: [],
-      } as any,
+      } as unknown as MatchRecord,
       'defender-1',
     )).toThrow('Invalid stack roster for response')
   })
@@ -543,7 +544,7 @@ describe('buildVictoryObjectiveStates', () => {
         winner: null,
         state: state,
         events: [],
-      } as any,
+      } as unknown as MatchRecord,
       'onion-user',
     )).toThrow('Conflicting persisted stack group name for LittlePigs:1,1')
   })
@@ -613,7 +614,7 @@ describe('buildVictoryObjectiveStates', () => {
           }),
         },
         events: [],
-      } as any,
+      } as unknown as MatchRecord,
       'defender-1',
     )).toThrow('Invalid stack roster for response')
   })

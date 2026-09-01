@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import Fastify from 'fastify'
+import type { FastifyReply, FastifyRequest } from 'fastify'
 import { buildApp } from '#server/app'
 
 describe('GET /scenarios', () => {
@@ -85,12 +87,11 @@ describe('GET /scenarios/:id', () => {
   })
 
   it('returns 500 for internal error (custom Fastify instance)', async () => {
-    const Fastify = require('fastify')
     const app = Fastify()
-    app.setErrorHandler((error: Error, _req: any, reply: any) => {
+    app.setErrorHandler((error: Error, _req: FastifyRequest, reply: FastifyReply) => {
       return reply.status(500).send({ ok: false, error: 'Internal server error', code: 'INTERNAL_ERROR' })
     })
-    app.get('/scenarios/:id', async (_req: any, reply: any) => { throw new Error('fail') })
+    app.get('/scenarios/:id', async () => { throw new Error('fail') })
     const res = await app.inject({ method: 'GET', url: '/scenarios/swamp-siege-01' })
     expect(res.statusCode).toBe(500)
     expect(res.json().code).toBe('INTERNAL_ERROR')

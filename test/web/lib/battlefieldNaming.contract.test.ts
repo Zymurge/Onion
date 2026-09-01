@@ -4,17 +4,23 @@ import {
   resolveBattlefieldFriendlyName,
 } from '../../../web/lib/battlefieldNaming'
 import { resolveBattlefieldStacksExpandable, shouldExpandBattlefieldStackGroup } from '../../../web/lib/stackSelection'
-import type { StackSourceUnit } from '../../../web/lib/stackSelection'
-import { UnitStatus } from '#shared/types/index'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '../../../web/lib/sessionCatalog'
+import type { DefenderUnit } from '#shared/types/index'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
-function createTestDefendersMap(): Record<string, StackSourceUnit> {
+function makeTestUnit(overrides: Partial<DefenderUnit> = {}): DefenderUnit {
   return {
-    'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 2, r: 2 }, state: 'operational' },
-    'pigs-2': { unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 2, r: 2 }, state: 'operational' },
+    unitId: 'pigs-1',
+    typeId: 'LittlePigs',
+    position: { q: 2, r: 2 },
+    state: 'operational',
+    side: 'defender',
+    weapons: [],
+    friendlyName: 'Little Pigs 1',
+    role: 'defender',
+    ...overrides,
   }
 }
 
@@ -32,13 +38,7 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     expect(() => resolveBattlefieldFriendlyName(
-      {
-        unitId: 'pigs-1',
-        typeId: 'LittlePigs',
-        position: { q: 2, r: 2 },
-        state: 'operational',
-        friendlyName: 'Little Pigs 1',
-      },
+      makeTestUnit(),
       undefined,
       stackRoster,
       sessionCatalog,
@@ -65,13 +65,7 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     expect(() => resolveBattlefieldFriendlyName(
-      {
-        unitId: 'pigs-1',
-        typeId: 'LittlePigs',
-        position: { q: 2, r: 2 },
-        state: 'operational',
-        friendlyName: 'Little Pigs 1',
-      },
+      makeTestUnit(),
       stackNaming,
       stackRoster,
       sessionCatalog,
@@ -91,13 +85,7 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     expect(() => resolveBattlefieldFriendlyName(
-      {
-        unitId: 'pigs-1',
-        typeId: 'LittlePigs',
-        position: { q: 2, r: 2 },
-        state: 'operational',
-        friendlyName: 'Little Pigs 1',
-      },
+      makeTestUnit(),
       stackNaming,
       stackRoster,
       sessionCatalog,
@@ -113,12 +101,7 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     const label = resolveBattlefieldDisplayName(
-      {
-        unitId: 'pigs-1',
-        typeId: 'LittlePigs',
-        position: { q: 2, r: 2 },
-        state: 'operational',
-      },
+      makeTestUnit({ friendlyName: undefined }),
       stackNaming,
     )
 
@@ -145,13 +128,7 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     const label = resolveBattlefieldFriendlyName(
-      {
-        unitId: 'pigs-1',
-        typeId: 'LittlePigs',
-        position: { q: 2, r: 2 },
-        state: 'operational',
-        friendlyName: 'Little Pigs 1',
-      },
+      makeTestUnit(),
       stackNaming,
       stackRoster,
       sessionCatalog,
@@ -161,25 +138,23 @@ describe('resolveBattlefieldDisplayName', () => {
   })
 
   it('falls back to the unit name for single units', () => {
-    const label = resolveBattlefieldDisplayName({
-      unitId: 'puss-1',
-      typeId: 'Puss',
-      friendlyName: 'Puss 1',
-      position: { q: 1, r: 1 },
-      state: 'operational',
-    })
+    const label = resolveBattlefieldDisplayName(
+      makeTestUnit({ unitId: 'puss-1', typeId: 'Puss', friendlyName: 'Puss 1', position: { q: 1, r: 1 } }),
+    )
 
     expect(label).toBe('Puss 1')
   })
 
-  it.each([
+  const stackExpansionCases: ReadonlyArray<[string, Parameters<typeof resolveBattlefieldStacksExpandable>[0], boolean]> = [
     ['defender active movement can expand', { activeRole: 'defender', activeTurnActive: true, isCombatPhase: false, isMovementPhase: true }, true],
     ['defender active combat can expand', { activeRole: 'defender', activeTurnActive: true, isCombatPhase: true, isMovementPhase: false }, true],
     ['defender inactive cannot expand', { activeRole: 'defender', activeTurnActive: false, isCombatPhase: true, isMovementPhase: false }, false],
     ['onion active cannot expand', { activeRole: 'onion', activeTurnActive: true, isCombatPhase: false, isMovementPhase: true }, false],
     ['locked defender cannot expand', { activeRole: 'defender', activeTurnActive: true, isCombatPhase: false, isMovementPhase: false }, false],
-  ])('%s', (_, input, expected) => {
-    expect(resolveBattlefieldStacksExpandable(input as any)).toBe(expected)
+  ]
+
+  it.each(stackExpansionCases)('%s', (_, input, expected) => {
+    expect(resolveBattlefieldStacksExpandable(input)).toBe(expected)
   })
 
   it.each([
@@ -187,7 +162,7 @@ describe('resolveBattlefieldDisplayName', () => {
     ['collapsed when the group is not selected', { memberCount: 3, selectedCount: 0, stacksExpandable: true }, false],
     ['collapsed for single units', { memberCount: 1, selectedCount: 1, stacksExpandable: true }, false],
     ['expanded for selected expandable groups', { memberCount: 3, selectedCount: 3, stacksExpandable: true }, true],
-  ])('%s', (_, input, expected) => {
+  ])('%s', (_, input: Parameters<typeof shouldExpandBattlefieldStackGroup>[0], expected) => {
     expect(shouldExpandBattlefieldStackGroup(input)).toBe(expected)
   })
 })

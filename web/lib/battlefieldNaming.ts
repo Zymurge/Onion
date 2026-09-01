@@ -1,6 +1,6 @@
 import type { StackNamingSnapshot } from '../../shared/stackNaming.js'
 import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming.js'
-import type { StackRosterState } from '../../shared/types/index.js'
+import type { GameUnit, StackRosterState } from '../../shared/types/index.js'
 import { isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog.js'
 import { resolveSelectionName } from './resolveSelectionName.js'
 
@@ -10,6 +10,10 @@ function isStackableUnitType(unitType: string | undefined, catalog?: SessionCata
   }
 
   return catalog !== undefined && isSessionUnitTypeStackable(catalog, unitType)
+}
+
+type BattlefieldNamingUnit = GameUnit & {
+  stackSize?: number
 }
 
 /** Resolves a unit's friendly battlefield name. */
@@ -49,13 +53,7 @@ export function resolveBattlefieldStackLabel(
 
 /** Resolves a map display name using canonical stack naming when available. */
 export function resolveBattlefieldDisplayName(
-  unit: {
-    unitId: string
-    typeId: string
-    position: { q: number; r: number }
-    friendlyName?: string
-    stackSize?: number
-  },
+  unit: BattlefieldNamingUnit,
   stackNaming?: StackNamingSnapshot,
 ): string {
   const position = unit.position
@@ -82,12 +80,7 @@ export function resolveBattlefieldDisplayName(
 
 /** Resolves a unit's friendly name while validating roster and naming metadata. */
 export function resolveBattlefieldFriendlyName(
-  unit: {
-    unitId: string
-    typeId: string
-    position: { q: number; r: number }
-    friendlyName?: string
-  },
+  unit: BattlefieldNamingUnit,
   stackNaming?: StackNamingSnapshot,
   stackRoster?: StackRosterState,
   catalog?: SessionCatalog,

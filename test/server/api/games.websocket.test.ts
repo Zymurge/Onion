@@ -2,10 +2,19 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from '#server/app'
 import * as engineGame from '#server/engine/index'
+import type { CombatExecutionResult, CombatValidation, MovementPlan, MovementResult, MovementValidation } from '#server/engine/index'
 import { advanceToPhase, createGame, createMovePlan, endPhase, joinGame, register, submitAction } from './helpers.js'
+import type { EventEnvelope, GameState } from '#shared/types/index'
 
-async function readWsMessage(ws: { once: (event: 'message', handler: (data: Buffer | string) => void) => void }) {
-	return new Promise<any>((resolve) => {
+type WebSocketTestMessage = {
+	kind: string
+	payload: { unitTypes: unknown; weaponTypes: unknown }
+	snapshot: { gameId: number; role: string; eventSeq: number }
+	event: EventEnvelope
+}
+
+async function readWsMessage(ws: { once: (event: 'message', handler: (data: Buffer | string) => void) => void }): Promise<WebSocketTestMessage> {
+	return new Promise<WebSocketTestMessage>((resolve) => {
 		ws.once('message', (data) => {
 			const text = typeof data === 'string' ? data : data.toString()
 			resolve(JSON.parse(text))
@@ -17,8 +26,8 @@ async function readInitialSnapshot(ws: {
 	on: (event: 'message', handler: (data: Buffer | string) => void) => void
 	off: (event: 'message', handler: (data: Buffer | string) => void) => void
 }) {
-	const messages = await new Promise<any[]>((resolve) => {
-		const received: any[] = []
+	const messages = await new Promise<WebSocketTestMessage[]>((resolve) => {
+		const received: WebSocketTestMessage[] = []
 		const handler = (data: Buffer | string) => {
 			const text = typeof data === 'string' ? data : data.toString()
 			received.push(JSON.parse(text))
@@ -48,7 +57,7 @@ describe('GET /games/:id/ws', () => {
 		const { gameId } = await createGame(app, shrek.token, 'onion')
 		await app.ready()
 
-		let snapshotMessagePromise: Promise<any> | null = null
+		let snapshotMessagePromise: Promise<WebSocketTestMessage> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
 				snapshotMessagePromise = readInitialSnapshot(openWs)
@@ -91,7 +100,7 @@ describe('GET /games/:id/ws', () => {
 		const onion = initialStateBody.state.onions['onion-1']
 		const onionUnitId = onion.unitId
 
-		let snapshotMessagePromise: Promise<any> | null = null
+		let snapshotMessagePromise: Promise<WebSocketTestMessage> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
 				snapshotMessagePromise = readInitialSnapshot(openWs)
@@ -102,11 +111,11 @@ describe('GET /games/:id/ws', () => {
 
 		const moveTo = { q: 1, r: 10 }
 		const validatedPlan = createMovePlan({ unitId: onionUnitId, from: onion.position, to: moveTo, path: [moveTo] })
-		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
-		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any, plan: any) => {
+		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } satisfies MovementValidation)
+		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: GameState, plan: MovementPlan): MovementResult => {
 			state.onions[onionUnitId].position = plan.to
 			return { success: true, newPosition: plan.to }
-		}) as any)
+		}))
 
 		const liveEventPromise = readWsMessage(ws)
 		await submitAction(app, gameId, shrek.token, { type: 'MOVE', movers: [onionUnitId], to: moveTo })
@@ -131,7 +140,7 @@ describe('GET /games/:id/ws', () => {
 		await advanceToPhase(app, gameId, shrek.token, fiona.token, 'DEFENDER_COMBAT')
 		await app.ready()
 
-		let snapshotMessagePromise: Promise<any> | null = null
+		let snapshotMessagePromise: Promise<WebSocketTestMessage> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(fiona.token)}`, {}, {
 			onOpen(openWs) {
 				snapshotMessagePromise = readInitialSnapshot(openWs)
@@ -151,8 +160,8 @@ describe('GET /games/:id/ws', () => {
 				attackStrength: 2,
 				defense: 2,
 			},
-		} as any)
-		const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation(((state: any) => {
+		} satisfies CombatValidation)
+		const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation(((state: GameState): CombatExecutionResult => {
 			state.onions['onion-1'].treads = 43
 			return {
 				success: true,
@@ -163,7 +172,7 @@ describe('GET /games/:id/ws', () => {
 				roll: { roll: 6, result: 'X', odds: '1:1' },
 				treadsLost: 2,
 			}
-		}) as any)
+		}))
 
 		const liveEventPromise = readWsMessage(ws)
 		await submitAction(app, gameId, fiona.token, { type: 'FIRE', attackers: ['wolf-1'], targetId: 'onion-1:treads', onionId: 'onion-1' })
@@ -187,7 +196,7 @@ describe('GET /games/:id/ws', () => {
 		const { gameId } = await createGame(app, shrek.token, 'onion')
 		await app.ready()
 
-		let snapshotMessagePromise: Promise<any> | null = null
+		let snapshotMessagePromise: Promise<WebSocketTestMessage> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
 				snapshotMessagePromise = readInitialSnapshot(openWs)
@@ -222,7 +231,7 @@ describe('GET /games/:id/ws', () => {
 		await endPhase(app, gameId, shrek.token)
 		await app.ready()
 
-		let snapshotMessagePromise: Promise<any> | null = null
+		let snapshotMessagePromise: Promise<WebSocketTestMessage> | null = null
 		const ws = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
 			onOpen(openWs) {
 				snapshotMessagePromise = readInitialSnapshot(openWs)

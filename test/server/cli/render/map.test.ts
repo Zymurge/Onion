@@ -16,8 +16,8 @@ describe('renderMap', () => {
       id: 's1',
       name: 'Test',
       description: '',
-      map: { width: 1, height: 1, terrain: { '0,0': 1 } },
-    } as any
+      map: { width: 1, height: 1, hexes: [{ q: 0, r: 0, t: 1 }] },
+    }
     const state: GameState = makeGameState({
       onions: { 'onion-1': makeOnion({ position: { q: 0, r: 0 }, treads: 1 }) },
       defenders: {},

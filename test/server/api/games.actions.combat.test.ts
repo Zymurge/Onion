@@ -3,15 +3,18 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { buildApp } from '#server/app'
 import { StaleMatchStateError } from '#server/db/adapter'
 import * as engineGame from '#server/engine/index'
+import type { CombatExecutionResult, CombatValidation } from '#server/engine/combat'
 import { materializeScenarioMap } from '#shared/scenarioMap'
-import type { GameState } from '#shared/types/index'
+import type { EventEnvelope, GameState } from '#shared/types/index'
 import { advanceToPhase, createGame, joinGame, register, submitAction } from './helpers.js'
 import logger from '#server/logger'
 
-let infoSpy: any
-let warnSpy: any
-let errorSpy: any
-let debugSpy: any
+type RestorableSpy = { mockRestore(): void }
+
+let infoSpy: RestorableSpy
+let warnSpy: RestorableSpy
+let errorSpy: RestorableSpy
+let debugSpy: RestorableSpy
 
 beforeEach(() => {
   infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
@@ -195,13 +198,14 @@ describe('POST /games/:id/actions combat API contract', () => {
       ok: true,
       plan: {
         actionType: 'FIRE',
+        actor: 'defender',
         attackerIds: ['wolf-1'],
         onionId: 'onion-1',
         target: { kind: 'treads', id: 'onion-1:treads' },
         attackStrength: 2,
         defense: 0,
       },
-    } as any)
+    } satisfies CombatValidation)
     const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation((state) => {
       state.onions['onion-1'].treads = 43
       return {
@@ -234,7 +238,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.events[1].amount).toBe(2)
     expect(body.events[1].remaining).toBe(43)
     expect(body.events[0].causeId).toBeDefined()
-    expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
+    expect(body.events.every((event: EventEnvelope) => event.causeId === body.events[0].causeId)).toBe(true)
     expect(body.state.onions['onion-1'].treads).toBe(43)
     expect(infoSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -272,13 +276,14 @@ describe('POST /games/:id/actions combat API contract', () => {
       ok: true,
       plan: {
         actionType: 'FIRE',
+        actor: 'defender',
         attackerIds: ['wolf-1', 'puss-1'],
         onionId: 'onion-1',
         target: { kind: 'weapon', id: 'main' },
         attackStrength: 6,
         defense: 4,
       },
-    } as any)
+    } satisfies CombatValidation)
     const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockImplementation((state) => {
       state.onions['onion-1'].weapons[0].state = 'destroyed'
       return {
@@ -309,7 +314,7 @@ describe('POST /games/:id/actions combat API contract', () => {
     expect(body.events[1].weaponId).toBe('main')
     expect(body.events[1].weaponType).toBe('main')
     expect(body.events[0].causeId).toBeDefined()
-    expect(body.events.every((event: any) => event.causeId === body.events[0].causeId)).toBe(true)
+    expect(body.events.every((event: EventEnvelope) => event.causeId === body.events[0].causeId)).toBe(true)
     validateSpy.mockRestore()
     executeSpy.mockRestore()
   })
@@ -352,11 +357,11 @@ describe('POST /games/:id/actions combat API contract', () => {
 
     const validateSpy = vi.spyOn(engineGame, 'validateCombatAction').mockReturnValue({
       ok: true,
-      plan: { actionType: 'FIRE', attackerIds: ['main'], onionId: 'onion-1', target: { kind: 'defender', id: 'wolf-1' }, attackStrength: 4, defense: 2 },
-    } as any)
+      plan: { actionType: 'FIRE', actor: 'onion', attackerIds: ['main'], onionId: 'onion-1', target: { kind: 'defender', id: 'wolf-1' }, attackStrength: 4, defense: 2 },
+    } satisfies CombatValidation)
     const executeSpy = vi.spyOn(engineGame, 'executeCombatAction').mockReturnValue({
       success: true, actionType: 'FIRE', attackerIds: ['main'], onionId: 'onion-1', targetId: 'wolf-1', roll: { roll: 5, result: 'X', odds: '2:1' },
-    } as any)
+    } satisfies CombatExecutionResult)
 
     const app = buildApp(mockDb)
     await app.ready()

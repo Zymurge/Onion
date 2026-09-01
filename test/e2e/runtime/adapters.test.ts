@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -199,7 +200,7 @@ class FakeHttpServer {
 	constructor() {
 		this.ready = import('node:http').then((http) =>
 			new Promise<void>((resolve) => {
-				this.server = http.createServer((req: any, res: any) => {
+				this.server = http.createServer((_req: IncomingMessage, res: ServerResponse) => {
 					setTimeout(() => {
 						try {
 							const result = this.onRequest ? this.onRequest() : { status: 200, body: 'ok' }

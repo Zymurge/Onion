@@ -168,8 +168,8 @@ function buildDefenderLookup(defenders: DefenderMap | undefined): DefenderMap {
 			if (typeof defender.unitId === 'string') {
 				lookup[defender.unitId] = defender
 			}
-			if (typeof (defender as any).id === 'string') {
-				lookup[(defender as any).id] = defender
+			if ('id' in defender && typeof defender.id === 'string') {
+				lookup[defender.id] = defender
 			}
 		}
 	}

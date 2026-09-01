@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as runtime from '../../../server/cli/runtime.js'
 import { setLoggerLevel } from '../../../server/logger.js'
+import { createSessionStore } from '../../../server/cli/session/store.js'
 
 describe('isErrorLevelEvent', () => {
   it('detects error type', () => {
@@ -24,15 +25,15 @@ describe('debug logging commands', () => {
   it('toggles debug logging on and off', async () => {
     setLoggerLevel('info')
 
-    const enable = await runtime.executeCommand({} as any, { kind: 'debug', enabled: true })
+    const enable = await runtime.executeCommand(createSessionStore(), { kind: 'debug', enabled: true })
     expect(enable.message).toContain('Debug logging: on (debug)')
 
-    const disable = await runtime.executeCommand({} as any, { kind: 'debug', enabled: false })
+    const disable = await runtime.executeCommand(createSessionStore(), { kind: 'debug', enabled: false })
     expect(disable.message).toContain('Debug logging: off (info)')
   })
 
   it('includes debug logging status in session output', () => {
     setLoggerLevel('info')
-    expect(runtime.renderStatusText({} as any)).toContain('debugLogging: off (info)')
+    expect(runtime.renderStatusText(createSessionStore())).toContain('debugLogging: off (info)')
   })
 })

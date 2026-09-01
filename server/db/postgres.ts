@@ -44,7 +44,8 @@ export class PostgresDb implements DbAdapter {
   async createMatch(match: Omit<MatchRecord, 'gameId'>): Promise<{ gameId: number }> {
     // Defensive: ensure displayName is present if possible
     if (typeof match.scenarioSnapshot === 'object' && match.scenarioSnapshot && 'name' in match.scenarioSnapshot && !('displayName' in match.scenarioSnapshot)) {
-      (match.scenarioSnapshot as any).displayName = (match.scenarioSnapshot as any).name
+      const scenarioSnapshot = match.scenarioSnapshot as Record<string, unknown>
+      scenarioSnapshot.displayName = scenarioSnapshot.name
     }
     const { rows } = await this.pool.query<{ id: number }>(
       `INSERT INTO matches (scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner)

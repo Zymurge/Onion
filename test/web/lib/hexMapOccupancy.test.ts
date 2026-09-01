@@ -6,7 +6,11 @@ import {
   hasStackedOccupants,
   resolveCanonicalOccupant,
   shouldRenderDefender,
+  type OccupantRosterIndex,
 } from '#web/lib/hexMapOccupancy'
+import type { SessionCatalog } from '#web/lib/sessionCatalog'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { createSessionCatalog } from '#web/lib/sessionCatalog'
 
 const onion: BattlefieldOnionView = {
   unitId: 'onion-1',
@@ -21,6 +25,8 @@ const onion: BattlefieldOnionView = {
   movesAllowed: 3,
   weapons: [],
 }
+
+const sessionCatalog: SessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 function defender(overrides: Partial<BattlefieldUnit> = {}): BattlefieldUnit {
   return {
@@ -52,19 +58,18 @@ describe('hexMapOccupancy', () => {
   it('collapses a roster group to its first visible canonical member', () => {
     const first = defender({ unitId: 'pigs-1' })
     const second = defender({ unitId: 'pigs-2' })
-    const rosterIndex = {
+    const rosterIndex: OccupantRosterIndex = {
       getUnitGroup: (unitId: string) => unitId.startsWith('pigs-')
         ? { groupId: 'stack-a', unitIds: ['pigs-2', 'pigs-1'] }
         : null,
     }
 
-    expect(resolveCanonicalOccupant([first, second], rosterIndex as any)?.unitId).toBe('pigs-2')
+    expect(resolveCanonicalOccupant([first, second], rosterIndex)?.unitId).toBe('pigs-2')
   })
 
   it('recognizes stackable units sharing a position or squads', () => {
-    const catalog = { unitTypes: { LittlePigs: { stackable: true } } }
-    expect(hasStackedOccupants([defender({ stackSize: 2 })], catalog as any)).toBe(true)
-    expect(hasStackedOccupants([defender(), defender({ unitId: 'pigs-2' })], catalog as any)).toBe(true)
+    expect(hasStackedOccupants([defender({ stackSize: 2 })], sessionCatalog)).toBe(true)
+    expect(hasStackedOccupants([defender(), defender({ unitId: 'pigs-2' })], sessionCatalog)).toBe(true)
   })
 
   it('keeps the two-unit offset vertical and centers a singleton', () => {

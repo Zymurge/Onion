@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { WebStackSourceState } from '#web/lib/stackSelection'
 
 import {
   buildRightRailCombatAction,
@@ -11,7 +12,6 @@ import {
   toggleRightRailStackMemberSelection,
 } from '#web/lib/rightRailSelection'
 import type { StackSourceUnit } from '#web/lib/stackSelection'
-import { GameState } from '#shared/types/index'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 
@@ -26,7 +26,7 @@ function createTestDefendersMap() : Record<string, StackSourceUnit> {
   }
 }
 
-function createTestStackState() {
+function createTestStackState(): WebStackSourceState {
   return {
     catalog: sessionCatalog,
     defenders: createTestDefendersMap(),
@@ -43,8 +43,8 @@ function createTestStackState() {
   }
 }
 
-function createSingletonStackState() {
-  const defenders = {
+function createSingletonStackState(): WebStackSourceState {
+  const defenders: Record<string, StackSourceUnit> = {
     'pigs-5': { unitId: 'pigs-5', typeId: 'LittlePigs', position: { q: 4, r: 8 }, state: 'operational' },
     'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
   }
@@ -129,9 +129,9 @@ describe('rightRailSelection', () => {
         selectedStackUnitIds: ['pigs-1'],
         activeSelectedUnitIds: ['pigs-1', 'pigs-2'],
         displayedDefenders: [
-          { unitId: 'pigs-1', typeId: 'LittlePigs', role: 'defender', friendlyName: 'Little Pigs 1', position: { q: 4, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
-          { unitId: 'pigs-2', typeId: 'LittlePigs', role: 'defender', friendlyName: 'Little Pigs 2', position: { q: 5, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
-          { unitId: 'wolf-1', typeId: 'BigBadWolf', role: 'defender', friendlyName: 'Big Bad Wolf 1', position: { q: 6, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
+          { unitId: 'pigs-1', typeId: 'LittlePigs', role: 'defender', side: 'defender', friendlyName: 'Little Pigs 1', position: { q: 4, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
+          { unitId: 'pigs-2', typeId: 'LittlePigs', role: 'defender', side: 'defender', friendlyName: 'Little Pigs 2', position: { q: 5, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
+          { unitId: 'wolf-1', typeId: 'BigBadWolf', role: 'defender', side: 'defender', friendlyName: 'Big Bad Wolf 1', position: { q: 6, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
         ],
         displayedOnion: null,
       })).toEqual({
@@ -141,8 +141,8 @@ describe('rightRailSelection', () => {
         selectedUnitIds: ['pigs-1', 'pigs-2'],
         selectedCount: 2,
         selectedStackMembers: [
-          { unitId: 'pigs-1', typeId: 'LittlePigs', role: 'defender', friendlyName: 'Little Pigs 1', position: { q: 4, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
-          { unitId: 'pigs-2', typeId: 'LittlePigs', role: 'defender', friendlyName: 'Little Pigs 2', position: { q: 5, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
+          { unitId: 'pigs-1', typeId: 'LittlePigs', role: 'defender', side: 'defender', friendlyName: 'Little Pigs 1', position: { q: 4, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
+          { unitId: 'pigs-2', typeId: 'LittlePigs', role: 'defender', side: 'defender', friendlyName: 'Little Pigs 2', position: { q: 5, r: 4 }, state: 'operational', movesRemaining: 3, stackSize: 1, weapons: [], actionableModes: ['fire', 'combined'] },
         ],
         selectedStackSelectionCount: 2,
       })
@@ -329,7 +329,7 @@ describe('rightRailSelection', () => {
     })
 
     it('rejects stackable submissions when stack metadata is missing instead of inferring members', () => {
-      const state = {
+      const state: WebStackSourceState = {
         catalog: sessionCatalog,
         defenders: {
           'pigs-1': { unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 }, state: 'operational' },
@@ -339,7 +339,7 @@ describe('rightRailSelection', () => {
 
       expect(buildRightRailStackSubmissionAction({
         kind: 'move',
-        state: state as any,
+        state,
         anchorUnitId: 'pigs-1',
         selectedUnitIds: ['pigs-1'],
         to: { q: 5, r: 4 },

@@ -1,43 +1,39 @@
 	it('renders Little Pigs group info inside the LP marker', () => {
 		const littlePigsStack: BattlefieldUnit[] = [
 			{
-				id: 'pigs-1',
-				type: 'LittlePigs',
 				friendlyName: 'Little Pigs 1',
-				status: 'operational',
 				role: 'defender',
 				unitId: 'pigs-1',
 				typeId: 'LittlePigs',
 				state: 'operational',
+				side: 'defender',
 				position: { q: 2, r: 2 },
-				move: 3,
+				movesRemaining: 3,
+				stackSize: 1,
 				weapons: [],
-				attack: '1 / rng 1',
 				actionableModes: ['fire', 'combined'],
 			},
 			{
-				id: 'pigs-2',
-				type: 'LittlePigs',
 				friendlyName: 'Little Pigs 2',
-				status: 'operational',
 				role: 'defender',
 				unitId: 'pigs-2',
 				typeId: 'LittlePigs',
 				state: 'operational',
+				side: 'defender',
 				position: { q: 2, r: 2 },
-				move: 3,
+				movesRemaining: 3,
+				stackSize: 1,
 				weapons: [],
-				attack: '1 / rng 1',
 				actionableModes: ['fire', 'combined'],
 			},
 		]
-		const stackNaming = {
+		const stackNaming: StackNamingSnapshot = {
 			groupsInUse: [
 				{ groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group', unitType: 'LittlePigs' },
 			],
 			usedGroupNames: ['Little Pigs group'],
 		}
-		const stackRoster = {
+		const stackRoster: StackRosterState = {
 			groupsById: {
 				'LittlePigs:2,2': {
 					groupName: 'Little Pigs group',
@@ -53,8 +49,8 @@
 				scenarioMap={scenarioMap}
 				defenders={littlePigsStack}
 				onions={[onion]}
-				stackNaming={stackNaming as any}
-				stackRoster={stackRoster as any}
+				stackNaming={stackNaming}
+				stackRoster={stackRoster}
 				phase="DEFENDER_COMBAT"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -73,33 +69,29 @@
 	it('throws when stacked defenders are rendered without canonical roster data', () => {
 		const littlePigsStack: BattlefieldUnit[] = [
 			{
-				id: 'pigs-1',
-				type: 'LittlePigs',
 				friendlyName: 'Little Pigs 1',
-				status: 'operational',
 				role: 'defender',
 				unitId: 'pigs-1',
 				typeId: 'LittlePigs',
 				state: 'operational',
+				side: 'defender',
 				position: { q: 2, r: 2 },
-				move: 3,
+				movesRemaining: 3,
+				stackSize: 1,
 				weapons: [],
-				attack: '1 / rng 1',
 				actionableModes: ['fire', 'combined'],
 			},
 			{
-				id: 'pigs-2',
-				type: 'LittlePigs',
 				friendlyName: 'Little Pigs 2',
-				status: 'operational',
 				role: 'defender',
 				unitId: 'pigs-2',
 				typeId: 'LittlePigs',
 				state: 'operational',
+				side: 'defender',
 				position: { q: 2, r: 2 },
-				move: 3,
+				movesRemaining: 3,
+				stackSize: 1,
 				weapons: [],
-				attack: '1 / rng 1',
 				actionableModes: ['fire', 'combined'],
 			},
 		]
@@ -124,8 +116,8 @@
 	it('applies dim marker styling to inspectable yellow markers', () => {
 		const inspectableUnit: BattlefieldUnit = {
 			...defenders[1],
-			id: 'wolf-2',
-			status: 'operational',
+			unitId: 'wolf-2',
+			state: 'operational',
 			actionableModes: [],
 		}
 
@@ -148,20 +140,20 @@
 	it('colors Onion combat map state with Onion green and defenders yellow', () => {
 		const eligible: BattlefieldUnit = {
 			...defenders[0],
-			id: 'puss-1',
-			status: 'operational',
+			unitId: 'puss-1',
+			state: 'operational',
 			actionableModes: ['fire', 'combined'],
 		}
 		const inspectable: BattlefieldUnit = {
 			...defenders[1],
-			id: 'wolf-2',
-			status: 'operational',
+			unitId: 'wolf-2',
+			state: 'operational',
 			actionableModes: [],
 		}
 		const disabled: BattlefieldUnit = {
 			...defenders[1],
-			id: 'witch-3', // unique id
-			status: 'disabled',
+			unitId: 'witch-3', // unique id
+			state: 'disabled',
 			actionableModes: [],
 		}
 		render(
@@ -206,9 +198,7 @@
 		const partialGroup: BattlefieldUnit[] = [
 			{
 				...defenders[0],
-				id: 'pigs-1',
 				unitId: 'pigs-1',
-				type: 'LittlePigs',
 				typeId: 'LittlePigs',
 				position: { q: 2, r: 2 },
 				state: 'operational',
@@ -216,9 +206,7 @@
 			},
 			{
 				...defenders[0],
-				id: 'pigs-2',
 				unitId: 'pigs-2',
-				type: 'LittlePigs',
 				typeId: 'LittlePigs',
 				position: { q: 2, r: 2 },
 				state: 'operational',
@@ -255,8 +243,7 @@
 	it('marks a grouped combat marker ineligible when every member has fired', () => {
 		const spentGroup = defenders.slice(0, 2).map((defender, index) => ({
 			...defender,
-			id: `pigs-${index + 1}`,
-			type: 'LittlePigs',
+			unitId: `pigs-${index + 1}`,
 			typeId: 'LittlePigs',
 			position: { q: 2, r: 2 },
 			state: 'operational' as const,
@@ -292,7 +279,7 @@
 	it('shows Onion and a surviving defender as shared occupants', () => {
 		const survivingDefender: BattlefieldUnit = {
 			...defenders[0],
-			id: 'bbw-1',
+			unitId: 'bbw-1',
 			friendlyName: 'Big Bad Wolf',
 			position: { q: 0, r: 0 },
 		}
@@ -319,7 +306,7 @@
 	it('keeps the Onion combat marker eligible when sharing a hex with a defender', () => {
 		const coLocatedDefender: BattlefieldUnit = {
 			...defenders[0],
-			id: 'bbw-1',
+			unitId: 'bbw-1',
 			position: { q: 0, r: 0 },
 		}
 
@@ -345,13 +332,13 @@
 	it('applies correct movement eligibility coloring for eligible and disabled units', () => {
 		const eligible: BattlefieldUnit = {
 			...defenders[0],
-			status: 'operational',
-			move: 2,
+			state: 'operational',
+			movesRemaining: 2,
 		}
 		const disabled: BattlefieldUnit = {
 			...defenders[1],
-			status: 'disabled',
-			move: 2,
+			state: 'disabled',
+			movesRemaining: 2,
 		}
 		render(
 			<HexMapBoard
@@ -373,7 +360,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
-import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { HexMapBoard as ProductionHexMapBoard } from '#web/components/HexMapBoard'
@@ -381,41 +367,12 @@ import { boardPixelSize } from '#web/lib/hex'
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '#web/lib/battlefieldView'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
+import type { StackNamingSnapshot } from '#shared/stackNaming'
+import type { StackRosterState } from '#shared/types/index'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
-function HexMapBoard(props: ComponentProps<typeof ProductionHexMapBoard>) {
-	const canonicalizeUnit = (unit: Record<string, unknown>) => {
-		if (unit.role === 'onion') {
-			return {
-				...unit,
-				unitId: unit.id ?? unit.unitId,
-				typeId: unit.type ?? unit.typeId,
-				state: unit.status ?? unit.state,
-				weapons: Array.isArray(unit.weaponDetails) ? unit.weaponDetails : Array.isArray(unit.weapons) ? unit.weapons : [],
-				ramsRemaining: unit.ramsRemaining ?? unit.rams,
-			}
-		}
-
-		return {
-			...unit,
-			unitId: unit.id ?? unit.unitId,
-			typeId: unit.type ?? unit.typeId,
-			state: unit.status ?? unit.state,
-			weapons: Array.isArray(unit.weaponDetails) ? unit.weaponDetails : Array.isArray(unit.weapons) ? unit.weapons : [],
-			movesRemaining: unit.movesRemaining ?? unit.move ?? 0,
-			stackSize: unit.stackSize ?? unit.squads ?? 1,
-		}
-	}
-
-	return (
-		<ProductionHexMapBoard
-			{...props}
-			defenders={props.defenders.map((unit) => canonicalizeUnit(unit as unknown as Record<string, unknown>) as never)}
-			onions={props.onions.map((unit) => canonicalizeUnit(unit as unknown as Record<string, unknown>) as never)}
-		/>
-	)
-}
+const HexMapBoard = ProductionHexMapBoard
 
 const scenarioMap = {
 	width: 5,
@@ -432,50 +389,47 @@ const sparseScenarioMap = {
 }
 
 const onion: BattlefieldOnionView = {
-	id: 'onion-1',
-	type: 'TheOnion',
+	unitId: 'onion-1',
+	typeId: 'TheOnion',
+	role: 'onion',
+	side: 'onion',
 	friendlyName: 'The Onion',
 	position: { q: 0, r: 0 },
-	status: 'operational',
+	state: 'operational',
 	treads: 33,
 	movesAllowed: 3,
 	movesRemaining: 3,
-	rams: 0,
-	weapons: 'main: ready',
-	weaponDetails: [
+	ramsRemaining: 0,
+	weapons: [
 		{ id: 'main-1', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' },
 	],
 }
 
 const defenders: BattlefieldUnit[] = [
 	{
-		id: 'puss-1',
-		type: 'Puss',
-		friendlyName: 'Puss',
-		status: 'operational',
-		role: 'defender',
 		unitId: 'puss-1',
 		typeId: 'Puss',
+		role: 'defender',
+		side: 'defender',
+		friendlyName: 'Puss',
 		state: 'operational',
 		position: { q: 1, r: 1 },
-		move: 3,
+		movesRemaining: 3,
+		stackSize: 1,
 		weapons: [],
-		attack: '4 / rng 2',
 		actionableModes: ['fire', 'combined'],
 	},
 	{
-		id: 'wolf-2',
-		type: 'BigBadWolf',
-		friendlyName: 'Big Bad Wolf',
-		status: 'operational',
-		role: 'defender',
 		unitId: 'wolf-2',
 		typeId: 'BigBadWolf',
+		role: 'defender',
+		side: 'defender',
+		friendlyName: 'Big Bad Wolf',
 		state: 'operational',
 		position: { q: 1, r: 2 },
-		move: 4,
+		movesRemaining: 4,
+		stackSize: 1,
 		weapons: [],
-		attack: '2 / rng 2',
 		actionableModes: ['fire', 'combined'],
 	},
 ]
@@ -483,11 +437,11 @@ const defenders: BattlefieldUnit[] = [
 const staleDefenderMove: BattlefieldUnit[] = [
 	{
 		...defenders[0],
-		move: 0,
+		movesRemaining: 0,
 	},
 	{
 		...defenders[1],
-		move: 0,
+		movesRemaining: 0,
 	},
 ]
 
@@ -496,30 +450,24 @@ describe('HexMapBoard', () => {
 		const stackedDefenders: BattlefieldUnit[] = [
 			{
 				...defenders[0],
-				id: 'pigs-1',
 				unitId: 'pigs-1',
-				type: 'LittlePigs',
 				friendlyName: 'Little Pigs 1',
 				position: { q: 2, r: 2 },
-				move: 3,
+				movesRemaining: 3,
 					weapons: [],
-				attack: '1 / rng 0',
 				actionableModes: ['fire', 'combined'],
 			},
 			{
 				...defenders[1],
-				id: 'pigs-2',
 				unitId: 'pigs-2',
-				type: 'LittlePigs',
 				friendlyName: 'Little Pigs 2',
 				position: { q: 2, r: 2 },
-				move: 3,
+				movesRemaining: 3,
 					weapons: [],
-				attack: '1 / rng 0',
 				actionableModes: ['fire', 'combined'],
 			},
 		]
-		const stackRoster = {
+		const stackRoster: StackRosterState = {
 			groupsById: {
 				'LittlePigs:2,2': {
 					groupName: 'Little Pigs group',
@@ -535,7 +483,7 @@ describe('HexMapBoard', () => {
 				scenarioMap={scenarioMap}
 				defenders={stackedDefenders}
 				onions={[onion]}
-				stackRoster={stackRoster as any}
+				stackRoster={stackRoster}
 				phase="DEFENDER_MOVE"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -630,9 +578,9 @@ describe('HexMapBoard', () => {
 	it('greys out disabled movement units on the map', () => {
 		const disabledDefender: BattlefieldUnit = {
 			...defenders[0],
-			id: 'puss-disabled',
-			status: 'disabled',
-			move: 3,
+			unitId: 'puss-disabled',
+			state: 'disabled',
+			movesRemaining: 3,
 		}
 
 		render(
@@ -654,14 +602,13 @@ describe('HexMapBoard', () => {
 	it('keeps a destroyed swamp visible and selectable on the map', () => {
 		const destroyedSwamp: BattlefieldUnit = {
 			...defenders[0],
-			id: 'swamp-1',
-			type: 'Swamp',
+			unitId: 'swamp-1',
+			typeId: 'Swamp',
 			friendlyName: 'The Swamp',
-			status: 'destroyed',
+			state: 'destroyed',
 			position: { q: 1, r: 1 },
-			move: 0,
+			movesRemaining: 0,
 			weapons: [],
-			attack: '0 / rng 0',
 			actionableModes: [],
 		}
 
@@ -687,14 +634,13 @@ describe('HexMapBoard', () => {
 	it('uses the intact swamp sprite for an operational swamp', () => {
 		const intactSwamp: BattlefieldUnit = {
 			...defenders[0],
-			id: 'swamp-1',
-			type: 'Swamp',
+			unitId: 'swamp-1',
+			typeId: 'Swamp',
 			friendlyName: 'The Swamp',
-			status: 'operational',
+			state: 'operational',
 			position: { q: 1, r: 1 },
-			move: 0,
+			movesRemaining: 0,
 			weapons: [],
-			attack: '0 / rng 0',
 			actionableModes: [],
 		}
 
@@ -732,14 +678,13 @@ describe('HexMapBoard', () => {
 				defenders={[
 					{
 						...defenders[0],
-						id: 'swamp-1',
-						type: 'Swamp',
+						unitId: 'swamp-1',
+						typeId: 'Swamp',
 						friendlyName: 'The Swamp',
-						status: 'operational',
+						state: 'operational',
 						position: { q: 1, r: 1 },
-						move: 0,
+						movesRemaining: 0,
 									weapons: [],
-						attack: '0 / rng 0',
 						actionableModes: [],
 					},
 				]}
@@ -829,18 +774,16 @@ describe('HexMapBoard', () => {
 				scenarioMap={sparseScenarioMap}
 				defenders={[
 					{
-						id: 'wolf-2',
-						type: 'BigBadWolf',
-						friendlyName: 'Big Bad Wolf',
-						status: 'operational',
-						role: 'defender',
 						unitId: 'wolf-2',
 						typeId: 'BigBadWolf',
+						friendlyName: 'Big Bad Wolf',
+						role: 'defender',
+						side: 'defender',
 						state: 'operational',
 						position: { q: 4, r: 4 },
-						move: 4,
+						movesRemaining: 4,
+						stackSize: 1,
 						weapons: [],
-						attack: '2 / rng 2',
 						actionableModes: ['fire', 'combined'],
 					},
 				]}
@@ -1322,7 +1265,7 @@ describe('HexMapBoard', () => {
 	})
 
 	it('does not show an error bubble when the selected unit is ineligible (e.g., disabled)', () => {
-		const disabledDefender = { ...defenders[0], status: 'disabled' as const }
+		const disabledDefender = { ...defenders[0], state: 'disabled' as const }
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}

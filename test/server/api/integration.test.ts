@@ -13,7 +13,9 @@ import { hexDistance } from '#shared/hex'
 import { getUnitDefinition } from '#server/engine/units'
 import { getOnion } from '#shared/unitState'
 import { UnitWeapons } from '#shared/unitWeapons'
-import type { Weapon, DefenderUnit } from '#shared/types/index'
+import type { EventEnvelope, GameState, Weapon, DefenderUnit } from '#shared/types/index'
+import type { GameStateResponse } from '#shared/apiProtocol'
+import type { InitialState } from '#server/engine/scenarioSchema'
 
 type TestUser = { userId: string; token: string }
 
@@ -33,11 +35,17 @@ type IntegrationContext = {
   tracking: PhaseTracking
 }
 
+function integrationUsername(prefix: string, seed: string): string {
+  const checksum = seed.split('').reduce((total, character) => (total * 31 + character.charCodeAt(0)) % 10000, 0)
+  const readableSeed = seed.replace(/[^a-z0-9]/gi, '').slice(0, 6)
+  return `${prefix}-${readableSeed}-${checksum.toString(36)}`
+}
+
 async function setupIntegrationGame(seed: string, scenarioId = 'swamp-siege-01'): Promise<IntegrationContext> {
   const app = buildApp()
 
-  const onionUser = await registerAndLoginUser(app, `onion-${seed}`, 'onionpass')
-  const defenderUser = await registerAndLoginUser(app, `defender-${seed}`, 'defenderpass')
+  const onionUser = await registerAndLoginUser(app, integrationUsername('onion', seed), 'onionpass')
+  const defenderUser = await registerAndLoginUser(app, integrationUsername('defender', seed), 'defenderpass')
 
   const createGameRes = await app.inject({
     method: 'POST',
@@ -58,7 +66,7 @@ async function setupIntegrationGame(seed: string, scenarioId = 'swamp-siege-01')
 
   const scenarioRes = await app.inject({ method: 'GET', url: `/scenarios/${scenarioId}` })
   expect(scenarioRes.statusCode).toBe(200)
-  const scenario = scenarioRes.json<{ id: string; name: string; displayName: string; map: ScenarioMap; initialState: any }>()
+  const scenario = scenarioRes.json<{ id: string; name: string; displayName: string; map: ScenarioMap; initialState: InitialState }>()
   expect(scenario.displayName).toBeDefined()
   expect(typeof scenario.displayName).toBe('string')
   const expectedState = buildExpectedState(scenario.initialState)
@@ -105,7 +113,7 @@ async function fetchGame(ctx: IntegrationContext, role: 'onion' | 'defender' = '
     headers: { authorization: `Bearer ${token}` },
   })
   expect(res.statusCode).toBe(200)
-  return res.json()
+  return res.json<GameStateResponse>()
 }
 
 async function runEndPhase(
@@ -297,7 +305,7 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
   expect(fireBody.events[0].type).toBe('FIRE_RESOLVED')
   expect(fireBody.events[0].attackers).toEqual([fireUnitId])
   expect(fireBody.events[0].targetId).toBe(`${ctx.onionId}:treads`)
-  const treadLossEvent = fireBody.events.find((event: any) => event.type === 'ONION_TREADS_LOST')
+  const treadLossEvent = fireBody.events.find((event: EventEnvelope) => event.type === 'ONION_TREADS_LOST')
   if (treadLossEvent) {
     expect(treadLossEvent.targetId).toBe(`${ctx.onionId}:treads`)
   }
@@ -410,7 +418,7 @@ async function runGameOrchestrator(turns: number, seed: string, scenarioId = 'sw
   return { ctx, turnsRan }
 }
 
-async function runTreadFocusAssaultTurn(ctx: IntegrationContext): Promise<any> {
+async function runTreadFocusAssaultTurn(ctx: IntegrationContext): Promise<GameStateResponse> {
   // Keep movement simple and deterministic for this smoke path.
   await runEndPhase(ctx, 'onion', 'ONION_MOVE', 'ONION_COMBAT')
   await runOnionAttackPhase(ctx)
@@ -426,13 +434,13 @@ async function runTreadFocusAssaultTurn(ctx: IntegrationContext): Promise<any> {
   let combatState = await fetchGame(ctx, 'defender')
   expect(combatState.phase).toBe('DEFENDER_COMBAT')
 
-  const attackerIds = Object.values(combatState.state.defenders as Record<string, any>)
-    .filter((unit: any) => unit.state === 'operational')
-    .map((unit: any) => unit.unitId)
+  const attackerIds = Object.values(combatState.state.defenders)
+    .filter((unit) => unit.state === 'operational')
+    .map((unit) => unit.unitId)
     .sort((left: string, right: string) => left.localeCompare(right))
 
   for (const unitId of attackerIds) {
-    if (combatState.state.onions[ctx.onionId].treads <= 0) break
+    if ((combatState.state.onions[ctx.onionId]?.treads ?? 0) <= 0) break
 
     const fireRes = await ctx.app.inject({
       method: 'POST',
@@ -506,9 +514,9 @@ describe('Integration Phases (Modular)', () => {
     const before = await fetchGame(ctx, 'defender')
     expect(before.phase).toBe('DEFENDER_MOVE')
 
-    const pigStackIds = Object.values(before.state.defenders as Record<string, any>)
-      .filter((defender: any) => defender.typeId === 'LittlePigs' && defender.position.q === 5 && defender.position.r === 7)
-      .map((defender: any) => defender.unitId)
+    const pigStackIds = Object.values(before.state.defenders)
+      .filter((defender) => defender.typeId === 'LittlePigs' && defender.position.q === 5 && defender.position.r === 7)
+      .map((defender) => defender.unitId)
       .sort()
     expect(pigStackIds).toEqual(['pigs-4', 'pigs-5'])
 
@@ -542,9 +550,9 @@ describe('Integration Phases (Modular)', () => {
     const before = await fetchGame(ctx, 'defender')
     expect(before.phase).toBe('DEFENDER_MOVE')
 
-    const pigStackIds = Object.values(before.state.defenders as Record<string, any>)
-      .filter((defender: any) => defender.typeId === 'LittlePigs' && defender.position.q === 5 && defender.position.r === 7)
-      .map((defender: any) => defender.unitId)
+    const pigStackIds = Object.values(before.state.defenders)
+      .filter((defender) => defender.typeId === 'LittlePigs' && defender.position.q === 5 && defender.position.r === 7)
+      .map((defender) => defender.unitId)
       .sort()
 
     expect(pigStackIds).toEqual(['pigs-4', 'pigs-5'])
@@ -657,21 +665,21 @@ describe('Integration Orchestrators', () => {
     let finalState = await fetchGame(ctx, 'onion')
     const maxAssaultTurns = 40
     for (let turn = 0; turn < maxAssaultTurns; turn++) {
-        const defendersRemaining = Object.values(finalState.state.defenders as Record<string, any>)
-          .filter((unit: any) => unit.state !== 'destroyed')
+        const defendersRemaining = Object.values(finalState.state.defenders)
+          .filter((unit) => unit.state !== 'destroyed')
         .length
 
-      if (finalState.state.onions[ctx.onionId].treads <= 0 || defendersRemaining === 0) {
+      if ((finalState.state.onions[ctx.onionId]?.treads ?? 0) <= 0 || defendersRemaining === 0) {
         break
       }
 
       finalState = await runTreadFocusAssaultTurn(ctx)
     }
 
-      const defendersRemaining = Object.values(finalState.state.defenders as Record<string, any>)
-        .filter((unit: any) => unit.state !== 'destroyed')
+      const defendersRemaining = Object.values(finalState.state.defenders)
+        .filter((unit) => unit.state !== 'destroyed')
       .length
-    const onionImmobilized = finalState.state.onions[ctx.onionId].treads <= 0
+    const onionImmobilized = (finalState.state.onions[ctx.onionId]?.treads ?? 0) <= 0
     expect(onionImmobilized || defendersRemaining === 0).toBe(true)
 
     if (onionImmobilized) {
@@ -689,61 +697,61 @@ describe('Integration Orchestrators', () => {
   })
 })
 
-function findNearestOperationalDefender(state: any, onionPosition: { q: number; r: number }): any | null {
-  return (Object.values(state.defenders as Record<string, any>) as any[])
-    .filter((defender: any) => defender.state === 'operational')
-    .sort((left: any, right: any) => hexDistance(onionPosition, left.position) - hexDistance(onionPosition, right.position))[0] ?? null
+function findNearestOperationalDefender(state: GameState, onionPosition: { q: number; r: number }): DefenderUnit | null {
+  return Object.values(state.defenders)
+    .filter((defender) => defender.state === 'operational')
+    .sort((left, right) => hexDistance(onionPosition, left.position) - hexDistance(onionPosition, right.position))[0] ?? null
 }
 
-function findOnionTargetInRange(state: any, onionPosition: { q: number; r: number }, range: number): string | null {
-  const defenders = (Object.values(state.defenders as Record<string, any>) as any[])
-    .filter((defender: any) => defender.state === 'operational')
-    .sort((left: any, right: any) => {
+function findOnionTargetInRange(state: GameState, onionPosition: { q: number; r: number }, range: number): string | null {
+  const defenders = Object.values(state.defenders)
+    .filter((defender) => defender.state === 'operational')
+    .sort((left, right) => {
       const leftDistance = hexDistance(onionPosition, left.position)
       const rightDistance = hexDistance(onionPosition, right.position)
       if (leftDistance !== rightDistance) return leftDistance - rightDistance
       return String(left.unitId).localeCompare(String(right.unitId))
     })
 
-  const found = defenders.find((defender: any) => hexDistance(onionPosition, defender.position) <= range)
+  const found = defenders.find((defender) => hexDistance(onionPosition, defender.position) <= range)
   if (!found) return null
 
   // If the found defender is a member of a stack group, prefer returning the group id
   const rosterGroups = state.stackRoster?.groupsById ?? {}
   for (const [groupId, group] of Object.entries(rosterGroups)) {
-    const unitIds = (group as any).unitIds ?? []
+    const unitIds = group.unitIds ?? []
     if (unitIds.includes(found.unitId)) return groupId
   }
 
   return found.unitId
 }
 
-function defenderMovement(defender: any): number {
+function defenderMovement(defender: DefenderUnit): number {
   const definition = getUnitDefinition(defender.typeId)
   return definition?.movement ?? 0
 }
 
-function defenderMaxRange(defender: any): number {
+function defenderMaxRange(defender: DefenderUnit): number {
   const definition = getUnitDefinition(defender.typeId)
   return Math.max(...(definition?.weapons.map((weapon) => weapon.range) ?? []), 0)
 }
 
-function findDefendersInRangeOfOnion(state: any, onionPosition: { q: number; r: number }): string[] {
-  return (Object.values(state.defenders as Record<string, any>) as any[])
-    .filter((defender: any) => defender.state === 'operational')
-    .filter((defender: any) => hexDistance(defender.position, onionPosition) <= defenderMaxRange(defender))
-    .map((defender: any) => defender.unitId)
+function findDefendersInRangeOfOnion(state: GameState, onionPosition: { q: number; r: number }): string[] {
+  return Object.values(state.defenders)
+    .filter((defender) => defender.state === 'operational')
+    .filter((defender) => hexDistance(defender.position, onionPosition) <= defenderMaxRange(defender))
+    .map((defender) => defender.unitId)
     .sort((left, right) => left.localeCompare(right))
 }
 
-function sortDefendersByReach(state: any): string[] {
-  return (Object.values(state.defenders as Record<string, any>) as any[])
-    .filter((defender: any) => defender.state === 'operational')
-    .sort((left: any, right: any) => {
+function sortDefendersByReach(state: GameState): string[] {
+  return Object.values(state.defenders)
+    .filter((defender) => defender.state === 'operational')
+    .sort((left, right) => {
       const movementDelta = defenderMovement(right) - defenderMovement(left)
       if (movementDelta !== 0) return movementDelta
       return String(left.unitId).localeCompare(String(right.unitId))
     })
-    .map((defender: any) => defender.unitId)
+    .map((defender) => defender.unitId)
 }
 

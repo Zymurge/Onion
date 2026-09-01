@@ -103,7 +103,7 @@ describe('PostgresArtifactCleanupDatabaseFactory', () => {
   })
 
   it('reports a foreign key error rather than throwing when a user is registered without its match', async () => {
-    const userA = await insertUser('still-referenced-user')
+    const userA = await insertUser('still-referenced')
     await insertMatch(userA)
     const database = factory.create(databaseUrl)
 

@@ -17,7 +17,7 @@ import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 import { createRollQueue } from '#test/utils/rollQueue'
 
-let infoSpy: any, warnSpy: any, errorSpy: any;
+let infoSpy: { mockRestore: () => void }, warnSpy: { mockRestore: () => void }, errorSpy: { mockRestore: () => void };
 
 beforeEach(() => {
   infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});

@@ -92,7 +92,7 @@ describe('PostgresDb - games', () => {
     const found = await db.findMatch(created.gameId)
     expect(found?.gameId).toBe(created.gameId)
     expect(found?.scenarioId).toBe('swamp-siege-01')
-    expect((found?.scenarioSnapshot as any)?.displayName).toBe('The Siege of Shrek\'s Swamp')
+    expect(found?.scenarioSnapshot).toEqual(expect.objectContaining({ displayName: 'The Siege of Shrek\'s Swamp' }))
     expect(found?.phase).toBe('ONION_MOVE')
     expect(found?.turnNumber).toBe(1)
     expect(found?.winner).toBeNull()

@@ -20,7 +20,6 @@ if (typeof document === 'undefined') {
 		url: 'http://localhost/',
 	})
 
-	const globalScope = globalThis as any
 	const { window } = dom
 
 	installGlobal('window', window)

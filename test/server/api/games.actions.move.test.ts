@@ -1,14 +1,18 @@
-import { randomUUID } from 'node:crypto'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { buildApp } from '#server/app'
 import { StaleMatchStateError } from '#server/db/adapter'
+import type { DbAdapter } from '#server/db/adapter'
 import * as engineGame from '#server/engine/index'
+import type { MovementResult, MovementValidation } from '#server/engine/movement'
 import { materializeScenarioMap } from '#shared/scenarioMap'
+import type { GameState } from '#shared/types/index'
 import { createGame, createMovePlan, joinGame, register } from './helpers.js'
 import logger from '#server/logger'
 
-let infoSpy: any, warnSpy: any, errorSpy: any, debugSpy: any
+type RestorableSpy = { mockRestore(): void }
+
+let infoSpy: RestorableSpy, warnSpy: RestorableSpy, errorSpy: RestorableSpy, debugSpy: RestorableSpy
 
 beforeEach(() => {
 	infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
@@ -85,12 +89,12 @@ describe('POST /games/:id/actions MOVE', () => {
 
 		const moveTo = { q: 1, r: 10 }
 		const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo] })
-		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
-		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockReturnValue({ success: true, newPosition: moveTo } as any)
+		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } satisfies MovementValidation)
+		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockReturnValue({ success: true, newPosition: moveTo } satisfies MovementResult)
 
 		const ramRolls = { next: vi.fn(() => 1) }
 		const createRamRolls = vi.fn(() => ramRolls)
-		const app = buildApp(mockDb as any, { createRamRolls })
+		const app = buildApp(mockDb as unknown as DbAdapter, { createRamRolls })
 		await app.ready()
 		const token = app.jwt.sign({ sub: onionId })
 		const res = await app.inject({
@@ -120,12 +124,12 @@ describe('POST /games/:id/actions MOVE', () => {
 
 		const moveTo = { q: 1, r: 10 }
 		const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo] })
-		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } as any)
-		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: any) => {
+		const validateSpy = vi.spyOn(engineGame, 'validateUnitMovement').mockReturnValue({ ok: true, plan: validatedPlan } satisfies MovementValidation)
+		const executeSpy = vi.spyOn(engineGame, 'executeUnitMovement').mockImplementation(((state: GameState): MovementResult => {
 			state.onions['onion-1'].position = moveTo
 			state.onions['onion-1'].treads = 0
 			return { success: true, newPosition: moveTo }
-		}) as any)
+		}))
 
 		await app.inject({
 			method: 'POST',

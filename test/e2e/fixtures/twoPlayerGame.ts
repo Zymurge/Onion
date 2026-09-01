@@ -39,6 +39,7 @@ export type TwoPlayerGameBootstrapOptions = {
 	scenarioId?: string
 	onion?: PlayerCredentials
 	defender?: PlayerCredentials
+	joinCreatedGame?: boolean
 	artifactRegistry?: ArtifactRegistryClient
 	sessionFactory?: () => SessionStore
 	registerUser?: typeof registerUserRequest
@@ -50,6 +51,7 @@ export type TwoPlayerGameBootstrapOptions = {
 export type TwoPlayerFixtures = {
 	twoPlayerScenarioId: string
 	twoPlayerGame: TwoPlayerGame
+	openTwoPlayerGame: TwoPlayerGame
 }
 
 async function closeOpenContexts(contexts: Set<BrowserContext>): Promise<void> {
@@ -131,7 +133,9 @@ export async function bootstrapTwoPlayerGame(options: TwoPlayerGameBootstrapOpti
 	const createdGame = unwrapResult<CreateOrJoinGameResponse>('create game', await createGame(onionSession, scenarioId, 'onion'))
 	await artifactRegistry.registerGameId(createdGame.gameId)
 
-	unwrapResult('join game', await joinGame(defenderSession, String(createdGame.gameId)))
+	if (options.joinCreatedGame ?? true) {
+		unwrapResult('join game', await joinGame(defenderSession, String(createdGame.gameId)))
+	}
 
 	return {
 		gameId: createdGame.gameId,
@@ -153,6 +157,10 @@ export const test = base.extend<TwoPlayerFixtures>({
 	twoPlayerGame: async ({ twoPlayerScenarioId }, use) => {
 		const provide = use
 		await provide(await bootstrapTwoPlayerGame({ scenarioId: twoPlayerScenarioId }))
+	},
+	openTwoPlayerGame: async ({ twoPlayerScenarioId }, use) => {
+		const provide = use
+		await provide(await bootstrapTwoPlayerGame({ scenarioId: twoPlayerScenarioId, joinCreatedGame: false }))
 	},
 })
 

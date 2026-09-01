@@ -96,6 +96,35 @@ describe('bootstrapTwoPlayerGame', () => {
 		})
 	})
 
+	it('can leave the created game open for browser matchmaking', async () => {
+		const joinGame = vi.fn(async () => ({
+			ok: true as const,
+			status: 200,
+			data: { gameId: 314, role: 'defender' as const },
+		}))
+
+		await bootstrapTwoPlayerGame({
+			baseUrl: 'http://engine.test',
+			onion: { username: 'onion-player', password: 'onion-pass' },
+			defender: { username: 'defender-player', password: 'defender-pass' },
+			artifactRegistry: {
+				registerUserId: vi.fn(async () => createEmptyArtifactManifest()),
+				registerGameId: vi.fn(async () => createEmptyArtifactManifest()),
+			},
+			sessionFactory: createSession,
+			registerUser: async (_session, username) => ({
+				ok: true as const,
+				status: 201,
+				data: { userId: `${username}-id`, token: `${username}-token` },
+			}),
+			createGame: async () => ({ ok: true as const, status: 201, data: { gameId: 314, role: 'onion' as const } }),
+			joinGame,
+			joinCreatedGame: false,
+		})
+
+		expect(joinGame).not.toHaveBeenCalled()
+	})
+
 	it('leaves the first user registered when the second user setup fails', async () => {
 		const registeredUsers: string[] = []
 		const registerUser = async (_session: SessionStore, username: string, password: string) => {

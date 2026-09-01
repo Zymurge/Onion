@@ -1,8 +1,9 @@
 import { expect } from 'vitest'
+import type { FastifyInstance } from 'fastify'
 import { getNeighbors, hexDistance, type HexPos } from '#shared/hex'
 import { translateScenarioCoord } from '#shared/scenarioMap'
 import { getUnitTypeCatalog } from '#shared/unitDefinitions'
-import type { DefenderUnit, OnionUnit, StackRosterGroupState } from '#shared/types/index'
+import type { Command, DefenderUnit, EventEnvelope, GameState, OnionUnit, StackRosterGroupState } from '#shared/types/index'
 import type { Deployment, InitialState } from '#server/engine/scenarioSchema'
 import { getUnitDefinition, onionMovementAllowance } from '#server/engine/units'
 import { listReachableMoves, type MoveMapSnapshot } from '#shared/movePlanner'
@@ -51,7 +52,7 @@ export function buildExpectedState(initialState: ExpectedStateInput): ExpectedSt
       const position = translateScenarioCoord(def.position, radius)
       // Use the same base as scenarioNormalizer
       const unitIdBase = unitType === 'LittlePigs' ? 'pigs' : unitType.toLowerCase()
-      let ordinal = stackOrdinals[unitIdBase] || 0
+      const ordinal = stackOrdinals[unitIdBase] || 0
       for (let i = 1; i <= count; i++) {
         const unitId = `${unitIdBase}-${ordinal + i}`
         const expectedUnit = {
@@ -92,14 +93,13 @@ export function buildExpectedState(initialState: ExpectedStateInput): ExpectedSt
   return { onions, defenders, stackRoster }
 }
 
-export async function registerAndLoginUser(app: any, username: string, password: string) {
+export async function registerAndLoginUser(app: FastifyInstance, username: string, password: string) {
   const registerResponse = await app.inject({
     method: 'POST',
     url: '/auth/register',
-    payload: { username, password },
+    payload: { username, email: `${username}@example.com`, password },
   })
   expect(registerResponse.statusCode).toBe(201)
-  const { userId } = registerResponse.json()
 
   const loginResponse = await app.inject({
     method: 'POST',
@@ -108,9 +108,8 @@ export async function registerAndLoginUser(app: any, username: string, password:
   })
   expect(loginResponse.statusCode).toBe(200)
   const { token, userId: loginUserId } = loginResponse.json()
-  expect(loginUserId).toBe(userId)
 
-  return { userId, token }
+  return { userId: loginUserId, token }
 }
 
 function isInBounds(map: ScenarioMap, position: HexPos): boolean {
@@ -122,19 +121,19 @@ function isPassableTerrain(map: ScenarioMap, position: HexPos): boolean {
   return hex?.t !== 2
 }
 
-function isOccupied(state: any, position: HexPos, excludedUnitId?: string): boolean {
-  const onionAtPosition = Object.values(state.onions ?? {}).some((onion: any) => (
+function isOccupied(state: GameState, position: HexPos, excludedUnitId?: string): boolean {
+  const onionAtPosition = Object.values(state.onions ?? {}).some((onion) => (
     onion.unitId !== excludedUnitId && onion.position.q === position.q && onion.position.r === position.r
   ))
   if (onionAtPosition) return true
 
-  return Object.values(state.defenders).some((defender: any) => {
-    if ((defender.unitId ?? defender.id) === excludedUnitId) return false
+  return Object.values(state.defenders).some((defender) => {
+    if (defender.unitId === excludedUnitId) return false
     return defender.position.q === position.q && defender.position.r === position.r
   })
 }
 
-export function chooseLegalAdjacentMove(map: ScenarioMap, state: any, unitId: string): HexPos | null {
+export function chooseLegalAdjacentMove(map: ScenarioMap, state: GameState, unitId: string): HexPos | null {
   const unit = state.onions?.[unitId] ?? state.defenders[unitId]
   if (!unit) return null
 
@@ -148,37 +147,37 @@ export function chooseLegalAdjacentMove(map: ScenarioMap, state: any, unitId: st
   return null
 }
 
-function movementAllowanceFor(state: any, unitId: string): number {
+function movementAllowanceFor(state: GameState, unitId: string): number {
   const onion = state.onions?.[unitId]
   if (onion) {
-    return onionMovementAllowance(onion.treads)
+    return onionMovementAllowance(onion.treads ?? 0)
   }
 
   const unit = state.defenders[unitId]
   if (!unit) return 0
-  const definition = getUnitDefinition(unit.type)
+  const definition = getUnitDefinition(unit.typeId)
   return definition?.movement ?? 0
 }
 
-function buildMoveMapSnapshot(map: ScenarioMap, state: any, unitId: string): MoveMapSnapshot {
+function buildMoveMapSnapshot(map: ScenarioMap, state: GameState, unitId: string): MoveMapSnapshot {
   const occupiedHexes: NonNullable<MoveMapSnapshot['occupiedHexes']> = [
     ...Object.values(state.onions ?? {})
-      .filter((onion: any) => onion.unitId !== unitId)
-      .map((onion: any) => ({
+      .filter((onion) => onion.unitId !== unitId)
+      .map((onion) => ({
         q: onion.position.q,
         r: onion.position.r,
         role: 'onion' as const,
-        unitType: onion.typeId ?? onion.type ?? 'TheOnion',
+        unitType: onion.typeId,
         squads: 1,
       })),
     ...Object.entries(state.defenders)
-      .filter(([defenderId, defender]: [string, any]) => defenderId !== unitId && (defender.unitId ?? defender.id) !== unitId)
-      .map(([_defenderId, defender]: [string, any]) => ({
+      .filter(([defenderId, defender]) => defenderId !== unitId && defender.unitId !== unitId)
+      .map(([, defender]) => ({
         q: defender.position.q,
         r: defender.position.r,
         role: 'defender' as const,
-        unitType: defender.type,
-        squads: defender.squads,
+        unitType: defender.typeId,
+        squads: getUnitDefinition(defender.typeId)?.squads,
       })),
   ]
 
@@ -193,7 +192,7 @@ function buildMoveMapSnapshot(map: ScenarioMap, state: any, unitId: string): Mov
 
 export function chooseReachableMoveToward(
   map: ScenarioMap,
-  state: any,
+  state: GameState,
   unitId: string,
   target: HexPos,
 ): HexPos | null {
@@ -209,8 +208,8 @@ export function chooseReachableMoveToward(
     from: unit.position,
     movementAllowance,
     movingRole: state.onions?.[unitId] ? 'onion' : 'defender',
-    movingUnitType: unit.typeId ?? unit.type,
-    incomingSquads: unit.squads,
+    movingUnitType: unit.typeId,
+    incomingSquads: getUnitDefinition(unit.typeId)?.squads,
   })
 
   const candidates: Array<{ position: HexPos; distance: number; cost: number }> = []
@@ -235,13 +234,19 @@ export function chooseReachableMoveToward(
   return candidates[0]?.position ?? null
 }
 
-export function applyActionToExpectedState(expected: ExpectedState, action: any, result: any) {
+type ExpectedAction =
+  | { type: 'MOVE'; movers?: ReadonlyArray<string>; unitId?: string; to: HexPos }
+  | Extract<Command, { type: 'FIRE' }>
+  | Extract<Command, { type: 'END_PHASE' }>
+type ActionResult = { ok?: boolean; events?: EventEnvelope[] }
+
+export function applyActionToExpectedState(expected: ExpectedState, action: ExpectedAction, result: ActionResult) {
   if (!result?.ok) return
 
   if (action.type === 'MOVE') {
-    const moverIds = Array.isArray(action.movers)
+    const moverIds = 'movers' in action && Array.isArray(action.movers)
       ? action.movers
-      : typeof action.unitId === 'string'
+      : 'unitId' in action && typeof action.unitId === 'string'
         ? [action.unitId]
         : []
 
@@ -258,7 +263,7 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
 
   for (const event of result.events) {
     if (event.type === 'FIRE_RESOLVED' && Array.isArray(event.attackers)) {
-      for (const attacker of event.attackers as string[]) {
+      for (const attacker of event.attackers.filter((value): value is string => typeof value === 'string')) {
         // If attacker is a defender unit ID, mark their first ready weapon as spent
         if (expected.defenders[attacker] && expected.defenders[attacker].weapons) {
           const defender = expected.defenders[attacker]
@@ -272,23 +277,24 @@ export function applyActionToExpectedState(expected: ExpectedState, action: any,
       }
     }
 
-    if (event.type === 'UNIT_STATUS_CHANGED' && expected.defenders[event.unitId]) {
-      expected.defenders[event.unitId].state = event.to
+    if (event.type === 'UNIT_STATUS_CHANGED' && typeof event.unitId === 'string' && typeof event.to === 'string' && expected.defenders[event.unitId]) {
+      expected.defenders[event.unitId].state = event.to as DefenderUnit['state']
     }
-    if (event.type === 'UNIT_SQUADS_LOST' && expected.defenders[event.unitId]) {
+    if (event.type === 'UNIT_SQUADS_LOST' && typeof event.unitId === 'string' && expected.defenders[event.unitId]) {
       expected.defenders[event.unitId].squads = Math.max(0, (expected.defenders[event.unitId].squads ?? 1) - Number(event.amount ?? 0))
       if (expected.defenders[event.unitId].squads === 0) {
         expected.defenders[event.unitId].state = 'destroyed'
       }
     }
     if (event.type === 'ONION_TREADS_LOST') {
-      const onionId = event.unitId ?? action.onionId ?? Object.keys(expected.onions)[0]
-      if (expected.onions[onionId]) expected.onions[onionId].treads = event.remaining
+      const actionOnionId = 'onionId' in action ? action.onionId : undefined
+      const onionId = typeof event.unitId === 'string' ? event.unitId : actionOnionId ?? Object.keys(expected.onions)[0]
+      if (expected.onions[onionId] && typeof event.remaining === 'number') expected.onions[onionId].treads = event.remaining
     }
   }
 }
 
-export function assertStateMatches(apiState: any, expected: ExpectedState) {
+export function assertStateMatches(apiState: GameState, expected: ExpectedState) {
   const actualOnionIds = Object.keys(apiState.onions || {}).sort()
   const expectedOnionIds = Object.keys(expected.onions).sort()
   expect(actualOnionIds, `Onion unit IDs mismatch\nExpected: ${JSON.stringify(expectedOnionIds)}\nActual: ${JSON.stringify(actualOnionIds)}`).toEqual(expectedOnionIds)

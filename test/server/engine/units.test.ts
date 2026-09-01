@@ -244,7 +244,7 @@ describe('getUnitDefinition', () => {
 
   describe('Swamp (HQ)', () => {
     it('has no weapons', () => {
-      expect((getUnitDefinition('Swamp') as any).weapons).toHaveLength(0)
+      expect(getUnitDefinition('Swamp')?.weapons).toHaveLength(0)
     })
 
     it('has defense 0', () => {
@@ -363,7 +363,7 @@ describe('getAllUnitDefinitions', () => {
   })
 
   it('exposes a friendly-name template for Swamp', () => {
-    const shared = getSharedUnitDefinitions() as any
+    const shared = getSharedUnitDefinitions()
 
     expect(shared.Swamp.friendlyNameTemplate).toBe('The Swamp')
   })
@@ -374,8 +374,8 @@ describe('getAllUnitDefinitions', () => {
     expect(shared.LittlePigs.friendlyNameTemplate).toBe('Little Pigs {{ordinal}}')
     expect(shared.BigBadWolf.friendlyNameTemplate).toBe('Big Bad Wolf {{ordinal}}')
     expect(shared.TheOnion.friendlyNameTemplate).toBe('The Onion {{ordinal}}')
-    expect((shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.secondary_1') as any).friendlyNameTemplate).toBe('Secondary Weapon {{ordinal}}')
-    expect((shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.ap_1') as any).friendlyNameTemplate).toBe('AP Gun {{ordinal}}')
+    expect(shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.secondary_1')?.friendlyNameTemplate).toBe('Secondary Weapon {{ordinal}}')
+    expect(shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.ap_1')?.friendlyNameTemplate).toBe('AP Gun {{ordinal}}')
   })
 
   it('includes ram profiles in the shared definition source for rammed units', () => {
@@ -384,7 +384,7 @@ describe('getAllUnitDefinitions', () => {
     expect(shared.LittlePigs.abilities.ramProfile).toEqual({ treadLoss: 0, destroyOnRollAtMost: 4 })
     expect(shared.Puss.abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
     expect(shared.Dragon.abilities.ramProfile).toEqual({ treadLoss: 2, destroyOnRollAtMost: 4 })
-    expect((shared as any).Swamp.abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
+    expect(shared.Swamp.abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
   })
 })
 

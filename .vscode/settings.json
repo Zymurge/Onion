@@ -1,14 +1,21 @@
 {
-    "vitest.packageManager": "pnpm",
-    "vitest.configSearchPatternExclude": "**/node_modules/**",
+    "vitest.shellType": "child_process",
+    "vitest.nodeExecutable": "/home/zymurge/.nvm/versions/node/v22.22.2/bin/node",
+    "vitest.configSearchPatternInclude": "vitest.config.ts",
+    "vitest.configSearchPatternExclude": "**/node_modules/**,**/vendor/**,**/*.d.ts,**/vitest.integration.config.ts,**/vitest.node.config.ts,**/web/vitest.config.ts",
+    "vitest.rootConfig": "vitest.config.ts",
+    "npm.scriptRunner": "pnpm",
     "files.exclude": {
         "dist": true
     },
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/node_modules/**": true,
+        "**/.venv/**": true,
+        "**/dist/**": true
+    },
     "search.exclude": {
         "dist": true
-    },
-    "files.watcherExclude": {
-        "dist/**": true
     },
     "chat.tools.compressOutput.enabled": true,
     "chat.tools.terminal.autoApprove": {
@@ -28,15 +35,8 @@
         "tee": true,
         "awk": true
     },
-    "chat.utilityModel": "copilot/gpt-5.4-mini",
-    "chat.utilitySmallModel": "copilot/gpt-5-mini",
     "github.copilot.chat.cli.forkSessions.enabled": true,
-    "github.copilot.chat.responsesApi.toolSearchTool.enabled": true,
     "github.copilot.chat.localIndex.enabled": true,
-    "vitest.rootConfig": "vitest.config.ts",
-    "vitest.configSearchPatternInclude": "vitest.config.ts",
-    "vitest.configSearchPatternExclude": "{**/node_modules/**,**/vendor/**,**/.*/**,**/*.d.ts,vitest.integration.config.ts,vitest.node.config.ts,web/vitest.config.ts}",
-    "npm.scriptRunner": "pnpm",
     "sqltools.connections": [
         {
             "ssh": "Disabled",

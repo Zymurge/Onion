@@ -1,6 +1,7 @@
 import {
 	createCombatCalculator,
 	type CombatExchangeInput,
+	type CombatAttackerContribution,
 	} from '../../shared/combatCalculator.js'
 import { ONION_STATIC_RULES } from '../../shared/staticRules.js'
 import {
@@ -152,7 +153,7 @@ function buildCombatCalculatorInputForWeaponTarget(
 	displayedOnion: BattlefieldOnionView,
 	weapon: Weapon,
 ): CombatExchangeInput {
-	const attackers: CombatExchangeInput['attackers'] = []
+	const attackers: CombatAttackerContribution[] = []
 
 	for (const attackerId of selectedAttackerIds) {
 		const attacker = displayedDefenders.find((unit) => unit.unitId === resolveSelectionOwnerUnitId(attackerId))
@@ -215,6 +216,7 @@ export function buildCombatTargetOptions({
 					typeId: unit.typeId,
 					position: getBattlefieldPosition(unit),
 					state: unit.state,
+					side: unit.side,
 					weapons: unit.weapons,
 					friendlyName: unit.friendlyName,
 				}]),
@@ -285,12 +287,7 @@ export function buildCombatTargetOptions({
 				q: unitPosition.q,
 				r: unitPosition.r,
 				status: unit.state,
-				label: resolveBattlefieldFriendlyName({
-					unitId: unit.unitId,
-					typeId: unit.typeId,
-					position: unitPosition,
-					friendlyName: unit.friendlyName,
-				}, stackNaming ?? undefined, stackRoster ?? undefined, catalog),
+				label: resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRoster ?? undefined, catalog),
 				defense,
 				modifiers: buildTargetModifiers(
 					result.modifiers,

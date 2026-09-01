@@ -47,7 +47,7 @@ describe('checkVictoryConditions', () => {
     return makeGameState({
       onions: { onion: makeOnion({ unitId: 'onion' }) },
       defenders: {
-        swamp: makeUnit({ typeId: 'Swamp' as any, unitId: 'swamp' }),
+        swamp: makeUnit({ typeId: 'Swamp', unitId: 'swamp' }),
         puss: makeUnit({ typeId: 'Puss', unitId: 'puss' }),
       },
       currentPhase: 'ONION_MOVE',
@@ -64,7 +64,7 @@ describe('checkVictoryConditions', () => {
   it('returns null when Swamp is destroyed but Onion can still move', () => {
     const state = makeState({
       defenders: {
-        swamp: makeUnit({ typeId: 'Swamp' as any, unitId: 'swamp', state: 'destroyed' }),
+        swamp: makeUnit({ typeId: 'Swamp', unitId: 'swamp', state: 'destroyed' }),
         puss: makeUnit({ typeId: 'Puss', unitId: 'puss' }),
       },
     })
