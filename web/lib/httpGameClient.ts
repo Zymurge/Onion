@@ -15,10 +15,14 @@ import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
 
 type ActionSuccessResponse = ActionOkResponse & {
+	scenarioId?: string
+	hostUserId?: string
+	status?: ServerGameSnapshot['status']
 	turnNumber: number
 	eventSeq: number
 	phase: TurnPhase
 	scenarioName: string
+	players?: ServerGameSnapshot['players']
 	scenarioMap: NonNullable<ServerGameSnapshot['scenarioMap']>
 	victoryObjectives: NonNullable<ServerGameSnapshot['victoryObjectives']>
 	escapeHexes?: ServerGameSnapshot['escapeHexes']
@@ -118,12 +122,16 @@ function mapServerSnapshot(
 	return {
 		snapshot: {
 			gameId: response.gameId ?? gameId,
+			scenarioId: response.scenarioId,
+			hostUserId: response.hostUserId,
+			status: response.status,
 			phase: normalizePhase(response.phase),
 			winner: response.winner,
 			aborted: response.aborted,
 			scenarioName: response.scenarioName,
 			turnNumber: response.turnNumber,
 			lastEventSeq: response.eventSeq,
+			players: response.players,
 			authoritativeState: response.state,
 			scenarioMap,
 			victoryObjectives: response.victoryObjectives,
@@ -138,17 +146,22 @@ function mapServerSnapshot(
 function mapActionSnapshot(
 	response: ActionSuccessResponse,
 	gameId: number,
+	previousSnapshot: ServerGameSnapshot | null,
 ): ServerGameSnapshot {
 	const responseEvents = Array.isArray(response.events) ? response.events : []
 
 	return {
 		gameId,
+		scenarioId: response.scenarioId ?? previousSnapshot?.scenarioId,
+		hostUserId: response.hostUserId ?? previousSnapshot?.hostUserId,
+		status: response.status ?? previousSnapshot?.status,
 		phase: response.phase,
 		winner: response.winner,
 		aborted: response.aborted,
 		scenarioName: response.scenarioName,
 		turnNumber: response.turnNumber,
 		lastEventSeq: response.eventSeq,
+		players: response.players ?? previousSnapshot?.players,
 		authoritativeState: response.state,
 		scenarioMap: response.scenarioMap,
 		victoryObjectives: response.victoryObjectives,
@@ -221,7 +234,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					throw buildError(result)
 				}
 
-				currentSnapshot = mapActionSnapshot(result.data, gameId)
+				currentSnapshot = mapActionSnapshot(result.data, gameId, currentSnapshot)
 				return currentSnapshot
 				}
 				case 'MOVE': {
@@ -244,7 +257,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					throw buildError(result)
 				}
 
-				currentSnapshot = mapActionSnapshot(result.data, gameId)
+				currentSnapshot = mapActionSnapshot(result.data, gameId, currentSnapshot)
 				return currentSnapshot
 				}
 				case 'FIRE': {
@@ -267,7 +280,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 					throw buildError(result)
 				}
 
-				currentSnapshot = mapActionSnapshot(result.data, gameId)
+				currentSnapshot = mapActionSnapshot(result.data, gameId, currentSnapshot)
 				return currentSnapshot
 				}
 				case 'refresh': {

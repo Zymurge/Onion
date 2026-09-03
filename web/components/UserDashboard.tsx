@@ -15,8 +15,8 @@ type GameSummary = {
   phase: string
   turnNumber: number
   winner: string | null
-  status?: 'waiting' | 'ready' | 'active' | 'completed'
-  ready?: boolean
+  status: 'waiting' | 'ready' | 'active' | 'completed'
+  hostUserId: string
   role: 'onion' | 'defender'
 }
 
@@ -29,12 +29,15 @@ function formatPhase(phase: string): string {
 }
 
 function getGameStatus(game: GameSummary, userId: string | undefined): string {
-  const status = game.status ?? (game.ready === true ? 'ready' : 'waiting')
-  if (status === 'waiting') {
+  if (game.status === 'waiting') {
     return 'Waiting for opponent'
   }
 
-  if (status === 'completed' || game.winner !== null) {
+  if (game.status === 'ready') {
+    return 'Ready to start'
+  }
+
+  if (game.status === 'completed' || game.winner !== null) {
     return game.winner === userId ? 'You won' : 'You lost'
   }
 
@@ -48,6 +51,7 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
   const session = getAuthSession()
   const [games, setGames] = useState<GameSummary[]>([])
   const [loading, setLoading] = useState(session !== null)
+  const [startingGameId, setStartingGameId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const apiBaseUrl = session?.apiBaseUrl
   const token = session?.token
@@ -80,6 +84,34 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
       cancelled = true
     }
   }, [apiBaseUrl, token])
+
+  async function handleStart(gameId: number) {
+    if (!session || startingGameId !== null) {
+      return
+    }
+
+    setError(null)
+    setStartingGameId(gameId)
+    try {
+      const result = await requestJson<{ gameId: number; status: 'active' }>({
+        baseUrl: session.apiBaseUrl,
+        path: `games/${gameId}/start`,
+        method: 'POST',
+        token: session.token,
+        body: {},
+      })
+      if (!result.ok) {
+        setError(result.message)
+        return
+      }
+
+      (navigate ?? ((path: string) => window.location.assign(path)))(`/game/${result.data.gameId}`)
+    } catch {
+      setError('Unable to start the game.')
+    } finally {
+      setStartingGameId(null)
+    }
+  }
 
   function handleSignOut() {
     clearAuthSession()
@@ -118,8 +150,21 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
                       <h3>{game.scenarioDisplayName}</h3>
                       <p>Turn {game.turnNumber} · {formatPhase(game.phase)} · {game.role === 'onion' ? 'The Onion' : 'Defenders'}</p>
                     </div>
-                    {(game.status ?? (game.ready === true ? 'ready' : 'waiting')) !== 'waiting' ? (
+                    {game.status === 'active' || game.status === 'completed' ? (
                       <a className="dashboard-game-link" href={`/game/${game.gameId}`}>Open Game</a>
+                    ) : game.status === 'ready' ? (
+                      game.hostUserId === session?.userId ? (
+                        <button
+                          type="button"
+                          className="dashboard-game-link games-start-button"
+                          onClick={() => void handleStart(game.gameId)}
+                          disabled={startingGameId !== null}
+                        >
+                          {startingGameId === game.gameId ? 'Starting...' : 'Start Game'}
+                        </button>
+                      ) : (
+                        <span className="dashboard-game-link dashboard-game-link-disabled">Ready</span>
+                      )
                     ) : (
                       <span className="dashboard-game-link dashboard-game-link-disabled">Waiting</span>
                     )}

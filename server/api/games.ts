@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import type { PlayerRole, Command, EventEnvelope, GameState, SingleUnitMoveCommand } from '#shared/types/index'
 import type { DbAdapter } from '#server/db/adapter'
-import { MatchJoinError, StaleMatchStateError } from '#server/db/adapter'
+import { MatchJoinError, MatchStartError, StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { createMap } from '#server/engine/map'
@@ -309,6 +309,43 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       }
     } catch (err) {
       logger.error({ err }, 'Error joining game')
+      return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
+    }
+  })
+
+  /**
+   * Start a full game match.
+   *
+   * Only the authenticated host may transition a ready match to active.
+   *
+   * @route POST /games/:id/start
+   * @returns { gameId: number, status: "active", event: EventEnvelope } - 200 on success
+   * @returns { ok: false, error: string, code: string } - 401 UNAUTHORIZED, 403 NOT_HOST, 404 NOT_FOUND, 409 lifecycle conflict
+   */
+  app.post<{ Params: { id: string } }>('/:id/start', async (req, reply) => {
+    try {
+      const userId = await verifyUserId(app, req.headers.authorization)
+      if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+
+      const gameId = parseGameId(req.params.id)
+      if (gameId === null) {
+        return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
+
+      try {
+        const started = await db.startMatch(gameId, userId, String(req.id))
+        broadcastGameEvents(gameId, [started.event])
+        return reply.send({ gameId, status: 'active', event: started.event })
+      } catch (err) {
+        if (err instanceof MatchStartError) {
+          const status = err.code === 'MATCH_NOT_FOUND' ? 404 : err.code === 'NOT_HOST' ? 403 : 409
+          const code = err.code === 'MATCH_NOT_FOUND' ? 'NOT_FOUND' : err.code
+          return reply.status(status).send({ ok: false, error: err.message, code })
+        }
+        throw err
+      }
+    } catch (err) {
+      logger.error({ err }, 'Error starting game')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })
@@ -641,6 +678,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
    *                                            401 UNAUTHORIZED if no or invalid token
    *                                            403 NOT_YOUR_TURN if not active player
    *                                            404 NOT_FOUND if game does not exist
+  *                                            409 GAME_NOT_STARTED if the host has not started the ready game
    *                                            409 GAME_OVER if game is already over
    *                                            413 PAYLOAD_TOO_LARGE if payload exceeds 16KB
    *                                            400 MALFORMED_JSON if request body is not valid JSON
@@ -679,10 +717,6 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         return reply.status(400).send({ ok: false, error: 'Waiting for second player to join', code: 'WAITING_FOR_PLAYER', currentPhase: match.phase })
       }
 
-      if (match.status === 'waiting') {
-        return reply.status(400).send({ ok: false, error: 'Game is not ready to start', code: 'GAME_NOT_READY', currentPhase: match.phase })
-      }
-
       const actor = phaseActor(match.phase)
       const activeUserId = actor === 'onion' ? match.players.onion : match.players.defender
       if (userId !== activeUserId) {
@@ -709,6 +743,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         })
       }
 
+      if (match.status !== 'active') {
+        return reply.status(409).send({ ok: false, error: 'Game has not been started', code: 'GAME_NOT_STARTED', currentPhase: match.phase })
+      }
+
       let newEvents: EventEnvelope[]
       let currentState = match.state
       const expectedLastEventSeq = match.events.at(-1)?.seq ?? 0
@@ -725,7 +763,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         newEvents = attachCauseId(result.newEvents, causeId)
         currentState = result.state
         const winner = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
-        const status = winner !== null ? 'completed' : match.status === 'ready' ? 'active' : match.status
+        const status = winner !== null ? 'completed' : match.status
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
@@ -812,7 +850,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
 
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
-        const status = winner !== null ? 'completed' : match.status === 'ready' ? 'active' : match.status
+        const status = winner !== null ? 'completed' : match.status
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
@@ -875,7 +913,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         newEvents = attachCauseId(buildCombatEvents(seq, command, result, state, match.phase), causeId)
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
-        const status = winner !== null ? 'completed' : match.status === 'ready' ? 'active' : match.status
+        const status = winner !== null ? 'completed' : match.status
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,

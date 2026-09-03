@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
-import { MatchJoinError, StaleMatchStateError } from '#server/db/adapter'
+import { MatchJoinError, MatchStartError, StaleMatchStateError } from '#server/db/adapter'
 import type { DbAdapter, MatchListFilters, MatchRecord, MatchSummary, PersistMatchProgressInput } from '#server/db/adapter'
 import logger from '#server/logger'
 
@@ -131,6 +131,31 @@ export class InMemoryDb implements DbAdapter {
     }
     match.events.push(event)
     return { role, event: structuredClone(event) }
+  }
+
+  async startMatch(gameId: number, userId: string, causeId: string) {
+    const match = this.matches.get(gameId)
+    if (!match) throw new MatchStartError('MATCH_NOT_FOUND', 'Game not found')
+    if (match.hostUserId !== userId) {
+      throw new MatchStartError('NOT_HOST', 'Only the host can start the game')
+    }
+    if (match.status === 'waiting' || match.players.onion === null || match.players.defender === null) {
+      throw new MatchStartError('GAME_NOT_READY', 'Game is not ready to start')
+    }
+    if (match.status !== 'ready') {
+      throw new MatchStartError('GAME_ALREADY_STARTED', 'Game has already started')
+    }
+
+    const event = {
+      seq: (match.events.at(-1)?.seq ?? 0) + 1,
+      type: 'STARTED',
+      timestamp: new Date().toISOString(),
+      causeId,
+      userId,
+    }
+    match.status = 'active'
+    match.events.push(event)
+    return { event: structuredClone(event) }
   }
 
   async updateMatchPlayers(gameId: number, players: { onion: string | null; defender: string | null }): Promise<void> {

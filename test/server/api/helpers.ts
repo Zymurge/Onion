@@ -53,6 +53,18 @@ export async function joinGame(
   return res.json()
 }
 
+export async function startGame(
+  app: FastifyInstance,
+  gameId: number,
+  token: string,
+) {
+  return app.inject({
+    method: 'POST',
+    url: `/games/${gameId}/start`,
+    headers: { authorization: `Bearer ${token}` },
+  })
+}
+
 export async function getGame(
   app: FastifyInstance,
   gameId: number,
@@ -120,6 +132,14 @@ export async function advanceToPhase(
     const stateBody = stateResponse.json()
     if (stateBody.phase === targetPhase) {
       return stateBody
+    }
+
+    if (stateBody.status === 'ready') {
+      const startResponse = await startGame(app, gameId, onionToken)
+      if (startResponse.statusCode !== 200) {
+        throw new Error(`Failed to start game before advancing to ${targetPhase}`)
+      }
+      continue
     }
 
     const token = phaseTokenFor(stateBody.phase, onionToken, defenderToken)

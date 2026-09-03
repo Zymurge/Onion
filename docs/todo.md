@@ -34,7 +34,7 @@ break down into features/tasks as needed.
 ## Epics / Major Work
 
 - [x] JWT authentication (migrate to @fastify/jwt)
-- [ ] Game lobby for game discovery and joining (self-service matchmaking)
+- [x] Game lobby for game discovery, joining, and host-controlled start (self-service matchmaking)
 
 ## Features / Work Items
 

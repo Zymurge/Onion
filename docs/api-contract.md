@@ -144,7 +144,8 @@ Errors:   400 INVALID_INPUT if role is not "onion" or "defender"
           500 INTERNAL_ERROR for unexpected backend errors
 ```
 
-The `gameId` is shared out-of-band with the second player.
+The `gameId` may be shared out-of-band, or the second player may discover the
+game through the web lobby's open-game list.
 
 ### `GET /games`
 
@@ -159,14 +160,15 @@ Response: { "games": Array<{
   "phase": TurnPhase,
   "turnNumber": number,
   "winner": string | null,
-  "status": "waiting" | "ready" | "completed",
+  "status": "waiting" | "ready" | "active" | "completed",
+  "hostUserId": string,
   "role": "onion" | "defender"
 }> }
 ```
 
 ### `GET /games/open`
 
-List active games with exactly one unfilled player slot. The caller's own games
+List waiting games with exactly one unfilled player slot. The caller's own games
 are excluded. The response contains only lobby-safe summary data.
 
 ```text
@@ -195,6 +197,25 @@ Errors:   404 game not found
           400 MALFORMED_JSON if request body is not valid JSON
           500 INTERNAL_ERROR for unexpected backend errors
 ```
+
+### `POST /games/{id}/start`
+
+Start a full ready game. Only the authenticated host may start the game.
+
+```text
+Request:  {} (empty)
+Response: { "gameId": number, "status": "active", "event": EventEnvelope }
+Errors:   401 unauthorized
+          403 NOT_HOST if the caller is not the host
+          404 game not found
+          409 GAME_NOT_READY if both player slots are not filled
+          409 GAME_ALREADY_STARTED if the game is already active or completed
+```
+
+The match lifecycle is `waiting` while a player slot is open, `ready` once
+both roles are filled, `active` after the authenticated host starts the match,
+and `completed` after a winner is persisted. Gameplay actions are accepted
+only while the match is `active`.
 
 ### `GET /games/{id}`
 

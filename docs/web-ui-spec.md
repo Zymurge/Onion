@@ -21,9 +21,24 @@ Primary backend endpoints used by the web client:
 4. `POST /auth/login`
 5. `POST /games`
 6. `POST /games/{id}/join`
-7. `GET /games/{id}`
-8. `POST /games/{id}/actions`
-9. `GET /games/{id}/events?after={seq}`
+7. `POST /games/{id}/start`
+8. `GET /games/{id}`
+9. `POST /games/{id}/actions`
+10. `GET /games/{id}/events?after={seq}`
+
+### Lobby Lifecycle
+
+- The dashboard lists the authenticated user's games using the authoritative
+  lifecycle status: `waiting`, `ready`, `active`, or `completed`.
+- `waiting` games show that an opponent is still needed and are not opened as
+  gameplay sessions.
+- `ready` games have both players but are waiting for the host to start them.
+  The host sees `Start Game`; other participants see a non-actionable ready
+  state.
+- The host start control sends an authenticated `POST /games/{id}/start`.
+  After a successful response, the client enters `/game/{id}`. Gameplay is
+  available only for `active` matches.
+- `active` and `completed` games can be opened from the dashboard.
 
 ## Authoritative State
 

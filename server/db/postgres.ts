@@ -1,6 +1,6 @@
 import type { Pool } from 'pg'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
-import { MatchJoinError, StaleMatchStateError } from '#server/db/adapter'
+import { MatchJoinError, MatchStartError, StaleMatchStateError } from '#server/db/adapter'
 import type { DbAdapter, MatchListFilters, MatchRecord, MatchSummary, PersistMatchProgressInput } from '#server/db/adapter'
 import logger from '#server/logger'
 
@@ -230,6 +230,57 @@ export class PostgresDb implements DbAdapter {
       )
       await client.query('COMMIT')
       return { role, event }
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
+  async startMatch(gameId: number, userId: string, causeId: string) {
+    const client = await this.pool.connect()
+
+    try {
+      await client.query('BEGIN')
+      const { rows } = await client.query<{
+        host_user_id: string
+        onion_player_id: string | null
+        defender_player_id: string | null
+        lifecycle_status: 'waiting' | 'ready' | 'active' | 'completed'
+      }>('SELECT host_user_id, onion_player_id, defender_player_id, lifecycle_status FROM matches WHERE id = $1 FOR UPDATE', [gameId])
+      const match = rows[0]
+      if (!match) throw new MatchStartError('MATCH_NOT_FOUND', 'Game not found')
+      if (match.host_user_id !== userId) {
+        throw new MatchStartError('NOT_HOST', 'Only the host can start the game')
+      }
+      if (match.lifecycle_status === 'waiting' || match.onion_player_id === null || match.defender_player_id === null) {
+        throw new MatchStartError('GAME_NOT_READY', 'Game is not ready to start')
+      }
+      if (match.lifecycle_status !== 'ready') {
+        throw new MatchStartError('GAME_ALREADY_STARTED', 'Game has already started')
+      }
+
+      const { rows: eventRows } = await client.query<{ last_seq: number | null }>(
+        'SELECT MAX(seq) AS last_seq FROM game_events WHERE match_id = $1',
+        [gameId],
+      )
+      const event = {
+        seq: (eventRows[0]?.last_seq ?? 0) + 1,
+        type: 'STARTED',
+        timestamp: new Date().toISOString(),
+        causeId,
+        userId,
+      }
+      const { seq, type, timestamp, ...payload } = event
+
+      await client.query("UPDATE matches SET lifecycle_status = 'active' WHERE id = $1", [gameId])
+      await client.query(
+        'INSERT INTO game_events (match_id, seq, type, payload, timestamp) VALUES ($1, $2, $3, $4, $5)',
+        [gameId, seq, type, JSON.stringify(payload), timestamp],
+      )
+      await client.query('COMMIT')
+      return { event }
     } catch (error) {
       await client.query('ROLLBACK')
       throw error

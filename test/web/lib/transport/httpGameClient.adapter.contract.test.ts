@@ -89,7 +89,11 @@ describe('http game client adapter contract', () => {
 			.fn()
 			.mockResolvedValueOnce(jsonResponse({
 				gameId: 123,
+				scenarioId: 'swamp-siege-01',
+				hostUserId: 'host-123',
+				status: 'active',
 				role: 'defender',
+				players: { onion: 'onion-123', defender: 'defender-123' },
 				phase: 'DEFENDER_COMBAT',
 				scenarioName: "The Siege of Shrek's Swamp",
 				turnNumber: 8,
@@ -162,6 +166,10 @@ describe('http game client adapter contract', () => {
 					},
 				},
 				gameId: 123,
+				scenarioId: 'swamp-siege-01',
+				hostUserId: 'host-123',
+				status: 'active',
+				players: { onion: 'onion-123', defender: 'defender-123' },
 				escapeHexes: undefined,
 				phase: 'DEFENDER_COMBAT',
 				scenarioMap: {
@@ -202,6 +210,34 @@ describe('http game client adapter contract', () => {
 				}),
 			}),
 		)
+	})
+
+	it('preserves lobby metadata when an action response omits immutable roster fields', async () => {
+		const fetchImpl = vi
+			.fn()
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({
+				scenarioId: 'swamp-siege-01',
+				hostUserId: 'host-123',
+				status: 'active',
+				players: { onion: 'onion-123', defender: 'defender-123' },
+			})))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalActionResponse({
+				status: 'active',
+				hostUserId: 'host-123',
+			})))
+
+		const client = createHttpGameClient({
+			baseUrl: 'https://onion.test/api',
+			fetchImpl,
+		})
+
+		await client.getState(123)
+		await expect(client.submitAction(123, { type: 'end-phase' })).resolves.toMatchObject({
+			scenarioId: 'swamp-siege-01',
+			hostUserId: 'host-123',
+			status: 'active',
+			players: { onion: 'onion-123', defender: 'defender-123' },
+		})
 	})
 
 	it('captures the raw refresh snapshot before parsing it', async () => {

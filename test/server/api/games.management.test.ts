@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildApp } from '#server/app'
-import { createGame, joinGame, register } from './helpers.js'
+import { createGame, getEvents, getGame, joinGame, register } from './helpers.js'
 
 describe('POST /games', () => {
   it('creates a game and returns gameId and role', async () => {
@@ -389,6 +389,104 @@ describe('POST /games/:id/join', () => {
       headers: { authorization: `Bearer ${creator.token}` },
     })
     expect(events.json().events.filter((event: { type: string }) => event.type === 'PLAYER_JOINED')).toHaveLength(1)
+  })
+})
+
+describe('POST /games/:id/start', () => {
+  it('requires authentication', async () => {
+    const app = buildApp()
+    const host = await register(app, 'shrek')
+    const { gameId } = await createGame(app, host.token, 'onion')
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/start`,
+    })
+
+    expect(res.statusCode).toBe(401)
+    expect(res.json().code).toBe('UNAUTHORIZED')
+  })
+
+  it('allows only the host to start a full game', async () => {
+    const app = buildApp()
+    const host = await register(app, 'shrek')
+    const joiner = await register(app, 'fiona')
+    const { gameId } = await createGame(app, host.token, 'onion')
+    await joinGame(app, gameId, joiner.token)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/start`,
+      headers: { authorization: `Bearer ${joiner.token}` },
+    })
+
+    expect(res.statusCode).toBe(403)
+    expect(res.json().code).toBe('NOT_HOST')
+  })
+
+  it('starts a ready game and persists a STARTED event', async () => {
+    const app = buildApp()
+    const host = await register(app, 'shrek')
+    const joiner = await register(app, 'fiona')
+    const { gameId } = await createGame(app, host.token, 'onion')
+    await joinGame(app, gameId, joiner.token)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/start`,
+      headers: { authorization: `Bearer ${host.token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({
+      gameId,
+      status: 'active',
+      event: expect.objectContaining({
+        seq: 2,
+        type: 'STARTED',
+        userId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      }),
+    })
+
+    const state = await getGame(app, gameId, host.token)
+    expect(state.json().status).toBe('active')
+
+    const events = await getEvents(app, gameId, host.token)
+    expect(events.json().events).toEqual([
+      expect.objectContaining({ type: 'PLAYER_JOINED', seq: 1 }),
+      expect.objectContaining({ type: 'STARTED', seq: 2, userId: expect.stringMatching(/^[0-9a-f-]{36}$/) }),
+    ])
+  })
+
+  it('rejects starting before the second player joins and after the game starts', async () => {
+    const app = buildApp()
+    const host = await register(app, 'shrek')
+    const joiner = await register(app, 'fiona')
+    const { gameId } = await createGame(app, host.token, 'onion')
+
+    const waitingResponse = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/start`,
+      headers: { authorization: `Bearer ${host.token}` },
+    })
+    expect(waitingResponse.statusCode).toBe(409)
+    expect(waitingResponse.json().code).toBe('GAME_NOT_READY')
+
+    await joinGame(app, gameId, joiner.token)
+    const startedResponse = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/start`,
+      headers: { authorization: `Bearer ${host.token}` },
+    })
+    expect(startedResponse.statusCode).toBe(200)
+
+    const repeatedResponse = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/start`,
+      headers: { authorization: `Bearer ${host.token}` },
+    })
+    expect(repeatedResponse.statusCode).toBe(409)
+    expect(repeatedResponse.json().code).toBe('GAME_ALREADY_STARTED')
   })
 })
 

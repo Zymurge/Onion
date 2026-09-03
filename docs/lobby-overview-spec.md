@@ -25,9 +25,10 @@ designed in this order:
 7. Lobby-to-game handoff
 8. Client integration with the existing gameplay flow
 
-The initial implementation uses automatic readiness when both player roles are
-filled, persists coarse game status, and exposes waiting games for discovery.
-User-controlled readiness and richer visibility policy remain future work.
+The implementation uses automatic readiness when both player roles are filled,
+persists coarse game status, exposes waiting games for discovery, and lets the
+host explicitly start a ready match. User-controlled readiness and richer
+visibility policy remain future work.
 
 ## Step 1: User Creation and Management
 
@@ -65,8 +66,8 @@ Define and persist the coarse lifecycle states that control what game membership
 operations are allowed.
 
 - Create games in `waiting` with a persisted host identity.
-- Transition a full roster to `ready`, transition to `active` on the first
-  accepted gameplay action, and transition to `completed` when a winner is
+- Transition a full roster to `ready`, transition to `active` when the host
+  explicitly starts the game, and transition to `completed` when a winner is
   persisted.
 - Reject joins and open-lobby discovery after the game leaves `waiting`.
 
@@ -74,7 +75,9 @@ operations are allowed.
 
 Allow a game to move from lobby coordination into gameplay.
 
-- A full `ready` game begins gameplay on its first accepted action.
+- Only the authenticated host may start a full `ready` game.
+- Starting a game persists a `STARTED` event and transitions the match to
+  `active` before gameplay actions are accepted.
 - Expose the persisted lifecycle status and host identity in authoritative game
   responses.
 
@@ -107,13 +110,19 @@ active gameplay surface.
 - Preserve the current JWT authentication, REST operations, WebSocket live
   updates, and authoritative snapshot behavior once a client enters gameplay.
 
+The web client currently provides the lobby-backed flow through the dashboard
+and open-game list. A host can start a ready match from the dashboard; the
+client calls `POST /games/{id}/start` and enters the game screen only after the
+server confirms the match is `active`.
+
 ## Explicitly Deferred to Phase 2
 
 ### User-Controlled Readiness
 
 Participants do not currently signal readiness independently; the game becomes
-`ready` automatically when both roles are filled. A separate ready-up flow and
-host start policy can be added later.
+`ready` automatically when both roles are filled. A separate ready-up flow
+remains deferred, while the host start policy is implemented through
+`POST /games/{id}/start`.
 
 ### Game Status and Discovery
 

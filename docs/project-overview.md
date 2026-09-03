@@ -68,7 +68,7 @@ Phase transitions are handled by `advancePhase(state)` in `server/engine/phases.
 - **API Protocol**:
   - **REST**: Slow/administrative operations — register, login, create game, join game, get game state.
   - **WebSocket**: Real-time turn events — submit action, receive state updates, phase transitions, combat roll results. Both players connect to the same match channel.
-- **Manual Matching (Phase 1)**: Player A calls `POST /games` with a scenario ID, receives a numeric `gameId`. Player B calls `POST /games/{id}/join`. No lobby UI required — `gameId` is shared out-of-band. **[DONE]**
+- **Game Lobby**: Authenticated users create games, discover waiting games, join an open role, and transition full matches from `ready` to `active` through the host-controlled start flow. **[DONE]**
 - **Persistence**: PostgreSQL. Core tables:
   - `users` — id, username, hashed password, created_at.
   - `matches` — id, scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.
@@ -86,7 +86,7 @@ The web client keeps the backend-authoritative snapshot, local interaction state
 ---
 **Status:**
 
-- Manual matching: **done**
+- Game lobby and host-controlled start: **done**
 - Web UI Phase 0: **done**
 - Web UI Phase 1: **complete for the current scenario and contract surface**
 - Action affordance and turn presentation: **done**
@@ -173,9 +173,10 @@ Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md).
 
 ### Game Lobby & Matchmaking
 
-**TODO:** See docs/todo.md (Epic: Game lobby for game discovery and joining)
-
-*Planned:* Add self-service matchmaking, game creation, join-by-code/invite, and session listing. Backend contract and UI flow to be specified. This section will be expanded when implementation starts.
+**Implemented:** The web dashboard lists a user's games, the open-game screen
+supports self-service joining, and the host can start a full ready match.
+Lifecycle state and host identity are returned by the authoritative API. See
+[lobby-overview-spec.md](lobby-overview-spec.md) and [web-ui-spec.md](web-ui-spec.md).
 
 ### Shared Data Model for Units & Weapons
 

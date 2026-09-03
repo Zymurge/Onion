@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildApp } from '#server/app'
-import { createGame, endPhase, getEvents, getGame, joinGame, register } from './helpers.js'
+import { createGame, endPhase, getEvents, getGame, joinGame, register, startGame } from './helpers.js'
 
 describe('GET /games/:id', () => {
   it('returns full game state', async () => {
@@ -178,6 +178,7 @@ describe('GET /games/:id/events', () => {
     const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
+    await startGame(app, gameId, shrek.token)
 
     const first = await endPhase(app, gameId, shrek.token)
     const firstSeq = first.json().seq

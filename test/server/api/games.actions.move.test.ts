@@ -7,7 +7,7 @@ import * as engineGame from '#server/engine/index'
 import type { MovementResult, MovementValidation } from '#server/engine/movement'
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
-import { createGame, createMovePlan, joinGame, register } from './helpers.js'
+import { createGame, createMovePlan, joinGame, register, startGame } from './helpers.js'
 import logger from '#server/logger'
 
 type RestorableSpy = { mockRestore(): void }
@@ -45,6 +45,8 @@ describe('POST /games/:id/actions MOVE', () => {
 					victoryConditions: { maxTurns: 20 },
 				},
 				players: { onion: onionId, defender: defenderId },
+				hostUserId: onionId,
+				status: 'active' as const,
 				phase: 'ONION_MOVE' as const,
 				turnNumber: 1,
 				winner: null,
@@ -121,6 +123,7 @@ describe('POST /games/:id/actions MOVE', () => {
 		const fiona = await register(app, 'fiona')
 		const { gameId } = await createGame(app, shrek.token, 'onion')
 		await joinGame(app, gameId, fiona.token)
+		await startGame(app, gameId, shrek.token)
 
 		const moveTo = { q: 1, r: 10 }
 		const validatedPlan = createMovePlan({ to: moveTo, path: [moveTo] })

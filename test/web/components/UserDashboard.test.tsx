@@ -59,7 +59,7 @@ describe('UserDashboard', () => {
 				phase: 'ONION_MOVE',
 				turnNumber: 1,
 				winner: null,
-				status: 'ready',
+				status: 'active',
 				role: 'onion',
 			}],
 		}))
@@ -69,6 +69,68 @@ describe('UserDashboard', () => {
 		await screen.findByText('Game 12 · Your turn')
 		expect(screen.getByText('The Siege of Shrek\'s Swamp')).not.toBeNull()
 		expect(screen.getByRole('link', { name: 'Open Game' })).toHaveAttribute('href', '/game/12')
+	})
+
+	it('shows a ready game as waiting for the host to start it', async () => {
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token: 'token-1',
+		})
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(response({
+			games: [{
+				gameId: 12,
+				scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+				phase: 'ONION_MOVE',
+				turnNumber: 1,
+				winner: null,
+				status: 'ready',
+				role: 'onion',
+			}]
+		}))
+
+		render(<UserDashboard />)
+
+		await screen.findByText('Game 12 · Ready to start')
+		expect(screen.queryByRole('link', { name: 'Open Game' })).toBeNull()
+		expect(screen.getByText('Ready')).not.toBeNull()
+	})
+
+	it('lets the host start a ready game through the start endpoint', async () => {
+		const user = userEvent.setup()
+		const navigate = vi.fn()
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token: 'token-1',
+		})
+		const fetchMock = vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(response({
+				games: [{
+					gameId: 12,
+					scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+					phase: 'ONION_MOVE',
+					turnNumber: 1,
+					winner: null,
+					status: 'ready',
+					hostUserId: 'user-1',
+					role: 'onion',
+				}]
+			}))
+			.mockResolvedValueOnce(response({ gameId: 12, status: 'active', event: { seq: 2, type: 'STARTED' } }))
+
+		render(<UserDashboard navigate={navigate} />)
+
+		await user.click(await screen.findByRole('button', { name: 'Start Game' }))
+
+		expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3000/games/12/start', expect.objectContaining({
+			method: 'POST',
+			headers: { 'content-type': 'application/json', authorization: 'Bearer token-1' },
+			body: '{}',
+		}))
+		expect(navigate).toHaveBeenCalledWith('/game/12')
 	})
 
 	it('shows waiting status and does not open an incomplete game', async () => {

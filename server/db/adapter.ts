@@ -49,8 +49,21 @@ export class MatchJoinError extends Error {
   }
 }
 
+export type MatchStartErrorCode = 'MATCH_NOT_FOUND' | 'NOT_HOST' | 'GAME_NOT_READY' | 'GAME_ALREADY_STARTED'
+
+export class MatchStartError extends Error {
+  constructor(public readonly code: MatchStartErrorCode, message: string) {
+    super(message)
+    this.name = 'MatchStartError'
+  }
+}
+
 export type JoinMatchResult = {
   role: import('../../shared/types/index.js').PlayerRole
+  event: import('../../shared/types/index.js').EventEnvelope
+}
+
+export type StartMatchResult = {
   event: import('../../shared/types/index.js').EventEnvelope
 }
 
@@ -136,6 +149,9 @@ export interface DbAdapter {
    * Atomically claim an open player slot and append the corresponding join event.
    */
   joinMatch(gameId: number, userId: string, causeId: string): Promise<JoinMatchResult>
+
+  /** Atomically transition a full ready match to active and append its start event. */
+  startMatch(gameId: number, userId: string, causeId: string): Promise<StartMatchResult>
 
   /**
    * Update player assignments for an existing match.

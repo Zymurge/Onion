@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildApp } from '#server/app'
 import * as engineGame from '#server/engine/index'
 import type { CombatExecutionResult, CombatValidation, MovementPlan, MovementResult, MovementValidation } from '#server/engine/index'
-import { advanceToPhase, createGame, createMovePlan, endPhase, joinGame, register, submitAction } from './helpers.js'
+import { advanceToPhase, createGame, createMovePlan, endPhase, joinGame, register, startGame, submitAction } from './helpers.js'
 import type { EventEnvelope, GameState } from '#shared/types/index'
 
 type WebSocketTestMessage = {
@@ -87,6 +87,7 @@ describe('GET /games/:id/ws', () => {
 		const fiona = await register(app, 'fiona')
 		const { gameId } = await createGame(app, shrek.token, 'onion')
 		await joinGame(app, gameId, fiona.token)
+		await startGame(app, gameId, shrek.token)
 		await app.ready()
 
 		const initialStateRes = await app.inject({
@@ -207,6 +208,7 @@ describe('GET /games/:id/ws', () => {
 
 		const joinEventPromise = readWsMessage(ws)
 		await joinGame(app, gameId, fiona.token)
+		await startGame(app, gameId, shrek.token)
 		const joinEventMessage = await joinEventPromise
 		expect(joinEventMessage.kind).toBe('EVENT')
 		expect(joinEventMessage.event.type).toBe('PLAYER_JOINED')
@@ -228,6 +230,7 @@ describe('GET /games/:id/ws', () => {
 		const fiona = await register(app, 'fiona')
 		const { gameId } = await createGame(app, shrek.token, 'onion')
 		await joinGame(app, gameId, fiona.token)
+		await startGame(app, gameId, shrek.token)
 		await endPhase(app, gameId, shrek.token)
 		await app.ready()
 
@@ -241,14 +244,14 @@ describe('GET /games/:id/ws', () => {
 		expect(snapshotMessagePromise).not.toBeNull()
 		const snapshotMessage = await snapshotMessagePromise!
 		expect(snapshotMessage.kind).toBe('STATE_SNAPSHOT')
-		expect(snapshotMessage.snapshot.eventSeq).toBe(2)
+		expect(snapshotMessage.snapshot.eventSeq).toBe(3)
 
 		const resumeEventPromise = readWsMessage(ws)
-		ws.send(JSON.stringify({ kind: 'RESUME', afterSeq: 1 }))
+		ws.send(JSON.stringify({ kind: 'RESUME', afterSeq: 2 }))
 		const resumeEventMessage = await resumeEventPromise
 
 		expect(resumeEventMessage.kind).toBe('EVENT')
-		expect(resumeEventMessage.event.seq).toBe(2)
+		expect(resumeEventMessage.event.seq).toBe(3)
 		expect(resumeEventMessage.event.type).toBe('PHASE_CHANGED')
 
 		ws.terminate()

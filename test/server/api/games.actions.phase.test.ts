@@ -4,7 +4,7 @@ import { buildApp } from '#server/app'
 import { StaleMatchStateError } from '#server/db/adapter'
 import * as engineGameInternal from '#server/engine/game'
 import { makeGameState, makeOnion } from '#test/utils/gameStateUtils'
-import { createGame, endPhase, getEvents, joinGame, register } from './helpers.js'
+import { createGame, endPhase, getEvents, getGame, joinGame, register, startGame } from './helpers.js'
 
 describe('POST /games/:id/actions END_PHASE', () => {
   it('returns ok with seq, events, and state', async () => {
@@ -13,6 +13,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
+    await startGame(app, gameId, shrek.token)
 
     const res = await endPhase(app, gameId, shrek.token)
 
@@ -43,6 +44,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
+    await startGame(app, gameId, shrek.token)
 
     await endPhase(app, gameId, shrek.token)
 
@@ -62,6 +64,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
+    await startGame(app, gameId, shrek.token)
 
     await endPhase(app, gameId, shrek.token)
     await endPhase(app, gameId, shrek.token)
@@ -81,6 +84,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
+    await startGame(app, gameId, shrek.token)
 
     const res = await endPhase(app, gameId, shrek.token)
     const body = res.json()
@@ -94,6 +98,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
+    await startGame(app, gameId, shrek.token)
 
     const action = await endPhase(app, gameId, shrek.token)
     const actionBody = action.json<{ eventSeq: number; events: Array<{ causeId?: string }> }>()
@@ -111,6 +116,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
+    await startGame(app, gameId, shrek.token)
 
     const res = await endPhase(app, gameId, fiona.token)
 
@@ -128,6 +134,20 @@ describe('POST /games/:id/actions END_PHASE', () => {
 
     expect(res.statusCode).toBe(400)
     expect(res.json().code).toBe('WAITING_FOR_PLAYER')
+  })
+
+  it('returns 409 when a full game has not been explicitly started', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const res = await endPhase(app, gameId, shrek.token)
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json().code).toBe('GAME_NOT_STARTED')
+    expect((await getGame(app, gameId, shrek.token)).json().status).toBe('ready')
   })
 
   it('returns 401 without auth token', async () => {
@@ -203,6 +223,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     const fiona = await register(app, 'fiona')
     const { gameId } = await createGame(app, shrek.token, 'onion')
     await joinGame(app, gameId, fiona.token)
+    await startGame(app, gameId, shrek.token)
 
     const spy = vi.spyOn(engineGameInternal, 'advancePhaseWithEvents').mockImplementation(() => {
       throw new Error('engine fail')

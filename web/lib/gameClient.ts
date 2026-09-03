@@ -34,13 +34,15 @@ export type RamResolution = MoveResolution
 
 export type ServerGameSnapshot = {
 	gameId: number
+	scenarioId?: string
+	hostUserId?: string
+	status?: 'waiting' | 'ready' | 'active' | 'completed'
 	phase: TurnPhase
 	scenarioName: string
 	turnNumber?: number
 	winner?: 'onion' | 'defender' | null
 	aborted?: boolean
 	lastEventSeq: number
-	scenarioId?: string
 	role?: 'onion' | 'defender'
 	players?: {
 		onion: string | null

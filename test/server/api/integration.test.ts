@@ -64,6 +64,13 @@ async function setupIntegrationGame(seed: string, scenarioId = 'swamp-siege-01')
   })
   expect(joinRes.statusCode).toBe(200)
 
+  const startRes = await app.inject({
+    method: 'POST',
+    url: `/games/${gameId}/start`,
+    headers: { authorization: `Bearer ${onionUser.token}` },
+  })
+  expect(startRes.statusCode).toBe(200)
+
   const scenarioRes = await app.inject({ method: 'GET', url: `/scenarios/${scenarioId}` })
   expect(scenarioRes.statusCode).toBe(200)
   const scenario = scenarioRes.json<{ id: string; name: string; displayName: string; map: ScenarioMap; initialState: InitialState }>()

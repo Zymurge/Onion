@@ -171,6 +171,26 @@ describe('PostgresDb - games', () => {
     })])
   })
 
+  it('startMatch atomically persists the active status and STARTED event', async () => {
+    const defender = await db.createUser('test-defender', 'test-defender@example.com', 'x')
+    const match = await db.createMatch(makeMatch({
+      players: { onion: HOST_ID, defender: defender.userId },
+      status: 'ready',
+    }))
+
+    const started = await db.startMatch(match.gameId, HOST_ID, 'request-start')
+
+    expect(started.event).toEqual(expect.objectContaining({
+      seq: 1,
+      type: 'STARTED',
+      causeId: 'request-start',
+      userId: HOST_ID,
+    }))
+    const found = await db.findMatch(match.gameId)
+    expect(found?.status).toBe('active')
+    expect(found?.events).toEqual([started.event])
+  })
+
   it('updateMatchState persists phase, turnNumber, and state', async () => {
     const match = makeMatch()
     const created = await db.createMatch(match)
