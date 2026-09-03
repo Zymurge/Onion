@@ -149,5 +149,6 @@ describe('POST /games/:id/actions MOVE', () => {
 		const body = stateRes.json()
 		expect(body.winner).not.toBeNull()
 		expect(body.winner).toBe('defender')
+		expect(body.status).toBe('completed')
 	})
 })

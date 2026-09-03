@@ -240,7 +240,7 @@ export function BattlefieldRightRail({
   const attackPlanningConfirmationProps = selectedCombatTarget !== null
     ? {
         mode: 'confirm' as const,
-        title: combatPanel.selectedCombatTargetTitle,
+        title: combatPanel.selectedCombatTargetTitle ?? 'Select target',
         defenseStrength: selectedCombatTarget.defense,
         modifiers: selectedCombatTarget.modifiers,
       }

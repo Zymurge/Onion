@@ -33,6 +33,8 @@ describe('POST /games/:id/actions END_PHASE', () => {
     expect(body.turnNumber).toBe(1)
     expect(body.eventSeq).toBe(body.seq)
     expect(body).toHaveProperty('state')
+    expect(body.status).toBe('active')
+    expect(body.hostUserId).toBeDefined()
   })
 
   it('advances phase from ONION_MOVE to ONION_COMBAT', async () => {
@@ -51,6 +53,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     })
 
     expect(state.json().phase).toBe('ONION_COMBAT')
+    expect(state.json().status).toBe('active')
   })
 
   it('auto-advances through DEFENDER_RECOVERY to DEFENDER_MOVE', async () => {
@@ -228,6 +231,8 @@ describe('POST /games/:id/actions END_PHASE', () => {
           victoryConditions: { maxTurns: 20 },
         },
         players: { onion: onionId, defender: defenderId },
+        hostUserId: onionId,
+        status: 'active' as const,
         phase: 'ONION_MOVE' as const,
         turnNumber: 1,
         winner: null,

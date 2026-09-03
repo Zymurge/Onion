@@ -15,7 +15,7 @@ type GameSummary = {
   phase: string
   turnNumber: number
   winner: string | null
-  status?: 'waiting' | 'ready' | 'completed'
+  status?: 'waiting' | 'ready' | 'active' | 'completed'
   ready?: boolean
   role: 'onion' | 'defender'
 }

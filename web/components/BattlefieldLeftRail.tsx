@@ -123,13 +123,7 @@ function buildDefenderGroupFromUnits(
   const resolvedGroupKey = units.length > 1 ? groupKey : undefined
   const label = resolvedGroupKey !== undefined
     ? resolveBattlefieldStackLabel(anchorUnit.typeId, anchorUnit.unitId, anchorUnit.friendlyName, stackSize, resolvedGroupKey, stackNaming)
-    : resolveBattlefieldDisplayName({
-      unitId: anchorUnit.unitId,
-      typeId: anchorUnit.typeId,
-      position: anchorUnit.position,
-      friendlyName: anchorUnit.friendlyName,
-      stackSize,
-    }, stackNaming)
+    : resolveBattlefieldDisplayName({ ...anchorUnit, stackSize }, stackNaming)
   const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.unitId, activeSelectedUnitIds)
   const attackReadyCount = getGroupAttackReadyCount(displayedUnits, catalog)
   const members = units.length > 1

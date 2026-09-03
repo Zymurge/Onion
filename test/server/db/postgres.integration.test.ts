@@ -20,11 +20,15 @@ const SAMPLE_STATE = makeGameState({
   defenders: {},
 })
 
+const HOST_ID = '00000000-0000-4000-8000-000000000010'
+
 function makeMatch(overrides: Partial<Omit<MatchRecord, 'gameId'>> = {}): Omit<MatchRecord, 'gameId'> {
   return {
     scenarioId: 'swamp-siege-01',
     scenarioSnapshot: { id: 'swamp-siege-01', displayName: 'The Siege of Shrek\'s Swamp' },
+    hostUserId: HOST_ID,
     players: { onion: null, defender: null },
+    status: 'waiting',
     phase: 'ONION_MOVE',
     turnNumber: 1,
     winner: null,
@@ -49,6 +53,10 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await pool.query('TRUNCATE game_events, game_state, matches, users RESTART IDENTITY CASCADE')
+  await pool.query(
+    'INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)',
+    [HOST_ID, 'test-host', 'test-host@example.com', 'x'],
+  )
 })
 
 // ---------------------------------------------------------------------------
@@ -112,7 +120,7 @@ describe('PostgresDb - games', () => {
     const openOnion = await db.createMatch(makeMatch({ players: { onion: shrek.userId, defender: null } }))
     const openDefender = await db.createMatch(makeMatch({ players: { onion: null, defender: fiona.userId } }))
     const full = await db.createMatch(makeMatch({ players: { onion: shrek.userId, defender: fiona.userId } }))
-    const completed = await db.createMatch(makeMatch({ players: { onion: donkey.userId, defender: fiona.userId }, winner: donkey.userId }))
+    const completed = await db.createMatch(makeMatch({ players: { onion: donkey.userId, defender: fiona.userId }, winner: donkey.userId, status: 'completed', hostUserId: donkey.userId }))
 
     expect((await db.listMatches()).map((match) => match.gameId)).toEqual([
       openOnion.gameId,
@@ -142,6 +150,25 @@ describe('PostgresDb - games', () => {
     const found = await db.findMatch(created.gameId)
     expect(found?.players.onion).toBe(userId)
     expect(found?.players.defender).toBeNull()
+  })
+
+  it('joinMatch atomically persists the player assignment and join event', async () => {
+    const creator = await db.createUser('shrek', 'shrek@example.com', 'x')
+    const joiner = await db.createUser('fiona', 'fiona@example.com', 'x')
+    const created = await db.createMatch(makeMatch({ players: { onion: creator.userId, defender: null } }))
+
+    const joined = await db.joinMatch(created.gameId, joiner.userId, 'request-1')
+
+    expect(joined.role).toBe('defender')
+    const found = await db.findMatch(created.gameId)
+    expect(found?.players).toEqual({ onion: creator.userId, defender: joiner.userId })
+    expect(found?.events).toEqual([expect.objectContaining({
+      seq: 1,
+      type: 'PLAYER_JOINED',
+      causeId: 'request-1',
+      userId: joiner.userId,
+      role: 'defender',
+    })])
   })
 
   it('updateMatchState persists phase, turnNumber, and state', async () => {

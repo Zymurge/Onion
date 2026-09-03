@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
-import { StaleMatchStateError } from '#server/db/adapter'
+import { MatchJoinError, StaleMatchStateError } from '#server/db/adapter'
 import type { DbAdapter, MatchListFilters, MatchRecord, MatchSummary, PersistMatchProgressInput } from '#server/db/adapter'
 import logger from '#server/logger'
 
@@ -73,10 +73,10 @@ export class InMemoryDb implements DbAdapter {
       const excludesParticipant = filters.excludeParticipantUserId === undefined
         || match.players.onion !== filters.excludeParticipantUserId && match.players.defender !== filters.excludeParticipantUserId
       const matchesCompletion = filters.completion === undefined || filters.completion === 'all'
-        || filters.completion === 'active' && match.winner === null
-        || filters.completion === 'completed' && match.winner !== null
+        || filters.completion === 'active' && match.status !== 'completed'
+        || filters.completion === 'completed' && match.status === 'completed'
       const matchesAvailability = filters.availability === undefined || filters.availability === 'all'
-        || filters.availability === 'open' && isOpen
+        || filters.availability === 'open' && isOpen && match.status === 'waiting'
         || filters.availability === 'full' && isFull
 
       if (!involvesParticipant || !excludesParticipant || !matchesCompletion || !matchesAvailability) {
@@ -90,9 +90,47 @@ export class InMemoryDb implements DbAdapter {
         turnNumber: match.turnNumber,
         winner: match.winner,
         players: match.players,
+        hostUserId: match.hostUserId,
+        status: match.status,
       })
     }
     return results
+  }
+
+  async joinMatch(gameId: number, userId: string, causeId: string) {
+    const match = this.matches.get(gameId)
+    if (!match) throw new MatchJoinError('MATCH_NOT_FOUND', 'Game not found')
+    if (match.players.onion === userId || match.players.defender === userId) {
+      throw new MatchJoinError('CANNOT_JOIN_OWN_GAME', 'Cannot join your own game')
+    }
+    if (match.players.onion !== null && match.players.defender !== null) {
+      throw new MatchJoinError('GAME_FULL', 'Game is already full')
+    }
+    if (match.status !== 'waiting') {
+      throw new MatchJoinError('GAME_NOT_READY', 'Game is no longer accepting players')
+    }
+
+    let role: 'onion' | 'defender'
+    if (match.players.onion === null) {
+      match.players.onion = userId
+      role = 'onion'
+    } else if (match.players.defender === null) {
+      match.players.defender = userId
+      role = 'defender'
+    } else {
+      throw new MatchJoinError('GAME_FULL', 'Game is already full')
+    }
+    match.status = 'ready'
+    const event = {
+      seq: (match.events.at(-1)?.seq ?? 0) + 1,
+      type: 'PLAYER_JOINED',
+      timestamp: new Date().toISOString(),
+      causeId,
+      userId,
+      role,
+    }
+    match.events.push(event)
+    return { role, event: structuredClone(event) }
   }
 
   async updateMatchPlayers(gameId: number, players: { onion: string | null; defender: string | null }): Promise<void> {
@@ -126,6 +164,7 @@ export class InMemoryDb implements DbAdapter {
     m.phase = input.phase
     m.turnNumber = input.turnNumber
     m.winner = input.winner
+    m.status = input.status
     m.state = structuredClone(input.state)
     m.events.push(...structuredClone(input.events))
   }

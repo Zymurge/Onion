@@ -732,6 +732,8 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     gameId: match.gameId,
     scenarioId: match.scenarioId,
     scenarioName,
+    hostUserId: match.hostUserId,
+    status: match.status,
     role,
     phase: match.phase,
     turnNumber: match.turnNumber,
@@ -762,6 +764,7 @@ export function buildActionResponse(
   turnNumber: number,
   eventSeq: number,
   events: EventEnvelope[],
+  status: MatchRecord['status'],
 ): ActionOkResponse & {
   turnNumber: number
   eventSeq: number
@@ -770,6 +773,8 @@ export function buildActionResponse(
   scenarioMap: ScenarioMapSnapshot
   victoryObjectives: VictoryObjectiveState[]
   escapeHexes: VictoryEscapeHex[]
+  status: MatchRecord['status']
+  hostUserId: string
 } {
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
@@ -781,6 +786,8 @@ export function buildActionResponse(
     seq: eventSeq,
     events,
     state,
+    status,
+    hostUserId: match.hostUserId,
     turnNumber,
     eventSeq,
     phase,

@@ -1,6 +1,6 @@
 import type { Pool } from 'pg'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
-import { StaleMatchStateError } from '#server/db/adapter'
+import { MatchJoinError, StaleMatchStateError } from '#server/db/adapter'
 import type { DbAdapter, MatchListFilters, MatchRecord, MatchSummary, PersistMatchProgressInput } from '#server/db/adapter'
 import logger from '#server/logger'
 
@@ -48,14 +48,16 @@ export class PostgresDb implements DbAdapter {
       scenarioSnapshot.displayName = scenarioSnapshot.name
     }
     const { rows } = await this.pool.query<{ id: number }>(
-      `INSERT INTO matches (scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO matches (scenario_id, scenario_snapshot, host_user_id, onion_player_id, defender_player_id, lifecycle_status, current_phase, turn_number, winner)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id`,
       [
         match.scenarioId,
         JSON.stringify(match.scenarioSnapshot),
+        match.hostUserId,
         match.players.onion,
         match.players.defender,
+        match.status,
         match.phase,
         match.turnNumber,
         match.winner,
@@ -79,11 +81,12 @@ export class PostgresDb implements DbAdapter {
       conditions.push(`(onion_player_id IS NULL OR onion_player_id <> $${values.length}) AND (defender_player_id IS NULL OR defender_player_id <> $${values.length})`)
     }
     if (filters.completion === 'active') {
-      conditions.push('winner IS NULL')
+      conditions.push("lifecycle_status <> 'completed'")
     } else if (filters.completion === 'completed') {
-      conditions.push('winner IS NOT NULL')
+      conditions.push("lifecycle_status = 'completed'")
     }
     if (filters.availability === 'open') {
+      conditions.push("lifecycle_status = 'waiting'")
       conditions.push('(onion_player_id IS NULL) <> (defender_player_id IS NULL)')
     } else if (filters.availability === 'full') {
       conditions.push('onion_player_id IS NOT NULL AND defender_player_id IS NOT NULL')
@@ -96,10 +99,12 @@ export class PostgresDb implements DbAdapter {
       current_phase: string
       turn_number: number
       winner: string | null
+      host_user_id: string
+      lifecycle_status: 'waiting' | 'ready' | 'active' | 'completed'
       onion_player_id: string | null
       defender_player_id: string | null
     }>(
-      `SELECT id, scenario_id, current_phase, turn_number, winner, onion_player_id, defender_player_id
+      `SELECT id, scenario_id, host_user_id, lifecycle_status, current_phase, turn_number, winner, onion_player_id, defender_player_id
        FROM matches${whereClause} ORDER BY created_at ASC`,
       values,
     )
@@ -109,6 +114,8 @@ export class PostgresDb implements DbAdapter {
       phase: m.current_phase as import('../../shared/types/index.js').TurnPhase,
       turnNumber: m.turn_number,
       winner: m.winner,
+      hostUserId: m.host_user_id,
+      status: m.lifecycle_status,
       players: { onion: m.onion_player_id, defender: m.defender_player_id },
     }))
   }
@@ -118,12 +125,14 @@ export class PostgresDb implements DbAdapter {
       id: number
       scenario_id: string
       scenario_snapshot: unknown
+      host_user_id: string
       onion_player_id: string | null
       defender_player_id: string | null
+      lifecycle_status: 'waiting' | 'ready' | 'active' | 'completed'
       current_phase: string
       turn_number: number
       winner: string | null
-    }>('SELECT id, scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner FROM matches WHERE id = $1', [
+    }>('SELECT id, scenario_id, scenario_snapshot, host_user_id, onion_player_id, defender_player_id, lifecycle_status, current_phase, turn_number, winner FROM matches WHERE id = $1', [
       gameId,
     ])
     if (mRows.length === 0) return null
@@ -145,10 +154,12 @@ export class PostgresDb implements DbAdapter {
       gameId: m.id,
       scenarioId: m.scenario_id,
       scenarioSnapshot: m.scenario_snapshot,
+      hostUserId: m.host_user_id,
       players: { onion: m.onion_player_id, defender: m.defender_player_id },
       phase: m.current_phase as TurnPhase,
       turnNumber: m.turn_number,
       winner: m.winner,
+      status: m.lifecycle_status,
       state: sRows[0].state,
       events: eRows.map((e) => ({ seq: e.seq, type: e.type, timestamp: e.timestamp.toISOString(), ...e.payload })),
     }
@@ -159,6 +170,72 @@ export class PostgresDb implements DbAdapter {
       'UPDATE matches SET onion_player_id = $1, defender_player_id = $2 WHERE id = $3',
       [players.onion, players.defender, gameId],
     )
+  }
+
+  async joinMatch(gameId: number, userId: string, causeId: string) {
+    const client = await this.pool.connect()
+
+    try {
+      await client.query('BEGIN')
+      const { rows } = await client.query<{
+        onion_player_id: string | null
+        defender_player_id: string | null
+        lifecycle_status: 'waiting' | 'ready' | 'active' | 'completed'
+      }>('SELECT onion_player_id, defender_player_id, lifecycle_status FROM matches WHERE id = $1 FOR UPDATE', [gameId])
+      const match = rows[0]
+      if (!match) throw new MatchJoinError('MATCH_NOT_FOUND', 'Game not found')
+      if (match.onion_player_id === userId || match.defender_player_id === userId) {
+        throw new MatchJoinError('CANNOT_JOIN_OWN_GAME', 'Cannot join your own game')
+      }
+      const players = { onion: match.onion_player_id, defender: match.defender_player_id }
+      if (players.onion !== null && players.defender !== null) {
+        throw new MatchJoinError('GAME_FULL', 'Game is already full')
+      }
+      if (match.lifecycle_status !== 'waiting') {
+        throw new MatchJoinError('GAME_NOT_READY', 'Game is no longer accepting players')
+      }
+
+      let role: 'onion' | 'defender'
+      if (players.onion === null) {
+        players.onion = userId
+        role = 'onion'
+      } else if (players.defender === null) {
+        players.defender = userId
+        role = 'defender'
+      } else {
+        throw new MatchJoinError('GAME_FULL', 'Game is already full')
+      }
+
+      const { rows: eventRows } = await client.query<{ last_seq: number | null }>(
+        'SELECT MAX(seq) AS last_seq FROM game_events WHERE match_id = $1',
+        [gameId],
+      )
+      const event = {
+        seq: (eventRows[0]?.last_seq ?? 0) + 1,
+        type: 'PLAYER_JOINED',
+        timestamp: new Date().toISOString(),
+        causeId,
+        userId,
+        role,
+      }
+
+      await client.query(
+        "UPDATE matches SET onion_player_id = $1, defender_player_id = $2, lifecycle_status = 'ready' WHERE id = $3",
+        [players.onion, players.defender, gameId],
+      )
+      const { seq, type, timestamp, ...payload } = event
+      await client.query(
+        'INSERT INTO game_events (match_id, seq, type, payload, timestamp) VALUES ($1, $2, $3, $4, $5)',
+        [gameId, seq, type, JSON.stringify(payload), timestamp],
+      )
+      await client.query('COMMIT')
+      return { role, event }
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   }
 
   async updateMatchState(gameId: number, phase: TurnPhase, turnNumber: number, winner: string | null, state: GameState): Promise<void> {
@@ -196,10 +273,11 @@ export class PostgresDb implements DbAdapter {
         )
       }
 
-      await client.query('UPDATE matches SET current_phase = $1, turn_number = $2, winner = $3 WHERE id = $4', [
+      await client.query('UPDATE matches SET current_phase = $1, turn_number = $2, winner = $3, lifecycle_status = $4 WHERE id = $5', [
         input.phase,
         input.turnNumber,
         input.winner,
+        input.status,
         input.gameId,
       ])
 

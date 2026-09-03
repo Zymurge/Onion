@@ -60,7 +60,7 @@ export function buildWebStackSourceState(state: GameState, catalog?: SessionCata
   const defenders = Object.fromEntries(
     Object.values(state.defenders).map((defender) => {
       const definition = catalog === undefined ? undefined : getSessionUnitType(catalog, defender.typeId)
-      return [defender.unitId, toStackSourceUnit(defender, definition?.role === 'defender' ? definition.squads : undefined)]
+      return [defender.unitId, toStackSourceUnit(defender, definition?.squads)]
     }),
   )
 

@@ -335,6 +335,8 @@ describe('POST /games/:id/actions combat API contract', () => {
           victoryConditions: { maxTurns: 20 },
         },
         players: { onion: onionId, defender: defenderId },
+        hostUserId: onionId,
+        status: 'active' as const,
         phase: 'ONION_COMBAT' as const,
         turnNumber: 1,
         winner: null,

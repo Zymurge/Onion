@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildApp } from '#server/app'
-import { createGame, endPhase, getEvents, joinGame, register } from './helpers.js'
+import { createGame, endPhase, getEvents, getGame, joinGame, register } from './helpers.js'
 
 describe('GET /games/:id', () => {
   it('returns full game state', async () => {
@@ -22,6 +22,8 @@ describe('GET /games/:id', () => {
     expect(body.phase).toBe('ONION_MOVE')
     expect(body.turnNumber).toBe(1)
     expect(body.winner).toBeNull()
+    expect(body.status).toBe('waiting')
+    expect(body.hostUserId).toMatch(/^[0-9a-f-]{36}$/)
     expect(body).toHaveProperty('state')
     expect(body).not.toHaveProperty('catalog')
     expect(body).toHaveProperty('scenarioMap')
@@ -38,6 +40,18 @@ describe('GET /games/:id', () => {
     const res = await app.inject({ method: 'GET', url: `/games/${gameId}` })
 
     expect(res.statusCode).toBe(401)
+  })
+
+  it('returns 403 when an authenticated non-participant requests state', async () => {
+    const app = buildApp()
+    const creator = await register(app, 'shrek')
+    const visitor = await register(app, 'fiona')
+    const { gameId } = await createGame(app, creator.token, 'onion')
+
+    const res = await getGame(app, gameId, visitor.token)
+
+    expect(res.statusCode).toBe(403)
+    expect(res.json().code).toBe('FORBIDDEN')
   })
 
   it('returns 404 for unknown gameId', async () => {
@@ -116,6 +130,18 @@ describe('GET /games/:id/events', () => {
     })
 
     expect(res.statusCode).toBe(401)
+  })
+
+  it('returns 403 when an authenticated non-participant requests events', async () => {
+    const app = buildApp()
+    const creator = await register(app, 'shrek')
+    const visitor = await register(app, 'fiona')
+    const { gameId } = await createGame(app, creator.token, 'onion')
+
+    const res = await getEvents(app, gameId, visitor.token)
+
+    expect(res.statusCode).toBe(403)
+    expect(res.json().code).toBe('FORBIDDEN')
   })
 
   it('returns 404 for unknown gameId', async () => {

@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import type { PlayerRole, Command, EventEnvelope, GameState, SingleUnitMoveCommand } from '#shared/types/index'
 import type { DbAdapter } from '#server/db/adapter'
-import { StaleMatchStateError } from '#server/db/adapter'
+import { MatchJoinError, StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { createMap } from '#server/engine/map'
@@ -247,8 +247,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       const created = await db.createMatch({
         scenarioId,
         scenarioSnapshot,
+        hostUserId: userId,
         state,
         players,
+        status: 'waiting',
         phase: 'ONION_MOVE',
         turnNumber: 1,
         winner: null,
@@ -291,49 +293,20 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
       }
 
-      const match = await db.findMatch(gameId)
-      if (!match) {
-        logger.warn({ id: req.params.id }, 'Game not found for join')
-        return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
-      }
-
-      if (match.players.onion === userId || match.players.defender === userId) {
-        logger.warn({ userId, gameId: match.gameId }, 'User tried to join own game')
-        return reply.status(400).send({ ok: false, error: 'Cannot join your own game', code: 'CANNOT_JOIN_OWN_GAME' })
-      }
-
-      let role: PlayerRole
-      const newPlayers = { ...match.players }
-      if (!match.players.onion) {
-        newPlayers.onion = userId
-        role = 'onion'
-      } else if (!match.players.defender) {
-        newPlayers.defender = userId
-        role = 'defender'
-      } else {
-        logger.warn({ gameId: match.gameId }, 'Game is already full')
-        return reply.status(409).send({ ok: false, error: 'Game is already full', code: 'GAME_FULL' })
-      }
-
-      await db.updateMatchPlayers(match.gameId, newPlayers)
-      logger.info({ gameId: match.gameId, role }, 'User joined game')
-
-      // Emit PLAYER_JOINED event
       const causeId = String(req.id)
-      const seq = (match.events.at(-1)?.seq ?? 0) + 1
-      const event = {
-        seq,
-        type: 'PLAYER_JOINED',
-        timestamp: new Date().toISOString(),
-        userId,
-        role,
+      try {
+        const joined = await db.joinMatch(gameId, userId, causeId)
+        broadcastGameEvents(gameId, [joined.event])
+        logger.info({ gameId, role: joined.role }, 'User joined game')
+        return reply.send({ gameId, role: joined.role })
+      } catch (err) {
+        if (err instanceof MatchJoinError) {
+          const status = err.code === 'MATCH_NOT_FOUND' ? 404 : err.code === 'GAME_FULL' || err.code === 'GAME_NOT_READY' ? 409 : 400
+          const code = err.code === 'MATCH_NOT_FOUND' ? 'NOT_FOUND' : err.code
+          return reply.status(status).send({ ok: false, error: err.message, code })
+        }
+        throw err
       }
-      const taggedEvent = { ...event, causeId }
-      await db.appendEvents(match.gameId, [taggedEvent])
-      broadcastGameEvents(match.gameId, [taggedEvent])
-      logger.debug({ gameId: match.gameId, event }, 'PLAYER_JOINED event appended')
-
-      return reply.send({ gameId: match.gameId, role })
     } catch (err) {
       logger.error({ err }, 'Error joining game')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
@@ -383,12 +356,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         phase: g.phase,
         turnNumber: g.turnNumber,
         winner: g.winner,
-        status: g.winner !== null
-          ? 'completed'
-          : g.players.onion !== null && g.players.defender !== null
-            ? 'ready'
-            : 'waiting',
-        ready: g.players.onion !== null && g.players.defender !== null,
+        status: g.status,
+        ready: g.status === 'ready' || g.status === 'active',
+        hostUserId: g.hostUserId,
         role: g.players.onion === userId ? 'onion' : 'defender',
       })) })
     } catch (err) {
@@ -451,6 +421,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       if (!match) {
         logger.warn({ id: req.params.id }, 'Game not found for state fetch')
         return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+      }
+
+      if (match.players.onion !== userId && match.players.defender !== userId) {
+        return reply.status(403).send({ ok: false, error: 'Forbidden', code: 'FORBIDDEN' })
       }
 
       // Type assertion for scenarioSnapshot
@@ -705,6 +679,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         return reply.status(400).send({ ok: false, error: 'Waiting for second player to join', code: 'WAITING_FOR_PLAYER', currentPhase: match.phase })
       }
 
+      if (match.status === 'waiting') {
+        return reply.status(400).send({ ok: false, error: 'Game is not ready to start', code: 'GAME_NOT_READY', currentPhase: match.phase })
+      }
+
       const actor = phaseActor(match.phase)
       const activeUserId = actor === 'onion' ? match.players.onion : match.players.defender
       if (userId !== activeUserId) {
@@ -747,12 +725,14 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         newEvents = attachCauseId(result.newEvents, causeId)
         currentState = result.state
         const winner = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
+        const status = winner !== null ? 'completed' : match.status === 'ready' ? 'active' : match.status
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
           phase: result.phase,
           turnNumber: result.turnNumber,
           winner,
+          status,
           state: result.state,
           events: newEvents,
         })
@@ -762,7 +742,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
-        const responsePayload = buildActionResponse(match, currentState, result.phase, turnNumber, eventSeq, newEvents)
+        const responsePayload = buildActionResponse(match, currentState, result.phase, turnNumber, eventSeq, newEvents, status)
         logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (END_PHASE)')
         return reply.send(responsePayload)
       } else if (command.type === 'MOVE') {
@@ -832,12 +812,14 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
 
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
+        const status = winner !== null ? 'completed' : match.status === 'ready' ? 'active' : match.status
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
           phase: match.phase,
           turnNumber: match.turnNumber,
           winner,
+          status,
           state,
           events: newEvents,
         })
@@ -855,7 +837,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Move executed')
-        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents)
+        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents, status)
         logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (MOVE)')
         return reply.send(responsePayload)
       } else if (command.type === 'FIRE') {
@@ -893,12 +875,14 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         newEvents = attachCauseId(buildCombatEvents(seq, command, result, state, match.phase), causeId)
         currentState = state
         const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
+        const status = winner !== null ? 'completed' : match.status === 'ready' ? 'active' : match.status
         await db.persistMatchProgress({
           gameId: match.gameId,
           expectedLastEventSeq,
           phase: match.phase,
           turnNumber: match.turnNumber,
           winner,
+          status,
           state,
           events: newEvents,
         })
@@ -919,7 +903,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
-        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents)
+        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents, status)
         logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (FIRE)')
         return reply.send(responsePayload)
       }
@@ -964,6 +948,10 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
 
       const match = await db.findMatch(gameId)
       if (!match) return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
+
+      if (match.players.onion !== userId && match.players.defender !== userId) {
+        return reply.status(403).send({ ok: false, error: 'Forbidden', code: 'FORBIDDEN' })
+      }
 
       const after = Number(req.query.after ?? 0)
       const events = await db.getEvents(match.gameId, after)

@@ -26,8 +26,8 @@ async function insertUser(username: string): Promise<string> {
 
 async function insertMatch(onionPlayerId: string | null): Promise<number> {
   const { rows } = await pool.query<{ id: number }>(
-    `INSERT INTO matches (scenario_id, scenario_snapshot, onion_player_id, current_phase, turn_number)
-     VALUES ('swamp-siege-01', '{}'::jsonb, $1, 'ONION_MOVE', 1) RETURNING id`,
+    `INSERT INTO matches (scenario_id, scenario_snapshot, host_user_id, onion_player_id, current_phase, turn_number)
+     VALUES ('swamp-siege-01', '{}'::jsonb, $1, $1, 'ONION_MOVE', 1) RETURNING id`,
     [onionPlayerId],
   )
   const gameId = rows[0].id

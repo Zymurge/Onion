@@ -12,6 +12,10 @@ export interface MatchRecord {
   scenarioSnapshot: unknown
   /** Player assignments - null if slot is open */
   players: { onion: string | null; defender: string | null }
+  /** User who created and hosts the match */
+  hostUserId: string
+  /** Coarse lifecycle state for lobby and gameplay coordination */
+  status: GameLifecycleStatus
   /** Current turn phase */
   phase: import('../../shared/types/index.js').TurnPhase
   /** Current turn number (1-based) */
@@ -24,6 +28,8 @@ export interface MatchRecord {
   events: import('../../shared/types/index.js').EventEnvelope[]
 }
 
+export type GameLifecycleStatus = 'waiting' | 'ready' | 'active' | 'completed'
+
 /**
  * Thrown when persisting an action against stale match/event state.
  */
@@ -34,17 +40,32 @@ export class StaleMatchStateError extends Error {
   }
 }
 
+export type MatchJoinErrorCode = 'MATCH_NOT_FOUND' | 'CANNOT_JOIN_OWN_GAME' | 'GAME_FULL' | 'GAME_NOT_READY'
+
+export class MatchJoinError extends Error {
+  constructor(public readonly code: MatchJoinErrorCode, message: string) {
+    super(message)
+    this.name = 'MatchJoinError'
+  }
+}
+
+export type JoinMatchResult = {
+  role: import('../../shared/types/index.js').PlayerRole
+  event: import('../../shared/types/index.js').EventEnvelope
+}
+
 export interface PersistMatchProgressInput {
   gameId: number
   phase: import('../../shared/types/index.js').TurnPhase
   turnNumber: number
   winner: string | null
+  status: GameLifecycleStatus
   state: import('../../shared/types/index.js').GameState
   events: import('../../shared/types/index.js').EventEnvelope[]
   expectedLastEventSeq: number
 }
 
-export type MatchSummary = Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players'>
+export type MatchSummary = Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players' | 'hostUserId' | 'status'>
 
 export interface MatchListFilters {
   participantUserId?: string
@@ -110,6 +131,11 @@ export interface DbAdapter {
    * Omitting filters returns all matches.
    */
   listMatches(filters?: MatchListFilters): Promise<MatchSummary[]>
+
+  /**
+   * Atomically claim an open player slot and append the corresponding join event.
+   */
+  joinMatch(gameId: number, userId: string, causeId: string): Promise<JoinMatchResult>
 
   /**
    * Update player assignments for an existing match.

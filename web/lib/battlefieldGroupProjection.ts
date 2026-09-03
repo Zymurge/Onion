@@ -11,6 +11,7 @@ function buildBattlefieldDefenderLookup(defenders: ReadonlyArray<BattlefieldUnit
 	return Object.fromEntries(
 		defenders.map((unit) => [unit.unitId, {
 			role: 'defender' as const,
+			side: unit.side,
 			unitId: unit.unitId,
 			typeId: unit.typeId,
 			state: unit.state,

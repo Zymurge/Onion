@@ -6,12 +6,12 @@ import { createGame, joinGame, register } from './helpers.js'
 describe('POST /games', () => {
   it('creates a game and returns gameId and role', async () => {
     const app = buildApp()
-    const { token } = await register(app, 'shrek')
+    const shrek = await register(app, 'shrek')
 
     const res = await app.inject({
       method: 'POST',
       url: '/games',
-      headers: { authorization: `Bearer ${token}` },
+      headers: { authorization: `Bearer ${shrek.token}` },
       payload: { scenarioId: 'swamp-siege-01', role: 'onion' },
     })
 
@@ -350,6 +350,46 @@ describe('POST /games/:id/join', () => {
     expect(res.statusCode).toBe(409)
     expect(res.json().code).toBe('GAME_FULL')
   })
+
+  it('allows only one concurrent join and persists one join event', async () => {
+    const app = buildApp()
+    const creator = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const donkey = await register(app, 'donkey')
+    const { gameId } = await createGame(app, creator.token, 'onion')
+
+    const responses = await Promise.all([
+      app.inject({
+        method: 'POST',
+        url: `/games/${gameId}/join`,
+        headers: { authorization: `Bearer ${fiona.token}` },
+        payload: {},
+      }),
+      app.inject({
+        method: 'POST',
+        url: `/games/${gameId}/join`,
+        headers: { authorization: `Bearer ${donkey.token}` },
+        payload: {},
+      }),
+    ])
+
+    expect(responses.map((response) => response.statusCode).sort()).toEqual([200, 409])
+
+    const state = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}`,
+      headers: { authorization: `Bearer ${creator.token}` },
+    })
+    expect(state.json().players.onion).not.toBeNull()
+    expect(state.json().players.defender).not.toBeNull()
+
+    const events = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}/events`,
+      headers: { authorization: `Bearer ${creator.token}` },
+    })
+    expect(events.json().events.filter((event: { type: string }) => event.type === 'PLAYER_JOINED')).toHaveLength(1)
+  })
 })
 
 describe('GET /games', () => {
@@ -369,23 +409,24 @@ describe('GET /games', () => {
 
   it('returns games the user created', async () => {
     const app = buildApp()
-    const { token } = await register(app, 'shrek')
-    const { gameId } = await createGame(app, token, 'onion')
+    const shrek = await register(app, 'shrek')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
 
     const res = await app.inject({
       method: 'GET',
       url: '/games',
-      headers: { authorization: `Bearer ${token}` },
+      headers: { authorization: `Bearer ${shrek.token}` },
     })
 
     expect(res.statusCode).toBe(200)
-    const body = res.json<{ games: Array<{ gameId: number; role: string; scenarioId: string; scenarioDisplayName: string; status: string }> }>()
+    const body = res.json<{ games: Array<{ gameId: number; role: string; scenarioId: string; scenarioDisplayName: string; status: string; hostUserId: string }> }>()
     expect(body.games).toHaveLength(1)
     expect(body.games[0].gameId).toBe(gameId)
     expect(body.games[0].role).toBe('onion')
     expect(body.games[0].scenarioId).toBe('swamp-siege-01')
     expect(body.games[0].scenarioDisplayName).toBe('The Siege of Shrek\'s Swamp')
     expect(body.games[0].status).toBe('waiting')
+    expect(body.games[0].hostUserId).toMatch(/^[0-9a-f-]{36}$/)
   })
 
   it('returns 500 when a persisted game references a missing scenario', async () => {
@@ -398,6 +439,8 @@ describe('GET /games', () => {
         turnNumber: 1,
         winner: null,
         players: { onion: userId, defender: null },
+        hostUserId: userId,
+        status: 'waiting',
       }],
     })
     await app.ready()

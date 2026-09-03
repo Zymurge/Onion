@@ -12,7 +12,9 @@ function makeMatch(overrides: Partial<Omit<MatchRecord, 'gameId'>> = {}): Omit<M
   return {
     scenarioId: 'swamp-siege-01',
     scenarioSnapshot: { displayName: 'The Siege of Shrek\'s Swamp' },
+    hostUserId: SHREK_ID,
     players: { onion: null, defender: null },
+    status: 'waiting',
     phase: 'ONION_MOVE',
     turnNumber: 1,
     winner: null,
@@ -28,7 +30,7 @@ describe('InMemoryDb.listMatches', () => {
     await db.createMatch(makeMatch({ players: { onion: SHREK_ID, defender: null } }))
     await db.createMatch(makeMatch({ players: { onion: null, defender: FIONA_ID } }))
     await db.createMatch(makeMatch({ players: { onion: SHREK_ID, defender: FIONA_ID } }))
-    await db.createMatch(makeMatch({ players: { onion: DONKEY_ID, defender: FIONA_ID }, winner: SHREK_ID }))
+    await db.createMatch(makeMatch({ players: { onion: DONKEY_ID, defender: FIONA_ID }, winner: SHREK_ID, status: 'completed' }))
 
     const matches = await db.listMatches()
 
@@ -52,7 +54,7 @@ describe('InMemoryDb.listMatches', () => {
   it('filters active and completed matches', async () => {
     const db = new InMemoryDb()
     const activeGame = await db.createMatch(makeMatch())
-    const completedGame = await db.createMatch(makeMatch({ winner: SHREK_ID }))
+    const completedGame = await db.createMatch(makeMatch({ winner: SHREK_ID, status: 'completed' }))
 
     expect((await db.listMatches({ completion: 'active' })).map((match) => match.gameId)).toEqual([activeGame.gameId])
     expect((await db.listMatches({ completion: 'completed' })).map((match) => match.gameId)).toEqual([completedGame.gameId])

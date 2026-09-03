@@ -25,8 +25,9 @@ designed in this order:
 7. Lobby-to-game handoff
 8. Client integration with the existing gameplay flow
 
-Game readiness and game status/discovery are Phase 2 items and are
-intentionally excluded from this initial pass.
+The initial implementation uses automatic readiness when both player roles are
+filled, persists coarse game status, and exposes waiting games for discovery.
+User-controlled readiness and richer visibility policy remain future work.
 
 ## Step 1: User Creation and Management
 
@@ -60,22 +61,22 @@ Allow eligible authenticated users to enter an existing game.
 
 ## Step 4: Game Lifecycle Management
 
-Define the coarse lifecycle states that control what game membership operations are
-allowed.
+Define and persist the coarse lifecycle states that control what game membership
+operations are allowed.
 
-- Establish the transition from a waiting game to a startable game and then to
-  an active game, with invalid transitions rejected.
-- Allow appropriate pre-start membership changes, while keeping gameplay state
-  and turn progression outside the lobby's responsibility.
+- Create games in `waiting` with a persisted host identity.
+- Transition a full roster to `ready`, transition to `active` on the first
+  accepted gameplay action, and transition to `completed` when a winner is
+  persisted.
+- Reject joins and open-lobby discovery after the game leaves `waiting`.
 
 ## Step 5: Game Start
 
 Allow a game to move from lobby coordination into gameplay.
 
-- Permit the authorized host to start the game when the game's required
-  creation conditions are satisfied.
-- Create or finalize the authoritative gameplay setup exactly once and expose
-  the resulting game identity to both participants.
+- A full `ready` game begins gameplay on its first accepted action.
+- Expose the persisted lifecycle status and host identity in authoritative game
+  responses.
 
 ## Step 6: Membership Lock After Start
 
@@ -108,17 +109,16 @@ active gameplay surface.
 
 ## Explicitly Deferred to Phase 2
 
-### Game Readiness
+### User-Controlled Readiness
 
-Readiness would let participants indicate that they are prepared to start and
-would add rules for when the host may start. It is not part of this initial
-lobby scope.
+Participants do not currently signal readiness independently; the game becomes
+`ready` automatically when both roles are filled. A separate ready-up flow and
+host start policy can be added later.
 
 ### Game Status and Discovery
 
-Status and discovery would provide lobby listings, visibility rules, richer
-status information, and potentially public, private, or invite-only games. It
-is not part of this initial lobby scope.
+Basic status and waiting-game discovery are implemented. Richer visibility rules
+and potentially public, private, or invite-only games remain deferred.
 
 ## Boundary Summary
 
