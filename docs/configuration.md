@@ -15,6 +15,7 @@ server startup, the Fastify app, database access, logging, and scenario routes.
 | `NODE_ENV` | Runtime environment: `development`, `test`, or `production` | `development` |
 | `LOG_LEVEL` | Server log level: `debug`, `info`, `warn`, or `error` | `info` |
 | `SCENARIOS_DIR` | Directory containing scenario JSON files | `./scenarios` |
+| `LOBBY_POLL_INTERVAL_MS` | Browser lobby refresh interval in milliseconds | `3000` |
 
 Copy `.env.example` and replace values for a local deployment. Deployment manifests should
 provide every required variable explicitly; the server does not supply runtime defaults.
@@ -34,3 +35,7 @@ behavior deterministic without mutating process-wide configuration.
 Deployment settings belong in this resolver. Static game rules, unit and weapon catalogs, map
 geometry, and scenario objectives remain versioned game data rather than deployment configuration.
 Test-harness settings remain owned by the E2E runtime configuration.
+
+The server exposes the non-secret `LOBBY_POLL_INTERVAL_MS` value at `GET /config`
+for browser clients. The web lobby uses this value for visible-page polling and
+falls back to 3000 milliseconds if the runtime configuration cannot be loaded.

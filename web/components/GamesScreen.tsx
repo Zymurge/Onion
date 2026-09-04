@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ErrorOverlay } from './ErrorOverlay'
 import { UserSideMenu } from './UserSideMenu'
+import { useLobbyPolling } from '../lib/useLobbyPolling'
 import { clearAuthSession, getAuthSession } from '../lib/authSession'
 import { requestJson } from '../../shared/apiProtocol'
 import './UserDashboard.css'
@@ -24,41 +25,15 @@ function roleLabel(role: OpenGameSummary['openRole']): string {
 
 export function GamesScreen({ navigate }: GamesScreenProps) {
   const session = getAuthSession()
-  const [games, setGames] = useState<OpenGameSummary[]>([])
-  const [loading, setLoading] = useState(session !== null)
   const [joiningGameId, setJoiningGameId] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const apiBaseUrl = session?.apiBaseUrl
   const token = session?.token
-
-  useEffect(() => {
-    if (apiBaseUrl === undefined || token === undefined) {
-      return
-    }
-
-    let cancelled = false
-    void requestJson<{ games: OpenGameSummary[] }>({
-      baseUrl: apiBaseUrl,
-      path: 'games/open',
-      method: 'GET',
-      token,
-    }).then((result) => {
-      if (cancelled) return
-      if (!result.ok) {
-        setError(result.message)
-        return
-      }
-      setGames(result.data.games)
-    }).catch(() => {
-      if (!cancelled) setError('Unable to load open games.')
-    }).finally(() => {
-      if (!cancelled) setLoading(false)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [apiBaseUrl, token])
+  const { games, loading, error, refresh, setError } = useLobbyPolling<OpenGameSummary>({
+    apiBaseUrl,
+    token,
+    path: 'games/open',
+    errorMessage: 'Unable to load open games.',
+  })
 
   async function handleJoin(gameId: number) {
     if (!session || joiningGameId !== null) return
@@ -75,10 +50,12 @@ export function GamesScreen({ navigate }: GamesScreenProps) {
       })
       if (!result.ok) {
         setError(result.message)
+        void refresh()
         return
       }
 
-      (navigate ?? ((path: string) => window.location.assign(path)))(`/game/${result.data.gameId}`)
+      void refresh()
+      ;(navigate ?? ((path: string) => window.location.assign(path)))(`/game/${result.data.gameId}`)
     } catch {
       setError('Unable to join the game.')
     } finally {

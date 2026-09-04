@@ -36,6 +36,17 @@ describe('configuration consumers', () => {
     await app.close()
   })
 
+  it('exposes non-secret browser runtime configuration', async () => {
+    const config = loadConfig({ ...process.env, LOBBY_POLL_INTERVAL_MS: '4500' })
+    const app = buildApp(undefined, { config })
+
+    const response = await app.inject({ method: 'GET', url: '/config' })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ lobbyPollIntervalMs: 4500 })
+    await app.close()
+  })
+
   it('uses the configured log level when initializing the server logger', async () => {
     vi.stubEnv('LOG_LEVEL', 'debug')
     vi.resetModules()

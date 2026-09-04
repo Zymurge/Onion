@@ -27,6 +27,7 @@ describe('loadConfig', () => {
       nodeEnv: 'production',
       logLevel: 'info',
       scenariosDir: '/srv/onion/scenarios',
+      lobbyPollIntervalMs: 3000,
     })
   })
 
@@ -51,5 +52,14 @@ describe('loadConfig', () => {
   it('does not supply defaults for blank required values', () => {
     expect(() => loadConfig({ ...validEnvironment, HOST: ' ' })).toThrow(/HOST/)
     expect(() => loadConfig({ ...validEnvironment, SCENARIOS_DIR: '' })).toThrow(/SCENARIOS_DIR/)
+  })
+
+  it('loads a configured lobby polling interval', () => {
+    expect(loadConfig({ ...validEnvironment, LOBBY_POLL_INTERVAL_MS: '4500' }).lobbyPollIntervalMs).toBe(4500)
+  })
+
+  it('rejects invalid lobby polling intervals', () => {
+    expect(() => loadConfig({ ...validEnvironment, LOBBY_POLL_INTERVAL_MS: '0' })).toThrow(/LOBBY_POLL_INTERVAL_MS/)
+    expect(() => loadConfig({ ...validEnvironment, LOBBY_POLL_INTERVAL_MS: 'not-an-interval' })).toThrow(/LOBBY_POLL_INTERVAL_MS/)
   })
 })

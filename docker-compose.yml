@@ -13,6 +13,7 @@ services:
       NODE_ENV: production
       SCENARIOS_DIR: /app/scenarios
       LOG_LEVEL: ${LOG_LEVEL:-debug}
+      LOBBY_POLL_INTERVAL_MS: ${LOBBY_POLL_INTERVAL_MS:-3000}
     depends_on:
       db:
         condition: service_healthy

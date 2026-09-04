@@ -5,6 +5,7 @@ import websocket from '@fastify/websocket'
 import { authRoutes } from '#server/api/auth'
 import { scenarioRoutes } from '#server/api/scenarios'
 import { gameRoutes } from '#server/api/games'
+import { runtimeConfigRoutes } from '#server/api/runtimeConfig'
 import { getPool } from '#server/db/client'
 import type { DbAdapter } from '#server/db/adapter'
 import { InMemoryDb } from '#server/db/memory'
@@ -89,6 +90,13 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
   app.register(websocket)
 
   app.get('/health', async () => ({ ok: true }))
+
+  app.register(runtimeConfigRoutes, {
+    prefix: '/config',
+    config: {
+      lobbyPollIntervalMs: config.lobbyPollIntervalMs,
+    },
+  })
 
   app.get('/health/ready', async (_req, reply) => {
     try {

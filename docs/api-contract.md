@@ -95,6 +95,20 @@ Errors:   401 if credentials invalid
           500 INTERNAL_ERROR for unexpected backend errors
 ```
 
+## Runtime Configuration
+
+### `GET /config`
+
+Returns non-secret deployment values needed by browser clients. This endpoint
+does not require authentication.
+
+```text
+Response: { "lobbyPollIntervalMs": number }
+```
+
+The web lobby uses `lobbyPollIntervalMs` for visible-page polling. The server
+default is 3000 milliseconds.
+
 ---
 
 ## Scenarios

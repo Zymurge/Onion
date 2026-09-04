@@ -106,8 +106,15 @@ describe('UserDashboard', () => {
 			userId: 'user-1',
 			token: 'token-1',
 		})
-		const fetchMock = vi.spyOn(globalThis, 'fetch')
-			.mockResolvedValueOnce(response({
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+			const url = String(input)
+			if (url.endsWith('/config')) {
+				return response({ lobbyPollIntervalMs: 3000 })
+			}
+			if (url.endsWith('/games/12/start')) {
+				return response({ gameId: 12, status: 'active', event: { seq: 2, type: 'STARTED' } })
+			}
+			return response({
 				games: [{
 					gameId: 12,
 					scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
@@ -118,14 +125,14 @@ describe('UserDashboard', () => {
 					hostUserId: 'user-1',
 					role: 'onion',
 				}]
-			}))
-			.mockResolvedValueOnce(response({ gameId: 12, status: 'active', event: { seq: 2, type: 'STARTED' } }))
+			})
+		})
 
 		render(<UserDashboard navigate={navigate} />)
 
 		await user.click(await screen.findByRole('button', { name: 'Start Game' }))
 
-		expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3000/games/12/start', expect.objectContaining({
+		expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/12/start', expect.objectContaining({
 			method: 'POST',
 			headers: { 'content-type': 'application/json', authorization: 'Bearer token-1' },
 			body: '{}',

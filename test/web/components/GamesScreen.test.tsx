@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -48,8 +48,15 @@ describe('GamesScreen', () => {
       userId: 'user-1',
       token: 'token-1',
     })
-    const fetchMock = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(response({
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/config')) {
+        return response({ lobbyPollIntervalMs: 3000 })
+      }
+      if (url.endsWith('/games/12/join')) {
+        return response({ gameId: 12, role: 'defender' })
+      }
+      return response({
         games: [{
           gameId: 12,
           scenarioId: 'swamp-siege-01',
@@ -57,18 +64,93 @@ describe('GamesScreen', () => {
           creatorRole: 'onion',
           openRole: 'defender',
         }],
-      }))
-      .mockResolvedValueOnce(response({ gameId: 12, role: 'defender' }))
+      })
+    })
 
     render(<GamesScreen navigate={navigate} />)
 
     await user.click(await screen.findByRole('button', { name: 'Join Game' }))
 
-    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:3000/games/12/join', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/12/join', expect.objectContaining({
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: 'Bearer token-1' },
       body: '{}',
     }))
     expect(navigate).toHaveBeenCalledWith('/game/12')
+  })
+
+  it('refreshes the open game list using the configured interval', async () => {
+    saveAuthSession({
+      apiBaseUrl: 'http://localhost:3000',
+      username: 'player-1',
+      userId: 'user-1',
+      token: 'token-1',
+    })
+    let listRequestCount = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/config')) {
+        return response({ lobbyPollIntervalMs: 10 })
+      }
+      listRequestCount += 1
+      return listRequestCount === 1
+        ? response({
+            games: [{
+              gameId: 12,
+              scenarioId: 'swamp-siege-01',
+              scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+              creatorRole: 'onion',
+              openRole: 'defender',
+            }],
+          })
+        : response({ games: [] })
+    })
+
+    render(<GamesScreen />)
+    await screen.findByText('Game 12 · Open Defenders')
+
+    await waitFor(() => expect(listRequestCount).toBeGreaterThan(1), { timeout: 1000 })
+    await screen.findByText('No open games are waiting right now.')
+  })
+
+  it('refreshes open games after a join conflict', async () => {
+    const user = userEvent.setup()
+    saveAuthSession({
+      apiBaseUrl: 'http://localhost:3000',
+      username: 'player-1',
+      userId: 'user-1',
+      token: 'token-1',
+    })
+    let listRequestCount = 0
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/config')) {
+        return response({ lobbyPollIntervalMs: 3000 })
+      }
+      if (url.endsWith('/games/12/join')) {
+        return response({ ok: false, error: 'Game is full', code: 'GAME_FULL' }, 409)
+      }
+      listRequestCount += 1
+      return listRequestCount === 1
+        ? response({
+            games: [{
+              gameId: 12,
+              scenarioId: 'swamp-siege-01',
+              scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+              creatorRole: 'onion',
+              openRole: 'defender',
+            }],
+          })
+        : response({ games: [] })
+    })
+
+    render(<GamesScreen />)
+    await user.click(await screen.findByRole('button', { name: 'Join Game' }))
+
+    await waitFor(() => expect(listRequestCount).toBeGreaterThan(1))
+    expect(screen.queryByRole('button', { name: 'Join Game' })).toBeNull()
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/12/join', expect.objectContaining({
+      method: 'POST',
+    }))
   })
 })

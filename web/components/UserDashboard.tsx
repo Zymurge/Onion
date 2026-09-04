@@ -1,8 +1,9 @@
 import { clearAuthSession, getAuthSession } from '../lib/authSession'
 import { requestJson } from '../../shared/apiProtocol'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ErrorOverlay } from './ErrorOverlay'
 import { UserSideMenu } from './UserSideMenu'
+import { useLobbyPolling } from '../lib/useLobbyPolling'
 import './UserDashboard.css'
 
 type UserDashboardProps = {
@@ -49,41 +50,15 @@ function getGameStatus(game: GameSummary, userId: string | undefined): string {
 
 export function UserDashboard({ navigate }: UserDashboardProps) {
   const session = getAuthSession()
-  const [games, setGames] = useState<GameSummary[]>([])
-  const [loading, setLoading] = useState(session !== null)
   const [startingGameId, setStartingGameId] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const apiBaseUrl = session?.apiBaseUrl
   const token = session?.token
-
-  useEffect(() => {
-    if (apiBaseUrl === undefined || token === undefined) {
-      return
-    }
-
-    let cancelled = false
-    void requestJson<{ games: GameSummary[] }>({
-      baseUrl: apiBaseUrl,
-      path: 'games',
-      method: 'GET',
-      token,
-    }).then((result) => {
-      if (cancelled) return
-      if (!result.ok) {
-        setError(result.message)
-        return
-      }
-      setGames(result.data.games)
-    }).catch(() => {
-      if (!cancelled) setError('Unable to load your games.')
-    }).finally(() => {
-      if (!cancelled) setLoading(false)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [apiBaseUrl, token])
+  const { games, loading, error, refresh, setError } = useLobbyPolling<GameSummary>({
+    apiBaseUrl,
+    token,
+    path: 'games',
+    errorMessage: 'Unable to load your games.',
+  })
 
   async function handleStart(gameId: number) {
     if (!session || startingGameId !== null) {
@@ -102,10 +77,12 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
       })
       if (!result.ok) {
         setError(result.message)
+        void refresh()
         return
       }
 
-      (navigate ?? ((path: string) => window.location.assign(path)))(`/game/${result.data.gameId}`)
+      void refresh()
+      ;(navigate ?? ((path: string) => window.location.assign(path)))(`/game/${result.data.gameId}`)
     } catch {
       setError('Unable to start the game.')
     } finally {
@@ -138,7 +115,7 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
                   <p className="eyebrow">Match log</p>
                   <h2>Your Games</h2>
                 </div>
-                <span className="dashboard-count">{games.length} active</span>
+                <span className="dashboard-count">{games.length} games</span>
               </div>
               <div className="dashboard-game-list">
                 {loading ? <p className="dashboard-empty-state">Loading your games...</p> : null}
