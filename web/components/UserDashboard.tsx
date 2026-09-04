@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ErrorOverlay } from './ErrorOverlay'
 import { UserSideMenu } from './UserSideMenu'
 import { useLobbyPolling } from '../lib/useLobbyPolling'
+import { openGameWindow } from '../lib/gameNavigation'
 import './UserDashboard.css'
 
 type UserDashboardProps = {
@@ -82,7 +83,7 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
       }
 
       void refresh()
-      ;(navigate ?? ((path: string) => window.location.assign(path)))(`/game/${result.data.gameId}`)
+      openGameWindow(`/game/${result.data.gameId}`, { navigate })
     } catch {
       setError('Unable to start the game.')
     } finally {
@@ -128,7 +129,16 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
                       <p>Turn {game.turnNumber} · {formatPhase(game.phase)} · {game.role === 'onion' ? 'The Onion' : 'Defenders'}</p>
                     </div>
                     {game.status === 'active' || game.status === 'completed' ? (
-                      <a className="dashboard-game-link" href={`/game/${game.gameId}`}>Open Game</a>
+                      <a
+                        className="dashboard-game-link"
+                        href={`/game/${game.gameId}`}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          openGameWindow(`/game/${game.gameId}`, { navigate })
+                        }}
+                      >
+                        Open Game
+                      </a>
                     ) : game.status === 'ready' ? (
                       game.hostUserId === session?.userId ? (
                         <button

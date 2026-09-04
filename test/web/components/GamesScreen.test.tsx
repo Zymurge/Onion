@@ -79,6 +79,42 @@ describe('GamesScreen', () => {
     expect(navigate).toHaveBeenCalledWith('/game/12')
   })
 
+  it('opens a joined game in a dedicated window', async () => {
+    const user = userEvent.setup()
+    const gameWindow = { focus: vi.fn() } as unknown as Window
+    const windowOpen = vi.spyOn(window, 'open').mockReturnValue(gameWindow)
+    saveAuthSession({
+      apiBaseUrl: 'http://localhost:3000',
+      username: 'player-1',
+      userId: 'user-1',
+      token: 'token-1',
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/config')) {
+        return response({ lobbyPollIntervalMs: 3000 })
+      }
+      if (url.endsWith('/games/12/join')) {
+        return response({ gameId: 12, role: 'defender' })
+      }
+      return response({
+        games: [{
+          gameId: 12,
+          scenarioId: 'swamp-siege-01',
+          scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+          creatorRole: 'onion',
+          openRole: 'defender',
+        }],
+      })
+    })
+
+    render(<GamesScreen />)
+    await user.click(await screen.findByRole('button', { name: 'Join Game' }))
+
+    expect(windowOpen).toHaveBeenCalledWith('/game/12', '_blank', 'noopener,noreferrer')
+    expect(gameWindow.focus).toHaveBeenCalledTimes(1)
+  })
+
   it('refreshes the open game list using the configured interval', async () => {
     saveAuthSession({
       apiBaseUrl: 'http://localhost:3000',

@@ -350,7 +350,7 @@ component-level constant.
 - Lobby polling cadence comes from runtime configuration.
 - No lobby WebSocket is required.
 
-### Step 6: Add dedicated game-window handoff
+### Step 6: Add dedicated game-window handoff [DONE]
 
 **Goal:** Starting or opening a game leaves the lobby available in its original
 window.
@@ -379,7 +379,7 @@ window.
 - Each player can have the lobby and one dedicated game window.
 - Advanced multi-window plumbing remains deferred and documented.
 
-### Step 7: Harden stale and conflicting lobby actions
+### Step 7: Harden stale and conflicting lobby actions [DONE]
 
 **Goal:** Concurrent users do not leave the lobby showing dead buttons or false
 state.

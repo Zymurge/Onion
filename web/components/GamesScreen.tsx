@@ -4,6 +4,7 @@ import { UserSideMenu } from './UserSideMenu'
 import { useLobbyPolling } from '../lib/useLobbyPolling'
 import { clearAuthSession, getAuthSession } from '../lib/authSession'
 import { requestJson } from '../../shared/apiProtocol'
+import { openGameWindow } from '../lib/gameNavigation'
 import './UserDashboard.css'
 import './GamesScreen.css'
 
@@ -55,7 +56,7 @@ export function GamesScreen({ navigate }: GamesScreenProps) {
       }
 
       void refresh()
-      ;(navigate ?? ((path: string) => window.location.assign(path)))(`/game/${result.data.gameId}`)
+      openGameWindow(`/game/${result.data.gameId}`, { navigate })
     } catch {
       setError('Unable to join the game.')
     } finally {

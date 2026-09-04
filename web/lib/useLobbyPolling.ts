@@ -25,10 +25,16 @@ export function useLobbyPolling<T>({ apiBaseUrl, token, path, errorMessage }: Us
   const [pollIntervalMs, setPollIntervalMs] = useState(DEFAULT_LOBBY_POLL_INTERVAL_MS)
   const [isVisible, setIsVisible] = useState(() => typeof document === 'undefined' || document.visibilityState !== 'hidden')
   const requestInFlightRef = useRef(false)
+  const refreshQueuedRef = useRef(false)
+  const refreshRef = useRef<() => Promise<void>>(() => Promise.resolve())
   const mountedRef = useRef(true)
 
   const refresh = useCallback(async () => {
-    if (apiBaseUrl === undefined || token === undefined || requestInFlightRef.current) {
+    if (apiBaseUrl === undefined || token === undefined) {
+      return
+    }
+    if (requestInFlightRef.current) {
+      refreshQueuedRef.current = true
       return
     }
 
@@ -58,8 +64,20 @@ export function useLobbyPolling<T>({ apiBaseUrl, token, path, errorMessage }: Us
       if (mountedRef.current) {
         setLoading(false)
       }
+      if (mountedRef.current && refreshQueuedRef.current) {
+        refreshQueuedRef.current = false
+        queueMicrotask(() => {
+          if (mountedRef.current) {
+            void refreshRef.current()
+          }
+        })
+      }
     }
   }, [apiBaseUrl, errorMessage, path, token])
+
+  useEffect(() => {
+    refreshRef.current = refresh
+  }, [refresh])
 
   useEffect(() => {
     mountedRef.current = true
