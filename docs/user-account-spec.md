@@ -104,6 +104,7 @@ Successful response:
 ```json
 {
   "username": "swampwalker",
+  "userId": "<user-id>",
   "token": "<signed-jwt>"
 }
 ```

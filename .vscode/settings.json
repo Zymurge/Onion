@@ -4,6 +4,8 @@
     "vitest.configSearchPatternInclude": "vitest.config.ts",
     "vitest.configSearchPatternExclude": "**/node_modules/**,**/vendor/**,**/*.d.ts,**/vitest.integration.config.ts,**/vitest.node.config.ts,**/web/vitest.config.ts",
     "vitest.rootConfig": "vitest.config.ts",
+    "vitest.watchOnStartup": false,
+    "vitest.logLevel": "verbose",
     "npm.scriptRunner": "pnpm",
     "files.exclude": {
         "dist": true
@@ -12,7 +14,12 @@
         "**/.git/objects/**": true,
         "**/node_modules/**": true,
         "**/.venv/**": true,
-        "**/dist/**": true
+        "**/dist/**": true,
+        "**/.e2e-runtime/**": true,
+        "**/coverage/**": true,
+        "**/web/coverage/**": true,
+        "**/playwright-report/**": true,
+        "**/test-results/**": true
     },
     "search.exclude": {
         "dist": true
@@ -49,5 +56,10 @@
             "password": "onionpass",
             "connectString": "postgres://onion:onionpass@localhost:5432/onion"
         }
-    ]
+    ],
+    "vitest.nodeEnv": {
+        "VITEST_VSCODE": "true",
+        "CHOKIDAR_USEPOLLING": "1",
+        "CHOKIDAR_INTERVAL": "1000"
+    }
 }

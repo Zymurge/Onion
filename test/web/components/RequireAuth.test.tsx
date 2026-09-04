@@ -8,6 +8,7 @@ import { saveAuthSession } from '#web/lib/authSession'
 describe('RequireAuth', () => {
 	beforeEach(() => {
 		window.sessionStorage.clear()
+		window.localStorage.clear()
 		window.history.replaceState({}, '', '/game/create?scenario=swamp-siege-01')
 	})
 

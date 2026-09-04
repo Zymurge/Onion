@@ -31,6 +31,15 @@ export default defineConfig({
     fs: {
       allow: [rootDir],
     },
+    // The VS Code Vitest explorer starts Vitest in watch mode. On hosts that are
+    // already near fs.inotify.max_user_instances, Vite's native config watcher
+    // fails with EMFILE and the extension surfaces that as exit code 1006.
+    // Disable native watching for the explorer worker; VS Code owns file events.
+    ...(process.env.VITEST_VSCODE === 'true'
+      ? {
+          watch: null,
+        }
+      : {}),
   },
   test: {
     globals: true,

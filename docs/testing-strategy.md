@@ -53,3 +53,15 @@ When a behavior crosses layers, test the narrowest stable boundary that owns the
 - App event handlers are a layer above that orchestration.
 - `test/web/lib/transport/gameClient.seam.contract.test.ts` should stay focused on seam behavior.
 - `test/web/app/**/*.test.tsx` should cover App orchestration and failure surfaces.
+
+## Vitest VS Code Extension Notes
+
+- Terminal `pnpm test` / `pnpm exec vitest run` does not need filesystem watchers.
+- The Vitest explorer worker starts Vitest in watch mode and can fail with `Vitest process exited with code 1006` when the host is out of inotify capacity (`EMFILE: too many open files, watch ...`).
+- Common local cause: leaked detached E2E Vite/engine processes after failed `pnpm test:e2e` runs while `E2E_KEEP_RUNTIME_ON_FAILURE=true`.
+- Recovery: kill stale `web/.../vite.js` and `tsx server/index.ts` processes for this repo, then refresh the Vitest extension.
+- If the host remains over the inotify instance cap (common on KDE with many `dconf watch` processes), raise it for the session or permanently:
+  - `sudo sysctl -w fs.inotify.max_user_instances=512`
+  - optional: `sudo sysctl -w fs.inotify.max_user_watches=524288`
+- Workspace settings set `vitest.watchOnStartup=false` and, under `VITEST_VSCODE`, disable Vite native watching so the explorer worker is less sensitive to EMFILE.
+- The harness now records `enginePid` / `webPid` in the runtime descriptor and stops those process groups when a stale descriptor is discarded.

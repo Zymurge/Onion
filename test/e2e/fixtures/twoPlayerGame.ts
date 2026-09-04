@@ -76,13 +76,13 @@ function createOwnedBrowser(browser: Browser, contexts: Set<BrowserContext>): Br
 }
 
 function uniqueRunId(): string {
-	return `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+	return `${Date.now().toString(36).slice(-5)}${Math.random().toString(36).slice(2, 5)}`
 }
 
 function defaultCredentials(role: SessionRole, runId: string): PlayerCredentials {
 	return {
-		username: `e2e-${role}-${runId}`,
-		password: `OnionE2E-${role}-${runId}`,
+		username: `e2e-${role[0]}-${runId}`,
+		password: `E2E-${role[0]}-${runId}`,
 	}
 }
 

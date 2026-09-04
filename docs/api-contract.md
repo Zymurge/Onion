@@ -70,7 +70,7 @@ because browser WebSocket APIs cannot set arbitrary Authorization headers.
 
 ```text
 Request:  { "username": string, "email": string, "password": string }
-Response: { "username": string, "token": string (signed JWT) }
+Response: { "username": string, "userId": string, "token": string (signed JWT) }
 Errors:   409 USERNAME_TAKEN if username taken
           409 EMAIL_TAKEN if email taken
           400 INVALID_INPUT for schema validation errors

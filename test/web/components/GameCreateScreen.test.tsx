@@ -17,6 +17,7 @@ function response(body: unknown, status = 200): Response {
 describe('GameCreateScreen', () => {
 	beforeEach(() => {
 		window.sessionStorage.clear()
+		window.localStorage.clear()
 		vi.restoreAllMocks()
 	})
 
@@ -87,7 +88,7 @@ describe('GameCreateScreen', () => {
 
 		await user.click(screen.getByRole('button', { name: 'Sign Out' }))
 
-		expect(window.sessionStorage.getItem('onion.auth.session')).toBeNull()
+		expect(window.localStorage.getItem('onion.auth.session')).toBeNull()
 		expect(navigate).toHaveBeenCalledWith('/user/login')
 	})
 })

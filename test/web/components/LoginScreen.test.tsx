@@ -17,6 +17,7 @@ function response(body: unknown, status = 200): Response {
 describe('LoginScreen', () => {
 	beforeEach(() => {
 		window.sessionStorage.clear()
+		window.localStorage.clear()
 		window.history.replaceState({}, '', '/')
 		vi.restoreAllMocks()
 	})
@@ -85,7 +86,7 @@ describe('LoginScreen', () => {
 			userId: 'user-1',
 			token: 'token-1',
 		}
-		window.sessionStorage.setItem('onion.auth.session', JSON.stringify(session))
+		window.localStorage.setItem('onion.auth.session', JSON.stringify(session))
 
 		render(<LoginScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost:3000' } as never} />)
 

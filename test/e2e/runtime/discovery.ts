@@ -1,4 +1,5 @@
 import type { DatabaseProbe, DescriptorStore, HttpProbe, RuntimeDescriptor } from './types.js'
+import { stopRuntimeProcessGroups } from './processStop.js'
 
 type DiscoveryAdapters = {
 	http: HttpProbe
@@ -30,6 +31,13 @@ export async function discoverHealthyRuntime(
 		])
 		return descriptor
 	} catch {
+		// A stale descriptor often outlives its owner because engine/web children are
+		// detached. Stop those process groups before dropping the descriptor so Vite
+		// watchers cannot accumulate across failed E2E runs.
+		await stopRuntimeProcessGroups({
+			enginePid: descriptor.enginePid,
+			webPid: descriptor.webPid,
+		})
 		await adapters.descriptors.remove(descriptorPath)
 		return null
 	}

@@ -8,14 +8,14 @@ const validCredentials = {
 }
 
 describe('POST /auth/register', () => {
-  it('returns the public username and a JWT whose subject is the internal UUID', async () => {
+  it('returns the public username, internal UUID, and a JWT for the new account', async () => {
     const app = buildApp()
     const res = await app.inject({ method: 'POST', url: '/auth/register', payload: validCredentials })
 
     expect(res.statusCode).toBe(201)
-    const body = res.json<{ username: string; token: string; userId?: string }>()
-    expect(body).toEqual({ username: validCredentials.username, token: expect.any(String) })
-    expect(body.userId).toBeUndefined()
+    const body = res.json<{ username: string; token: string; userId: string }>()
+    expect(body).toEqual({ username: validCredentials.username, userId: expect.any(String), token: expect.any(String) })
+    expect(body.userId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
     const claims = await app.jwt.verify<{ sub: string }>(body.token)
     expect(claims.sub).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
   })

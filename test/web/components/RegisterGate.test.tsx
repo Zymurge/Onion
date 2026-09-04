@@ -16,6 +16,7 @@ describe('RegisterGate', () => {
 	beforeEach(() => {
 		useRegistrationGate.mockReset()
 		window.sessionStorage.clear()
+		window.localStorage.clear()
 	})
 
 	it('renders only account fields and submits the registration form', async () => {
@@ -103,7 +104,7 @@ describe('RegisterGate', () => {
 		expect(screen.getByText('Player ID: user-1')).not.toBeNull()
 		await user.click(screen.getByRole('button', { name: 'Sign Out' }))
 
-		expect(window.sessionStorage.getItem('onion.auth.session')).toBeNull()
+		expect(window.localStorage.getItem('onion.auth.session')).toBeNull()
 		expect(navigate).toHaveBeenCalledWith('/user/login')
 	})
 })

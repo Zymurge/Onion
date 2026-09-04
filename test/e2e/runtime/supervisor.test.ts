@@ -97,6 +97,10 @@ describe('startRuntimeSupervisor', () => {
 			}),
 		])
 		expect(adapter.descriptors.writes).toHaveLength(1)
+		expect(adapter.descriptors.writes[0]).toMatchObject({
+			enginePid: 7001,
+			webPid: 7002,
+		})
 
 		await session.teardown(true)
 		expect(adapter.processes.stops).toBe(2)
@@ -221,6 +225,10 @@ describe('startRuntimeSupervisor', () => {
 		expect(adapter.processes.stops).toBe(0)
 		expect(adapter.databaseContainer.stops).toBe(0)
 		expect(adapter.descriptors.removes).toBe(0)
+		expect(adapter.descriptors.writes.at(-1)).toMatchObject({
+			enginePid: 7001,
+			webPid: 7002,
+		})
 	})
 })
 
@@ -305,10 +313,16 @@ class FakePortAllocator implements PortAllocator {
 class FakeProcessLauncher implements ProcessLauncher {
 	inputs: Parameters<ProcessLauncher['spawn']>[0][] = []
 	stops = 0
+	private nextPid = 7001
 
 	spawn(input: Parameters<ProcessLauncher['spawn']>[0]): ProcessHandle {
 		this.inputs.push(input)
-		return { stop: async () => { this.stops += 1 } }
+		const pid = this.nextPid
+		this.nextPid += 1
+		return {
+			pid,
+			stop: async () => { this.stops += 1 },
+		}
 	}
 }
 

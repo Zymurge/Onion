@@ -18,6 +18,7 @@ function response(body: unknown, status = 200): Response {
 describe('GamesScreen', () => {
   beforeEach(() => {
     window.sessionStorage.clear()
+    window.localStorage.clear()
     vi.restoreAllMocks()
   })
 

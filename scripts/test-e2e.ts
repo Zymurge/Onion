@@ -72,7 +72,7 @@ async function main(): Promise<void> {
 			runtimeFile: options.runtimeFile,
 			teardown: session.teardown,
 			run: async (environment) => {
-				browser = run('pnpm', ['exec', 'playwright', 'test'], environment)
+				browser = run('pnpm', ['exec', 'playwright', 'test', ...process.argv.slice(2)], environment)
 				return browser.result
 			},
 		})

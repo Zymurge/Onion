@@ -233,7 +233,7 @@ describe('App connect gate', () => {
 			vi.advanceTimersByTime(1_001)
 		})
 		expect(navigate).toHaveBeenCalledWith('/user/login?returnTo=%2F')
-		expect(window.sessionStorage.getItem('onion.auth.session')).toBeNull()
+		expect(window.localStorage.getItem('onion.auth.session')).toBeNull()
 		vi.useRealTimers()
 	})
 
@@ -256,6 +256,6 @@ describe('App connect gate', () => {
 		await waitFor(() => {
 			expect(navigate).toHaveBeenCalledWith('/user/login?returnTo=%2F')
 		})
-		expect(window.sessionStorage.getItem('onion.auth.session')).toBeNull()
+		expect(window.localStorage.getItem('onion.auth.session')).toBeNull()
 	})
 })

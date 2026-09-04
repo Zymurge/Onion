@@ -65,8 +65,7 @@ function sanitizeRequestBody(body: unknown): unknown {
   }
 
   if ('password' in body) {
-    const { password: _password, ...rest } = body as Record<string, unknown>
-    return { ...rest, password: '(redacted)' }
+    return { ...(body as Record<string, unknown>), password: '(redacted)' }
   }
 
   return body
@@ -162,7 +161,12 @@ async function requestBackendJson<T>(
 }
 
 export function registerUser(session: SessionStore, username: string, password: string): Promise<ApiResult<AuthResponse>> {
-  return requestBackendJson<AuthResponse>(session, 'POST', 'auth/register', { username, password })
+  const emailLocalPart = username.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'player'
+  return requestBackendJson<AuthResponse>(session, 'POST', 'auth/register', {
+    username,
+    email: `${emailLocalPart}@onion.local`,
+    password,
+  })
 }
 
 export function loginUser(session: SessionStore, username: string, password: string): Promise<ApiResult<AuthResponse>> {

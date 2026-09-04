@@ -19,7 +19,7 @@ const session: AuthSession = {
 
 describe('authSession', () => {
 	beforeEach(() => {
-		window.sessionStorage.clear()
+		window.localStorage.clear()
 	})
 
 	it('round trips an authenticated browser session', () => {
@@ -36,23 +36,23 @@ describe('authSession', () => {
 	})
 
 	it('ignores malformed stored data', () => {
-		window.sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, '{bad json')
+		window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, '{bad json')
 
 		expect(getAuthSession()).toBeNull()
-		expect(window.sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull()
+		expect(window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull()
 	})
 
 	it('ignores stored sessions with missing required fields', () => {
-		window.sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify({ token: 'token-1' }))
+		window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify({ token: 'token-1' }))
 
 		expect(getAuthSession()).toBeNull()
 	})
 
 	it('removes stored non-object values', () => {
-		window.sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, 'null')
+		window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, 'null')
 
 		expect(getAuthSession()).toBeNull()
-		expect(window.sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull()
+		expect(window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull()
 	})
 
 	it('recognizes an expired JWT session', () => {
@@ -65,7 +65,7 @@ describe('authSession', () => {
 		saveAuthSession(expiredSession)
 
 		expect(getAuthSession(2_000)).toBeNull()
-		expect(window.sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull()
+		expect(window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY)).toBeNull()
 	})
 
 	it('keeps a JWT session until its expiry timestamp', () => {

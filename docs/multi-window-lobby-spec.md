@@ -411,7 +411,7 @@ state.
 - Common races self-correct without a hard reload.
 - Actions are derived from the latest authoritative summaries.
 
-### Step 8: Run short-term verification and close the docs
+### Step 8: Run short-term verification and close the docs [DONE]
 
 **Goal:** Prove the short-term package across focused tests and a browser smoke
 flow.

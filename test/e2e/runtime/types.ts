@@ -37,6 +37,10 @@ export type RuntimeDescriptor = {
 	webUrl: string
 	databaseUrl?: string
 	databaseContainerId?: string
+	/** Process-group leader for the owned engine child, when started by this harness. */
+	enginePid?: number
+	/** Process-group leader for the owned Vite child, when started by this harness. */
+	webPid?: number
 	logDir: string
 	artifactFile: string
 }
@@ -78,6 +82,8 @@ export interface ArtifactCleanupDatabaseFactory {
 }
 
 export interface ProcessHandle {
+	/** Child process id / process-group leader when the launcher detaches the child. */
+	pid?: number
 	stop(): Promise<void>
 }
 

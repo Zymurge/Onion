@@ -159,6 +159,8 @@ export async function startRuntimeSupervisor(
 				webUrl,
 				databaseUrl,
 				databaseContainerId: database?.containerId,
+				enginePid: engine?.pid,
+				webPid: web?.pid,
 				logDir: paths.logDir,
 				artifactFile: paths.artifactFile,
 			})
@@ -182,6 +184,9 @@ export async function startRuntimeSupervisor(
 				engineUrl: failedRuntime.engineUrl,
 				webUrl: failedRuntime.webUrl,
 				databaseUrl: failedRuntime.databaseUrl,
+				databaseContainerId: database?.containerId,
+				enginePid: engine?.pid,
+				webPid: web?.pid,
 				logDir: failedRuntime.logDir,
 				artifactFile: failedRuntime.artifactFile,
 			})

@@ -101,7 +101,7 @@ export const authRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
    *
    * @route POST /auth/register
   * @body { username: string, email: string, password: string }
-  * @returns { username: string, token: string } - 201 on success
+  * @returns { username: string, userId: string, token: string } - 201 on success
    * @returns { ok: false, error: string, code: string } - 400 INVALID_INPUT for schema validation errors
   *                                            409 USERNAME_TAKEN if username already exists
   *                                            409 EMAIL_TAKEN if email already exists
@@ -141,7 +141,7 @@ export const authRoutes: FastifyPluginAsync<{ db: DbAdapter }> = async (app: Fas
       throw error
     }
     const token = app.jwt.sign({ sub: userId })
-    return reply.status(201).send({ username, token })
+    return reply.status(201).send({ username, userId, token })
   })
 
   /**

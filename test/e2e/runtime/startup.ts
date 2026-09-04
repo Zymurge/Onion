@@ -38,6 +38,7 @@ export class ProcessLauncherImpl implements ProcessLauncher {
 		child.on('exit', () => closeSync(logFileDescriptor))
 
 		return {
+			pid: child.pid,
 			async stop(): Promise<void> {
 				if (!child || child.exitCode !== null) {
 					return
