@@ -11,6 +11,9 @@ The lobby does not own turn rules, movement, combat, victory, or authoritative
 in-game state. Once a game starts, those responsibilities remain with the
 existing gameplay engine.
 
+The polling and dedicated-window direction for the web lobby is specified in
+[multi-window-lobby-spec.md](multi-window-lobby-spec.md).
+
 ## Scope and Order
 
 The lobby work is divided into the following steps and should be explored and

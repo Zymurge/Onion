@@ -214,7 +214,7 @@ The lobby should:
 Each step has a goal, an implementation outline, and a definition of done.
 The steps should be completed in order.
 
-### Step 1: Establish the plan and acceptance baseline
+### Step 1: Establish the plan and acceptance baseline [DONE]
 
 **Goal:** Make the polling and multi-window approach the documented plan of
 record.
@@ -235,7 +235,7 @@ record.
   window handoff is already complete.
 - The plan has a stable link from the relevant project documentation.
 
-### Step 2: Gate the game window by lifecycle status
+### Step 2: Gate the game window by lifecycle status [DONE]
 
 **Goal:** A game window never presents playable controls before the match is
 active.
@@ -263,7 +263,7 @@ active.
 - Status, not only phase and role, controls playability.
 - Focused web tests cover waiting, ready, active, and completed behavior.
 
-### Step 3: Verify the in-game ready-to-active handoff
+### Step 3: Verify the in-game ready-to-active handoff [DONE]
 
 **Goal:** A participant already inside a game window sees the match become
 playable after the host starts it.
@@ -288,7 +288,7 @@ playable after the host starts it.
 - An already-open ready game window transitions without a full page reload.
 - No lobby WebSocket or new cross-window transport is needed for this path.
 
-### Step 4: Add the polling interval to configuration
+### Step 4: Add the polling interval to configuration [DONE]
 
 **Goal:** Lobby polling cadence is managed configuration rather than a
 component-level constant.
@@ -316,7 +316,7 @@ component-level constant.
 - Server and browser documentation agree on the name and behavior.
 - Lobby components do not hard-code their interval.
 
-### Step 5: Implement polling for lobby lists
+### Step 5: Implement polling for lobby lists [DONE]
 
 **Goal:** Dashboard and open-game views converge without manual reloads.
 

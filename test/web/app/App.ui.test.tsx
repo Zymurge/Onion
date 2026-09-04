@@ -512,6 +512,100 @@ describe('App UI', () => {
 		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
 	})
 
+	it('keeps a ready session locked until STARTED refreshes an active snapshot', async () => {
+		const user = userEvent.setup()
+		const readySnapshot = makeScenarioSnapshot({
+			phase: 'ONION_MOVE',
+			status: 'ready',
+			lastEventSeq: 47,
+		})
+		const activeSnapshot = makeScenarioSnapshot({
+			phase: 'ONION_MOVE',
+			status: 'active',
+			lastEventSeq: 48,
+		})
+		const liveEventSource = createLiveEventSourceStub()
+		const getState = vi.fn()
+			.mockResolvedValueOnce({ snapshot: readySnapshot, session: { role: 'onion' as const } })
+			.mockResolvedValueOnce({ snapshot: activeSnapshot, session: { role: 'onion' as const } })
+		const submitAction = vi.fn().mockResolvedValue(activeSnapshot)
+		const client = createGameClient({
+			getState,
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(
+			<App
+				gameClient={client}
+				gameId={123}
+				liveEventSource={liveEventSource}
+				runtimeConfig={{
+					apiBaseUrl: null,
+					gameId: 123,
+					userRoute: null,
+					liveRefreshQuietWindowMs: 5,
+					clientLogLevel: 'info',
+				}}
+			/>,
+		)
+
+		const startCombatButton = await screen.findByRole('button', { name: 'Start Combat' })
+		expect(startCombatButton).toBeDisabled()
+		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
+		expect(screen.getByTestId('game-lifecycle-gate').textContent).toContain('Waiting for the host to start')
+		expect(screen.queryByTestId('hex-unit-onion-1')).toBeNull()
+		await user.click(startCombatButton)
+		expect(submitAction).not.toHaveBeenCalled()
+		await user.click(screen.getByRole('button', { name: /toggle debug diagnostics/i }))
+		await user.click(screen.getByRole('button', { name: 'Advance Phase' }))
+		expect(submitAction).not.toHaveBeenCalled()
+
+		act(() => {
+			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 48, eventType: 'STARTED' })
+		})
+
+		await waitFor(() => expect(getState).toHaveBeenCalledTimes(2))
+		expect(screen.queryByTestId('game-lifecycle-gate')).toBeNull()
+		await user.click(await screen.findByRole('button', { name: /begin turn/i }))
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Start Combat' })).toBeEnabled())
+
+		await user.click(screen.getByRole('button', { name: 'Start Combat' }))
+		expect(submitAction).toHaveBeenCalledWith(123, { type: 'end-phase' })
+	})
+
+	it.each([
+		{ status: 'waiting' as const, gateText: 'Waiting for an opponent', showsBattlefield: false },
+		{ status: 'completed' as const, gateText: null, showsBattlefield: true },
+	])('keeps $status matches non-playable', async ({ status, gateText, showsBattlefield }) => {
+		const user = userEvent.setup()
+		const snapshot = makeScenarioSnapshot({
+			phase: 'ONION_MOVE',
+			status,
+		})
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const startCombatButton = await screen.findByRole('button', { name: 'Start Combat' })
+		expect(startCombatButton).toBeDisabled()
+		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
+		if (gateText === null) {
+			expect(screen.queryByTestId('game-lifecycle-gate')).toBeNull()
+		} else {
+			expect(screen.getByTestId('game-lifecycle-gate').textContent).toContain(gateText)
+		}
+		expect(screen.queryByTestId('hex-unit-onion-1') !== null).toBe(showsBattlefield)
+
+		await user.click(startCombatButton)
+		expect(submitAction).not.toHaveBeenCalled()
+	})
+
 	it('builds the Begin Turn acknowledgement key without phase data', () => {
 		expect(
 			buildAcknowledgementTurnKey({

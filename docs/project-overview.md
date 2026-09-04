@@ -176,7 +176,9 @@ Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md).
 **Implemented:** The web dashboard lists a user's games, the open-game screen
 supports self-service joining, and the host can start a full ready match.
 Lifecycle state and host identity are returned by the authoritative API. See
-[lobby-overview-spec.md](lobby-overview-spec.md) and [web-ui-spec.md](web-ui-spec.md).
+[lobby-overview-spec.md](lobby-overview-spec.md),
+[multi-window-lobby-spec.md](multi-window-lobby-spec.md), and
+[web-ui-spec.md](web-ui-spec.md) for the lobby and client direction.
 
 ### Shared Data Model for Units & Weapons
 

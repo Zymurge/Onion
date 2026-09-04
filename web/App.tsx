@@ -355,7 +355,8 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
   const sessionWinnerToastKey = sessionState.snapshot ? `${sessionState.snapshot.gameId}:${sessionState.snapshot.lastEventSeq}` : null
   const sessionTurnKnown = sessionState.snapshot !== null && sessionRole !== null
   const activeTurnOwner = getPhaseOwner(sessionPhase)
-  const sessionTurnActive = sessionState.snapshot !== null && sessionRole !== null && activeTurnOwner === sessionRole
+  const sessionLifecycleActive = sessionState.snapshot?.status === undefined || sessionState.snapshot.status === 'active'
+  const sessionTurnActive = sessionLifecycleActive && sessionState.snapshot !== null && sessionRole !== null && activeTurnOwner === sessionRole
   const activeGameIdForGate = activeSessionBinding?.gameId ?? null
 
   useEffect(() => {
@@ -430,12 +431,13 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
     pendingAcknowledgementTurnKey === currentActiveTurnKey &&
     acknowledgedActiveTurnKey !== currentActiveTurnKey
 
-  const inactiveEventWindowVisible = sessionTurnKnown && (!sessionTurnActive || inactiveEventAcknowledgementPending)
-  const inactiveEventControlsLocked = inactiveEventWindowVisible
+  const inactiveEventWindowVisible = sessionLifecycleActive && sessionTurnKnown && (!sessionTurnActive || inactiveEventAcknowledgementPending)
+  const inactiveEventControlsLocked = !sessionLifecycleActive || inactiveEventWindowVisible
   const inactiveEventScreenLocked = inactiveEventAcknowledgementPending
 
   const interactionState = useBattlefieldInteractionState({
     activeSessionController,
+    isLifecycleActive: sessionLifecycleActive,
     activeTurnActive: sessionTurnActive,
     clientSnapshot: sessionState.snapshot,
     clientSnapshotPhase: sessionPhase,
@@ -992,6 +994,7 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
           activePhase={activePhase}
           activeTurnActive={activeTurnActive}
           defenders={displayedDefenders}
+          lifecycleStatus={sessionState.snapshot?.status}
           onions={displayedOnions}
           stackNaming={clientSnapshot?.authoritativeState?.stackNaming}
           stackRoster={clientSnapshot?.authoritativeState?.stackRoster}

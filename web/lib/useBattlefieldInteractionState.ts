@@ -15,6 +15,7 @@ import logger from './logger'
 
 type UseBattlefieldInteractionStateOptions = {
   activeSessionController: GameSessionController | null
+  isLifecycleActive?: boolean
   activeTurnActive: boolean
   clientSnapshot: ServerGameSnapshot | null
   clientSnapshotPhase: TurnPhase | null
@@ -181,6 +182,7 @@ function getSnapshotSelectionKey(snapshot: ServerGameSnapshot): string {
 
 export function useBattlefieldInteractionState({
   activeSessionController,
+  isLifecycleActive = true,
   activeTurnActive,
   clientSnapshot,
   clientSnapshotPhase,
@@ -261,11 +263,12 @@ export function useBattlefieldInteractionState({
   }, [clientSnapshot])
 
   async function commitClientAction(action: GameAction) {
-    if (!isControlledSession || activeSessionController === null) {
+    if (!isControlledSession || activeSessionController === null || !isLifecycleActive) {
       debugLog('commitClientAction skipped', {
         action,
         isControlledSession,
         hasController: activeSessionController !== null,
+        isLifecycleActive,
         isInteractionLocked,
         activeTurnActive,
         clientSnapshotPhase,
@@ -275,6 +278,7 @@ export function useBattlefieldInteractionState({
 
     debugLog('commitClientAction start', {
       action,
+      isLifecycleActive,
       isInteractionLocked,
       activeTurnActive,
       clientSnapshotPhase,

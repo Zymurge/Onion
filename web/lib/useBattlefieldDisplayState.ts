@@ -291,7 +291,8 @@ export function useBattlefieldDisplayState({
     const activeRole = clientSession?.role ?? null
     const activeGameId = clientSnapshot?.gameId ?? activeGameIdProp ?? null
     const activePhaseOwner = getPhaseOwner(activePhase)
-    const activeTurnActive = headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
+    const lifecycleActive = clientSnapshot?.status === undefined || clientSnapshot.status === 'active'
+    const activeTurnActive = lifecycleActive && headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
     const phaseAdvanceLabel = getPhaseAdvanceLabel(activePhase, activeRole)
     const shellPhase = activePhase ?? 'DEFENDER_MOVE'
     const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]

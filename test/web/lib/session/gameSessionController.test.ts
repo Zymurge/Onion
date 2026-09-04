@@ -31,9 +31,11 @@ function createSnapshot(overrides: {
 	gameId?: number
 	scenarioName?: string
 	turnNumber?: number
+	status?: GameSnapshot['status']
 }): GameSnapshot {
 	return {
 		gameId: overrides.gameId ?? 123,
+		status: overrides.status,
 		phase: overrides.phase,
 		scenarioName: overrides.scenarioName ?? 'Test session',
 		turnNumber: overrides.turnNumber ?? 1,
@@ -360,6 +362,49 @@ describe('createGameSessionController', () => {
 		})
 
 		controller.dispose()
+	})
+
+	it('refreshes a ready session after STARTED and applies the active snapshot', async () => {
+		vi.useFakeTimers()
+		try {
+			const readySnapshot = createSnapshot({
+				phase: 'ONION_MOVE',
+				lastEventSeq: 47,
+				status: 'ready',
+				scenarioName: 'Ready handoff snapshot',
+			})
+			const activeSnapshot = createSnapshot({
+				phase: 'ONION_MOVE',
+				lastEventSeq: 48,
+				status: 'active',
+				scenarioName: 'Active handoff snapshot',
+			})
+			const getState = vi.fn()
+				.mockResolvedValueOnce({ snapshot: readySnapshot, session: { role: 'onion' as const } })
+				.mockResolvedValueOnce({ snapshot: activeSnapshot, session: { role: 'onion' as const } })
+			const { controller, liveEventSource } = await createLoadedController({
+				getState,
+				liveRefreshQuietWindowMs: 5,
+			})
+
+			expect(controller.getSnapshot().snapshot).toBe(readySnapshot)
+
+			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 48, eventType: 'STARTED' })
+			vi.advanceTimersByTime(5)
+			await flushMicrotasks()
+
+			expect(getState).toHaveBeenCalledTimes(2)
+			expect(controller.getSnapshot()).toMatchObject({
+				status: 'ready',
+				snapshot: activeSnapshot,
+				lastAppliedEventSeq: 48,
+				lastAppliedEventType: 'STARTED',
+			})
+
+			controller.dispose()
+		} finally {
+			vi.useRealTimers()
+		}
 	})
 
 	it('keeps the newer refresh snapshot when an older initial load resolves later', async () => {
