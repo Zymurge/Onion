@@ -174,6 +174,13 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
     return name === 'StaleMatchStateError' || name === 'Error' && message.toLowerCase().includes('stale') || message.toLowerCase().includes('stale')
   }
 
+  function describeActionError(err: unknown): Record<string, unknown> {
+    return {
+      errorName: err instanceof Error ? err.name : typeof err,
+      errorMessage: err instanceof Error ? err.message : String(err),
+    }
+  }
+
   function removeLiveConnection(gameId: number, socket: WebSocket) {
     const sockets = liveConnections.get(gameId)
     if (!sockets) {
@@ -685,10 +692,16 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
    *                                            500 INTERNAL_ERROR for unexpected backend errors
    */
   app.post<{ Params: { id: string }; Body: Command }>('/:id/actions', async (req, reply) => {
+    const actionLogContext: Record<string, unknown> = {
+      requestId: String(req.id),
+      requestedGameId: req.params.id,
+    }
+
     try {
       logger.info({ id: req.params.id, command: req.body?.type }, 'Submitting game action')
       const userId = await verifyUserId(app, req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
+      actionLogContext.userId = userId
       logger.debug({ userId }, 'User ID extracted for action')
 
       const gameId = parseGameId(req.params.id)
@@ -701,6 +714,9 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         logger.warn({ id: req.params.id }, 'Game not found for action')
         return reply.status(404).send({ ok: false, error: 'Game not found', code: 'NOT_FOUND' })
       }
+
+      actionLogContext.gameId = match.gameId
+      actionLogContext.phase = match.phase
 
       if (match.events.some((event) => event.type === 'GAME_ABORTED')) {
         logger.info({ gameId: match.gameId }, 'Action attempted on aborted game')
@@ -725,6 +741,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       }
 
       const command = req.body as Command
+      actionLogContext.commandType = command?.type
       logger.debug({ command }, 'Received command')
       if (!command?.type) {
         logger.warn({ command }, 'Missing command type')
@@ -947,14 +964,14 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       }
     } catch (err) {
       if (isStaleMatchStateError(err)) {
-        logger.warn({ err }, 'Stale match state error')
+        logger.warn({ ...actionLogContext, ...describeActionError(err), err }, 'Stale match state error')
         return reply.status(409).send({
           ok: false,
           error: 'Match state changed; retry action',
           code: 'STALE_STATE',
         })
       }
-      logger.error({ err }, 'Error submitting game action')
+      logger.error({ ...actionLogContext, ...describeActionError(err), err }, 'Error submitting game action')
       return reply.status(500).send({ ok: false, error: 'Internal error', code: 'INTERNAL_ERROR' })
     }
   })

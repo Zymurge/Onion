@@ -5,6 +5,7 @@ import { StaleMatchStateError } from '#server/db/adapter'
 import * as engineGameInternal from '#server/engine/game'
 import { makeGameState, makeOnion } from '#test/utils/gameStateUtils'
 import { createGame, endPhase, getEvents, getGame, joinGame, register, startGame } from './helpers.js'
+import logger from '#server/logger'
 
 describe('POST /games/:id/actions END_PHASE', () => {
   it('returns ok with seq, events, and state', async () => {
@@ -228,11 +229,27 @@ describe('POST /games/:id/actions END_PHASE', () => {
     const spy = vi.spyOn(engineGameInternal, 'advancePhaseWithEvents').mockImplementation(() => {
       throw new Error('engine fail')
     })
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
     const res = await endPhase(app, gameId, shrek.token)
 
     expect(res.statusCode).toBe(500)
     expect(res.json().code).toBe('INTERNAL_ERROR')
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: expect.any(String),
+        requestedGameId: String(gameId),
+        gameId,
+        userId: shrek.userId,
+        commandType: 'END_PHASE',
+        phase: 'ONION_MOVE',
+        errorName: 'Error',
+        errorMessage: 'engine fail',
+        err: expect.any(Error),
+      }),
+      'Error submitting game action',
+    )
+    errorSpy.mockRestore()
     spy.mockRestore()
   })
 
@@ -275,8 +292,9 @@ describe('POST /games/:id/actions END_PHASE', () => {
     }
 
     const app = buildApp(mockDb)
-  await app.ready()
-  const token = app.jwt.sign({ sub: onionId })
+    await app.ready()
+    const token = app.jwt.sign({ sub: onionId })
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
     const res = await app.inject({
       method: 'POST',
       url: `/games/${gameId}/actions`,
@@ -286,5 +304,21 @@ describe('POST /games/:id/actions END_PHASE', () => {
 
     expect(res.statusCode).toBe(409)
     expect(res.json().code).toBe('STALE_STATE')
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: expect.any(String),
+        requestedGameId: String(gameId),
+        gameId,
+        userId: onionId,
+        commandType: 'END_PHASE',
+        phase: 'ONION_MOVE',
+        errorName: 'StaleMatchStateError',
+        errorMessage: 'stale',
+        err: expect.any(StaleMatchStateError),
+      }),
+      'Stale match state error',
+    )
+    warnSpy.mockRestore()
   })
 })

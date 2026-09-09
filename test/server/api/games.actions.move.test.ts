@@ -108,6 +108,20 @@ describe('POST /games/:id/actions MOVE', () => {
 
 		expect(res.statusCode).toBe(409)
 		expect(res.json().code).toBe('STALE_STATE')
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				requestId: expect.any(String),
+				requestedGameId: String(gameId),
+				gameId,
+				userId: onionId,
+				commandType: 'MOVE',
+				phase: 'ONION_MOVE',
+				errorName: 'StaleMatchStateError',
+				errorMessage: 'stale',
+				err: expect.any(StaleMatchStateError),
+			}),
+			'Stale match state error',
+		)
 		expect(executeSpy).toHaveBeenCalledWith(expect.anything(), validatedPlan, {
 			reconcileStackRoster: false,
 			ramRolls,

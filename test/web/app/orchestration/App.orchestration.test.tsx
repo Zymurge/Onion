@@ -566,6 +566,31 @@ describe('selection behavior', () => {
 // ---- error handling ----
 
 describe('error handling', () => {
+	it('allows session transport errors to be dismissed and shows later failures again', async () => {
+		const user = userEvent.setup()
+		const snapshot = createConnectedBattlefieldSnapshot()
+		const getState = vi.fn()
+			.mockRejectedValueOnce(new Error('temporary session transport failure'))
+			.mockResolvedValueOnce({ snapshot, session: { role: 'defender' as const } })
+			.mockRejectedValueOnce(new Error('temporary session transport failure'))
+		const client = createTestClient(snapshot, { role: 'defender' }, { getState })
+
+		render(<App gameClient={client} gameId={123} />)
+
+		const firstAlert = await screen.findByRole('alert')
+		expect(firstAlert.textContent).toContain('temporary session transport failure')
+		await user.click(screen.getByRole('button', { name: /dismiss error/i }))
+		expect(screen.queryByRole('alert')).toBeNull()
+
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+		await screen.findByTestId('app-ready')
+
+		await user.click(screen.getByRole('button', { name: /refresh/i }))
+		const secondAlert = await screen.findByRole('alert')
+		expect(secondAlert.textContent).toContain('temporary session transport failure')
+		expect(getState).toHaveBeenCalledTimes(3)
+	})
+
 	it('aborts the game for an incomplete authoritative snapshot', async () => {
 		const snapshot = createConnectedBattlefieldSnapshot()
 		delete (snapshot as { authoritativeState?: unknown }).authoritativeState

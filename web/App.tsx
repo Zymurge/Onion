@@ -211,6 +211,7 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
   const [connectedSession, setConnectedSession] = useState<SessionBinding | null>(null)
   const [acknowledgedActiveTurnKey, setAcknowledgedActiveTurnKey] = useState<string | null>(null)
   const [dismissedGameOverToastKey, setDismissedGameOverToastKey] = useState<string | null>(null)
+  const [dismissedSessionErrorKey, setDismissedSessionErrorKey] = useState<string | null>(null)
   const previousDebugStateRef = useRef<{
     activeGameId: number | null
     activeTurnOwner: 'onion' | 'defender' | null
@@ -347,6 +348,16 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
       redirectToLogin()
     }
   }, [redirectToLogin, sessionState.error])
+
+  const sessionErrorKey = sessionState.error === null
+    ? null
+    : `${activeSessionBinding?.gameId ?? 'unknown'}:${sessionState.error.kind}:${sessionState.error.status ?? ''}:${sessionState.error.message}`
+
+  useEffect(() => {
+    if (sessionErrorKey === null) {
+      setDismissedSessionErrorKey(null)
+    }
+  }, [sessionErrorKey])
 
   const sessionPhase = sessionState.snapshot?.phase ?? null
   const sessionRole = sessionState.session?.role ?? null
@@ -743,6 +754,7 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
 
   const isControlledSession = activeSessionBinding !== null
   const shouldShowGameOverToast = sessionWinner !== null && sessionWinnerToastKey !== null && dismissedGameOverToastKey !== sessionWinnerToastKey
+  const shouldShowSessionError = actionError === null && sessionErrorKey !== null && dismissedSessionErrorKey !== sessionErrorKey
   const appState = sessionState.status === 'loading' ? 'loading' : headerHasSnapshot ? 'loaded' : 'empty'
 
   const {
@@ -873,6 +885,13 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
     setDebugOpen((value: boolean) => !value)
   }
 
+  function handleDismissActionError() {
+    if (sessionErrorKey !== null) {
+      setDismissedSessionErrorKey(sessionErrorKey)
+    }
+    setActionError(null)
+  }
+
   if (!isControlledSession && runtimeConnectionSeeded) {
     return <ConnectGate runtimeConfig={runtimeConfig} onConnectedSession={setConnectedSession} />
   }
@@ -910,7 +929,14 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
           onDismiss={() => { /* no-op for now, could add dismiss logic if desired */ }}
         />
       ) : null}
-      {actionError ? <ErrorOverlay message={actionError} placement="app" onDismiss={() => setActionError(null)} /> : null}
+      {shouldShowSessionError && sessionState.error !== null ? (
+        <ErrorOverlay
+          message={sessionState.error.message}
+          placement="map"
+          onDismiss={() => setDismissedSessionErrorKey(sessionErrorKey)}
+        />
+      ) : null}
+      {actionError ? <ErrorOverlay message={actionError} placement="app" onDismiss={handleDismissActionError} /> : null}
       {pendingCombatResolution && selectedCombatTarget !== null ? (
         <CombatResolutionToast
           title={`Combat resolved on ${selectedCombatTarget.label}`}

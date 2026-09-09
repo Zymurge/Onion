@@ -377,6 +377,20 @@ describe('POST /games/:id/actions combat API contract', () => {
 
     expect(res.statusCode).toBe(409)
     expect(res.json().code).toBe('STALE_STATE')
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: expect.any(String),
+        requestedGameId: String(gameId),
+        gameId,
+        userId: onionId,
+        commandType: 'FIRE',
+        phase: 'ONION_COMBAT',
+        errorName: 'StaleMatchStateError',
+        errorMessage: 'stale',
+        err: expect.any(StaleMatchStateError),
+      }),
+      'Stale match state error',
+    )
     validateSpy.mockRestore()
     executeSpy.mockRestore()
   })
