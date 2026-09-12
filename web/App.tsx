@@ -110,7 +110,7 @@ function App({
 
   // 4. Battlefield behavior, then derived presentation.
   const interaction = useBattlefieldInteractionState({
-    activeSessionController: session.controller,
+    activeSessionController: session.isControlled ? session.controller : null,
     isLifecycleActive: session.turn.isLifecycleActive,
     activeTurnActive: session.turn.isActive,
     clientSnapshot: session.state.snapshot,
