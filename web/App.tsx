@@ -187,6 +187,7 @@ function App({
     actionError: interaction.actionError,
     sessionError: session.state.error,
     snapshot: session.state.snapshot,
+    snapshotError: display.error,
   })
 
   const debug = useDebugDiagnostics()
