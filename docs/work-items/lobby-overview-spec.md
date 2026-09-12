@@ -45,7 +45,7 @@ visibility policy remain future work.
 
 Establish the user identity and account operations the lobby depends on.
 
-See [user-account-spec.md](../user-account-spec.md) for the detailed initial
+See [user-account-spec.md](/docs/user-account-spec.md) for the detailed initial
 account scope.
 
 - Support authenticated user creation and login using the existing JWT-based

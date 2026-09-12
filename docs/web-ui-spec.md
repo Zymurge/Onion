@@ -4,8 +4,10 @@
 
 Define the current UI behavior and implementation constraints for the Onion web client.
 
-The lobby's polling and multi-window direction is specified in
-[multi-window-lobby-spec.md](work-items/multi-window-lobby-spec.md).
+The durable lobby and game-window UI contract is defined below. Delivery
+history, implementation sequencing, and deferred product work remain in the
+[lobby overview](work-items/lobby-overview-spec.md) and
+[multi-window lobby work item](work-items/multi-window-lobby-spec.md).
 
 ## Architecture
 
@@ -22,26 +24,84 @@ Primary backend endpoints used by the web client:
 2. `GET /scenarios/{id}`
 3. `POST /auth/register`
 4. `POST /auth/login`
-5. `POST /games`
-6. `POST /games/{id}/join`
-7. `POST /games/{id}/start`
-8. `GET /games/{id}`
-9. `POST /games/{id}/actions`
-10. `GET /games/{id}/events?after={seq}`
+5. `GET /config`
+6. `GET /games`
+7. `GET /games/open`
+8. `POST /games`
+9. `POST /games/{id}/join`
+10. `POST /games/{id}/start`
+11. `GET /games/{id}`
+12. `POST /games/{id}/actions`
+13. `GET /games/{id}/events?after={seq}`
+14. `GET /games/{id}/ws`
 
 ### Lobby Lifecycle
 
-- The dashboard lists the authenticated user's games using the authoritative
-  lifecycle status: `waiting`, `ready`, `active`, or `completed`.
-- `waiting` games show that an opponent is still needed and are not opened as
-  gameplay sessions.
-- `ready` games have both players but are waiting for the host to start them.
-  The host sees `Start Game`; other participants see a non-actionable ready
-  state.
-- The host start control sends an authenticated `POST /games/{id}/start`.
-  After a successful response, the client enters `/game/{id}`. Gameplay is
-  available only for `active` matches.
-- `active` and `completed` games can be opened from the dashboard.
+- The lobby is available only to authenticated users. The dashboard lists the
+  user's game summaries from `GET /games`; the open-game view lists waiting
+  games with one available role from `GET /games/open` and excludes the
+  caller's own games.
+- Creating a game sends the selected scenario and role to `POST /games`.
+  Joining sends `POST /games/{id}/join`; the server assigns the remaining role.
+- The server-owned lifecycle is `waiting`, `ready`, `active`, or `completed`.
+  The client derives labels and actions from the latest status and host fields:
+  `waiting` means an opponent is needed, `ready` means both roles are filled,
+  `active` means gameplay may be opened, and `completed` means the game may be
+  reviewed read-only.
+- A ready host sees `Start Game`. A ready non-host participant sees a
+  non-actionable ready state. Starting sends authenticated
+  `POST /games/{id}/start`; the client opens gameplay only after the server
+  confirms the match is `active`.
+- Open-game discovery contains only currently joinable waiting games. After a
+  game leaves `waiting`, it is removed from that list on the next authoritative
+  refresh.
+
+### Lobby Freshness and Convergence
+
+- Lobby summaries are authoritative REST data. The lobby does not maintain a
+  second client-owned lifecycle model and does not infer status from mutation
+  responses or event timing.
+- Lobby views fetch immediately on entry and poll while the document is
+  visible, using the `lobbyPollIntervalMs` value from `GET /config`. Polling is
+  paused or substantially reduced while hidden and runs an immediate refresh
+  when focus or visibility returns. The deployed default is 3000 milliseconds.
+- Successful create, join, and start operations trigger a refresh. Join and
+  start conflicts such as `409` also trigger a refresh so stale buttons and
+  rows converge with the server.
+- Polling must avoid overlapping requests and must ignore results after the
+  view unmounts. Loading, recoverable transport errors, and mutation state must
+  not replace the latest known authoritative summaries with inferred defaults.
+- The current lobby transport is REST polling. The game WebSocket remains
+  scoped to one game and must not become a mixed lobby-and-game bus.
+
+### Lobby-to-Game Handoff
+
+- The lobby remains usable after opening a match. Active and completed games
+  open at `/game/{id}` in a dedicated browser window or tab when possible.
+- A successful join or host start hands the returned game ID to the same
+  navigation path. A joined game may still be `ready`, so its game window
+  remains locked until the host starts the match.
+- If popup blocking prevents the new window, the client falls back to
+  same-window navigation so the user can still reach the game.
+- The game window uses the existing authentication bootstrap and URL game ID.
+  Duplicate-window tracking, focus-existing behavior, browser window
+  registries, and cross-window messaging are outside the current UI contract.
+
+### Game-Window Lifecycle Gate
+
+- A game window must not present an actionable battlefield unless its latest
+  authoritative snapshot has `status === 'active'`.
+- `waiting` and `ready` render a locked waiting or handoff state. `active`
+  enables the existing battlefield and turn/role interaction rules.
+  `completed` remains available for read-only review.
+- If a game window is already open while a host starts the match, the existing
+  per-game WebSocket treats the `STARTED` signal as a refresh hint. The client
+  fetches the authoritative snapshot and unlocks gameplay only after the
+  refreshed snapshot reports `active`; no full-page reload or lobby WebSocket
+  is required.
+- Phase and role determine turn ownership only after the lifecycle gate allows
+  play. No gameplay action may be submitted while the lifecycle is not
+  `active`.
 
 ## Authoritative State
 
