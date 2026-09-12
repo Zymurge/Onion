@@ -216,6 +216,25 @@ describe('App connect gate', () => {
 		})
 	})
 
+	it('prefers an injected game client over a persisted session transport', async () => {
+		const snapshot = createLoadedSnapshot('ONION_MOVE')
+		const injectedClient = createControlledClient(snapshot)
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token: createToken(),
+		})
+
+		render(<App gameClient={injectedClient} gameId={123} />)
+
+		await waitFor(() => {
+			expect(injectedClient.getState).toHaveBeenCalledWith(123)
+		})
+		expect(createHttpGameRequestTransport).not.toHaveBeenCalled()
+		expect(createLiveEventSource).not.toHaveBeenCalled()
+	})
+
 	it('redirects and clears storage when the persisted JWT expires', async () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date(1_000_000))
