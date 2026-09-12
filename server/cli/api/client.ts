@@ -193,6 +193,10 @@ export function joinGame(session: SessionStore, gameId: string): Promise<ApiResu
   return requestBackendJson<CreateOrJoinGameResponse>(session, 'POST', `games/${gameId}/join`, {})
 }
 
+export function startGame(session: SessionStore, gameId: string): Promise<ApiResult<ActionResponse>> {
+  return requestBackendJson<ActionResponse>(session, 'POST', `games/${gameId}/start`, {})
+}
+
 export type GameListEntry = {
   gameId: number
   scenarioId: string

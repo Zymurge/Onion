@@ -6,6 +6,7 @@ export function useGameSession(controller: GameSessionController, options: UseGa
 	const { autoLoad = true, disposeOnUnmount = true } = options
 	const activeControllerRef = useRef(controller)
 	const mountedRef = useRef(false)
+	const loadedControllerRef = useRef<GameSessionController | null>(null)
 
 	useEffect(() => {
 		activeControllerRef.current = controller
@@ -20,7 +21,8 @@ export function useGameSession(controller: GameSessionController, options: UseGa
 	}, [])
 
 	useEffect(() => {
-		if (autoLoad) {
+		if (autoLoad && loadedControllerRef.current !== controller) {
+			loadedControllerRef.current = controller
 			void controller.load()
 		}
 

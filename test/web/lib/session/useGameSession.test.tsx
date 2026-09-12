@@ -44,6 +44,7 @@ function createController(initialState = createState()) {
 		refresh: vi.fn().mockResolvedValue(undefined),
 		submitAction: vi.fn().mockResolvedValue(undefined),
 		dispose: vi.fn(),
+		abort: vi.fn().mockResolvedValue(undefined),
 		setState(nextState) {
 			state = nextState
 			for (const listener of listeners.values()) {
@@ -94,6 +95,7 @@ describe('useGameSession', () => {
 		await waitFor(() => {
 			expect(controller.load).toHaveBeenCalled()
 		})
+		expect(controller.load).toHaveBeenCalledTimes(1)
 
 		await act(async () => {
 			await Promise.resolve()

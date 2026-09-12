@@ -3,6 +3,7 @@ type ErrorOverlayProps = {
   onDismiss: () => void
   className?: string
   placement?: 'corner' | 'map' | 'app'
+  dismissible?: boolean
 }
 
 export function ErrorOverlay({
@@ -10,6 +11,7 @@ export function ErrorOverlay({
   onDismiss,
   className,
   placement = 'corner',
+  dismissible = true,
 }: ErrorOverlayProps) {
   return (
     <div
@@ -18,7 +20,7 @@ export function ErrorOverlay({
       aria-live="assertive"
     >
       <span className="error-overlay-message">{message}</span>
-      <button type="button" className="error-overlay-dismiss" onClick={onDismiss} aria-label="Dismiss error">
+      <button type="button" className="error-overlay-dismiss" onClick={onDismiss} aria-label="Dismiss error" disabled={!dismissible}>
         Dismiss
       </button>
     </div>

@@ -71,14 +71,7 @@ test('aborts both browser sessions after one client reports an invalid snapshot 
 			&& response.request().postDataJSON()?.code === 'SNAPSHOT_INVALID'
 		))
 
-		await invalidClientPage.goto(`${runtime.webUrl}/?gameId=${twoPlayerGame.gameId}&liveRefreshQuietWindowMs=50`, {
-			waitUntil: 'domcontentloaded',
-		})
-		await invalidClientPage.getByLabel('API base URL').fill(runtime.engineUrl)
-		await invalidClientPage.getByLabel('Username').fill(twoPlayerGame.onion.username)
-		await invalidClientPage.getByLabel('Password').fill(twoPlayerGame.onion.password)
-		await invalidClientPage.getByLabel('Game ID').fill(String(twoPlayerGame.gameId))
-		await invalidClientPage.getByRole('button', { name: 'Load Game' }).click()
+		await new LoginPage(invalidClientPage).connect(runtime, twoPlayerGame.onion, twoPlayerGame.gameId)
 
 		const response = await diagnosticResponse
 		expect(response.status(), await response.text()).toBe(202)

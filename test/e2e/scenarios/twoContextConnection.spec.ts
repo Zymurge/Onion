@@ -16,8 +16,8 @@ test('Onion and Defender contexts reach the same runtime with isolated storage',
 		])
 
 		await Promise.all([
-			expect(onionPage.getByRole('heading', { name: 'Open a live game session' })).toBeVisible(),
-			expect(defenderPage.getByRole('heading', { name: 'Open a live game session' })).toBeVisible(),
+			expect(onionPage.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible(),
+			expect(defenderPage.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible(),
 		])
 
 		await onion.addCookies([{ name: 'e2e-session', value: 'onion', url: runtime.webUrl }])

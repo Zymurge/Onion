@@ -19,6 +19,7 @@ import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinition
 import type { LiveEventSource } from '#web/lib/gameSessionTypes'
 import type { SessionInitPayload } from '#shared/types/index'
 import { expectMirroredUnitSelection } from '../assertions'
+import logger from '#web/lib/logger'
 
 const testSessionCatalog: SessionInitPayload = {
 	unitTypes: getUnitTypeCatalog(),
@@ -88,6 +89,22 @@ describe('rendering and display', () => {
 				lastEventSeq: baseOrchestrationSnapshot.lastEventSeq,
 			}),
 		}))
+	})
+
+	it('emits one canonical telemetry record shape for turn transitions', async () => {
+		const debugSpy = vi.spyOn(logger, 'debug')
+		const client = createTestClient(baseOrchestrationSnapshot, { role: 'defender' })
+
+		render(<App gameClient={client} gameId={123} />)
+		await screen.findByTestId('app-ready')
+
+		const transitionCalls = debugSpy.mock.calls.filter(([message]) => message === '[app-debug] turn state transition')
+		expect(transitionCalls.length).toBeGreaterThan(0)
+		expect(transitionCalls.every(([, payload]) => {
+			return typeof payload === 'object' && payload !== null && 'ts' in payload && !('atMs' in payload)
+		})).toBe(true)
+
+		debugSpy.mockRestore()
 	})
 
 	it('reports an invalid snapshot once and renders the aborted state', async () => {

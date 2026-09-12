@@ -1,9 +1,11 @@
+/** Environment variables that may configure the web client at build time. */
 export type WebRuntimeEnv = {
 	VITE_ONION_API_URL?: string
 	VITE_ONION_LIVE_REFRESH_QUIET_WINDOW_MS?: string
 	VITE_ONION_LOG_LEVEL?: string
 }
 
+/** Normalized runtime settings consumed by app session and route wiring. */
 export type WebRuntimeConfig = {
 	apiBaseUrl: string | null
 	gameId: number | null
@@ -74,6 +76,10 @@ function parseLogLevel(value: string | null | undefined): 'debug' | 'info' | 'wa
 	return null
 }
 
+/**
+ * Resolves query-string, pathname, and environment settings into one typed
+ * runtime configuration object. Invalid values fall back to safe defaults.
+ */
 export function resolveWebRuntimeConfig(
 	env: WebRuntimeEnv,
 	search: string,
