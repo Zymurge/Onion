@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { buildAcknowledgementTurnKey } from './turnKey'
 import type { GameSessionController, GameSessionViewState } from './gameSessionTypes'
 
+/** Session turn fields required to calculate acknowledgement and lock state. */
 export type TurnHandoffGateTurn = {
 	phase: GameSessionViewState['snapshot'] extends infer Snapshot
 		? Snapshot extends { phase: infer Phase } ? Phase | null : never
@@ -14,11 +15,13 @@ export type TurnHandoffGateTurn = {
 	isActive: boolean
 }
 
+/** Minimal inactive-event stream contract needed by the handoff gate. */
 export type InactiveEventStreamForGate = {
 	entries: ReadonlyArray<{ type: string }>
 	clearEntries: () => void
 }
 
+/** Inputs for the inactive -> acknowledgement -> active turn contract. */
 export type TurnHandoffGateOptions = {
 	activeGameId: number | null
 	controller: GameSessionController
@@ -27,6 +30,10 @@ export type TurnHandoffGateOptions = {
 	turn: TurnHandoffGateTurn
 }
 
+/**
+ * Handoff state consumed by shell controls and battlefield lock boundaries.
+ * Controls remain locked until the current active turn is acknowledged.
+ */
 export type TurnHandoffGate = {
 	currentActiveTurnKey: string | null
 	acknowledgementPending: boolean
@@ -38,6 +45,10 @@ export type TurnHandoffGate = {
 
 const REMOTE_ABORT_MESSAGE = 'The game was aborted because a client reported an invalid snapshot.'
 
+/**
+ * Computes turn acknowledgement state and aborts on a remote invalid-snapshot
+ * signal received through the inactive event stream.
+ */
 export function useTurnHandoffGate({
 	activeGameId,
 	controller,

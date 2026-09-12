@@ -230,7 +230,7 @@ function App({
       inactiveEventStream={inactiveEventStream}
       interaction={interaction}
       session={session}
-      overlays={<AppOverlayLayer commands={commands} display={display} notifications={notifications} />}
+      overlays={<AppOverlayLayer commands={commands} display={display} interaction={interaction} notifications={notifications} />}
     />
   )
 }

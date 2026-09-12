@@ -5,6 +5,7 @@ import type { GameSessionController, GameSessionViewState } from './gameSessionT
 import logger from './logger'
 import type { SessionBinding } from './sessionBinding'
 
+/** Inputs for reporting authoritative-session and invalid-snapshot diagnostics. */
 export type ClientDiagnosticsReporterOptions = {
 	binding: SessionBinding | null
 	controller: GameSessionController
@@ -29,6 +30,11 @@ function buildClientContext() {
 	}
 }
 
+/**
+ * Reports client readiness and snapshot validation failures once per game.
+ * Invalid snapshots are terminal: the hook aborts the controller before it
+ * attempts the best-effort diagnostic report.
+ */
 export function useClientDiagnosticsReporter({
 	binding,
 	controller,

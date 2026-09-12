@@ -35,6 +35,7 @@ type CommandNotifications = {
 	dismissSessionError: () => void
 }
 
+/** Inputs used to translate shell and battlefield intent into domain actions. */
 export type AppCommandsOptions = {
 	acknowledgeTurn: () => void
 	catalog: SessionCatalog | null
@@ -46,6 +47,11 @@ export type AppCommandsOptions = {
 	setDebugOpen: Dispatch<SetStateAction<boolean>>
 }
 
+/**
+ * Stable command surface passed from app orchestration to shell components.
+ * Commands own routing and submission intent; display and interaction hooks
+ * remain the owners of derived state and local battlefield behavior.
+ */
 export type AppCommands = {
 	runShellControl: (control: ShellControl, enabled: boolean, execute: () => void) => void
 	advancePhase: () => void
@@ -62,6 +68,10 @@ export type AppCommands = {
 	dismissRamResolution: (index: number) => void
 }
 
+/**
+ * Builds the command adapter for header controls, combat, ram actions, and
+ * notification dismissal without moving UI policy into presentational code.
+ */
 export function useAppCommands({
 	acknowledgeTurn,
 	catalog,

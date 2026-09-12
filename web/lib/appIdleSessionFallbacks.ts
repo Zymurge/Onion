@@ -1,5 +1,6 @@
 import type { GameSessionController, GameSessionViewState, LiveEventSource } from './gameSessionTypes'
 
+/** Stable empty state used when the app has no bound game session. */
 export const idleSessionState: GameSessionViewState = {
 	status: 'idle',
 	catalog: null,
@@ -12,6 +13,7 @@ export const idleSessionState: GameSessionViewState = {
 	error: null,
 }
 
+/** No-op live source used by the idle session and injected-client fallback. */
 export const idleLiveEventSource: LiveEventSource = {
 	subscribe() {
 		return () => {}
@@ -23,6 +25,7 @@ export const idleLiveEventSource: LiveEventSource = {
 	},
 }
 
+/** No-op controller that keeps session hooks safe before a game is bound. */
 export const idleSessionController: GameSessionController = {
 	subscribe() {
 		return () => {}

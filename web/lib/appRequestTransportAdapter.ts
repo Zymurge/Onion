@@ -2,6 +2,11 @@ import type { GameAction, GameClient } from './gameClient'
 import logger from './logger'
 import type { GameRequestTransport } from './gameSessionTypes'
 
+/**
+ * Adapts the legacy GameClient seam to the session controller transport.
+ * Request timing and failure logs stay here while authoritative state remains
+ * owned by the controller.
+ */
 export function createRequestTransportFromGameClient(
 	gameClient: GameClient,
 ): GameRequestTransport {

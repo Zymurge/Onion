@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 
 import type { GameClientSeamError, ServerGameSnapshot } from './gameClient'
 
+/** Inputs used to derive visible errors and terminal game notifications. */
 export type AppNotificationPolicyOptions = {
 	activeGameId: number | null
 	actionError: string | null
@@ -10,6 +11,10 @@ export type AppNotificationPolicyOptions = {
 	snapshotError?: string | null
 }
 
+/**
+ * Notification state and dismissal commands consumed by the overlay layer.
+ * Snapshot validation errors are deliberately exposed as non-dismissible.
+ */
 export type AppNotificationPolicy = {
 	actionError: string | null
 	shouldShowActionError: boolean
@@ -39,6 +44,11 @@ function buildSessionErrorKey(activeGameId: number | null, sessionError: GameCli
 	return `${activeGameId ?? 'unknown'}:${sessionError.kind}:${sessionError.status ?? ''}:${sessionError.message}`
 }
 
+/**
+ * Applies notification precedence and per-game dismissal semantics.
+ * Action errors suppress recoverable session errors while terminal snapshot
+ * errors remain visible for the lifetime of the invalid session.
+ */
 export function useAppNotificationPolicy({
 	activeGameId,
 	actionError,

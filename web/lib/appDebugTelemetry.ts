@@ -32,6 +32,7 @@ type DebugInactiveEventStreamInput = {
 	isDismissed: boolean
 }
 
+/** Inputs for change-gated session and turn transition telemetry. */
 export type AppDebugTelemetryOptions = {
 	display: DebugDisplayInput
 	gate: DebugGateInput
@@ -67,6 +68,10 @@ function hasStateChanged<T extends Record<string, unknown>>(previousState: T | n
 	return previousState === null || Object.entries(currentState).some(([key, value]) => previousState[key as keyof T] !== value)
 }
 
+/**
+ * Logs session reload and turn-state transitions once per meaningful change.
+ * Telemetry is intentionally browser-only and has no effect on app behavior.
+ */
 export function useAppDebugTelemetry({
 	display,
 	gate,

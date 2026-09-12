@@ -4,12 +4,19 @@ import type { GameClientSeamError } from './gameClient'
 import { clearAuthSession, getAuthSessionExpiresAt, type AuthSession } from './authSession'
 import { buildLoginRedirect } from './authRouting'
 
+/** Inputs for the app-wide redirect guard used around session requests. */
 export type UseAuthExpiryRedirectOptions = {
 	authSession: AuthSession | null
 	error: GameClientSeamError | null
 	navigate?: (path: string) => void
 }
 
+/**
+ * Redirects an expired or unauthorized session to login once per mount.
+ *
+ * The hook clears the local auth session before navigating and accepts an
+ * injected navigator so the redirect behavior remains testable.
+ */
 export function useAuthExpiryRedirect({ authSession, error, navigate }: UseAuthExpiryRedirectOptions): void {
 	const authRedirectedRef = useRef(false)
 

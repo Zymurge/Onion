@@ -15,6 +15,7 @@ import { createRequestTransportFromGameClient } from './appRequestTransportAdapt
 import type { SessionBinding } from './sessionBinding'
 import { useGameSession } from './useGameSession'
 
+/** Inputs used to resolve an injected, connected, persisted, or idle session. */
 export type AppSessionWiringOptions = {
 	gameClient?: GameClient
 	gameId?: number
@@ -22,6 +23,7 @@ export type AppSessionWiringOptions = {
 	runtimeConfig?: WebRuntimeConfig
 }
 
+/** Derived turn identity used by handoff gating and battlefield display. */
 export type AppSessionTurnState = {
 	phase: TurnPhase | null
 	number: number | null
@@ -32,6 +34,10 @@ export type AppSessionTurnState = {
 	isActive: boolean
 }
 
+/**
+ * Complete session boundary returned to App orchestration.
+ * The binding selects one game; the controller owns its authoritative state.
+ */
 export type AppSessionWiring = {
 	authSession: AuthSession | null
 	binding: SessionBinding | null
@@ -43,6 +49,10 @@ export type AppSessionWiring = {
 	setConnectedSession: (binding: SessionBinding | null) => void
 }
 
+/**
+ * Resolves session ownership and creates exactly one controller for the active
+ * game, preferring an injected client over persisted HTTP session wiring.
+ */
 export function useAppSessionWiring({
 	gameClient,
 	gameId,
@@ -61,7 +71,7 @@ export function useAppSessionWiring({
 	}, [gameClient])
 
 	const persistedSessionBinding = useMemo<SessionBinding | null>(() => {
-		if (authSession === null || gameId === undefined) {
+		if (providedRequestTransport !== null || authSession === null || gameId === undefined) {
 			return null
 		}
 
@@ -76,7 +86,7 @@ export function useAppSessionWiring({
 			}),
 			gameId,
 		}
-	}, [authSession, gameId])
+	}, [authSession, gameId, providedRequestTransport])
 
 	const binding = useMemo<SessionBinding | null>(() => {
 		if (providedRequestTransport !== null && gameId !== undefined) {
