@@ -1,75 +1,23 @@
 /**
- * ============================================================================
- * Onion Web UI — application shell (INDEX FILE)
- * ============================================================================
+ * Thin application shell: compose session, gate, interaction, display,
+ * notification, command, and layout hooks. Keep behavior in their owning
+ * modules and preserve hook order because data flows downward.
  *
- * THIS FILE IS DELIBERATELY THIN. It is an index + wiring diagram, not a place
- * to put logic. If you are about to add more than a few lines of behavior here,
- * it belongs in one of the modules listed in the routing map below.
+ * Route focused work to the smallest relevant surface:
+ * - Auth and session binding: lib/appAuthRedirect.ts, lib/appSessionWiring.ts
+ * - Snapshot and live synchronization: lib/gameSessionController.ts, lib/useGameSession.ts
+ * - Turn handoff: lib/appTurnHandoffGate.ts
+ * - Battlefield interaction and display: lib/useBattlefieldInteractionState.ts, lib/useBattlefieldDisplayState.ts
+ * - Notifications and commands: lib/appNotificationPolicy.ts, lib/appCommands.ts
+ * - Diagnostics and telemetry: lib/appClientDiagnostics.ts, lib/appDebugTelemetry.ts
+ * - Shell layout and overlays: components/AppShellLayout.tsx, components/AppOverlayLayer.tsx
  *
- * The full pre-refactor implementation is preserved at `web/App.tsx.ref`.
- * Authors of the modules below should port logic FROM that reference file.
- * STATUS: scaffold. The `lib/app*` and `components/App*` modules below do not
- * exist yet; this file defines the contracts they must satisfy.
- *
- * ---------------------------------------------------------------------------
- * AGENT ROUTING MAP — read only what your task needs
- * ---------------------------------------------------------------------------
- * Working on...                     | Read these files
- * ----------------------------------|----------------------------------------
- * Login / token expiry / 401        | lib/appAuthRedirect.ts
- *                                   | lib/authSession.ts, lib/authRouting.ts
- * Which game/transport is bound     | lib/appSessionWiring.ts
- *                                   | lib/sessionBinding.ts, lib/httpGameClient.ts
- * Injected test client -> seam      | lib/appRequestTransportAdapter.ts
- * Unbound / idle session behavior   | lib/appIdleSessionFallbacks.ts
- * Snapshot load, refresh, live WS   | lib/gameSessionController.ts, lib/useGameSession.ts
- * "Begin Turn" / locked controls    | lib/appTurnHandoffGate.ts, lib/turnKey.ts
- * Unit selection, move, ram, fire   | lib/useBattlefieldInteractionState.ts
- * Derived view models / labels      | lib/useBattlefieldDisplayState.ts
- *                                   | lib/battlefieldViewBuilders.ts
- * Error overlays & toast visibility | lib/appNotificationPolicy.ts
- * Button intent / command handlers  | lib/appCommands.ts, lib/shellControlRouting.ts
- * Diagnostics sent to the server    | lib/appClientDiagnostics.ts
- * Debug logs / debug popup          | lib/appDebugTelemetry.ts, lib/useDebugDiagnostics.ts
- * Page structure & rail props       | components/AppShellLayout.tsx
- * Overlay/toast rendering           | components/AppOverlayLayer.tsx
- * Terminal "game aborted" screen    | components/GameAbortedScreen.tsx
- *
- * ---------------------------------------------------------------------------
- * PORTING NOTES for the agents authoring the modules above
- * ---------------------------------------------------------------------------
- * A. PROP CONVENTION: App.tsx passes GROUPED objects (session, gate, display,
- *    interaction, commands) into AppShellLayout. AppShellLayout is the single
- *    fan-out point and passes FLAT primitive props down into the header, rails,
- *    and stage. Do not thread grouped objects past AppShellLayout.
- * B. App.tsx.ref contains TWO near-duplicate "turn state transition" logging
- *    effects (one emits `ts:`, the other `atMs:`), so every transition is
- *    logged twice. Port them as ONE effect in lib/appDebugTelemetry.ts.
- * C. `display.error` keeps its current name. It means SNAPSHOT VALIDATION
- *    FAILED and is terminal — do not confuse it with the recoverable
- *    `session.state.error` transport failure. See invariants 4 and 5.
- * D. Preserve all existing `data-testid` hooks when moving JSX; the web and
- *    E2E suites assert on them (app-shell, app-ready, session-sync-probe,
- *    game-aborted, app-<state>-state).
- *
- * ---------------------------------------------------------------------------
- * INVARIANTS (do not break without updating docs/web-ui-spec.md)
- * ---------------------------------------------------------------------------
- * 1. Server snapshots are authoritative. Live WS events are refresh HINTS only;
- *    never synthesize or mutate snapshot values locally.
- * 2. One App instance maps to exactly one game session.
- * 3. Turn handoff is a 3-phase contract: inactive -> acknowledgement -> active.
- * 4. An invalid snapshot is TERMINAL: report diagnostic, abort the session, and
- *    render GameAbortedScreen. It is intentionally not dismissible.
- * 5. Transport errors are RECOVERABLE and must stay dismissible.
- *
- * ---------------------------------------------------------------------------
- * EXECUTION ORDER (hooks below are order-dependent — data flows downward)
- * ---------------------------------------------------------------------------
- *   session -> events -> gate -> interaction -> display -> notifications
- *                                                       -> commands
- * ============================================================================
+ * Current contracts:
+ * - Server snapshots are authoritative; live events are refresh hints only.
+ * - One App instance maps to one game session.
+ * - Turn handoff is inactive -> acknowledgement -> active.
+ * - Invalid snapshots terminate the session; transport errors remain dismissible.
+ * - AppShellLayout is the grouped-prop fan-out point. Preserve existing test IDs.
  */
 
 import { ConnectGate } from './components/ConnectGate'
