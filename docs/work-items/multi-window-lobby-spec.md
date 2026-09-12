@@ -15,6 +15,13 @@ This specification covers:
 This specification does not redesign the rules engine, match event protocol,
 or host-controlled start lifecycle. Those remain as implemented.
 
+## Status
+
+The short-term scope is complete: lobby polling, lifecycle gating, ready-to-
+active handoff, configurable polling, dedicated game-window navigation, and
+stale-action recovery are implemented and covered by tests. The long-term
+items below remain an intentional backlog, not unfinished short-term work.
+
 ## Product Model
 
 The intended browser model is:

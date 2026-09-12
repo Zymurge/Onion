@@ -5,7 +5,7 @@
 This document defines the tests that establish the end-state boundary between
 static unit capabilities, scenario-authored deployment data, and dynamic runtime
 state. It is the implementation handoff for Tasks 1-5 under "Scenario-Driven
-Unit Deployment" in `docs/todo.md`.
+Unit Deployment" in `../work-items/todo.md`.
 
 The first implementation pass must add tests before changing production code.
 Tests marked **red** describe target behavior that the current implementation
@@ -18,7 +18,7 @@ The scenario-driven deployment implementation and Phase 2 integration slice are
 complete as of 2026-08-17. The red/green labels below are preserved as the
 original test-first handoff record and describe the state before implementation;
 they are not a current production-status report. The current status is tracked
-in `docs/todo.md`.
+in `../work-items/todo.md`.
 
 All 19 explicit contract-test TODOs for catalog parsing, ammo metadata, type
 boundaries, scenario validation, and normalizer edge cases were implemented in

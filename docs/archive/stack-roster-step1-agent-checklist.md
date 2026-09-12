@@ -5,8 +5,8 @@ Each task is intended to be implementable and testable independently.
 
 Primary source requirements:
 
-- [docs/archive/stacked-unit-management-spec.md](docs/archive/stacked-unit-management-spec.md)
-- [docs/todo.md](docs/todo.md)
+- [stacked-unit-management-spec.md](stacked-unit-management-spec.md)
+- [../work-items/todo.md](../work-items/todo.md)
 
 ## Goal
 

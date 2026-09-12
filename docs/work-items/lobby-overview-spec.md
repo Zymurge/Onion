@@ -11,6 +11,14 @@ The lobby does not own turn rules, movement, combat, victory, or authoritative
 in-game state. Once a game starts, those responsibilities remain with the
 existing gameplay engine.
 
+## Status
+
+The core lobby scope is implemented: authenticated users can create games,
+discover and join waiting games, observe readiness, and have the host start a
+ready match before entering gameplay. The remaining work is explicitly
+deferred to Phase 2 and is listed below rather than being part of the current
+implementation contract.
+
 The polling and dedicated-window direction for the web lobby is specified in
 [multi-window-lobby-spec.md](multi-window-lobby-spec.md).
 
@@ -37,7 +45,7 @@ visibility policy remain future work.
 
 Establish the user identity and account operations the lobby depends on.
 
-See [user-account-spec.md](user-account-spec.md) for the detailed initial
+See [user-account-spec.md](../user-account-spec.md) for the detailed initial
 account scope.
 
 - Support authenticated user creation and login using the existing JWT-based
@@ -131,6 +139,12 @@ remains deferred, while the host start policy is implemented through
 
 Basic status and waiting-game discovery are implemented. Richer visibility rules
 and potentially public, private, or invite-only games remain deferred.
+
+### Additional Matchmaking and Lifecycle Features
+
+Leave/cancel, rematch, host transfer, private or invite-only games, and richer
+visibility policy remain deferred. They should be added only when product scope
+requires them.
 
 ## Boundary Summary
 

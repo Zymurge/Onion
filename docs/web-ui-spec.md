@@ -5,7 +5,7 @@
 Define the current UI behavior and implementation constraints for the Onion web client.
 
 The lobby's polling and multi-window direction is specified in
-[multi-window-lobby-spec.md](multi-window-lobby-spec.md).
+[multi-window-lobby-spec.md](work-items/multi-window-lobby-spec.md).
 
 ## Architecture
 
