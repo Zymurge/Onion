@@ -83,7 +83,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           onLayoutChange={debug.setDebugPopupLayout}
           onClose={() => debug.setDebugOpen(false)}
           lines={debug.debugEntries}
-          onAdvancePhase={commands.advancePhase}
+onAdvancePhase={() => commands.runShellControl('advance-phase', true, commands.advancePhase)}
         />
       ) : null}
 
