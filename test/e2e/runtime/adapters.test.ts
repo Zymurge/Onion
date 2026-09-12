@@ -192,7 +192,7 @@ describe('PortAllocatorImpl', () => {
 
 class FakeHttpServer {
 	url!: string
-	private server: import('node:http').Server
+	private server!: import('node:http').Server
 	private delayMs = 0
 	private ready: Promise<void>
 	onRequest: (() => { status: number; body: string }) | null = null

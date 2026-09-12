@@ -7,19 +7,13 @@ import { LoginPage } from '../pages/loginPage.js'
 
 test.use({ twoPlayerScenarioId: 'e2e-ram-01' })
 
-test('surfaces a rejected move without changing either player view', async ({ browser, request, twoPlayerGame }) => {
+test('surfaces a rejected move without changing either player view', async ({ browser, twoPlayerGame }) => {
 	const runtime = readPlaywrightRuntime()
 	const onionContext = await browser.newContext()
 	const defenderContext = await browser.newContext()
 	let rejectedActionCount = 0
 
 	try {
-		const startResponse = await request.post(`${runtime.engineUrl}/games/${twoPlayerGame.gameId}/start`, {
-			headers: { authorization: `Bearer ${twoPlayerGame.onion.token}` },
-			data: {},
-		})
-		expect(startResponse.ok(), await startResponse.text()).toBe(true)
-
 		const onionPage = await onionContext.newPage()
 		const defenderPage = await defenderContext.newPage()
 		const onionBattlefield = new BattlefieldPage(onionPage)
@@ -69,18 +63,12 @@ test('surfaces a rejected move without changing either player view', async ({ br
 	}
 })
 
-test('surfaces a gameplay network failure without applying a move', async ({ browser, request, twoPlayerGame }) => {
+test('surfaces a gameplay network failure without applying a move', async ({ browser, twoPlayerGame }) => {
 	const runtime = readPlaywrightRuntime()
 	const context = await browser.newContext()
 	let failedActionCount = 0
 
 	try {
-		const startResponse = await request.post(`${runtime.engineUrl}/games/${twoPlayerGame.gameId}/start`, {
-			headers: { authorization: `Bearer ${twoPlayerGame.onion.token}` },
-			data: {},
-		})
-		expect(startResponse.ok(), await startResponse.text()).toBe(true)
-
 		const page = await context.newPage()
 		const battlefield = new BattlefieldPage(page)
 		await new LoginPage(page).signIn(runtime, twoPlayerGame.onion, `/game/${twoPlayerGame.gameId}`)
@@ -108,18 +96,12 @@ test('surfaces a gameplay network failure without applying a move', async ({ bro
 	}
 })
 
-test('reports a live WebSocket disconnect in the browser', async ({ browser, request, twoPlayerGame }) => {
+test('reports a live WebSocket disconnect in the browser', async ({ browser, twoPlayerGame }) => {
 	const runtime = readPlaywrightRuntime()
 	const context = await browser.newContext()
 	let webSocketRoute: WebSocketRoute | null = null
 
 	try {
-		const startResponse = await request.post(`${runtime.engineUrl}/games/${twoPlayerGame.gameId}/start`, {
-			headers: { authorization: `Bearer ${twoPlayerGame.onion.token}` },
-			data: {},
-		})
-		expect(startResponse.ok(), await startResponse.text()).toBe(true)
-
 		const page = await context.newPage()
 		await page.routeWebSocket(
 			(url) => url.pathname === `/games/${twoPlayerGame.gameId}/ws`,
@@ -145,12 +127,6 @@ test('reports a live WebSocket disconnect in the browser', async ({ browser, req
 
 test('logs unexpected action failures with correlation context', async ({ request, twoPlayerGame }) => {
 	const runtime = readPlaywrightRuntime()
-	const startResponse = await request.post(`${runtime.engineUrl}/games/${twoPlayerGame.gameId}/start`, {
-		headers: { authorization: `Bearer ${twoPlayerGame.onion.token}` },
-		data: {},
-	})
-	expect(startResponse.ok(), await startResponse.text()).toBe(true)
-
 	const response = await request.post(`${runtime.engineUrl}/games/${twoPlayerGame.gameId}/actions`, {
 		headers: { authorization: `Bearer ${twoPlayerGame.onion.token}` },
 		data: {

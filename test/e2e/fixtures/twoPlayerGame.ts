@@ -2,6 +2,7 @@ import { test as base, type Browser, type BrowserContext } from '@playwright/tes
 import {
 	createGame as createGameRequest,
 	joinGame as joinGameRequest,
+	startGame as startGameRequest,
 	registerUser as registerUserRequest,
 	type AuthResponse,
 	type CreateOrJoinGameResponse,
@@ -45,6 +46,8 @@ export type TwoPlayerGameBootstrapOptions = {
 	registerUser?: typeof registerUserRequest
 	createGame?: typeof createGameRequest
 	joinGame?: typeof joinGameRequest
+	startCreatedGame?: boolean
+	startGame?: typeof startGameRequest
 	runId?: string
 }
 
@@ -119,6 +122,7 @@ export async function bootstrapTwoPlayerGame(options: TwoPlayerGameBootstrapOpti
 	const registerUser = options.registerUser ?? registerUserRequest
 	const createGame = options.createGame ?? createGameRequest
 	const joinGame = options.joinGame ?? joinGameRequest
+	const startGame = options.startGame ?? startGameRequest
 
 	const onionSession = createSession(baseUrl, sessionFactory)
 	const onionAuth = unwrapResult('register Onion user', await registerUser(onionSession, onion.username, onion.password))
@@ -135,6 +139,9 @@ export async function bootstrapTwoPlayerGame(options: TwoPlayerGameBootstrapOpti
 
 	if (options.joinCreatedGame ?? true) {
 		unwrapResult('join game', await joinGame(defenderSession, String(createdGame.gameId)))
+		if (options.startCreatedGame ?? false) {
+			unwrapResult('start game', await startGame(onionSession, String(createdGame.gameId)))
+		}
 	}
 
 	return {
@@ -156,7 +163,7 @@ export const test = base.extend<TwoPlayerFixtures>({
 	twoPlayerScenarioId: ['swamp-siege-01', { option: true }],
 	twoPlayerGame: async ({ twoPlayerScenarioId }, use) => {
 		const provide = use
-		await provide(await bootstrapTwoPlayerGame({ scenarioId: twoPlayerScenarioId }))
+		await provide(await bootstrapTwoPlayerGame({ scenarioId: twoPlayerScenarioId, startCreatedGame: true }))
 	},
 	openTwoPlayerGame: async ({ twoPlayerScenarioId }, use) => {
 		const provide = use
