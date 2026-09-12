@@ -66,7 +66,6 @@ describe('useAppNotificationPolicy', () => {
 
 	it('shows a later session failure after the previous error clears', () => {
 		const firstError = createSessionError('first failure')
-		const secondError = createSessionError('first failure')
 		const { result, rerender } = renderPolicy({ sessionError: firstError })
 
 		act(() => {
@@ -77,7 +76,7 @@ describe('useAppNotificationPolicy', () => {
 		rerender({ sessionError: null })
 		expect(result.current.sessionErrorKey).toBeNull()
 
-		rerender({ sessionError: secondError })
+		rerender({ sessionError: firstError })
 		expect(result.current.shouldShowSessionError).toBe(true)
 		expect(result.current.sessionErrorKey).toContain('first failure')
 })

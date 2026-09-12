@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import type { GameClientSeamError, ServerGameSnapshot } from './gameClient'
 
@@ -31,11 +31,6 @@ export type AppNotificationPolicy = {
 	shouldShowSnapshotError: boolean
 }
 
-type DismissedSessionError = {
-	error: GameClientSeamError
-	key: string
-}
-
 function buildSessionErrorKey(activeGameId: number | null, sessionError: GameClientSeamError | null): string | null {
 	if (sessionError === null) {
 		return null
@@ -56,16 +51,24 @@ export function useAppNotificationPolicy({
 	snapshot,
 	snapshotError = null,
 }: AppNotificationPolicyOptions): AppNotificationPolicy {
-	const [dismissedSessionError, setDismissedSessionError] = useState<DismissedSessionError | null>(null)
+	const [dismissedSessionErrorKey, setDismissedSessionErrorKey] = useState<string | null>(null)
 	const [dismissedGameOverToastKey, setDismissedGameOverToastKey] = useState<string | null>(null)
 
 	const sessionErrorKey = buildSessionErrorKey(activeGameId, sessionError)
 	const sessionWinner = snapshot?.winner ?? null
 	const sessionWinnerToastKey = snapshot === null ? null : `${snapshot.gameId}:${snapshot.lastEventSeq}`
 
+	useEffect(() => {
+		return () => {
+			if (sessionErrorKey !== null) {
+				setDismissedSessionErrorKey(null)
+			}
+		}
+	}, [sessionErrorKey])
+
 	const dismissSessionError = useCallback(() => {
 		if (sessionError !== null && sessionErrorKey !== null) {
-			setDismissedSessionError({ error: sessionError, key: sessionErrorKey })
+			setDismissedSessionErrorKey(sessionErrorKey)
 		}
 	}, [sessionError, sessionErrorKey])
 
@@ -82,9 +85,7 @@ export function useAppNotificationPolicy({
 		sessionErrorKey,
 		shouldShowSessionError: actionError === null
 			&& sessionErrorKey !== null
-			&& (dismissedSessionError === null
-				|| dismissedSessionError.key !== sessionErrorKey
-				|| dismissedSessionError.error !== sessionError),
+			&& dismissedSessionErrorKey !== sessionErrorKey,
 		dismissSessionError,
 		sessionWinner,
 		sessionWinnerToastKey,
