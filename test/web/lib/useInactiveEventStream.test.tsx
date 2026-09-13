@@ -307,6 +307,32 @@ describe('useInactiveEventStream', () => {
 		})
 	})
 
+	it('renders each destroyed member of a combat stack by its individual name', async () => {
+		const pollEvents = vi.fn().mockResolvedValue([
+			createEvent({ seq: 1, type: 'FIRE_RESOLVED', timestamp: 't1', turnNumber: 3, causeId: 'combat-1', targetFriendlyName: 'Little Pigs group 1', outcome: 'X' }),
+			createEvent({ seq: 2, type: 'UNIT_STATUS_CHANGED', timestamp: 't2', turnNumber: 3, causeId: 'combat-1', unitId: 'pigs-1', unitFriendlyName: 'Little Pigs 1', from: 'operational', to: 'destroyed' }),
+			createEvent({ seq: 3, type: 'UNIT_STATUS_CHANGED', timestamp: 't3', turnNumber: 3, causeId: 'combat-1', unitId: 'pigs-2', unitFriendlyName: 'Little Pigs 2', from: 'operational', to: 'destroyed' }),
+			createEvent({ seq: 4, type: 'UNIT_STATUS_CHANGED', timestamp: 't4', turnNumber: 3, causeId: 'combat-1', unitId: 'pigs-3', unitFriendlyName: 'Little Pigs 3', from: 'operational', to: 'destroyed' }),
+		])
+
+		const { result } = renderHook(() =>
+			useInactiveEventStream({
+				activeGameId: 123,
+				activeTurnActive: false,
+				currentTurnNumber: 3,
+				lastAppliedEventSeq: 10,
+				pollEvents,
+			}),
+		)
+
+		await waitFor(() => expect(result.current.entries).toHaveLength(1))
+		expect(result.current.entries[0].details).toEqual(expect.arrayContaining([
+			'Unit: Little Pigs 1: operational → destroyed',
+			'Unit: Little Pigs 2: operational → destroyed',
+			'Unit: Little Pigs 3: operational → destroyed',
+		]))
+	})
+
 	it('formats standalone inactive events and structured detail values', async () => {
 		const pollEvents = vi.fn().mockResolvedValue([
 			createEvent({ seq: 1, type: 'PHASE_CHANGED', timestamp: 't1', turnNumber: 3, to: 'DEFENDER_MOVE' }),

@@ -98,4 +98,25 @@ describe('buildCombatResolution', () => {
 			details: ['Treads lost: 1 (remaining 44)'],
 		})
 	})
+
+	it('keeps destruction details distinct for each stacked unit', () => {
+		const resolution = buildCombatResolution([
+			{
+				type: 'FIRE_RESOLVED',
+				attackers: ['main'],
+				targetId: 'LittlePigs:1,1',
+				targetFriendlyName: 'Little Pigs group 1',
+				outcome: 'X',
+			},
+			{ type: 'UNIT_STATUS_CHANGED', unitId: 'pigs-1', unitFriendlyName: 'Little Pigs 1', from: 'operational', to: 'destroyed' },
+			{ type: 'UNIT_STATUS_CHANGED', unitId: 'pigs-2', unitFriendlyName: 'Little Pigs 2', from: 'operational', to: 'destroyed' },
+			{ type: 'UNIT_STATUS_CHANGED', unitId: 'pigs-3', unitFriendlyName: 'Little Pigs 3', from: 'operational', to: 'destroyed' },
+		])
+
+		expect(resolution?.details).toEqual([
+			'Status: Little Pigs 1 operational → destroyed',
+			'Status: Little Pigs 2 operational → destroyed',
+			'Status: Little Pigs 3 operational → destroyed',
+		])
+	})
 })

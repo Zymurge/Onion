@@ -82,7 +82,7 @@ describe('GamesScreen', () => {
 
   it('opens a joined game in a dedicated window', async () => {
     const user = userEvent.setup()
-    const gameWindow = { focus: vi.fn() } as unknown as Window
+    const gameWindow = { focus: vi.fn(), location: { href: '' } } as unknown as Window
     const windowOpen = vi.spyOn(window, 'open').mockReturnValue(gameWindow)
     saveAuthSession({
       apiBaseUrl: 'http://localhost:3000',
@@ -112,8 +112,42 @@ describe('GamesScreen', () => {
     render(<GamesScreen />)
     await user.click(await screen.findByRole('button', { name: 'Join Game' }))
 
-    expect(windowOpen).toHaveBeenCalledWith('/game/12', '_blank', 'noopener,noreferrer')
+    expect(windowOpen).toHaveBeenCalledWith('', '_blank')
+    expect(gameWindow.location.href).toBe('/game/12')
     expect(gameWindow.focus).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a blocked popup without navigating or joining the lobby game', async () => {
+    const user = userEvent.setup()
+    const windowOpen = vi.spyOn(window, 'open').mockReturnValue(null)
+    saveAuthSession({
+      apiBaseUrl: 'http://localhost:3000',
+      username: 'player-1',
+      userId: 'user-1',
+      token: 'token-1',
+    })
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/config')) {
+        return response({ lobbyPollIntervalMs: 3000 })
+      }
+      return response({
+        games: [{
+          gameId: 12,
+          scenarioId: 'swamp-siege-01',
+          scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+          creatorRole: 'onion',
+          openRole: 'defender',
+        }],
+      })
+    })
+
+    render(<GamesScreen />)
+    await user.click(await screen.findByRole('button', { name: 'Join Game' }))
+
+    await screen.findByText('Unable to open the game window. Allow popups for this site and try again.')
+    expect(windowOpen).toHaveBeenCalledWith('', '_blank')
+    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith('/games/12/join'))).toBe(false)
   })
 
   it('refreshes the open game list using the configured interval', async () => {
@@ -152,6 +186,7 @@ describe('GamesScreen', () => {
 
   it('refreshes open games after a join conflict', async () => {
     const user = userEvent.setup()
+    vi.spyOn(window, 'open').mockReturnValue({ close: vi.fn(), location: { href: '' } } as unknown as Window)
     saveAuthSession({
       apiBaseUrl: 'http://localhost:3000',
       username: 'player-1',

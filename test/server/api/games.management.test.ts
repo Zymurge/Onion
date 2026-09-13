@@ -104,6 +104,7 @@ describe('POST /games', () => {
         nodeEnv: 'test',
         logLevel: 'error',
         scenariosDir: `${process.cwd()}/scenarios`,
+        lobbyPollIntervalMs: 3000,
       },
     })
     await app.ready()

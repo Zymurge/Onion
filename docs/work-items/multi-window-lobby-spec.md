@@ -95,9 +95,13 @@ insufficient, but it will remain logically separate from the match channel.
 The lobby window remains on the dashboard or open-game screen when a game is
 opened.
 
-Short term, the client may use `window.open` to open `/game/{id}` and fall back
-to same-window navigation when a popup is blocked. Duplicate-window detection,
-focus-existing behavior, and a browser window registry are long-term work.
+Join and host-start actions reserve a blank child window synchronously from the
+user action, then navigate that retained window after the async request
+succeeds. If the reservation is blocked, the lobby reports the problem without
+navigating or sending the game request. Direct active/completed game links may
+still use the same-window fallback when popup blocking prevents a dedicated
+window. Duplicate-window detection, focus-existing behavior, and a browser
+window registry are long-term work.
 
 ### Gameplay is lifecycle-gated
 
@@ -366,7 +370,7 @@ window.
 
 - Add a small navigation helper for lobby-to-game handoff.
 - Attempt to open `/game/{id}` in a new browser window or tab.
-- Provide a same-window fallback when popup blocking prevents the new window.
+- Preserve the lobby when popup blocking prevents a join or start window.
 - Use the helper after a successful host start.
 - Use the helper for active and completed `Open Game` actions.
 - Preserve the existing auth bootstrap from shared browser storage and URL
@@ -377,7 +381,8 @@ window.
 
 - Start success uses the correct game URL.
 - Open Game uses the same navigation helper.
-- Popup-blocked behavior still reaches the game.
+- Popup-blocked join/start behavior reports the problem without replacing the
+  lobby window.
 - The lobby remains usable in the normal dedicated-window path.
 
 **Done when:**
@@ -488,7 +493,7 @@ and it must not make browser cross-window messages authoritative.
 
 | Risk | Mitigation |
 | :--- | :--- |
-| Popup blocking prevents a new game window | Fall back to same-window navigation and expose a clear game link |
+| Popup blocking prevents a join or start window | Keep the lobby in place and report that popups must be allowed |
 | Polling feels too slow | Refresh on focus/visibility and after mutations; tune the configured interval |
 | Hidden tabs waste requests | Pause or reduce polling while hidden |
 | Ready games look playable | Implement lifecycle gating before handoff polish |

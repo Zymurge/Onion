@@ -41,6 +41,7 @@ describe('verifyUserId', () => {
           nodeEnv: 'test',
           logLevel: 'error',
           scenariosDir: `${process.cwd()}/scenarios`,
+          lobbyPollIntervalMs: 3000,
         },
       },
     })

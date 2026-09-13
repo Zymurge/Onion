@@ -4,7 +4,7 @@ import { UserSideMenu } from './UserSideMenu'
 import { useLobbyPolling } from '../lib/useLobbyPolling'
 import { clearAuthSession, getAuthSession } from '../lib/authSession'
 import { requestJson } from '../../shared/apiProtocol'
-import { openGameWindow } from '../lib/gameNavigation'
+import { prepareGameWindow } from '../lib/gameNavigation'
 import './UserDashboard.css'
 import './GamesScreen.css'
 
@@ -40,6 +40,12 @@ export function GamesScreen({ navigate }: GamesScreenProps) {
     if (!session || joiningGameId !== null) return
 
     setError(null)
+    const gameWindow = prepareGameWindow({ navigate })
+    if (!gameWindow) {
+      setError('Unable to open the game window. Allow popups for this site and try again.')
+      return
+    }
+
     setJoiningGameId(gameId)
     try {
       const result = await requestJson<{ gameId: number; role: 'onion' | 'defender' }>({
@@ -50,14 +56,16 @@ export function GamesScreen({ navigate }: GamesScreenProps) {
         body: {},
       })
       if (!result.ok) {
+        gameWindow.cancel()
         setError(result.message)
         void refresh()
         return
       }
 
       void refresh()
-      openGameWindow(`/game/${result.data.gameId}`, { navigate })
+      gameWindow.complete(`/game/${result.data.gameId}`)
     } catch {
+      gameWindow.cancel()
       setError('Unable to join the game.')
     } finally {
       setJoiningGameId(null)

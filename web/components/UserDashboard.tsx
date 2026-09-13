@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ErrorOverlay } from './ErrorOverlay'
 import { UserSideMenu } from './UserSideMenu'
 import { useLobbyPolling } from '../lib/useLobbyPolling'
-import { openGameWindow } from '../lib/gameNavigation'
+import { openGameWindow, prepareGameWindow } from '../lib/gameNavigation'
 import './UserDashboard.css'
 
 type UserDashboardProps = {
@@ -67,6 +67,12 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
     }
 
     setError(null)
+    const gameWindow = prepareGameWindow({ navigate })
+    if (!gameWindow) {
+      setError('Unable to open the game window. Allow popups for this site and try again.')
+      return
+    }
+
     setStartingGameId(gameId)
     try {
       const result = await requestJson<{ gameId: number; status: 'active' }>({
@@ -77,14 +83,16 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
         body: {},
       })
       if (!result.ok) {
+        gameWindow.cancel()
         setError(result.message)
         void refresh()
         return
       }
 
       void refresh()
-      openGameWindow(`/game/${result.data.gameId}`, { navigate })
+      gameWindow.complete(`/game/${result.data.gameId}`)
     } catch {
+      gameWindow.cancel()
       setError('Unable to start the game.')
     } finally {
       setStartingGameId(null)
@@ -150,7 +158,16 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
                           {startingGameId === game.gameId ? 'Starting...' : 'Start Game'}
                         </button>
                       ) : (
-                        <span className="dashboard-game-link dashboard-game-link-disabled">Ready</span>
+                        <a
+                          className="dashboard-game-link"
+                          href={`/game/${game.gameId}`}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            openGameWindow(`/game/${game.gameId}`, { navigate })
+                          }}
+                        >
+                          Open Game
+                        </a>
                       )
                     ) : (
                       <span className="dashboard-game-link dashboard-game-link-disabled">Waiting</span>

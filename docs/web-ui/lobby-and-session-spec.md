@@ -60,11 +60,14 @@ The full payload contract is in [api-contract.md](../api-contract.md).
 
 - Active and completed games open at `/game/{id}` in a dedicated browser window
   or tab when possible, while the lobby remains usable.
-- A successful join or host start hands the returned game ID to the same
-  navigation path. A joined game may still be `ready`, so its game window
-  remains locked until the host starts it.
-- If popup blocking prevents the new window, the client falls back to
-  same-window navigation.
+- A join or host start reserves the dedicated window synchronously from the
+  user action, then hands the returned game ID to that window after the request
+  succeeds. A joined game may still be `ready`, so its game window remains
+  locked until the host starts it.
+- If popup blocking prevents a join or start window, the lobby stays in place,
+  the request is not sent, and the client reports that popups must be allowed.
+- Active and completed `Open Game` actions retain the existing same-window
+  fallback when popup blocking prevents a dedicated window.
 - The game window uses the existing authentication bootstrap and URL game ID.
 - Duplicate-window tracking, focus-existing behavior, browser window registries,
   and cross-window messaging are outside the current contract.

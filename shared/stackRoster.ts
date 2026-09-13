@@ -228,6 +228,26 @@ export function refreshStackRosterNamingSnapshot(
 	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster, defenders))
 }
 
+export function canonicalizeStackRoster(
+	stackRoster: StackRosterState,
+	seed: StackNamingSnapshot | undefined,
+	defenders: DefenderMap | undefined,
+): { stackRoster: StackRosterState; stackNaming: StackNamingSnapshot } {
+	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster, seed, defenders)
+	const groupNamesByKey = new Map(stackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
+	const groupsById = Object.fromEntries(
+		Object.entries(stackRoster.groupsById).map(([groupId, group]) => {
+			const groupKey = buildStackGroupKey(group.unitType, group.position)
+			return [groupId, {
+				...group,
+				groupName: groupNamesByKey.get(groupKey) ?? group.groupName,
+			}]
+		}),
+	)
+
+	return { stackRoster: { groupsById }, stackNaming }
+}
+
 function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterGroupBuilder[] {
 	const groupedUnits = new Map<string, StackRosterGroupBuilder>()
 

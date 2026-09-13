@@ -14,7 +14,7 @@ import { MovementResult } from '#server/engine/movement'
 import { CombatExecutionResult } from '#server/engine/combat'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import { getDefender, getOnionOrDefender } from '#shared/unitState'
-import { refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
+import { canonicalizeStackRoster, refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 const GAME_ID_RE = /^\d+$/
 
@@ -27,12 +27,13 @@ export function buildSessionInitPayload(): SessionInitPayload {
 
 function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void {
   const stackRoster = matchState.stackRoster
-  const rosterGroups = Object.entries(stackRoster?.groupsById ?? {})
+  const canonicalStackState = canonicalizeStackRoster(stackRoster ?? { groupsById: {} }, undefined, matchState.defenders)
+  const rosterGroups = Object.entries(canonicalStackState.stackRoster.groupsById)
   if (rosterGroups.length === 0) {
     return
   }
 
-  const canonicalStackNaming = refreshStackRosterNamingSnapshot(stackRoster, undefined, matchState.defenders)
+  const canonicalStackNaming = canonicalStackState.stackNaming
   const canonicalGroupNames = new Map(canonicalStackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
   const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupKey, group.groupName]))
 
@@ -107,8 +108,9 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
 }
 
 function buildResponseStackRoster(matchState: MatchRecord['state']): StackRosterState {
+  const canonicalStackRoster = canonicalizeStackRoster(matchState.stackRoster ?? { groupsById: {} }, matchState.stackNaming, matchState.defenders).stackRoster
   const groupsById = Object.fromEntries(
-    Object.entries(matchState.stackRoster?.groupsById ?? {}).flatMap(([groupId, group]) => {
+    Object.entries(canonicalStackRoster.groupsById).flatMap(([groupId, group]) => {
       if (!(getUnitDefinition(group.unitType)?.stackable === true)) {
         return []
       }
@@ -313,11 +315,11 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
 
 export function buildEngineState(match: MatchRecord): GameState {
   assertCanonicalStackGroupNames(match.state)
-  const stackNaming = refreshStackRosterNamingSnapshot(match.state.stackRoster, match.state.stackNaming, match.state.defenders)
+  const canonicalStackState = canonicalizeStackRoster(match.state.stackRoster ?? { groupsById: {} }, match.state.stackNaming, match.state.defenders)
   return {
     ...structuredClone(match.state),
-    stackRoster: structuredClone(match.state.stackRoster) ?? { groupsById: {} },
-    stackNaming,
+    stackRoster: canonicalStackState.stackRoster,
+    stackNaming: canonicalStackState.stackNaming,
     currentPhase: match.phase,
     turn: match.turnNumber,
   }
@@ -489,7 +491,7 @@ export function buildCombatEvents(
       timestamp,
       ...(phase === undefined ? {} : { phase }),
       unitId: statusChange.unitId,
-      unitFriendlyName: resolveUnitFriendlyName(state, statusChange.unitId),
+      unitFriendlyName: resolveIndividualUnitFriendlyName(state, statusChange.unitId),
       from: statusChange.from,
       to: statusChange.to,
     })
@@ -502,7 +504,7 @@ export function buildCombatEvents(
       timestamp,
       ...(phase === undefined ? {} : { phase }),
       unitId: result.targetId,
-      unitFriendlyName: resolveUnitFriendlyName(state, result.targetId),
+      unitFriendlyName: resolveIndividualUnitFriendlyName(state, result.targetId),
       amount: result.squadsLost,
     })
   }
@@ -619,6 +621,19 @@ function resolveUnitFriendlyName(state: GameState, unitId: string): string {
     }
 
     return defender.friendlyName
+  }
+
+  return unitId
+}
+
+function resolveIndividualUnitFriendlyName(state: GameState, unitId: string): string {
+  const lookup = getOnionOrDefender(unitId, state)
+  if (lookup.kind === 'onion' && lookup.unitId !== undefined) {
+    return state.onions[lookup.unitId]?.friendlyName ?? unitId
+  }
+
+  if (lookup.kind === 'defender' && lookup.unitId !== undefined) {
+    return state.defenders[lookup.unitId]?.friendlyName ?? unitId
   }
 
   return unitId
@@ -744,6 +759,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
       ...match.state,
       defenders,
       stackRoster,
+      stackNaming: refreshStackRosterNamingSnapshot(stackRoster, match.state.stackNaming, match.state.defenders),
     },
     victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber),
     escapeHexes,

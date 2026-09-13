@@ -40,6 +40,10 @@ function stripOrdinalSuffix(name: string): string {
 	return name.replace(/\s+\d+$/, '')
 }
 
+function isLegacyCoordinateGroupName(name: string): boolean {
+	return /\s:\s*-?\d+,-?\d+$/.test(name.trim())
+}
+
 export function buildStackGroupKey(unitType: string, position: { q: number; r: number }): string {
 	return `${unitType}:${position.q},${position.r}`
 }
@@ -200,7 +204,8 @@ export function refreshStackNamingSnapshotFromRoster(
 
 		const groupKey = buildStackGroupKey(group.unitType, group.position)
 		activeGroupKeys.push(groupKey)
-		const baseGroupName = group.groupName.trim().length > 0
+		const persistedGroupName = group.groupName.trim()
+		const baseGroupName = persistedGroupName.length > 0 && !isLegacyCoordinateGroupName(persistedGroupName)
 			? group.groupName
 			: resolveStackLabel(group.unitType, firstUnit.unitId, firstUnit.friendlyName, unitIds.length)
 		const authoritativeGroupName = /\sgroup(?:\s+\d+)?$/i.test(baseGroupName) && !/\sgroup\s+\d+$/i.test(baseGroupName)

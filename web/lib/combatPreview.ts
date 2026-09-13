@@ -15,7 +15,7 @@ import { resolveBattlefieldWeaponName } from './weaponStats'
 import { getDisplayDefense, getTerrainValueAt } from './battlefieldViewBuilders'
 import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './selectionIds'
 import { formatCombatTargetId } from '../../shared/combatTarget'
-import { buildStackRosterIndex } from '../../shared/stackRoster'
+import { buildStackRosterIndex, canonicalizeStackRoster } from '../../shared/stackRoster'
 import type { StackRosterState, TerrainType } from '../../shared/types/index'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import { getSessionUnitType, getSessionWeaponDefense, getSessionWeaponType, isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog'
@@ -205,10 +205,19 @@ export function buildCombatTargetOptions({
 	}
 
 	const selectedAttackerIds = getSelectedAttackerIds(activeCombatRole, selectedUnitIds)
-	const stackRosterIndex = stackRoster === undefined || stackRoster === null
-		? null
-		: buildStackRosterIndex(
+	let resolvedStackRoster = stackRoster
+	let resolvedStackNaming = stackNaming
+	let stackRosterIndex = null
+	if (stackRoster !== undefined && stackRoster !== null) {
+		const canonicalStackState = canonicalizeStackRoster(
 			stackRoster,
+			stackNaming ?? undefined,
+			Object.fromEntries(displayedDefenders.map((unit) => [unit.unitId, unit])),
+		)
+		resolvedStackRoster = canonicalStackState.stackRoster
+		resolvedStackNaming = canonicalStackState.stackNaming
+		stackRosterIndex = buildStackRosterIndex(
+			resolvedStackRoster,
 			Object.fromEntries(
 				displayedDefenders.map((unit) => [unit.unitId, {
 					role: unit.role,
@@ -222,6 +231,7 @@ export function buildCombatTargetOptions({
 				}]),
 			),
 		)
+	}
 	const stackedDefenderKeys = getStackedDefenderKeys(displayedDefenders, catalog)
 
 	if (stackRosterIndex === null && stackedDefenderKeys.size > 0) {
@@ -287,7 +297,7 @@ export function buildCombatTargetOptions({
 				q: unitPosition.q,
 				r: unitPosition.r,
 				status: unit.state,
-				label: resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRoster ?? undefined, catalog),
+				label: resolveBattlefieldFriendlyName(unit, resolvedStackNaming ?? undefined, resolvedStackRoster ?? undefined, catalog),
 				defense,
 				modifiers: buildTargetModifiers(
 					result.modifiers,

@@ -202,10 +202,54 @@ describe('buildCombatEvents', () => {
     })
     expect(events[1]).toMatchObject({
       type: 'UNIT_STATUS_CHANGED',
-      unitFriendlyName: 'Little Pigs group 1',
+      unitFriendlyName: 'Little Pigs 1',
       from: 'operational',
       to: 'destroyed',
     })
+  })
+
+  it('uses each stacked Little Pig name for individual destruction events', () => {
+    const stackFixture = makeStackFixture({
+      groups: {
+        'LittlePigs:1,1': makeStackGroup({
+          position: { q: 1, r: 1 },
+          unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+        }),
+      },
+    })
+    state = makeGameState({
+      defenders: {
+        ...stackFixture.defenders,
+        'pigs-3': makeDefender({ unitId: 'pigs-3', typeId: 'LittlePigs', position: { q: 1, r: 1 }, friendlyName: 'Little Pigs 3' }),
+      },
+      stackRoster: stackFixture.stackRoster,
+      stackNaming: stackFixture.stackNaming,
+    })
+
+    const events = buildCombatEvents(
+      60,
+      { type: 'FIRE', attackers: ['main'], targetId: 'LittlePigs:1,1', onionId: 'onion-1' },
+      {
+        success: true,
+        actionType: 'FIRE',
+        attackerIds: ['main'],
+        onionId: 'onion-1',
+        targetId: 'LittlePigs:1,1',
+        roll: { roll: 6, result: 'X', odds: '1:1' },
+        statusChanges: [
+          { unitId: 'pigs-1', from: 'operational', to: 'destroyed' },
+          { unitId: 'pigs-2', from: 'operational', to: 'destroyed' },
+          { unitId: 'pigs-3', from: 'operational', to: 'destroyed' },
+        ],
+      },
+      state,
+    )
+
+    expect(events.filter((event) => event.type === 'UNIT_STATUS_CHANGED').map((event) => event.unitFriendlyName)).toEqual([
+      'Little Pigs 1',
+      'Little Pigs 2',
+      'Little Pigs 3',
+    ])
   })
 
   it('includes unitFriendlyName on UNIT_SQUADS_LOST events', () => {
@@ -227,7 +271,7 @@ describe('buildCombatEvents', () => {
     expect(events[1]).toMatchObject({
       type: 'UNIT_SQUADS_LOST',
       unitId: 'pigs-1',
-      unitFriendlyName: 'Little Pigs group 1',
+      unitFriendlyName: 'Little Pigs 1',
       amount: 1,
     })
   })

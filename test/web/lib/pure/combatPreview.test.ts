@@ -204,6 +204,45 @@ describe('buildCombatTargetOptions', () => {
 		})
 	})
 
+	it('uses the friendly group name when persisted naming has a coordinate label', () => {
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['4,7']),
+			displayedDefenders: [
+				makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 7 } }),
+				makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 7 } }),
+				makeBattlefieldDefender({ unitId: 'pigs-3', typeId: 'LittlePigs', position: { q: 4, r: 7 } }),
+			],
+			displayedOnion: makeBattlefieldOnion({
+				position: { q: 0, r: 1 },
+				weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' })],
+			}),
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:4,7': {
+						groupName: 'Little Pigs :4,7',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 7 },
+						unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+					},
+				},
+			},
+			stackNaming: {
+				groupsInUse: [{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs :4,7', unitType: 'LittlePigs' }],
+				usedGroupNames: ['Little Pigs :4,7'],
+			},
+			selectedUnitIds: ['weapon:main-1'],
+			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: { width: 8, height: 8, hexes: [] },
+		})
+
+		expect(options[0]).toMatchObject({
+			id: 'LittlePigs:4,7',
+			label: 'Little Pigs group 1',
+		})
+	})
+
 	it('throws when stacked defenders are missing canonical roster data', () => {
 		expect(() => buildCombatTargetOptions({
 			activeCombatRole: 'onion',

@@ -3,12 +3,12 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
-import { RegisterGate } from './components/RegisterGate'
 import { GameCreateScreen } from './components/GameCreateScreen'
 import { LoginScreen } from './components/LoginScreen'
 import { RequireAuth } from './components/RequireAuth'
 import { UserDashboard } from './components/UserDashboard'
 import { GamesScreen } from './components/GamesScreen'
+import { AccountScreen } from './components/AccountScreen'
 import { resolveWebRuntimeConfig } from './lib/appBootstrap'
 import { getWebLoggerLevel, setWebLoggerLevel } from './lib/logger'
 
@@ -31,7 +31,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppErrorBoundary>
       {runtimeConfig.userRoute === 'create' ? (
-        <RegisterGate runtimeConfig={runtimeConfig} />
+        <RequireAuth>
+          <AccountScreen />
+        </RequireAuth>
       ) : runtimeConfig.userRoute === 'login' ? (
         <LoginScreen runtimeConfig={runtimeConfig} />
       ) : runtimeConfig.userRoute === 'game-create' ? (

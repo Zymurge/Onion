@@ -72,7 +72,9 @@ describe('UserDashboard', () => {
 		expect(screen.getByRole('link', { name: 'Open Game' })).toHaveAttribute('href', '/game/12')
 	})
 
-	it('shows a ready game as waiting for the host to start it', async () => {
+	it('lets a ready non-host open the locked game while waiting for the host', async () => {
+		const gameWindow = { focus: vi.fn() } as unknown as Window
+		const windowOpen = vi.spyOn(window, 'open').mockReturnValue(gameWindow)
 		saveAuthSession({
 			apiBaseUrl: 'http://localhost:3000',
 			username: 'player-1',
@@ -95,8 +97,9 @@ describe('UserDashboard', () => {
 		render(<UserDashboard />)
 
 		await screen.findByText('Game 12 · Ready to start')
-		expect(screen.queryByRole('link', { name: 'Open Game' })).toBeNull()
-		expect(screen.getByText('Ready')).not.toBeNull()
+		await userEvent.setup().click(screen.getByRole('link', { name: 'Open Game' }))
+		expect(windowOpen).toHaveBeenCalledWith('/game/12', '_blank')
+		expect(gameWindow.focus).toHaveBeenCalledTimes(1)
 	})
 
 	it.each([
@@ -104,6 +107,7 @@ describe('UserDashboard', () => {
 		{ code: 'GAME_ALREADY_STARTED', message: 'Game has already started', status: 'active' as const },
 	])('surfaces a $code start conflict and refreshes the game row', async ({ code, message, status }) => {
 		const user = userEvent.setup()
+		vi.spyOn(window, 'open').mockReturnValue({ close: vi.fn(), location: { href: '' } } as unknown as Window)
 		saveAuthSession({
 			apiBaseUrl: 'http://localhost:3000',
 			username: 'player-1',
@@ -208,7 +212,7 @@ describe('UserDashboard', () => {
 
 	it('opens the started game in a dedicated window', async () => {
 		const user = userEvent.setup()
-		const gameWindow = { focus: vi.fn() } as unknown as Window
+		const gameWindow = { focus: vi.fn(), location: { href: '' } } as unknown as Window
 		const windowOpen = vi.spyOn(window, 'open').mockReturnValue(gameWindow)
 		saveAuthSession({
 			apiBaseUrl: 'http://localhost:3000',
@@ -241,7 +245,8 @@ describe('UserDashboard', () => {
 		render(<UserDashboard />)
 		await user.click(await screen.findByRole('button', { name: 'Start Game' }))
 
-		expect(windowOpen).toHaveBeenCalledWith('/game/12', '_blank', 'noopener,noreferrer')
+		expect(windowOpen).toHaveBeenCalledWith('', '_blank')
+		expect(gameWindow.location.href).toBe('/game/12')
 		expect(gameWindow.focus).toHaveBeenCalledTimes(1)
 	})
 
@@ -271,7 +276,7 @@ describe('UserDashboard', () => {
 		render(<UserDashboard />)
 		await user.click(await screen.findByRole('link', { name: 'Open Game' }))
 
-		expect(windowOpen).toHaveBeenCalledWith('/game/12', '_blank', 'noopener,noreferrer')
+		expect(windowOpen).toHaveBeenCalledWith('/game/12', '_blank')
 		expect(gameWindow.focus).toHaveBeenCalledTimes(1)
 	})
 
