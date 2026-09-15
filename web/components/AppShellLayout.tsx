@@ -5,6 +5,7 @@ import { AppShellHeader } from './AppShellHeader'
 import { BattlefieldLeftRail } from './BattlefieldLeftRail'
 import { BattlefieldRightRail } from './BattlefieldRightRail'
 import { DraggableDebugPopup } from './DraggableDebugPopup'
+import { ScenarioInfoDialog } from './ScenarioInfoDialog'
 import type { AppCommands } from '../lib/appCommands'
 import type { AppSessionWiring } from '../lib/appSessionWiring'
 import type { TurnHandoffGate } from '../lib/appTurnHandoffGate'
@@ -12,6 +13,7 @@ import type { useBattlefieldDisplayState } from '../lib/useBattlefieldDisplaySta
 import type { useBattlefieldInteractionState } from '../lib/useBattlefieldInteractionState'
 import type { useDebugDiagnostics } from '../lib/useDebugDiagnostics'
 import type { useInactiveEventStream } from '../lib/useInactiveEventStream'
+import { useScenarioInfo } from '../lib/useScenarioInfo'
 
 export type AppShellLayoutProps = {
   commands: AppCommands
@@ -25,6 +27,12 @@ export type AppShellLayoutProps = {
 }
 
 export function AppShellLayout({ commands, debug, display, gate, inactiveEventStream, interaction, session, overlays }: AppShellLayoutProps) {
+  const scenarioInfo = useScenarioInfo({
+    snapshot: display.clientSnapshot,
+    authSession: session.authSession,
+    catalog: session.state.catalog,
+  })
+
   const appState: ComponentProps<typeof AppShellHeader>['appState'] = session.state.status === 'loading'
     ? 'loading'
     : display.headerHasSnapshot
@@ -33,7 +41,6 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
   const stackNaming = display.clientSnapshot?.authoritativeState?.stackNaming
   const stackRoster = display.clientSnapshot?.authoritativeState?.stackRoster
   const catalog = session.state.catalog ?? undefined
-
   return (
     <div
       className={`shell${gate.screenLocked ? ' inactive-event-screen-locked' : ''}`}
@@ -75,7 +82,17 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
         onAcknowledgeTurn={commands.acknowledgeTurn}
         onRefresh={() => { void commands.refresh() }}
         onToggleDebugDiagnostics={commands.toggleDebugDiagnostics}
+        onOpenScenarioInfo={scenarioInfo.open}
       />
+
+      {scenarioInfo.isOpen ? (
+        <ScenarioInfoDialog
+          data={scenarioInfo.data}
+          loading={scenarioInfo.loading}
+          error={scenarioInfo.activeError}
+          onClose={scenarioInfo.close}
+        />
+      ) : null}
 
       {debug.debugOpen ? (
         <DraggableDebugPopup
@@ -83,7 +100,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           onLayoutChange={debug.setDebugPopupLayout}
           onClose={() => debug.setDebugOpen(false)}
           lines={debug.debugEntries}
-onAdvancePhase={() => commands.runShellControl('advance-phase', true, commands.advancePhase)}
+          onAdvancePhase={commands.advancePhase}
         />
       ) : null}
 
@@ -155,8 +172,6 @@ onAdvancePhase={() => commands.runShellControl('advance-phase', true, commands.a
           selectedInspectorOnion={display.selectedInspectorOnion}
           readyWeaponDetails={display.readyWeaponDetails}
           rightRailStackPanel={display.rightRailStackPanel}
-          victoryObjectives={display.victoryObjectives}
-          escapeHexes={display.escapeHexes}
           catalog={catalog}
           inactiveEventStream={inactiveEventStream}
           combatTargetOptions={display.combatTargetOptions}

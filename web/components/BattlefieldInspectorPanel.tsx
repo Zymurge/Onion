@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { getPrimaryWeaponStats, parseWeaponStats } from '../lib/weaponStats'
-import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import { resolveInspectorStackCount } from '../lib/rightRailInspector'
 import type { SessionCatalog } from '../lib/sessionCatalog'
@@ -11,8 +10,6 @@ type BattlefieldInspectorPanelProps = {
   selectedInspectorOnion: BattlefieldOnionView | null
   selectedStackMemberCount: number
   activeSelectedUnitCount: number
-  victoryObjectives: ReadonlyArray<VictoryObjectiveState>
-  escapeHexes: ReadonlyArray<VictoryEscapeHex>
   catalog?: SessionCatalog
   dataTestId?: string
 }
@@ -23,8 +20,6 @@ export function BattlefieldInspectorPanel({
   selectedInspectorOnion,
   selectedStackMemberCount,
   activeSelectedUnitCount,
-  victoryObjectives,
-  escapeHexes,
   catalog,
   dataTestId = 'battlefield-inspector',
 }: BattlefieldInspectorPanelProps) {
@@ -80,7 +75,6 @@ export function BattlefieldInspectorPanel({
   if (selectedInspectorDefender !== null) {
     const stackCount = resolveInspectorStackCount(selectedInspectorDefender, selectedStackMemberCount)
     const attackStats = getPrimaryWeaponStats(selectedInspectorDefender.weapons, catalog)
-    const completedVictoryObjectives = victoryObjectives.filter((objective) => objective.completed)
 
     return renderInspectorPanel({
       dataTestId,
@@ -115,52 +109,6 @@ export function BattlefieldInspectorPanel({
               <dd>{activeSelectedUnitCount}</dd>
             </div>
           </dl>
-          {selectedInspectorDefender.typeId === 'Swamp' && victoryObjectives.length > 0 ? (
-            <div className="section-block">
-              <div className="card-head">
-                <div>
-                  <p className="eyebrow">Victory</p>
-                  <h3>Victory Conditions</h3>
-                </div>
-                  <span className="mini-tag">{completedVictoryObjectives.length}/{victoryObjectives.length} objectives</span>
-              </div>
-              <div className="inspector-objective-list">
-                {victoryObjectives.map((objective) => (
-                  <div className={`inspector-objective-item${objective.completed ? ' is-complete' : ''}`} key={objective.id}>
-                    <div className="summary-line">
-                      <strong>{objective.label}</strong>
-                    </div>
-                    <div className="summary-line">
-                      {objective.required ? 'Required' : 'Optional'} {objective.completed ? 'complete' : 'incomplete'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="inspector-victory-summary">
-                <div className="summary-line"><strong>Onion (Attacker) Victory:</strong></div>
-                <ul className="victory-list">
-                  <li>All defending units destroyed: <em>Complete Onion victory</em></li>
-                  <li>Swamp destroyed and Onion escapes: <em>Onion victory</em></li>
-                  <li>Swamp and Onion both destroyed: <em>Marginal Onion victory</em></li>
-                </ul>
-                <div className="summary-line"><strong>Defender Victory:</strong></div>
-                <ul className="victory-list">
-                  <li>Swamp survives, Onion destroyed, 30+ attack strength survive: <em>Complete defense victory</em></li>
-                  <li>Swamp survives, Onion destroyed: <em>Defense victory</em></li>
-                  <li>Swamp survives, Onion escapes: <em>Marginal defense victory</em></li>
-                </ul>
-              </div>
-              {escapeHexes.length > 0 ? (
-                <div className="inspector-escape-footer">
-                  <span className="inspector-escape-footer-label">Escape hexes</span>
-                  <span className="inspector-escape-footer-list">
-                    {escapeHexes.map((hex) => `${hex.q}, ${hex.r}`).join(' · ')}
-                  </span>
-                  <span className="mini-tag">{escapeHexes.length}</span>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </>
       ),
     })

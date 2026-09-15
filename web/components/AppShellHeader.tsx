@@ -25,6 +25,7 @@ type AppShellHeaderProps = {
   onAcknowledgeTurn: () => void
   onRefresh: () => void
   onToggleDebugDiagnostics: () => void
+  onOpenScenarioInfo: () => void
 }
 
 export function AppShellHeader({
@@ -50,6 +51,7 @@ export function AppShellHeader({
   onAcknowledgeTurn,
   onRefresh,
   onToggleDebugDiagnostics,
+  onOpenScenarioInfo,
 }: AppShellHeaderProps) {
   return (
     <header className="topbar panel" data-testid="app-shell-header">
@@ -105,7 +107,14 @@ export function AppShellHeader({
         <div className="utility-group-vert">
           <div>
             <span className="stat-label-small">Scenario</span>
-            <strong className={headerHasSnapshot ? '' : 'header-waiting'}>{activeScenarioName ?? 'Waiting for game state'}</strong>
+            <button
+              type="button"
+              className={`scenario-header-button${headerHasSnapshot ? '' : ' header-waiting'}`}
+              onClick={onOpenScenarioInfo}
+              disabled={!headerHasSnapshot}
+            >
+              {activeScenarioName ?? 'Waiting for game state'}
+            </button>
           </div>
           <div>
             <span className="stat-label-small">Game ID</span>

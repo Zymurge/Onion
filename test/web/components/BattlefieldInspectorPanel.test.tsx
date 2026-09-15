@@ -17,7 +17,7 @@ describe('BattlefieldInspectorPanel', () => {
     return valueElement.textContent ?? ''
   }
 
-  it('uses canonical stack counts for grouped defenders and renders the swamp summary when objectives are present', () => {
+  it('uses canonical stack counts for grouped defenders', () => {
     const defender: BattlefieldUnit = {
       unitId: 'pigs-1',
       typeId: 'LittlePigs',
@@ -38,10 +38,6 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorOnion={null}
         selectedStackMemberCount={2}
         activeSelectedUnitCount={2}
-        victoryObjectives={[
-          { id: 'obj-1', label: 'Survive', kind: 'destroy-unit', completed: true, required: true },
-        ]}
-        escapeHexes={[{ q: 3, r: 5 }]}
       />,
     )
 
@@ -51,7 +47,7 @@ describe('BattlefieldInspectorPanel', () => {
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
   })
 
-  it('renders the swamp victory summary when objectives are present', () => {
+  it('keeps victory conditions out of the swamp inspector', () => {
     const swamp: BattlefieldUnit = {
       unitId: 'swamp-1',
       typeId: 'Swamp',
@@ -72,16 +68,12 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorOnion={null}
         selectedStackMemberCount={1}
         activeSelectedUnitCount={1}
-        victoryObjectives={[
-          { id: 'obj-1', label: 'Survive', kind: 'destroy-unit', completed: true, required: true },
-        ]}
-        escapeHexes={[{ q: 3, r: 5 }]}
       />,
     )
 
     const inspector = screen.getByTestId('battlefield-inspector')
-    expect(within(inspector).getByText(/victory conditions/i)).not.toBeNull()
-    expect(within(inspector).getByText(/escape hexes/i)).not.toBeNull()
+    expect(within(inspector).queryByText(/victory conditions/i)).toBeNull()
+    expect(within(inspector).queryByText(/escape hexes/i)).toBeNull()
   })
 
   it('renders onion inspector stats and keeps stack count fixed at one', () => {

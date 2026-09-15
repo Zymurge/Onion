@@ -10,7 +10,6 @@ import type { BattlefieldDefenderView, BattlefieldOnionView } from '../lib/battl
 import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
 import type { Weapon } from '../../shared/types/index'
-import type { VictoryEscapeHex, VictoryObjectiveState } from '../../shared/apiProtocol'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { routeRightRailControl, type RightRailControlRequest } from '../lib/rightRailControlRouting'
 import logger from '../lib/logger'
@@ -48,8 +47,6 @@ type BattlefieldRightRailProps = {
     selectedStackSelectionCount: number
     selectedStackSelectionIds: ReadonlyArray<string>
   }
-  victoryObjectives: ReadonlyArray<VictoryObjectiveState>
-  escapeHexes: ReadonlyArray<VictoryEscapeHex>
   catalog?: SessionCatalog
   inactiveEventStream: {
     entries: ReadonlyArray<TimelineEvent>
@@ -89,8 +86,6 @@ export function BattlefieldRightRail({
   selectedInspectorOnion,
   readyWeaponDetails,
   rightRailStackPanel,
-  victoryObjectives,
-  escapeHexes,
   catalog,
   inactiveEventStream,
   combatTargetOptions,
@@ -256,8 +251,6 @@ export function BattlefieldRightRail({
       selectedInspectorOnion={selectedInspectorOnion}
       selectedStackMemberCount={rightRailStackPanel.selectedStackMembers.length}
       activeSelectedUnitCount={activeSelectedUnitCount}
-      victoryObjectives={victoryObjectives}
-      escapeHexes={escapeHexes}
       catalog={catalog}
     />
   ) : null

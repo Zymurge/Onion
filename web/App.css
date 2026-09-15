@@ -512,6 +512,8 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .game-aborted {
@@ -538,6 +540,9 @@
 
 .shell > header {
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .shell > main {
@@ -593,7 +598,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: clamp(240px, 34vh, 420px);
+  max-height: none;
   min-height: 0;
 }
 
@@ -689,14 +694,14 @@
 }
 
 .inactive-event-stream-list {
-  flex: 1;
+  flex: none;
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
   gap: 10px;
-  min-height: 0;
-  overflow-y: auto;
+  min-height: auto;
+  overflow: visible;
   padding-right: 4px;
 }
 
@@ -761,6 +766,31 @@
   margin-bottom: 22px;
   border-radius: 24px;
   position: relative;
+}
+
+.scenario-header-button {
+  max-width: min(34vw, 360px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-strong);
+  cursor: pointer;
+  font-weight: 800;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: rgba(121, 92, 32, 0.45);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.scenario-header-button:hover:not(:disabled) {
+  color: var(--signal-live);
+  text-decoration-color: currentColor;
+}
+
+.scenario-header-button:disabled {
+  cursor: default;
+  text-decoration: none;
 }
 
 .header-utility-controls {
@@ -964,33 +994,38 @@
   grid-template-columns: clamp(190px, 20vw, 280px) minmax(0, 1fr) clamp(190px, 20vw, 280px);
   gap: 22px;
   align-items: stretch;
+  flex: 1;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .rail,
 .map-stage {
   border-radius: 24px;
   padding: 18px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .rail-right {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .rail-right > .combat-scaffold {
   display: flex;
-  flex: 1;
+  flex: none;
   flex-direction: column;
-  min-height: 0;
 }
 
 .map-stage {
   display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 
 .lifecycle-gate {
@@ -1172,10 +1207,10 @@
 }
 
 .combat-target-list {
-  flex: 1;
+  flex: none;
   max-height: none;
-  min-height: 0;
-  overflow-y: auto;
+  min-height: auto;
+  overflow: visible;
   padding-right: 4px;
 }
 
@@ -1698,6 +1733,209 @@
   position: relative;
   opacity: 1;
   transition: opacity 0.4s ease;
+}
+
+.scenario-info-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1250;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(37, 29, 21, 0.48);
+  backdrop-filter: blur(3px);
+}
+
+.scenario-info-dialog {
+  width: min(760px, 100%);
+  max-height: min(780px, calc(100vh - 32px));
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  padding: 26px;
+  border: 1px solid var(--border-strong);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 251, 242, 0.99), rgba(240, 232, 214, 0.99));
+  box-shadow: 0 28px 80px rgba(51, 43, 26, 0.32);
+}
+
+.scenario-info-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px dashed var(--border-strong);
+}
+
+.scenario-info-dialog-header h2 {
+  margin: 2px 0 0;
+}
+
+.scenario-info-close {
+  flex: none;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--ink-strong);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.scenario-info-close:hover {
+  border-color: var(--signal-live);
+  background: rgba(255, 251, 242, 0.96);
+}
+
+.scenario-info-status {
+  margin: 16px 0 0;
+  color: var(--ink-muted);
+}
+
+.scenario-info-status-error {
+  color: var(--signal-alert);
+}
+
+.scenario-info-section {
+  margin-top: 22px;
+}
+
+.scenario-info-section > p:not(.eyebrow) {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.scenario-info-objective-list,
+.scenario-info-manifest ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scenario-info-objective-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.scenario-info-objective-list li span {
+  flex: none;
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+}
+
+.scenario-info-objective-list li.is-complete {
+  border-color: rgba(109, 125, 52, 0.38);
+  background: rgba(109, 125, 52, 0.1);
+}
+
+.scenario-info-section > p + p {
+  margin-top: 10px;
+}
+
+.scenario-info-manifest-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.scenario-info-manifest h3 {
+  margin: 0 0 8px;
+}
+
+.scenario-info-manifest li {
+  color: var(--ink-soft);
+}
+
+.scenario-info-muted {
+  color: var(--ink-muted);
+  font-style: italic;
+}
+
+@media (max-width: 960px) {
+  .shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    padding: 16px;
+  }
+
+  .shell > main {
+    flex: none;
+  }
+
+  .topbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 14px 16px;
+  }
+
+  .topbar-state {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .header-utility-controls {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  .scenario-header-button {
+    max-width: 60vw;
+  }
+
+  .battlefield-grid {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    overflow: visible;
+  }
+
+  .rail,
+  .map-stage,
+  .rail-right {
+    overflow: visible;
+  }
+
+  .map-stage {
+    min-height: min(70vh, 680px);
+  }
+}
+
+@media (max-width: 560px) {
+  .shell {
+    padding: 10px;
+  }
+
+  .role-badge {
+    width: 100%;
+    text-align: center;
+  }
+
+  .scenario-info-dialog {
+    padding: 20px;
+  }
+
+  .scenario-info-objective-list li,
+  .scenario-info-dialog-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .scenario-info-manifest-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Glowing active state for role badge */
