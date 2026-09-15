@@ -9,7 +9,7 @@ import { RequireAuth } from './components/RequireAuth'
 import { UserDashboard } from './components/UserDashboard'
 import { GamesScreen } from './components/GamesScreen'
 import { AccountScreen } from './components/AccountScreen'
-import { resolveWebRuntimeConfig } from './lib/appBootstrap'
+import { resolveWebDocumentTitle, resolveWebRuntimeConfig } from './lib/appBootstrap'
 import { getWebLoggerLevel, setWebLoggerLevel } from './lib/logger'
 
 const runtimeConfig = resolveWebRuntimeConfig(
@@ -22,6 +22,7 @@ const runtimeConfig = resolveWebRuntimeConfig(
 )
 
 setWebLoggerLevel(runtimeConfig.clientLogLevel)
+document.title = resolveWebDocumentTitle(runtimeConfig)
 Object.assign(window, {
   setWebLoggerLevel,
   getWebLoggerLevel,

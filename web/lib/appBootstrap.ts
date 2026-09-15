@@ -9,9 +9,15 @@ export type WebRuntimeEnv = {
 export type WebRuntimeConfig = {
 	apiBaseUrl: string | null
 	gameId: number | null
- userRoute: 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | null
+	userRoute: 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | null
 	liveRefreshQuietWindowMs: number
 	clientLogLevel: 'debug' | 'info' | 'warn' | 'error'
+}
+
+export function resolveWebDocumentTitle(config: Pick<WebRuntimeConfig, 'gameId' | 'userRoute'>): string {
+	return config.userRoute === null && config.gameId !== null
+		? `Onion - Game ${config.gameId}`
+		: 'Onion - Lobby'
 }
 
 function parseUserRoute(pathname: string): 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | null {
