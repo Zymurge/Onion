@@ -148,11 +148,15 @@ describe('POST /games/:id/actions MOVE', () => {
 			return { success: true, newPosition: moveTo }
 		}))
 
-		await app.inject({
+		const actionResponse = await app.inject({
 			method: 'POST',
 			url: `/games/${gameId}/actions`,
 			headers: { authorization: `Bearer ${shrek.token}` },
 			payload: { type: 'MOVE', movers: ['onion'], to: moveTo },
+		})
+		expect(actionResponse.json()).toMatchObject({
+			status: 'completed',
+			winner: 'defender',
 		})
 
 		validateSpy.mockRestore()
@@ -167,5 +171,27 @@ describe('POST /games/:id/actions MOVE', () => {
 		expect(body.winner).not.toBeNull()
 		expect(body.winner).toBe('defender')
 		expect(body.status).toBe('completed')
+
+		const defenderStateRes = await app.inject({
+			method: 'GET',
+			url: `/games/${gameId}`,
+			headers: { authorization: `Bearer ${fiona.token}` },
+		})
+		expect(defenderStateRes.json()).toMatchObject({ status: 'completed', winner: 'defender' })
+
+		for (const payload of [
+			{ type: 'END_PHASE' },
+			{ type: 'MOVE', movers: ['onion'], to: moveTo },
+			{ type: 'FIRE', attackers: ['wolf-1'], targetId: 'onion-1:treads', onionId: 'onion-1' },
+		]) {
+			const postGameAction = await app.inject({
+				method: 'POST',
+				url: `/games/${gameId}/actions`,
+				headers: { authorization: `Bearer ${shrek.token}` },
+				payload,
+			})
+			expect(postGameAction.statusCode).toBe(409)
+			expect(postGameAction.json()).toMatchObject({ code: 'GAME_OVER', currentPhase: 'ONION_MOVE' })
+		}
 	})
 })

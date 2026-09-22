@@ -102,6 +102,10 @@ export function useAppCommands({
 	}
 
 	function advancePhase() {
+		if (display.clientSnapshot?.status === 'completed' || display.clientSnapshot?.winner === 'onion' || display.clientSnapshot?.winner === 'defender') {
+			return
+		}
+
 		void interaction.commitClientAction(buildEndPhaseCommitAction().action)
 	}
 

@@ -97,6 +97,33 @@
         "TheOnion.missile_1",
         "TheOnion.missile_2"
       ]
+    },
+    "TheOnionDamaged": {
+      "name": "The Onion (Damaged)",
+      "friendlyNameTemplate": "The Onion (Damaged) {{ordinal}}",
+      "movement": 3,
+      "defense": 0,
+      "treads": 15,
+      "treadsPerMove": 15,
+      "ramsPerTurn": 2,
+      "abilities": { "maxStacks": 1, "canRam": true, "ramCapacity": 2, "terrainRules": { "ridgeline": { "canCross": true } } },
+      "weaponTypeIds": [
+        "TheOnion.main",
+        "TheOnion.secondary_1",
+        "TheOnion.secondary_2",
+        "TheOnion.secondary_3",
+        "TheOnion.secondary_4",
+        "TheOnion.ap_1",
+        "TheOnion.ap_2",
+        "TheOnion.ap_3",
+        "TheOnion.ap_4",
+        "TheOnion.ap_5",
+        "TheOnion.ap_6",
+        "TheOnion.ap_7",
+        "TheOnion.ap_8",
+        "TheOnion.missile_1",
+        "TheOnion.missile_2"
+      ]
     }
   },
   "weaponTypes": {

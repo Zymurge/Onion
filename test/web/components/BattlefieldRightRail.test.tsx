@@ -75,6 +75,25 @@ function renderRightRail(overrides: Partial<RightRailProps> = {}) {
 }
 
 describe('BattlefieldRightRail', () => {
+  it.each([
+    { winner: 'onion' as const, title: 'Victory for the Onion', detail: 'The Onion completed every required victory objective.' },
+    { winner: 'defender' as const, title: 'Defenders prevail', detail: 'Onion immobilized or destroyed' },
+  ])('replaces inactive controls with a terminal summary for the $winner winner', ({ winner, title, detail }) => {
+    renderRightRail({
+      gameOverSummary: {
+        winner,
+        objectives: [],
+      },
+      showInactiveEventStream: true,
+      pendingRamPrompt: { unitId: 'onion-1', targetLabel: 'Swamp', to: { q: 2, r: 3 } },
+    })
+
+    expect(screen.getByTestId('game-over-summary')).toHaveTextContent(title)
+    expect(screen.getByTestId('game-over-summary')).toHaveTextContent(detail)
+    expect(screen.queryByTestId('inactive-event-stream')).toBeNull()
+    expect(screen.queryByTestId('ram-confirmation-view')).toBeNull()
+  })
+
   it('uses the shared confirmation header for ram prompts', () => {
     render(
       <BattlefieldRightRail

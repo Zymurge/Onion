@@ -797,7 +797,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         logSentEvents(match.gameId, 'END_PHASE', newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, phase: match.phase, turnNumber }, 'Phase advanced')
-        const responsePayload = buildActionResponse(match, currentState, result.phase, turnNumber, eventSeq, newEvents, status)
+        const responsePayload = buildActionResponse(match, currentState, result.phase, turnNumber, eventSeq, newEvents, status, winner)
         logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (END_PHASE)')
         return reply.send(responsePayload)
       } else if (command.type === 'MOVE') {
@@ -892,7 +892,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Move executed')
-        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents, status)
+        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents, status, winner)
         logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (MOVE)')
         return reply.send(responsePayload)
       } else if (command.type === 'FIRE') {
@@ -958,7 +958,7 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
         }, newEvents)
         broadcastGameEvents(match.gameId, newEvents)
         logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
-        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents, status)
+        const responsePayload = buildActionResponse(match, currentState, match.phase, turnNumber, eventSeq, newEvents, status, winner)
         logger.debug({ gameId: match.gameId, responsePayload }, 'Action response (FIRE)')
         return reply.send(responsePayload)
       }

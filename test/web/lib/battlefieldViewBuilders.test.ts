@@ -130,6 +130,23 @@ describe('battlefieldViewBuilders', () => {
     expect(buildLiveDefenders(createLiveSnapshot({ authoritativeState: undefined }), 'DEFENDER_MOVE', true)).toEqual([])
   })
 
+  it('retains a destroyed Swamp marker after Defender Movement cleanup', () => {
+    const snapshot = createLiveSnapshot({
+      authoritativeState: {
+        ...createLiveSnapshot().authoritativeState!,
+        defenders: {
+          ...createLiveSnapshot().authoritativeState!.defenders,
+          swamp: makeDefender({ unitId: 'swamp', typeId: 'Swamp', state: 'destroyed' }),
+        },
+      },
+    })
+
+    expect(buildLiveDefenders(snapshot, 'DEFENDER_MOVE', true).find((unit) => unit.unitId === 'swamp')).toMatchObject({
+      typeId: 'Swamp',
+      state: 'destroyed',
+    })
+  })
+
   it('retains destroyed defenders during Onion phases for the event window', () => {
     expect(buildLiveDefenders(createLiveSnapshot(), 'ONION_COMBAT', false).map((unit) => unit.unitId)).toEqual([
       'pigs-1',

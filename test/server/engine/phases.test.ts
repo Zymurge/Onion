@@ -220,10 +220,12 @@ describe('advancePhase', () => {
       const state = makeState('ONION_COMBAT', {
         alive: makeUnit({ unitId: 'alive', state: 'operational' }),
         dead: makeUnit({ unitId: 'dead', state: 'destroyed' }),
+        swamp: makeUnit({ unitId: 'swamp', typeId: 'Swamp', state: 'destroyed' }),
       })
       advancePhase(state)
       expect(state.defenders['alive'].state).toBe('operational')
       expect(state.defenders['dead']).toBeUndefined()
+      expect(state.defenders['swamp']).toMatchObject({ typeId: 'Swamp', state: 'destroyed' })
     })
 
     it('prunes destroyed units from the stack roster before Defender Movement', () => {

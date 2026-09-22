@@ -110,6 +110,22 @@ describe('normalizeInitialStateToGameState', () => {
     expect(gameState.onions['onion-2'].weapons).toHaveLength(gameState.onions['onion-1'].weapons.length)
   })
 
+  it('normalizes a damaged Onion unit type with reduced starting treads', () => {
+    const parsed = InitialStateSchema.parse({
+      deployments: {
+        'onion-1': {
+          type: 'TheOnionDamaged',
+          side: 'onion',
+          position: { q: 0, r: 0 },
+        },
+      },
+    })
+
+    const gameState = normalizeInitialStateToGameState(parsed)
+
+    expect(gameState.onions['onion-1']).toMatchObject({ typeId: 'TheOnionDamaged', treads: 15 })
+  })
+
   it('defaults missing status to operational', () => {
     const noStatus = {
       ...validInitialState,

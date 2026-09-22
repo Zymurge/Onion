@@ -1022,6 +1022,37 @@
   flex-direction: column;
 }
 
+.game-over-summary-panel {
+  flex: none;
+  border-color: rgba(126, 36, 36, 0.28);
+  background: linear-gradient(180deg, rgba(255, 246, 243, 0.98), rgba(247, 224, 219, 0.92));
+}
+
+.game-over-summary-panel h2 {
+  margin: 4px 0 0;
+  color: #6f2020;
+}
+
+.game-over-summary-panel .summary-line {
+  margin: 12px 0 0;
+}
+
+.game-over-objectives {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(126, 36, 36, 0.24);
+}
+
+.game-over-objectives ul {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  color: #6f2020;
+}
+
+.game-over-objectives li + li {
+  margin-top: 6px;
+}
+
 .map-stage {
   display: flex;
   flex-direction: column;

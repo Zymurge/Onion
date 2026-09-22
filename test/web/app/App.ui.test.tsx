@@ -582,6 +582,15 @@ describe('App UI', () => {
 		const snapshot = makeScenarioSnapshot({
 			phase: 'ONION_MOVE',
 			status,
+			...(status === 'completed'
+				? {
+					winner: 'onion' as const,
+					victoryObjectives: [
+						{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit' as const, required: true, completed: true },
+						{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map' as const, required: true, completed: true },
+					],
+				}
+				: {}),
 		})
 		const submitAction = vi.fn().mockResolvedValue(snapshot)
 		const client = createGameClient({
@@ -591,6 +600,16 @@ describe('App UI', () => {
 		})
 
 		render(<App gameClient={client} gameId={123} />)
+
+		if (status === 'completed') {
+			expect(screen.queryByRole('button', { name: 'Start Combat' })).toBeNull()
+			const gameOverSummary = await screen.findByTestId('game-over-summary')
+			expect(gameOverSummary).toHaveTextContent('Destroy The Swamp')
+			expect(gameOverSummary).toHaveTextContent('Escape to the swamp edge hex')
+			await user.click(gameOverSummary)
+			expect(submitAction).not.toHaveBeenCalled()
+			return
+		}
 
 		const startCombatButton = await screen.findByRole('button', { name: 'Start Combat' })
 		expect(startCombatButton).toBeDisabled()

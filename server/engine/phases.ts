@@ -52,7 +52,7 @@ export function clearDestroyedDefenders(state: EngineGameState): void {
   }
 
   state.defenders = Object.fromEntries(
-    Object.entries(state.defenders).filter(([, unit]) => unit.state !== 'destroyed'),
+    Object.entries(state.defenders).filter(([, unit]) => unit.state !== 'destroyed' || unit.typeId === 'Swamp'),
   )
 
   if (state.stackRoster !== undefined) {

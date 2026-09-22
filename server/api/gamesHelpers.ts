@@ -348,11 +348,13 @@ function isObjectiveCompleted(
   state: GameState,
   turnNumber: number,
   objective: VictoryObjective,
+  events: ReadonlyArray<EventEnvelope> = [],
 ): boolean {
   if (objective.kind === 'destroy-unit') {
     if (objective.unitId !== undefined) {
       const defenderId = getDefender(objective.unitId, state)
-      return defenderId !== undefined && state.defenders[defenderId]?.state === 'destroyed'
+      return (defenderId !== undefined && state.defenders[defenderId]?.state === 'destroyed')
+        || events.some((event) => event.type === 'UNIT_STATUS_CHANGED' && event.unitId === objective.unitId && event.to === 'destroyed')
     }
 
     if (objective.unitType !== undefined) {
@@ -372,12 +374,13 @@ export function buildVictoryObjectiveStates(
   scenarioMap: ScenarioMapSnapshot,
   state: GameState,
   turnNumber = 1,
+  events: ReadonlyArray<EventEnvelope> = [],
 ): VictoryObjectiveState[] {
   const objectives = scenarioSnapshot?.victoryConditions?.objectives ?? []
   return objectives.map((objective) => ({
     ...objective,
     required: objective.required ?? true,
-    completed: isObjectiveCompleted(scenarioSnapshot, scenarioMap, state, turnNumber, objective),
+    completed: isObjectiveCompleted(scenarioSnapshot, scenarioMap, state, turnNumber, objective, events),
   }))
 }
 
@@ -395,7 +398,7 @@ export function computeWinnerUserId(
 
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
-  const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber)
+  const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber, match.events)
   const requiredObjectives = victoryObjectives.filter((objective) => objective.required)
 
   if (requiredObjectives.length > 0) {
@@ -761,7 +764,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
       stackRoster,
       stackNaming: refreshStackRosterNamingSnapshot(stackRoster, match.state.stackNaming, match.state.defenders),
     },
-    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber),
+    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber, match.events),
     escapeHexes,
     scenarioMap,
     eventSeq: match.events.at(-1)?.seq ?? 0,
@@ -781,6 +784,7 @@ export function buildActionResponse(
   eventSeq: number,
   events: EventEnvelope[],
   status: MatchRecord['status'],
+  winnerUserId: string | null,
 ): ActionOkResponse & {
   turnNumber: number
   eventSeq: number
@@ -796,6 +800,7 @@ export function buildActionResponse(
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
+  const historicalEvents = Array.isArray(match.events) ? match.events : []
 
   return {
     ok: true,
@@ -804,12 +809,19 @@ export function buildActionResponse(
     state,
     status,
     hostUserId: match.hostUserId,
+    winner: winnerUserId === null
+      ? null
+      : winnerUserId === match.players.onion
+        ? 'onion'
+        : winnerUserId === match.players.defender
+          ? 'defender'
+          : null,
     turnNumber,
     eventSeq,
     phase,
     scenarioName,
     scenarioMap,
-    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber),
+    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber, [...historicalEvents, ...events]),
     escapeHexes,
   }
 }

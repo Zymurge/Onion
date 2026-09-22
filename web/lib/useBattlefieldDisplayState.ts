@@ -336,9 +336,13 @@ export function useBattlefieldDisplayState({
     const activePhaseOwner = getPhaseOwner(activePhase)
     const lifecycleActive = clientSnapshot?.status === undefined || clientSnapshot.status === 'active'
     const activeTurnActive = lifecycleActive && headerHasSnapshot && activeRole !== null && activePhaseOwner === activeRole
-    const phaseAdvanceLabel = getPhaseAdvanceLabel(activePhase, activeRole)
+    const phaseAdvanceLabel = clientSnapshot?.status === 'completed' || clientSnapshot?.winner === 'onion' || clientSnapshot?.winner === 'defender'
+      ? null
+      : getPhaseAdvanceLabel(activePhase, activeRole)
     const shellPhase = activePhase ?? 'DEFENDER_MOVE'
-    const activePhaseLabel = activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
+    const activePhaseLabel = clientSnapshot?.status === 'completed' || clientSnapshot?.winner === 'onion' || clientSnapshot?.winner === 'defender'
+      ? 'GAME OVER'
+      : activePhase === null ? 'WAITING' : turnPhaseLabels[activePhase]
     const isCombatPhase = activePhase === 'ONION_COMBAT' || activePhase === 'DEFENDER_COMBAT'
     const activeCombatRole: 'onion' | 'defender' | null = activePhase === null ? null : activePhase.startsWith('ONION_') ? 'onion' : activePhase.startsWith('DEFENDER_') ? 'defender' : null
     const isMovementPhase = activePhase === 'ONION_MOVE' || activePhase === 'DEFENDER_MOVE' || activePhase === 'GEV_SECOND_MOVE'

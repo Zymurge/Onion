@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { buildCombatEvents, buildMoveEvents, buildSessionInitPayload, buildVictoryObjectiveStates, computeWinnerUserId, type ScenarioSnapshot } from '#server/api/gamesHelpers'
+import { buildActionResponse, buildCombatEvents, buildMoveEvents, buildSessionInitPayload, buildVictoryObjectiveStates, computeWinnerUserId, type ScenarioSnapshot } from '#server/api/gamesHelpers'
 import type { MatchRecord } from '#server/db/adapter'
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
@@ -421,6 +421,53 @@ describe('buildVictoryObjectiveStates', () => {
     state.defenders['swamp-1'].state = 'destroyed'
 
     expect(computeWinnerUserId(match as unknown as MatchRecord, state, 'ONION_MOVE', 1)).toBe('defender-user')
+  })
+
+  it('includes the Onion winner and completed objectives in a terminal action response', () => {
+    const scenarioMap = materializeScenarioMap({
+      width: 3,
+      height: 3,
+      cells: [{ q: 0, r: 0 }],
+      hexes: [],
+    })
+    const terminalState = makeGameStateWithUnits()
+    terminalState.onions['onion-1'].position = { q: 0, r: 0 }
+    terminalState.turn = 2
+    terminalState.defenders = {}
+    const match = {
+      gameId: 42,
+      scenarioId: 'terminal-scenario',
+      scenarioSnapshot: {
+        map: scenarioMap,
+        victoryConditions: {
+          onion: { escapeHexes: [{ q: 0, r: 0 }] },
+          objectives: [
+            { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true },
+            { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+          ],
+        },
+      },
+      players: { onion: 'onion-user', defender: 'defender-user' },
+      hostUserId: 'onion-user',
+      events: [{ seq: 7, type: 'UNIT_STATUS_CHANGED', timestamp: 'test', unitId: 'swamp-1', to: 'destroyed' }],
+    }
+
+    expect(computeWinnerUserId(match as unknown as MatchRecord, terminalState, 'ONION_MOVE', 2)).toBe('onion-user')
+
+    const response = buildActionResponse(
+      match as unknown as MatchRecord,
+      terminalState,
+      'ONION_MOVE',
+      2,
+      12,
+      [],
+      'completed',
+      'onion-user',
+    )
+
+    expect(response.winner).toBe('onion')
+    expect(response.status).toBe('completed')
+    expect(response.victoryObjectives.every((objective) => objective.completed)).toBe(true)
   })
 
   it('serializes stackRoster in the game state response', () => {

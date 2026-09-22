@@ -1,0 +1,55 @@
+{
+  "id": "rapid-endgame-01",
+  "name": "rapid-endgame-01",
+  "displayName": "Rapid Endgame Test",
+  "description": "The Onion starts beside The Swamp and can reach the escape hex in one move for fast terminal-state testing.",
+  "map": {
+    "radius": 4,
+    "hexes": [
+      { "q": 4, "r": 4, "t": 3 }
+    ]
+  },
+  "initialState": {
+    "deployments": {
+      "onion-1": {
+        "type": "TheOnion",
+        "side": "onion",
+        "position": { "q": 3, "r": 4 },
+        "status": "operational"
+      },
+      "swamp-1": {
+        "type": "Swamp",
+        "side": "defender",
+        "position": { "q": 4, "r": 4 },
+        "status": "operational"
+      }
+    }
+  },
+  "victoryConditions": {
+    "objectives": [
+      {
+        "id": "destroy-swamp-1",
+        "label": "Destroy The Swamp",
+        "kind": "destroy-unit",
+        "unitId": "swamp-1",
+        "required": true
+      },
+      {
+        "id": "escape-off-map",
+        "label": "Escape to the edge hex",
+        "kind": "escape-map",
+        "required": true
+      }
+    ],
+    "onion": {
+      "escapeHexes": [
+        { "q": 0, "r": 4 }
+      ],
+      "description": "After destroying The Swamp, the Onion can complete the scenario by moving three hexes west to the escape hex."
+    },
+    "defender": {
+      "condition": "onionImmobilized",
+      "description": "Defender wins when the Onion's tread points reach 0."
+    }
+  }
+}

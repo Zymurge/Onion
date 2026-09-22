@@ -41,6 +41,8 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
   const stackNaming = display.clientSnapshot?.authoritativeState?.stackNaming
   const stackRoster = display.clientSnapshot?.authoritativeState?.stackRoster
   const catalog = session.state.catalog ?? undefined
+  const terminalWinner = display.clientSnapshot?.winner ?? null
+  const isGameOver = display.clientSnapshot?.status === 'completed' || terminalWinner === 'onion' || terminalWinner === 'defender'
   return (
     <div
       className={`shell${gate.screenLocked ? ' inactive-event-screen-locked' : ''}`}
@@ -116,7 +118,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           displayedOnions={display.displayedOnions}
           isCombatPhase={display.isCombatPhase}
           isMovementPhase={display.isMovementPhase}
-          isSelectionLocked={gate.screenLocked}
+          isSelectionLocked={gate.screenLocked || isGameOver}
           stacksExpandable={display.stacksExpandable}
           onionWeapons={display.onionWeapons}
           readyWeaponDetails={display.readyWeaponDetails}
@@ -142,9 +144,9 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           combatRangeHexKeys={display.combatRangeHexKeys}
           combatTargetIds={display.combatTargetIds}
           escapeHexes={display.escapeHexes}
-          isSelectionLocked={gate.screenLocked}
-          isInteractionLocked={gate.controlsLocked}
-          canSubmitMove={display.activePhase === 'ONION_MOVE' || display.activePhase === 'DEFENDER_MOVE' || display.activePhase === 'GEV_SECOND_MOVE'}
+          isSelectionLocked={gate.screenLocked || isGameOver}
+          isInteractionLocked={gate.controlsLocked || isGameOver}
+          canSubmitMove={!isGameOver && (display.activePhase === 'ONION_MOVE' || display.activePhase === 'DEFENDER_MOVE' || display.activePhase === 'GEV_SECOND_MOVE')}
           viewerRole={display.activeRole}
           onSelectUnit={interaction.handleSelectUnit}
           onSelectCombatTarget={interaction.setSelectedCombatTargetId}
@@ -157,6 +159,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           activeRole={display.activeRole}
           activeSelectedUnitCount={display.activeSelectedUnitIds.length}
           isCombatPhase={display.isCombatPhase}
+          gameOverSummary={terminalWinner === null ? null : { winner: terminalWinner, objectives: display.victoryObjectives }}
           showInactiveEventStream={gate.inactiveEventWindowVisible}
           isInteractionLocked={gate.controlsLocked}
           canDismissInactiveEventStream={session.turn.isActive}

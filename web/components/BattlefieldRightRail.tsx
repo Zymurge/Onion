@@ -15,6 +15,7 @@ import { routeRightRailControl, type RightRailControlRequest } from '../lib/righ
 import logger from '../lib/logger'
 import { parseCombatTargetId } from '../../shared/combatTarget'
 import type { SessionCatalog } from '../lib/sessionCatalog'
+import { GameOverSummary, type GameOverSummaryProps } from './GameOverSummary'
 
 type RamPrompt = {
   unitId: string
@@ -27,6 +28,7 @@ type BattlefieldRightRailProps = {
   activeRole: 'onion' | 'defender' | null
   activeSelectedUnitCount: number
   isCombatPhase: boolean
+  gameOverSummary?: GameOverSummaryProps | null
   showInactiveEventStream: boolean
   isInteractionLocked: boolean
   canDismissInactiveEventStream: boolean
@@ -71,6 +73,7 @@ export function BattlefieldRightRail({
   activeRole,
   activeSelectedUnitCount,
   isCombatPhase,
+  gameOverSummary = null,
   showInactiveEventStream,
   isInteractionLocked,
   canDismissInactiveEventStream,
@@ -101,6 +104,7 @@ export function BattlefieldRightRail({
   const shouldShowCombatPanel = isCombatPhase && activeRole === activeCombatRole
   const shouldShowInspectorPanel = (selectedInspectorOnion !== null || selectedInspectorDefender !== null)
     && (!shouldShowCombatPanel || selectedInspectorOnion !== null)
+  const isGameOver = gameOverSummary !== null
 
   function routeRightRailInteraction(request: InteractionRoutingRequest) {
     const decision = routeInteraction(request, (trace) => {
@@ -257,7 +261,12 @@ export function BattlefieldRightRail({
 
   return (
     <aside className="panel rail rail-right">
-      {showInactiveEventStream ? (
+      {gameOverSummary !== null ? (
+        <section className="selection-panel panel-subtle game-over-summary-panel" data-testid="game-over-summary" role="region" aria-label="Game over summary">
+          <GameOverSummary {...gameOverSummary} />
+        </section>
+      ) : null}
+      {!isGameOver && showInactiveEventStream ? (
         <InactiveEventStream
           entries={inactiveEventStream.entries}
           errorMessage={inactiveEventStream.errorMessage}
@@ -267,7 +276,7 @@ export function BattlefieldRightRail({
           onDismissError={inactiveEventStream.clearErrorMessage}
         />
       ) : null}
-      {pendingRamPrompt !== null ? (
+      {!isGameOver && pendingRamPrompt !== null ? (
         <section className="section-block panel-subtle combat-scaffold">
           <ConfirmationSurface dataTestId="ram-confirmation-view"
             eyebrow="Movement"
@@ -322,7 +331,7 @@ export function BattlefieldRightRail({
           </ConfirmationSurface>
         </section>
       ) : null}
-      {shouldShowCombatPanel && selectedInspectorOnion === null ? (
+      {!isGameOver && shouldShowCombatPanel && selectedInspectorOnion === null ? (
         <section className="section-block panel-subtle combat-scaffold">
           <div className="card-head">
             <div>

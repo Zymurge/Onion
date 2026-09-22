@@ -12,7 +12,7 @@ import type { useBattlefieldInteractionState } from '../lib/useBattlefieldIntera
 
 export type AppOverlayLayerProps = {
   commands: Pick<AppCommands, 'dismissActionError' | 'dismissSessionError' | 'dismissGameOverToast' | 'dismissCombatResolution' | 'dismissRamResolution'>
-  display: Pick<ReturnType<typeof useBattlefieldDisplayState>, 'selectedCombatTarget'>
+  display: Pick<ReturnType<typeof useBattlefieldDisplayState>, 'selectedCombatTarget'> & Partial<Pick<ReturnType<typeof useBattlefieldDisplayState>, 'victoryObjectives'>>
   interaction: Pick<ReturnType<typeof useBattlefieldInteractionState>, 'actionError' | 'pendingCombatResolution' | 'pendingRamResolution'>
   notifications: Pick<AppNotificationPolicy, 'snapshotError' | 'shouldShowSnapshotError' | 'shouldShowSessionError' | 'sessionError' | 'shouldShowActionError' | 'sessionWinner' | 'shouldShowGameOverToast'>
 }
@@ -61,7 +61,11 @@ export function AppOverlayLayer({ commands, display, interaction, notifications 
         />
       ))}
       {notifications.shouldShowGameOverToast && notifications.sessionWinner !== null ? (
-        <GameOverToast winner={notifications.sessionWinner} onDismiss={commands.dismissGameOverToast} />
+        <GameOverToast
+          winner={notifications.sessionWinner}
+          objectives={display.victoryObjectives ?? []}
+          onDismiss={commands.dismissGameOverToast}
+        />
       ) : null}
     </>
   )

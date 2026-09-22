@@ -187,7 +187,10 @@ export function buildLiveDefenders(
     || activePhase === 'DEFENDER_COMBAT'
     || activePhase === 'GEV_SECOND_MOVE'
   const defenderEntries = Object.entries(authoritativeState.defenders)
-    .filter(([, defender]) => preserveDestroyedDefenders || !defenderCleanupStarted || defender.state !== 'destroyed')
+    .filter(([, defender]) => preserveDestroyedDefenders
+      || !defenderCleanupStarted
+      || defender.state !== 'destroyed'
+      || defender.typeId === 'Swamp')
   const stackRosterIndex = buildStackRosterIndex(authoritativeState.stackRoster, authoritativeState.defenders)
 
   return defenderEntries
