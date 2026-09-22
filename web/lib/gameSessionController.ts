@@ -24,6 +24,7 @@ function createInitialState(options: GameSessionControllerOptions): GameSessionV
 		status: 'idle',
 		catalog: null,
 		snapshot: null,
+		previousSnapshot: null,
 		session: null,
 		liveConnection: options.liveEventSource.getConnectionState(options.gameId),
 		lastAppliedEventSeq: null,
@@ -213,6 +214,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 			...state,
 			catalog: nextCatalog ?? state.catalog,
 			status,
+			previousSnapshot: state.snapshot,
 			snapshot: nextSnapshot,
 			session: nextSession,
 			lastAppliedEventSeq: latestObservedEventSeq,
@@ -506,6 +508,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 				state = {
 					...state,
 					status: 'ready',
+					previousSnapshot: state.snapshot,
 					snapshot: nextSnapshot,
 					session: currentSession,
 					lastAppliedEventSeq: latestObservedEventSeq,

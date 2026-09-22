@@ -7,6 +7,7 @@ import {
   getRammedUnits,
   validateUnitMovement,
   executeUnitMovement,
+  reconcileStackStateAfterMoves,
 } from '#server/engine/movement'
 import { createMap } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
@@ -441,6 +442,24 @@ describe('executeUnitMovement', () => {
     expect(state.defenders['d1'].position).toEqual({ q: 2, r: 1 })
     expect(result.success).toBe(true)
     expect(result.newPosition).toEqual({ q: 2, r: 1 })
+  })
+
+  it('rejects invalid ramming plans before mutating the moving unit', () => {
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 1 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { d1: defender } })
+
+    const result = executeUnitMovement(state, makePlan({
+      capabilities: {
+        canRam: true,
+        hasTreads: true,
+        canSecondMove: false,
+      },
+      ramCapacityUsed: 1,
+    }))
+
+    expect(result).toEqual({ success: false, error: 'Ramming requires an Onion unit' })
+    expect(defender.position).toEqual({ q: 1, r: 1 })
+    expect(defender.movementSpent).toBeUndefined()
   })
 
   it('updates ram usage for a ram-capable move plan', () => {
@@ -946,5 +965,45 @@ describe('executeUnitMovement', () => {
     expect(state.stackRoster?.groupsById[destKey]).toBeDefined()
     expect(state.stackRoster?.groupsById[destKey]).toMatchObject({ groupName: 'Persisted Destination', unitIds: ['p1'] })
     expect(state.stackNaming?.usedGroupNames).toEqual(expect.arrayContaining(['Persisted Destination']))
+  })
+})
+
+describe('reconcileStackStateAfterMoves', () => {
+  it('does not merge destroyed stack members into a live Little Pigs destination stack', () => {
+    const destroyedPigs = {
+      p1: makeDefender({ unitId: 'p1', typeId: 'LittlePigs', state: 'destroyed', position: { q: 2, r: 0 } }),
+      p2: makeDefender({ unitId: 'p2', typeId: 'LittlePigs', state: 'destroyed', position: { q: 2, r: 0 } }),
+      p3: makeDefender({ unitId: 'p3', typeId: 'LittlePigs', state: 'destroyed', position: { q: 2, r: 0 } }),
+    }
+    const livePigs = {
+      p4: makeDefender({ unitId: 'p4', typeId: 'LittlePigs', position: { q: 1, r: 0 } }),
+      p5: makeDefender({ unitId: 'p5', typeId: 'LittlePigs', position: { q: 1, r: 0 } }),
+    }
+    const state = makeState({
+      currentPhase: 'DEFENDER_MOVE',
+      defenders: { ...destroyedPigs, ...livePigs },
+      stackRoster: makeStackRoster({
+        groupsById: {
+          'LittlePigs:2,0': makeStackGroup({
+            groupName: 'Little Pigs group 1',
+            position: { q: 2, r: 0 },
+            unitIds: ['p1', 'p2', 'p3'],
+          }),
+          'LittlePigs:1,0': makeStackGroup({
+            groupName: 'Little Pigs group 2',
+            position: { q: 1, r: 0 },
+            unitIds: ['p4', 'p5'],
+          }),
+        },
+      }),
+    })
+
+    livePigs.p4.position = { q: 2, r: 0 }
+    livePigs.p5.position = { q: 2, r: 0 }
+    reconcileStackStateAfterMoves(state, ['p4', 'p5'])
+
+    expect(state.stackRoster.groupsById['LittlePigs:2,0']?.unitIds).toEqual(['p4', 'p5'])
+    expect(state.stackRoster.groupsById['LittlePigs:2,0']?.unitIds).toHaveLength(2)
+    expect(state.stackRoster.groupsById['LittlePigs:2,0']?.unitIds).not.toEqual(expect.arrayContaining(['p1', 'p2', 'p3']))
   })
 })

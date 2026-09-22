@@ -209,8 +209,17 @@ export function buildCombatTargetOptions({
 	let resolvedStackNaming = stackNaming
 	let stackRosterIndex = null
 	if (stackRoster !== undefined && stackRoster !== null) {
+		const displayedDefenderIds = new Set(displayedDefenders.map((unit) => unit.unitId))
+		const displayedStackRoster: StackRosterState = {
+			groupsById: Object.fromEntries(
+				Object.entries(stackRoster.groupsById).flatMap(([groupId, group]) => {
+					const unitIds = group.unitIds.filter((unitId) => displayedDefenderIds.has(unitId))
+					return unitIds.length > 0 ? [[groupId, { ...group, unitIds }] as const] : []
+				}),
+			),
+		}
 		const canonicalStackState = canonicalizeStackRoster(
-			stackRoster,
+			displayedStackRoster,
 			stackNaming ?? undefined,
 			Object.fromEntries(displayedDefenders.map((unit) => [unit.unitId, unit])),
 		)

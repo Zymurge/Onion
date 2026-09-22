@@ -743,7 +743,9 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 	const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? 0
 	const destinationResultUnitCount = destinationGroupUnitCount + movedUnitIds.length
 	const isStackableDestination = isStackRosterUnitType(input.unitType)
-	const persistedDestinationName = input.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+	const persistedDestinationName = destinationGroup === null
+		? undefined
+		: input.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
 	const movesWholeSourceGroup = sourceGroup !== null
 		&& sourceGroup.unitIds.length > 0
 		&& sourceGroup.unitIds.every((unitId) => movedUnitIdSet.has(unitId))

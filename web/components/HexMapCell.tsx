@@ -26,6 +26,7 @@ type HexMapCellProps = {
   isReachable: boolean
   isSelected: boolean
   isSelectionLocked: boolean
+  isTurnHandoffLocked: boolean
   onBackgroundClick: () => void
   onCellContextMenu: (event: MouseEvent<SVGGElement>) => void
   onion: BattlefieldOnionView
@@ -64,6 +65,7 @@ export function HexMapCell({
   isReachable,
   isSelected,
   isSelectionLocked,
+  isTurnHandoffLocked,
   onBackgroundClick,
   onCellContextMenu,
   onion,
@@ -158,6 +160,7 @@ export function HexMapCell({
             isMovementPhase={phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'}
             isOccupantSelected={isOccupantSelected}
             isSelectionLocked={isSelectionLocked}
+            isTurnHandoffLocked={isTurnHandoffLocked}
             occupant={occupant}
             offsetIndex={index}
             renderedOccupantCount={renderedOccupants.length}

@@ -2,6 +2,7 @@ import type { GameState, TurnPhase } from '#shared/types/index'
 import { getUnitRamCapacity } from '#shared/unitMovement'
 import logger from '#server/logger'
 import { UnitWeapons } from '#shared/unitWeapons'
+import { refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
 
 type EngineGameState = GameState
 
@@ -25,6 +26,7 @@ export function phaseActor(phase: TurnPhase): PhaseActor {
   switch (phase) {
     case 'ONION_MOVE':
       logger.debug({ phase }, 'phaseActor called')
+      return 'onion'
     case 'ONION_COMBAT':
       return 'onion'
     case 'DEFENDER_RECOVERY':
@@ -34,6 +36,42 @@ export function phaseActor(phase: TurnPhase): PhaseActor {
     case 'GEV_SECOND_MOVE':
       return 'defender'
   }
+}
+
+export function clearDestroyedDefenders(state: EngineGameState): void {
+  const destroyedUnitIds = new Set<string>()
+  for (const [unitId, unit] of Object.entries(state.defenders)) {
+    if (unit.state === 'destroyed') {
+      destroyedUnitIds.add(unitId)
+      destroyedUnitIds.add(unit.unitId)
+    }
+  }
+
+  if (destroyedUnitIds.size === 0) {
+    return
+  }
+
+  state.defenders = Object.fromEntries(
+    Object.entries(state.defenders).filter(([, unit]) => unit.state !== 'destroyed'),
+  )
+
+  if (state.stackRoster !== undefined) {
+    const groupsById = Object.fromEntries(
+      Object.entries(state.stackRoster.groupsById)
+        .flatMap(([groupId, group]) => {
+          const unitIds = group.unitIds.filter((unitId) => state.defenders[unitId] !== undefined && !destroyedUnitIds.has(unitId))
+          return unitIds.length > 0 ? [[groupId, { ...group, unitIds }] as const] : []
+        }),
+    )
+    state.stackRoster = { groupsById }
+    state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming, state.defenders)
+  }
+}
+
+export function clearDestroyedOnions(state: EngineGameState): void {
+  state.onions = Object.fromEntries(
+    Object.entries(state.onions).filter(([, unit]) => unit.state !== 'destroyed'),
+  )
 }
 
 /**
@@ -50,6 +88,7 @@ export function advancePhase(state: EngineGameState): void {
 
   if (next === 'ONION_MOVE') {
     state.turn++
+    clearDestroyedOnions(state)
     for (const onion of Object.values(state.onions)) {
       onion.ramsRemaining = getUnitRamCapacity(onion.typeId)
       new UnitWeapons(onion.weapons).rechargeSpent()
@@ -71,6 +110,10 @@ export function advancePhase(state: EngineGameState): void {
     for (const unit of Object.values(state.defenders)) {
       if (unit.state === 'recovering') unit.state = 'operational'
     }
+  }
+
+  if (next === 'DEFENDER_MOVE') {
+    clearDestroyedDefenders(state)
   }
 
   state.currentPhase = next

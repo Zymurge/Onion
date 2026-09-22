@@ -62,7 +62,7 @@ export function getStackOffset(index: number, total: number): { dx: number; dy: 
 
 /** Reports whether a defender remains visible on the battlefield. */
 export function shouldRenderDefender(defender: BattlefieldUnit): boolean {
-  return defender.state !== 'destroyed' || defender.typeId === 'Swamp'
+  return defender.state.length > 0
 }
 
 /** Resolves the display label for a non-Swamp occupant marker. */

@@ -633,6 +633,39 @@ describe('useBattlefieldInteractionState', () => {
 		expect(result.current.selectedUnitIds).toEqual(['pigs-1', 'pigs-2'])
 	})
 
+	it('ignores destroyed roster members omitted during Defender movement', async () => {
+		const snapshot = createGroupedDefenderSnapshot()
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.defenders['pigs-3'] = makeDefender({
+			unitId: 'pigs-3',
+			typeId: 'LittlePigs',
+			position: { q: 1, r: 1 },
+			state: 'destroyed',
+			weapons: [],
+		})
+		authoritativeState.stackRoster!.groupsById['LittlePigs:1,1'].unitIds.push('pigs-3')
+
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: createController(),
+				activeTurnActive: true,
+				clientSnapshot: snapshot,
+				clientSnapshotPhase: 'DEFENDER_MOVE',
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			result.current.handleSelectUnit('pigs-1')
+		})
+
+		expect(result.current.actionError).toBeNull()
+		expect(result.current.selectedUnitIds).toEqual(['pigs-1', 'pigs-2'])
+	})
+
 	it('clears selections when the authoritative phase changes', async () => {
 		const controller = createController()
 		const initialSnapshot = createSnapshot({ phase: 'DEFENDER_MOVE' })

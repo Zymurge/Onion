@@ -121,13 +121,21 @@ describe('battlefieldViewBuilders', () => {
     expect(isUnitMoveEligible(view, 'ONION_MOVE', 'onion')).toBe(true)
   })
 
-  it('orders live defenders with operational units before destroyed units and resolves stack size', () => {
+  it('removes destroyed defenders once Defender Movement begins', () => {
     const views = buildLiveDefenders(createLiveSnapshot(), 'DEFENDER_MOVE', true)
 
-    expect(views.map((unit) => unit.unitId)).toEqual(['pigs-1', 'wolf-1', 'pigs-2'])
+    expect(views.map((unit) => unit.unitId)).toEqual(['pigs-1', 'wolf-1'])
     expect(views.find((unit) => unit.unitId === 'pigs-1')).toMatchObject({ stackSize: 1, movesRemaining: 1 })
     expect(views.find((unit) => unit.unitId === 'wolf-1')).toMatchObject({ stackSize: 1, movesRemaining: 0 })
     expect(buildLiveDefenders(createLiveSnapshot({ authoritativeState: undefined }), 'DEFENDER_MOVE', true)).toEqual([])
+  })
+
+  it('retains destroyed defenders during Onion phases for the event window', () => {
+    expect(buildLiveDefenders(createLiveSnapshot(), 'ONION_COMBAT', false).map((unit) => unit.unitId)).toEqual([
+      'pigs-1',
+      'wolf-1',
+      'pigs-2',
+    ])
   })
 
   it('derives Onion movement allowance and rejects snapshots without authoritative state', () => {

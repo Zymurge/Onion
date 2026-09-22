@@ -171,14 +171,23 @@ export function buildBattlefieldOnionView(
 }
 
 /** Builds ordered defender display models from a live snapshot. */
-export function buildLiveDefenders(snapshot: ServerGameSnapshot, activePhase: TurnPhase | null, activeTurnActive: boolean): BattlefieldUnit[] {
+export function buildLiveDefenders(
+  snapshot: ServerGameSnapshot,
+  activePhase: TurnPhase | null,
+  activeTurnActive: boolean,
+  preserveDestroyedDefenders = false,
+): BattlefieldUnit[] {
   const authoritativeState = snapshot.authoritativeState
 
   if (authoritativeState === undefined) {
     return []
   }
 
+  const defenderCleanupStarted = activePhase === 'DEFENDER_MOVE'
+    || activePhase === 'DEFENDER_COMBAT'
+    || activePhase === 'GEV_SECOND_MOVE'
   const defenderEntries = Object.entries(authoritativeState.defenders)
+    .filter(([, defender]) => preserveDestroyedDefenders || !defenderCleanupStarted || defender.state !== 'destroyed')
   const stackRosterIndex = buildStackRosterIndex(authoritativeState.stackRoster, authoritativeState.defenders)
 
   return defenderEntries

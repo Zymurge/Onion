@@ -243,6 +243,51 @@ describe('BattlefieldLeftRail', () => {
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).not.toContain('Range: 4')
   })
 
+  it('renders a destroyed Little Pigs group without combat attributes', () => {
+    const displayedDefenders: BattlefieldDefenderFixture[] = [1, 2, 3].map((index) => ({
+      id: `pigs-${index}`,
+      type: 'LittlePigs',
+      friendlyName: `Little Pigs ${index}`,
+      status: 'destroyed',
+      position: { q: 4, r: 4 },
+      move: 3,
+      weapons: 'main: ready',
+      attack: '1 / rng 1',
+      actionableModes: [],
+    }))
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      isCombatPhase: true,
+      stacksExpandable: true,
+      displayedDefenders: canonicalizeBattlefieldDefenders(displayedDefenders),
+      stackNaming: {
+        groupsInUse: [{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
+        usedGroupNames: ['Little Pigs group 1'],
+      },
+      stackRoster: {
+        groupsById: {
+          'LittlePigs:4,4': {
+            groupName: 'Little Pigs group 1',
+            unitType: 'LittlePigs',
+            position: { q: 4, r: 4 },
+            unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+          },
+        },
+      },
+      catalog: sessionCatalog,
+    })
+
+    const card = screen.getByTestId('combat-unit-pigs-1')
+    expect(card.className).toContain('tone-destroyed')
+    expect(card.textContent).toContain('Destroyed')
+    expect(card.textContent).not.toContain('Attack:')
+    expect(card.textContent).not.toContain('Range:')
+    expect(card.textContent).not.toContain('Move:')
+    expect(card.textContent).not.toContain('0/3')
+  })
+
   it('shows the canonical stack name instead of the first member friendly name', () => {
     const displayedDefenders: BattlefieldDefenderFixture[] = [
       {

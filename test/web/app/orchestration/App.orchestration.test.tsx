@@ -753,7 +753,7 @@ describe('combat', () => {
 		expect(attacker.getAttribute('data-selected')).toBe('true')
 	})
 
-	it('sorts destroyed defenders to the bottom and marks them as destroyed in the roster', async () => {
+	it('removes destroyed defenders before the Defender combat roster renders', async () => {
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
 			units: [
 				{
@@ -778,17 +778,12 @@ describe('combat', () => {
 
 		const activeButton = await screen.findByTestId('combat-unit-active-1')
 		const noReadyButton = await screen.findByTestId('combat-unit-no-ready-1')
-		const deadButton = await screen.findByTestId('combat-unit-dead-1')
 		const noReadyCombatButton = noReadyButton as HTMLButtonElement
-		const deadCombatButton = deadButton as HTMLButtonElement
 
-		expect(activeButton.compareDocumentPosition(deadButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+		expect(screen.queryByTestId('combat-unit-dead-1')).toBeNull()
 		expect(noReadyCombatButton.disabled).toBe(true)
 		expect(noReadyButton.getAttribute('class')).toContain('is-disabled')
 		expect(noReadyButton.getAttribute('title')).toBe('This unit is not eligible to attack.')
-		expect(deadCombatButton.disabled).toBe(true)
-		expect(deadButton.getAttribute('class')).toContain('is-disabled')
-		expect(deadButton.getAttribute('class')).toContain('tone-destroyed')
 	})
 
 	it('renders a shared combat range overlay for selected onion weapons', async () => {

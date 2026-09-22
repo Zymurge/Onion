@@ -42,7 +42,7 @@ function defender(overrides: Partial<BattlefieldUnit> = {}): BattlefieldUnit {
 }
 
 describe('hexMapOccupancy', () => {
-  it('builds occupants by hex and excludes destroyed non-Swamp defenders', () => {
+  it('builds occupants by hex while retaining destroyed defenders for the current phase window', () => {
     const occupants = buildOccupantMap({
       onions: [onion],
       defenders: [
@@ -52,7 +52,7 @@ describe('hexMapOccupancy', () => {
       ],
     })
 
-    expect(occupants.get('1,1')?.map((unit) => unit.unitId)).toEqual(['onion-1', 'pigs-1', 'swamp'])
+    expect(occupants.get('1,1')?.map((unit) => unit.unitId)).toEqual(['onion-1', 'pigs-1', 'destroyed-pigs', 'swamp'])
   })
 
   it('collapses a roster group to its first visible canonical member', () => {
@@ -78,8 +78,8 @@ describe('hexMapOccupancy', () => {
     expect(getStackOffset(1, 2)).toEqual({ dx: 0, dy: 11 })
   })
 
-  it('renders destroyed Swamp defenders but not other destroyed defenders', () => {
-    expect(shouldRenderDefender(defender({ state: 'destroyed' }))).toBe(false)
+  it('renders destroyed defenders until authoritative Defender Movement cleanup', () => {
+    expect(shouldRenderDefender(defender({ state: 'destroyed' }))).toBe(true)
     expect(shouldRenderDefender(defender({ typeId: 'Swamp', state: 'destroyed' }))).toBe(true)
   })
 })

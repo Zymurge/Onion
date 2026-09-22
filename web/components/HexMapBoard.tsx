@@ -45,6 +45,7 @@ type HexMapBoardProps = {
   stackRoster?: StackRosterState
   catalog?: SessionCatalog
   canSubmitMove?: boolean
+  isInteractionLocked?: boolean
   isSelectionLocked?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
   onSelectCombatTarget?: (targetId: string) => void
@@ -114,6 +115,7 @@ export function HexMapBoard({
   stackRoster,
   catalog,
   canSubmitMove = true,
+  isInteractionLocked = false,
   isSelectionLocked = false,
   onSelectUnit,
   onSelectCombatTarget,
@@ -345,6 +347,7 @@ export function HexMapBoard({
                   isReachable={isReachable}
                   isSelected={cellOccupants.some((occupant) => selectedUnitSet.has(occupant.unitId))}
                   isSelectionLocked={isSelectionLocked}
+                  isTurnHandoffLocked={isInteractionLocked}
                   onBackgroundClick={() => {
                     if (isSelectionLocked) {
                       return

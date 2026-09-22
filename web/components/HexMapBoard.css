@@ -19,10 +19,7 @@
 }
 
 .hex-unit-rect-combat-disabled {
-  fill: #888 !important;
-  stroke: #444 !important;
   stroke-width: 2.5;
-  filter: grayscale(0.85) brightness(0.85) opacity(0.7);
 }
 .hex-unit-rect-move-eligible {
   fill: #66bb6a !important;
@@ -46,10 +43,7 @@
 }
 
 .hex-unit-rect-move-disabled {
-  fill: #888 !important;
-  stroke: #444 !important;
   stroke-width: 2.5;
-  filter: grayscale(0.85) brightness(0.85) opacity(0.7);
 }
 .hex-unit-rect-swamp {
   fill: rgba(255, 255, 255, 0.08) !important;
@@ -72,11 +66,6 @@
 
 .tone-neutral {
   opacity: 1;
-}
-
-.hex-unit-stack-disabled .hex-unit-rect,
-.hex-unit-rect-disabled {
-  filter: grayscale(0.85) brightness(0.85) opacity(0.7);
 }
 
 .hex-unit-disabled-indicator {
@@ -354,6 +343,18 @@
 .hex-unit-rect-selected {
   stroke: #ffeb3b;
   stroke-width: 3;
+}
+
+.hex-unit-stack.tone-destroyed:not(.hex-unit-stack-swamp) .hex-unit-rect {
+  fill: #e76f2e !important;
+  stroke: #a94316 !important;
+  filter: saturate(0.9) brightness(0.96);
+}
+
+.hex-unit-stack.tone-destroyed-partial:not(.hex-unit-stack-swamp) .hex-unit-rect {
+  fill: #f0a05f !important;
+  stroke: #c76b2f !important;
+  filter: saturate(0.9) brightness(1.02);
 }
 
 .hex-map-toast-overlay {

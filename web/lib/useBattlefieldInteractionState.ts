@@ -3,7 +3,7 @@ import { findMovePath, type MoveMapSnapshot } from '../../shared/movePlanner'
 import { getRemainingUnitMovementAllowance } from '../../shared/unitMovement'
 import type { GameAction, ServerGameSnapshot } from './gameClient'
 import type { GameSessionController } from './gameSessionTypes'
-import { getAuthoritativeOnion, resolveBattlefieldStackSelectionIds } from './stackSelection'
+import { buildWebStackSourceState, getAuthoritativeOnion, projectWebStackSourceStateToUnitIds, resolveBattlefieldStackSelectionIds } from './stackSelection'
 import { isWeaponSelectionId, resolveSelectionOwnerUnitId } from './selectionIds'
 import { buildMoveCommitAction } from './commitActionBuilders'
 import { clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from './rightRailSelection'
@@ -178,6 +178,29 @@ function getSnapshotSelectionKey(snapshot: ServerGameSnapshot): string {
     .sort()
     .join(',')
   return `${snapshot.phase}:${snapshot.lastEventSeq}:${defenderIds}:${weaponIds}`
+}
+
+function buildVisibleStackSourceState(
+  snapshot: ServerGameSnapshot | null,
+  phase: TurnPhase | null,
+  catalog: SessionCatalog | null,
+) {
+  if (snapshot?.authoritativeState === undefined) {
+    return undefined
+  }
+
+  const sourceState = buildWebStackSourceState(snapshot.authoritativeState, catalog ?? undefined)
+  const defenders = Object.values(sourceState.defenders ?? {}).filter((defender) => {
+    const defenderCleanupStarted = phase === 'DEFENDER_MOVE'
+      || phase === 'DEFENDER_COMBAT'
+      || phase === 'GEV_SECOND_MOVE'
+    return !defenderCleanupStarted || defender.state !== 'destroyed'
+  })
+
+  return projectWebStackSourceStateToUnitIds(
+    sourceState,
+    new Set(defenders.map((defender) => defender.unitId)),
+  )
 }
 
 export function useBattlefieldInteractionState({
@@ -453,8 +476,9 @@ export function useBattlefieldInteractionState({
     let nextStackSelection: string[] | null = null
     if (!additive) {
       try {
+        const visibleStackSourceState = buildVisibleStackSourceState(clientSnapshot, clientSnapshotPhase, catalog)
         nextStackSelection = resolveBattlefieldStackSelectionIds(
-          clientSnapshot?.authoritativeState as Parameters<typeof resolveBattlefieldStackSelectionIds>[0],
+          visibleStackSourceState,
           selectionOwnerUnitId,
           catalog ?? undefined,
         )

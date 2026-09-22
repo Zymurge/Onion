@@ -58,11 +58,12 @@ function createSnapshot(): GameSnapshot {
 	})
 }
 
-function createSessionState(snapshot: GameSnapshot): GameSessionViewState {
+function createSessionState(snapshot: GameSnapshot, previousSnapshot: GameSnapshot | null = null): GameSessionViewState {
 	return {
 		status: 'ready',
 		catalog: sessionCatalog,
 		snapshot,
+		previousSnapshot,
 		session: { role: 'defender' },
 		liveConnection: 'connected',
 		lastAppliedEventSeq: snapshot.lastEventSeq,
@@ -137,6 +138,48 @@ describe('useBattlefieldDisplayState', () => {
 		)
 
 		expect(result.current.selectedCombatAttackLabel).toBe('Attack 2')
+	})
+
+	it('projects selected stacks without destroyed members filtered from Defender movement', () => {
+		const snapshot = createSnapshot()
+		snapshot.phase = 'DEFENDER_MOVE'
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.currentPhase = 'DEFENDER_MOVE'
+		authoritativeState.defenders['pigs-3'] = makeDefender({
+			unitId: 'pigs-3',
+			typeId: 'LittlePigs',
+			position: { q: 4, r: 4 },
+			state: 'destroyed',
+			weapons: [],
+		})
+		authoritativeState.stackNaming = {
+			groupsInUse: [
+				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+			],
+			usedGroupNames: ['Little Pigs group 1'],
+		}
+		authoritativeState.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+				},
+			},
+		}
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds: ['pigs-1'] }),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.error).toBeNull()
+		expect(result.current.selectedStackUnitIds).toEqual(['pigs-1', 'pigs-2'])
 	})
 
 	it('returns error if stackRoster is present but inconsistent with unit positions', () => {
@@ -285,6 +328,66 @@ describe('useBattlefieldDisplayState', () => {
 		)
 		expect(result.current.error).toBeFalsy()
 		expect(result.current.clientSnapshot).toBeTruthy()
+	})
+
+	it('preserves destroyed Defenders until the locked Defender handoff is acknowledged', () => {
+		const previousSnapshot = createSnapshot()
+		previousSnapshot.phase = 'ONION_COMBAT'
+		previousSnapshot.lastEventSeq = 48
+		previousSnapshot.authoritativeState!.currentPhase = 'ONION_COMBAT'
+		previousSnapshot.authoritativeState!.defenders['pigs-2'].state = 'destroyed'
+		previousSnapshot.authoritativeState!.stackNaming = {
+			groupsInUse: [
+				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+			],
+			usedGroupNames: ['Little Pigs group 1'],
+		}
+		previousSnapshot.authoritativeState!.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
+
+		const currentSnapshot = createSnapshot()
+		currentSnapshot.phase = 'DEFENDER_MOVE'
+		currentSnapshot.lastEventSeq = 49
+		currentSnapshot.authoritativeState!.currentPhase = 'DEFENDER_MOVE'
+		delete (currentSnapshot.authoritativeState!.defenders as Record<string, DefenderUnit>)['pigs-2']
+		currentSnapshot.authoritativeState!.stackNaming = previousSnapshot.authoritativeState!.stackNaming
+		currentSnapshot.authoritativeState!.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1'],
+				},
+			},
+		}
+
+		const { result, rerender } = renderHook(
+			(props: { snapshot: GameSnapshot; screenLocked: boolean }) =>
+				useBattlefieldDisplayState({
+					combatBaseSnapshot: null,
+					interactionState: createInteractionState(),
+					sessionState: createSessionState(props.snapshot, props.screenLocked ? previousSnapshot : null),
+					activeSessionBinding: null,
+					screenLocked: props.screenLocked,
+				}),
+			{ initialProps: { snapshot: previousSnapshot, screenLocked: false } },
+		)
+
+		rerender({ snapshot: currentSnapshot, screenLocked: true })
+		expect(result.current.displayedDefenders.map((unit) => unit.unitId)).toEqual(['pigs-1', 'pigs-2'])
+		expect(result.current.displayedDefenders.find((unit) => unit.unitId === 'pigs-2')?.state).toBe('destroyed')
+
+		rerender({ snapshot: currentSnapshot, screenLocked: false })
+		expect(result.current.displayedDefenders.map((unit) => unit.unitId)).toEqual(['pigs-1'])
 	})
 
 	it('returns a diagnostic error when authoritative state is missing', () => {

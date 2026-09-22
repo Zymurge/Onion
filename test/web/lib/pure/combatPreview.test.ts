@@ -204,6 +204,38 @@ describe('buildCombatTargetOptions', () => {
 		})
 	})
 
+	it('ignores stale roster members that are no longer displayed', () => {
+		const options = buildCombatTargetOptions({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['3,2']),
+			displayedDefenders: [
+				makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 3, r: 2 } }),
+				makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 3, r: 2 } }),
+			],
+			displayedOnion: makeBattlefieldOnion({
+				position: { q: 0, r: 1 },
+				weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' })],
+			}),
+			stackRoster: {
+				groupsById: {
+					'LittlePigs:3,2': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 3, r: 2 },
+						unitIds: ['pigs-1', 'pigs-2', 'pigs-4'],
+					},
+				},
+			},
+			selectedUnitIds: ['weapon:main-1'],
+			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: { width: 8, height: 8, hexes: [] },
+		})
+
+		expect(options).toHaveLength(1)
+		expect(options[0]).toMatchObject({ id: 'LittlePigs:3,2', label: 'Little Pigs group 1' })
+	})
+
 	it('uses the friendly group name when persisted naming has a coordinate label', () => {
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'onion',

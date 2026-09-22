@@ -24,6 +24,45 @@ export type WebStackSourceState = {
   catalog?: SessionCatalog
 }
 
+/** Keeps only roster members represented by a phase-specific defender projection. */
+export function filterStackRosterToUnitIds(
+  stackRoster: StackRosterState | undefined,
+  unitIds: ReadonlySet<string>,
+): StackRosterState | undefined {
+  if (stackRoster === undefined) {
+    return undefined
+  }
+
+  return {
+    groupsById: Object.fromEntries(
+      Object.entries(stackRoster.groupsById).flatMap(([groupId, group]) => {
+        const displayedUnitIds = group.unitIds.filter((unitId) => unitIds.has(unitId))
+        return displayedUnitIds.length > 0 ? [[groupId, { ...group, unitIds: displayedUnitIds }] as const] : []
+      }),
+    ),
+  }
+}
+
+/** Projects a web stack source state onto the defenders currently available to the UI. */
+export function projectWebStackSourceStateToUnitIds(
+  state: WebStackSourceState | null | undefined,
+  unitIds: ReadonlySet<string>,
+): WebStackSourceState | null | undefined {
+  if (state === null || state === undefined) {
+    return state
+  }
+
+  const defenders = state.defenders === undefined
+    ? undefined
+    : Object.fromEntries(Object.entries(state.defenders).filter(([unitId]) => unitIds.has(unitId)))
+
+  return {
+    ...state,
+    ...(defenders === undefined ? {} : { defenders }),
+    stackRoster: filterStackRosterToUnitIds(state.stackRoster, unitIds),
+  }
+}
+
 function isStackableUnitType(unitType: string | undefined, catalog?: SessionCatalog): boolean {
   if (unitType === undefined) {
     return false

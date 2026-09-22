@@ -5,7 +5,7 @@ import {
   buildWeaponSelectionId,
   resolveSelectionOwnerUnitId,
 } from '../lib/selectionIds'
-import { countSelectedBattlefieldStackMembers, shouldExpandBattlefieldStackGroup, type WebStackSourceState } from '../lib/stackSelection'
+import { countSelectedBattlefieldStackMembers, filterStackRosterToUnitIds, shouldExpandBattlefieldStackGroup, type WebStackSourceState } from '../lib/stackSelection'
 import { getBattlefieldStackSize, resolveBattlefieldDisplayName, resolveBattlefieldStackLabel, resolveBattlefieldUnitName } from '../lib/battlefieldNaming'
 import { getBattlefieldWeaponAttack, getReadyWeaponRange, parseWeaponStats, resolveBattlefieldWeaponName } from '../lib/weaponStats'
 import { getGroupAttackReadyCount, getUnitAttackStrength } from '../lib/stackReadiness'
@@ -54,6 +54,7 @@ type DefenderStackGroup = {
   attackReadyCount: number
   isActionable: boolean
   isDestroyed: boolean
+  isPartiallyDestroyed: boolean
   label: string
   members: DefenderStackGroupMember[]
   range: number
@@ -66,6 +67,9 @@ function buildDefenderSelectionState(
   stackRoster: StackRosterState | undefined,
   catalog: SessionCatalog | undefined,
 ): WebStackSourceState {
+  const displayedDefenderIds = new Set(displayedDefenders.map((unit) => unit.unitId))
+  const displayedStackRoster = filterStackRosterToUnitIds(stackRoster, displayedDefenderIds)
+
   return {
     defenders: Object.fromEntries(
       displayedDefenders.map((unit) => [unit.unitId, {
@@ -76,7 +80,7 @@ function buildDefenderSelectionState(
         stackSize: unit.stackSize,
       }]),
     ),
-    ...(stackRoster === undefined ? {} : { stackRoster }),
+    ...(displayedStackRoster === undefined ? {} : { stackRoster: displayedStackRoster }),
     catalog,
   }
 }
@@ -148,6 +152,8 @@ function buildDefenderGroupFromUnits(
       isDestroyed: groupMode === 'combat'
         ? units.every((unit) => unit.state === 'destroyed')
         : anchorUnit.state === 'destroyed',
+      isPartiallyDestroyed: units.some((unit) => unit.state === 'destroyed')
+        && units.some((unit) => unit.state !== 'destroyed'),
     label,
     members,
     range: groupMode === 'combat'
@@ -251,7 +257,7 @@ function BattlefieldStackGroup({
     memberCount: group.members.length,
     selectedCount: group.selectedCount,
     stacksExpandable,
-  })
+  }) && !group.isDestroyed
   return (
     <div
       key={group.anchorUnit.unitId}
@@ -267,7 +273,7 @@ function BattlefieldStackGroup({
           isSelected ? 'is-selected' : '',
           isActionable ? 'is-actionable' : '',
           isSelectionLocked ? 'is-disabled' : '',
-          `tone-${statusTone(group.anchorUnit.state)}`,
+          group.isPartiallyDestroyed ? 'tone-destroyed-partial' : `tone-${statusTone(group.anchorUnit.state)}`,
         ].join(' ')}
         aria-pressed={isSelected}
         disabled={isSelectionLocked}
@@ -293,13 +299,17 @@ function BattlefieldStackGroup({
       >
         <div className="combat-stack-card-head">
           <div className="weapon-card-name">{group.label}</div>
-          {group.members.length > 1 ? <span className="mini-tag">{group.attackReadyCount}/{group.members.length}</span> : null}
+          {group.members.length > 1 && !group.isDestroyed ? <span className="mini-tag">{group.attackReadyCount}/{group.members.length}</span> : null}
         </div>
-        <div className="weapon-card-stats">
-          {isCombatGroup
-            ? <>Attack: {group.attackStrength} &nbsp;·&nbsp; Range: {group.range}</>
-            : <>Move: {group.moveAllowance} &nbsp;·&nbsp; Attack: {group.attackStrength}</>}
-        </div>
+        {group.isDestroyed ? (
+          <div className="weapon-card-stats">Destroyed</div>
+        ) : (
+          <div className="weapon-card-stats">
+            {isCombatGroup
+              ? <>Attack: {group.attackStrength} &nbsp;·&nbsp; Range: {group.range}</>
+              : <>Move: {group.moveAllowance} &nbsp;·&nbsp; Attack: {group.attackStrength}</>}
+          </div>
+        )}
       </button>
       {isExpanded ? (
         <div className="combat-stack-member-list">

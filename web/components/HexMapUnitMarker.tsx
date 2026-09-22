@@ -26,6 +26,7 @@ type HexMapUnitMarkerProps = {
   isMovementPhase: boolean
   isOccupantSelected: boolean
   isSelectionLocked: boolean
+  isTurnHandoffLocked?: boolean
   occupant: HexOccupant
   offsetIndex: number
   renderedOccupantCount: number
@@ -54,6 +55,7 @@ export function HexMapUnitMarker({
   isMovementPhase,
   isOccupantSelected,
   isSelectionLocked,
+  isTurnHandoffLocked = false,
   occupant,
   offsetIndex,
   renderedOccupantCount,
@@ -72,6 +74,14 @@ export function HexMapUnitMarker({
   const offset = getStackOffset(offsetIndex, renderedOccupantCount)
   const isSwamp = occupant.typeId === 'Swamp'
   const isDestroyed = occupant.state === 'destroyed'
+  const isPartialDestroyed = combatMembers.some((member) => member.state === 'destroyed')
+    && combatMembers.some((member) => member.state !== 'destroyed')
+  const hasDestroyedOnionSubsystem = isOccupantOnion && (
+    occupant.weapons.some((weapon) => weapon.state === 'destroyed')
+      || ('treads' in occupant && occupant.treads !== undefined && occupant.treads < 45)
+  )
+  const showOnionDamageTone = hasDestroyedOnionSubsystem
+    && (phase === 'DEFENDER_COMBAT' || phase === 'GEV_SECOND_MOVE' || (phase === 'ONION_MOVE' && isTurnHandoffLocked))
   const isDisabled = occupant.state === 'disabled'
   const isMovementPhaseActiveSide = phase === 'ONION_MOVE'
     ? isOccupantOnion
@@ -185,7 +195,13 @@ export function HexMapUnitMarker({
         isOccupantSelected ? 'hex-unit-stack-selected' : '',
         isMovementPhase && movementEligibilityClass === 'hex-unit-rect-move-eligible' ? 'hex-unit-stack-move-ready' : '',
         isDisabled ? 'hex-unit-stack-disabled' : '',
-        isSwamp ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral') : `tone-${statusTone(occupant.state)}`,
+        isSwamp
+          ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral')
+          : isPartialDestroyed || (!isDestroyed && showOnionDamageTone)
+            ? 'tone-destroyed-partial'
+            : isDestroyed
+              ? 'tone-destroyed'
+              : `tone-${statusTone(occupant.state)}`,
       ].join(' ')}
       transform={`translate(${offset.dx}, ${offset.dy})`}
       onClick={handleClick}

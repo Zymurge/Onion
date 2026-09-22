@@ -9,7 +9,7 @@ import {
   getPhaseAdvanceLabel,
   getPhaseOwner,
 } from './battlefieldViewBuilders'
-import { buildWebStackSourceState, countSelectedBattlefieldStackGroups, resolveBattlefieldStackMemberIds, resolveBattlefieldStacksExpandable } from './stackSelection'
+import { buildWebStackSourceState, countSelectedBattlefieldStackGroups, projectWebStackSourceStateToUnitIds, resolveBattlefieldStackMemberIds, resolveBattlefieldStacksExpandable } from './stackSelection'
 import { resolveBattlefieldFriendlyName } from './battlefieldNaming'
 import { getBattlefieldWeaponAttack, isBattlefieldUnitCombatReady, isBattlefieldWeaponReady, parseWeaponStats, resolveBattlefieldWeaponName } from './weaponStats'
 import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './selectionIds'
@@ -28,6 +28,7 @@ type UseBattlefieldDisplayStateOptions = {
   interactionState: BattlefieldInteractionState
   sessionState: GameSessionViewState
   activeSessionBinding: SessionBinding | null
+  screenLocked?: boolean
 }
 
 type RightRailStackPanelViewModel = {
@@ -256,9 +257,52 @@ export function useBattlefieldDisplayState({
   interactionState,
   sessionState,
   activeSessionBinding,
+  screenLocked = false,
 }: UseBattlefieldDisplayStateOptions) {
   return useMemo(() => {
-    const clientSnapshot = combatBaseSnapshot ?? sessionState.snapshot
+    const currentSessionSnapshot = sessionState.snapshot
+    const previousSessionSnapshot = sessionState.previousSnapshot ?? null
+    const handoffSnapshot = screenLocked
+      && currentSessionSnapshot?.phase === 'DEFENDER_MOVE'
+      && previousSessionSnapshot?.phase === 'ONION_COMBAT'
+      && currentSessionSnapshot.gameId === previousSessionSnapshot.gameId
+      && currentSessionSnapshot.turnNumber === previousSessionSnapshot.turnNumber
+      && currentSessionSnapshot.authoritativeState !== undefined
+      && previousSessionSnapshot.authoritativeState !== undefined
+      ? (() => {
+        const destroyedDefenders = Object.fromEntries(
+          Object.entries(previousSessionSnapshot.authoritativeState.defenders).filter(([unitId, defender]) =>
+            defender.state === 'destroyed'
+              && currentSessionSnapshot.authoritativeState?.defenders[unitId] === undefined,
+          ),
+        )
+        if (Object.keys(destroyedDefenders).length === 0) {
+          return null
+        }
+
+        const previousStackRoster = previousSessionSnapshot.authoritativeState.stackRoster
+        const currentStackRoster = currentSessionSnapshot.authoritativeState.stackRoster
+        const preservedRoster = Object.values(previousStackRoster.groupsById).some((group) =>
+          group.unitIds.some((unitId) => destroyedDefenders[unitId] !== undefined),
+        )
+
+        return {
+          ...currentSessionSnapshot,
+          authoritativeState: {
+            ...currentSessionSnapshot.authoritativeState,
+            defenders: {
+              ...currentSessionSnapshot.authoritativeState.defenders,
+              ...destroyedDefenders,
+            },
+            stackNaming: preservedRoster
+              ? previousSessionSnapshot.authoritativeState.stackNaming
+              : currentSessionSnapshot.authoritativeState.stackNaming,
+            stackRoster: preservedRoster ? previousStackRoster : currentStackRoster,
+          },
+        }
+      })()
+      : null
+    const clientSnapshot = handoffSnapshot ?? combatBaseSnapshot ?? currentSessionSnapshot
     const clientSession = sessionState.session
     const catalog = sessionState.catalog
     const {
@@ -283,7 +327,6 @@ export function useBattlefieldDisplayState({
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
     const stackSourceState = authoritativeState === null || hasValidationError ? null : buildWebStackSourceState(authoritativeState, catalog ?? undefined)
-    const selectedStackUnitIds = selectedBoardUnitId === null || hasValidationError ? [] : resolveBattlefieldStackMemberIds(stackSourceState, selectedBoardUnitId, catalog ?? undefined)
     const activeSelectedUnitIds = selectedUnitIds ?? []
     const headerHasSnapshot = clientSnapshot !== null
     const activeTurnNumber = clientSnapshot?.turnNumber ?? null
@@ -311,7 +354,14 @@ export function useBattlefieldDisplayState({
 
     const displayedDefenders = authoritativeState === null || hasValidationError || clientSnapshot === null
       ? []
-      : buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive)
+      : buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive, handoffSnapshot !== null)
+    const visibleStackSourceState = projectWebStackSourceStateToUnitIds(
+      stackSourceState,
+      new Set(displayedDefenders.map((unit) => unit.unitId)),
+    )
+    const selectedStackUnitIds = selectedBoardUnitId === null || hasValidationError
+      ? []
+      : resolveBattlefieldStackMemberIds(visibleStackSourceState, selectedBoardUnitId, catalog ?? undefined)
     const displayedOnions = clientSnapshot === null || hasValidationError ? [] : buildLiveOnions(clientSnapshot, activePhase)
     const selectedOnionId = activeSelectedUnitIds.map(resolveSelectionOwnerUnitId).find((unitId) => displayedOnions.some((onion) => onion.unitId === unitId))
     const displayedOnion = displayedOnions.find((onion) => onion.unitId === selectedOnionId) ?? displayedOnions[0] ?? null
@@ -328,9 +378,9 @@ export function useBattlefieldDisplayState({
       : activeCombatRole === 'defender'
         ? Array.from(new Set(activeSelectedUnitIds.filter((selectionId) => readyDefenderUnitIds.has(resolveSelectionOwnerUnitId(selectionId)))))
         : activeSelectedUnitIds
-    const stackRoster = hasValidationError || stackSourceState?.stackRoster === undefined
+    const stackRoster = hasValidationError || visibleStackSourceState?.stackRoster === undefined
       ? undefined
-      : stackSourceState.stackRoster as import('../../shared/types/index').StackRosterState
+      : visibleStackSourceState.stackRoster as import('../../shared/types/index').StackRosterState
     const selectedAttackSelectionIds = isCombatPhase ? selectedCombatSelectionIds : activeSelectedUnitIds
     const selectedCombatAttackerIds = !isCombatPhase
       ? []
@@ -362,7 +412,7 @@ export function useBattlefieldDisplayState({
     const selectedCombatAttackGroupCount = !isCombatPhase
       ? 0
       : activeCombatRole === 'defender'
-        ? countSelectedBattlefieldStackGroups(stackSourceState, selectedCombatSelectionIds, catalog ?? undefined)
+        ? countSelectedBattlefieldStackGroups(visibleStackSourceState, selectedCombatSelectionIds, catalog ?? undefined)
         : selectedCombatAttackerIds.length > 0 ? 1 : 0
     const selectedCombatAttackLabel = selectedCombatAttackStrength > 0 ? `Attack ${selectedCombatAttackStrength}` : 'Attack 0'
     const selectedCombatAttackCount = selectedCombatAttackerIds.length
@@ -371,7 +421,7 @@ export function useBattlefieldDisplayState({
       return selectionId === null ? null : resolveSelectionOwnerUnitId(selectionId)
     })()
     const selectedInspectorOnion = selectedInspectorUnitId !== null && selectedInspectorUnitId === displayedOnion?.unitId ? displayedOnion : null
-    const rightRailStackSelection = hasValidationError || stackSourceState === null
+    const rightRailStackSelection = hasValidationError || visibleStackSourceState === null || visibleStackSourceState === undefined
       ? {
         anchorUnitId: null,
         groupId: null,
@@ -382,7 +432,7 @@ export function useBattlefieldDisplayState({
         selectedStackSelectionCount: 0,
       }
       : buildRightRailStackSelectionViewModel({
-        state: stackSourceState,
+        state: visibleStackSourceState,
         inspectedUnitId: selectedInspectorUnitId,
         selectedStackUnitIds,
         activeSelectedUnitIds: selectedCombatSelectionIds,
@@ -490,5 +540,6 @@ export function useBattlefieldDisplayState({
     combatBaseSnapshot,
     interactionState,
     sessionState,
+    screenLocked,
   ])
 }

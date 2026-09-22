@@ -44,6 +44,7 @@ export type GameSessionViewState = {
 	status: 'idle' | 'loading' | 'ready' | 'refreshing' | 'error' | 'aborted'
 	catalog: SessionInitPayload | null
 	snapshot: ServerGameSnapshot | null
+	previousSnapshot?: ServerGameSnapshot | null
 	session: GameSessionContext | null
 	liveConnection: LiveConnectionStatus
 	lastAppliedEventSeq: number | null

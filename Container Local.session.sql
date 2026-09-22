@@ -1,1 +1,3 @@
-DELETE FROM users WHERE username NOT like 'user%';
+DELETE from matches;
+
+SELECT * FROM matches;

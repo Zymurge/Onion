@@ -44,7 +44,7 @@ export type ScenarioDetailResponse = {
 }
 
 function formatScenarioType(typeId: string, catalog: SessionCatalog | null): string {
-  return catalog?.unitTypes[typeId]?.friendlyName ?? typeId.replace(/([a-z])([A-Z])/g, '$1 $2')
+  return catalog?.unitTypes[typeId]?.name ?? typeId.replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 
 export function buildScenarioManifest(detail: ScenarioDetailResponse | null, catalog: SessionCatalog | null) {

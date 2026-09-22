@@ -292,6 +292,33 @@ export function applyActionToExpectedState(expected: ExpectedState, action: Expe
       if (expected.onions[onionId] && typeof event.remaining === 'number') expected.onions[onionId].treads = event.remaining
     }
   }
+
+  if (result.events.some((event) => event.type === 'PHASE_CHANGED' && event.to === 'DEFENDER_MOVE')) {
+    const destroyedUnitIds = new Set(
+      Object.values(expected.defenders)
+        .filter((defender) => defender.state === 'destroyed')
+        .map((defender) => defender.unitId),
+    )
+    for (const unitId of destroyedUnitIds) {
+      delete expected.defenders[unitId]
+    }
+    if (expected.stackRoster !== undefined) {
+      for (const [groupId, group] of Object.entries(expected.stackRoster.groupsById)) {
+        group.unitIds = group.unitIds.filter((unitId) => expected.defenders[unitId] !== undefined)
+        if (group.unitIds.length === 0) {
+          delete expected.stackRoster.groupsById[groupId]
+        }
+      }
+    }
+  }
+
+  if (result.events.some((event) => event.type === 'PHASE_CHANGED' && event.to === 'ONION_MOVE')) {
+    for (const [unitId, onion] of Object.entries(expected.onions)) {
+      if (onion.state === 'destroyed') {
+        delete expected.onions[unitId]
+      }
+    }
+  }
 }
 
 export function assertStateMatches(apiState: GameState, expected: ExpectedState) {

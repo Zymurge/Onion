@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { TURN_PHASES, nextPhase, phaseActor, checkVictoryConditions, advancePhase } from '#server/engine/phases'
 import type { GameState, Weapon } from '#server/engine/units'
-import { makeDefender as makeUnit, makeGameState, makeOnion } from '#test/utils/gameStateUtils'
+import { makeDefender as makeUnit, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 
 describe('TURN_PHASES', () => {
   it('contains all 6 phases in order', () => {
@@ -150,6 +150,19 @@ describe('advancePhase', () => {
       expect(state.onions.onion.ramsRemaining).toBe(2)
     })
 
+    it('clears destroyed Onion-side units while retaining live units', () => {
+      const state = makeState('GEV_SECOND_MOVE')
+      state.onions = {
+        alive: makeOnion({ unitId: 'alive', treads: 12 }),
+        destroyed: makeOnion({ unitId: 'destroyed', state: 'destroyed' }),
+      }
+
+      advancePhase(state)
+
+      expect(state.onions).toEqual({ alive: expect.objectContaining({ unitId: 'alive', treads: 12 }) })
+      expect(state.onions.destroyed).toBeUndefined()
+    })
+
     it('transitions disabled units to recovering', () => {
       const state = makeState('GEV_SECOND_MOVE', {
         puss: makeUnit({ unitId: 'puss', state: 'disabled' }),
@@ -210,7 +223,24 @@ describe('advancePhase', () => {
       })
       advancePhase(state)
       expect(state.defenders['alive'].state).toBe('operational')
-      expect(state.defenders['dead'].state).toBe('destroyed')
+      expect(state.defenders['dead']).toBeUndefined()
+    })
+
+    it('prunes destroyed units from the stack roster before Defender Movement', () => {
+      const state = makeState('ONION_COMBAT', {
+        'pigs-1': makeUnit({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 }, state: 'destroyed' }),
+        'pigs-2': makeUnit({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
+      })
+      state.stackRoster = makeStackRoster({
+        groupsById: {
+          'LittlePigs:1,1': makeStackGroup({ unitIds: ['pigs-1', 'pigs-2'] }),
+        },
+      })
+
+      advancePhase(state)
+
+      expect(state.defenders['pigs-1']).toBeUndefined()
+      expect(state.stackRoster.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-2'])
     })
   })
 })

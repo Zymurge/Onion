@@ -575,7 +575,7 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-inspectable')
 	})
 
-	it('greys out disabled movement units on the map', () => {
+	it('keeps disabled movement units color-coded on the map', () => {
 		const disabledDefender: BattlefieldUnit = {
 			...defenders[0],
 			unitId: 'puss-disabled',

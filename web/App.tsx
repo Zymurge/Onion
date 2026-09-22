@@ -126,6 +126,7 @@ function App({
     combatBaseSnapshot: interaction.interactionState.combatBaseSnapshot,
     interactionState: interaction.interactionState,
     sessionState: session.state,
+    screenLocked: gate.screenLocked,
   })
 
   // 5. Cross-cutting policy. Note: `display.error` is a snapshot VALIDATION

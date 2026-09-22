@@ -1,6 +1,7 @@
 import { buildStackRosterIndex, type StackRosterIndex } from '../../shared/stackRoster'
 import type { DefenderMap, StackRosterState } from '../../shared/types/index'
 import type { BattlefieldUnit } from './battlefieldView'
+import { filterStackRosterToUnitIds } from './stackSelection'
 
 export type BattlefieldRosterProjection = {
 	defendersById: ReadonlyMap<string, BattlefieldUnit>
@@ -26,7 +27,10 @@ export function buildBattlefieldRosterIndex(
 	defenders: ReadonlyArray<BattlefieldUnit>,
 	stackRoster: StackRosterState | undefined,
 ): StackRosterIndex {
-	return buildStackRosterIndex(stackRoster, buildBattlefieldDefenderLookup(defenders))
+	return buildStackRosterIndex(
+		filterStackRosterToUnitIds(stackRoster, new Set(defenders.map((defender) => defender.unitId))),
+		buildBattlefieldDefenderLookup(defenders),
+	)
 }
 
 export function buildBattlefieldRosterProjection(

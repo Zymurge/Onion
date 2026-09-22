@@ -1,4 +1,3 @@
-import logger from '#server/logger'
 /**
  * Movement validation and execution for the Onion game engine.
  *
@@ -6,6 +5,7 @@ import logger from '#server/logger'
  * movement mechanics like Onion ramming and GEV second moves.
  */
 
+import logger from '#server/logger'
 import type { HexPos, PlayerRole, SingleUnitMoveCommand, GameState, GameUnit, OnionUnit, DefenderUnit } from '#shared/types/index'
 import { isInBounds } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
@@ -18,7 +18,7 @@ import { reconcileStackRosterMoveLifecycle, refreshStackRosterNamingSnapshot } f
 
 type EngineGameState = GameState
 /**
- * Result of validating a movement command.
+ * Error codes returned when validating a movement command.
  */
 export type MovementValidationCode =
   | 'WRONG_PHASE'
@@ -181,8 +181,17 @@ export function reconcileStackStateAfterMoves(state: EngineGameState, movedUnitI
     return
   }
 
+  const activeStackRoster = {
+    groupsById: Object.fromEntries(
+      Object.entries(state.stackRoster.groupsById).flatMap(([groupId, group]) => {
+        const unitIds = group.unitIds.filter((unitId) => state.defenders[unitId]?.state !== 'destroyed')
+        return unitIds.length > 0 ? [[groupId, { ...group, unitIds }] as const] : []
+      }),
+    ),
+  }
+
   const reconciled = reconcileStackRosterMoveLifecycle({
-    stackRoster: state.stackRoster,
+    stackRoster: activeStackRoster,
     stackNaming: state.stackNaming,
     defenders: state.defenders,
     movedUnitId: movedDefender.unitId,
@@ -249,15 +258,17 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan, options: Mo
   }
 
   const { unit } = resolved
+  const requiresRamming = plan.capabilities.canRam && plan.ramCapacityUsed > 0
+  if (requiresRamming && !hasTreads(unit)) {
+    return { success: false, error: 'Ramming requires an Onion unit' }
+  }
+
   unit.position = plan.to
   spendUnitMovement(unit, state.currentPhase, plan.cost)
 
   const destroyedUnits: string[] = []
   const rammedUnitResults: NonNullable<MovementResult['rammedUnitResults']> = []
-  if (plan.capabilities.canRam && plan.ramCapacityUsed > 0) {
-    if (!hasTreads(unit)) {
-      return { success: false, error: 'Ramming requires an Onion unit' }
-    }
+  if (requiresRamming) {
     unit.ramsRemaining = Math.max(0, (unit.ramsRemaining ?? 0) - plan.ramCapacityUsed)
     for (const rammedUnitId of plan.rammedUnitIds) {
       const rammedUnit = state.defenders[rammedUnitId]
@@ -299,11 +310,6 @@ export function validateUnitMovement(
   map: GameMap,
   state: EngineGameState,
   command: SingleUnitMoveCommand
-): MovementValidation
-export function validateUnitMovement(
-  map: GameMap,
-  state: EngineGameState,
-  command: SingleUnitMoveCommand
 ): MovementValidation {
   return validateMovePlan(map, state, command)
 }
@@ -312,16 +318,6 @@ export function validateUnitMovement(
  * Execute an Onion movement.
  * @param map - The game map
  * @param state - Current game state
- * @param command - Movement command to execute
- * @returns Movement result with state changes
- */
-
-
-/**
- * Execute a defender unit movement.
- * @param map - The game map
- * @param state - Current game state
- * @param unitId - ID of unit to move
  * @param command - Movement command to execute
  * @returns Movement result with state changes
  */
@@ -345,11 +341,13 @@ export function executeOnionMovement(
   return executeMovePlan(state, validation.plan)
 }
 
-export function executeUnitMovement(
-  state: EngineGameState,
-  plan: MovementPlan,
-  options?: MovementExecutionOptions,
-): MovementResult
+/**
+ * Execute a movement from a validated plan.
+ * @param state - Current game state
+ * @param plan - Validated movement plan to execute
+ * @param options - Optional execution hooks and stack reconciliation settings
+ * @returns Movement result with state changes
+ */
 export function executeUnitMovement(
   state: EngineGameState,
   plan: MovementPlan,
@@ -419,10 +417,10 @@ export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
 }
 
 /**
- * Check if a unit can move through another unit's hex.
- * @param movingUnit - Unit attempting to move
+ * Check whether the occupying unit's hex can be traversed.
+ * @param movingUnit - Unit attempting to move; retained for API compatibility
  * @param occupyingUnit - Unit occupying the target hex
- * @param movingRole - The player role of the moving unit
+ * @param movingRole - Player role; retained for API compatibility
  * @returns True if movement is allowed
  */
 export function canMoveThrough(
@@ -430,11 +428,9 @@ export function canMoveThrough(
   occupyingUnit: GameUnit,
   movingRole: PlayerRole
 ): boolean {
-  if (movingRole === 'onion') {
-    // Onion can move through any defender hex (ramming)
-    return occupyingUnit.typeId !== 'TheOnion'
-  }
-  // Defender can move through friendly defenders but not through the Onion
+  void movingUnit
+  void movingRole
+  // Both sides can traverse defender hexes, but neither can traverse the Onion.
   return occupyingUnit.typeId !== 'TheOnion'
 }
 
