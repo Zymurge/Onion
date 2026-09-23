@@ -14,8 +14,14 @@ export interface MatchRecord {
   players: { onion: string | null; defender: string | null }
   /** User who created and hosts the match */
   hostUserId: string
+  /** Timestamp when the match was created. */
+  createdAt?: string | null
+  /** Timestamp of the latest persisted game activity, falling back to creation. */
+  lastActivityAt?: string | null
   /** Coarse lifecycle state for lobby and gameplay coordination */
   status: GameLifecycleStatus
+  /** Timestamp when the match first reached completed status. */
+  completedAt?: string | null
   /** Current turn phase */
   phase: import('../../shared/types/index.js').TurnPhase
   /** Current turn number (1-based) */
@@ -28,7 +34,16 @@ export interface MatchRecord {
   events: import('../../shared/types/index.js').EventEnvelope[]
 }
 
-export type GameLifecycleStatus = 'waiting' | 'ready' | 'active' | 'completed'
+export type GameLifecycleStatus = 'waiting' | 'ready' | 'active' | 'completed' | 'archived'
+
+export type MatchManagementErrorCode = 'MATCH_NOT_FOUND' | 'NOT_CREATOR' | 'INVALID_STATUS'
+
+export class MatchManagementError extends Error {
+  constructor(public readonly code: MatchManagementErrorCode, message: string) {
+    super(message)
+    this.name = 'MatchManagementError'
+  }
+}
 
 /**
  * Thrown when persisting an action against stale match/event state.
@@ -78,13 +93,18 @@ export interface PersistMatchProgressInput {
   expectedLastEventSeq: number
 }
 
-export type MatchSummary = Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players' | 'hostUserId' | 'status'>
+export type MatchSummary = Pick<MatchRecord, 'gameId' | 'scenarioId' | 'phase' | 'turnNumber' | 'winner' | 'players' | 'hostUserId' | 'createdAt' | 'lastActivityAt' | 'status' | 'completedAt'>
 
 export interface MatchListFilters {
   participantUserId?: string
   excludeParticipantUserId?: string
-  completion?: 'all' | 'active' | 'completed'
+  creatorUserId?: string
+  completion?: 'all' | 'active' | 'completed' | 'history'
   availability?: 'all' | 'open' | 'full'
+  createdAfter?: string
+  createdBefore?: string
+  lastActivityAfter?: string
+  lastActivityBefore?: string
 }
 
 /**
@@ -152,6 +172,15 @@ export interface DbAdapter {
 
   /** Atomically transition a full ready match to active and append its start event. */
   startMatch(gameId: number, userId: string, causeId: string): Promise<StartMatchResult>
+
+  /** Move a completed match into history. Only the creator may archive it. */
+  archiveMatch(gameId: number, userId: string): Promise<void>
+
+  /** Restore an archived match to completed history. Only the creator may restore it. */
+  restoreMatch(gameId: number, userId: string): Promise<void>
+
+  /** Permanently remove a match and its event/state data. Only the creator may delete it. */
+  deleteMatch(gameId: number, userId: string): Promise<void>
 
   /**
    * Update player assignments for an existing match.

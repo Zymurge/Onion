@@ -1,4 +1,3 @@
-import logger from '#server/logger'
 /**
  * Onion Game Engine
  *

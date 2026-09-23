@@ -74,6 +74,13 @@ describe('appBootstrap bootstrap', () => {
 		})
 	})
 
+	it('recognizes the user history route', () => {
+		expect(resolveWebRuntimeConfig({}, '', '/user/history/')).toMatchObject({
+			gameId: null,
+			userRoute: 'history',
+		})
+	})
+
 	it('still accepts the older gameid path form', () => {
 		expect(
 			resolveWebRuntimeConfig(

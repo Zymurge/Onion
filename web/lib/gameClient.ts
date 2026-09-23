@@ -36,7 +36,7 @@ export type ServerGameSnapshot = {
 	gameId: number
 	scenarioId?: string
 	hostUserId?: string
-	status?: 'waiting' | 'ready' | 'active' | 'completed'
+	status?: 'waiting' | 'ready' | 'active' | 'completed' | 'archived'
 	phase: TurnPhase
 	scenarioName: string
 	turnNumber?: number

@@ -59,6 +59,7 @@ import { useAppDebugTelemetry } from './lib/appDebugTelemetry'
 import { useDebugDiagnostics } from './lib/useDebugDiagnostics'
 /** Polls and buffers opponent events shown while the local player is inactive. */
 import { useInactiveEventStream } from './lib/useInactiveEventStream'
+import { getSafeReturnTo } from './lib/authRouting'
 
 import type { GameClient } from './lib/gameClient'
 import type { LiveEventSource } from './lib/gameSessionTypes'
@@ -85,6 +86,8 @@ function App({
   runtimeConfig,
   showConnectionGate = false,
 }: AppProps) {
+  const historyReturnTo = getSafeReturnTo(new URLSearchParams(window.location.search).get('returnTo'), '/user/history')
+
   // 1. Resolve the session: auth -> transport -> binding -> controller -> state.
   const session = useAppSessionWiring({ gameClient, gameId, liveEventSource, runtimeConfig })
 
@@ -170,6 +173,11 @@ function App({
     return <GameAbortedScreen message={session.state.error?.message} />
   }
 
+  const isHistoryReview = session.state.snapshot?.status === 'completed' || session.state.snapshot?.status === 'archived'
+  const backToHistory = isHistoryReview
+    ? () => (navigate ?? ((path: string) => window.location.assign(path)))(historyReturnTo)
+    : undefined
+
   return (
     <AppShellLayout
       commands={commands}
@@ -179,6 +187,7 @@ function App({
       inactiveEventStream={inactiveEventStream}
       interaction={interaction}
       session={session}
+      onBackToHistory={backToHistory}
       overlays={<AppOverlayLayer commands={commands} display={display} interaction={interaction} notifications={notifications} />}
     />
   )

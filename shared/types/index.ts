@@ -270,7 +270,7 @@ export interface ActionOkResponse {
   seq: number
   events: EventEnvelope[]
   state: GameState
-  status: 'waiting' | 'ready' | 'active' | 'completed'
+  status: 'waiting' | 'ready' | 'active' | 'completed' | 'archived'
   hostUserId: string
   winner: 'onion' | 'defender' | null
 }

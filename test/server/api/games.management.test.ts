@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildApp } from '#server/app'
-import { createGame, getEvents, getGame, joinGame, register } from './helpers.js'
+import { createGame, getEvents, getGame, joinGame, register, startGame } from './helpers.js'
 
 describe('POST /games', () => {
   it('creates a game and returns gameId and role', async () => {
@@ -80,7 +80,10 @@ describe('POST /games', () => {
       authorization = `Bearer ${app.jwt.sign({ sub: 'user-1' })}`
     } else if (description === 'tampered JWT') {
       const token = app.jwt.sign({ sub: '550e8400-e29b-41d4-a716-446655440000' })
-      authorization = `Bearer ${token.slice(0, -1)}${token.endsWith('a') ? 'b' : 'a'}`
+      const tokenParts = token.split('.')
+      const signature = tokenParts.at(-1) ?? ''
+      tokenParts[tokenParts.length - 1] = `${signature.startsWith('a') ? 'b' : 'a'}${signature.slice(1)}`
+      authorization = `Bearer ${tokenParts.join('.')}`
     }
 
     const res = await app.inject({
@@ -518,7 +521,7 @@ describe('GET /games', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    const body = res.json<{ games: Array<{ gameId: number; role: string; scenarioId: string; scenarioDisplayName: string; status: string; hostUserId: string }> }>()
+    const body = res.json<{ games: Array<{ gameId: number; role: string; scenarioId: string; scenarioDisplayName: string; status: string; hostUserId: string; canDelete: boolean }> }>()
     expect(body.games).toHaveLength(1)
     expect(body.games[0].gameId).toBe(gameId)
     expect(body.games[0].role).toBe('onion')
@@ -526,6 +529,7 @@ describe('GET /games', () => {
     expect(body.games[0].scenarioDisplayName).toBe('The Siege of Shrek\'s Swamp')
     expect(body.games[0].status).toBe('waiting')
     expect(body.games[0].hostUserId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(body.games[0].canDelete).toBe(true)
   })
 
   it('returns 500 when a persisted game references a missing scenario', async () => {
@@ -588,6 +592,30 @@ describe('GET /games', () => {
     expect(creatorBody.games[0].status).toBe('ready')
   })
 
+  it('keeps completed games out of the current dashboard list', async () => {
+    const userId = '00000000-0000-4000-8000-000000000001'
+    const app = buildApp({
+      listMatches: async () => [{
+        gameId: 1,
+        scenarioId: 'swamp-siege-01',
+        phase: 'ONION_MOVE',
+        turnNumber: 3,
+        winner: userId,
+        players: { onion: userId, defender: null },
+        hostUserId: userId,
+        status: 'completed',
+        completedAt: null,
+      }],
+    })
+    await app.ready()
+    const token = app.jwt.sign({ sub: userId })
+
+    const res = await app.inject({ method: 'GET', url: '/games', headers: { authorization: `Bearer ${token}` } })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ games: [] })
+  })
+
   it('returns 401 without auth token', async () => {
     const app = buildApp()
 
@@ -597,6 +625,99 @@ describe('GET /games', () => {
     })
 
     expect(res.statusCode).toBe(401)
+  })
+})
+
+describe('GET /games/history', () => {
+  it('returns completed history and creator permissions', async () => {
+    const userId = '00000000-0000-4000-8000-000000000001'
+    const app = buildApp({
+      listMatches: async () => [{
+        gameId: 7,
+        scenarioId: 'swamp-siege-01',
+        phase: 'ONION_MOVE',
+        turnNumber: 4,
+        winner: userId,
+        players: { onion: userId, defender: '00000000-0000-4000-8000-000000000002' },
+        hostUserId: userId,
+        status: 'completed',
+        completedAt: null,
+      }],
+    })
+    await app.ready()
+    const token = app.jwt.sign({ sub: userId })
+
+    const res = await app.inject({ method: 'GET', url: '/games/history', headers: { authorization: `Bearer ${token}` } })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ games: [{
+      gameId: 7,
+      scenarioId: 'swamp-siege-01',
+      scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+      phase: 'ONION_MOVE',
+      turnNumber: 4,
+      winner: userId,
+      status: 'completed',
+      createdAt: null,
+      lastActivityAt: null,
+      completedAt: null,
+      hostUserId: userId,
+      canDelete: true,
+      players: { onion: userId, defender: '00000000-0000-4000-8000-000000000002' },
+      role: 'onion',
+    }] })
+  })
+})
+
+describe('PATCH /games/:id/archive and /games/:id/restore', () => {
+  it('archives and restores a game through creator-authorized endpoints', async () => {
+    const userId = '00000000-0000-4000-8000-000000000001'
+    const calls: string[] = []
+    const app = buildApp({
+      archiveMatch: async (gameId, actorId) => { calls.push(`archive:${gameId}:${actorId}`) },
+      restoreMatch: async (gameId, actorId) => { calls.push(`restore:${gameId}:${actorId}`) },
+    })
+    await app.ready()
+    const token = app.jwt.sign({ sub: userId })
+
+    const archived = await app.inject({ method: 'PATCH', url: '/games/7/archive', headers: { authorization: `Bearer ${token}` } })
+    const restored = await app.inject({ method: 'PATCH', url: '/games/7/restore', headers: { authorization: `Bearer ${token}` } })
+
+    expect(archived.statusCode).toBe(200)
+    expect(archived.json()).toEqual({ gameId: 7, status: 'archived' })
+    expect(restored.statusCode).toBe(200)
+    expect(restored.json()).toEqual({ gameId: 7, status: 'completed' })
+    expect(calls).toEqual([`archive:7:${userId}`, `restore:7:${userId}`])
+  })
+})
+
+describe('DELETE /games/:id', () => {
+  it('allows the creator to delete an unstarted game', async () => {
+    const app = buildApp()
+    const creator = await register(app, 'shrek')
+    const { gameId } = await createGame(app, creator.token, 'onion')
+
+    const res = await app.inject({ method: 'DELETE', url: `/games/${gameId}`, headers: { authorization: `Bearer ${creator.token}` } })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ gameId, deleted: true })
+    expect((await getGame(app, gameId, creator.token)).statusCode).toBe(404)
+  })
+
+  it('rejects deletion by a non-creator and allows creator deletion in progress', async () => {
+    const app = buildApp()
+    const creator = await register(app, 'shrek')
+    const joiner = await register(app, 'fiona')
+    const { gameId } = await createGame(app, creator.token, 'onion')
+    await joinGame(app, gameId, joiner.token)
+    await startGame(app, gameId, creator.token)
+
+    const forbidden = await app.inject({ method: 'DELETE', url: `/games/${gameId}`, headers: { authorization: `Bearer ${joiner.token}` } })
+    expect(forbidden.statusCode).toBe(403)
+    expect(forbidden.json().code).toBe('NOT_CREATOR')
+
+    const deleted = await app.inject({ method: 'DELETE', url: `/games/${gameId}`, headers: { authorization: `Bearer ${creator.token}` } })
+    expect(deleted.statusCode).toBe(200)
   })
 })
 

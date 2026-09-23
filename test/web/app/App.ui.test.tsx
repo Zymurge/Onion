@@ -91,6 +91,7 @@ function createLiveEventSourceStub() {
 beforeEach(() => {
 	vi.clearAllMocks()
 	clearApiProtocolTraffic()
+	window.history.replaceState({}, '', '/')
 })
 
 describe('App UI', () => {
@@ -623,6 +624,49 @@ describe('App UI', () => {
 
 		await user.click(startCombatButton)
 		expect(submitAction).not.toHaveBeenCalled()
+	})
+
+	it('keeps archived reviews read-only and returns to history', async () => {
+		const user = userEvent.setup()
+		const navigate = vi.fn()
+		const snapshot = makeScenarioSnapshot({
+			phase: 'ONION_MOVE',
+			status: 'archived',
+			winner: 'onion',
+			victoryObjectives: [
+				{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', required: true, completed: true },
+			],
+		})
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction,
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} navigate={navigate} />)
+
+		expect(await screen.findByRole('button', { name: 'Back to history' })).not.toBeNull()
+		expect(screen.queryByRole('button', { name: 'Start Combat' })).toBeNull()
+		await user.click(screen.getByRole('button', { name: 'Back to history' }))
+		expect(navigate).toHaveBeenCalledWith('/user/history')
+		expect(submitAction).not.toHaveBeenCalled()
+	})
+
+	it('returns to the filtered history view after reviewing a completed game', async () => {
+		const user = userEvent.setup()
+		const navigate = vi.fn()
+		window.history.replaceState({}, '', '/game/123?returnTo=%2Fuser%2Fhistory%3Fcreator%3Dme')
+		const snapshot = makeScenarioSnapshot({ status: 'completed', winner: 'onion' })
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} navigate={navigate} />)
+
+		await user.click(await screen.findByRole('button', { name: 'Back to history' }))
+		expect(navigate).toHaveBeenCalledWith('/user/history?creator=me')
 	})
 
 	it('builds the Begin Turn acknowledgement key without phase data', () => {

@@ -144,7 +144,6 @@ export function findPath(
   if (from.q === to.q && from.r === to.r) return { found: true, path: [], cost: 0 }
 
   // Dijkstra over the hex grid
-  type Node = { pos: HexPos; cost: number; prev: HexPos | null }
   const dist = new Map<string, number>()
   const prev = new Map<string, HexPos | null>()
   // Min-heap via sorted insertion — map is small enough

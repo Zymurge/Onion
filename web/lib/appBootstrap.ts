@@ -9,7 +9,7 @@ export type WebRuntimeEnv = {
 export type WebRuntimeConfig = {
 	apiBaseUrl: string | null
 	gameId: number | null
-	userRoute: 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | null
+	userRoute: 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | 'history' | null
 	liveRefreshQuietWindowMs: number
 	clientLogLevel: 'debug' | 'info' | 'warn' | 'error'
 }
@@ -20,7 +20,7 @@ export function resolveWebDocumentTitle(config: Pick<WebRuntimeConfig, 'gameId' 
 		: 'Onion - Lobby'
 }
 
-function parseUserRoute(pathname: string): 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | null {
+function parseUserRoute(pathname: string): 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | 'history' | null {
 	const normalizedPathname = pathname.replace(/\/+$/, '') || '/'
 	if (normalizedPathname === '/game/create') {
 		return 'game-create'
@@ -36,6 +36,9 @@ function parseUserRoute(pathname: string): 'create' | 'login' | 'game-create' | 
 	}
 	if (normalizedPathname === '/games') {
 		return 'games'
+	}
+	if (normalizedPathname === '/user/history') {
+		return 'history'
 	}
 	return null
 }

@@ -24,9 +24,10 @@ export type AppShellLayoutProps = {
   interaction: ReturnType<typeof useBattlefieldInteractionState>
   session: AppSessionWiring
   overlays: ReactNode
+  onBackToHistory?: () => void
 }
 
-export function AppShellLayout({ commands, debug, display, gate, inactiveEventStream, interaction, session, overlays }: AppShellLayoutProps) {
+export function AppShellLayout({ commands, debug, display, gate, inactiveEventStream, interaction, session, overlays, onBackToHistory }: AppShellLayoutProps) {
   const scenarioInfo = useScenarioInfo({
     snapshot: display.clientSnapshot,
     authSession: session.authSession,
@@ -42,7 +43,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
   const stackRoster = display.clientSnapshot?.authoritativeState?.stackRoster
   const catalog = session.state.catalog ?? undefined
   const terminalWinner = display.clientSnapshot?.winner ?? null
-  const isGameOver = display.clientSnapshot?.status === 'completed' || terminalWinner === 'onion' || terminalWinner === 'defender'
+  const isGameOver = display.clientSnapshot?.status === 'completed' || display.clientSnapshot?.status === 'archived' || terminalWinner === 'onion' || terminalWinner === 'defender'
   return (
     <div
       className={`shell${gate.screenLocked ? ' inactive-event-screen-locked' : ''}`}
@@ -85,6 +86,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
         onRefresh={() => { void commands.refresh() }}
         onToggleDebugDiagnostics={commands.toggleDebugDiagnostics}
         onOpenScenarioInfo={scenarioInfo.open}
+        onBackToHistory={onBackToHistory}
       />
 
       {scenarioInfo.isOpen ? (

@@ -2,10 +2,12 @@ import { clearAuthSession, getAuthSession } from '../lib/authSession'
 import { requestJson } from '../../shared/apiProtocol'
 import { useState } from 'react'
 import { ErrorOverlay } from './ErrorOverlay'
+import { ConfirmationSurface } from './ConfirmationSurface'
 import { UserSideMenu } from './UserSideMenu'
 import { useLobbyPolling } from '../lib/useLobbyPolling'
 import { openGameWindow, prepareGameWindow } from '../lib/gameNavigation'
 import './UserDashboard.css'
+import './GameHistoryScreen.css'
 
 type UserDashboardProps = {
   navigate?: (path: string) => void
@@ -19,6 +21,7 @@ type GameSummary = {
   winner: string | null
   status: 'waiting' | 'ready' | 'active' | 'completed'
   hostUserId: string
+  canDelete: boolean
   role: 'onion' | 'defender'
 }
 
@@ -52,6 +55,8 @@ function getGameStatus(game: GameSummary, userId: string | undefined): string {
 export function UserDashboard({ navigate }: UserDashboardProps) {
   const session = getAuthSession()
   const [startingGameId, setStartingGameId] = useState<number | null>(null)
+  const [deletingGameId, setDeletingGameId] = useState<number | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState<GameSummary | null>(null)
   const apiBaseUrl = session?.apiBaseUrl
   const token = session?.token
   const { games, loading, error, refresh, setError } = useLobbyPolling<GameSummary>({
@@ -99,6 +104,31 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
     }
   }
 
+  async function handleDelete(game: GameSummary) {
+    if (!session) return
+
+    setDeletingGameId(game.gameId)
+    setError(null)
+    try {
+      const result = await requestJson<{ gameId: number; deleted: boolean }>({
+        baseUrl: session.apiBaseUrl,
+        path: `games/${game.gameId}`,
+        method: 'DELETE',
+        token: session.token,
+      })
+      if (!result.ok) {
+        setError(result.message)
+        return
+      }
+      setDeleteConfirmation(null)
+      await refresh()
+    } catch {
+      setError('Unable to delete the game.')
+    } finally {
+      setDeletingGameId(null)
+    }
+  }
+
   function handleSignOut() {
     clearAuthSession()
     ;(navigate ?? ((path: string) => window.location.assign(path)))('/user/login')
@@ -136,28 +166,8 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
                       <h3>{game.scenarioDisplayName}</h3>
                       <p>Turn {game.turnNumber} · {formatPhase(game.phase)} · {game.role === 'onion' ? 'The Onion' : 'Defenders'}</p>
                     </div>
-                    {game.status === 'active' || game.status === 'completed' ? (
-                      <a
-                        className="dashboard-game-link"
-                        href={`/game/${game.gameId}`}
-                        onClick={(event) => {
-                          event.preventDefault()
-                          openGameWindow(`/game/${game.gameId}`, { navigate })
-                        }}
-                      >
-                        Open Game
-                      </a>
-                    ) : game.status === 'ready' ? (
-                      game.hostUserId === session?.userId ? (
-                        <button
-                          type="button"
-                          className="dashboard-game-link games-start-button"
-                          onClick={() => void handleStart(game.gameId)}
-                          disabled={startingGameId !== null}
-                        >
-                          {startingGameId === game.gameId ? 'Starting...' : 'Start Game'}
-                        </button>
-                      ) : (
+                    <div className="dashboard-game-actions">
+                      {game.status === 'active' || game.status === 'completed' ? (
                         <a
                           className="dashboard-game-link"
                           href={`/game/${game.gameId}`}
@@ -168,16 +178,62 @@ export function UserDashboard({ navigate }: UserDashboardProps) {
                         >
                           Open Game
                         </a>
-                      )
-                    ) : (
-                      <span className="dashboard-game-link dashboard-game-link-disabled">Waiting</span>
-                    )}
+                      ) : game.status === 'ready' ? (
+                        game.hostUserId === session?.userId ? (
+                          <button
+                            type="button"
+                            className="dashboard-game-link games-start-button"
+                            onClick={() => void handleStart(game.gameId)}
+                            disabled={startingGameId !== null}
+                          >
+                            {startingGameId === game.gameId ? 'Starting...' : 'Start Game'}
+                          </button>
+                        ) : (
+                          <a
+                            className="dashboard-game-link"
+                            href={`/game/${game.gameId}`}
+                            onClick={(event) => {
+                              event.preventDefault()
+                              openGameWindow(`/game/${game.gameId}`, { navigate })
+                            }}
+                          >
+                            Open Game
+                          </a>
+                        )
+                      ) : (
+                        <span className="dashboard-game-link dashboard-game-link-disabled">Waiting</span>
+                      )}
+                      {game.canDelete ? (
+                        <button type="button" className="dashboard-game-link dashboard-delete-button" onClick={() => setDeleteConfirmation(game)}>Delete game</button>
+                      ) : null}
+                    </div>
                   </article>
                 ))}
               </div>
           </section>
         </main>
       </div>
+      {deleteConfirmation ? (
+        <div className="history-confirmation-backdrop" role="presentation">
+          <ConfirmationSurface
+            dataTestId="dashboard-delete-confirmation"
+            eyebrow="Confirm maintenance"
+            title={`Delete game ${deleteConfirmation.gameId}`}
+            badge={deleteConfirmation.status}
+            summary={<p>The snapshot and event history will be removed permanently.</p>}
+            actions={(
+              <>
+                <button type="button" className="history-cancel-button" onClick={() => setDeleteConfirmation(null)}>Cancel</button>
+                <button type="button" className="history-confirm-delete" onClick={() => void handleDelete(deleteConfirmation)} disabled={deletingGameId !== null}>
+                  {deletingGameId === deleteConfirmation.gameId ? 'Deleting...' : 'Confirm delete'}
+                </button>
+              </>
+            )}
+          >
+            <p>{deleteConfirmation.scenarioDisplayName} · Current status: {deleteConfirmation.status}</p>
+          </ConfirmationSurface>
+        </div>
+      ) : null}
     </div>
   )
 }

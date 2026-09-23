@@ -306,6 +306,37 @@ describe('UserDashboard', () => {
 		expect(screen.getByText('Waiting')).not.toBeNull()
 	})
 
+	it('lets the creator confirm deletion of a current game without navigating away', async () => {
+		const user = userEvent.setup()
+		saveAuthSession({
+			apiBaseUrl: 'http://localhost:3000',
+			username: 'player-1',
+			userId: 'user-1',
+			token: 'token-1',
+		})
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+			if (String(input).endsWith('/games/12')) return response({ gameId: 12, deleted: true })
+			return response({ games: [{
+				gameId: 12,
+				scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
+				phase: 'ONION_MOVE',
+				turnNumber: 1,
+				winner: null,
+				status: 'waiting',
+				hostUserId: 'user-1',
+				canDelete: true,
+				role: 'onion',
+			}] })
+		})
+
+		render(<UserDashboard />)
+		await screen.findByText('Game 12 · Waiting for opponent')
+		await user.click(screen.getByRole('button', { name: 'Delete game' }))
+		expect(screen.getByText(/snapshot and event history will be removed/i)).not.toBeNull()
+		await user.click(screen.getByRole('button', { name: 'Confirm delete' }))
+		expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/12', expect.objectContaining({ method: 'DELETE' }))
+	})
+
 	it('shows a fetch error instead of inventing games', async () => {
 		saveAuthSession({
 			apiBaseUrl: 'http://localhost:3000',

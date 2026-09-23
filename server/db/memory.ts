@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
-import { MatchJoinError, MatchStartError, StaleMatchStateError } from '#server/db/adapter'
+import { MatchJoinError, MatchManagementError, MatchStartError, StaleMatchStateError } from '#server/db/adapter'
 import type { DbAdapter, MatchListFilters, MatchRecord, MatchSummary, PersistMatchProgressInput } from '#server/db/adapter'
 import logger from '#server/logger'
 
@@ -51,7 +51,13 @@ export class InMemoryDb implements DbAdapter {
       scenarioSnapshot.displayName = scenarioSnapshot.name
     }
     const gameId = this.nextMatchId++
-    this.matches.set(gameId, structuredClone({ ...match, gameId }))
+    this.matches.set(gameId, structuredClone({
+      ...match,
+      gameId,
+      createdAt: match.createdAt ?? new Date().toISOString(),
+      lastActivityAt: match.lastActivityAt ?? match.createdAt ?? new Date().toISOString(),
+      completedAt: match.completedAt ?? (match.status === 'completed' ? new Date().toISOString() : null),
+    }))
     return { gameId }
   }
 
@@ -61,6 +67,8 @@ export class InMemoryDb implements DbAdapter {
   }
 
   async listMatches(filters: MatchListFilters = {}): Promise<MatchSummary[]> {
+    const isAtOrAfter = (value: string | null | undefined, boundary: string | undefined): boolean => boundary === undefined || value !== null && value !== undefined && Date.parse(value) >= Date.parse(boundary)
+    const isAtOrBefore = (value: string | null | undefined, boundary: string | undefined): boolean => boundary === undefined || value !== null && value !== undefined && Date.parse(value) <= Date.parse(boundary)
     const results: MatchSummary[] = []
     for (const match of this.matches.values()) {
       const hasOpenOnionSlot = match.players.onion === null
@@ -72,14 +80,20 @@ export class InMemoryDb implements DbAdapter {
         || match.players.defender === filters.participantUserId
       const excludesParticipant = filters.excludeParticipantUserId === undefined
         || match.players.onion !== filters.excludeParticipantUserId && match.players.defender !== filters.excludeParticipantUserId
+      const matchesCreator = filters.creatorUserId === undefined || match.hostUserId === filters.creatorUserId
       const matchesCompletion = filters.completion === undefined || filters.completion === 'all'
-        || filters.completion === 'active' && match.status !== 'completed'
+        || filters.completion === 'active' && match.status !== 'completed' && match.status !== 'archived'
         || filters.completion === 'completed' && match.status === 'completed'
+        || filters.completion === 'history' && (match.status === 'completed' || match.status === 'archived')
       const matchesAvailability = filters.availability === undefined || filters.availability === 'all'
         || filters.availability === 'open' && isOpen && match.status === 'waiting'
         || filters.availability === 'full' && isFull
+      const matchesCreatedAfter = isAtOrAfter(match.createdAt, filters.createdAfter)
+      const matchesCreatedBefore = isAtOrBefore(match.createdAt, filters.createdBefore)
+      const matchesLastActivityAfter = isAtOrAfter(match.lastActivityAt, filters.lastActivityAfter)
+      const matchesLastActivityBefore = isAtOrBefore(match.lastActivityAt, filters.lastActivityBefore)
 
-      if (!involvesParticipant || !excludesParticipant || !matchesCompletion || !matchesAvailability) {
+      if (!involvesParticipant || !excludesParticipant || !matchesCreator || !matchesCompletion || !matchesAvailability || !matchesCreatedAfter || !matchesCreatedBefore || !matchesLastActivityAfter || !matchesLastActivityBefore) {
         continue
       }
 
@@ -91,7 +105,10 @@ export class InMemoryDb implements DbAdapter {
         winner: match.winner,
         players: match.players,
         hostUserId: match.hostUserId,
+        createdAt: match.createdAt,
+        lastActivityAt: match.lastActivityAt,
         status: match.status,
+        completedAt: match.completedAt,
       })
     }
     return results
@@ -130,6 +147,7 @@ export class InMemoryDb implements DbAdapter {
       role,
     }
     match.events.push(event)
+    match.lastActivityAt = event.timestamp
     return { role, event: structuredClone(event) }
   }
 
@@ -155,7 +173,31 @@ export class InMemoryDb implements DbAdapter {
     }
     match.status = 'active'
     match.events.push(event)
+    match.lastActivityAt = event.timestamp
     return { event: structuredClone(event) }
+  }
+
+  async archiveMatch(gameId: number, userId: string): Promise<void> {
+    const match = this.matches.get(gameId)
+    if (!match) throw new MatchManagementError('MATCH_NOT_FOUND', 'Game not found')
+    if (match.hostUserId !== userId) throw new MatchManagementError('NOT_CREATOR', 'Only the game creator can archive it')
+    if (match.status !== 'completed') throw new MatchManagementError('INVALID_STATUS', 'Only completed games can be archived')
+    match.status = 'archived'
+  }
+
+  async restoreMatch(gameId: number, userId: string): Promise<void> {
+    const match = this.matches.get(gameId)
+    if (!match) throw new MatchManagementError('MATCH_NOT_FOUND', 'Game not found')
+    if (match.hostUserId !== userId) throw new MatchManagementError('NOT_CREATOR', 'Only the game creator can restore it')
+    if (match.status !== 'archived') throw new MatchManagementError('INVALID_STATUS', 'Only archived games can be restored')
+    match.status = 'completed'
+  }
+
+  async deleteMatch(gameId: number, userId: string): Promise<void> {
+    const match = this.matches.get(gameId)
+    if (!match) throw new MatchManagementError('MATCH_NOT_FOUND', 'Game not found')
+    if (match.hostUserId !== userId) throw new MatchManagementError('NOT_CREATOR', 'Only the game creator can delete it')
+    this.matches.delete(gameId)
   }
 
   async updateMatchPlayers(gameId: number, players: { onion: string | null; defender: string | null }): Promise<void> {
@@ -186,18 +228,24 @@ export class InMemoryDb implements DbAdapter {
       )
     }
 
+    const previousStatus = m.status
     m.phase = input.phase
     m.turnNumber = input.turnNumber
     m.winner = input.winner
     m.status = input.status
+    if (input.status === 'completed' && previousStatus !== 'completed') {
+      m.completedAt ??= new Date().toISOString()
+    }
     m.state = structuredClone(input.state)
     m.events.push(...structuredClone(input.events))
+    m.lastActivityAt = input.events.at(-1)?.timestamp ?? m.lastActivityAt
   }
 
   async appendEvents(gameId: number, events: EventEnvelope[]): Promise<void> {
     const m = this.matches.get(gameId)
     if (!m) throw new Error(`Match not found: ${gameId}`)
     m.events.push(...events)
+    m.lastActivityAt = events.at(-1)?.timestamp ?? m.lastActivityAt
   }
 
   async getEvents(gameId: number, after: number): Promise<EventEnvelope[]> {

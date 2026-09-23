@@ -1,9 +1,9 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest'
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import pg from 'pg'
-import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PostgresDb } from '../../../server/db/postgres.js'
+import { runMigrations } from '../../../server/db/migrate.js'
 import type { MatchRecord } from '../../../server/db/adapter.js'
 import { makeGameState, makeOnion } from '#test/utils/gameStateUtils'
 
@@ -13,7 +13,7 @@ let container: StartedPostgreSqlContainer
 let pool: InstanceType<typeof Pool>
 let db: PostgresDb
 
-const MIGRATION_PATH = join(process.cwd(), 'server/db/migrations/001_initial.sql')
+const MIGRATIONS_DIR = join(process.cwd(), 'server/db/migrations')
 
 const SAMPLE_STATE = makeGameState({
   onions: { 'onion-1': makeOnion({ position: { q: 0, r: 10 }, treads: 45 }) },
@@ -41,8 +41,7 @@ function makeMatch(overrides: Partial<Omit<MatchRecord, 'gameId'>> = {}): Omit<M
 beforeAll(async () => {
   container = await new PostgreSqlContainer('postgres:16-alpine').start()
   pool = new Pool({ connectionString: container.getConnectionUri() })
-  const sql = await readFile(MIGRATION_PATH, 'utf8')
-  await pool.query(sql)
+  await runMigrations(pool, MIGRATIONS_DIR)
   db = new PostgresDb(pool)
 }, 60_000)
 
@@ -57,6 +56,22 @@ beforeEach(async () => {
     'INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)',
     [HOST_ID, 'test-host', 'test-host@example.com', 'x'],
   )
+})
+
+describe('database migrations', () => {
+  it('repairs a previously initialized database when a migration is pending', async () => {
+    await pool.query('ALTER TABLE matches DROP COLUMN last_activity_at')
+    await pool.query('DELETE FROM schema_migrations WHERE version = $1', ['001_initial.sql'])
+
+    await runMigrations(pool, MIGRATIONS_DIR)
+
+    const result = await pool.query<{ column_name: string }>(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'matches' AND column_name = 'last_activity_at'`,
+    )
+    expect(result.rows).toEqual([{ column_name: 'last_activity_at' }])
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -121,12 +136,14 @@ describe('PostgresDb - games', () => {
     const openDefender = await db.createMatch(makeMatch({ players: { onion: null, defender: fiona.userId } }))
     const full = await db.createMatch(makeMatch({ players: { onion: shrek.userId, defender: fiona.userId } }))
     const completed = await db.createMatch(makeMatch({ players: { onion: donkey.userId, defender: fiona.userId }, winner: donkey.userId, status: 'completed', hostUserId: donkey.userId }))
+    const archived = await db.createMatch(makeMatch({ players: { onion: donkey.userId, defender: fiona.userId }, winner: donkey.userId, status: 'archived', hostUserId: donkey.userId }))
 
     expect((await db.listMatches()).map((match) => match.gameId)).toEqual([
       openOnion.gameId,
       openDefender.gameId,
       full.gameId,
       completed.gameId,
+      archived.gameId,
     ])
     expect((await db.listMatches({
       participantUserId: shrek.userId,
@@ -139,7 +156,18 @@ describe('PostgresDb - games', () => {
       availability: 'open',
     })).map((match) => match.gameId)).toEqual([openDefender.gameId])
     expect((await db.listMatches({ completion: 'completed' })).map((match) => match.gameId)).toEqual([completed.gameId])
-    expect((await db.listMatches({ availability: 'full' })).map((match) => match.gameId)).toEqual([full.gameId, completed.gameId])
+    expect((await db.listMatches({ completion: 'history' })).map((match) => match.gameId)).toEqual([completed.gameId, archived.gameId])
+    expect((await db.listMatches({ availability: 'full' })).map((match) => match.gameId)).toEqual([full.gameId, completed.gameId, archived.gameId])
+  })
+
+  it('deletes a match only for its creator', async () => {
+    const creator = await db.createUser('delete-host', 'delete-host@example.com', 'x')
+    const other = await db.createUser('delete-other', 'delete-other@example.com', 'x')
+    const created = await db.createMatch(makeMatch({ hostUserId: creator.userId }))
+
+    await expect(db.deleteMatch(created.gameId, other.userId)).rejects.toMatchObject({ code: 'NOT_CREATOR' })
+    await db.deleteMatch(created.gameId, creator.userId)
+    expect(await db.findMatch(created.gameId)).toBeNull()
   })
 
   it('updateMatchPlayers persists player assignment', async () => {

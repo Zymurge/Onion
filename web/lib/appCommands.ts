@@ -102,7 +102,7 @@ export function useAppCommands({
 	}
 
 	function advancePhase() {
-		if (display.clientSnapshot?.status === 'completed' || display.clientSnapshot?.winner === 'onion' || display.clientSnapshot?.winner === 'defender') {
+		if (display.clientSnapshot?.status === 'completed' || display.clientSnapshot?.status === 'archived' || display.clientSnapshot?.winner === 'onion' || display.clientSnapshot?.winner === 'defender') {
 			return
 		}
 

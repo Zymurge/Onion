@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS matches (
   current_phase      TEXT        NOT NULL DEFAULT 'ONION_MOVE',
   turn_number        INTEGER     NOT NULL DEFAULT 1,
   winner             TEXT,
-  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  completed_at       TIMESTAMPTZ,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_activity_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS game_state (
@@ -47,6 +49,15 @@ CREATE INDEX IF NOT EXISTS idx_game_events_match_seq ON game_events (match_id, s
 
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS host_user_id UUID REFERENCES users(id);
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS lifecycle_status TEXT NOT NULL DEFAULT 'waiting';
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ;
+UPDATE matches
+SET last_activity_at = COALESCE(
+  (SELECT MAX(timestamp) FROM game_events WHERE game_events.match_id = matches.id),
+  created_at
+)
+WHERE last_activity_at IS NULL;
+ALTER TABLE matches ALTER COLUMN last_activity_at SET NOT NULL;
 UPDATE matches
 SET host_user_id = COALESCE(onion_player_id, defender_player_id)
 WHERE host_user_id IS NULL;
@@ -59,14 +70,7 @@ END
 WHERE lifecycle_status = 'waiting';
 
 ALTER TABLE matches ALTER COLUMN host_user_id SET NOT NULL;
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'matches_lifecycle_status_check'
-  ) THEN
-    ALTER TABLE matches
-      ADD CONSTRAINT matches_lifecycle_status_check
-      CHECK (lifecycle_status IN ('waiting', 'ready', 'active', 'completed'));
-  END IF;
-END $$;
+ALTER TABLE matches DROP CONSTRAINT IF EXISTS matches_lifecycle_status_check;
+ALTER TABLE matches
+  ADD CONSTRAINT matches_lifecycle_status_check
+  CHECK (lifecycle_status IN ('waiting', 'ready', 'active', 'completed', 'archived'));

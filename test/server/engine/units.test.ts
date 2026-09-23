@@ -336,10 +336,10 @@ describe('getUnitDefinition', () => {
 // ─── getAllUnitDefinitions ────────────────────────────────────────────────────
 
 describe('getAllUnitDefinitions', () => {
-  it('contains all 9 unit types', () => {
+  it('contains all 10 unit types', () => {
     const all = getAllUnitDefinitions()
     const keys = Object.keys(all)
-    expect(keys).toHaveLength(9)
+    expect(keys).toHaveLength(10)
     expect(keys).toContain('Puss')
     expect(keys).toContain('BigBadWolf')
     expect(keys).toContain('Witch')
@@ -349,6 +349,7 @@ describe('getAllUnitDefinitions', () => {
     expect(keys).toContain('LittlePigs')
     expect(keys).toContain('Swamp')
     expect(keys).toContain('TheOnion')
+    expect(keys).toContain('TheOnionDamaged')
   })
 
     it('each entry has the correct typeId field', () => {

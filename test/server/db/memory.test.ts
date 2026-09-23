@@ -55,9 +55,25 @@ describe('InMemoryDb.listMatches', () => {
     const db = new InMemoryDb()
     const activeGame = await db.createMatch(makeMatch())
     const completedGame = await db.createMatch(makeMatch({ winner: SHREK_ID, status: 'completed' }))
+    const archivedGame = await db.createMatch(makeMatch({ winner: SHREK_ID, status: 'archived' }))
 
     expect((await db.listMatches({ completion: 'active' })).map((match) => match.gameId)).toEqual([activeGame.gameId])
     expect((await db.listMatches({ completion: 'completed' })).map((match) => match.gameId)).toEqual([completedGame.gameId])
+    expect((await db.listMatches({ completion: 'history' })).map((match) => match.gameId)).toEqual([completedGame.gameId, archivedGame.gameId])
+  })
+
+  it('archives, restores, and deletes matches', async () => {
+    const db = new InMemoryDb()
+    const created = await db.createMatch(makeMatch({ winner: SHREK_ID, status: 'completed' }))
+
+    await db.archiveMatch(created.gameId, SHREK_ID)
+    expect((await db.findMatch(created.gameId))?.status).toBe('archived')
+
+    await db.restoreMatch(created.gameId, SHREK_ID)
+    expect((await db.findMatch(created.gameId))?.status).toBe('completed')
+
+    await db.deleteMatch(created.gameId, SHREK_ID)
+    expect(await db.findMatch(created.gameId)).toBeNull()
   })
 
   it('filters open and full matches', async () => {

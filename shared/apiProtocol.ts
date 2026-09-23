@@ -254,7 +254,7 @@ export type GameStateResponse = {
 	scenarioId: string
 	scenarioName: string
 	hostUserId: string
-	status: 'waiting' | 'ready' | 'active' | 'completed'
+	status: 'waiting' | 'ready' | 'active' | 'completed' | 'archived'
 	role: 'onion' | 'defender'
 	phase: string
 	turnNumber: number

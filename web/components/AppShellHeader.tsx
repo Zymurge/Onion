@@ -26,6 +26,7 @@ type AppShellHeaderProps = {
   onRefresh: () => void
   onToggleDebugDiagnostics: () => void
   onOpenScenarioInfo: () => void
+  onBackToHistory?: () => void
 }
 
 export function AppShellHeader({
@@ -52,6 +53,7 @@ export function AppShellHeader({
   onRefresh,
   onToggleDebugDiagnostics,
   onOpenScenarioInfo,
+  onBackToHistory,
 }: AppShellHeaderProps) {
   return (
     <header className="topbar panel" data-testid="app-shell-header">
@@ -122,6 +124,9 @@ export function AppShellHeader({
           </div>
         </div>
         <div className="utility-group-vert">
+          {onBackToHistory ? (
+            <button type="button" className="history-return-button" onClick={onBackToHistory} aria-label="Back to history">Back to history</button>
+          ) : null}
           <button
             className="refresh-btn"
             title="Refresh game state"
