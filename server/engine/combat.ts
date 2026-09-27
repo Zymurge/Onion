@@ -11,7 +11,7 @@ import type { GameMap } from '#server/engine/map'
 import { hexDistance } from '#shared/hex'
 import {
   createCombatCalculator,
-  calculateOdds as sharedCalculateOdds,
+  calculateCrtOddsBand,
   type CombatExchangeInput,
 } from '#shared/combatCalculator'
 import { ONION_STATIC_RULES } from '#shared/staticRules'
@@ -753,7 +753,7 @@ export function rollCombat(
   defenseValue: number,
   roll?: number
 ): CombatRoll {
-  const odds = sharedCalculateOdds(attackStrength, defenseValue)
+  const odds = calculateCrtOddsBand(attackStrength, defenseValue)
   const d6 = roll ?? (Math.floor(Math.random() * 6) + 1)
   const result = CRT[odds][d6 - 1]
   return { roll: d6, result, odds }
@@ -765,8 +765,8 @@ export function rollCombat(
  * @param defenseValue - Target defense value
  * @returns Odds ratio as string (e.g., "1:1", "2:1", "1:3")
  */
-export function calculateOdds(attackStrength: number, defenseValue: number): string {
-  return sharedCalculateOdds(attackStrength, defenseValue)
+export function calculateEngineCombatOdds(attackStrength: number, defenseValue: number): string {
+  return calculateCrtOddsBand(attackStrength, defenseValue)
 }
 
 /**

@@ -1,5 +1,5 @@
-import { calculateOdds as sharedCalculateOdds } from '../../shared/combatCalculator.js'
+import { calculateCrtOddsBand } from '../../shared/combatCalculator.js'
 
-export function calculateCombatOdds(attackStrength: number, defenseStrength: number): string {
-  return sharedCalculateOdds(attackStrength, defenseStrength)
+export function calculatePreviewCombatOdds(attackStrength: number, defenseStrength: number): string {
+  return calculateCrtOddsBand(attackStrength, defenseStrength)
 }

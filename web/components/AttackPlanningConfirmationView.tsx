@@ -1,4 +1,4 @@
-import { calculateCombatOdds } from '../lib/combatOdds'
+import { calculatePreviewCombatOdds } from '../lib/combatOdds'
 import logger from '../lib/logger'
 import { ConfirmationSurface } from './ConfirmationSurface'
 
@@ -46,7 +46,7 @@ export function AttackPlanningConfirmationView({
 
   const hasTarget = modeProps.mode === 'confirm'
   const isConfirmActionReady = isConfirmReady ?? hasTarget
-  const odds = hasTarget ? calculateCombatOdds(attackStrength, modeProps.defenseStrength) : null
+  const odds = hasTarget ? calculatePreviewCombatOdds(attackStrength, modeProps.defenseStrength) : null
 
   return (
     <ConfirmationSurface dataTestId={dataTestId} title={title}>

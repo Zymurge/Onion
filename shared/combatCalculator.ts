@@ -170,7 +170,7 @@ export type CombatCalculator = {
 	/** Calculate one exchange from an explicit attacker/target contract. */
 	calculate(input: CombatExchangeInput): CombatCalculatorResult
 	/** Calculate only the CRT odds for a compatibility input. */
-	calculateOdds(input: CombatCalculatorInput): string
+	calculateCrtOddsBand(input: CombatCalculatorInput): string
 	/** Calculate only the normalized modifiers for a compatibility input. */
 	calculateModifiers(input: CombatCalculatorInput): ReadonlyArray<CombatModifier>
 	/** Calculate the complete result for a compatibility input. */
@@ -300,7 +300,7 @@ export function calculateCombatExchange(
 	return {
 		attackStrength,
 		defenseStrength: resolveExplicitDefenseStrength(staticRules, input.target, attackStrength),
-		odds: calculateOdds(attackStrength, resolveExplicitDefenseStrength(staticRules, input.target, attackStrength)),
+		odds: calculateCrtOddsBand(attackStrength, resolveExplicitDefenseStrength(staticRules, input.target, attackStrength)),
 		modifiers: [
 			...(terrainModifier === undefined ? [] : [terrainModifier]),
 			...(input.modifiers ?? []),
@@ -373,7 +373,7 @@ function calculateResultFromRules(staticRules: CombatStaticRules, input: CombatC
  * @param defenseStrength Effective defense strength.
  * @returns The normalized CRT odds band.
  */
-export function calculateOdds(attackStrength: number, defenseStrength: number): string {
+export function calculateCrtOddsBand(attackStrength: number, defenseStrength: number): string {
 	if (defenseStrength <= 0) {
 		return '5:1'
 	}
@@ -404,7 +404,7 @@ export function createCombatCalculator(staticRules: CombatStaticRules): CombatCa
 		calculate(input) {
 			return calculateCombatExchange(staticRules, input)
 		},
-		calculateOdds(input) {
+		calculateCrtOddsBand(input) {
 			return calculateResultFromRules(staticRules, input).odds
 		},
 		calculateModifiers(input) {

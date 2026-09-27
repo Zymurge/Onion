@@ -1,7 +1,7 @@
 import type { GameState, PlayerRole, TurnPhase, UnitStatus } from './types/index.js'
 import { onionMovementAllowance } from './movementAllowance.js'
 import { getUnitTypeCatalog } from './unitDefinitions.js'
-import { canUnitCrossRidgeline } from './movementRules.js'
+import { canCrossRidgelineByTerrainRule } from './movementRules.js'
 
 const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
 
@@ -9,8 +9,8 @@ function getDefinition(unitType: string) {
 	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]
 }
 
-export function canUnitCrossRidgelines(unitType: string): boolean {
-	return canUnitCrossRidgeline(unitType)
+export function canUnitCrossRidgeline(unitType: string): boolean {
+	return canCrossRidgelineByTerrainRule(unitType)
 }
 
 export function getUnitRamCapacity(unitType: string): number {

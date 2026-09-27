@@ -49,13 +49,13 @@ describe('combatCalculator', () => {
 		const result = calculator.calculateResult(fixture.input)
 
 		expect(result).toMatchObject(fixture.expected)
-		expect(calculator.calculateOdds(fixture.input)).toBe(result.odds)
+		expect(calculator.calculateCrtOddsBand(fixture.input)).toBe(result.odds)
 		expect(calculator.calculateModifiers(fixture.input)).toEqual(result.modifiers)
 	})
 
 	it('exposes a working factory instance', () => {
 		expect(calculator).toMatchObject({
-			calculateOdds: expect.any(Function),
+			calculateCrtOddsBand: expect.any(Function),
 			calculateModifiers: expect.any(Function),
 			calculateResult: expect.any(Function),
 		})
@@ -73,7 +73,7 @@ describe('combatCalculator', () => {
 
 		expect(input.combatState.units['attack-1'].friendlyName).toBe('Big Bad Wolf 1')
 		expect(input.combatState.units['target-1'].friendlyName).toBe('Little Pigs 1')
-		expect(calculator.calculateOdds(input)).toBe('1:1')
+		expect(calculator.calculateCrtOddsBand(input)).toBe('1:1')
 		expect(calculator.calculateResult(input).attackStrength).toBe(4)
 	})
 

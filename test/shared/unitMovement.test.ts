@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { HexPos, type UnitStatus } from '#shared/types/index'
-import { canUnitCrossRidgelines, canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, getUnitRamCapacity, isUnitImmobile, spendUnitMovement } from '#shared/unitMovement'
+import { canUnitCrossRidgeline, canUnitSecondMove, getRemainingUnitMovementAllowance, getUnitMovementAllowance, getUnitRamCapacity, isUnitImmobile, spendUnitMovement } from '#shared/unitMovement'
 
 describe('unit movement helpers', () => {
 	it('returns Onion movement allowance by tread band during the movement phase', () => {
@@ -30,9 +30,9 @@ describe('unit movement helpers', () => {
 	})
 
 	it('reports the ridge-crossing capability and immobility per unit type', () => {
-		expect(canUnitCrossRidgelines('TheOnion')).toBe(true)
-		expect(canUnitCrossRidgelines('LittlePigs')).toBe(true)
-		expect(canUnitCrossRidgelines('Puss')).toBe(false)
+		expect(canUnitCrossRidgeline('TheOnion')).toBe(true)
+		expect(canUnitCrossRidgeline('LittlePigs')).toBe(true)
+		expect(canUnitCrossRidgeline('Puss')).toBe(false)
 		expect(getUnitRamCapacity('TheOnion')).toBe(2)
 		expect(isUnitImmobile('LordFarquaad')).toBe(true)
 		expect(isUnitImmobile('Puss')).toBe(false)

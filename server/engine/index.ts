@@ -106,7 +106,7 @@ export {
   validateCombatAction,
   executeCombatAction,
   rollCombat,
-  calculateOdds,
+  calculateEngineCombatOdds,
   applyDamage,
   getValidTargets,
 } from '#server/engine/combat'

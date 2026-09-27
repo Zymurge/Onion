@@ -24,7 +24,7 @@ function getUnitDefinition(unitType: string): UnitTypeBase | undefined {
 	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]
 }
 
-export function canUnitCrossRidgeline(unitType: string): boolean {
+export function canCrossRidgelineByTerrainRule(unitType: string): boolean {
 	const definition = getUnitDefinition(unitType)
 	if (definition === undefined) {
 		return false
@@ -48,7 +48,7 @@ export function getTerrainMoveCost(unitType: string, terrainType: TerrainType): 
 	}
 
 	if (terrainType === 'ridgeline') {
-		return canUnitCrossRidgeline(unitType) ? 2 : null
+			return canCrossRidgelineByTerrainRule(unitType) ? 2 : null
 	}
 
 	return 1

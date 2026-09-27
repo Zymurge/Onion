@@ -26,7 +26,7 @@ beforeEach(() => {
   mockedLogger.error.mockClear()
 })
 import {
-  calculateOdds,
+  calculateEngineCombatOdds,
   rollCombat,
   resolveCombatOutcome,
   applyDamage,
@@ -48,48 +48,48 @@ const CLEAR_MAP: GameMap = createMap(5, 5, [])
 
 const makeState = makeGameState
 
-// ─── calculateOdds ───────────────────────────────────────────────────────────
+// ─── calculateEngineCombatOdds ───────────────────────────────────────────────
 
-describe('calculateOdds', () => {
+describe('calculateEngineCombatOdds', () => {
   it('equal attack and defense returns 1:1', () => {
-    expect(calculateOdds(4, 4)).toBe('1:1')
+    expect(calculateEngineCombatOdds(4, 4)).toBe('1:1')
   })
 
   it('double attack strength returns 2:1', () => {
-    expect(calculateOdds(8, 4)).toBe('2:1')
+    expect(calculateEngineCombatOdds(8, 4)).toBe('2:1')
   })
 
   it('triple attack strength returns 3:1', () => {
-    expect(calculateOdds(12, 4)).toBe('3:1')
+    expect(calculateEngineCombatOdds(12, 4)).toBe('3:1')
   })
 
   it('quadruple attack strength returns 4:1', () => {
-    expect(calculateOdds(16, 4)).toBe('4:1')
+    expect(calculateEngineCombatOdds(16, 4)).toBe('4:1')
   })
 
   it('5x attack strength returns 5:1', () => {
-    expect(calculateOdds(20, 4)).toBe('5:1')
+    expect(calculateEngineCombatOdds(20, 4)).toBe('5:1')
   })
 
   it('attack exceeding 5x also returns 5:1 (capped)', () => {
-    expect(calculateOdds(100, 4)).toBe('5:1')
+    expect(calculateEngineCombatOdds(100, 4)).toBe('5:1')
   })
 
   it('half attack returns 1:2', () => {
-    expect(calculateOdds(2, 4)).toBe('1:2')
+    expect(calculateEngineCombatOdds(2, 4)).toBe('1:2')
   })
 
   it('ratio ≤ 1:3 returns 1:3', () => {
-    expect(calculateOdds(1, 4)).toBe('1:3')
-    expect(calculateOdds(1, 9)).toBe('1:3')
+    expect(calculateEngineCombatOdds(1, 4)).toBe('1:3')
+    expect(calculateEngineCombatOdds(1, 9)).toBe('1:3')
   })
 
   it('fractional ratio rounds down in defender favour (5:3 → 1:1)', () => {
-    expect(calculateOdds(5, 3)).toBe('1:1')
+    expect(calculateEngineCombatOdds(5, 3)).toBe('1:1')
   })
 
   it('fractional ratio rounds down in defender favour (7:3 → 2:1)', () => {
-    expect(calculateOdds(7, 3)).toBe('2:1')
+    expect(calculateEngineCombatOdds(7, 3)).toBe('2:1')
   })
 })
 
