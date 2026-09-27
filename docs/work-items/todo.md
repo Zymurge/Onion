@@ -5,6 +5,7 @@ break down into features/tasks as needed.
 
 ## In progress
 
+- [ ] Run the remaining current-implementation review passes in [top-down-review-action-plan.md](top-down-review-action-plan.md). Item 1, the spec entry path, is done.
 - [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
 - [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability. See [accessibility-overview-spec.md](accessibility-overview-spec.md).
   - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.

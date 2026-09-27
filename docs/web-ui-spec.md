@@ -45,12 +45,14 @@ loaded independently.
 
 ## Contract Sources
 
-The web UI uses the endpoint and payload contracts in
-[api-contract.md](api-contract.md), the rules in [game-rules.md](game-rules.md),
-and the scenario shape in [scenario-schema.md](scenario-schema.md). Lobby
-implementation history and deferred product work remain in the
-[lobby overview](work-items/lobby-overview-spec.md) and
-[multi-window lobby work item](work-items/multi-window-lobby-spec.md).
+Load a second spec only when this UI change depends on that contract.
+
+- Command or event payloads: the matching line range in [project-overview.md](project-overview.md) for [api-contract.md](api-contract.md).
+- Displayed combat or movement rules: the matching line range in [project-overview.md](project-overview.md) for [game-rules.md](game-rules.md).
+- Scenario authoring shape: [scenario-schema.md](scenario-schema.md).
+- Invalid snapshots and retries: [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md) only.
+
+Current lobby behavior is [web-ui/lobby-and-session-spec.md](web-ui/lobby-and-session-spec.md). Do not load work-items or archive docs for it.
 
 ## Future State
 

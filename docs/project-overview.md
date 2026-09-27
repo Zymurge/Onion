@@ -1,205 +1,44 @@
-# Onion Web Game Project Overview
+# Onion
 
-- Well-formed but invalid move commands (e.g., illegal movement, blocked path) return HTTP 422 with code MOVE_INVALID.
-- Malformed or schema-invalid input returns HTTP 400 with code INVALID_INPUT.
-- Unsupported action command types return HTTP 400 with code COMMAND_INVALID and detailCode `UNKNOWN_COMMAND <command>`.
+Onion is an open-source, Shrek-themed reimplementation of the public-rule portions of Ogre. One player controls the Onion. The other defends with conventional units. The current game is the Mark III scenario, played in the web client against an authoritative server.
 
-## Project Description
+## How to read specs
 
-This project aims to create a web-based digital implementation of the classic board game Ogre (now renamed Onion),
-as designed by Steve Jackson. The game will be developed as an open-source project using publicly available
-information about the game's rules, mechanics, and components. Any elements that are copyrighted or
-proprietary will be adapted or replaced to ensure the project remains compliant with open-source licensing and
-intellectual property laws.
+Load only the row that matches the task. Do not open neighboring specs, archives, work-items, or generated HTML for extra context. If a task crosses two rows, load those two and stop.
 
-Onion is an asymmetrical tactical wargame set in a near-future sci-fi setting where one player controls a massive
-cybernetic tank called the "Onion" against another player's defensive force of conventional military units such as
-tanks, infantry, and artillery.
+When a row names a line range, read only that range. Do not read the rest of that file.
 
-## Implementation Phases
+## Task router
 
-| Phase | Focus | Key Deliverables |
-| :--- | :--- | :--- |
-| **1 — Core** | Working game | Engine, REST+WS API, PostgreSQL, CLI client, 2 humans matched manually |
-| **2 — Lobby** | Self-service matchmaking | See [lobby-overview-spec.md](work-items/lobby-overview-spec.md) for the high-level scope and phased work order. |
-| **3 — AI** | Automated opponent | Go-based Swamp Brain service connected as a standard API player |
+| Task | Load | Code |
+| --- | --- | --- |
+| Names and unit stats | [game-rules.md](game-rules.md) L24-L50 | `shared/config/unitCatalog.json` |
+| Victory | [game-rules.md](game-rules.md) L51-L86 | `server/engine/phases.ts` |
+| Movement, terrain, and ramming | [game-rules.md](game-rules.md) L123-L145 | `shared/moveValidator.ts` |
+| Combat results | [game-rules.md](game-rules.md) L146-L172 | `shared/combatCalculator.ts` |
+| Onion subsystems | [game-rules.md](game-rules.md) L173-L195 | `shared/unitDefinitions.ts` |
+| Phases and recovery | [game-rules.md](game-rules.md) L196-L216 | `server/engine/phases.ts` |
+| Scenario JSON authoring | [scenario-schema.md](scenario-schema.md) | `scenarios/` and `server/engine/scenarioSchema.ts` |
+| Invalid snapshots or read retry | [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md) | Do not also load the API or web copies |
+| Account registration or login | [user-account-spec.md](user-account-spec.md) | `server/api/auth.ts` |
+| Register or login transport | [api-contract.md](api-contract.md) L77-L112 | `server/api/auth.ts` |
+| Create, list, join, start, or fetch a game | [api-contract.md](api-contract.md) L158-L319 | `server/api/games.ts` |
+| Submit one action | [api-contract.md](api-contract.md) L320-L383, then the one command range below | `server/api/games.ts` |
+| Move command | [api-contract.md](api-contract.md) L388-L398 and L443-L452 | `server/engine/movement.ts` |
+| Fire command | [api-contract.md](api-contract.md) L399-L442 and L453-L491 | `server/engine/combat.ts` |
+| Event polling or an event shape | [api-contract.md](api-contract.md) L365-L383 and L508-L577 | `server/api/games.ts` |
+| Error body or error code | [api-contract.md](api-contract.md) L656-L686 | `server/api/` |
+| Board snapshot fields | [api-contract.md](api-contract.md) L603-L655 | `shared/types/` |
+| Web lobby, board, combat UI, turn display, or client errors | [web-ui-spec.md](web-ui-spec.md), then the one area spec it names. Skip Future State | The module that area spec names |
+| Match storage or migrations | [persistence.md](persistence.md) | `server/db/` |
+| Which test to add or run | [testing-strategy.md](testing-strategy.md) through the layer map only. Skip the editor-troubleshooting section | The one test directory in that row |
 
-## Technical Architecture
+Weapon and unit data live in `shared/config/unitCatalog.json` and `shared/unitDefinitions.ts`, not in the rules prose. Scenario JSON does not author targeting restrictions.
 
-The "Onion" project is a distributed system designed for persistent, multiplayer play across diverse client types (CLI, Web, AI).
+## Do not load unless the task names it
 
-### Backend (The Onion Engine)
+- [cli-spec.md](cli-spec.md) and `server/cli/`
+- [configuration.md](configuration.md) and server environment loading
+- `docs/archive/`, `docs/work-items/`, and generated `docs/api/` HTML
+- Coverage reports and `web/App.tsx.ref`
 
-- **Language**: Node.js with TypeScript.
-- **Framework**: Fastify.
-- **Rules Engine**: A functional core that processes player intents (e.g., `MoveUnit`, `FireWeapon`) by mutating shared `GameState` in place. All engine functions (`executeOnionMovement`, `executeUnitFire`, `advancePhase`, etc.) take a state reference and modify it directly. Persistence is handled at the API layer, which snapshots the mutated state after each action.
-- **Phase State Machine**: Turn phases advance in strict server-enforced order. Actions submitted out of phase are rejected with an error. The six phases per turn cycle:
-
-  | # | Phase | Actor | Side-effects on entry |
-  | :- | :--- | :--- | :--- |
-  | 1 | `ONION_MOVE` | Onion player | `turn++`; reset each Onion unit’s `ramsRemaining`; `disabled → recovering` |
-  | 2 | `ONION_COMBAT` | Onion player | — |
-  | 3 | `DEFENDER_RECOVERY` | Engine (auto) | `recovering → operational`; immediately advances to `DEFENDER_MOVE` |
-  | 4 | `DEFENDER_MOVE` | Defender player | — |
-  | 5 | `DEFENDER_COMBAT` | Defender player | — |
-  | 6 | `GEV_SECOND_MOVE` | Defender player (Big Bad Wolf only) | — |
-
-Phase transitions are handled by `advancePhase(state)` in `server/engine/phases.ts`. It mutates `GameState` in place, applies any entry side-effects for the new phase, and auto-advances through engine-controlled phases (`DEFENDER_RECOVERY`) without waiting for player input.
-
-- **`GameState`** is the engine's authoritative mutable game state. It contains:
-  - `onions: Record<string, OnionUnit>` — Onion units keyed by ID
-  - `defenders: Record<string, DefenderUnit>` — all conventional units keyed by ID
-  - `currentPhase: TurnPhase` — which phase is currently active
-  - `turn: number` — current turn number (1-based; incremented on entry to `ONION_MOVE`)
-  - `movementSpent` and `ramsRemaining` live on the individual unit records, not on the top-level state object
-
-- **Unit Disabled/Recovery flow**: Defender units hit by a "D" (Disabled) combat result are set to `status: 'disabled'`. The `UnitStatus` lifecycle is:
-
-  ```text
-  operational  ←─────────────────────────────────────────┐
-      │                                                   │
-      │ (D result from combat)                            │
-      ▼                                                   │
-   disabled  ──[entry to ONION_MOVE]──►  recovering  ──[DEFENDER_RECOVERY]──►  operational
-  ```
-
-  This means a unit disabled during the Onion's combat phase cannot act during that same defender turn. It transitions to `recovering` at the start of the *next* turn (entry to `ONION_MOVE`), and becomes `operational` again during that turn's `DEFENDER_RECOVERY` phase — just in time for `DEFENDER_MOVE`. A unit that enters turn N already in `recovering` (disabled on turn N-1) is fully operational by turn N's `DEFENDER_MOVE`.
-
-- **API Protocol**:
-  - **REST**: Slow/administrative operations — register, login, create game, join game, get game state.
-  - **WebSocket**: Real-time turn events — submit action, receive state updates, phase transitions, combat roll results. Both players connect to the same match channel.
-- **Game Lobby**: Authenticated users create games, discover waiting games, join an open role, and transition full matches from `ready` to `active` through the host-controlled start flow. **[DONE]**
-- **Persistence**: PostgreSQL. Core tables:
-  - `users` — id, username, hashed password, created_at.
-  - `matches` — id, scenario_id, scenario_snapshot, onion_player_id, defender_player_id, current_phase, turn_number, winner, created_at.
-  - `game_state` — match_id (FK), state JSONB, updated_at.
-- **`game_state` JSONB Shape**: A mutable copy of the scenario's `initialState`, evolved in place by gameplay. Contains: Onion position/treads/weapons, all defender unit positions/statuses and weapons. Victory conditions and map terrain remain static in the `matches` row (copied from scenario at game creation) and are never stored in `game_state`.
-- **Authentication**: Signed JWT bearer tokens are issued on registration/login and required for all game API calls. WebSocket clients may provide the same JWT through the `token` query parameter because browser WebSocket APIs cannot set arbitrary Authorization headers.
-
-### Frontend (Client Tier)
-
-- **Phase 1 — CLI**: Built with **Node.js** and **TypeScript** as a simple REST-driven command-line client. It uses prompt-driven commands plus a minimal offset-grid text map to prove end-to-end gameplay with two human players in two shell instances.
-- **Phase 2+ — Web UI**: React SPA sharing TypeScript types with the engine. Reuses the existing hex-grid JS implementation once reviewed.
-
-The web client keeps the backend-authoritative snapshot, local interaction state, derived battlefield view state, and sync state separate. `App.tsx` composes those layers; selection, targeting, and prompt state stay client-local, while the derived battlefield view stays pure and recomputable from the snapshot plus interaction state.
-
----
-**Status:**
-
-- Game lobby and host-controlled start: **done**
-- Web UI Phase 0: **done**
-- Web UI Phase 1: **complete for the current scenario and contract surface**
-- Action affordance and turn presentation: **done**
-
-### AI Tier (The Swamp Brain)
-
-- **Phase**: 3 — deferred until core game and lobby are stable.
-- **Design**: Runs as a separate service, connecting to the engine as a standard API player over the same WebSocket interface used by humans.
-- **Language**: Go (penciled in for tactical tree-search performance).
-
-### Testing Strategy
-
-The canonical layer map lives in [testing-strategy.md](testing-strategy.md). This project still uses TDD and Vitest, but the per-layer responsibilities now live in that dedicated doc.
-
-#### Test Organization and Execution
-
-Tests are organized into separate fast and slower suites so the default regression run stays responsive while still covering the contract and persistence layers.
-
-#### Integration Smoke Suite (Standard Regression)
-
-The standard regression run includes two integration smoke tracks:
-
-- **Regular smoke flow** (`swamp-siege-01`): runs the modular phase/turn orchestrator for at least 5 full turns and validates phase sequencing plus state synchronization.
-- **Endgame smoke flow** (`smoke-endgame-01`): runs a bounded tread-focus assault loop and validates that a terminal condition is reached, including `GAME_OVER` rejection after winner lock-in.
-
-These smoke tests run as part of the default Vitest regression suite, so both paths are continuously covered on local runs and CI.
-
-#### Database Abstraction Layer (DAL)
-
-The `DbAdapter` interface provides a clean separation between business logic and storage implementation:
-
-- **Interface**: `server/db/adapter.ts` defines the contract with methods for user auth, match CRUD, state updates, and event queries.
-- **In-Memory Implementation**: `InMemoryDb` for unit tests — stores data in Maps, no external dependencies.
-- **PostgreSQL Implementation**: `PostgresDb` for production — executes SQL queries against a real database.
-- **Benefits**: Easy to test (swap implementations), future-proof (can add Redis caching without changing routes), clear boundaries (routes call named operations, not raw SQL).
-
-#### Test Coverage Goals
-
-- **API Routes**: 100% coverage of success and error paths. Tests use Fastify's `app.inject()` for HTTP simulation without network.
-- **DAL Layer**: Full integration test coverage for SQL execution. Unit tests cover the in-memory implementation.
-- **Engine Logic**: Pure functions tested in isolation. No I/O in engine tests.
-- **Error Handling**: All error codes and edge cases covered, including malformed input, auth failures, and business rule violations.
-
-#### Test Execution in CI/CD
-
-- Unit tests run on every commit (fast feedback).
-- Integration tests run on PRs and main branch (slower but comprehensive).
-- Coverage reports generated for both test suites.
-
-### Infrastructure
-
-- **Local and VM deployment**: Docker Compose. A single `docker-compose.yml` covers both local dev and production on the Debian server — one command to bring up the engine and PostgreSQL together.
-- **Target environments**: Developer laptop (Debian), self-hosted Debian VM. Managed cloud services are out of scope until scale demands it (KISS).
-- **Future cloud path**: If needed, the Compose setup maps cleanly to a single VM on any cloud provider without rearchitecting.
-
-### Server Configuration
-
-Server deployment values are environment-only and are resolved centrally by
-`server/config/loadConfig.ts` using a required Zod schema. `PORT`, `HOST`, `DATABASE_URL`,
-`NODE_ENV`, `LOG_LEVEL`, and `SCENARIOS_DIR` must all be supplied; startup fails when any is
-missing or malformed. See [configuration.md](configuration.md) for the required values and
-deployment guidance. Static game rules and scenario data remain versioned project data rather
-than deployment configuration.
-
-## Game Mechanics Summary
-
-Core rules are derived from the public domain portions of the [OGRE Designer's Edition Rulebook (v6.0)](https://www.sjgames.com/ogre/kickstarter/ogre_rulebook.pdf) by Steve Jackson Games, adapted and renamed for this project. Detailed rule mappings are in [game-rules.md](game-rules.md).
-
-- Hexagonal grid map with terrain features (ridgelines, craters).
-- Web-based interface to manage turns and combat logic.
-- Integration with JSON-based scenario configurations.
-- An API interface to the game engine service to allow multiple client types to play.
-- An AI engine that can play either side, via the API.
-
-*Note: The initial implementation will focus on the Mark III scenario. Some scenario-configurable concepts may initially be hard-coded.*
-
-Detailed rules and unit mappings can be found in [game-rules.md](game-rules.md). For a sample turn walkthrough, check out [archive/example-turn.md](archive/example-turn.md).
-
-## Upcoming Major Features (Epics)
-
-### Stacked Unit Management
-
-**Implemented:** Canonical stack roster state, naming lifecycle, split/merge reconciliation, stack-aware map and rail presentation, subgroup selection, combat/ramming behavior, and automated regression coverage are complete. See [archive/stacked-unit-management-spec.md](archive/stacked-unit-management-spec.md) for the finalized contract record.
-
-### Game Lobby & Matchmaking
-
-**Implemented:** The web dashboard lists a user's games, the open-game screen
-supports self-service joining, and the host can start a full ready match.
-Lifecycle state and host identity are returned by the authoritative API. See
-[lobby-overview-spec.md](work-items/lobby-overview-spec.md),
-[multi-window-lobby-spec.md](work-items/multi-window-lobby-spec.md), and
-[web-ui-spec.md](web-ui-spec.md) for the lobby and client direction.
-
-### Shared Data Model for Units & Weapons
-
-**Implemented:** Unit and weapon definitions are externalized in `shared/config/unitCatalog.json`, normalized by `shared/unitDefinitions.ts`, and consumed by engine and web rules/projection code.
-
-## Name Changes
-
-To avoid proprietary issues and add a fun, thematic twist, we'll rename elements using Shrek-inspired names:
-
-- **The Onion**: Massive autonomous tank (Ogre).
-- **Big Bad Wolf**: Ground Effect Vehicle (GEV).
-- **Lord Farquaad**: Howitzer (Stationary artillery).
-- **Puss**: Heavy Tank.
-- **Witch**: Missile Tank.
-- **Pinocchio**: Light Tank.
-- **Dragon**: Superheavy Tank.
-- **Little Pigs**: Infantry squads.
-- **The Swamp**: Command Post.
-
-## Current Next Steps
-
-- Establish the managed container-runtime path as the standard way to run direct PostgreSQL integration tests.
-- Replace stub bearer tokens with signed JWT authentication.
-- Build lobby/matchmaking UX and complete the accessibility audit when those features are prioritized.

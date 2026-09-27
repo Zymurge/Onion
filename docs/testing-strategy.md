@@ -41,6 +41,7 @@ When a behavior crosses layers, test the narrowest stable boundary that owns the
 - `pnpm test`: fast suites that should stay close to unit and contract boundaries.
 - `pnpm test:integration`: slower suites that verify real persistence or backend wiring.
 - Keep smoke flows in the default regression run when they guard phase sequencing or terminal-game behavior.
+- Named default smoke flows: `swamp-siege-01` covers phase sequencing for at least five turns. `smoke-endgame-01` covers a terminal condition and `GAME_OVER` rejection after winner lock-in.
 
 ## Current Boundary Map
 

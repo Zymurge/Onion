@@ -1,5 +1,18 @@
 # Onion Game Rules
 
+Read only the row for the task. The line ranges are also in [project-overview.md](project-overview.md). Do not read the rest of this file.
+
+| Need | Lines |
+| --- | --- |
+| Names and unit stats | L24-L50 |
+| Victory | L51-L86 |
+| Movement, terrain, and ramming | L123-L145 |
+| Combat results | L146-L172 |
+| Onion subsystems | L173-L195 |
+| Phases and recovery | L196-L216 |
+
+Weapon and unit data live in `shared/config/unitCatalog.json` and `shared/unitDefinitions.ts`. Scenario objective fields live in [scenario-schema.md](scenario-schema.md).
+
 This document maps the game rules for the "Onion" project, a thematic reimplementation of a classic asymmetrical tactical wargame.
 
 The initial implementation will be based on the Mark III scenario, and the rules may be overly specific to that on the first pass.

@@ -1,25 +1,24 @@
 ---
-description: "Model selection and escalation policy for Onion coding agents. Apply when choosing an agent, delegating work, or deciding whether to escalate."
+description: "Use when choosing a model, delegating work, or deciding whether to upgrade or downgrade. Relative cost only; do not consult a price catalog."
 applyTo: "**"
 ---
 
-# Onion Model Selection
+# Model cost awareness
 
-The machine-readable model catalog, current prices, and workstream preferences live in `.copilot/agents/agent.md`. Use that file as the source of truth for IDs and costs; do not invent prices or treat historical model names in archived docs as current.
+Stay relatively cost-aware. Do not look up, maintain, or invent prices, model IDs, or rankings. Ignore model catalogs and historical model names in `.copilot/agents/agent.md`, other agent files, and archived docs.
 
-## Routing Defaults
+Judge the model already in use by its relative tier: a cheaper or faster model, the current model, or a stronger reasoning model. Recommend a change in those terms. Name a specific model only if it is already selected in the session or the user asks for one.
 
-- Use `gpt-5.6-luna` or Gemini Flash for low-cost, well-specified edits, tests, fixtures, boilerplate, and mechanical work.
-- Use `gpt-5.3-codex` for structured code generation and focused refactors with a clear contract.
-- Use `gpt-5.6-terra` for architecture, contract changes, controller semantics, refresh correctness, and refactor analysis.
-- Use `claude-sonnet-5` for broad refactor analysis and balanced coding when that is the selected workstream preference.
-- Use Grok 4.5 as a versatile fallback for well-defined work when its context profile is a better fit.
-- Escalate to `gpt-5.6-sol`, Claude Opus 4.8/5, or another powerful model only for genuinely ambiguous architecture, difficult debugging, or high-stakes correctness work. Fast-mode and Fable options are high-cost choices, not routine defaults.
+## Match the model to the task
 
-## Cost And Escalation Rules
+- Downgrade when the work is mechanical or already specified: small edits, tests, fixtures, boilerplate, renames, or a focused change with a clear contract and owning file.
+- Stay put for ordinary implementation and debugging that follows an existing spec.
+- Upgrade when the task is ambiguous or high-stakes: architecture boundaries, phase or state-machine behavior, protocol contracts, concurrency, or subtle synchronization. Also upgrade after two failed fix or compile passes on the same hard problem, instead of repeating the same approach.
+- After the hard decision is settled and tests pin the behavior, recommend dropping back down for the remaining mechanical edits.
 
-- Prefer the cheapest model that can reliably satisfy the contract. Consider input, cached-input, cache-write, output, and long-context pricing from the agent catalog rather than comparing only one rate.
-- Escalate when work changes architecture, concurrency, state-machine behavior, protocol contracts, or subtle synchronization semantics.
-- After two unsuccessful fix or compilation passes on a complex issue, recommend a stronger model instead of repeating the same approach.
-- De-escalate after interfaces and tests are stable.
-- State the reason for a model recommendation and the validation needed to confirm the result.
+## How to recommend
+
+- Make the recommendation before a large context read, or as soon as the task changes tier.
+- Use one sentence: the direction, why this task needs it, and the check that would confirm the result.
+- Do not compare dollar rates, context-window price brackets, or fast-mode premiums. If two available models can do the job, prefer the cheaper one.
+- Do not upgrade by default. A stronger model is an exception, not the starting point.

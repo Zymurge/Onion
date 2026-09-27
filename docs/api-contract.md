@@ -1,5 +1,20 @@
 # Onion API Contract (v1)
 
+Read only the row for the task. The line ranges are also in [project-overview.md](project-overview.md). Do not read the rest of this file.
+
+| Need | Lines |
+| --- | --- |
+| Register or login transport | L77-L112. Field rules are [user-account-spec.md](user-account-spec.md) |
+| Create, list, join, start, or fetch a game | L158-L319 |
+| Submit one action | L320-L383, then the one command range below |
+| Move command | L388-L398 and L443-L452 |
+| Fire command | L399-L442 and L453-L491 |
+| Event polling or an event shape | L365-L383 and L508-L577 |
+| Error body or error code | L656-L686 |
+| Board snapshot fields | L603-L655 |
+
+Snapshot validity and read retries are [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md), not this file. Deployment environment is [configuration.md](configuration.md) only when that is the task.
+
 ## Transport Strategy
 
 The protocol uses a unified **command/event model** independent of transport:
