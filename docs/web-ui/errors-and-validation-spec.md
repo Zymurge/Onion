@@ -19,21 +19,12 @@ boundaries, diagnostics, and validation obligations shared by all web UI areas.
 
 ## Retry Boundaries
 
-- Only transient state and event `GET` failures may be retried: network
-  failures and HTTP `408`, `429`, `500`, `502`, `503`, or `504` responses.
-- Action and diagnostic `POST` requests are not automatically retried.
-- Malformed responses, invalid snapshots, other HTTP failures, and phase or
-  event races are not automatically retried.
+Retry limits and invalid-snapshot handling are in [snapshot-deprecation-policy.md](../snapshot-deprecation-policy.md). This spec does not add a second policy.
 
 ## Invalid Snapshots and Session Abort
 
-- The client never repairs, replaces, migrates, or infers an invalid snapshot.
-- If a refreshed snapshot remains structurally or semantically invalid, the
-  client sends one `SNAPSHOT_INVALID` diagnostic, stops the local session, and
-  shows the terminal aborted state.
-- The server records and broadcasts `GAME_ABORTED`, so the other participant
-  reaches the same terminal state.
 - Terminal invalid-snapshot failures are not dismissible.
+- The aborted state replaces the game screen. It is not an overlay.
 
 ## Validation Obligations
 

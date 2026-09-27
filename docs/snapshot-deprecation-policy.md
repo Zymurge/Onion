@@ -1,6 +1,8 @@
-# Snapshot Deprecation Policy
+# Snapshot and retry policy
 
-Effective immediately, any snapshot that does not adhere to the canonical `stackRoster` bundle contract is considered deprecated and unsupported.
+This file owns invalid snapshots, the prohibition on migration, and read retries. Other specs point here instead of restating those rules.
+
+Any snapshot that does not adhere to the canonical `stackRoster` bundle contract is invalid.
 
 ## What is deprecated
 

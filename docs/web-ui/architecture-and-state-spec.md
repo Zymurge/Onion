@@ -49,16 +49,7 @@ and authentication requirements are defined in
 
 ## Snapshot Synchronization
 
-When required server data is unavailable, the client requests the latest state
-with `GET /games/{id}`. Only transient transport failures or retryable server
-responses (`408`, `429`, `500`, `502`, `503`, or `504`) may cause a bounded retry
-of state or event `GET` requests.
-
-The client does not automatically retry malformed responses, invalid snapshots,
-action submissions, diagnostic submissions, or non-retryable HTTP failures.
-Action requests are non-idempotent because the server may have applied an
-operation before its response was lost. The client does not retry because of a
-phase or event race.
+Refresh and retry follow [snapshot-deprecation-policy.md](../snapshot-deprecation-policy.md).
 
 The match WebSocket carries live signals for one game. It never becomes a
 second authoritative state model or a mixed lobby-and-game bus.

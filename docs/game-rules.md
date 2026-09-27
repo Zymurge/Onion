@@ -1,17 +1,24 @@
 # Onion Game Rules
 
-Read only the row for the task. The line ranges are also in [project-overview.md](project-overview.md). Do not read the rest of this file.
+Read only the row for the task. Do not read the rest of this file. Owners for numbers and behavior are in [project-overview.md](project-overview.md).
 
 | Need | Lines |
 | --- | --- |
-| Names and unit stats | L24-L50 |
-| Victory | L51-L86 |
-| Movement, terrain, and ramming | L123-L145 |
-| Combat results | L146-L172 |
-| Onion subsystems | L173-L195 |
-| Phases and recovery | L196-L216 |
+| Names only | L31-L46 |
+| Movement procedure | L130-L152 |
+| Combat procedure and CRT copy | L153-L179 |
+| Phases and recovery | L203-L223 |
 
-Weapon and unit data live in `shared/config/unitCatalog.json` and `shared/unitDefinitions.ts`. Scenario objective fields live in [scenario-schema.md](scenario-schema.md).
+This file does not own numbers, stack membership, or the running CRT. If it disagrees with the owner below, the owner wins.
+
+| Concern | Owner |
+| --- | --- |
+| Unit and weapon numbers, ram profile, stack-size limit, terrain flags | `shared/config/unitCatalog.json` |
+| Movement legality | `shared/movementRules.ts` |
+| Stack membership | `shared/stackRoster.ts` |
+| Combat odds and modifiers | `shared/combatCalculator.ts` |
+| CRT letters | `server/engine/combat.ts` |
+| Victory objectives | [scenario-schema.md](scenario-schema.md) |
 
 This document maps the game rules for the "Onion" project, a thematic reimplementation of a classic asymmetrical tactical wargame.
 
@@ -23,19 +30,19 @@ Onion is a hexagonal-grid tactical wargame where one player controls a single, m
 
 ## Units Mapping
 
-Units are themed with Shrek-inspired names. Stats are listed as Attack/Range, Defense, Movement.
+Names only. Numbers live in `shared/config/unitCatalog.json`.
 
-| Original Name | Onion Project Name | Stats | Move | Cost | Defense |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| Ogre (Mk III) | **The Onion (Mk III)** | Variable | 3* | N/A | Variable |
-| Heavy Tank | **Puss** | 4 / 2 | 3 | 1 | 3 |
-| Missile Tank | **Witch** | 3 / 4 | 2 | 1 | 2 |
-| GEV | **Big Bad Wolf** | 2 / 2 | 2 | 1 | 4+3 |
-| Howitzer | **Lord Farquaad** | 6 / 8 | 1 | 2 | 0 |
-| Light Tank | **Pinocchio** | 2 / 2 | 2 | 0.5 | 3 |
-| Superheavy Tank | **Dragon** | 6(x2) / 3 | 5 | 2 | 3 |
-| Infantry | **Little Pigs** | 1 (per squad) / 1 | 1 (squad) | 1 (per 3) | 2 |
-| HQ | **The Swamp** | 0 / 0 | 0 | N/A | 0 |
+| Original name | Onion name | Catalog id |
+| --- | --- | --- |
+| Ogre (Mk III) | The Onion | `TheOnion` |
+| Heavy Tank | Puss | `Puss` |
+| Missile Tank | Witch | `Witch` |
+| GEV | Big Bad Wolf | `BigBadWolf` |
+| Howitzer | Lord Farquaad | `LordFarquaad` |
+| Light Tank | Pinocchio | `Pinocchio` |
+| Superheavy Tank | Dragon | `Dragon` |
+| Infantry | Little Pigs | `LittlePigs` |
+| HQ | The Swamp | `Swamp` |
 
 ### The Swamp (HQ)
 

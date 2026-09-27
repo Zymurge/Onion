@@ -1,19 +1,28 @@
 # Onion API Contract (v1)
 
-Read only the row for the task. The line ranges are also in [project-overview.md](project-overview.md). Do not read the rest of this file.
+Read only one row. If these ranges disagree with [project-overview.md](project-overview.md), the overview wins. Do not read this file from the top.
 
 | Need | Lines |
 | --- | --- |
-| Register or login transport | L77-L112. Field rules are [user-account-spec.md](user-account-spec.md) |
-| Create, list, join, start, or fetch a game | L158-L319 |
-| Submit one action | L320-L383, then the one command range below |
-| Move command | L388-L398 and L443-L452 |
-| Fire command | L399-L442 and L453-L491 |
-| Event polling or an event shape | L365-L383 and L508-L577 |
-| Error body or error code | L656-L686 |
-| Board snapshot fields | L603-L655 |
+| Register or login transport | L49-L84. Field rules are [user-account-spec.md](user-account-spec.md) |
+| Create, list, join, or start | L130-L222 |
+| Fetch one game | L223-L291 |
+| Submit an action | L292-L336, then one command row |
+| MOVE | L356-L368 |
+| FIRE | L369-L412 and L421-L459 |
+| END_PHASE | L413-L420 |
+| Event polling | L337-L355 |
+| Event envelope | L464-L476 |
+| Movement events | L477-L483 |
+| Combat events | L484-L496 |
+| State-change events | L497-L507 |
+| Phase and game events | L508-L520 |
+| Sync events, including SESSION_INIT | L521-L533 |
+| Scenario map | L460-L463 |
+| Error body or code | L612-L642 |
+| Board snapshot fields | L559-L611 |
 
-Snapshot validity and read retries are [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md), not this file. Deployment environment is [configuration.md](configuration.md) only when that is the task.
+Do not load Runtime Configuration unless the task is deployment configuration. Retry limits and invalid-snapshot handling are in [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md).
 
 ## Transport Strategy
 
@@ -23,54 +32,17 @@ The protocol uses a unified **command/event model** independent of transport:
 - **Events** (server → client): typed, sequenced records of everything
   that happened as a result.
 
-### Phase 1 — Pure REST
+### REST
 
-All communication is over HTTP. The Phase 1 CLI is designed for manual
-testing and can operate without background polling.
+Commands are submitted to `POST /games/{id}/actions`. The response body is that action's result. Missed events are `GET /games/{id}/events?after={seq}`.
 
-| Direction | Mechanism |
-| :--- | :--- |
-| Submit action | `POST /games/{id}/actions` |
-| Get your action's results | Response body of the POST |
-| Get event history or missed actions | `GET /games/{id}/events?after={seq}` |
+### Snapshot refresh
 
-Manual refresh or optional polling can use the same events route.
+`GET /games/{id}` returns the match state. Event sequence numbers are delivery cursors, not a snapshot version. The server sequences accepted actions. Retry limits and invalid-snapshot handling are in [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md).
 
-### Authoritative Snapshot and Retry Policy
+### WebSocket
 
-The server is the single authority for match state. Each accepted action is
-processed in turn order and its resulting events receive monotonically
-increasing sequence numbers. Clients must not infer a competing state from
-event timing, local simulation, or cached projections.
-
-When a client does not have the server data required to render or continue a
-session, it requests the latest state with `GET /games/{id}`. A successful
-response is authoritative, regardless of when a previously delivered event or
-response arrived. Event sequence numbers are delivery and inspection cursors;
-they are not a client-side snapshot versioning or conflict-resolution scheme.
-
-Retries are transport-only:
-
-- A client may retry a state or event `GET` after a transient network failure or
-  a retryable server response (`408`, `429`, `500`, `502`, `503`, or `504`).
-- Other HTTP error responses, malformed responses, and semantically invalid
-  snapshots are not retried.
-- Action `POST` requests are not automatically retried because the server may
-  have applied the action before the response was lost.
-- Diagnostic `POST` requests are not automatically retried.
-- Clients do not retry for event or phase races. Concurrent game operations are
-  outside this protocol model; the server sequences accepted operations.
-
-If a state refresh still returns an invalid snapshot, the client reports the
-diagnostic and aborts the session for both participants. There is no snapshot
-repair, fallback snapshot, migration, or client-side recovery model.
-
-### Phase 2+ — WebSocket (additive, not replacing)
-
-A WS connection to `ws://host/games/{id}/ws` carries the same JSON
-shapes. Commands are sent as WS messages; events are pushed by the
-server. No game logic changes. REST endpoints remain for non-real-time
-use.
+Connect to `ws://host/games/{id}/ws`. Commands and events use the same JSON as REST. The server pushes events on the connection. `SESSION_INIT` is specified with the sync events.
 
 ---
 
@@ -385,9 +357,7 @@ clients must render their terminal aborted-session state.
 
 All commands are submitted as the body of `POST /games/{id}/actions`.
 
-### Onion Movement Phase (`ONION_MOVE`)
-
-#### Move Onion
+### MOVE
 
 ```json
 { "type": "MOVE", "movers": [string, ...], "to": { "q": number, "r": number } }
@@ -396,7 +366,7 @@ All commands are submitted as the body of `POST /games/{id}/actions`.
 Ramming is resolved as part of `MOVE` path execution (up to 2 rams per
 turn), not as a separate command.
 
-### Combat Actions
+### FIRE
 
 Combat uses a single `FIRE` command shape for both Onion and defender attacks.
 
@@ -440,15 +410,13 @@ Example defender attack against Onion treads:
 }
 ```
 
-### Movement Commands
+### END_PHASE
 
-#### Move a unit
+Advance to the next phase without exhausting remaining moves or attacks.
 
 ```json
-{ "type": "MOVE", "movers": [string, ...], "to": { "q": number, "r": number } }
+{ "type": "END_PHASE" }
 ```
-
----
 
 ## Combat Error Handling
 
@@ -489,21 +457,9 @@ All errors include `detailCode` for granular client feedback.
 
 ---
 
-## Scenario Map Loading (MOVE Route)
-
-## Scenario Map Loading
+## Scenario Map
 
 All routes and clients require the canonical `scenarioMap` with a non-empty `cells` array. There is no fallback or compatibility logic for missing geometry fields. All geometry and pathfinding must use the `cells` array.
-
-### Any Phase
-
-**End phase explicitly** (advance to next phase without exhausting all moves/attacks)
-
-```json
-{ "type": "END_PHASE" }
-```
-
----
 
 ## Event Types
 

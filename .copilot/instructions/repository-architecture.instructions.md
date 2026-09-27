@@ -9,6 +9,7 @@ applyTo: "**"
 
 - The backend engine is authoritative for game rules, phase transitions, action legality, combat resolution, and committed game state.
 - Shared modules own domain contracts and rules that must agree across engine, API, CLI, and web. Do not create a second implementation of shared coordinate, movement, unit, weapon, target, or combat rules in a client layer.
+- Unit and weapon numbers, ram profiles, stack-size limits, and terrain flags come from `shared/config/unitCatalog.json`. `docs/game-rules.md` does not override them. Stack membership comes from `shared/stackRoster.ts`. The running CRT is the constant in `server/engine/combat.ts`.
 - The API owns transport and persistence concerns. Routes call named database operations and preserve structured backend errors instead of rewriting them into vague client messages.
 - The web client is a React + TypeScript presentation and interaction layer. It prepares commands locally, but committed actions must round trip through the backend; do not optimistically mutate authoritative game state.
 
@@ -25,7 +26,7 @@ Hard reload must reconstruct the app from a fresh server snapshot plus empty loc
 
 ## Canonical Identity And Snapshots
 
-- Canonical snapshots require the `stackRoster.groupsById` bundle and its naming data. Invalid or deprecated snapshot shapes must fail loudly; do not add silent migration or compatibility inference.
+- Canonical snapshots require the `stackRoster.groupsById` bundle and its naming data. Invalid snapshot shapes fail loudly. Do not add silent migration or compatibility inference. Retry limits and abort rules are in `docs/snapshot-deprecation-policy.md`; do not restate them.
 - `stackRoster` owns stack membership, group identity, and unit identity. `defenders` may be a projection, but never the canonical source of stack membership when roster data exists.
 - Preserve stable unit IDs and per-unit friendly names across regrouping. Stack names are display identity; they must not replace unit identity.
 - Do not invent member IDs, renumber members from layout order, infer stack membership from co-location, or synthesize missing canonical fields. Projection helpers should fail fast when required canonical data is absent.
