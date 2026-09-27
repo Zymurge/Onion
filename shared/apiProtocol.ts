@@ -272,6 +272,7 @@ export type GameStateResponse = {
 	 */
 	scenarioMap: ScenarioMapSnapshot
 	eventSeq: number
+	phaseStartEventSeq?: number
 }
 
 export type EventsResponse = {

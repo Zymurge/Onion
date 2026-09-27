@@ -1,9 +1,9 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest'
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import pg from 'pg'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PostgresDb } from '../../../server/db/postgres.js'
-import { runMigrations } from '../../../server/db/migrate.js'
 import type { MatchRecord } from '../../../server/db/adapter.js'
 import { makeGameState, makeOnion } from '#test/utils/gameStateUtils'
 
@@ -21,6 +21,11 @@ const SAMPLE_STATE = makeGameState({
 })
 
 const HOST_ID = '00000000-0000-4000-8000-000000000010'
+
+async function applyMigration(fileName: string): Promise<void> {
+  const sql = await readFile(join(MIGRATIONS_DIR, fileName), 'utf8')
+  await pool.query(sql.split('-- migrate:down')[0].replace('-- migrate:up', ''))
+}
 
 function makeMatch(overrides: Partial<Omit<MatchRecord, 'gameId'>> = {}): Omit<MatchRecord, 'gameId'> {
   return {
@@ -41,7 +46,7 @@ function makeMatch(overrides: Partial<Omit<MatchRecord, 'gameId'>> = {}): Omit<M
 beforeAll(async () => {
   container = await new PostgreSqlContainer('postgres:16-alpine').start()
   pool = new Pool({ connectionString: container.getConnectionUri() })
-  await runMigrations(pool, MIGRATIONS_DIR)
+  await applyMigration('001_initial.sql')
   db = new PostgresDb(pool)
 }, 60_000)
 
@@ -59,11 +64,8 @@ beforeEach(async () => {
 })
 
 describe('database migrations', () => {
-  it('repairs a previously initialized database when a migration is pending', async () => {
-    await pool.query('ALTER TABLE matches DROP COLUMN last_activity_at')
-    await pool.query('DELETE FROM schema_migrations WHERE version = $1', ['001_initial.sql'])
-
-    await runMigrations(pool, MIGRATIONS_DIR)
+  it('applies the activity and archiving upgrade after the preserved baseline', async () => {
+    await applyMigration('002_game_activity_and_archiving.sql')
 
     const result = await pool.query<{ column_name: string }>(
       `SELECT column_name

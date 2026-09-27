@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { GameClientSeamError, ServerGameSnapshot } from './gameClient'
+import type { PlayerConnectionStatus, PlayerPresence } from '../../shared/websocketProtocol.js'
 
 /** Inputs used to derive visible errors and terminal game notifications. */
 export type AppNotificationPolicyOptions = {
@@ -9,6 +10,8 @@ export type AppNotificationPolicyOptions = {
 	sessionError: GameClientSeamError | null
 	snapshot: ServerGameSnapshot | null
 	snapshotError?: string | null
+	presence?: PlayerPresence | null
+	localRole?: 'onion' | 'defender' | null
 }
 
 /**
@@ -26,9 +29,17 @@ export type AppNotificationPolicy = {
 	sessionWinnerToastKey: string | null
 	shouldShowGameOverToast: boolean
 	dismissGameOverToast: () => void
+	playerPresenceNotification: { role: 'onion' | 'defender'; status: PlayerConnectionStatus } | null
+	dismissPlayerPresenceNotification: () => void
 	snapshotError: string | null
 	snapshotErrorDismissible: false
 	shouldShowSnapshotError: boolean
+}
+
+type StoredPresenceNotification = {
+	gameId: number
+	role: 'onion' | 'defender'
+	status: PlayerConnectionStatus
 }
 
 function buildSessionErrorKey(activeGameId: number | null, sessionError: GameClientSeamError | null): string | null {
@@ -50,9 +61,13 @@ export function useAppNotificationPolicy({
 	sessionError,
 	snapshot,
 	snapshotError = null,
+	presence = null,
+	localRole = null,
 }: AppNotificationPolicyOptions): AppNotificationPolicy {
 	const [dismissedSessionErrorKey, setDismissedSessionErrorKey] = useState<string | null>(null)
 	const [dismissedGameOverToastKey, setDismissedGameOverToastKey] = useState<string | null>(null)
+	const [storedPresenceNotification, setStoredPresenceNotification] = useState<StoredPresenceNotification | null>(null)
+	const previousOpponentPresence = useRef<{ gameId: number; role: 'onion' | 'defender'; status: PlayerConnectionStatus } | null>(null)
 
 	const sessionErrorKey = buildSessionErrorKey(activeGameId, sessionError)
 	const sessionWinner = snapshot?.winner ?? null
@@ -78,6 +93,33 @@ export function useAppNotificationPolicy({
 		}
 	}, [sessionWinnerToastKey])
 
+	const opponentRole = localRole === null ? null : localRole === 'onion' ? 'defender' : 'onion'
+	const opponentStatus = opponentRole === null || presence === null ? null : presence[opponentRole]
+
+	useEffect(() => {
+		if (activeGameId === null || opponentRole === null || presence === null) {
+			previousOpponentPresence.current = null
+			return
+		}
+
+		const observedStatus: PlayerConnectionStatus = opponentStatus === 'connected' ? 'connected' : 'disconnected'
+		const previous = previousOpponentPresence.current
+		if (previous !== null && previous.gameId === activeGameId && previous.role === opponentRole && previous.status !== observedStatus) {
+			setStoredPresenceNotification({ gameId: activeGameId, role: opponentRole, status: observedStatus })
+		}
+		previousOpponentPresence.current = { gameId: activeGameId, role: opponentRole, status: observedStatus }
+	}, [activeGameId, opponentRole, opponentStatus, presence])
+
+	const dismissPlayerPresenceNotification = useCallback(() => {
+		setStoredPresenceNotification(null)
+	}, [])
+
+	const playerPresenceNotification = storedPresenceNotification !== null
+		&& storedPresenceNotification.gameId === activeGameId
+		&& storedPresenceNotification.role === opponentRole
+		? { role: storedPresenceNotification.role, status: storedPresenceNotification.status }
+		: null
+
 	return {
 		actionError,
 		shouldShowActionError: actionError !== null,
@@ -91,6 +133,8 @@ export function useAppNotificationPolicy({
 		sessionWinnerToastKey,
 		shouldShowGameOverToast: sessionWinner !== null && sessionWinnerToastKey !== null && dismissedGameOverToastKey !== sessionWinnerToastKey,
 		dismissGameOverToast,
+		playerPresenceNotification,
+		dismissPlayerPresenceNotification,
 		snapshotError,
 		snapshotErrorDismissible: false,
 		shouldShowSnapshotError: snapshotError !== null,

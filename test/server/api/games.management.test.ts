@@ -108,6 +108,7 @@ describe('POST /games', () => {
         logLevel: 'error',
         scenariosDir: `${process.cwd()}/scenarios`,
         lobbyPollIntervalMs: 3000,
+        presenceDisconnectGraceMs: 3000,
       },
     })
     await app.ready()
@@ -643,6 +644,10 @@ describe('GET /games/history', () => {
         status: 'completed',
         completedAt: null,
       }],
+      findUsernamesByIds: async () => ({
+        [userId]: 'shrek',
+        '00000000-0000-4000-8000-000000000002': 'fiona',
+      }),
     })
     await app.ready()
     const token = app.jwt.sign({ sub: userId })
@@ -664,6 +669,7 @@ describe('GET /games/history', () => {
       hostUserId: userId,
       canDelete: true,
       players: { onion: userId, defender: '00000000-0000-4000-8000-000000000002' },
+      playerUsernames: { onion: 'shrek', defender: 'fiona' },
       role: 'onion',
     }] })
   })
@@ -755,6 +761,7 @@ describe('GET /games/open', () => {
         scenarioId: 'swamp-siege-01',
         scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
         creatorRole: 'onion',
+        creatorUsername: 'shrek',
         openRole: 'defender',
       }],
     })

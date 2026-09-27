@@ -28,6 +28,15 @@ export class InMemoryDb implements DbAdapter {
     return record ? { ...record } : null
   }
 
+  async findUsernamesByIds(userIds: string[]): Promise<Record<string, string>> {
+    const requestedIds = new Set(userIds)
+    const usernames: Record<string, string> = {}
+    for (const record of this.users.values()) {
+      if (requestedIds.has(record.userId)) usernames[record.userId] = record.username
+    }
+    return usernames
+  }
+
   async createUser(username: string, email: string, passwordHash: string): Promise<{ userId: string }> {
     const normalizedUsername = username.toLowerCase()
     const normalizedEmail = email.toLowerCase()

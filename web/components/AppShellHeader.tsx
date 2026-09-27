@@ -8,6 +8,7 @@ type AppShellHeaderProps = {
   phaseAdvanceLabel: string | null
   inactiveEventControlsLocked: boolean
   inactiveEventWindowVisible: boolean
+  acknowledgementLabel: 'Begin Turn' | 'Continue Turn'
   sessionTurnActive: boolean
   activeScenarioName: string | null
   activeGameId: number | null
@@ -39,6 +40,7 @@ export function AppShellHeader({
   phaseAdvanceLabel,
   inactiveEventControlsLocked,
   inactiveEventWindowVisible,
+  acknowledgementLabel,
   sessionTurnActive,
   activeScenarioName,
   activeGameId,
@@ -98,10 +100,10 @@ export function AppShellHeader({
             type="button"
             className={`phase-advance-btn begin-turn-btn${sessionTurnActive ? ' begin-turn-btn-ready' : ' disabled'}`}
             onClick={() => runShellControl('acknowledge-turn', sessionTurnActive, onAcknowledgeTurn)}
-            aria-label="Begin turn"
+            aria-label={acknowledgementLabel}
             disabled={!sessionTurnActive}
           >
-            Begin Turn
+            {acknowledgementLabel}
           </button>
         )}
       </div>

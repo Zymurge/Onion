@@ -4,6 +4,7 @@ import { CombatResolutionToast } from './CombatResolutionToast'
 import { ErrorOverlay } from './ErrorOverlay'
 import { GameOverToast } from './GameOverToast'
 import { MoveResolutionToast } from './MoveResolutionToast'
+import { PlayerPresenceToast } from './PlayerPresenceToast'
 import { formatRamResolutionTitle } from '../lib/moveResolution'
 import type { AppCommands } from '../lib/appCommands'
 import type { AppNotificationPolicy } from '../lib/appNotificationPolicy'
@@ -14,7 +15,7 @@ export type AppOverlayLayerProps = {
   commands: Pick<AppCommands, 'dismissActionError' | 'dismissSessionError' | 'dismissGameOverToast' | 'dismissCombatResolution' | 'dismissRamResolution'>
   display: Pick<ReturnType<typeof useBattlefieldDisplayState>, 'selectedCombatTarget'> & Partial<Pick<ReturnType<typeof useBattlefieldDisplayState>, 'victoryObjectives'>>
   interaction: Pick<ReturnType<typeof useBattlefieldInteractionState>, 'actionError' | 'pendingCombatResolution' | 'pendingRamResolution'>
-  notifications: Pick<AppNotificationPolicy, 'snapshotError' | 'shouldShowSnapshotError' | 'shouldShowSessionError' | 'sessionError' | 'shouldShowActionError' | 'sessionWinner' | 'shouldShowGameOverToast'>
+  notifications: Pick<AppNotificationPolicy, 'snapshotError' | 'shouldShowSnapshotError' | 'shouldShowSessionError' | 'sessionError' | 'shouldShowActionError' | 'sessionWinner' | 'shouldShowGameOverToast' | 'playerPresenceNotification' | 'dismissPlayerPresenceNotification'>
 }
 
 export function AppOverlayLayer({ commands, display, interaction, notifications }: AppOverlayLayerProps): ReactNode {
@@ -65,6 +66,13 @@ export function AppOverlayLayer({ commands, display, interaction, notifications 
           winner={notifications.sessionWinner}
           objectives={display.victoryObjectives ?? []}
           onDismiss={commands.dismissGameOverToast}
+        />
+      ) : null}
+      {notifications.playerPresenceNotification != null ? (
+        <PlayerPresenceToast
+          role={notifications.playerPresenceNotification.role}
+          status={notifications.playerPresenceNotification.status}
+          onDismiss={notifications.dismissPlayerPresenceNotification}
         />
       ) : null}
     </>

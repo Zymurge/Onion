@@ -15,7 +15,7 @@ import { CombatExecutionResult } from '#server/engine/combat'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import { getDefender, getOnionOrDefender } from '#shared/unitState'
 import { canonicalizeStackRoster, refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
-import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
+import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerPresenceMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 const GAME_ID_RE = /^\d+$/
 
 export function buildSessionInitPayload(): SessionInitPayload {
@@ -739,6 +739,9 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
           : null
 
   const stackRoster = buildResponseStackRoster(match.state)
+  const phaseStartEventSeq = [...match.events].reverse().find((event) =>
+    event.type === 'PHASE_CHANGED' && event.to === match.phase && event.turnNumber === match.turnNumber,
+  )?.seq ?? 0
 
   const defenders = Object.fromEntries(
     Object.entries(match.state.defenders).map(([defenderId, defender]) => {
@@ -768,6 +771,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     escapeHexes,
     scenarioMap,
     eventSeq: match.events.at(-1)?.seq ?? 0,
+    phaseStartEventSeq,
   }
 }
 
@@ -795,12 +799,16 @@ export function buildActionResponse(
   escapeHexes: VictoryEscapeHex[]
   status: MatchRecord['status']
   hostUserId: string
+  phaseStartEventSeq: number
 } {
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
   const historicalEvents = Array.isArray(match.events) ? match.events : []
+  const phaseStartEventSeq = [...historicalEvents, ...events].reverse().find((event) =>
+    event.type === 'PHASE_CHANGED' && event.to === phase && event.turnNumber === turnNumber,
+  )?.seq ?? 0
 
   return {
     ok: true,
@@ -823,10 +831,11 @@ export function buildActionResponse(
     scenarioMap,
     victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber, [...historicalEvents, ...events]),
     escapeHexes,
+    phaseStartEventSeq,
   }
 }
 
-export function serializeWsMessage(message: WebSocketClientMessage | WebSocketServerEventMessage | WebSocketServerSessionInitMessage | WebSocketServerSnapshotMessage | WebSocketServerErrorMessage): string {
+export function serializeWsMessage(message: WebSocketClientMessage | WebSocketServerEventMessage | WebSocketServerSessionInitMessage | WebSocketServerSnapshotMessage | WebSocketServerPresenceMessage | WebSocketServerErrorMessage): string {
   return JSON.stringify(message)
 }
 

@@ -63,6 +63,32 @@ describe('useInactiveEventStream', () => {
 		expect(result.current.entries[0]).toMatchObject({ seq: 2 })
 	})
 
+	it('starts from the phase boundary and excludes events from other phases', async () => {
+		const pollEvents = vi.fn().mockResolvedValue([
+			createEvent({ seq: 6, type: 'FIRE_RESOLVED', timestamp: 't6', turnNumber: 3, phase: 'ONION_COMBAT', outcome: 'X' }),
+			createEvent({ seq: 8, type: 'PHASE_CHANGED', timestamp: 't8', turnNumber: 3, phase: 'ONION_COMBAT', to: 'DEFENDER_MOVE' }),
+			createEvent({ seq: 9, type: 'UNIT_MOVED', timestamp: 't9', turnNumber: 3, phase: 'DEFENDER_MOVE', unitFriendlyName: 'Wolf 1', to: { q: 1, r: 2 } }),
+			createEvent({ seq: 10, type: 'FIRE_RESOLVED', timestamp: 't10', turnNumber: 3, outcome: 'NE' }),
+		])
+
+		const { result } = renderHook(() => useInactiveEventStream({
+			activeGameId: 123,
+			activeTurnActive: false,
+			currentPhase: 'DEFENDER_MOVE',
+			currentTurnNumber: 3,
+			phaseStartEventSeq: 7,
+			lastAppliedEventSeq: 10,
+			pollEvents,
+		}))
+
+		await waitFor(() => {
+			expect(pollEvents).toHaveBeenCalledWith(123, 7)
+			expect(result.current.entries).toHaveLength(2)
+		})
+
+		expect(result.current.entries.map((entry) => entry.seq)).toEqual([9, 10])
+	})
+
 	it('groups inactive events into timeline entries and supports clearing them', async () => {
 		const pollEvents = vi.fn().mockResolvedValue([
 			createEvent({ seq: 1, type: 'PHASE_CHANGED', timestamp: 't1', turnNumber: 3, to: 'DEFENDER_MOVE' }),

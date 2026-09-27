@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from '#server/app'
+import { loadConfig } from '#server/config/loadConfig'
 import * as engineGame from '#server/engine/index'
 import type { CombatExecutionResult, CombatValidation, MovementPlan, MovementResult, MovementValidation } from '#server/engine/index'
 import { advanceToPhase, createGame, createMovePlan, endPhase, joinGame, register, startGame, submitAction } from './helpers.js'
@@ -11,6 +12,7 @@ type WebSocketTestMessage = {
 	payload: { unitTypes: unknown; weaponTypes: unknown }
 	snapshot: { gameId: number; role: string; eventSeq: number }
 	event: EventEnvelope
+	presence: { onion: string | null; defender: string | null }
 }
 
 async function readWsMessage(ws: { once: (event: 'message', handler: (data: Buffer | string) => void) => void }): Promise<WebSocketTestMessage> {
@@ -19,6 +21,24 @@ async function readWsMessage(ws: { once: (event: 'message', handler: (data: Buff
 			const text = typeof data === 'string' ? data : data.toString()
 			resolve(JSON.parse(text))
 		})
+	})
+}
+
+async function readInitialMessages(ws: {
+	on: (event: 'message', handler: (data: Buffer | string) => void) => void
+	off: (event: 'message', handler: (data: Buffer | string) => void) => void
+}): Promise<WebSocketTestMessage[]> {
+	return new Promise<WebSocketTestMessage[]>((resolve) => {
+		const received: WebSocketTestMessage[] = []
+		const handler = (data: Buffer | string) => {
+			const text = typeof data === 'string' ? data : data.toString()
+			received.push(JSON.parse(text))
+			if (received.length === 3) {
+				ws.off('message', handler)
+				resolve(received)
+			}
+		}
+		ws.on('message', handler)
 	})
 }
 
@@ -31,7 +51,7 @@ async function readInitialSnapshot(ws: {
 		const handler = (data: Buffer | string) => {
 			const text = typeof data === 'string' ? data : data.toString()
 			received.push(JSON.parse(text))
-			if (received.length === 2) {
+			if (received.length === 3) {
 				ws.off('message', handler)
 				resolve(received)
 			}
@@ -39,17 +59,98 @@ async function readInitialSnapshot(ws: {
 		ws.on('message', handler)
 	})
 
-	const [sessionInitMessage, snapshotMessage] = messages
+	const [sessionInitMessage, snapshotMessage, presenceMessage] = messages
 	expect(sessionInitMessage.kind).toBe('SESSION_INIT')
 	expect(sessionInitMessage.payload).toEqual(expect.objectContaining({
 		unitTypes: expect.any(Object),
 		weaponTypes: expect.any(Object),
 	}))
 	expect(snapshotMessage.kind).toBe('STATE_SNAPSHOT')
+	expect(presenceMessage.kind).toBe('PLAYER_PRESENCE')
 	return snapshotMessage
 }
 
 describe('GET /games/:id/ws', () => {
+	it('sends initial presence and notifies the opponent when a player disconnects', async () => {
+		const config = loadConfig({ ...process.env, PRESENCE_DISCONNECT_GRACE_MS: '0' })
+		const app = buildApp(undefined, { config })
+		const shrek = await register(app, 'shrek')
+		const fiona = await register(app, 'fiona')
+		const { gameId } = await createGame(app, shrek.token, 'onion')
+		await joinGame(app, gameId, fiona.token)
+		await app.ready()
+
+		let onionInitial: Promise<WebSocketTestMessage[]> | null = null
+		const onionWs = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
+			onOpen(openWs) {
+				onionInitial = readInitialMessages(openWs)
+			},
+		})
+		await onionInitial
+
+		const opponentPresence = readWsMessage(onionWs)
+		let defenderInitial: Promise<WebSocketTestMessage[]> | null = null
+		const defenderWs = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(fiona.token)}`, {}, {
+			onOpen(openWs) {
+				defenderInitial = readInitialMessages(openWs)
+			},
+		})
+
+		const initialPresence = (await defenderInitial!).at(-1)
+		expect(initialPresence?.kind).toBe('PLAYER_PRESENCE')
+		expect(initialPresence?.presence).toEqual({ onion: 'connected', defender: 'connected' })
+		expect((await opponentPresence).presence).toEqual({ onion: 'connected', defender: 'connected' })
+
+		const disconnect = readWsMessage(onionWs)
+		defenderWs.terminate()
+		expect((await disconnect).presence).toEqual({ onion: 'connected', defender: null })
+
+		onionWs.terminate()
+		await app.close()
+	})
+
+	it('keeps a player connected until their last websocket closes', async () => {
+		const config = loadConfig({ ...process.env, PRESENCE_DISCONNECT_GRACE_MS: '0' })
+		const app = buildApp(undefined, { config })
+		const shrek = await register(app, 'shrek')
+		const fiona = await register(app, 'fiona')
+		const { gameId } = await createGame(app, shrek.token, 'onion')
+		await joinGame(app, gameId, fiona.token)
+		await app.ready()
+
+		let defenderInitial: Promise<WebSocketTestMessage[]> | null = null
+		const defenderWs = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(fiona.token)}`, {}, {
+			onOpen(openWs) {
+				defenderInitial = readInitialMessages(openWs)
+			},
+		})
+		await defenderInitial
+
+		let firstInitial: Promise<WebSocketTestMessage[]> | null = null
+		const firstOnion = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
+			onOpen(openWs) {
+				firstInitial = readInitialMessages(openWs)
+			},
+		})
+		await firstInitial
+		let secondInitial: Promise<WebSocketTestMessage[]> | null = null
+		const secondOnion = await app.injectWS(`/games/${gameId}/ws?token=${encodeURIComponent(shrek.token)}`, {}, {
+			onOpen(openWs) {
+				secondInitial = readInitialMessages(openWs)
+			},
+		})
+		await secondInitial
+
+		firstOnion.terminate()
+		await new Promise<void>((resolve) => setImmediate(resolve))
+		const finalDisconnect = readWsMessage(defenderWs)
+		secondOnion.terminate()
+		expect((await finalDisconnect).presence).toEqual({ onion: null, defender: 'connected' })
+
+		defenderWs.terminate()
+		await app.close()
+	})
+
 	it('sends the current snapshot and broadcasts live events', async () => {
 		const app = buildApp()
 		const shrek = await register(app, 'shrek')

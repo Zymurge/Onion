@@ -660,6 +660,7 @@ describe('App UI', () => {
 		const snapshot = makeScenarioSnapshot({ status: 'completed', winner: 'onion' })
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
 			pollEvents: vi.fn().mockResolvedValue([]),
 		})
 
@@ -669,7 +670,7 @@ describe('App UI', () => {
 		expect(navigate).toHaveBeenCalledWith('/user/history?creator=me')
 	})
 
-	it('builds the Begin Turn acknowledgement key without phase data', () => {
+	it('builds an acknowledgement key with phase data when available', () => {
 		expect(
 			buildAcknowledgementTurnKey({
 				activeGameId: 123,
@@ -678,6 +679,15 @@ describe('App UI', () => {
 				sessionTurnActive: true,
 			}),
 		).toBe('123:11:onion')
+		expect(
+			buildAcknowledgementTurnKey({
+				activeGameId: 123,
+				currentTurnNumber: 11,
+				currentPhase: 'ONION_COMBAT',
+				sessionRole: 'onion',
+				sessionTurnActive: true,
+			}),
+		).toBe('123:11:onion:ONION_COMBAT')
 		expect(
 			buildAcknowledgementTurnKey({
 				activeGameId: 123,

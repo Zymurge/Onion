@@ -176,6 +176,7 @@ Response: { "games": Array<{
   "winner": string | null,
   "status": "waiting" | "ready" | "active" | "completed",
   "hostUserId": string,
+  "hostUsername": string | null,
   "role": "onion" | "defender"
 }> }
 ```
@@ -191,6 +192,7 @@ Response: { "games": Array<{
   "scenarioId": string,
   "scenarioDisplayName": string,
   "creatorRole": "onion" | "defender",
+  "creatorUsername": string | null,
   "openRole": "onion" | "defender"
 }> }
 ```

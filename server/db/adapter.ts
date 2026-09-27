@@ -133,6 +133,9 @@ export interface DbAdapter {
    */
   findUserByEmail(email: string): Promise<{ userId: string; username: string; email: string; passwordHash: string } | null>
 
+  /** Resolve public usernames for a set of user IDs. */
+  findUsernamesByIds(userIds: string[]): Promise<Record<string, string>>
+
   /**
    * Create a new user account.
   * @param username - Unique public username (enforced by implementation)

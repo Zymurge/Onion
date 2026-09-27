@@ -72,6 +72,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
         phaseAdvanceLabel={display.phaseAdvanceLabel}
         inactiveEventControlsLocked={gate.controlsLocked}
         inactiveEventWindowVisible={gate.inactiveEventWindowVisible}
+        acknowledgementLabel={gate.acknowledgementLabel}
         sessionTurnActive={session.turn.isActive}
         activeScenarioName={display.activeScenarioName}
         activeGameId={display.activeGameId}

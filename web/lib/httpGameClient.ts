@@ -20,6 +20,7 @@ type ActionSuccessResponse = ActionOkResponse & {
 	status?: ServerGameSnapshot['status']
 	turnNumber: number
 	eventSeq: number
+	phaseStartEventSeq?: number
 	phase: TurnPhase
 	scenarioName: string
 	players?: ServerGameSnapshot['players']
@@ -131,6 +132,7 @@ function mapServerSnapshot(
 			scenarioName: response.scenarioName,
 			turnNumber: response.turnNumber,
 			lastEventSeq: response.eventSeq,
+			phaseStartEventSeq: response.phaseStartEventSeq,
 			players: response.players,
 			authoritativeState: response.state,
 			scenarioMap,
@@ -161,6 +163,7 @@ function mapActionSnapshot(
 		scenarioName: response.scenarioName,
 		turnNumber: response.turnNumber,
 		lastEventSeq: response.eventSeq,
+		phaseStartEventSeq: response.phaseStartEventSeq ?? previousSnapshot?.phaseStartEventSeq,
 		players: response.players ?? previousSnapshot?.players,
 		authoritativeState: response.state,
 		scenarioMap: response.scenarioMap,

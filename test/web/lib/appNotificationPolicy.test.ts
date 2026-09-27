@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { GameClientSeamError, type GameSnapshot } from '#web/lib/gameClient'
@@ -107,5 +107,29 @@ describe('useAppNotificationPolicy', () => {
 		expect(result.current.snapshotErrorDismissible).toBe(false)
 		expect(result.current.shouldShowSessionError).toBe(false)
 		expect(result.current.shouldShowActionError).toBe(false)
+	})
+
+	it('notifies only when the opponent presence changes after the initial state', async () => {
+		const { result, rerender } = renderPolicy({
+			localRole: 'onion',
+			presence: { onion: 'connected', defender: 'connected' },
+		})
+
+		expect(result.current.playerPresenceNotification).toBeNull()
+
+		rerender({ localRole: 'onion', presence: { onion: 'connected', defender: 'disconnected' } })
+		await waitFor(() => {
+			expect(result.current.playerPresenceNotification).toEqual({ role: 'defender', status: 'disconnected' })
+		})
+
+		act(() => {
+			result.current.dismissPlayerPresenceNotification()
+		})
+		expect(result.current.playerPresenceNotification).toBeNull()
+
+		rerender({ localRole: 'onion', presence: { onion: 'connected', defender: 'connected' } })
+		await waitFor(() => {
+			expect(result.current.playerPresenceNotification).toEqual({ role: 'defender', status: 'connected' })
+		})
 	})
 })

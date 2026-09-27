@@ -6,8 +6,8 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { closeSync, mkdirSync, openSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PostgreSqlContainer } from '@testcontainers/postgresql'
-import { readFile } from 'node:fs/promises'
 import pg from 'pg'
+import { applyMigrations } from './applyMigrations.js'
 import type {
 	ProcessHandle,
 	ProcessLauncher,
@@ -17,7 +17,7 @@ import type {
 
 const { Pool } = pg
 
-const MIGRATION_PATH = join(process.cwd(), 'server/db/migrations/001_initial.sql')
+const MIGRATIONS_DIR = join(process.cwd(), 'server/db/migrations')
 
 /**
  * Spawns child processes with stdout/stderr redirected to a log file.
@@ -98,8 +98,7 @@ export class DatabaseContainerLauncherImpl implements DatabaseContainerLauncher 
 		// Apply migration
 		const pool = new Pool({ connectionString: connectionUri })
 		try {
-			const sql = await readFile(MIGRATION_PATH, 'utf8')
-			await pool.query(sql)
+			await applyMigrations(pool, MIGRATIONS_DIR)
 		} finally {
 			await pool.end()
 		}

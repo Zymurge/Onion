@@ -273,6 +273,8 @@ describe('createGameSessionController', () => {
 
 		liveEventSource.emit({ kind: 'session-init', gameId: 123, payload: catalog })
 		expect(controller.getSnapshot()).toMatchObject({ catalog })
+		liveEventSource.emit({ kind: 'presence', gameId: 123, presence: { onion: 'connected', defender: 'disconnected' } })
+		expect(controller.getSnapshot()).toMatchObject({ presence: { onion: 'connected', defender: 'disconnected' } })
 
 		await controller.refresh()
 

@@ -8,7 +8,9 @@ export type TurnHandoffGateTurn = {
 	phase: GameSessionViewState['snapshot'] extends infer Snapshot
 		? Snapshot extends { phase: infer Phase } ? Phase | null : never
 		: never
+	phaseStartEventSeq?: number | null
 	number: number | null
+	lastEventSeq?: number | null
 	role: 'onion' | 'defender' | null
 	isKnown: boolean
 	isLifecycleActive: boolean
@@ -38,6 +40,7 @@ export type TurnHandoffGate = {
 	currentActiveTurnKey: string | null
 	acknowledgementPending: boolean
 	inactiveEventWindowVisible: boolean
+	acknowledgementLabel: 'Begin Turn' | 'Continue Turn'
 	controlsLocked: boolean
 	screenLocked: boolean
 	acknowledgeCurrentTurn: () => void
@@ -61,6 +64,7 @@ export function useTurnHandoffGate({
 	const currentActiveTurnKey = buildAcknowledgementTurnKey({
 		activeGameId,
 		currentTurnNumber: turn.number,
+		currentPhase: turn.phase,
 		sessionRole: turn.role,
 		sessionTurnActive: turn.isKnown && turn.isActive,
 	})
@@ -70,6 +74,13 @@ export function useTurnHandoffGate({
 		turn.isLifecycleActive && turn.isKnown && (!turn.isActive || acknowledgementPending)
 	const controlsLocked = !turn.isLifecycleActive || inactiveEventWindowVisible
 	const screenLocked = turn.isLifecycleActive && acknowledgementPending
+	const acknowledgementLabel = turn.phaseStartEventSeq !== null
+		&& turn.phaseStartEventSeq !== undefined
+		&& turn.lastEventSeq !== null
+		&& turn.lastEventSeq !== undefined
+		&& turn.lastEventSeq > turn.phaseStartEventSeq
+		? 'Continue Turn'
+		: 'Begin Turn'
 
 	const acknowledgeCurrentTurn = useCallback(() => {
 		inactiveEventStream.clearEntries()
@@ -89,6 +100,7 @@ export function useTurnHandoffGate({
 		currentActiveTurnKey,
 		acknowledgementPending,
 		inactiveEventWindowVisible,
+		acknowledgementLabel,
 		controlsLocked,
 		screenLocked,
 		acknowledgeCurrentTurn,

@@ -1,4 +1,22 @@
 services:
+  migrate:
+    image: ghcr.io/amacneil/dbmate:2.36.0
+    command:
+      - --wait
+      - --wait-timeout=60s
+      - --migrations-dir=/db/migrations
+      - --migrations-table=dbmate_schema_migrations
+      - migrate
+    volumes:
+      - ./server/db/migrations:/db/migrations:ro
+    environment:
+      DATABASE_URL: postgres://onion:onionpass@db:5432/onion?sslmode=disable
+      DBMATE_MIGRATIONS_DIR: /db/migrations
+      DBMATE_MIGRATIONS_TABLE: dbmate_schema_migrations
+    depends_on:
+      db:
+        condition: service_healthy
+
   engine:
     build: .
     ports:
@@ -14,9 +32,12 @@ services:
       SCENARIOS_DIR: /app/scenarios
       LOG_LEVEL: ${LOG_LEVEL:-debug}
       LOBBY_POLL_INTERVAL_MS: ${LOBBY_POLL_INTERVAL_MS:-3000}
+      PRESENCE_DISCONNECT_GRACE_MS: ${PRESENCE_DISCONNECT_GRACE_MS:-3000}
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   db:
@@ -30,7 +51,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./server/db/migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U onion"]
       interval: 5s

@@ -1,11 +1,11 @@
 import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest'
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql'
 import pg from 'pg'
-import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { cleanupArtifacts } from './artifactCleanup.js'
 import { PostgresArtifactCleanupDatabaseFactory } from './adapters.js'
 import { createEmptyArtifactManifest } from './artifactRegistry.js'
+import { applyMigrations } from './applyMigrations.js'
 
 const { Pool } = pg
 
@@ -14,7 +14,7 @@ let pool: InstanceType<typeof Pool>
 let factory: PostgresArtifactCleanupDatabaseFactory
 let databaseUrl: string
 
-const MIGRATION_PATH = join(process.cwd(), 'server/db/migrations/001_initial.sql')
+const MIGRATIONS_DIR = join(process.cwd(), 'server/db/migrations')
 
 async function insertUser(username: string): Promise<string> {
   const { rows } = await pool.query<{ id: string }>(
@@ -44,8 +44,7 @@ beforeAll(async () => {
   container = await new PostgreSqlContainer('postgres:16-alpine').start()
   databaseUrl = container.getConnectionUri()
   pool = new Pool({ connectionString: databaseUrl })
-  const sql = await readFile(MIGRATION_PATH, 'utf8')
-  await pool.query(sql)
+  await applyMigrations(pool, MIGRATIONS_DIR)
   factory = new PostgresArtifactCleanupDatabaseFactory()
 }, 60_000)
 

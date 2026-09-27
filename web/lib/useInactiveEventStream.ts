@@ -7,7 +7,9 @@ import type { GameRequestTransport } from './gameSessionTypes'
 type UseInactiveEventStreamOptions = {
 	activeGameId: number | null
 	activeTurnActive: boolean
+	currentPhase?: string | null
 	currentTurnNumber: number | null
+	phaseStartEventSeq?: number | null
 	lastAppliedEventSeq: number | null
 	pollEvents?: GameRequestTransport['pollEvents']
 }
@@ -533,7 +535,9 @@ function toTimelineEvents(events: ReadonlyArray<EventEnvelope>): TimelineEvent[]
 export function useInactiveEventStream({
 	activeGameId,
 	activeTurnActive,
+	currentPhase = null,
 	currentTurnNumber,
+	phaseStartEventSeq = null,
 	lastAppliedEventSeq,
 	pollEvents,
 }: UseInactiveEventStreamOptions) {
@@ -549,6 +553,7 @@ export function useInactiveEventStream({
 	const lastGameIdRef = useRef<number | null>(null)
 	const lastActiveTurnActiveRef = useRef<boolean | null>(null)
 	const windowStartSeqRef = useRef<number | null>(null)
+	const lastPhaseRef = useRef<string | null>(null)
 	const dismissalVersionRef = useRef(0)
 
 	useEffect(() => {
@@ -560,6 +565,7 @@ export function useInactiveEventStream({
 			lastGameIdRef.current = activeGameId
 			lastActiveTurnActiveRef.current = activeTurnActive
 			windowStartSeqRef.current = null
+			lastPhaseRef.current = currentPhase
 			setEntries([])
 			setIsDismissed(false)
 			setIsLoading(false)
@@ -569,7 +575,24 @@ export function useInactiveEventStream({
 			inFlightAfterSeqRef.current = null
 			queuedRefreshRef.current = false
 		}
-	}, [activeGameId, activeTurnActive, currentTurnNumber])
+	}, [activeGameId, activeTurnActive, currentPhase, currentTurnNumber])
+
+	useEffect(() => {
+		if (lastPhaseRef.current === currentPhase) {
+			return
+		}
+
+		lastPhaseRef.current = currentPhase
+		windowStartSeqRef.current = phaseStartEventSeq
+		setEntries([])
+		setIsDismissed(false)
+		setIsLoading(false)
+		setErrorMessage(null)
+		seenSeqsRef.current = new Set<number>()
+		loadedThroughSeqRef.current = null
+		inFlightAfterSeqRef.current = null
+		queuedRefreshRef.current = false
+	}, [currentPhase, phaseStartEventSeq])
 
 	useEffect(() => {
 		const previousActiveTurnActive = lastActiveTurnActiveRef.current
@@ -605,7 +628,7 @@ export function useInactiveEventStream({
 			return
 		}
 
-		const afterSeq = loadedThroughSeq ?? windowStartSeqRef.current ?? 0
+		const afterSeq = loadedThroughSeq ?? windowStartSeqRef.current ?? phaseStartEventSeq ?? 0
 		if (inFlightAfterSeqRef.current === afterSeq) {
 			queuedRefreshRef.current = true
 			return
@@ -631,6 +654,10 @@ export function useInactiveEventStream({
 
 					if (currentTurnNumber !== null && event.turnNumber !== undefined && event.turnNumber !== currentTurnNumber) {
 						return false
+					}
+
+					if (currentPhase !== null && typeof event.phase === 'string' && event.phase !== currentPhase) {
+						return event.type === 'PHASE_CHANGED' && event.to === currentPhase
 					}
 
 					return true
@@ -690,7 +717,7 @@ export function useInactiveEventStream({
 				inFlightAfterSeqRef.current = null
 			}
 		}
-	}, [activeGameId, activeTurnActive, currentTurnNumber, lastAppliedEventSeq, pollEvents])
+	}, [activeGameId, activeTurnActive, currentPhase, currentTurnNumber, lastAppliedEventSeq, phaseStartEventSeq, pollEvents])
 
 	function clearEntries() {
 		dismissalVersionRef.current += 1

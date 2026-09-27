@@ -5,6 +5,7 @@ import type {
 	WebSocketServerMessage,
 	WebSocketServerSessionInitMessage,
 	WebSocketServerSnapshotMessage,
+	WebSocketServerPresenceMessage,
 } from '../../shared/websocketProtocol'
 import type { SessionInitPayload } from '../../shared/types/index.js'
 
@@ -59,6 +60,10 @@ function isSessionInitMessage(message: WebSocketServerMessage): message is WebSo
 
 function isSnapshotMessage(message: WebSocketServerMessage): message is WebSocketServerSnapshotMessage {
 	return message.kind === 'STATE_SNAPSHOT'
+}
+
+function isPresenceMessage(message: WebSocketServerMessage): message is WebSocketServerPresenceMessage {
+	return message.kind === 'PLAYER_PRESENCE'
 }
 
 function isEventMessage(message: WebSocketServerMessage): message is WebSocketServerEventMessage {
@@ -180,6 +185,11 @@ export function createLiveEventSource(options: LiveEventSourceOptions): LiveEven
 					const eventSeq = typeof parsed.snapshot.eventSeq === 'number' ? parsed.snapshot.eventSeq : null
 					updateLastEventSeq(gameId, eventSeq)
 					emit({ kind: 'snapshot', gameId, eventSeq })
+					return
+				}
+
+				if (isPresenceMessage(parsed)) {
+					emit({ kind: 'presence', gameId, presence: parsed.presence })
 					return
 				}
 

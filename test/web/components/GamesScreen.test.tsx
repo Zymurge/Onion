@@ -63,6 +63,7 @@ describe('GamesScreen', () => {
           scenarioId: 'swamp-siege-01',
           scenarioDisplayName: 'The Siege of Shrek\'s Swamp',
           creatorRole: 'onion',
+          creatorUsername: 'shrek',
           openRole: 'defender',
         }],
       })
@@ -70,6 +71,7 @@ describe('GamesScreen', () => {
 
     render(<GamesScreen navigate={navigate} />)
 
+    expect(await screen.findByText(/shrek created this game as The Onion/)).not.toBeNull()
     await user.click(await screen.findByRole('button', { name: 'Join Game' }))
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/12/join', expect.objectContaining({

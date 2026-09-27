@@ -42,6 +42,7 @@ describe('verifyUserId', () => {
           logLevel: 'error',
           scenariosDir: `${process.cwd()}/scenarios`,
           lobbyPollIntervalMs: 3000,
+          presenceDisconnectGraceMs: 3000,
         },
       },
     })

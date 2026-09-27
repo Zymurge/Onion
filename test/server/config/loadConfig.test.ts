@@ -28,6 +28,7 @@ describe('loadConfig', () => {
       logLevel: 'info',
       scenariosDir: '/srv/onion/scenarios',
       lobbyPollIntervalMs: 3000,
+      presenceDisconnectGraceMs: 3000,
     })
   })
 
@@ -58,8 +59,16 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...validEnvironment, LOBBY_POLL_INTERVAL_MS: '4500' }).lobbyPollIntervalMs).toBe(4500)
   })
 
+  it('loads a configured presence disconnect grace period', () => {
+    expect(loadConfig({ ...validEnvironment, PRESENCE_DISCONNECT_GRACE_MS: '4500' }).presenceDisconnectGraceMs).toBe(4500)
+  })
+
   it('rejects invalid lobby polling intervals', () => {
     expect(() => loadConfig({ ...validEnvironment, LOBBY_POLL_INTERVAL_MS: '0' })).toThrow(/LOBBY_POLL_INTERVAL_MS/)
     expect(() => loadConfig({ ...validEnvironment, LOBBY_POLL_INTERVAL_MS: 'not-an-interval' })).toThrow(/LOBBY_POLL_INTERVAL_MS/)
+  })
+
+  it('rejects negative presence disconnect grace periods', () => {
+    expect(() => loadConfig({ ...validEnvironment, PRESENCE_DISCONNECT_GRACE_MS: '-1' })).toThrow(/PRESENCE_DISCONNECT_GRACE_MS/)
   })
 })

@@ -52,7 +52,7 @@ function render(ui: ReactElement<ComponentProps<typeof App>>) {
 
 async function acknowledgeTurnIfAvailable() {
 	try {
-		const beginTurnButton = await screen.findByRole('button', { name: /begin turn/i })
+		const beginTurnButton = await screen.findByRole('button', { name: /(?:begin|continue) turn/i })
 		if (beginTurnButton.getAttribute('disabled') === null) {
 			await userEvent.click(beginTurnButton)
 		}
@@ -508,6 +508,7 @@ describe('ram flow', () => {
 		await user.click(await screen.findByRole('button', { name: /attempt ram/i }))
 
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 0, r: 1 }, attemptRam: true })
+		await acknowledgeTurnIfAvailable()
 		await user.click(await screen.findByTestId('combat-weapon-main'))
 		expect(await screen.findByTestId('combat-target-d1')).not.toBeNull()
 	})

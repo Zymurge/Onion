@@ -76,6 +76,7 @@ describe('live event source contract', () => {
 
 		sockets[0]?.open()
 		sockets[0]?.receive({ kind: 'STATE_SNAPSHOT', snapshot: { eventSeq: 47 } })
+		sockets[0]?.receive({ kind: 'PLAYER_PRESENCE', presence: { onion: 'connected', defender: 'disconnected' } })
 		sockets[0]?.receive({ kind: 'EVENT', event: { seq: 48, type: 'PLAYER_JOINED', timestamp: '2026-04-02T00:00:00.000Z' } })
 		sockets[0]?.receive({ kind: 'ERROR', message: 'session expired' })
 
@@ -84,6 +85,7 @@ describe('live event source contract', () => {
 			{ kind: 'connection', gameId: 123, status: 'connecting' },
 			{ kind: 'connection', gameId: 123, status: 'connected' },
 			{ kind: 'snapshot', gameId: 123, eventSeq: 47 },
+			{ kind: 'presence', gameId: 123, presence: { onion: 'connected', defender: 'disconnected' } },
 			{ kind: 'event', gameId: 123, eventSeq: 48, eventType: 'PLAYER_JOINED' },
 			{ kind: 'error', gameId: 123, message: 'session expired' },
 			{ kind: 'connection', gameId: 123, status: 'disconnected' },

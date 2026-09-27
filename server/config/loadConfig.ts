@@ -32,6 +32,10 @@ export const serverConfigSchema = z.object({
     (value) => typeof value === 'string' ? value.trim() : value,
     z.coerce.number().int().min(1),
   ).default(3000),
+  PRESENCE_DISCONNECT_GRACE_MS: z.preprocess(
+    (value) => typeof value === 'string' ? value.trim() : value,
+    z.coerce.number().int().min(0),
+  ).default(3000),
 }).transform((env) => ({
   port: env.PORT,
   host: env.HOST,
@@ -41,6 +45,7 @@ export const serverConfigSchema = z.object({
   logLevel: env.LOG_LEVEL,
   scenariosDir: env.SCENARIOS_DIR,
   lobbyPollIntervalMs: env.LOBBY_POLL_INTERVAL_MS,
+  presenceDisconnectGraceMs: env.PRESENCE_DISCONNECT_GRACE_MS,
 }))
 
 export type ServerConfig = z.infer<typeof serverConfigSchema>

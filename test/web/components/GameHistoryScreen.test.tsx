@@ -29,6 +29,7 @@ const completedGame = {
 	hostUserId: 'user-1',
 	canDelete: true,
 	players: { onion: 'user-1', defender: 'user-2' },
+	playerUsernames: { onion: 'player-1', defender: 'player-2' },
 	role: 'onion',
 }
 
@@ -48,7 +49,7 @@ describe('GameHistoryScreen', () => {
 
 		expect(screen.getByRole('heading', { name: 'Game History' })).not.toBeNull()
 		await screen.findByText('The Siege of Shrek\'s Swamp')
-		expect(screen.getByText(/Onion: user-1.*Defenders: user-2/)).not.toBeNull()
+		expect(screen.getByText(/Onion: player-1.*Defenders: player-2/)).not.toBeNull()
 		expect(screen.getByRole('link', { name: 'Review Game' })).toHaveAttribute('href', '/game/12?returnTo=%2Fuser%2Fhistory')
 		expect(screen.getByRole('link', { name: 'History' })).toHaveAttribute('href', '/user/history')
 		expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/history?status=all&creator=any', expect.anything())

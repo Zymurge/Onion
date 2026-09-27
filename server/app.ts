@@ -24,6 +24,7 @@ function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
   return {
     findUserByUsername: db?.findUserByUsername?.bind(db) ?? fallback.findUserByUsername.bind(fallback),
     findUserByEmail: db?.findUserByEmail?.bind(db) ?? fallback.findUserByEmail.bind(fallback),
+    findUsernamesByIds: db?.findUsernamesByIds?.bind(db) ?? fallback.findUsernamesByIds.bind(fallback),
     createUser: db?.createUser?.bind(db) ?? fallback.createUser.bind(fallback),
     createMatch: db?.createMatch?.bind(db) ?? fallback.createMatch.bind(fallback),
     findMatch: db?.findMatch?.bind(db) ?? fallback.findMatch.bind(fallback),
@@ -119,6 +120,7 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
     createRamRolls: options.createRamRolls,
     createCombatRolls: options.createCombatRolls,
     scenariosDir: config.scenariosDir,
+    presenceDisconnectGraceMs: config.presenceDisconnectGraceMs,
   })
 
   // Global error handler

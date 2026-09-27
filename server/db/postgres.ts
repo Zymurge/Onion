@@ -33,6 +33,15 @@ export class PostgresDb implements DbAdapter {
     return { userId: rows[0].id, username: rows[0].username, email: rows[0].email, passwordHash: rows[0].password_hash }
   }
 
+  async findUsernamesByIds(userIds: string[]): Promise<Record<string, string>> {
+    if (userIds.length === 0) return {}
+    const { rows } = await this.pool.query<{ id: string; username: string }>(
+      'SELECT id, username FROM users WHERE id = ANY($1::uuid[])',
+      [userIds],
+    )
+    return Object.fromEntries(rows.map((row) => [row.id, row.username]))
+  }
+
   async createUser(username: string, email: string, passwordHash: string): Promise<{ userId: string }> {
     const { rows } = await this.pool.query<{ id: string }>(
       'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id',

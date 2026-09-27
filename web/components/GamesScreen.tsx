@@ -13,6 +13,7 @@ type OpenGameSummary = {
   scenarioId: string
   scenarioDisplayName: string
   creatorRole: 'onion' | 'defender'
+  creatorUsername: string | null
   openRole: 'onion' | 'defender'
 }
 
@@ -107,7 +108,7 @@ export function GamesScreen({ navigate }: GamesScreenProps) {
                   <div>
                     <p className="dashboard-game-kicker">Game {game.gameId} · Open {roleLabel(game.openRole)}</p>
                     <h3>{game.scenarioDisplayName}</h3>
-                    <p>Created as {roleLabel(game.creatorRole)} · You would play {roleLabel(game.openRole)}</p>
+                    <p>{game.creatorUsername ?? 'Unknown player'} created this game as {roleLabel(game.creatorRole)} · You would play {roleLabel(game.openRole)}</p>
                   </div>
                   <button
                     type="button"

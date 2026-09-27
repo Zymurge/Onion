@@ -25,6 +25,7 @@ type HistoryGame = {
   hostUserId: string
   canDelete: boolean
   players: { onion: string | null; defender: string | null }
+  playerUsernames: { onion: string | null; defender: string | null }
   role: 'onion' | 'defender'
 }
 
@@ -61,8 +62,8 @@ function matchesSearch(game: HistoryGame, search: string, userId: string | undef
     game.scenarioId,
     game.scenarioDisplayName,
     game.hostUserId,
-    game.players.onion ?? '',
-    game.players.defender ?? '',
+    game.playerUsernames.onion ?? '',
+    game.playerUsernames.defender ?? '',
     game.role,
     userId ?? '',
   ].some((value) => value.toLowerCase().includes(needle))
@@ -198,7 +199,7 @@ export function GameHistoryScreen({ navigate }: GameHistoryScreenProps) {
                     <p className="dashboard-game-kicker">Game {game.gameId} · {game.status === 'archived' ? 'Archived' : winnerLabel(game, session?.userId)}</p>
                     <h3>{game.scenarioDisplayName}</h3>
                     <p>{winnerLabel(game, session?.userId)} · Turn {game.turnNumber} · {game.role === 'onion' ? 'The Onion' : 'Defenders'}</p>
-                    <p>Onion: {game.players.onion ?? 'Open'} · Defenders: {game.players.defender ?? 'Open'}</p>
+                    <p>Onion: {game.playerUsernames.onion ?? 'Open'} · Defenders: {game.playerUsernames.defender ?? 'Open'}</p>
                     <p className="history-game-meta">Last game activity {formatDate(game.lastActivityAt)} · Completed {formatDate(game.completedAt)}</p>
                   </div>
                   <div className="history-game-actions">

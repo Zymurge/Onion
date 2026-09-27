@@ -11,6 +11,7 @@ function createController(): GameSessionController & { abort: ReturnType<typeof 
 		getSnapshot: vi.fn((): GameSessionViewState => ({
 			status: 'ready',
 			catalog: null,
+			presence: null,
 			snapshot: null,
 			session: null,
 			liveConnection: 'idle',
@@ -22,7 +23,9 @@ function createController(): GameSessionController & { abort: ReturnType<typeof 
 		load: vi.fn().mockResolvedValue(undefined),
 		refresh: vi.fn().mockResolvedValue(undefined),
 		submitAction: vi.fn().mockResolvedValue(null),
-		abort: vi.fn(),
+		abort: vi.fn((message: string) => {
+			void message
+		}),
 		dispose: vi.fn(),
 	}
 }
@@ -83,7 +86,8 @@ describe('useTurnHandoffGate', () => {
 		expect(result.current.inactiveEventWindowVisible).toBe(true)
 		expect(result.current.controlsLocked).toBe(true)
 		expect(result.current.screenLocked).toBe(true)
-		expect(result.current.currentActiveTurnKey).toBe('123:4:onion')
+		expect(result.current.currentActiveTurnKey).toBe('123:4:onion:ONION_MOVE')
+		expect(result.current.acknowledgementLabel).toBe('Begin Turn')
 
 		act(() => {
 			result.current.acknowledgeCurrentTurn()
@@ -121,7 +125,22 @@ describe('useTurnHandoffGate', () => {
 		await waitFor(() => {
 			expect(result.current.acknowledgementPending).toBe(true)
 		})
-		expect(result.current.currentActiveTurnKey).toBe('123:5:onion')
+		expect(result.current.currentActiveTurnKey).toBe('123:5:onion:ONION_MOVE')
+	})
+
+	it('labels a rejoined mid-phase acknowledgement as continue', async () => {
+		const { result } = renderHook(() => useTurnHandoffGate({
+			activeGameId: 123,
+			controller: createController(),
+			inactiveEventStream: createStream(),
+			sessionStatus: 'ready',
+			turn: { ...activeTurn(), phaseStartEventSeq: 8, lastEventSeq: 9 },
+		}))
+
+		await waitFor(() => {
+			expect(result.current.acknowledgementPending).toBe(true)
+		})
+		expect(result.current.acknowledgementLabel).toBe('Continue Turn')
 	})
 
 	it('keeps controls locked for completed or aborted lifecycle states', () => {
@@ -148,7 +167,7 @@ describe('useTurnHandoffGate', () => {
 				sessionStatus: 'ready',
 				turn: activeTurn(),
 			}),
-			{ initialProps: { entries: [] } },
+			{ initialProps: { entries: [] as ReadonlyArray<{ type: string }> } },
 		)
 
 		rerender({ entries: [{ type: 'GAME_ABORTED' }] })

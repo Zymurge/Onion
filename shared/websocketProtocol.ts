@@ -1,6 +1,13 @@
 import type { GameStateResponse } from './apiProtocol.js'
 import type { Command, EventEnvelope, SessionInitPayload } from './types/index.js'
 
+export type PlayerConnectionStatus = 'connected' | 'disconnected'
+
+export type PlayerPresence = {
+	onion: PlayerConnectionStatus | null
+	defender: PlayerConnectionStatus | null
+}
+
 export type WebSocketClientCommandMessage = {
 	kind: 'COMMAND'
 	command: Command
@@ -29,6 +36,11 @@ export type WebSocketServerSnapshotMessage = {
 	snapshot: GameStateResponse
 }
 
+export type WebSocketServerPresenceMessage = {
+	kind: 'PLAYER_PRESENCE'
+	presence: PlayerPresence
+}
+
 export type WebSocketServerErrorMessage = {
 	kind: 'ERROR'
 	message: string
@@ -40,6 +52,7 @@ export type WebSocketServerMessage =
 	| WebSocketServerSessionInitMessage
 	| WebSocketServerEventMessage
 	| WebSocketServerSnapshotMessage
+	| WebSocketServerPresenceMessage
 	| WebSocketServerErrorMessage
 
 export type WebSocketMessage = WebSocketClientMessage | WebSocketServerMessage

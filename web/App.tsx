@@ -97,7 +97,9 @@ function App({
   const inactiveEventStream = useInactiveEventStream({
     activeGameId: session.activeGameId,
     activeTurnActive: session.turn.isActive,
+    currentPhase: session.turn.phase,
     currentTurnNumber: session.turn.number,
+    phaseStartEventSeq: session.turn.phaseStartEventSeq,
     lastAppliedEventSeq: session.state.lastAppliedEventSeq,
     pollEvents: session.binding?.requestTransport.pollEvents,
   })
@@ -140,6 +142,8 @@ function App({
     sessionError: session.state.error,
     snapshot: session.state.snapshot,
     snapshotError: display.error,
+    presence: session.state.presence,
+    localRole: session.turn.role,
   })
 
   const debug = useDebugDiagnostics()

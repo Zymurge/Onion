@@ -1475,6 +1475,49 @@
   margin-top: 14px;
 }
 
+.player-presence-toast {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  z-index: 1120;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  width: min(360px, calc(100vw - 48px));
+  border: 1px solid rgba(39, 85, 77, 0.3);
+  border-radius: 14px;
+  background: rgba(247, 251, 247, 0.98);
+  box-shadow: 0 18px 42px rgba(26, 54, 48, 0.2);
+  padding: 16px 18px;
+}
+
+.player-presence-toast-disconnected {
+  border-color: rgba(126, 36, 36, 0.3);
+  background: rgba(255, 246, 243, 0.98);
+}
+
+.player-presence-toast strong,
+.player-presence-toast span {
+  display: block;
+}
+
+.player-presence-toast span {
+  margin-top: 5px;
+  color: var(--muted-text);
+  font-size: 0.86rem;
+}
+
+.player-presence-toast button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 2px;
+}
+
 .combat-resolution-head {
   display: flex;
   justify-content: space-between;

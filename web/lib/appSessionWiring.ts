@@ -26,7 +26,9 @@ export type AppSessionWiringOptions = {
 /** Derived turn identity used by handoff gating and battlefield display. */
 export type AppSessionTurnState = {
 	phase: TurnPhase | null
+	phaseStartEventSeq: number | null
 	number: number | null
+	lastEventSeq: number | null
 	role: 'onion' | 'defender' | null
 	activeOwner: 'onion' | 'defender' | null
 	isKnown: boolean
@@ -146,7 +148,9 @@ export function useAppSessionWiring({
 		state,
 		turn: {
 			phase,
+			phaseStartEventSeq: state.snapshot?.phaseStartEventSeq ?? null,
 			number,
+			lastEventSeq: state.snapshot?.lastEventSeq ?? null,
 			role,
 			activeOwner,
 			isKnown,

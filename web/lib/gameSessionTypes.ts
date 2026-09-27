@@ -16,6 +16,7 @@
 
 import type { ClientDiagnosticReport, GameAction, GameClientSeamError, GameSessionContext, GameStateEnvelope, ServerGameSnapshot } from './gameClient.js'
 import type { EventEnvelope, SessionInitPayload } from '../../shared/types/index.js'
+import type { PlayerPresence } from '../../shared/websocketProtocol.js'
 
 /**
  * Live connection state reported to the session controller and UI.
@@ -32,6 +33,7 @@ export type LiveSessionSignal =
 	| { kind: 'connection'; status: LiveConnectionStatus; gameId: number }
 	| { kind: 'session-init'; gameId: number; payload: SessionInitPayload }
 	| { kind: 'snapshot'; gameId: number; eventSeq: number | null }
+	| { kind: 'presence'; gameId: number; presence: PlayerPresence }
 	| { kind: 'event'; gameId: number; eventSeq: number; eventType: string }
 	| { kind: 'error'; gameId: number; message: string }
 
@@ -43,6 +45,7 @@ export type LiveSessionSignal =
 export type GameSessionViewState = {
 	status: 'idle' | 'loading' | 'ready' | 'refreshing' | 'error' | 'aborted'
 	catalog: SessionInitPayload | null
+	presence: PlayerPresence | null
 	snapshot: ServerGameSnapshot | null
 	previousSnapshot?: ServerGameSnapshot | null
 	session: GameSessionContext | null

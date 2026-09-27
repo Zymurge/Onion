@@ -23,6 +23,7 @@ function createInitialState(options: GameSessionControllerOptions): GameSessionV
 	return {
 		status: 'idle',
 		catalog: null,
+		presence: null,
 		snapshot: null,
 		previousSnapshot: null,
 		session: null,
@@ -133,6 +134,11 @@ export function createGameSessionController(options: GameSessionControllerOption
 				latestObservedEventType = signal.eventType
 			}
 			syncObservedEventState()
+			return
+		}
+
+		if (signal.kind === 'presence') {
+			setState({ presence: signal.presence })
 			return
 		}
 

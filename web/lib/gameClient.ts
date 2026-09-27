@@ -43,6 +43,7 @@ export type ServerGameSnapshot = {
 	winner?: 'onion' | 'defender' | null
 	aborted?: boolean
 	lastEventSeq: number
+	phaseStartEventSeq?: number
 	role?: 'onion' | 'defender'
 	players?: {
 		onion: string | null
