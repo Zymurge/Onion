@@ -115,17 +115,29 @@ export function isInBounds(map: GameMap, pos: HexPos): boolean {
   return hasHex(map, pos)
 }
 
+/**
+ * Legacy movement-cost helper retained for compatibility.
+ * Live command validation uses the shared movement rules instead.
+ */
 export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | null {
   if (hex.terrain === 'crater') return null
   if (hex.terrain === 'ridgeline') return canCrossRidgelines ? 2 : null
   return 1
 }
 
+/**
+ * Legacy line-of-sight helper retained for compatibility.
+ * It is not part of the current live movement or combat command path.
+ */
 export function hasLineOfSight(map: GameMap, from: HexPos, to: HexPos): LineOfSightResult {
   // Standard OGRE rules: no terrain-based LOS blocking, purely range-based
   return { hasLOS: true, distance: hexDistance(from, to) }
 }
 
+/**
+ * Legacy pathfinder retained for compatibility.
+ * Live movement uses the shared move planner instead.
+ */
 export function findPath(
   map: GameMap,
   from: HexPos,

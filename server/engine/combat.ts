@@ -374,10 +374,9 @@ export function resolveCombatOutcome(
  * 2. Build the calculator input and ask the shared rules engine for effective
  *    attack and defense strengths, including stack and terrain modifiers.
  *
- * The local attack-strength accumulation below predates the shared calculator.
- * It is not the value returned in the plan; `combatResult.attackStrength` is.
- * Keeping both paths is confusing and is the main simplification candidate
- * for the next refactor.
+ * The shared calculator is the authoritative source for the strengths returned
+ * in the plan. This engine module adapts live state into the calculator input,
+ * then owns command validation, CRT resolution, and damage application.
  */
 export function validateCombatAction(
   map: GameMap,

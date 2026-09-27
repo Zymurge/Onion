@@ -55,40 +55,54 @@ Suggested order: 1, 4, 3, 2, 5, 8, 6, 7, 9. Item 1 should land first because it 
 
 ## 5. Shared rules versus engine wrappers
 
+**Status:** Done.
+
 **Files:** `shared/moveValidator.ts`, `shared/movePlanner.ts`, `shared/combatCalculator.ts`, `server/engine/movement.ts`, `server/engine/combat.ts`, `server/engine/map.ts`.
 
-- The engine calls shared validators and calculators, but it also keeps its own validation types and re-exports odds and movement results.
-- `server/engine/map.ts` still exports `findPath`, `hasLineOfSight`, and `movementCost`. A prior search found those names only in that module, the engine barrel, and map tests, not on the live move path.
-- Check which function is canonical, and whether the map helpers are leftover surface that agents will "fix" by mistake.
-- Do not treat a re-export as a second rules implementation unless the wrapper changes the result.
+- Movement legality and pathfinding are canonical in `shared/moveValidator.ts` and `shared/movePlanner.ts`. `server/engine/movement.ts` adapts the engine map/state into the shared input, converts the result to its engine contract, and owns execution and state mutation.
+- Combat strengths and odds are canonical in `shared/combatCalculator.ts`. `server/engine/combat.ts` adapts live engine state into the calculator contract, then owns command validation, CRT resolution, and damage application. Its `calculateOdds` export is a compatibility wrapper around the shared function; the old local attack-strength path is no longer present, although nearby prose still describes it.
+- `server/engine/map.ts` still owns map membership through `isInBounds`, which remains on a live movement helper path. Its `findPath`, `hasLineOfSight`, and `movementCost` exports are not used by the live movement path and appear to be legacy compatibility/test surface, so they should be documented or removed in a later targeted cleanup rather than treated as canonical rules.
+- No implementation edit is warranted for this review item. Future agents should load the shared validator/planner/calculator for rules changes and the engine modules only for adaptation, execution, or compatibility behavior.
 
 ## 6. Stack identity
 
+**Status:** Done.
+
 **Files:** `shared/stackRoster.ts`, `shared/stackNaming.ts`, and the web stack, selection, and battlefield projection modules.
 
-- Instructions already spend a lot of space on `stackRoster` as the only membership source. That usually means agents keep crossing the boundary.
-- Look for a second membership source, invented member IDs, or naming used as identity.
-- Check that split, merge, selection, and combat each have one owner.
-- Stay out of archived stacking plans. Use current code and the active snapshot policy.
+- `shared/stackRoster.ts` owns canonical membership, roster validation/indexing, and split, merge, move, relocate, and move-lifecycle reconciliation. Its `buildStackRosterIndex` output is a derived projection, not a second persisted membership source.
+- `shared/stackNaming.ts` owns group labels. The type/position `groupKey` is used for naming and lifecycle naming decisions, while roster `groupId` and real unit IDs remain the identity sources. `web/lib/battlefieldNaming.ts` consumes both without redefining identity.
+- Web selection and action code resolves members from the roster and submits real unit IDs. `stack-member:<owner>:<index>` values are UI-only selection aliases that resolve back to the owning unit; they are not invented game members. Battlefield group projections and display builders are presentation projections over the shared roster index.
+- The web layer also filters roster data for phase visibility and computes type/position counts for snapshot diagnostics. Those are projections or validation checks, not alternate membership authorities.
+- No implementation edit is warranted for this review item. Future agents should load `shared/stackRoster.ts` for membership and transitions, `shared/stackNaming.ts` for labels, and the web modules only for selection, display, or projection behavior.
 
 ## 7. Web module map
 
+**Status:** Done.
+
 **Directory:** `web/lib`. The shell note in `web/App.tsx` only helps if the task starts there.
 
-- Routing is split across `interactionRouting`, `shellControlRouting`, and `rightRailControlRouting`.
-- Session and transport are split across the game client, the HTTP client, the live client, the session controller, and the app session wiring.
-- Selection is split across stack selection, stack readiness, rail selection, and selection IDs.
-- Battlefield view, view builders, and group projection need a one-page ownership note. Check for overlap, not for missing features.
-- Produce the ownership note as the output. Do not read every module body if the exports and call direction already show the owner.
+- **Interaction routing:** `interactionRouting.ts` owns map/subject intent decisions. `shellControlRouting.ts` owns enabled/disabled header-control decisions, and `rightRailControlRouting.ts` owns enabled/disabled right-rail control decisions. `appCommands.ts` translates shell decisions into actions; components provide the surface-specific inputs.
+- **Session contract and orchestration:** `gameSessionTypes.ts` owns the controller and transport contracts. `gameSessionController.ts` owns authoritative snapshot loading, refresh policy, live-signal sequencing, stale-result rejection, and lifecycle cleanup. `useGameSession.ts` is only the React subscription/lifecycle adapter.
+- **Session wiring:** `appSessionWiring.ts` selects one session binding and constructs one controller for the active game. `useConnectionGate.ts` authenticates and creates a connected `SessionBinding`; `sessionBinding.ts` defines that binding. `appRequestTransportAdapter.ts` adapts injected legacy `GameClient` instances for tests or callers.
+- **Transport:** `httpGameClient.ts` owns HTTP request/response mapping, retry policy, and response validation. `liveEventSource.ts` owns WebSocket parsing, connection state, and live signals. `gameClient.ts` holds the legacy request seam and shared snapshot/action types. `liveGameClient.ts` combines the legacy client and live source for compatibility and has no active production caller; do not start new controller work there.
+- **Selection:** `useBattlefieldInteractionState.ts` owns local selection state, selection changes, move prompts, and interaction-triggered submissions. `stackSelection.ts` resolves roster-backed members and phase-visible projections. `rightRailSelection.ts` owns stack selection models and MOVE/FIRE payload construction. `selectionIds.ts` owns UI selection-ID parsing, normalization, and combat-target translation. `stackReadiness.ts` only derives readiness counts and disabled states.
+- **Battlefield display:** `useBattlefieldDisplayState.ts` is the display-state orchestrator and snapshot/roster validation boundary. `battlefieldViewBuilders.ts` builds live unit/map/range display models. `battlefieldGroupProjection.ts` adapts the shared roster index for left-rail and map-board projections. `battlefieldNaming.ts` owns display labels, while `battlefieldView.ts` owns view types and small pure view helpers. `combatPreview.ts` derives combat target options.
+- **Overlap assessment:** repeated calls to `buildStackRosterIndex` are derived projections over the shared roster, not competing membership sources. `useConnectionGate.ts` and `appSessionWiring.ts` both create bindings for different entry paths (interactive versus injected/persisted). No implementation edit is warranted; this note is the routing aid. Start at `appSessionWiring.ts` for session work, `useBattlefieldInteractionState.ts` for interaction work, `useBattlefieldDisplayState.ts` for display work, and the named pure modules for their specific decisions.
 
 ## 8. Same name, different job
+
+**Status:** Done.
 
 **Files:** `shared/hex.ts`, `web/lib/hex.ts`, `shared/combatCalculator.ts`, `server/engine/combat.ts`, `web/lib/combatOdds.ts`, `shared/movementRules.ts`, `shared/unitMovement.ts`.
 
 - `shared/hex.ts` is axial rules math. `web/lib/hex.ts` is pixel layout. An agent searching for hex logic can open the wrong one.
 - `calculateOdds` exists on the shared calculator, the engine combat wrapper, and `web/lib/combatOdds.ts`.
 - `canUnitCrossRidgeline` and `canUnitCrossRidgelines` are two names for one rule. Check whether these aliases cause duplicate edits.
-- Recommend names or a short pointer only where the collision would send an agent into the wrong file.
+- **Recommended combat names:** rename the pure shared helper in `shared/combatCalculator.ts` to `calculateCrtOddsBand`; rename the server wrapper in `server/engine/combat.ts` to `calculateEngineCombatOdds`; rename the web adapter in `web/lib/combatOdds.ts` to `calculatePreviewCombatOdds`. These names distinguish the rule calculation, execution-layer seam, and UI preview even when an agent searches by symbol rather than by module path.
+- **Recommended movement names:** rename the low-level `shared/movementRules.ts` helper to `canCrossRidgelineByTerrainRule`, and rename the public `shared/unitMovement.ts` facade to `canUnitCrossRidgeline`. This removes the singular/plural near-alias while preserving the distinction between a terrain-rule primitive and the unit-movement API.
+- **Hex naming:** no function rename is needed. The exports already describe separate coordinate domains (`HexPos`/axial rules versus `HexCoord`/pixel layout); when both modules are imported together, use explicit aliases such as `sharedHexKey` and `axialToPixel` at the call site.
+- **Next edit:** do not rename these APIs as part of the review because the shared and server exports are public seams with tests and index re-exports. Apply the recommendations only in a coordinated API cleanup, updating imports, tests, and `server/engine/index.ts` together. Until then, agents should load `shared/hex.ts` for axial rules, `web/lib/hex.ts` for pixel layout, `shared/combatCalculator.ts` for canonical odds rules, `server/engine/combat.ts` for execution behavior, and `web/lib/combatOdds.ts` for preview formatting.
 
 ## 9. Test map
 

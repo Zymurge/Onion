@@ -53,4 +53,3 @@ Weapon and unit data live in `shared/config/unitCatalog.json` and `shared/unitDe
 - [configuration.md](configuration.md) and server environment loading
 - `docs/archive/`, `docs/work-items/`, and generated `docs/api/` HTML
 - Coverage reports and `web/App.tsx.ref`
-
