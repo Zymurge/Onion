@@ -33,12 +33,15 @@ export type NetworkRetryPolicy = {
 
 export type ApiResult<T> = ApiSuccess<T> | ApiFailure
 
-export type VictoryObjectiveKind = 'destroy-unit' | 'escape-map'
+export type VictoryObjectiveKind = 'destroy-unit' | 'escape-map' | 'immobilize-onion'
+
+export type VictoryObjectiveVictor = 'onion' | 'defender'
 
 export type VictoryObjectiveState = {
 	id: string
 	label: string
 	kind: VictoryObjectiveKind
+	victor: VictoryObjectiveVictor
 	required: boolean
 	completed: boolean
 	unitId?: string

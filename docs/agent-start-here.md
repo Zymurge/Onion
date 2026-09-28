@@ -38,7 +38,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Onion tread movement bands | `shared/movementAllowance.ts` | Catalog `treadsPerMove` is declared but not read by that function |
 | Stack damage, one missile per turn, or Onion subsystem results | `server/engine/combat.ts` | [game-rules.md](game-rules.md) describes the same behavior. Do not edit the prose alone |
 | Phases and recovery | [game-rules.md](game-rules.md) L203-L223 | `server/engine/game.ts` owns phase advancement, recovery maintenance, and phase events. `server/engine/phases.ts` owns phase order, actors, and reusable cleanup helpers. |
-| Victory objectives | [scenario-schema.md](scenario-schema.md) | `server/api/gamesHelpers.ts` selects the winner. `server/engine/phases.ts` is only the no-objective immobilized-Onion fallback. The victory prose in [game-rules.md](game-rules.md) does not override the scenario |
+| Victory objectives | [scenario-schema.md](scenario-schema.md) | `server/engine/victory.ts` evaluates explicit, role-owned objectives. `server/api/gamesHelpers.ts` adapts the evaluator to API responses. The victory prose in [game-rules.md](game-rules.md) does not override the scenario |
 | Scenario JSON authoring | [scenario-schema.md](scenario-schema.md) | `scenarios/` and `server/engine/scenarioSchema.ts` |
 | Invalid snapshots or read retry | [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md) | Do not also load the API or web copies |
 | Account registration or login | [user-account-spec.md](user-account-spec.md) | `server/api/auth.ts` |
@@ -99,7 +99,8 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/engine/movement.ts` | Adapts engine state to the shared move validator and applies the accepted plan. | `D+M`. `WRAP`: occupancy, blocking, traverse, rammed-unit, and ramming exports are not the live legality path. |
 | `server/engine/combat.ts` | Validates FIRE, rolls the CRT, and applies damage. | `D+M`. `WRAP`: `calculateEngineCombatOdds` delegates to the shared odds band. |
 | `server/engine/map.ts` | Builds the engine map and tests hex membership. | `WRAP`: pathfinding, line of sight, and movement cost are test-only legacy. |
-| `server/engine/phases.ts` | Owns phase order, phase actor, and reusable destroyed-unit cleanup helpers. | `D+M`: cleanup helpers mutate the supplied state. Its victory check is only the no-objective fallback. |
+| `server/engine/phases.ts` | Owns phase order, phase actor, and reusable destroyed-unit cleanup helpers. | `D+M`: cleanup helpers mutate the supplied state. |
+| `server/engine/victory.ts` | Evaluates scenario objectives with map, state, turn, and event context, then selects the winning role. | `D+M` |
 | `server/engine/game.ts` | Owns phase advancement, recovery maintenance, state metadata, and phase events for the API. | `D+M` |
 | `server/engine/scenarioSchema.ts` | Validates authored scenario JSON. | |
 | `server/engine/scenarioNormalizer.ts` | Builds the initial game state from scenario deployments. | |

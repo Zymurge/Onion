@@ -285,8 +285,9 @@ describe('buildVictoryObjectiveStates', () => {
           escapeHexes: [{ q: 2, r: 2 }],
         },
         objectives: [
-          { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
-          { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+          { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', victor: 'onion', required: true },
+          { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', victor: 'onion', required: true },
+          { id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true },
         ],
       },
     }
@@ -305,6 +306,7 @@ describe('buildVictoryObjectiveStates', () => {
         id: 'destroy-swamp',
         label: 'Destroy The Swamp',
         kind: 'destroy-unit',
+        victor: 'onion',
         required: true,
         unitType: 'Swamp',
         completed: false,
@@ -313,6 +315,15 @@ describe('buildVictoryObjectiveStates', () => {
         id: 'escape-off-map',
         label: 'Escape off map',
         kind: 'escape-map',
+        victor: 'onion',
+        required: true,
+        completed: false,
+      },
+      {
+        id: 'immobilize-onion',
+        label: 'Immobilize The Onion',
+        kind: 'immobilize-onion',
+        victor: 'defender',
         required: true,
         completed: false,
       },
@@ -326,8 +337,9 @@ describe('buildVictoryObjectiveStates', () => {
           escapeHexes: [{ q: 2, r: 2 }],
         },
         objectives: [
-          { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
-          { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+          { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', victor: 'onion', required: true },
+          { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', victor: 'onion', required: true },
+          { id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true },
         ],
       },
     }
@@ -346,6 +358,7 @@ describe('buildVictoryObjectiveStates', () => {
         id: 'destroy-swamp',
         label: 'Destroy The Swamp',
         kind: 'destroy-unit',
+        victor: 'onion',
         required: true,
         unitType: 'Swamp',
         completed: false,
@@ -354,6 +367,15 @@ describe('buildVictoryObjectiveStates', () => {
         id: 'escape-off-map',
         label: 'Escape off map',
         kind: 'escape-map',
+        victor: 'onion',
+        required: true,
+        completed: false,
+      },
+      {
+        id: 'immobilize-onion',
+        label: 'Immobilize The Onion',
+        kind: 'immobilize-onion',
+        victor: 'defender',
         required: true,
         completed: false,
       },
@@ -376,8 +398,9 @@ describe('buildVictoryObjectiveStates', () => {
             escapeHexes: [{ q: 0, r: 0 }],
           },
           objectives: [
-            { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
-            { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+            { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', victor: 'onion', required: true },
+            { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', victor: 'onion', required: true },
+            { id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true },
           ],
         },
       },
@@ -407,8 +430,9 @@ describe('buildVictoryObjectiveStates', () => {
             escapeHexes: [{ q: 0, r: 0 }],
           },
           objectives: [
-            { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', required: true },
-            { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+            { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitType: 'Swamp', victor: 'onion', required: true },
+            { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', victor: 'onion', required: true },
+            { id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true },
           ],
         },
       },
@@ -442,8 +466,9 @@ describe('buildVictoryObjectiveStates', () => {
         victoryConditions: {
           onion: { escapeHexes: [{ q: 0, r: 0 }] },
           objectives: [
-            { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true },
-            { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', required: true },
+            { id: 'destroy-swamp', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', victor: 'onion', required: true },
+            { id: 'escape-off-map', label: 'Escape off map', kind: 'escape-map', victor: 'onion', required: true },
+            { id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true },
           ],
         },
       },
@@ -467,7 +492,8 @@ describe('buildVictoryObjectiveStates', () => {
 
     expect(response.winner).toBe('onion')
     expect(response.status).toBe('completed')
-    expect(response.victoryObjectives.every((objective) => objective.completed)).toBe(true)
+    expect(response.victoryObjectives.filter((objective) => objective.victor === 'onion').every((objective) => objective.completed)).toBe(true)
+    expect(response.victoryObjectives.find((objective) => objective.victor === 'defender')?.completed).toBe(false)
   })
 
   it('serializes stackRoster in the game state response', () => {

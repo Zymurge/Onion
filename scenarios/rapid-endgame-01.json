@@ -32,12 +32,21 @@
         "label": "Destroy The Swamp",
         "kind": "destroy-unit",
         "unitId": "swamp-1",
+        "victor": "onion",
         "required": true
       },
       {
         "id": "escape-off-map",
         "label": "Escape to the edge hex",
         "kind": "escape-map",
+        "victor": "onion",
+        "required": true
+      },
+      {
+        "id": "immobilize-onion",
+        "label": "Immobilize The Onion",
+        "kind": "immobilize-onion",
+        "victor": "defender",
         "required": true
       }
     ],
@@ -48,7 +57,6 @@
       "description": "After destroying The Swamp, the Onion can complete the scenario by moving three hexes west to the escape hex."
     },
     "defender": {
-      "condition": "onionImmobilized",
       "description": "Defender wins when the Onion's tread points reach 0."
     }
   }

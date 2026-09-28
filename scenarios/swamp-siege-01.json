@@ -53,12 +53,21 @@
         "label": "Destroy The Swamp",
         "kind": "destroy-unit",
         "unitId": "swamp-1",
+        "victor": "onion",
         "required": true
       },
       {
         "id": "escape-off-map",
         "label": "Escape to the swamp edge hex",
         "kind": "escape-map",
+        "victor": "onion",
+        "required": true
+      },
+      {
+        "id": "immobilize-onion",
+        "label": "Immobilize The Onion",
+        "kind": "immobilize-onion",
+        "victor": "defender",
         "required": true
       }
     ],
@@ -71,7 +80,6 @@
       "description": "The Onion may escape by entering any scenario-defined escape hex after The Swamp is destroyed and once the escape hexes are active on Onion turn 2."
     },
     "defender": {
-      "condition": "onionImmobilized",
       "description": "Defender wins when the Onion's tread points reach 0 (MA 0). A stationary Onion cannot complete the objective set."
     }
   }

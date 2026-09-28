@@ -87,6 +87,8 @@ For the Swamp objective scenario, the core objectives are:
 - **Objective 1:** Destroy The Swamp (status: destroyed)
 - **Objective 2:** Escape the Onion off the map after The Swamp is destroyed
 
+- **Defender objective:** Immobilize or destroy every Onion before the Onion objectives are complete.
+
 Defender victory is possible if the Onion is immobilized or destroyed before completing all required objectives, or if the Swamp survives and the Onion is destroyed.
 
 The UI may show objective completion state in the inspector, and should surface both Onion and Defender victory paths.

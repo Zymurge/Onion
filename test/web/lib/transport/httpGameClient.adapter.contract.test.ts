@@ -473,8 +473,9 @@ describe('http game client adapter contract', () => {
 				turnNumber: 3,
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				victoryObjectives: [
-					{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true, completed: true },
-					{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', required: true, completed: false },
+					{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', victor: 'onion', required: true, completed: true },
+					{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', victor: 'onion', required: true, completed: false },
+					{ id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true, completed: false },
 				],
 				scenarioMap: {
 					width: 15,
@@ -499,8 +500,9 @@ describe('http game client adapter contract', () => {
 					hexes: [{ q: 1, r: 0, t: 1 }],
 				},
 				victoryObjectives: [
-					{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true, completed: true },
-					{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', required: true, completed: false },
+					{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', victor: 'onion', required: true, completed: true },
+					{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', victor: 'onion', required: true, completed: false },
+					{ id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true, completed: false },
 				],
 				escapeHexes: [{ q: 0, r: 9 }],
 				events: [{ seq: 14, type: 'FIRE_RESOLVED', timestamp: '2026-03-26T12:00:00.000Z' }],
@@ -517,8 +519,9 @@ describe('http game client adapter contract', () => {
 		const snapshot = await client.submitAction(123, { type: 'FIRE', attackers: ['main'], targetId: 'swamp-1', onionId: 'onion-1' })
 
 		expect(snapshot.victoryObjectives).toEqual([
-			{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', required: true, completed: true },
-			{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', required: true, completed: false },
+			{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', victor: 'onion', required: true, completed: true },
+			{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map', victor: 'onion', required: true, completed: false },
+			{ id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true, completed: false },
 		])
 		expect(fetchImpl).toHaveBeenCalledTimes(2)
 	})

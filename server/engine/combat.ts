@@ -3,7 +3,7 @@ import logger from '#server/logger'
  * Combat resolution system for the Onion game engine.
  *
  * Implements the Combat Results Table (CRT), damage application,
- * special combat rules, and victory condition checking.
+ * special combat rules, and damage application.
  */
 
 import type { Command, DefenderUnit, GameState, GameUnit, OnionUnit } from '#shared/types/index'

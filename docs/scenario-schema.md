@@ -78,12 +78,21 @@ We use an **Axial Coordinate System** (q, r) where:
         "label": "Destroy The Swamp",
         "kind": "destroy-unit",
         "unitId": "swamp-1",
+        "victor": "onion",
         "required": true
       },
       {
         "id": "escape-map",
         "label": "Escape to a scenario-defined edge hex after The Swamp is destroyed",
         "kind": "escape-map",
+        "victor": "onion",
+        "required": true
+      },
+      {
+        "id": "immobilize-onion",
+        "label": "Immobilize The Onion",
+        "kind": "immobilize-onion",
+        "victor": "defender",
         "required": true
       }
     ],
@@ -102,21 +111,23 @@ Victory conditions are authored in the scenario under `victoryConditions`. The e
 
 - `maxTurns`: Optional turn limit for the scenario. If omitted, the engine uses its default maximum turn count.
 - `objectives`: Ordered list of scenario objectives. Each objective is evaluated independently and exposed to the API/UI as its own completion state.
+- Every scenario must declare at least one objective with `kind: "immobilize-onion"` and `victor: "defender"`.
 - `onion.escapeHexes`: Array of explicit escape hexes. The Onion completes the `escape-map` objective by reaching any listed hex after the prerequisite objective sequence is satisfied.
 
 ### Currently Supported Objective Types
 
 - `destroy-unit`: Completes when the named unit is destroyed. Use either `unitId` for a specific authored unit or `unitType` for any unit of that type.
 - `escape-map`: Completes when the Onion leaves the map after the prerequisite objective sequence has been satisfied.
+- `immobilize-onion`: Completes when every Onion has no tread points remaining or is destroyed. This is a defender objective.
 
 ### Authoring Rules
 
-1. Prefer `objectives` for new scenarios. Do not mix unrelated victory systems in the same file unless you are intentionally supporting a legacy scenario.
-2. Mark each objective with a stable `id` and a player-facing `label`.
-3. Set `required` to `true` for objectives that must be complete for the Onion to win. Omitted `required` defaults to required in the current engine contract.
-4. Use `unitId` when the scenario contains one specific named objective unit, such as The Swamp.
-5. Use `unitType` when any unit of that type should satisfy the objective.
-6. Add new objective kinds only when the engine and API contract have been updated to support them end to end.
+1. Mark each objective with a stable `id`, a player-facing `label`, and a `victor` of `onion` or `defender`.
+2. Set `required` to `true` for objectives that must be complete for that victor to win. Omitted `required` defaults to required in the current engine contract.
+3. Use `unitId` when the scenario contains one specific named objective unit, such as The Swamp.
+4. Use `unitType` when any unit of that type should satisfy the objective.
+5. Add new objective kinds only when the engine and API contract have been updated to support them end to end.
+6. Do not use the deprecated `victoryConditions.defender.condition` field or rely on an implicit immobilized-Onion fallback.
 
 ## 4. Unit and Weapon Population
 
@@ -157,7 +168,7 @@ const ScenarioSchema = z.object({
   description: z.string(),
   map: MapSchema,
   initialState: InitialStateSchema,
-  victoryConditions: z.object({}).passthrough()
+  victoryConditions: VictoryConditionsSchema
 });
 
 const HexSchema = z.object({

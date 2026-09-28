@@ -30,8 +30,16 @@
     }
   },
   "victoryConditions": {
+    "objectives": [
+      {
+        "id": "immobilize-onion",
+        "label": "Immobilize The Onion",
+        "kind": "immobilize-onion",
+        "victor": "defender",
+        "required": true
+      }
+    ],
     "defender": {
-      "condition": "onionImmobilized",
       "description": "Defender wins when the Onion has no tread movement remaining."
     }
   }

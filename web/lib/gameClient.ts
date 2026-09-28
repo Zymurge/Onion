@@ -1,4 +1,5 @@
 import type { EventEnvelope, GameState, TurnPhase } from '../../shared/types/index.js'
+import type { VictoryObjectiveState } from '../../shared/apiProtocol.js'
 import type { GameRequestTransport } from './gameSessionTypes.js'
 import type { RamResolution as MoveResolution } from './moveResolution.js'
 
@@ -51,15 +52,7 @@ export type ServerGameSnapshot = {
 	}
 	authoritativeState?: GameState
 	scenarioMap?: ScenarioMapSnapshot
-	victoryObjectives: Array<{
-		id: string
-		label: string
-		kind: 'destroy-unit' | 'escape-map'
-		required: boolean
-		completed: boolean
-		unitId?: string
-		unitType?: string
-	}>
+	victoryObjectives: VictoryObjectiveState[]
 	escapeHexes?: Array<{ q: number; r: number }>
 	combatResolution?: CombatResolution
 	ramResolution?: ReadonlyArray<RamResolution>

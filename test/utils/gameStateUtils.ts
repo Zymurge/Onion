@@ -427,6 +427,7 @@ export function makeScenarioObjective(overrides: Partial<VictoryObjectiveState> 
 		id: 'objective-1',
 		label: 'Destroy the marked unit',
 		kind: 'destroy-unit',
+		victor: 'onion',
 		required: true,
 		completed: false,
 		...overrides,

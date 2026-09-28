@@ -86,8 +86,16 @@ export {
   TURN_PHASES,
   nextPhase,
   phaseActor,
-  checkVictoryConditions,
 } from '#server/engine/phases'
+
+export type {
+  VictoryConditions,
+  VictoryEvaluation,
+  VictoryEvaluationContext,
+  VictoryObjective,
+} from '#server/engine/victory'
+
+export { evaluateVictoryConditions } from '#server/engine/victory'
 
 // Combat resolution system
 export type {

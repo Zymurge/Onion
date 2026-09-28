@@ -19,7 +19,9 @@ const validScenario = {
       },
     },
   },
-  victoryConditions: {},
+  victoryConditions: {
+    objectives: [{ id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true }],
+  },
 }
 
 const targetDeploymentScenario = {
@@ -52,7 +54,9 @@ const targetDeploymentScenario = {
       },
     },
   },
-  victoryConditions: {},
+  victoryConditions: {
+    objectives: [{ id: 'immobilize-onion', label: 'Immobilize The Onion', kind: 'immobilize-onion', victor: 'defender', required: true }],
+  },
 }
 
 const legacySplitScenario = {
@@ -171,6 +175,10 @@ describe('parseScenarioSnapshot', () => {
       void _victoryConditions
       return scenario
     })()],
+    ['missing explicit immobilization objective', {
+      ...validScenario,
+      victoryConditions: { objectives: [{ id: 'escape-map', label: 'Escape the map', kind: 'escape-map', victor: 'onion', required: true }] },
+    }],
     ['invalid unit state', {
       ...validScenario,
       initialState: {

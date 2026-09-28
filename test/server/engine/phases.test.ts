@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { advancePhaseWithEvents } from '#server/engine/game'
-import { TURN_PHASES, nextPhase, phaseActor, checkVictoryConditions } from '#server/engine/phases'
+import { TURN_PHASES, nextPhase, phaseActor } from '#server/engine/phases'
 import type { GameState, Weapon } from '#server/engine/units'
 import { makeDefender as makeUnit, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 
@@ -41,58 +41,6 @@ describe('phaseActor', () => {
     expect(phaseActor('DEFENDER_COMBAT')).toBe('defender')
     expect(phaseActor('GEV_SECOND_MOVE')).toBe('defender')
   })
-})
-
-describe('checkVictoryConditions', () => {
-  function makeState(overrides: Partial<GameState> = {}): GameState {
-    return makeGameState({
-      onions: { onion: makeOnion({ unitId: 'onion' }) },
-      defenders: {
-        swamp: makeUnit({ typeId: 'Swamp', unitId: 'swamp' }),
-        puss: makeUnit({ typeId: 'Puss', unitId: 'puss' }),
-      },
-      currentPhase: 'ONION_MOVE',
-      turn: 1,
-      ...overrides,
-    })
-  }
-
-  it('returns null when game continues', () => {
-    const state = makeState()
-    expect(checkVictoryConditions(state)).toBe(null)
-  })
-
-  it('returns null when Swamp is destroyed but Onion can still move', () => {
-    const state = makeState({
-      defenders: {
-        swamp: makeUnit({ typeId: 'Swamp', unitId: 'swamp', state: 'destroyed' }),
-        puss: makeUnit({ typeId: 'Puss', unitId: 'puss' }),
-      },
-    })
-    expect(checkVictoryConditions(state)).toBe(null)
-  })
-
-  it('returns defender when Onion treads are 0', () => {
-    const state = makeState({
-      onions: { onion: makeOnion({ treads: 0 }) },
-    })
-    expect(checkVictoryConditions(state)).toBe('defender')
-  })
-
-  it('returns defender when Onion is destroyed', () => {
-    const state = makeState({
-      onions: { onion: makeOnion({ state: 'destroyed' }) },
-    })
-    expect(checkVictoryConditions(state)).toBe('defender')
-  })
-
-  it('returns defender when Onion treads are negative', () => {
-    const state = makeState({
-      onions: { onion: makeOnion({ treads: -5 }) },
-    })
-    expect(checkVictoryConditions(state)).toBe('defender')
-  })
-
 })
 
 describe('advancePhaseWithEvents', () => {

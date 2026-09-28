@@ -71,21 +71,3 @@ export function clearDestroyedOnions(state: EngineGameState): void {
     Object.entries(state.onions).filter(([, unit]) => unit.state !== 'destroyed'),
   )
 }
-
-/**
- * Check if the game has ended and determine the winner.
- * @param state - Current game state
- * @returns Winner ('onion', 'defender', or null if game continues)
- */
-export function checkVictoryConditions(
-  state: EngineGameState,
-): 'onion' | 'defender' | null {
-  // Defenders win only when every Onion is immobilized or destroyed.
-  const onions = Object.values(state.onions)
-  if (onions.length > 0 && onions.every((onion) => onion.treads === undefined || onion.treads <= 0 || onion.state === 'destroyed')) {
-    return 'defender'
-  }
-
-  // Game continues
-  return null
-}

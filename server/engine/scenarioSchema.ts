@@ -49,6 +49,47 @@ export const InitialStateSchema = z
     'At least one Onion deployment is required',
   )
 
+const VictoryObjectiveSchema = z.union([
+  z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    kind: z.literal('destroy-unit'),
+    victor: z.enum(['onion', 'defender']),
+    required: z.boolean().optional(),
+    unitId: z.string().min(1).optional(),
+    unitType: z.string().min(1).optional(),
+  }).strict().refine((objective) => (objective.unitId === undefined) !== (objective.unitType === undefined), 'Destroy-unit objectives require exactly one target'),
+  z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    kind: z.literal('escape-map'),
+    victor: z.enum(['onion', 'defender']),
+    required: z.boolean().optional(),
+  }).strict(),
+  z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    kind: z.literal('immobilize-onion'),
+    victor: z.literal('defender'),
+    required: z.boolean().optional(),
+  }).strict(),
+])
+
+const VictoryConditionsSchema = z.object({
+  maxTurns: z.number().int().positive().optional(),
+  objectives: z.array(VictoryObjectiveSchema).min(1),
+  onion: z.object({
+    escapeHexes: z.array(HexPosSchema).optional(),
+    description: z.string().optional(),
+  }).optional(),
+  defender: z.object({
+    description: z.string().optional(),
+  }).optional(),
+}).passthrough().refine(
+  (conditions) => conditions.objectives.some((objective) => objective.kind === 'immobilize-onion' && objective.victor === 'defender'),
+  'Victory conditions must explicitly include a defender Onion immobilization objective',
+)
+
 export const ScenarioSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -68,7 +109,7 @@ export const ScenarioSchema = z.object({
   }),
   ]),
   initialState: InitialStateSchema,
-  victoryConditions: z.object({}).passthrough(),
+  victoryConditions: VictoryConditionsSchema,
 })
 
 export type Scenario = z.infer<typeof ScenarioSchema>

@@ -3,17 +3,16 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import type { MatchRecord } from '#server/db/adapter'
-import { checkVictoryConditions } from '#server/engine/phases'
 import { ScenarioSchema, type InitialState } from '#server/engine/scenarioSchema'
+import { evaluateVictoryConditions, type VictoryConditions } from '#server/engine/victory'
 import type { GameStateResponse, VictoryEscapeHex, VictoryObjectiveState } from '#shared/apiProtocol'
-import { hexKey } from '#shared/axialHex'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import type { ActionOkResponse, Command, EventEnvelope, GameState, SessionInitPayload, SingleUnitMoveCommand, StackRosterState, TurnPhase } from '#shared/types/index'
 import { getUnitDefinition, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { MovementResult } from '#server/engine/movement'
 import { CombatExecutionResult } from '#server/engine/combat'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
-import { getDefender, getOnionOrDefender } from '#shared/unitState'
+import { getOnionOrDefender } from '#shared/unitState'
 import { canonicalizeStackRoster, refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerPresenceMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 const GAME_ID_RE = /^\d+$/
@@ -156,40 +155,12 @@ function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state'])
   throw new Error(`Invalid stack roster for response: ${issues.map((issue) => issue.message).join('; ')}`)
 }
 
-export type VictoryObjective =
-  | {
-    id: string
-    label: string
-    required?: boolean
-    kind: 'destroy-unit'
-    unitId: string
-    unitType?: never
-  }
-  | {
-    id: string
-    label: string
-    required?: boolean
-    kind: 'destroy-unit'
-    unitType: string
-    unitId?: never
-  }
-  | {
-    id: string
-    label: string
-    required?: boolean
-    kind: 'escape-map'
-  }
+export type { VictoryObjective } from '#server/engine/victory'
 
 export type ScenarioSnapshot = {
   name?: string
   displayName?: string
-  victoryConditions?: {
-    maxTurns?: number
-    objectives?: VictoryObjective[]
-    onion?: {
-      escapeHexes?: Array<{ q: number; r: number }>
-    }
-  }
+  victoryConditions?: VictoryConditions
   map?: AuthoredScenarioMap
   initialState?: InitialState
 }
@@ -325,50 +296,6 @@ export function buildEngineState(match: MatchRecord): GameState {
   }
 }
 
-function isOnionEscaped(
-  scenarioMap: ScenarioMapSnapshot,
-  state: GameState,
-  turnNumber: number,
-  escapeHexes?: Array<{ q: number; r: number }>,
-): boolean {
-  if (escapeHexes !== undefined && escapeHexes.length > 0) {
-    if (turnNumber <= 1) {
-      return false
-    }
-
-    return Object.values(state.onions).some((onion) => escapeHexes.some((hex) => hexKey(hex) === hexKey(onion.position)))
-  }
-
-  return Object.values(state.onions).some((onion) => !scenarioMap.cells.some((cell) => hexKey(cell) === hexKey(onion.position)))
-}
-
-function isObjectiveCompleted(
-  scenarioSnapshot: ScenarioSnapshot | undefined,
-  scenarioMap: ScenarioMapSnapshot,
-  state: GameState,
-  turnNumber: number,
-  objective: VictoryObjective,
-  events: ReadonlyArray<EventEnvelope> = [],
-): boolean {
-  if (objective.kind === 'destroy-unit') {
-    if (objective.unitId !== undefined) {
-      const defenderId = getDefender(objective.unitId, state)
-      return (defenderId !== undefined && state.defenders[defenderId]?.state === 'destroyed')
-        || events.some((event) => event.type === 'UNIT_STATUS_CHANGED' && event.unitId === objective.unitId && event.to === 'destroyed')
-    }
-
-    if (objective.unitType !== undefined) {
-      return Object.values(state.defenders).some((defender) => defender.typeId === objective.unitType && defender.state === 'destroyed')
-    }
-
-    return false
-  }
-
-  return objective.kind === 'escape-map'
-    ? isOnionEscaped(scenarioMap, state, turnNumber, scenarioSnapshot?.victoryConditions?.onion?.escapeHexes)
-    : false
-}
-
 export function buildVictoryObjectiveStates(
   scenarioSnapshot: ScenarioSnapshot | undefined,
   scenarioMap: ScenarioMapSnapshot,
@@ -376,12 +303,13 @@ export function buildVictoryObjectiveStates(
   turnNumber = 1,
   events: ReadonlyArray<EventEnvelope> = [],
 ): VictoryObjectiveState[] {
-  const objectives = scenarioSnapshot?.victoryConditions?.objectives ?? []
-  return objectives.map((objective) => ({
-    ...objective,
-    required: objective.required ?? true,
-    completed: isObjectiveCompleted(scenarioSnapshot, scenarioMap, state, turnNumber, objective, events),
-  }))
+  return evaluateVictoryConditions({
+    victoryConditions: scenarioSnapshot?.victoryConditions,
+    scenarioMap,
+    state,
+    turnNumber,
+    events,
+  }).objectives
 }
 
 export function computeWinnerUserId(
@@ -390,33 +318,20 @@ export function computeWinnerUserId(
   phase: TurnPhase,
   turnNumber: number,
 ): string | null {
-  const engineState: GameState = {
-    ...structuredClone(state),
-    currentPhase: phase,
-    turn: turnNumber,
-  }
-
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
-  const victoryObjectives = buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber, match.events)
-  const requiredObjectives = victoryObjectives.filter((objective) => objective.required)
-
-  if (requiredObjectives.length > 0) {
-    if (requiredObjectives.every((objective) => objective.completed)) {
-      return match.players.onion
-    }
-
-    const onions = Object.values(state.onions)
-    if (onions.length > 0 && onions.every((candidate) => candidate.treads === undefined || candidate.treads <= 0 || candidate.state === 'destroyed')) {
-      return match.players.defender
-    }
-
-    return null
-  }
-
-  const winningRole = checkVictoryConditions(engineState)
-  if (!winningRole) return null
-  return match.players[winningRole]
+  const evaluation = evaluateVictoryConditions({
+    victoryConditions: scenarioSnapshot.victoryConditions,
+    scenarioMap,
+    state: {
+      ...structuredClone(state),
+      currentPhase: phase,
+      turn: turnNumber,
+    },
+    turnNumber,
+    events: match.events,
+  })
+  return evaluation.winner === null ? null : match.players[evaluation.winner]
 }
 
 export function getWeaponTypeFromId(weaponId: string) {

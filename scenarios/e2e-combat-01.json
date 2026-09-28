@@ -31,5 +31,15 @@
       }
     }
   },
-  "victoryConditions": {}
+  "victoryConditions": {
+    "objectives": [
+      {
+        "id": "immobilize-onion",
+        "label": "Immobilize The Onion",
+        "kind": "immobilize-onion",
+        "victor": "defender",
+        "required": true
+      }
+    ]
+  }
 }
