@@ -35,7 +35,6 @@ break down into features/tasks as needed.
   - [x] Move per-unit movement spend onto the unit records themselves and reset it at phase boundaries.
   - [x] Code and regression coverage are complete; browser E2E coverage validates stack movement, selection, co-location, and ram flows.
 
-
 - [x] Implement the section 1b/1c stack-roster lifecycle rules as a standalone step: bundle groups and units into a dedicated state element, keep the persisted roster minimal, assign unique finalized stack names at end of movement, carry names forward correctly across splits and merges, never recycle stack names, and expose canonical member names plus finalized stack names to UI/messages and left-rail selection rows so member identity is preserved there.
 - [x] Make Onion identity explicit throughout runtime events and combat
   - [x] Collapse `getOnion` to one canonical signature that requires an explicit `unitId` and `GameState`; do not add a helper that guesses a single Onion from the state map.
