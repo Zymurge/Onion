@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { buildActionResponse, buildCombatEvents, buildMoveEvents, buildSessionInitPayload, buildVictoryObjectiveStates, computeWinnerUserId, type ScenarioSnapshot } from '#server/api/gamesHelpers'
+import { buildActionResponse } from '#server/api/gameHelpers/actionResponses'
+import { buildCombatEvents, buildMoveEvents, getWeaponTypeFromId } from '#server/api/gameHelpers/eventBuilders'
+import { buildSessionInitPayload } from '#server/api/gameHelpers/protocol'
+import { buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gameHelpers/victory'
+import type { ScenarioSnapshot } from '#server/api/gameHelpers/scenario'
 import type { MatchRecord } from '#server/db/adapter'
 import { materializeScenarioMap } from '#shared/scenarioMap'
 import type { GameState } from '#shared/types/index'
-import { buildGameStateResponse } from '#server/api/gamesHelpers'
+import { buildGameStateResponse } from '#server/api/gameHelpers/stateProjection'
 import { DEFAULT_ONION_UNIT_TYPE_ID, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { makeDefender, makeGameState, makeOnion, makeStackFixture, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 import { makeMixedSideInitialState } from '#test/utils/mixedSideScenario'
@@ -53,6 +57,14 @@ describe('buildSessionInitPayload', () => {
 })
 
 describe('buildCombatEvents', () => {
+  it('classifies known weapon id prefixes for event metadata', () => {
+    expect(getWeaponTypeFromId('main')).toBe('main')
+    expect(getWeaponTypeFromId('secondary_1')).toBe('secondary')
+    expect(getWeaponTypeFromId('ap_1')).toBe('ap')
+    expect(getWeaponTypeFromId('missile_1')).toBe('missile')
+    expect(getWeaponTypeFromId('unknown')).toBe('unknown')
+  })
+
   it('uses an explicit tread target identity and friendly label', () => {
     const events = buildCombatEvents(
       10,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseScenarioSnapshot, ScenarioValidationError } from '#server/api/gamesHelpers'
+import { parseScenarioSnapshot, ScenarioValidationError } from '#server/api/gameHelpers/scenario'
 
 const validScenario = {
   id: 'valid-scenario',

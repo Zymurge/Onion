@@ -7,6 +7,7 @@ import { serializeWsMessage } from '#server/api/gamesHelpers'
 import type { EventEnvelope } from '#shared/types/index'
 import type { WebSocketServerEventMessage, WebSocketServerPresenceMessage } from '#shared/websocketProtocol'
 
+/** Dependencies and configuration required by the game route plugin. */
 export type GameRouteOptions = {
   db: DbAdapter
   scenariosDir: string
@@ -17,6 +18,7 @@ export type GameRouteOptions = {
 
 type MatchPlayers = MatchRecord['players']
 
+/** Shared mutable services used by game HTTP and WebSocket route handlers. */
 export type GameRouteContext = GameRouteOptions & {
   liveConnections: Map<number, Set<WebSocket>>
   ramRollsForGame: (gameId: number, scenarioId: string) => RollSource | undefined
@@ -30,6 +32,13 @@ export type GameRouteContext = GameRouteOptions & {
   }
 }
 
+/**
+ * Creates isolated route state for live sockets, presence, and per-game roll sources.
+ *
+ * @param options Database, scenario, timing, and optional deterministic-roll dependencies.
+ * @returns Route context with connection management, presence, broadcasting, and roll accessors.
+ * @remarks The returned context owns mutable maps but does not mutate the supplied options object.
+ */
 export function createGameRouteContext(options: GameRouteOptions): GameRouteContext {
   const liveConnections = new Map<number, Set<WebSocket>>()
   const playerConnections = new Map<number, Map<string, Set<WebSocket>>>()

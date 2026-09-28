@@ -38,17 +38,17 @@ When introducing or renaming source files it is imperative to update this docume
 | Onion tread movement bands | `shared/movementAllowance.ts` | Catalog `treadsPerMove` is declared but not read by that function |
 | Stack damage, one missile per turn, or Onion subsystem results | `server/engine/combat.ts` | [game-rules.md](game-rules.md) describes the same behavior. Do not edit the prose alone |
 | Phases and recovery | [game-rules.md](game-rules.md) L203-L223 | `server/engine/game.ts` owns phase advancement, recovery maintenance, and phase events. `server/engine/phases.ts` owns phase order, actors, and reusable cleanup helpers. |
-| Victory objectives | [scenario-schema.md](scenario-schema.md) | `server/engine/victory.ts` evaluates explicit, role-owned objectives. `server/api/gamesHelpers.ts` adapts the evaluator to API responses. The victory prose in [game-rules.md](game-rules.md) does not override the scenario |
+| Victory objectives | [scenario-schema.md](scenario-schema.md) | `server/engine/victory.ts` evaluates explicit, role-owned objectives. `server/api/gameHelpers/victory.ts` adapts the evaluator to API responses. The victory prose in [game-rules.md](game-rules.md) does not override the scenario |
 | Scenario JSON authoring | [scenario-schema.md](scenario-schema.md) | `scenarios/` and `server/engine/scenarioSchema.ts` |
 | Invalid snapshots or read retry | [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md) | Do not also load the API or web copies |
 | Account registration or login | [user-account-spec.md](user-account-spec.md) | `server/api/auth.ts` |
 | Register or login transport | [api-contract.md](api-contract.md) L49-L84 | `server/api/auth.ts` |
-| Create, list, join, or start a game | [api-contract.md](api-contract.md) L130-L222 | `server/api/games.ts` |
-| Fetch one game | [api-contract.md](api-contract.md) L223-L291 | `server/api/games.ts` |
+| Create, list, join, or start a game | [api-contract.md](api-contract.md) L130-L222 | `server/api/gameRoutes/index.ts`, then `lifecycleRoutes.ts` or `lobbyRoutes.ts` |
+| Fetch one game | [api-contract.md](api-contract.md) L223-L291 | `server/api/gameRoutes/stateRoutes.ts` |
 | Submit an action | [api-contract.md](api-contract.md) L292-L336, then one command row | `server/api/games.ts` |
 | MOVE command | [api-contract.md](api-contract.md) L356-L368 | `server/engine/movement.ts` |
 | FIRE command | [api-contract.md](api-contract.md) L369-L412 and L421-L459 | `server/engine/combat.ts` |
-| END_PHASE command | [api-contract.md](api-contract.md) L413-L420 | `server/api/games.ts` |
+| END_PHASE command | [api-contract.md](api-contract.md) L413-L420 | `server/api/games.ts` until action extraction; then `server/api/gameRoutes/actionHandlers/endPhase.ts` |
 | Event polling | [api-contract.md](api-contract.md) L337-L355 | `server/api/games.ts` |
 | Event envelope | [api-contract.md](api-contract.md) L464-L476, then one event family below | `shared/websocketProtocol.ts` |
 | Movement events | [api-contract.md](api-contract.md) L477-L483 | `server/api/games.ts` |
@@ -106,8 +106,21 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/engine/scenarioNormalizer.ts` | Builds the initial game state from scenario deployments. | |
 | `server/engine/units.ts` | Re-exports catalog, unit-state, and allowance helpers. | `WRAP`: not an owner. |
 | `server/engine/index.ts` | Re-exports the active engine surface. | `WRAP` |
-| `server/api/games.ts` | Owns game HTTP and WebSocket routes, authorization, and persistence of engine results. | `UNCLEAR`: one plugin mixes transport with action orchestration. |
-| `server/api/gamesHelpers.ts` | Builds responses and action events, translates scenarios, and selects the winner. | `DUP`: scenario victory lives here, not in `phases.ts`. `UNCLEAR`: weapon type is also inferred from id prefixes. |
+| `server/api/games.ts` | Compatibility/orchestration surface for the not-yet-extracted action, WebSocket, diagnostics, and event routes. | `UNCLEAR`: remaining step 3-5 work still lives here. |
+| `server/api/gameRoutes/lifecycleRoutes.ts` | Owns create, join, and start route registration and lifecycle persistence. | |
+| `server/api/gameRoutes/lobbyRoutes.ts` | Owns active/history/open listings and archive, restore, and delete management. | `D+M`: delete also closes live sockets and broadcasts `GAME_DELETED`. |
+| `server/api/gameRoutes/stateRoutes.ts` | Owns authenticated current-game state projection. | |
+| `server/api/gameRoutes/context.ts` | Owns per-plugin live connection, presence, broadcast, and deterministic-roll context. | `D+M`: context-owned maps track active connections and timers. |
+| `server/api/gameRoutes/index.ts` | Entry point that exposes the game plugin, typed context factory, and extracted route-family registrars. | `WRAP` |
+| `server/api/gamesHelpers.ts` | Preserves the historical helper import path. | `WRAP` |
+| `server/api/gameHelpers/actionResponses.ts` | Builds successful action response payloads from persisted match metadata and post-action state. | |
+| `server/api/gameHelpers/eventBuilders.ts` | Adapts engine combat and movement results into API event envelopes. | |
+| `server/api/gameHelpers/ids.ts` | Parses positive safe game ids from route parameters. | |
+| `server/api/gameHelpers/logging.ts` | Emits structured action and event delivery logs. | |
+| `server/api/gameHelpers/protocol.ts` | Builds session catalogs and serializes or parses WebSocket envelopes. | |
+| `server/api/gameHelpers/scenario.ts` | Validates, translates, loads, and projects scenario snapshots for API use. | |
+| `server/api/gameHelpers/stateProjection.ts` | Clones engine state and projects persisted matches into client-facing state responses. | |
+| `server/api/gameHelpers/victory.ts` | Adapts canonical engine victory evaluation to API objective states and user ids. | `WRAP`: evaluation remains owned by `server/engine/victory.ts`. |
 | `server/api/auth.ts` | Owns registration and login routes. | |
 | `server/api/scenarios.ts` | Owns scenario list and detail routes. | |
 | `server/db/` | Stores users and matches through the adapter contract. | |
