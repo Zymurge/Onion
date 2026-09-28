@@ -7,7 +7,7 @@ import logger from '#server/logger'
  */
 
 import type { HexPos } from '#shared/types/index'
-import { getNeighbors, hexDistance, hexKey } from '#shared/axialHex'
+import { hexDistance, hexKey } from '#shared/axialHex'
 
 /**
  * Terrain types that can exist on hexes.
@@ -54,18 +54,6 @@ export interface LineOfSightResult {
   hasLOS: boolean
   /** Distance in hexes between the positions */
   distance: number
-}
-
-/**
- * Result of a pathfinding operation.
- */
-export interface PathResult {
-  /** Whether a valid path exists */
-  found: boolean
-  /** The hexes in the path (excluding start, including end) */
-  path: HexPos[]
-  /** Total movement cost of the path */
-  cost: number
 }
 
 function terrainFromT(t: number): TerrainType {
@@ -116,23 +104,6 @@ export function isInBounds(map: GameMap, pos: HexPos): boolean {
 }
 
 /**
- * Legacy movement-cost helper retained for compatibility.
- * Live command validation uses the shared movement rules instead.
- * @deprecated Use the shared movement rules through move validation/planning.
- */
-export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | null {
-  if (hex.terrain === 'crater') return null
-  if (hex.terrain === 'ridgeline') return canCrossRidgelines ? 2 : null
-  return 1
-}
-
-function legacyMovementCost(hex: Hex, canCrossRidgelines: boolean): number | null {
-  if (hex.terrain === 'crater') return null
-  if (hex.terrain === 'ridgeline') return canCrossRidgelines ? 2 : null
-  return 1
-}
-
-/**
  * Legacy line-of-sight helper retained for compatibility.
  * It is not part of the current live movement or combat command path.
  * @deprecated Use the combat-specific shared rules instead.
@@ -140,67 +111,4 @@ function legacyMovementCost(hex: Hex, canCrossRidgelines: boolean): number | nul
 export function hasLineOfSight(map: GameMap, from: HexPos, to: HexPos): LineOfSightResult {
   // Standard OGRE rules: no terrain-based LOS blocking, purely range-based
   return { hasLOS: true, distance: hexDistance(from, to) }
-}
-
-/**
- * Legacy pathfinder retained for compatibility.
- * Live movement uses the shared move planner instead.
- * @deprecated Use findMovePath from shared/movePlanner instead.
- */
-export function findPath(
-  map: GameMap,
-  from: HexPos,
-  to: HexPos,
-  movementAllowance: number,
-  canCrossRidgelines: boolean
-): PathResult {
-  if (!isInBounds(map, to)) {
-    logger.warn({ from, to }, 'findPath: destination out of bounds')
-    return { found: false, path: [], cost: 0 }
-  }
-  if (!isInBounds(map, from)) {
-    logger.warn({ from, to }, 'findPath: origin out of bounds')
-    return { found: false, path: [], cost: 0 }
-  }
-  if (from.q === to.q && from.r === to.r) return { found: true, path: [], cost: 0 }
-
-  // Dijkstra over the hex grid
-  const dist = new Map<string, number>()
-  const prev = new Map<string, HexPos | null>()
-  // Min-heap via sorted insertion — map is small enough
-  const queue: Array<{ pos: HexPos; cost: number }> = [{ pos: from, cost: 0 }]
-  dist.set(hexKey(from), 0)
-
-  while (queue.length > 0) {
-    queue.sort((a, b) => a.cost - b.cost)
-    const { pos, cost } = queue.shift()!
-
-    if (pos.q === to.q && pos.r === to.r) {
-      // Reconstruct path
-      const path: HexPos[] = []
-      let cur: HexPos | null = to
-      while (cur && !(cur.q === from.q && cur.r === from.r)) {
-        path.unshift(cur)
-        cur = prev.get(hexKey(cur)) ?? null
-      }
-      return { found: true, path, cost }
-    }
-
-    for (const neighbor of getNeighbors(pos)) {
-      if (!isInBounds(map, neighbor)) continue
-      const hex = getHex(map, neighbor)!
-      const stepCost = legacyMovementCost(hex, canCrossRidgelines)
-      if (stepCost === null) continue
-      const newCost = cost + stepCost
-      if (newCost > movementAllowance) continue
-      const key = hexKey(neighbor)
-      if (dist.has(key) && dist.get(key)! <= newCost) continue
-      dist.set(key, newCost)
-      prev.set(key, pos)
-      queue.push({ pos: neighbor, cost: newCost })
-    }
-  }
-
-  logger.info({ from, to }, 'findPath: no valid path found')
-  return { found: false, path: [], cost: 0 }
 }

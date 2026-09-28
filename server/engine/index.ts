@@ -11,7 +11,6 @@ export type {
   Hex,
   GameMap,
   LineOfSightResult,
-  PathResult,
 } from '#server/engine/map'
 
 export {
