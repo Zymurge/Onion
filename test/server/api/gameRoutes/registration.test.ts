@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { registerLifecycleRoutes } from '#server/api/gameRoutes/lifecycleRoutes'
 import { registerLobbyRoutes } from '#server/api/gameRoutes/lobbyRoutes'
 import { registerStateRoutes } from '#server/api/gameRoutes/stateRoutes'
+import { registerActionRoutes } from '#server/api/gameRoutes/actionRoutes'
 import type { GameRouteContext } from '#server/api/gameRoutes/context'
 
 function makeRouteRecorder() {
@@ -49,5 +50,13 @@ describe('game route registration modules', () => {
       'GET /open',
     ])
     expect(state.routes).toEqual(['GET /:id'])
+  })
+
+  it('registers the action dispatcher at the action endpoint', async () => {
+    const recorder = makeRouteRecorder()
+
+    await registerActionRoutes(recorder.app, routeContext)
+
+    expect(recorder.routes).toEqual(['POST /:id/actions'])
   })
 })
