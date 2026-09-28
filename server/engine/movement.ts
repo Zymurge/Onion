@@ -6,10 +6,9 @@
  */
 
 import logger from '#server/logger'
-import type { HexPos, PlayerRole, SingleUnitMoveCommand, GameState, GameUnit, OnionUnit, DefenderUnit } from '#shared/types/index'
-import { isInBounds } from '#server/engine/map'
+import type { HexPos, SingleUnitMoveCommand, GameState, GameUnit, OnionUnit } from '#shared/types/index'
 import type { GameMap } from '#server/engine/map'
-import { calculateRamming as calculateSharedRamming, resolveRammingOutcome } from '#shared/rammingCalculator'
+import { resolveRammingOutcome } from '#shared/rammingCalculator'
 import { spendUnitMovement } from '#shared/unitMovement'
 import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
@@ -142,26 +141,6 @@ function validateMovePlan(
   command: SingleUnitMoveCommand
 ): MovementValidation {
   return toMovementValidation(validateSharedMove(toMoveMapSnapshot(map, state, command.unitId), state, command))
-}
-
-function findOccupyingUnit(
-  state: EngineGameState,
-  pos: HexPos,
-  excludeUnitId?: string
-): GameUnit | null {
-  for (const onion of Object.values(state.onions)) {
-    if (onion.unitId !== excludeUnitId &&
-      onion.position.q === pos.q && onion.position.r === pos.r) {
-      return onion
-    }
-  }
-  for (const unit of Object.values(state.defenders)) {
-    if (unit.unitId !== excludeUnitId &&
-      unit.position.q === pos.q && unit.position.r === pos.r) {
-      return unit
-    }
-  }
-  return null
 }
 
 function toMovementValidation(result: SharedMoveValidationResult): MovementValidation {
@@ -374,99 +353,4 @@ export function executeUnitMovement(
   options: MovementExecutionOptions = {},
 ): MovementResult {
   return executeMovePlan(state, plan, options)
-}
-
-/**
- * Check if a hex is occupied by a unit.
- * @param state - Current game state
- * @param pos - Position to check
- * @param excludeUnitId - Unit ID to exclude from check (for movement validation)
- * @returns The occupying unit, or null if empty
- * @deprecated Use shared movement validation instead.
- */
-export function getOccupyingUnit(
-  state: EngineGameState,
-  pos: HexPos,
-  excludeUnitId?: string
-): GameUnit | null {
-  return findOccupyingUnit(state, pos, excludeUnitId)
-}
-
-/**
- * Check if a unit can enter a hex.
- * @param map - The game map
- * @param state - Current game state
- * @param to - Target position
- * @param excludeUnitId - Unit ID to exclude from blocking checks
- * @returns True if the hex cannot be entered
- * @deprecated Use shared movement validation instead.
- */
-export function isMovementBlocked(
-  map: GameMap,
-  state: EngineGameState,
-  to: HexPos,
-  excludeUnitId?: string
-): boolean {
-  if (!isInBounds(map, to)) return true
-  const hex = map.hexes[`${to.q},${to.r}`]
-  if (!hex || hex.terrain === 'crater') return true
-  return findOccupyingUnit(state, to, excludeUnitId) !== null
-}
-
-/**
- * Calculate ramming damage and results.
- * @param rammedUnit - Unit being rammed
- * @param roll - Optional fixed die roll for testing (1-6); rolls 1d6 if omitted
- * @returns Object with tread cost and destruction result
- * @deprecated Use calculateRamming from shared/rammingCalculator instead.
- */
-export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
-  treadCost: number
-  destroyed: boolean
-} {
-  return calculateSharedRamming(rammedUnit.typeId, roll)
-}
-
-/**
- * Check whether the occupying unit's hex can be traversed.
- * @param movingUnit - Unit attempting to move; retained for API compatibility
- * @param occupyingUnit - Unit occupying the target hex
- * @param movingRole - Player role; retained for API compatibility
- * @returns True if movement is allowed
- * @deprecated Use shared movement validation instead.
- */
-export function canMoveThrough(
-  movingUnit: GameUnit,
-  occupyingUnit: GameUnit,
-  movingRole: PlayerRole
-): boolean {
-  void movingUnit
-  void movingRole
-  // Both sides can traverse defender hexes, but neither can traverse the Onion.
-  return occupyingUnit.typeId !== 'TheOnion'
-}
-
-/**
- * Get all units that would be rammed when moving along a path.
- * @param map - The game map
- * @param state - Current game state
- * @param path - Movement path
- * @returns Array of unit IDs that would be rammed
- * @deprecated Use the rammed unit IDs from shared movement validation instead.
- */
-export function getRammedUnits(
-  map: GameMap,
-  state: EngineGameState,
-  path: HexPos[]
-): string[] {
-  const result: string[] = []
-  for (const pos of path) {
-    for (const [id, unit] of Object.entries(state.defenders)) {
-      if (unit.state === 'destroyed') continue
-      if (unit.position.q === pos.q && unit.position.r === pos.r) {
-        result.push(id)
-      }
-    }
-  }
-  return result
 }

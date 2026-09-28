@@ -1,6 +1,6 @@
 # Top-Down Review Action Plan
 
-**Status:** Active review plan
+**Status:** Complete; archived 2026-09-28.
 **Scope:** Current implementation only. No future work.
 **Out of scope:** CLI, server configuration, deferred AI, archives, and generated API HTML.
 
@@ -61,8 +61,8 @@ Suggested order: 1, 4, 3, 2, 5, 8, 6, 7, 9. Item 1 should land first because it 
 
 - Movement legality and pathfinding are canonical in `shared/moveValidator.ts` and `shared/movePlanner.ts`. `server/engine/movement.ts` adapts the engine map/state into the shared input, converts the result to its engine contract, and owns execution and state mutation.
 - Combat strengths and odds are canonical in `shared/combatCalculator.ts`. `server/engine/combat.ts` adapts live engine state into the calculator contract, then owns command validation, CRT resolution, and damage application. Its `calculateEngineCombatOdds` export is a compatibility wrapper around the shared `calculateCrtOddsBand` function; the old local attack-strength path is no longer present, although nearby prose still describes it.
-- `server/engine/map.ts` still owns map membership through `isInBounds`, which remains on a live movement helper path. Its `findPath`, `hasLineOfSight`, and `movementCost` exports are not used by the live movement path and appear to be legacy compatibility/test surface, so they should be documented or removed in a later targeted cleanup rather than treated as canonical rules.
-- No implementation edit is warranted for this review item. Future agents should load the shared validator/planner/calculator for rules changes and the engine modules only for adaptation, execution, or compatibility behavior.
+- `server/engine/map.ts` owns engine map construction and membership through `createMap`, `getHex`, and `isInBounds`. The unused legacy pathfinder, movement-cost helper, and `PathResult` type have been removed. `hasLineOfSight` remains as an unused deprecated compatibility helper; its replacement requires separate combat/LOS design work.
+- The movement cleanup is complete for this review item. Future agents should load the shared validator/planner/rules/calculator for movement changes and the engine modules only for adaptation, execution, map construction, or the deferred LOS compatibility surface.
 
 ## 6. Stack identity
 

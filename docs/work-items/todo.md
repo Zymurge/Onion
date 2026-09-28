@@ -5,24 +5,27 @@ break down into features/tasks as needed.
 
 ## In progress
 
-- [ ] Run the remaining current-implementation review passes in [top-down-review-action-plan.md](top-down-review-action-plan.md). Item 1, the spec entry path, is done.
-- [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
+## TODO
+
+### Epics / Major Work
+
 - [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability. See [accessibility-overview-spec.md](accessibility-overview-spec.md).
   - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.
   - [ ] Replace tooltip-only detail exposure with explicit accessible disclosure patterns where details are important to gameplay comprehension.
   - [ ] Known issue: `InactiveEventStream` currently exposes event details only through the row `title` tooltip, which is not a sufficient keyboard/screen-reader interaction path.
 
-## Verification Status (2026-08-19)
+### Features / Tasks
 
-- Scenario-driven deployment and side-aware runtime behavior are implemented and covered by focused engine, API, web, and browser tests.
-- UI fallback hardening is implemented: loaded snapshots with missing or malformed authoritative state now surface diagnostic error overlays instead of rendering inferred empty/default projections.
-- The managed browser suite passes all 8 Playwright scenarios through the repository-owned PostgreSQL, engine, Vite, and Chromium lifecycle.
-- `pnpm build` passes. The focused contract batch passes 80 tests, and all 19 explicit contract-test TODOs have been implemented.
-- Direct Testcontainers suites (`pnpm test` integration files and `pnpm test:integration`) still require a container runtime when run outside the managed E2E supervisor.
-- The catalog, ammo, deployment, normalizer, and type-boundary contract tests now have no remaining explicit TODO markers.
-- Transport-only read retries are implemented and validated through shared protocol, HTTP adapter, and fake-HTTP integration tests; action and diagnostic POSTs remain single-attempt.
+- [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
 
 ## Done
+
+### Completed Epics
+
+- [x] JWT authentication (migrate to @fastify/jwt)
+- [x] Game lobby for game discovery, joining, and host-controlled start (self-service matchmaking)
+
+### Completed Features / Tasks
 
 - [x] Complete Issue 36 refactor hardening across transport boundaries, controller sequencing, projection ownership, and authoritative snapshot handling.
 - [x] Expand direct component and lower-level contract coverage for battlefield rails and interaction routing, including locked/disabled paths and stack selection controls.
@@ -32,12 +35,6 @@ break down into features/tasks as needed.
   - [x] Move per-unit movement spend onto the unit records themselves and reset it at phase boundaries.
   - [x] Code and regression coverage are complete; browser E2E coverage validates stack movement, selection, co-location, and ram flows.
 
-## Epics / Major Work
-
-- [x] JWT authentication (migrate to @fastify/jwt)
-- [x] Game lobby for game discovery, joining, and host-controlled start (self-service matchmaking)
-
-## Features / Work Items
 
 - [x] Implement the section 1b/1c stack-roster lifecycle rules as a standalone step: bundle groups and units into a dedicated state element, keep the persisted roster minimal, assign unique finalized stack names at end of movement, carry names forward correctly across splits and merges, never recycle stack names, and expose canonical member names plus finalized stack names to UI/messages and left-rail selection rows so member identity is preserved there.
 - [x] Make Onion identity explicit throughout runtime events and combat
@@ -144,3 +141,4 @@ break down into features/tasks as needed.
 - [x] Improve error handling (UI and backend)
   - [x] Restyle error messages as a dismissable overlay so they do not push the header and main content down.
   - [x] Distinguish move error messages: show specific reasons such as 'out of range', 'blocked by terrain', or 'can't stack units' instead of generic 'Illegal move'.
+- [x] Complete the current-implementation review passes in the archived [top-down-review-action-plan-2026-09-28.md](archive/top-down-review-action-plan-2026-09-28.md).

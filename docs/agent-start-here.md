@@ -96,16 +96,16 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `shared/apiProtocol.ts` | Defines REST success, failure, and game-response types. | `UNCLEAR`: also contains a fetch client and debug traffic log. Production web calls use `web/lib/httpGameClient.ts`. |
 | `shared/websocketProtocol.ts` | Defines WebSocket message shapes. | |
 | `shared/types/` | Defines canonical game, command, and event types. | |
-| `server/engine/movement.ts` | Adapts engine state to the shared move validator and applies the accepted plan. | `D+M`. `WRAP`: occupancy, blocking, traverse, rammed-unit, and ramming exports are not the live legality path. |
+| `server/engine/movement.ts` | Adapts engine state to the shared move validator and applies the accepted plan. | `D+M`: owns movement execution, state mutation, ramming application, and stack reconciliation. |
 | `server/engine/combat.ts` | Validates FIRE, rolls the CRT, and applies damage. | `D+M`. `WRAP`: `calculateEngineCombatOdds` delegates to the shared odds band. |
-| `server/engine/map.ts` | Builds the engine map and tests hex membership. | `WRAP`: pathfinding, line of sight, and movement cost are test-only legacy. |
+| `server/engine/map.ts` | Builds the engine map and tests hex membership. | `D+M`: owns engine map construction and membership; `hasLineOfSight` remains an unused deprecated compatibility helper. |
 | `server/engine/phases.ts` | Owns phase order, phase actor, and reusable destroyed-unit cleanup helpers. | `D+M`: cleanup helpers mutate the supplied state. |
 | `server/engine/victory.ts` | Evaluates scenario objectives with map, state, turn, and event context, then selects the winning role. | `D+M` |
 | `server/engine/game.ts` | Owns phase advancement, recovery maintenance, state metadata, and phase events for the API. | `D+M` |
 | `server/engine/scenarioSchema.ts` | Validates authored scenario JSON. | |
 | `server/engine/scenarioNormalizer.ts` | Builds the initial game state from scenario deployments. | |
 | `server/engine/units.ts` | Re-exports catalog, unit-state, and allowance helpers. | `WRAP`: not an owner. |
-| `server/engine/index.ts` | Re-exports the engine surface, including legacy map and movement helpers. | `WRAP` |
+| `server/engine/index.ts` | Re-exports the active engine surface. | `WRAP` |
 | `server/api/games.ts` | Owns game HTTP and WebSocket routes, authorization, and persistence of engine results. | `UNCLEAR`: one plugin mixes transport with action orchestration. |
 | `server/api/gamesHelpers.ts` | Builds responses and action events, translates scenarios, and selects the winner. | `DUP`: scenario victory lives here, not in `phases.ts`. `UNCLEAR`: weapon type is also inferred from id prefixes. |
 | `server/api/auth.ts` | Owns registration and login routes. | |

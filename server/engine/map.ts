@@ -2,8 +2,8 @@ import logger from '#server/logger'
 /**
  * Hex grid and terrain management for the Onion game engine.
  *
- * Provides utilities for working with hexagonal grids, terrain effects,
- * line-of-sight calculations, and movement pathfinding.
+ * Provides utilities for working with hexagonal grids, terrain effects, and
+ * legacy line-of-sight calculations.
  */
 
 import type { HexPos } from '#shared/types/index'
