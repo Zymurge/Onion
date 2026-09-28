@@ -8,7 +8,7 @@ import {
   movementCost,
 } from '#server/engine/map'
 import type { GameMap, Hex } from '#server/engine/map'
-import { getNeighbors, hexDistance } from '#shared/hex'
+import { getNeighbors, hexDistance } from '#shared/axialHex'
 import logger from '#server/logger'
 
 let infoSpy: ReturnType<typeof vi.spyOn>

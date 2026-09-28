@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import type { FastifyInstance } from 'fastify'
-import { getNeighbors, hexDistance, type HexPos } from '#shared/hex'
+import { getNeighbors, hexDistance, type HexPos } from '#shared/axialHex'
 import { translateScenarioCoord } from '#shared/scenarioMap'
 import { getUnitTypeCatalog } from '#shared/unitDefinitions'
 import type { Command, DefenderUnit, EventEnvelope, GameState, OnionUnit, StackRosterGroupState } from '#shared/types/index'

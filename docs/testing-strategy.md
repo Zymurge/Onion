@@ -19,7 +19,7 @@ When a behavior crosses layers, test the narrowest stable boundary that owns the
 | Backend pure helpers | Pure deterministic shared utilities on the backend side | `test/shared/*.test.ts` | Keeps shared math/rules tests grouped by purpose |
 | Web transport seam contract | `GameClient`, `httpGameClient`, error normalization, snapshot mapping, event polling | `test/web/lib/transport/*.test.ts` | Test the adapter directly, not the UI |
 | Web session/controller | `gameSessionController`, `useGameSession`, live signal handling, refresh policy | `test/web/lib/session/*.test.ts*` | Keep controller behavior testable without React rendering |
-| Pure web helpers | `hex`, `combatRange`, `combatResolution`, `combatPreview` | `test/web/lib/pure/*.test.ts` | Fast deterministic helper coverage |
+| Pure web helpers | `hexPixelLayout`, `combatRange`, `combatResolution`, `combatPreview` | `test/web/lib/pure/*.test.ts` | Fast deterministic helper coverage |
 | App orchestration | `commitClientAction`, refresh, connection gate, stale-load protection, local error state | `test/web/app/**/*.test.tsx` | Component-level, with injected client |
 | Component rendering | Presentation components and view-only behavior | `test/web/components/*.test.tsx` | Render tests only, no transport policy |
 | Server configuration | Environment parsing and configuration consumers | `test/server/config/*.test.ts` | Pure configuration behavior; no live services |

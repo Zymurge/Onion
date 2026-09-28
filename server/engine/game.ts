@@ -84,6 +84,9 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
     newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, phase: engineFrom, from: engineFrom, to: phase, turnNumber });
   }
 
+  state.currentPhase = phase;
+  state.turn = turnNumber;
+
   const result = { phase, turnNumber, state, newEvents };
   logger.debug({ result }, 'advancePhaseWithEvents result');
   return result;

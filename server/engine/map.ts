@@ -7,7 +7,7 @@ import logger from '#server/logger'
  */
 
 import type { HexPos } from '#shared/types/index'
-import { getNeighbors, hexDistance, hexKey } from '#shared/hex'
+import { getNeighbors, hexDistance, hexKey } from '#shared/axialHex'
 
 /**
  * Terrain types that can exist on hexes.

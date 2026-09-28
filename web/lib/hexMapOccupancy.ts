@@ -2,7 +2,7 @@ import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView.js
 import { getBattlefieldPosition } from './battlefieldView.js'
 import { resolveBattlefieldDisplayName } from './battlefieldNaming.js'
 import { isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog.js'
-import { hexKey } from '../../shared/hex.js'
+import { hexKey } from '../../shared/axialHex.js'
 
 export type HexOccupant = BattlefieldUnit | BattlefieldOnionView
 

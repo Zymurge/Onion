@@ -1,4 +1,4 @@
-import { hexKey, hexesWithinRange } from '../../shared/hex'
+import { hexKey, hexesWithinRange } from '../../shared/axialHex'
 
 export type CombatRangeSource = {
   q: number

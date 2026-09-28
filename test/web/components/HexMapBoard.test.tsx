@@ -363,7 +363,7 @@ import '@testing-library/jest-dom/vitest'
 import { describe, expect, it, vi } from 'vitest'
 
 import { HexMapBoard as ProductionHexMapBoard } from '#web/components/HexMapBoard'
-import { boardPixelSize } from '#web/lib/hex'
+import { boardPixelSize } from '#web/lib/hexPixelLayout'
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '#web/lib/battlefieldView'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'

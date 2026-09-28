@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { hexDistance, hexKey, hexesWithinRange } from '../../../../shared/hex'
-import { axialToPixel, boardPixelSize } from '../../../../web/lib/hex'
+import { hexDistance, hexKey, hexesWithinRange } from '../../../../shared/axialHex'
+import { axialToPixel, boardPixelSize } from '../../../../web/lib/hexPixelLayout'
 
 describe('hexDistance', () => {
   it('returns 0 for the same hex', () => {

@@ -8,7 +8,7 @@ import logger from '#server/logger'
 
 import type { Command, DefenderUnit, GameState, GameUnit, OnionUnit } from '#shared/types/index'
 import type { GameMap } from '#server/engine/map'
-import { hexDistance } from '#shared/hex'
+import { hexDistance } from '#shared/axialHex'
 import {
   createCombatCalculator,
   calculateCrtOddsBand,

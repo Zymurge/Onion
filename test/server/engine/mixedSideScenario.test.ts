@@ -2,12 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { createMap, type GameMap } from '#server/engine/map'
 import { executeUnitMovement, validateUnitMovement } from '#server/engine/movement'
 import { validateCombatAction, executeCombatAction } from '#server/engine/combat'
-import { advancePhase } from '#server/engine/phases'
+import { advancePhaseWithEvents } from '#server/engine/game'
 import { InitialStateSchema } from '#server/engine/scenarioSchema'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
 import { makeMixedSideInitialState } from '#test/utils/mixedSideScenario'
 
 const CLEAR_MAP: GameMap = createMap(5, 5, [])
+
+function advanceState(state: ReturnType<typeof makeMixedSideState>) {
+	const result = advancePhaseWithEvents({
+		phase: state.currentPhase,
+		turnNumber: state.turn,
+		state,
+		events: [],
+	})
+	return result.state
+}
 
 function makeMixedSideState() {
 	return normalizeInitialStateToGameState(InitialStateSchema.parse(makeMixedSideInitialState()))
@@ -54,26 +64,27 @@ describe('mixed-side scenario engine behavior', () => {
 	})
 
 	it('applies phase-entry effects to units according to their side collections', () => {
-		const state = makeMixedSideState()
+		let state = makeMixedSideState()
 		const onionSideUnit = state.onions['onion-puss']
 		const defenderSideUnit = state.defenders['defender-onion']
 		const onionWeapon = onionSideUnit.weapons.find((weapon) => weapon.state === 'ready')
 		if (onionWeapon === undefined) throw new Error('Mixed-side fixture needs a ready Onion-side weapon')
+		const onionWeaponId = onionWeapon.id
 
 		onionWeapon.state = 'spent'
 		defenderSideUnit.state = 'disabled'
 		state.currentPhase = 'GEV_SECOND_MOVE'
 
-		advancePhase(state)
+		state = advanceState(state)
 
 		expect(state.currentPhase).toBe('ONION_MOVE')
-		expect(onionWeapon.state).toBe('ready')
-		expect(defenderSideUnit.state).toBe('recovering')
+		expect(state.onions['onion-puss'].weapons.find((weapon) => weapon.id === onionWeaponId)?.state).toBe('ready')
+		expect(state.defenders['defender-onion'].state).toBe('recovering')
 
 		state.currentPhase = 'ONION_COMBAT'
-		advancePhase(state)
+		state = advanceState(state)
 
 		expect(state.currentPhase).toBe('DEFENDER_MOVE')
-		expect(defenderSideUnit.state).toBe('operational')
+		expect(state.defenders['defender-onion'].state).toBe('operational')
 	})
 })

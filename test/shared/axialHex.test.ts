@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createAxialRegion, getNeighbors, hexDistance, hexKey, hexesWithinRange } from '#shared/hex'
+import { createAxialRegion, getNeighbors, hexDistance, hexKey, hexesWithinRange } from '#shared/axialHex'
 
 describe('shared hex primitives', () => {
 	describe('hexDistance', () => {

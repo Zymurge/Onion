@@ -9,7 +9,7 @@ import {
   registerAndLoginUser,
   type ScenarioMap,
 } from './integration.helpers.js'
-import { hexDistance } from '#shared/hex'
+import { hexDistance } from '#shared/axialHex'
 import { getUnitDefinition } from '#server/engine/units'
 import { getOnion } from '#shared/unitState'
 import { UnitWeapons } from '#shared/unitWeapons'

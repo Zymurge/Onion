@@ -1,4 +1,4 @@
-import { getNeighbors, hexKey, type HexPos } from './hex.js'
+import { getNeighbors, hexKey, type HexPos } from './axialHex.js'
 import {
 	canStopOnOccupiedHex,
 	canTraverseOccupiedHex,

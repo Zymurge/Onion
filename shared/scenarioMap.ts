@@ -1,4 +1,4 @@
-import { createAxialRegion, hexKey, type HexPos } from './hex.js'
+import { createAxialRegion, hexKey, type HexPos } from './axialHex.js'
 
 export type ScenarioTerrainHex = {
 	q: number

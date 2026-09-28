@@ -37,7 +37,7 @@ When introducing or renaming source files it is imperative to update this docume
 | CRT letters | `server/engine/combat.ts` CRT constant | The table in [game-rules.md](game-rules.md) currently matches. It does not override the code |
 | Onion tread movement bands | `shared/movementAllowance.ts` | Catalog `treadsPerMove` is declared but not read by that function |
 | Stack damage, one missile per turn, or Onion subsystem results | `server/engine/combat.ts` | [game-rules.md](game-rules.md) describes the same behavior. Do not edit the prose alone |
-| Phases and recovery | [game-rules.md](game-rules.md) L203-L223 | `server/engine/game.ts` is the API path. `server/engine/phases.ts` owns phase order, but its advance function is a second mutator. |
+| Phases and recovery | [game-rules.md](game-rules.md) L203-L223 | `server/engine/game.ts` owns phase advancement, recovery maintenance, and phase events. `server/engine/phases.ts` owns phase order, actors, and reusable cleanup helpers. |
 | Victory objectives | [scenario-schema.md](scenario-schema.md) | `server/api/gamesHelpers.ts` selects the winner. `server/engine/phases.ts` is only the no-objective immobilized-Onion fallback. The victory prose in [game-rules.md](game-rules.md) does not override the scenario |
 | Scenario JSON authoring | [scenario-schema.md](scenario-schema.md) | `scenarios/` and `server/engine/scenarioSchema.ts` |
 | Invalid snapshots or read retry | [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md) | Do not also load the API or web copies |
@@ -89,7 +89,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `shared/targetRules.ts` | Decides whether a weapon may target a unit type. | |
 | `shared/rammingCalculator.ts` | Decides ram tread cost and destruction outcome. | |
 | `shared/combatTarget.ts` | Formats and parses tread and subsystem target ids. | |
-| `shared/hex.ts` | Owns axial distance, neighbors, and hex keys. | `UNCLEAR`: same filename as `web/lib/hex.ts`, which owns pixel layout. |
+| `shared/axialHex.ts` | Owns axial distance, neighbors, and hex keys. | |
 | `shared/scenarioMap.ts` | Materializes an authored map and tests position membership. | |
 | `shared/unitState.ts` | Looks up live units and reports weapon availability. | `D+M`: weapon destruction mutates the unit. `DUP`: second-move, immobile, and defense helpers overlap the movement facade and combat calculator. |
 | `shared/unitWeapons.ts` | Mutates one weapon list for spend, recharge, and destroy. | `D+M` |
@@ -99,8 +99,8 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/engine/movement.ts` | Adapts engine state to the shared move validator and applies the accepted plan. | `D+M`. `WRAP`: occupancy, blocking, traverse, rammed-unit, and ramming exports are not the live legality path. |
 | `server/engine/combat.ts` | Validates FIRE, rolls the CRT, and applies damage. | `D+M`. `WRAP`: `calculateEngineCombatOdds` delegates to the shared odds band. |
 | `server/engine/map.ts` | Builds the engine map and tests hex membership. | `WRAP`: pathfinding, line of sight, and movement cost are test-only legacy. |
-| `server/engine/phases.ts` | Owns phase order, phase actor, and in-place recovery. | `D+M`. `DUP`: its advance function is not the API path, and its victory check is only the no-objective fallback. |
-| `server/engine/game.ts` | Advances a match phase for the API and emits phase events. | `D+M`. `DUP`: repeats phase maintenance instead of calling `phases.ts`. |
+| `server/engine/phases.ts` | Owns phase order, phase actor, and reusable destroyed-unit cleanup helpers. | `D+M`: cleanup helpers mutate the supplied state. Its victory check is only the no-objective fallback. |
+| `server/engine/game.ts` | Owns phase advancement, recovery maintenance, state metadata, and phase events for the API. | `D+M` |
 | `server/engine/scenarioSchema.ts` | Validates authored scenario JSON. | |
 | `server/engine/scenarioNormalizer.ts` | Builds the initial game state from scenario deployments. | |
 | `server/engine/units.ts` | Re-exports catalog, unit-state, and allowance helpers. | `WRAP`: not an owner. |
@@ -133,7 +133,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `web/lib/battlefieldViewBuilders.ts` | Builds live unit, map, and range display models. | |
 | `web/lib/battlefieldGroupProjection.ts` | Projects the shared roster index for rails and the board. | |
 | `web/lib/battlefieldNaming.ts` | Resolves display labels from shared naming data. | Does not own group identity. |
-| `web/lib/hex.ts` | Converts axial coordinates to pixel layout. | `UNCLEAR`: same filename as `shared/hex.ts`. |
+| `web/lib/hexPixelLayout.ts` | Converts axial coordinates to pixel layout. | |
 | `web/lib/combatOdds.ts` | Formats preview odds through the shared CRT band. | `WRAP` |
 | `web/lib/combatPreview.ts` | Builds combat target options for display. | |
 | `web/lib/sessionCatalog.ts` | Reads the catalog payload supplied to the session. | Not a second numeric catalog. |

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { TURN_PHASES, nextPhase, phaseActor, checkVictoryConditions, advancePhase } from '#server/engine/phases'
+import { advancePhaseWithEvents } from '#server/engine/game'
+import { TURN_PHASES, nextPhase, phaseActor, checkVictoryConditions } from '#server/engine/phases'
 import type { GameState, Weapon } from '#server/engine/units'
 import { makeDefender as makeUnit, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 
@@ -94,7 +95,7 @@ describe('checkVictoryConditions', () => {
 
 })
 
-describe('advancePhase', () => {
+describe('advancePhaseWithEvents', () => {
   function makeState(phase: GameState['currentPhase'] = 'ONION_MOVE', defenders: GameState['defenders'] = {}): GameState {
     return makeGameState({
       onions: { onion: makeOnion({ unitId: 'onion' }) },
@@ -104,34 +105,44 @@ describe('advancePhase', () => {
     })
   }
 
+  function advanceState(state: GameState): void {
+    const result = advancePhaseWithEvents({
+      phase: state.currentPhase,
+      turnNumber: state.turn,
+      state,
+      events: [],
+    })
+    Object.assign(state, result.state)
+  }
+
   it('advances from ONION_MOVE to ONION_COMBAT', () => {
     const state = makeState('ONION_MOVE')
-    advancePhase(state)
+    advanceState(state)
     expect(state.currentPhase).toBe('ONION_COMBAT')
   })
 
   it('advances from ONION_COMBAT through DEFENDER_RECOVERY to DEFENDER_MOVE (auto-process)', () => {
     const state = makeState('ONION_COMBAT')
-    advancePhase(state)
+    advanceState(state)
     // DEFENDER_RECOVERY is engine-controlled and auto-advances
     expect(state.currentPhase).toBe('DEFENDER_MOVE')
   })
 
   it('advances from DEFENDER_MOVE to DEFENDER_COMBAT', () => {
     const state = makeState('DEFENDER_MOVE')
-    advancePhase(state)
+    advanceState(state)
     expect(state.currentPhase).toBe('DEFENDER_COMBAT')
   })
 
   it('advances from DEFENDER_COMBAT to GEV_SECOND_MOVE', () => {
     const state = makeState('DEFENDER_COMBAT')
-    advancePhase(state)
+    advanceState(state)
     expect(state.currentPhase).toBe('GEV_SECOND_MOVE')
   })
 
   it('advances from GEV_SECOND_MOVE to ONION_MOVE (new turn)', () => {
     const state = makeState('GEV_SECOND_MOVE')
-    advancePhase(state)
+    advanceState(state)
     expect(state.currentPhase).toBe('ONION_MOVE')
   })
 
@@ -139,14 +150,14 @@ describe('advancePhase', () => {
     it('increments turn counter', () => {
       const state = makeState('GEV_SECOND_MOVE')
       expect(state.turn).toBe(1)
-      advancePhase(state)
+      advanceState(state)
       expect(state.turn).toBe(2)
     })
 
     it('resets Onion ramsRemaining to 2', () => {
       const state = makeState('GEV_SECOND_MOVE')
       state.onions.onion.ramsRemaining = 0
-      advancePhase(state)
+      advanceState(state)
       expect(state.onions.onion.ramsRemaining).toBe(2)
     })
 
@@ -157,7 +168,7 @@ describe('advancePhase', () => {
         destroyed: makeOnion({ unitId: 'destroyed', state: 'destroyed' }),
       }
 
-      advancePhase(state)
+      advanceState(state)
 
       expect(state.onions).toEqual({ alive: expect.objectContaining({ unitId: 'alive', treads: 12 }) })
       expect(state.onions.destroyed).toBeUndefined()
@@ -169,7 +180,7 @@ describe('advancePhase', () => {
         wolf: makeUnit({ unitId: 'wolf', typeId: 'BigBadWolf', state: 'disabled' }),
         healthy: makeUnit({ unitId: 'healthy', state: 'operational' }),
       })
-      advancePhase(state)
+      advanceState(state)
       expect(state.defenders['puss'].state).toBe('recovering')
       expect(state.defenders['wolf'].state).toBe('recovering')
       expect(state.defenders['healthy'].state).toBe('operational')
@@ -179,7 +190,7 @@ describe('advancePhase', () => {
       const state = makeState('GEV_SECOND_MOVE', {
         unit: makeUnit({ unitId: 'unit', state: 'recovering' }),
       })
-      advancePhase(state)
+      advanceState(state)
       // recovering stays recovering — it will become operational next recovery phase
       expect(state.defenders['unit'].state).toBe('recovering')
     })
@@ -196,7 +207,7 @@ describe('advancePhase', () => {
         } satisfies Weapon,
       ]
 
-      advancePhase(state)
+      advanceState(state)
       expect(state.onions.onion.weapons[0].state).toBe('ready')
     })
   })
@@ -208,7 +219,7 @@ describe('advancePhase', () => {
         wolf: makeUnit({ unitId: 'wolf', typeId: 'BigBadWolf', state: 'recovering' }),
         newlyDisabled: makeUnit({ unitId: 'newlyDisabled', state: 'disabled' }),
       })
-      advancePhase(state)
+      advanceState(state)
       expect(state.currentPhase).toBe('DEFENDER_MOVE')
       expect(state.defenders['puss'].state).toBe('operational')
       expect(state.defenders['wolf'].state).toBe('operational')
@@ -222,7 +233,7 @@ describe('advancePhase', () => {
         dead: makeUnit({ unitId: 'dead', state: 'destroyed' }),
         swamp: makeUnit({ unitId: 'swamp', typeId: 'Swamp', state: 'destroyed' }),
       })
-      advancePhase(state)
+      advanceState(state)
       expect(state.defenders['alive'].state).toBe('operational')
       expect(state.defenders['dead']).toBeUndefined()
       expect(state.defenders['swamp']).toMatchObject({ typeId: 'Swamp', state: 'destroyed' })
@@ -239,7 +250,7 @@ describe('advancePhase', () => {
         },
       })
 
-      advancePhase(state)
+      advanceState(state)
 
       expect(state.defenders['pigs-1']).toBeUndefined()
       expect(state.stackRoster.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-2'])
