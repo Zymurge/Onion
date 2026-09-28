@@ -1,10 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
-  getOccupyingUnit,
-  isMovementBlocked,
-  canMoveThrough,
-  calculateRamming,
-  getRammedUnits,
   validateUnitMovement,
   executeUnitMovement,
   reconcileStackStateAfterMoves,
@@ -13,31 +8,14 @@ import { createMap } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
 import type { MovementPlan } from '#server/engine/movement'
 import type { GameState } from '#server/engine/units'
-import logger from '#server/logger'
 import { buildStackRosterFromUnits } from '#shared/stackRoster'
 import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 import { createRollQueue } from '#test/utils/rollQueue'
-
-let infoSpy: { mockRestore: () => void }, warnSpy: { mockRestore: () => void }, errorSpy: { mockRestore: () => void };
-
-beforeEach(() => {
-  infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
-  warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
-  errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
-});
-
-afterEach(() => {
-  infoSpy.mockRestore();
-  warnSpy.mockRestore();
-  errorSpy.mockRestore();
-});
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /** 5×5 all-clear map */
 const CLEAR_MAP: GameMap = createMap(5, 5, [])
-/** 5×5 map with a crater at (2,2) */
-const CRATER_MAP: GameMap = createMap(5, 5, [{ q: 2, r: 2, t: 2 }])
 
 type MovementStateOverrides = Partial<GameState> & { ramsRemaining?: number }
 
@@ -52,167 +30,6 @@ function makeState({ ramsRemaining = 2, ...overrides }: MovementStateOverrides =
     ...overrides,
   })
 }
-
-// ─── getOccupyingUnit ────────────────────────────────────────────────────────
-
-describe('getOccupyingUnit', () => {
-  it('returns null when no units are at the position', () => {
-    const state = makeState()
-    expect(getOccupyingUnit(state, { q: 1, r: 1 })).toBeNull()
-  })
-
-  it('returns the Onion when it occupies the position', () => {
-    const state = makeState({ onions: { onion: makeOnion({ unitId: 'onion', position: { q: 1, r: 1 } }) } })
-    expect(getOccupyingUnit(state, { q: 1, r: 1 })).toBe(state.onions.onion)
-  })
-
-  it('returns the defender when it occupies the position', () => {
-    const defender = makeDefender({ unitId: 'd1', position: { q: 3, r: 2 } })
-    const state = makeState({ defenders: { d1: defender } })
-    expect(getOccupyingUnit(state, { q: 3, r: 2 })).toBe(defender)
-  })
-
-  it('returns null when the only occupant is excluded', () => {
-    const defender = makeDefender({ unitId: 'd1', position: { q: 3, r: 2 } })
-    const state = makeState({ defenders: { d1: defender } })
-    expect(getOccupyingUnit(state, { q: 3, r: 2 }, 'd1')).toBeNull()
-  })
-})
-
-// ─── isMovementBlocked ───────────────────────────────────────────────────────
-
-describe('isMovementBlocked', () => {
-  it('returns false for an empty in-bounds clear hex', () => {
-    const state = makeState()
-    expect(isMovementBlocked(CLEAR_MAP, state, { q: 1, r: 1 })).toBe(false)
-  })
-
-  it('returns true for a crater', () => {
-    const state = makeState()
-    expect(isMovementBlocked(CRATER_MAP, state, { q: 2, r: 2 })).toBe(true)
-  })
-
-  it('returns true for an out-of-bounds position', () => {
-    const state = makeState()
-    expect(isMovementBlocked(CLEAR_MAP, state, { q: 10, r: 10 })).toBe(true)
-  })
-
-  it('returns true when hex is occupied by a unit', () => {
-    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 1 } })
-    const state = makeState({ defenders: { d1: defender } })
-    expect(isMovementBlocked(CLEAR_MAP, state, { q: 1, r: 1 })).toBe(true)
-  })
-
-  it('returns false when the only occupant is excluded', () => {
-    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 1 } })
-    const state = makeState({ defenders: { d1: defender } })
-    expect(isMovementBlocked(CLEAR_MAP, state, { q: 1, r: 1 }, 'd1')).toBe(false)
-  })
-})
-
-// ─── canMoveThrough ──────────────────────────────────────────────────────────
-
-describe('canMoveThrough', () => {
-  it('returns true when the Onion moves through a defender hex (ramming)', () => {
-    const onion = makeOnion()
-    const defender = makeDefender()
-    expect(canMoveThrough(onion, defender, 'onion')).toBe(true)
-  })
-
-  it('returns true when a defender moves through a friendly defender hex', () => {
-    const mover = makeDefender({ unitId: 'd1' })
-    const occupier = makeDefender({ unitId: 'd2' })
-    expect(canMoveThrough(mover, occupier, 'defender')).toBe(true)
-  })
-
-  it('returns false when a defender tries to move through the Onion hex', () => {
-    const mover = makeDefender()
-    const onion = makeOnion()
-    expect(canMoveThrough(mover, onion, 'defender')).toBe(false)
-  })
-})
-
-// ─── calculateRamming ────────────────────────────────────────────────────────
-
-describe('calculateRamming', () => {
-  it('LittlePigs: treadCost is 0 and roll 1–4 destroys the unit', () => {
-    const pigs = makeDefender({ typeId: 'LittlePigs' })
-    expect(calculateRamming(pigs, 1)).toEqual({ treadCost: 0, destroyed: true })
-    expect(calculateRamming(pigs, 4)).toEqual({ treadCost: 0, destroyed: true })
-  })
-
-  it('LittlePigs: treadCost is 0 and roll 5–6 does not destroy', () => {
-    const pigs = makeDefender({ typeId: 'LittlePigs' })
-    expect(calculateRamming(pigs, 5)).toEqual({ treadCost: 0, destroyed: false })
-    expect(calculateRamming(pigs, 6)).toEqual({ treadCost: 0, destroyed: false })
-  })
-
-  it('armor unit (Puss): treadCost is 1 and roll 1–4 destroys', () => {
-    const puss = makeDefender({ typeId: 'Puss' })
-    expect(calculateRamming(puss, 1)).toEqual({ treadCost: 1, destroyed: true })
-    expect(calculateRamming(puss, 4)).toEqual({ treadCost: 1, destroyed: true })
-  })
-
-  it('armor unit (Puss): treadCost is 1 and roll 5–6 does not destroy', () => {
-    const puss = makeDefender({ typeId: 'Puss' })
-    expect(calculateRamming(puss, 5)).toEqual({ treadCost: 1, destroyed: false })
-    expect(calculateRamming(puss, 6)).toEqual({ treadCost: 1, destroyed: false })
-  })
-
-  it('Dragon: treadCost is 2 and roll 1–4 destroys', () => {
-    const dragon = makeDefender({ typeId: 'Dragon' })
-    expect(calculateRamming(dragon, 1)).toEqual({ treadCost: 2, destroyed: true })
-    expect(calculateRamming(dragon, 4)).toEqual({ treadCost: 2, destroyed: true })
-  })
-
-  it('Dragon: treadCost is 2 and roll 5–6 does not destroy', () => {
-    const dragon = makeDefender({ typeId: 'Dragon' })
-    expect(calculateRamming(dragon, 5)).toEqual({ treadCost: 2, destroyed: false })
-    expect(calculateRamming(dragon, 6)).toEqual({ treadCost: 2, destroyed: false })
-  })
-})
-
-// ─── getRammedUnits ──────────────────────────────────────────────────────────
-
-describe('getRammedUnits', () => {
-  it('returns empty array for an empty path', () => {
-    const state = makeState()
-    expect(getRammedUnits(CLEAR_MAP, state, [])).toEqual([])
-  })
-
-  it('returns empty array when no defenders lie on the path', () => {
-    const state = makeState()
-    const path = [{ q: 1, r: 0 }, { q: 2, r: 0 }]
-    expect(getRammedUnits(CLEAR_MAP, state, path)).toEqual([])
-  })
-
-  it('returns the unit ID when a defender lies on the path', () => {
-    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
-    const state = makeState({ defenders: { d1: defender } })
-    const path = [{ q: 1, r: 0 }, { q: 2, r: 0 }]
-    expect(getRammedUnits(CLEAR_MAP, state, path)).toEqual(['d1'])
-  })
-
-  it('returns multiple IDs when multiple defenders lie on the path', () => {
-    const d1 = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
-    const d2 = makeDefender({ unitId: 'd2', position: { q: 2, r: 0 } })
-    const state = makeState({ defenders: { d1, d2 } })
-    const path = [{ q: 1, r: 0 }, { q: 2, r: 0 }]
-    const result = getRammedUnits(CLEAR_MAP, state, path)
-    expect(result).toHaveLength(2)
-    expect(result).toContain('d1')
-    expect(result).toContain('d2')
-  })
-
-  it('ignores destroyed defenders on the path', () => {
-    const liveDefender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
-    const destroyedDefender = makeDefender({ unitId: 'd2', position: { q: 1, r: 0 }, state: 'destroyed' })
-    const state = makeState({ defenders: { d1: liveDefender, d2: destroyedDefender } })
-    const path = [{ q: 1, r: 0 }]
-
-    expect(getRammedUnits(CLEAR_MAP, state, path)).toEqual(['d1'])
-  })
-})
 
 // ─── validateUnitMovement ────────────────────────────────────────────────────
 

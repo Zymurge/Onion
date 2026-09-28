@@ -144,6 +144,26 @@ function validateMovePlan(
   return toMovementValidation(validateSharedMove(toMoveMapSnapshot(map, state, command.unitId), state, command))
 }
 
+function findOccupyingUnit(
+  state: EngineGameState,
+  pos: HexPos,
+  excludeUnitId?: string
+): GameUnit | null {
+  for (const onion of Object.values(state.onions)) {
+    if (onion.unitId !== excludeUnitId &&
+      onion.position.q === pos.q && onion.position.r === pos.r) {
+      return onion
+    }
+  }
+  for (const unit of Object.values(state.defenders)) {
+    if (unit.unitId !== excludeUnitId &&
+      unit.position.q === pos.q && unit.position.r === pos.r) {
+      return unit
+    }
+  }
+  return null
+}
+
 function toMovementValidation(result: SharedMoveValidationResult): MovementValidation {
   if (!result.valid) {
     return { ok: false, code: result.code, error: result.error }
@@ -362,25 +382,14 @@ export function executeUnitMovement(
  * @param pos - Position to check
  * @param excludeUnitId - Unit ID to exclude from check (for movement validation)
  * @returns The occupying unit, or null if empty
+ * @deprecated Use shared movement validation instead.
  */
 export function getOccupyingUnit(
   state: EngineGameState,
   pos: HexPos,
   excludeUnitId?: string
 ): GameUnit | null {
-  for (const onion of Object.values(state.onions)) {
-    if (onion.unitId !== excludeUnitId &&
-        onion.position.q === pos.q && onion.position.r === pos.r) {
-      return onion
-    }
-  }
-  for (const unit of Object.values(state.defenders)) {
-    if (unit.unitId !== excludeUnitId &&
-        unit.position.q === pos.q && unit.position.r === pos.r) {
-      return unit
-    }
-  }
-  return null
+  return findOccupyingUnit(state, pos, excludeUnitId)
 }
 
 /**
@@ -390,6 +399,7 @@ export function getOccupyingUnit(
  * @param to - Target position
  * @param excludeUnitId - Unit ID to exclude from blocking checks
  * @returns True if the hex cannot be entered
+ * @deprecated Use shared movement validation instead.
  */
 export function isMovementBlocked(
   map: GameMap,
@@ -400,7 +410,7 @@ export function isMovementBlocked(
   if (!isInBounds(map, to)) return true
   const hex = map.hexes[`${to.q},${to.r}`]
   if (!hex || hex.terrain === 'crater') return true
-  return getOccupyingUnit(state, to, excludeUnitId) !== null
+  return findOccupyingUnit(state, to, excludeUnitId) !== null
 }
 
 /**
@@ -408,6 +418,7 @@ export function isMovementBlocked(
  * @param rammedUnit - Unit being rammed
  * @param roll - Optional fixed die roll for testing (1-6); rolls 1d6 if omitted
  * @returns Object with tread cost and destruction result
+ * @deprecated Use calculateRamming from shared/rammingCalculator instead.
  */
 export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
   treadCost: number
@@ -422,6 +433,7 @@ export function calculateRamming(rammedUnit: DefenderUnit, roll?: number): {
  * @param occupyingUnit - Unit occupying the target hex
  * @param movingRole - Player role; retained for API compatibility
  * @returns True if movement is allowed
+ * @deprecated Use shared movement validation instead.
  */
 export function canMoveThrough(
   movingUnit: GameUnit,
@@ -440,6 +452,7 @@ export function canMoveThrough(
  * @param state - Current game state
  * @param path - Movement path
  * @returns Array of unit IDs that would be rammed
+ * @deprecated Use the rammed unit IDs from shared movement validation instead.
  */
 export function getRammedUnits(
   map: GameMap,

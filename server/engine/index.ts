@@ -18,9 +18,6 @@ export {
   createMap,
   getHex,
   isInBounds,
-  hasLineOfSight,
-  findPath,
-  movementCost,
 } from '#server/engine/map'
 
 // Unit definitions and capabilities
@@ -70,11 +67,6 @@ export {
   executeOnionMovement,
   executeUnitMovement,
   reconcileStackStateAfterMoves,
-  getOccupyingUnit,
-  isMovementBlocked,
-  calculateRamming,
-  canMoveThrough,
-  getRammedUnits,
 } from '#server/engine/movement'
 
 export { resolveRammingOutcome } from '#shared/rammingCalculator'

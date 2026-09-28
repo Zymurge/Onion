@@ -3,26 +3,17 @@ import {
   createMap,
   getHex,
   isInBounds,
-  hasLineOfSight,
-  findPath,
-  movementCost,
 } from '#server/engine/map'
-import type { GameMap, Hex } from '#server/engine/map'
+import type { GameMap } from '#server/engine/map'
 import { getNeighbors, hexDistance } from '#shared/axialHex'
 import logger from '#server/logger'
 
-let infoSpy: ReturnType<typeof vi.spyOn>
 let warnSpy: ReturnType<typeof vi.spyOn>
-let errorSpy: ReturnType<typeof vi.spyOn>
 beforeEach(() => {
-  infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
   warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
-  errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 })
 afterEach(() => {
-  infoSpy.mockRestore()
   warnSpy.mockRestore()
-  errorSpy.mockRestore()
 })
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -103,7 +94,6 @@ describe('createMap', () => {
     expect(isInBounds(map, { q: 4, r: 4 })).toBe(false)
   })
 })
-
 // ─── getHex ───────────────────────────────────────────────────────────────────
 
 describe('getHex', () => {
@@ -147,7 +137,6 @@ describe('getHex', () => {
     expect(warnSpy).toHaveBeenCalledWith({ pos: { q: 3, r: 3 } }, expect.stringContaining('out of bounds'))
   })
 })
-
 // ─── isInBounds ───────────────────────────────────────────────────────────────
 
 describe('isInBounds', () => {
@@ -233,165 +222,5 @@ describe('getNeighbors', () => {
     for (const exp of expected) {
       expect(neighbors).toContainEqual(exp)
     }
-  })
-})
-
-// ─── movementCost ─────────────────────────────────────────────────────────────
-
-describe('movementCost', () => {
-  const makeHex = (q: number, r: number, terrain: Hex['terrain']): Hex => ({ q, r, terrain })
-
-  it('returns 1 for clear terrain', () => {
-    expect(movementCost(makeHex(0, 0, 'clear'), false)).toBe(1)
-    expect(movementCost(makeHex(0, 0, 'clear'), true)).toBe(1)
-  })
-
-  it('returns 2 for ridgeline when unit can cross', () => {
-    expect(movementCost(makeHex(0, 0, 'ridgeline'), true)).toBe(2)
-  })
-
-  it('returns null for ridgeline when unit cannot cross', () => {
-    expect(movementCost(makeHex(0, 0, 'ridgeline'), false)).toBeNull()
-  })
-
-  it('returns null for crater regardless of ridgeline ability', () => {
-    expect(movementCost(makeHex(0, 0, 'crater'), false)).toBeNull()
-    expect(movementCost(makeHex(0, 0, 'crater'), true)).toBeNull()
-  })
-})
-
-// ─── hasLineOfSight ───────────────────────────────────────────────────────────
-
-describe('hasLineOfSight', () => {
-  it('returns hasLOS:true and distance:0 for same hex', () => {
-    const result = hasLineOfSight(clearMap(), { q: 1, r: 1 }, { q: 1, r: 1 })
-    expect(result.hasLOS).toBe(true)
-    expect(result.distance).toBe(0)
-  })
-
-  it('returns correct distance for adjacent hexes', () => {
-    const result = hasLineOfSight(clearMap(), { q: 0, r: 0 }, { q: 1, r: 0 })
-    expect(result.hasLOS).toBe(true)
-    expect(result.distance).toBe(1)
-  })
-
-  it('returns correct distance for far hexes', () => {
-    const result = hasLineOfSight(clearMap(), { q: 0, r: 0 }, { q: 4, r: 0 })
-    expect(result.hasLOS).toBe(true)
-    expect(result.distance).toBe(4)
-  })
-})
-
-// ─── findPath ─────────────────────────────────────────────────────────────────
-
-describe('findPath', () => {
-  it('returns found:false if start is completely surrounded by impassable terrain', () => {
-    const map = createMap(3, 3, [
-      { q: 0, r: 1, t: 2 }, { q: 2, r: 1, t: 2 },
-      { q: 1, r: 0, t: 2 }, { q: 1, r: 2, t: 2 },
-      { q: 0, r: 0, t: 2 }, { q: 2, r: 0, t: 2 },
-      { q: 0, r: 2, t: 2 }, { q: 2, r: 2, t: 2 },
-    ])
-    const result = findPath(map, { q: 1, r: 1 }, { q: 2, r: 2 }, 10, false)
-    expect(result.found).toBe(false)
-    expect(infoSpy).toHaveBeenCalledWith({ from: { q: 1, r: 1 }, to: { q: 2, r: 2 } }, expect.stringContaining('no valid path'))
-  })
-
-  it('returns a deterministic path when multiple shortest paths exist', () => {
-    const map = createMap(3, 3, [])
-    const result = findPath(map, { q: 0, r: 0 }, { q: 2, r: 2 }, 4, false)
-    const secondResult = findPath(map, { q: 0, r: 0 }, { q: 2, r: 2 }, 4, false)
-
-    expect(result.found).toBe(true)
-    expect(result.path.length).toBeGreaterThan(0)
-    expect(result.path[result.path.length - 1]).toEqual({ q: 2, r: 2 })
-    expect(result.path).toEqual(secondResult.path)
-  })
-
-  it('returns found:false for negative or zero movement allowance', () => {
-    const map = createMap(3, 3, [])
-    findPath(map, { q: 0, r: 0 }, { q: 1, r: 0 }, 0, false)
-    expect(infoSpy).toHaveBeenCalledWith({ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }, expect.stringContaining('no valid path'))
-    findPath(map, { q: 0, r: 0 }, { q: 1, r: 0 }, -1, false)
-    expect(infoSpy).toHaveBeenCalledWith({ from: { q: 0, r: 0 }, to: { q: 1, r: 0 } }, expect.stringContaining('no valid path'))
-  })
-
-  it('returns found:true and empty path for same start and end', () => {
-    const result = findPath(clearMap(), { q: 0, r: 0 }, { q: 0, r: 0 }, 3, false)
-    expect(result.found).toBe(true)
-    expect(result.path).toHaveLength(0)
-    expect(result.cost).toBe(0)
-  })
-
-  it('finds a direct path through clear terrain', () => {
-    const result = findPath(clearMap(), { q: 0, r: 0 }, { q: 2, r: 0 }, 3, false)
-    expect(result.found).toBe(true)
-    expect(result.cost).toBe(2)
-    expect(result.path).toHaveLength(2)
-    expect(result.path[result.path.length - 1]).toEqual({ q: 2, r: 0 })
-  })
-
-  it('returns found:false when MA is insufficient', () => {
-    const map = clearMap()
-    const result = findPath(map, { q: 0, r: 0 }, { q: 3, r: 0 }, 2, false)
-
-    expect(result.found).toBe(false)
-  })
-
-  it('finds exactly the path that costs exactly MA', () => {
-    const result = findPath(clearMap(), { q: 0, r: 0 }, { q: 2, r: 0 }, 2, false)
-    expect(result.found).toBe(true)
-    expect(result.cost).toBe(2)
-  })
-
-  it('blocks at crater — no path if crater is the only route', () => {
-    const map = createMap(3, 1, [{ q: 1, r: 0, t: 2 }])
-    const result = findPath(map, { q: 0, r: 0 }, { q: 2, r: 0 }, 5, false)
-
-    expect(result.found).toBe(false)
-  })
-
-  it('goes around crater when an alternate route exists', () => {
-    // Map with crater at (1,0); can route via (0,1)→(1,1)→(2,0) if in-bounds
-    const map = createMap(3, 3, [{ q: 1, r: 0, t: 2 }])
-    // (0,0)→(0,1)→(1,0)×  try (0,0)→(0,1)→(1,1)→(2,0) = cost 3
-    const result = findPath(map, { q: 0, r: 0 }, { q: 2, r: 0 }, 3, false)
-    expect(result.found).toBe(true)
-    expect(result.path[result.path.length - 1]).toEqual({ q: 2, r: 0 })
-  })
-
-  it('blocks at ridgeline when unit cannot cross', () => {
-    // 3×1 map: (0,0) [clear] (1,0) [ridgeline] (2,0) [clear]
-    const map = createMap(3, 1, [{ q: 1, r: 0, t: 1 }])
-    const result = findPath(map, { q: 0, r: 0 }, { q: 2, r: 0 }, 5, false)
-    expect(result.found).toBe(false)
-  })
-
-  it('crosses ridgeline at cost 2 when unit can cross', () => {
-    // 3×1 map: (0,0) [clear] (1,0) [ridgeline] (2,0) [clear]
-    const map = createMap(3, 1, [{ q: 1, r: 0, t: 1 }])
-    // cost: 1 (enter clear) + 2 (cross ridge) = 3... wait, start is excluded.
-    // path: (1,0), (2,0); cost = movementCost(ridge) + movementCost(clear) = 2+1 = 3
-    const result = findPath(map, { q: 0, r: 0 }, { q: 2, r: 0 }, 3, true)
-    expect(result.found).toBe(true)
-    expect(result.cost).toBe(3)
-  })
-
-  it('returns found:false for destination out of bounds', () => {
-    const result = findPath(clearMap(), { q: 0, r: 0 }, { q: 10, r: 10 }, 20, false)
-    expect(result.found).toBe(false)
-  })
-
-  it('returns found:false when the destination is missing from map membership inside the rectangular limits', () => {
-    const map = sparseMap()
-    const result = findPath(map, { q: 0, r: 0 }, { q: 3, r: 3 }, 20, false)
-
-    expect(result.found).toBe(false)
-    expect(result.path).toEqual([])
-    expect(result.cost).toBe(0)
-    expect(warnSpy).toHaveBeenCalledWith(
-      { from: { q: 0, r: 0 }, to: { q: 3, r: 3 } },
-      expect.stringContaining('out of bounds')
-    )
   })
 })

@@ -118,8 +118,15 @@ export function isInBounds(map: GameMap, pos: HexPos): boolean {
 /**
  * Legacy movement-cost helper retained for compatibility.
  * Live command validation uses the shared movement rules instead.
+ * @deprecated Use the shared movement rules through move validation/planning.
  */
 export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | null {
+  if (hex.terrain === 'crater') return null
+  if (hex.terrain === 'ridgeline') return canCrossRidgelines ? 2 : null
+  return 1
+}
+
+function legacyMovementCost(hex: Hex, canCrossRidgelines: boolean): number | null {
   if (hex.terrain === 'crater') return null
   if (hex.terrain === 'ridgeline') return canCrossRidgelines ? 2 : null
   return 1
@@ -128,6 +135,7 @@ export function movementCost(hex: Hex, canCrossRidgelines: boolean): number | nu
 /**
  * Legacy line-of-sight helper retained for compatibility.
  * It is not part of the current live movement or combat command path.
+ * @deprecated Use the combat-specific shared rules instead.
  */
 export function hasLineOfSight(map: GameMap, from: HexPos, to: HexPos): LineOfSightResult {
   // Standard OGRE rules: no terrain-based LOS blocking, purely range-based
@@ -137,6 +145,7 @@ export function hasLineOfSight(map: GameMap, from: HexPos, to: HexPos): LineOfSi
 /**
  * Legacy pathfinder retained for compatibility.
  * Live movement uses the shared move planner instead.
+ * @deprecated Use findMovePath from shared/movePlanner instead.
  */
 export function findPath(
   map: GameMap,
@@ -180,7 +189,7 @@ export function findPath(
     for (const neighbor of getNeighbors(pos)) {
       if (!isInBounds(map, neighbor)) continue
       const hex = getHex(map, neighbor)!
-      const stepCost = movementCost(hex, canCrossRidgelines)
+      const stepCost = legacyMovementCost(hex, canCrossRidgelines)
       if (stepCost === null) continue
       const newCost = cost + stepCost
       if (newCost > movementAllowance) continue
