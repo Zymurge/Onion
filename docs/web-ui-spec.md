@@ -47,8 +47,8 @@ loaded independently.
 
 Load a second spec only when this UI change depends on that contract.
 
-- Command or event payloads: the matching line range in [project-overview.md](project-overview.md) for [api-contract.md](api-contract.md).
-- Displayed combat or movement rules: the matching line range in [project-overview.md](project-overview.md) for [game-rules.md](game-rules.md).
+- Command or event payloads: the matching line range in [agent-start-here.md](agent-start-here.md) for [api-contract.md](api-contract.md).
+- Displayed combat or movement rules: the matching line range in [agent-start-here.md](agent-start-here.md) for [game-rules.md](game-rules.md).
 - Scenario authoring shape: [scenario-schema.md](scenario-schema.md).
 - Invalid snapshots and retries: [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md) only.
 

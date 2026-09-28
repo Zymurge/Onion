@@ -1,6 +1,6 @@
 # Onion Game Rules
 
-Read only the row for the task. Do not read the rest of this file. Owners for numbers and behavior are in [project-overview.md](project-overview.md).
+Read only the row for the task. Do not read the rest of this file. Owners for numbers and behavior are in [agent-start-here.md](agent-start-here.md).
 
 | Need | Lines |
 | --- | --- |

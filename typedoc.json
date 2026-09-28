@@ -25,7 +25,7 @@
   "excludeProtected": true,
   "excludeInternal": true,
   "includeVersion": true,
-  "readme": "docs/project-overview.md",
+  "readme": "docs/agent-start-here.md",
   "categorizeByGroup": true,
   "categoryOrder": [
     "API",
@@ -45,6 +45,6 @@
   "sort": ["source-order"],
   "navigationLinks": {
     "GitHub": "https://github.com/Zymurge/Onion",
-    "Project Overview": "docs/project-overview.md"
+    "Project Overview": "docs/agent-start-here.md"
   }
 }

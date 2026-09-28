@@ -546,7 +546,7 @@ Validation:
 
 ### Step 9. Update Permanent Docs
 
-Status: Completed. The state boundary is documented in [web-ui-spec.md](../web-ui-spec.md), [project-overview.md](../project-overview.md), and the current session-controller architecture documentation.
+Status: Completed. The state boundary is documented in [web-ui-spec.md](../web-ui-spec.md), [agent-start-here.md](../agent-start-here.md), and the current session-controller architecture documentation.
 
 Goal:
 
@@ -555,7 +555,7 @@ Goal:
 Target docs:
 
 - `docs/web-ui-spec.md`
-- `docs/project-overview.md`
+- `docs/agent-start-here.md`
 - the archived or living session-controller architecture docs if they still describe the older mixed snapshot model
 - any stacking docs that mention client-side state ownership ambiguously
 

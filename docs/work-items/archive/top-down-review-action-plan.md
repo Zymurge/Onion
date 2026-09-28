@@ -14,9 +14,9 @@ Suggested order: 1, 4, 3, 2, 5, 8, 6, 7, 9. Item 1 should land first because it 
 
 **Status:** Done.
 
-**Entry:** `docs/project-overview.md` holds the task router and line ranges. Rules and API contracts keep a copy of their own ranges at the top. Persistence is `docs/persistence.md`. Web tasks use `docs/web-ui-spec.md` directly.
+**Entry:** `docs/agent-start-here.md` holds the task router and line ranges. Rules and API contracts keep a copy of their own ranges at the top. Persistence is `docs/persistence.md`. Web tasks use `docs/web-ui-spec.md` directly.
 
-- `docs/project-overview.md` is a product blurb. It is not a contract.
+- `docs/agent-start-here.md` is a product blurb. It is not a contract.
 - Agents load one router row, then one heading or one area spec. They do not open archive, work-items, CLI, configuration, or generated API HTML unless the user names that surface.
 - The matches-versus-game_state boundary lives in `docs/persistence.md`. Smoke scenario names live in `docs/testing-strategy.md`. Phase, recovery, error-code, and name-map text already lived in the rules or API specs and was not copied again.
 
@@ -35,7 +35,7 @@ Suggested order: 1, 4, 3, 2, 5, 8, 6, 7, 9. Item 1 should land first because it 
 
 **Status:** Done.
 
-**Slices:** [project-overview.md](../project-overview.md) names one line range per command and per event family. The same ranges are at the top of `docs/api-contract.md`. If they disagree, the overview wins.
+**Slices:** [agent-start-here.md](../agent-start-here.md) names one line range per command and per event family. The same ranges are at the top of `docs/api-contract.md`. If they disagree, the overview wins.
 
 - WebSocket is current. The old Phase 1 / Phase 2+ framing was removed. `SESSION_INIT` stays with the sync-event slice.
 - The duplicated Scenario Map Loading heading was an editing break. `END_PHASE` is now its own command. The scenario-map rule is a four-line slice, not part of MOVE.

@@ -41,6 +41,6 @@ Hard reload must reconstruct the app from a fresh server snapshot plus empty loc
 
 ## Source Selection
 
-- Start at `docs/project-overview.md`. Load only the spec row for the task, and only the listed line range when one is given.
+- Start at `docs/agent-start-here.md`. Load only the spec row for the task, and only the listed line range when one is given.
 - Do not open `docs/archive/`, `docs/work-items/`, `docs/cli-spec.md`, `docs/configuration.md`, or generated `docs/api/` HTML unless the user names that surface.
 - Prefer the smallest existing abstraction that owns a behavior. Keep domain logic in shared/engine modules and projections or rendering logic in web modules.

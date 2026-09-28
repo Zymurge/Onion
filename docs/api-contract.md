@@ -1,6 +1,6 @@
 # Onion API Contract (v1)
 
-Read only one row. If these ranges disagree with [project-overview.md](project-overview.md), the overview wins. Do not read this file from the top.
+Read only one row. If these ranges disagree with [agent-start-here.md](agent-start-here.md), the overview wins. Do not read this file from the top.
 
 | Need | Lines |
 | --- | --- |
