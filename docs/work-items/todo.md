@@ -112,7 +112,14 @@ break down into features/tasks as needed.
   - [x] Collapse the current split between movement profiles, pathfinding, and stacking rules so terrain entry, cover, and occupancy checks all come from the same unit/terrain definition model.
   - [x] Add a standalone shared ramming calculator that consumes the same unit capability data and resolves tread loss or destruction outcomes.
 - [x] Add more robust server-side logging that includes event details for MOVE and FIRE outcomes.
-- [x] Decompose two large files into modules via the obvious responsibility boundaries in order to improve agent effectiveness: server/api/games.ts and web/App.tsx
+- [x] Decompose two large files into modules via the obvious responsibility boundaries in order to improve agent effectiveness: `server/api/games.ts` and `web/App.tsx`
+  - [x] Split the game API into the route entry point and typed context in `server/api/gameRoutes/index.ts` and `context.ts`.
+  - [x] Move lifecycle, lobby, state, action, WebSocket, diagnostics, and event behavior into focused route modules; keep `games.ts` as the public orchestration surface.
+  - [x] Move END_PHASE, MOVE, and FIRE execution into typed action handlers while preserving persistence, sequencing, authorization, logging, and broadcasts.
+  - [x] Split game helpers into scenario, projection, victory-adapter, event-builder, response, protocol, logging, and ID modules under `server/api/gameHelpers/`.
+  - [x] Preserve compatibility imports through `server/api/games.ts` and `server/api/gamesHelpers.ts` barrels.
+  - [x] Add focused route, handler, helper, WebSocket, diagnostics, event-polling, and regression coverage for the extracted boundaries.
+  - [x] Update `docs/agent-start-here.md` with the final ownership and navigation map.
 - [x] Add a reviewable "Opponent’s Results" stream for the non-active client to surface actions taken by the other side (combat attempts/results, unit destruction, ram outcomes, phase changes).
   - [x] Define the event stream contract: show remote-visible outcomes from persisted events, not the local player's own pending action state.
     - [x] Include combat attempts (even misses), `MOVE_RESOLVED` ram results, `UNIT_STATUS_CHANGED` for destroyed units, and `PHASE_CHANGED` for phase advances.

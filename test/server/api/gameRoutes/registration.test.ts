@@ -5,6 +5,9 @@ import { registerLifecycleRoutes } from '#server/api/gameRoutes/lifecycleRoutes'
 import { registerLobbyRoutes } from '#server/api/gameRoutes/lobbyRoutes'
 import { registerStateRoutes } from '#server/api/gameRoutes/stateRoutes'
 import { registerActionRoutes } from '#server/api/gameRoutes/actionRoutes'
+import { registerWebSocketRoutes } from '#server/api/gameRoutes/websocketRoutes'
+import { registerDiagnosticRoutes } from '#server/api/gameRoutes/diagnosticRoutes'
+import { registerEventRoutes } from '#server/api/gameRoutes/eventRoutes'
 import type { GameRouteContext } from '#server/api/gameRoutes/context'
 
 function makeRouteRecorder() {
@@ -58,5 +61,19 @@ describe('game route registration modules', () => {
     await registerActionRoutes(recorder.app, routeContext)
 
     expect(recorder.routes).toEqual(['POST /:id/actions'])
+  })
+
+  it('registers the WebSocket, diagnostic, and event routes at their owned endpoints', async () => {
+    const websocket = makeRouteRecorder()
+    const diagnostics = makeRouteRecorder()
+    const events = makeRouteRecorder()
+
+    await registerWebSocketRoutes(websocket.app, routeContext)
+    await registerDiagnosticRoutes(diagnostics.app, routeContext)
+    await registerEventRoutes(events.app, routeContext)
+
+    expect(websocket.routes).toEqual(['GET /:id/ws'])
+    expect(diagnostics.routes).toEqual(['POST /:id/client-diagnostics'])
+    expect(events.routes).toEqual(['GET /:id/events'])
   })
 })

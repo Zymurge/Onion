@@ -9,3 +9,9 @@ export { registerLifecycleRoutes } from './lifecycleRoutes.js'
 export { registerLobbyRoutes } from './lobbyRoutes.js'
 /** Registers the authenticated current-game state route. */
 export { registerStateRoutes } from './stateRoutes.js'
+/** Registers the authenticated per-game WebSocket stream. */
+export { registerWebSocketRoutes } from './websocketRoutes.js'
+/** Registers the client snapshot diagnostic endpoint. */
+export { registerDiagnosticRoutes } from './diagnosticRoutes.js'
+/** Registers the authenticated persisted-event polling endpoint. */
+export { registerEventRoutes } from './eventRoutes.js'
