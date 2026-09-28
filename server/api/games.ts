@@ -1,16 +1,15 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import logger from '#server/logger'
-import type { WebSocket } from 'ws'
 import { z } from 'zod'
 
 import type { PlayerRole, Command, EventEnvelope, GameState, SingleUnitMoveCommand } from '#shared/types/index'
-import type { DbAdapter } from '#server/db/adapter'
 import { MatchJoinError, MatchManagementError, MatchStartError, StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { createMap } from '#server/engine/map'
-import { validateUnitMovement, executeUnitMovement, reconcileStackStateAfterMoves, validateCombatAction, executeCombatAction, type RollSource } from '#server/engine/index'
+import { validateUnitMovement, executeUnitMovement, reconcileStackStateAfterMoves, validateCombatAction, executeCombatAction } from '#server/engine/index'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
+import { createGameRouteContext, type GameRouteOptions } from '#server/api/gameRoutes/context'
 import {
   assertScenarioStateFitsMap,
   buildCombatEvents,
@@ -96,96 +95,9 @@ const ClientDiagnosticSchema = z.discriminatedUnion('code', [
  * @param app - Fastify application instance
  * @param opts - Plugin options containing the database adapter
  */
-export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: string; presenceDisconnectGraceMs: number; createRamRolls?: (scenarioId?: string) => RollSource; createCombatRolls?: () => RollSource }> = async (app: FastifyInstance, opts) => {
-  const { db, scenariosDir, presenceDisconnectGraceMs, createRamRolls, createCombatRolls } = opts
-  const liveConnections = new Map<number, Set<WebSocket>>()
-  const playerConnections = new Map<number, Map<string, Set<WebSocket>>>()
-  const presenceDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>()
-  const socketPlayers = new Map<WebSocket, { gameId: number; userId: string }>()
-  const ramRollsByGame = new Map<number, RollSource>()
-  const combatRollsByGame = new Map<number, RollSource>()
-
-  function ramRollsForGame(gameId: number, scenarioId: string): RollSource | undefined {
-    if (createRamRolls === undefined) {
-      return undefined
-    }
-
-    const existing = ramRollsByGame.get(gameId)
-    if (existing !== undefined) {
-      return existing
-    }
-
-    const created = createRamRolls(scenarioId)
-    ramRollsByGame.set(gameId, created)
-    return created
-  }
-
-  function combatRollsForGame(gameId: number): RollSource | undefined {
-    if (createCombatRolls === undefined) {
-      return undefined
-    }
-
-    const existing = combatRollsByGame.get(gameId)
-    if (existing !== undefined) {
-      return existing
-    }
-
-    const created = createCombatRolls()
-    combatRollsByGame.set(gameId, created)
-    return created
-  }
-
-  function broadcastGameEvents(gameId: number, events: EventEnvelope[]) {
-    const sockets = liveConnections.get(gameId)
-    if (!sockets || sockets.size === 0) {
-      return
-    }
-
-    logger.debug({ gameId, eventCount: events.length, eventTypes: events.map((e) => e.type), events }, 'Broadcasting game events')
-    for (const event of events) {
-      const payload: WebSocketServerEventMessage = { kind: 'EVENT', event }
-      const serialized = serializeWsMessage(payload)
-
-      for (const socket of sockets) {
-        if (socket.readyState === 1) {
-          try {
-            socket.send(serialized)
-            logger.debug({ gameId, serialized, eventSeq: event.seq }, 'WS EVENT sent')
-          } catch (err) {
-            logger.warn({ gameId, err, eventSeq: event.seq }, 'Failed to send WS event')
-          }
-        }
-      }
-    }
-  }
-
-  function presenceTimerKey(gameId: number, userId: string): string {
-    return `${gameId}:${userId}`
-  }
-
-  function getPlayerPresence(gameId: number, match: { players: { onion: string | null; defender: string | null } }) {
-    const connections = playerConnections.get(gameId)
-    const isConnected = (userId: string | null) => userId !== null && (connections?.get(userId)?.size ?? 0) > 0
-    return {
-      onion: isConnected(match.players.onion) ? 'connected' : null,
-      defender: isConnected(match.players.defender) ? 'connected' : null,
-    } as const
-  }
-
-  function broadcastPlayerPresence(gameId: number, presence: ReturnType<typeof getPlayerPresence>, exclude?: WebSocket) {
-    const sockets = liveConnections.get(gameId)
-    if (!sockets) {
-      return
-    }
-
-    const payload: WebSocketServerPresenceMessage = { kind: 'PLAYER_PRESENCE', presence }
-    const serialized = serializeWsMessage(payload)
-    for (const socket of sockets) {
-      if (socket !== exclude && socket.readyState === 1) {
-        socket.send(serialized)
-      }
-    }
-  }
+export const gameRoutes: FastifyPluginAsync<GameRouteOptions> = async (app: FastifyInstance, opts) => {
+  const routeContext = createGameRouteContext(opts)
+  const { db, scenariosDir, liveConnections, ramRollsForGame, combatRollsForGame, broadcastGameEvents, removeLiveConnection, addLiveConnection } = routeContext
 
   function attachCauseId(events: EventEnvelope[], causeId: string): EventEnvelope[] {
     return events.map((event) => ({
@@ -220,73 +132,6 @@ export const gameRoutes: FastifyPluginAsync<{ db: DbAdapter; scenariosDir: strin
       errorName: err instanceof Error ? err.name : typeof err,
       errorMessage: err instanceof Error ? err.message : String(err),
     }
-  }
-
-  function removeLiveConnection(gameId: number, socket: WebSocket) {
-    const sockets = liveConnections.get(gameId)
-    if (!sockets) {
-      return
-    }
-
-    sockets.delete(socket)
-    if (sockets.size === 0) {
-      liveConnections.delete(gameId)
-    }
-
-    const player = socketPlayers.get(socket)
-    socketPlayers.delete(socket)
-    if (!player) {
-      return
-    }
-
-    const connections = playerConnections.get(gameId)
-    const playerSockets = connections?.get(player.userId)
-    playerSockets?.delete(socket)
-    if (!playerSockets || playerSockets.size > 0) {
-      return
-    }
-
-    connections?.delete(player.userId)
-    const timerKey = presenceTimerKey(gameId, player.userId)
-    const timer = setTimeout(async () => {
-      presenceDisconnectTimers.delete(timerKey)
-      if ((playerConnections.get(gameId)?.get(player.userId)?.size ?? 0) > 0) {
-        return
-      }
-
-      const match = await db.findMatch(gameId)
-      if (match) {
-        broadcastPlayerPresence(gameId, getPlayerPresence(gameId, match))
-      }
-    }, presenceDisconnectGraceMs)
-    presenceDisconnectTimers.set(timerKey, timer)
-  }
-
-  async function addLiveConnection(gameId: number, userId: string, socket: WebSocket, match: { players: { onion: string | null; defender: string | null } }) {
-    const timerKey = presenceTimerKey(gameId, userId)
-    const timer = presenceDisconnectTimers.get(timerKey)
-    if (timer) {
-      clearTimeout(timer)
-      presenceDisconnectTimers.delete(timerKey)
-    }
-
-    const sockets = liveConnections.get(gameId) ?? new Set<WebSocket>()
-    sockets.add(socket)
-    liveConnections.set(gameId, sockets)
-
-    const connections = playerConnections.get(gameId) ?? new Map<string, Set<WebSocket>>()
-    const playerSockets = connections.get(userId) ?? new Set<WebSocket>()
-    const wasConnected = playerSockets.size > 0
-    playerSockets.add(socket)
-    connections.set(userId, playerSockets)
-    playerConnections.set(gameId, connections)
-    socketPlayers.set(socket, { gameId, userId })
-
-    const presence = getPlayerPresence(gameId, match)
-    if (!wasConnected) {
-      broadcastPlayerPresence(gameId, presence, socket)
-    }
-    return presence
   }
 
   /**
