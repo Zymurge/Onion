@@ -35,6 +35,7 @@ When a specification is unclear, resolve the contract before writing implementat
 
 ## Validation Commands
 
-- `pnpm test` is the default fast regression suite.
-- `pnpm test:integration` covers slower persistence or backend wiring when relevant.
+- `pnpm test` is the default fast regression suite; files ending in `.integration.test.ts` are excluded from it.
+- `pnpm test:integration` covers server, web, and E2E integration files selected by `vitest.integration.config.ts`.
+- For the full layer map and test-directory ownership, load `docs/testing-strategy.md`.
 - Run focused Vitest files first, then the relevant suite, then `pnpm exec tsc --noEmit` for TypeScript changes.

@@ -42,6 +42,7 @@ describe('unit movement helpers', () => {
 		const unit = { 
 			unitId: 'puss-2', 
 			typeId: 'Puss', 
+			side: 'defender',
 			movementSpent: {}, 
 			position: { q: 0, r: 0 } as HexPos,
 			state: 'operational',
@@ -60,6 +61,7 @@ describe('unit movement helpers', () => {
 		const unit = { 
 			unitId: 'wolf-2', 
 			typeId: 'BigBadWolf', 
+			side: 'defender',
 			movementSpent: {}, 
 			position: { q: 0, r: 0 } as HexPos,
 			state: 'operational',
@@ -75,12 +77,14 @@ describe('unit movement helpers', () => {
 		const onion = {
 			unitId: 'onion-1',
 			typeId: 'TheOnion',
+			side: 'onion' as const,
 			treads: 31,
 			movementSpent: { ONION_MOVE: 1 },
 		}
 		const defender = {
 			unitId: 'wolf-2',
 			typeId: 'BigBadWolf',
+			side: 'defender' as const,
 			movementSpent: { DEFENDER_MOVE: 2, GEV_SECOND_MOVE: 1 },
 		}
 

@@ -44,8 +44,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['test/**/*.test.ts*', 'server/**/*.integration.test.ts'],
-    exclude: ['test/web/build.test.ts', '**/node_modules/**', 'dist/**', 'server/db/migrations/**'],
+    include: ['test/**/*.test.ts*'],
+    exclude: ['test/web/build.test.ts', '**/*.integration.test.ts', '**/node_modules/**', 'dist/**', 'server/db/migrations/**'],
     setupFiles: ['./test/server/setup.ts', './test/web/setup.ts'],
     testTimeout: 60_000,
     maxWorkers: 1,

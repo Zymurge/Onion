@@ -104,12 +104,15 @@ Suggested order: 1, 4, 3, 2, 5, 8, 6, 7, 9. Item 1 should land first because it 
 
 ## 9. Test map
 
+**Status:** Done.
+
 **Files:** `docs/testing-strategy.md`, `.copilot/instructions/testing.instructions.md`, `test`.
 
-- The layer map is useful. The strategy doc also carries local watcher and inotify recovery notes that are not a test contract.
-- The always-on testing instructions repeat that map, so a task pays for both.
-- Check whether the documented directories still match the tree, and whether `pnpm test` still means the narrow suite the docs claim.
-- Compare the map to directory names and suite entry points. Do not read the test bodies.
+- The documented engine, API, DB, CLI, shared, web, and E2E directories all exist. The tree also has `test/server/config`, which is now listed as a distinct configuration-test layer.
+- The previous command boundary was inaccurate: the default `vitest.config.ts` included all `test/**/*.test.ts*`, including integration-named files, while `vitest.integration.config.ts` omitted the web integration suite and the API file whose name lacked the integration suffix.
+- `test/server/api/integration.test.ts` was renamed to `test/server/api/integration.integration.test.ts`. `vitest.config.ts` now excludes `**/*.integration.test.ts`, and `vitest.integration.config.ts` now includes server, web, and E2E integration files.
+- `docs/testing-strategy.md` remains the canonical layer map. `.copilot/instructions/testing.instructions.md` keeps the always-on workflow and command summary and points agents to the strategy doc instead of duplicating the full map. Its watcher/inotify notes remain local tooling guidance, not test contracts.
+- No test bodies required changes. The next agent should load `docs/testing-strategy.md` for test ownership and the relevant Vitest config for suite selection.
 
 ## Done when
 
