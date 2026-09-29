@@ -1,17 +1,9 @@
 import logger from '#server/logger'
-/**
- * Combat resolution system for the Onion game engine.
- *
- * Implements the Combat Results Table (CRT), damage application,
- * special combat rules, and damage application.
- */
-
-import type { Command, DefenderUnit, GameState, GameUnit, OnionUnit } from '#shared/types/index'
+import type { Command, DefenderUnit, GameState, OnionUnit } from '#shared/types/index'
 import type { GameMap } from '#server/engine/map'
 import { hexDistance } from '#shared/axialHex'
 import {
   createCombatCalculator,
-  calculateCrtOddsBand,
   type CombatExchangeInput,
 } from '#shared/combatCalculator'
 import { ONION_STATIC_RULES } from '#shared/staticRules'
@@ -20,126 +12,19 @@ import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import { getUnitDefinition, getWeaponType } from '#shared/unitDefinitions'
 import { destroyWeapon, getAvailableWeapons, getOnion } from '#shared/unitState'
 import { UnitWeapons } from '#shared/unitWeapons'
-
-/**
- * Combat Results Table outcomes.
- */
-export type CombatResult = 'NE' | 'D' | 'X'
-
-/**
- * Result of rolling on the Combat Results Table.
- */
-export interface CombatRoll {
-  /** Die roll result (1-6) */
-  roll: number
-  /** Combat result */
-  result: CombatResult
-  /** Odds ratio used */
-  odds: string
-}
-
-/**
- * Result of a combat action.
- */
-export interface CombatResultDetails {
-  /** Whether the attack succeeded */
-  success: boolean
-  /** Combat roll details */
-  roll?: CombatRoll
-  /** Damage applied */
-  damage?: {
-    /** Target unit ID */
-    targetId: string
-    /** Tread damage (for Onion) */
-    treads?: number
-    /** Weapon destroyed (for individually targetable weapons) */
-    weaponDestroyed?: string
-    /** Unit destroyed (for defenders) */
-    unitDestroyed?: boolean
-    /** Squads lost (for infantry) */
-    squadsLost?: number
-  }
-  /** Error message if combat failed */
-  error?: string
-}
-
-export type CombatValidationCode =
-  | 'WRONG_PHASE'
-  | 'WEAPON_NOT_FOUND'
-  | 'WEAPON_EXHAUSTED'
-  | 'ATTACKER_NOT_FOUND'
-  | 'ATTACKER_NOT_OPERATIONAL'
-  | 'NO_READY_WEAPONS'
-  | 'NO_TARGET'
-  | 'INVALID_TARGET'
-  | 'TARGET_OUT_OF_RANGE'
-  | 'NO_ATTACKERS'
-  | 'MULTI_ATTACK_TREAD_TARGET'
-  | 'DUPLICATE_ATTACKER'
-  | 'ONION_NOT_FOUND'
-
-export type CombatTarget =
-  | { kind: 'defender'; id: string }
-  | { kind: 'treads'; id: string }
-  | { kind: 'weapon'; id: string }
-
-export interface CombatPlan {
-  actionType: Extract<Command, { type: 'FIRE' }>['type']
-  actor: 'onion' | 'defender'
-  attackerIds: string[]
-  onionId: string
-  target: CombatTarget
-  attackStrength: number
-  defense: number
-  weaponId?: string
-  weaponIds?: string[]
-}
-
-export type CombatValidation =
-  | { ok: true; plan: CombatPlan }
-  | { ok: false; code: CombatValidationCode; error: string }
-
-export interface CombatExecutionResult {
-  success: boolean
-  actionType: CombatPlan['actionType']
-  attackerIds: string[]
-  onionId: string
-  targetId: string
-  roll?: CombatRoll
-  treadsLost?: number
-  destroyedWeaponId?: string
-  statusChanges?: Array<{ unitId: string; from: string; to: string }>
-  squadsLost?: number
-  error?: string
-}
-
-export type CombatOutcomeEffect =
-  | 'no-effect'
-  | 'disabled'
-  | 'destroyed'
-  | 'tread-loss'
-  | 'weapon-destroyed'
-
-export interface CombatOutcomeResolution {
-  targetId: string
-  effect: CombatOutcomeEffect
-  result: CombatResult
-  treadsLost?: number
-  weaponId?: string
-  weaponDestroyed?: string
-}
+import { applyDamage } from './outcomes.js'
+import { rollCombat } from './rolls.js'
+import type {
+  CombatExecutionResult,
+  CombatPlan,
+  CombatTarget,
+  CombatValidation,
+} from './types.js'
 
 type FireCommand = Extract<Command, { type: 'FIRE' }>
 
-const COMBAT_STATIC_RULES = ONION_STATIC_RULES
+const combatCalculator = createCombatCalculator(ONION_STATIC_RULES)
 
-const combatCalculator = createCombatCalculator(COMBAT_STATIC_RULES)
-
-/**
- * Resolve the terrain at a unit's current position for the shared combat
- * calculator. Missing map entries intentionally produce `undefined`, which
- * means that the calculator applies no terrain modifier.
- */
 function getTerrainTypeAt(map: GameMap, position: { q: number; r: number }) {
   return map.hexes[`${position.q},${position.r}`]?.terrain
 }
@@ -169,19 +54,8 @@ function requireOnion(state: GameState, onionId: string): OnionUnit {
  * Build the calculator's phase-neutral combat snapshot from live game state.
  *
  * The shared calculator does not know about Onion/defender maps, stack roster
- * storage, or the command model. This adapter translates those structures into
- * combatant ids and static unit type ids:
- *
- * - During Onion combat, each attacker id represents one selected Onion
- *   weapon, so it is passed as both a combatant id and that combatant's
- *   `weaponIds` entry. The target is either a real defender or a synthesized
- *   stack group with its member count.
- * - During defender combat, attacker ids identify defender units and their
- *   ready live weapons are used. The Onion is the target; a weapon target is
- *   carried as `weaponId` so the calculator can resolve subsystem defense.
- *
- * This function only adapts input. It does not calculate odds, mutate state,
- * or apply combat damage.
+ * storage, or the command model. This adapter translates those structures
+ * into explicit combat contributions and target branches.
  */
 function buildCombatCalculatorInput(
   map: GameMap,
@@ -302,10 +176,7 @@ function formatResolvedTargetId(target: CombatTarget): string {
  * applying the result; the calculator receives the group separately through
  * `buildCombatCalculatorInput`.
  */
-function resolveDefenderTarget(
-  state: GameState,
-  targetId: string,
-): DefenderUnit | null {
+function resolveDefenderTarget(state: GameState, targetId: string): DefenderUnit | null {
   const explicitTarget = state.defenders[targetId]
   if (explicitTarget !== undefined) {
     return explicitTarget
@@ -326,62 +197,17 @@ function resolveDefenderTarget(
   return null
 }
 
-export function resolveCombatOutcome(
-  target: GameUnit,
-  result: CombatResult,
-  attackStrength: number,
-  weaponId?: string,
-): CombatOutcomeResolution {
-  const targetId = target.unitId
-  if (target.role === 'onion') {
-    if (result !== 'X') {
-      return { targetId, effect: 'no-effect', result }
-    }
-
-    if (weaponId !== undefined) {
-      return { targetId, effect: 'weapon-destroyed', result, weaponId, weaponDestroyed: weaponId }
-    }
-
-    return { targetId, effect: 'tread-loss', result, treadsLost: attackStrength }
-  }
-
-  if (target.typeId === 'LittlePigs') {
-    if (result === 'NE') {
-      return { targetId, effect: 'no-effect', result }
-    }
-
-    return { targetId, effect: 'destroyed', result }
-  }
-
-  if (result === 'NE') {
-    return { targetId, effect: 'no-effect', result }
-  }
-
-  if (result === 'D') {
-    return { targetId, effect: 'disabled', result }
-  }
-
-  return { targetId, effect: 'destroyed', result }
-}
-
 /**
  * Validate a FIRE command and produce the immutable combat plan consumed by
  * `executeCombatAction`.
  *
- * Validation has two responsibilities:
- * 1. Check command legality: phase, ids, readiness, target legality, range,
- *    duplicate attackers, and special multi-attacker restrictions.
- * 2. Build the calculator input and ask the shared rules engine for effective
- *    attack and defense strengths, including stack and terrain modifiers.
- *
- * The shared calculator is the authoritative source for the strengths returned
- * in the plan. This engine module adapts live state into the calculator input,
- * then owns command validation, CRT resolution, and damage application.
+ * Validation checks command legality, adapts live state into the shared
+ * calculator contract, and records the effective strengths used at execution.
  */
 export function validateCombatAction(
   map: GameMap,
   state: GameState,
-  command: FireCommand
+  command: FireCommand,
 ): CombatValidation {
   logger.info({ commandType: command.type }, 'Validating combat action')
   logger.debug({ map, state, command }, 'validateCombatAction input')
@@ -404,13 +230,10 @@ export function validateCombatAction(
     const explicitTarget = state.defenders[command.targetId]
     const targetBelongsToStack = Object.values(state.stackRoster?.groupsById ?? {}).some((group) => group.unitIds.includes(command.targetId))
 
-    // If the command targets an individual unit that is part of a stack group,
-    // reject the action: stacks must be targeted as a whole (group id).
     if (explicitTarget && targetBelongsToStack) {
-      return { ok: false, code: 'INVALID_TARGET', error: `Individual stack members cannot be targeted; target the stack group instead` }
+      return { ok: false, code: 'INVALID_TARGET', error: 'Individual stack members cannot be targeted; target the stack group instead' }
     }
 
-    // Resolve either an individual defender or a stack group target.
     let target: DefenderUnit | undefined = explicitTarget
     if (!target) {
       const group = state.stackRoster?.groupsById?.[command.targetId]
@@ -418,10 +241,7 @@ export function validateCombatAction(
         return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
       }
 
-      // Build a synthetic target representation for the stack group using
-      // defender member data when available.
-      const memberIds = group.unitIds
-      const members = memberIds
+      const members = group.unitIds
         .map((id) => state.defenders[id])
         .filter((member): member is DefenderUnit => member !== undefined)
       const allDestroyed = members.length > 0 && members.every((member) => member.state === 'destroyed')
@@ -520,9 +340,6 @@ export function validateCombatAction(
       }
     }
 
-    // The calculator is the authoritative source for effective strengths. It
-    // reconstructs attack from the selected weapon ids and defense from the
-    // target representation built above, including stack-size modifiers.
     const combatResult = combatCalculator.calculate(
       buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.unitId }, [...command.attackers], onion.unitId),
     )
@@ -534,7 +351,6 @@ export function validateCombatAction(
         actor: 'onion',
         attackerIds: [...command.attackers],
         onionId: onion.unitId,
-
         target: { kind: 'defender', id: target.unitId },
         attackStrength: combatResult.attackStrength,
         defense: combatResult.defenseStrength,
@@ -553,7 +369,6 @@ export function validateCombatAction(
   }
 
   const seen = new Set<string>()
-
   for (const attackerId of command.attackers) {
     if (seen.has(attackerId)) {
       return { ok: false, code: 'DUPLICATE_ATTACKER', error: `Duplicate attacker '${attackerId}'` }
@@ -576,11 +391,8 @@ export function validateCombatAction(
     if (hexDistance(unit.position, onion.position) > maxRange) {
       return { ok: false, code: 'TARGET_OUT_OF_RANGE', error: `Attacker '${attackerId}' is out of range` }
     }
-
   }
 
-  // For defender fire, the calculator sums each attacker's ready live weapons
-  // and resolves the Onion's tread or subsystem defense from the target kind.
   const combatResult = combatCalculator.calculate(
     buildCombatCalculatorInput(map, state, target, [...command.attackers], onion.unitId),
   )
@@ -606,10 +418,11 @@ export function validateCombatAction(
   }
 }
 
+/** Execute a previously validated combat plan against live game state. */
 export function executeCombatAction(
   state: GameState,
   plan: CombatPlan,
-  roll?: number
+  roll?: number,
 ): CombatExecutionResult {
   logger.info({ plan }, 'Executing combat action')
   logger.debug({ plan }, 'executeCombatAction input')
@@ -704,13 +517,12 @@ export function executeCombatAction(
     onion,
     combatRoll.result,
     plan.attackStrength,
-    plan.target.kind === 'weapon' ? plan.target.id : undefined
+    plan.target.kind === 'weapon' ? plan.target.id : undefined,
   )
   if (damage.weaponDestroyed) {
     destroyWeapon(onion, damage.weaponDestroyed)
   }
 
-  // Mark defender weapons as spent after firing
   for (const attackerId of plan.attackerIds) {
     const attacker = state.defenders[attackerId]
     if (attacker && attacker.weapons) {
@@ -728,123 +540,4 @@ export function executeCombatAction(
     treadsLost: damage.treads,
     destroyedWeaponId: damage.weaponDestroyed,
   }
-}
-
-/**
- * Roll on the Combat Results Table.
- * @param attackStrength - Total attack strength
- * @param defenseValue - Target defense value
- * @param roll - Optional fixed roll for testing (1-6)
- * @returns Combat roll result
- */
-// CRT[odds][roll-1]: rows = odds column, cols = die 1–6
-const CRT: Record<string, CombatResult[]> = {
-  '1:3': ['NE', 'NE', 'NE', 'NE', 'NE', 'NE'],
-  '1:2': ['NE', 'NE', 'NE', 'NE', 'D',  'X' ],
-  '1:1': ['NE', 'NE', 'D',  'D',  'X',  'X' ],
-  '2:1': ['NE', 'D',  'D',  'X',  'X',  'X' ],
-  '3:1': ['D',  'D',  'X',  'X',  'X',  'X' ],
-  '4:1': ['D',  'X',  'X',  'X',  'X',  'X' ],
-  '5:1': ['X',  'X',  'X',  'X',  'X',  'X' ],
-}
-
-export function rollCombat(
-  attackStrength: number,
-  defenseValue: number,
-  roll?: number
-): CombatRoll {
-  const odds = calculateCrtOddsBand(attackStrength, defenseValue)
-  const d6 = roll ?? (Math.floor(Math.random() * 6) + 1)
-  const result = CRT[odds][d6 - 1]
-  return { roll: d6, result, odds }
-}
-
-/**
- * Calculate combat odds ratio.
- * @param attackStrength - Total attack strength
- * @param defenseValue - Target defense value
- * @returns Odds ratio as string (e.g., "1:1", "2:1", "1:3")
- */
-export function calculateEngineCombatOdds(attackStrength: number, defenseValue: number): string {
-  return calculateCrtOddsBand(attackStrength, defenseValue)
-}
-
-/**
- * Apply damage from a combat result to a target unit.
- * @param target - Unit to damage
- * @param result - Combat result
- * @param attackStrength - Attack strength used
- * @param weaponId - Weapon ID that was used to attack (for subsystem targeting)
- * @returns Damage details
- */
-export function applyDamage(
-  target: GameUnit,
-  result: CombatResult,
-  attackStrength: number,
-  weaponId?: string
-): {
-  treads?: number
-  weaponDestroyed?: string
-  unitDestroyed?: boolean
-} {
-  const outcome = resolveCombatOutcome(target, result, attackStrength, weaponId)
-
-  switch (outcome.effect) {
-    case 'no-effect':
-      return {}
-    case 'disabled':
-      target.state = 'disabled'
-      return {}
-    case 'destroyed':
-      target.state = 'destroyed'
-      return { unitDestroyed: true }
-    case 'tread-loss': {
-      const onion = target as OnionUnit
-      const lost = outcome.treadsLost ?? attackStrength
-      onion.treads = Math.max(0, (onion.treads ?? 0) - lost)
-      return { treads: lost }
-    }
-    case 'weapon-destroyed': {
-      const onion = target as OnionUnit
-      if (outcome.weaponDestroyed !== undefined) {
-        destroyWeapon(onion, outcome.weaponDestroyed)
-        return { weaponDestroyed: outcome.weaponDestroyed }
-      }
-      return {}
-    }
-  }
-}
-
-/**
- * Get all valid targets for a firing unit.
- * @param map - The game map
- * @param state - Current game state
- * @param firingUnit - Unit doing the firing
- * @returns Array of valid target unit IDs
- */
-export function getValidTargets(
-  map: GameMap,
-  state: GameState,
-  firingUnit: GameUnit
-): string[] {
-  const maxRange = Math.max(...getAvailableWeapons(firingUnit).map(w => getWeaponType(w.typeId).range), 0)
-  const results: string[] = []
-
-  if (firingUnit.role === 'onion') {
-    // Onion targets defenders
-    for (const [id, unit] of Object.entries(state.defenders)) {
-      if (unit.state === 'destroyed') continue
-      if (hexDistance(firingUnit.position, unit.position) <= maxRange) {
-        results.push(id)
-      }
-    }
-  } else {
-    // Defender targets each Onion independently.
-    for (const onion of Object.values(state.onions)) {
-      if (hexDistance(firingUnit.position, onion.position) <= maxRange) {
-        results.push(formatCombatTargetId({ kind: 'treads', onionId: onion.unitId }))
-      }
-    }
-  }
-  return results
 }

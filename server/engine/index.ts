@@ -98,7 +98,7 @@ export type {
   CombatPlan,
   CombatValidation,
   CombatExecutionResult,
-} from '#server/engine/combat'
+} from '#server/engine/combat/index'
 
 export {
   validateCombatAction,
@@ -107,4 +107,4 @@ export {
   calculateEngineCombatOdds,
   applyDamage,
   getValidTargets,
-} from '#server/engine/combat'
+} from '#server/engine/combat/index'

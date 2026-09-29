@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createMap, type GameMap } from '#server/engine/map'
 import { executeUnitMovement, validateUnitMovement } from '#server/engine/movement'
-import { validateCombatAction, executeCombatAction } from '#server/engine/combat'
+import { validateCombatAction, executeCombatAction } from '#server/engine/combat/index'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { InitialStateSchema } from '#server/engine/scenarioSchema'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'

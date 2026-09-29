@@ -17,7 +17,7 @@ This file does not own numbers, stack membership, or the running CRT. If it disa
 | Movement legality | `shared/movementRules.ts` |
 | Stack membership | `shared/stackRoster.ts` |
 | Combat odds and modifiers | `shared/combatCalculator.ts` |
-| CRT letters | `server/engine/combat.ts` |
+| CRT letters | `server/engine/combat/rolls.ts` |
 | Victory objectives | [scenario-schema.md](scenario-schema.md) |
 
 This document maps the game rules for the "Onion" project, a thematic reimplementation of a classic asymmetrical tactical wargame.

@@ -1,4 +1,4 @@
-import type { CombatExecutionResult } from '#server/engine/combat'
+import type { CombatExecutionResult } from '#server/engine/combat/index'
 import type { MovementResult } from '#server/engine/movement'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, TurnPhase } from '#shared/types/index'

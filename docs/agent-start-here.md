@@ -34,9 +34,10 @@ When introducing or renaming source files it is imperative to update this docume
 | Movement legality | `shared/movementRules.ts` | `shared/moveValidator.ts` |
 | Stack membership, split, or merge | `shared/stackRoster.ts` | Do not infer membership from co-location or from [game-rules.md](game-rules.md) |
 | Combat odds and modifiers | `shared/combatCalculator.ts` | `shared/staticRules.ts` owns the ridgeline defense bonus |
-| CRT letters | `server/engine/combat.ts` CRT constant | The table in [game-rules.md](game-rules.md) currently matches. It does not override the code |
+| CRT letters | `server/engine/combat/rolls.ts` CRT constant | The table in [game-rules.md](game-rules.md) currently matches. It does not override the code |
 | Onion tread movement bands | `shared/movementAllowance.ts` | Catalog `treadsPerMove` is declared but not read by that function |
-| Stack damage, one missile per turn, or Onion subsystem results | `server/engine/combat.ts` | [game-rules.md](game-rules.md) describes the same behavior. Do not edit the prose alone |
+| Stack damage or one missile per turn | `server/engine/combat/actions.ts` | [game-rules.md](game-rules.md) describes the same behavior. Do not edit the prose alone |
+| Onion subsystem or target-specific damage results | `server/engine/combat/outcomes.ts` | [game-rules.md](game-rules.md) describes the same behavior. Do not edit the prose alone |
 | Phases and recovery | [game-rules.md](game-rules.md) L203-L223 | `server/engine/game.ts` owns phase advancement, recovery maintenance, and phase events. `server/engine/phases.ts` owns phase order, actors, and reusable cleanup helpers. |
 | Victory objectives | [scenario-schema.md](scenario-schema.md) | `server/engine/victory.ts` evaluates explicit, role-owned objectives. `server/api/gameHelpers/victory.ts` adapts the evaluator to API responses. The victory prose in [game-rules.md](game-rules.md) does not override the scenario |
 | Scenario JSON authoring | [scenario-schema.md](scenario-schema.md) | `scenarios/` and `server/engine/scenarioSchema.ts` |
@@ -48,7 +49,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Fetch one game | [api-contract.md](api-contract.md) L223-L291 | `server/api/gameRoutes/stateRoutes.ts` |
 | Submit an action | [api-contract.md](api-contract.md) L292-L336, then one command row | `server/api/gameRoutes/actionRoutes.ts`, then the matching `actionHandlers/` module |
 | MOVE command | [api-contract.md](api-contract.md) L356-L368 | `server/engine/movement.ts` |
-| FIRE command | [api-contract.md](api-contract.md) L369-L412 and L421-L459 | `server/engine/combat.ts` |
+| FIRE command | [api-contract.md](api-contract.md) L369-L412 and L421-L459 | `server/engine/combat/actions.ts` |
 | END_PHASE command | [api-contract.md](api-contract.md) L413-L420 | `server/api/gameRoutes/actionHandlers/endPhase.ts` |
 | Event polling | [api-contract.md](api-contract.md) L337-L355 | `server/api/gameRoutes/eventRoutes.ts` |
 | Event envelope | [api-contract.md](api-contract.md) L464-L476, then one event family below | `shared/websocketProtocol.ts` |
@@ -109,7 +110,12 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `shared/websocketProtocol.ts` | Defines WebSocket message shapes. | |
 | `shared/types/` | Defines canonical game, command, and event types. | |
 | `server/engine/movement.ts` | Adapts engine state to the shared move validator and applies the accepted plan. | `D+M`: owns movement execution, state mutation, ramming application, and stack reconciliation. |
-| `server/engine/combat.ts` | Validates FIRE, rolls the CRT, and applies damage. | `D+M`. `WRAP`: `calculateEngineCombatOdds` delegates to the shared odds band. |
+| `server/engine/combat/index.ts` | Re-exports the public combat engine surface. | `WRAP` |
+| `server/engine/combat/actions.ts` | Validates FIRE commands and executes accepted plans against live state. | `D+M` |
+| `server/engine/combat/outcomes.ts` | Resolves target-specific CRT effects and applies combat damage. | `D+M` |
+| `server/engine/combat/rolls.ts` | Owns CRT lookup, die rolling, and engine odds delegation. | `WRAP`: `calculateEngineCombatOdds` delegates to the shared odds band. |
+| `server/engine/combat/targets.ts` | Finds live targets within a firing unit's maximum range. | |
+| `server/engine/combat/types.ts` | Defines combat plans, validation results, rolls, and outcome contracts. | |
 | `server/engine/map.ts` | Builds the engine map and tests hex membership. | `D+M`: owns engine map construction and membership; `hasLineOfSight` remains an unused deprecated compatibility helper. |
 | `server/engine/phases.ts` | Owns phase order, phase actor, and reusable destroyed-unit cleanup helpers. | `D+M`: cleanup helpers mutate the supplied state. |
 | `server/engine/victory.ts` | Evaluates scenario objectives with map, state, turn, and event context, then selects the winning role. | `D+M` |

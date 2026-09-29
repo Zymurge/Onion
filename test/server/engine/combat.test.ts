@@ -28,12 +28,10 @@ beforeEach(() => {
 import {
   calculateEngineCombatOdds,
   rollCombat,
-  resolveCombatOutcome,
-  applyDamage,
-  getValidTargets,
-  validateCombatAction,
-  executeCombatAction,
-} from '#server/engine/combat'
+} from '#server/engine/combat/rolls'
+import { resolveCombatOutcome, applyDamage } from '#server/engine/combat/outcomes'
+import { getValidTargets } from '#server/engine/combat/targets'
+import { validateCombatAction, executeCombatAction } from '#server/engine/combat/actions'
 import { createMap } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
 import { getOnion } from '#shared/unitState'
