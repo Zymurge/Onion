@@ -2,7 +2,7 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { useBattlefieldDisplayState } from '#web/lib/useBattlefieldDisplayState'
+import { useBattlefieldDisplayState } from '#web/lib/battlefieldDisplay/index'
 import type { GameSnapshot } from '#web/lib/gameClient'
 import type { GameSessionViewState } from '#web/lib/gameSessionTypes'
 import type { BattlefieldInteractionState } from '#web/lib/useBattlefieldInteractionState'
@@ -62,6 +62,7 @@ function createSessionState(snapshot: GameSnapshot, previousSnapshot: GameSnapsh
 	return {
 		status: 'ready',
 		catalog: sessionCatalog,
+		presence: null,
 		snapshot,
 		previousSnapshot,
 		session: { role: 'defender' },
@@ -145,13 +146,16 @@ describe('useBattlefieldDisplayState', () => {
 		snapshot.phase = 'DEFENDER_MOVE'
 		const authoritativeState = snapshot.authoritativeState!
 		authoritativeState.currentPhase = 'DEFENDER_MOVE'
-		authoritativeState.defenders['pigs-3'] = makeDefender({
-			unitId: 'pigs-3',
-			typeId: 'LittlePigs',
-			position: { q: 4, r: 4 },
-			state: 'destroyed',
-			weapons: [],
-		})
+		authoritativeState.defenders = {
+			...authoritativeState.defenders,
+			'pigs-3': makeDefender({
+				unitId: 'pigs-3',
+				typeId: 'LittlePigs',
+				position: { q: 4, r: 4 },
+				state: 'destroyed',
+				weapons: [],
+			}),
+		}
 		authoritativeState.stackNaming = {
 			groupsInUse: [
 				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },

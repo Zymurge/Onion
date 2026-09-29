@@ -168,7 +168,11 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `web/lib/stackSelection.ts` | Resolves roster-backed members and phase-visible projections. | Not a membership owner. |
 | `web/lib/rightRailSelection.ts` | Builds stack selection models and MOVE or FIRE payloads. | |
 | `web/lib/commitActionBuilders.ts` | Adapts selections into the right-rail commit payloads. | Not a second command authority. |
-| `web/lib/useBattlefieldDisplayState.ts` | Orchestrates display state and validates the client snapshot boundary. | |
+| `web/lib/battlefieldDisplay/index.ts` | Public battlefield display state and snapshot-validation entry point. | |
+| `web/lib/battlefieldDisplay/useBattlefieldDisplayState.ts` | Owns the React memo wrapper for display state. | |
+| `web/lib/battlefieldDisplay/snapshotValidation.ts` | Validates snapshot completeness and canonical stack projection. | |
+| `web/lib/battlefieldDisplay/snapshotHandoff.ts` | Builds the locked combat-to-move handoff snapshot. | |
+| `web/lib/battlefieldDisplay/projection.ts` | Builds the pure battlefield display model. | |
 | `web/lib/battlefieldViewBuilders.ts` | Builds live unit, map, and range display models. | |
 | `web/lib/battlefieldGroupProjection.ts` | Projects the shared roster index for rails and the board. | |
 | `web/lib/battlefieldNaming.ts` | Resolves display labels from shared naming data. | Does not own group identity. |

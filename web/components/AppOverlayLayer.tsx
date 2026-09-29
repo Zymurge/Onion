@@ -8,7 +8,7 @@ import { PlayerPresenceToast } from './PlayerPresenceToast'
 import { formatRamResolutionTitle } from '../lib/moveResolution'
 import type { AppCommands } from '../lib/appCommands'
 import type { AppNotificationPolicy } from '../lib/appNotificationPolicy'
-import type { useBattlefieldDisplayState } from '../lib/useBattlefieldDisplayState'
+import type { useBattlefieldDisplayState } from '../lib/battlefieldDisplay/index'
 import type { useBattlefieldInteractionState } from '../lib/useBattlefieldInteractionState'
 
 export type AppOverlayLayerProps = {
