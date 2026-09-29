@@ -1,7 +1,7 @@
 import type { DefenderMap, DefenderUnit, HexPos, OnionMap, StackRosterState, UnitState, Weapon } from '#shared/types/index'
-import type { StackNamingSnapshot } from '#shared/stackNaming'
-import { buildStackGroupKey } from '#shared/stackNaming'
-import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
+import type { StackNamingSnapshot } from '#shared/stackNaming/index'
+import { buildStackGroupKey } from '#shared/stackNaming/index'
+import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster/index'
 import { getAllUnitDefinitions, isUnitTypeStackable } from '#shared/unitDefinitions'
 import { makeDefender, makeOnion, makeScenarioSnapshot, makeWeapon, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
 

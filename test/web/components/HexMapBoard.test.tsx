@@ -367,7 +367,7 @@ import { boardPixelSize } from '#web/lib/hexPixelLayout'
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '#web/lib/battlefieldView'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
-import type { StackNamingSnapshot } from '#shared/stackNaming'
+import type { StackNamingSnapshot } from '#shared/stackNaming/index'
 import type { StackRosterState } from '#shared/types/index'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())

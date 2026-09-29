@@ -2,7 +2,7 @@ import type { InitialState, Deployment } from '#server/engine/scenarioSchema'
 import type { DefenderUnit, GameState, OnionUnit, UnitTypeBase, Weapon, WeaponType } from '#shared/types/index'
 import logger from '#server/logger'
 import { buildFriendlyName, getRequiredUnitDefinition } from '#shared/unitDefinitions'
-import { buildStackGroupKey, createStackNamingEngine } from '#shared/stackNaming'
+import { buildStackGroupKey, createStackNamingEngine } from '#shared/stackNaming/index'
 import type { StackRosterState } from '#shared/types/index'
 
 type StackGroupDeployment = Extract<Deployment, { kind: 'stack-group' }>

@@ -8,7 +8,7 @@ import { createMap } from '#server/engine/map'
 import type { GameMap } from '#server/engine/map'
 import type { MovementPlan } from '#server/engine/movement'
 import type { GameState } from '#server/engine/units'
-import { buildStackRosterFromUnits } from '#shared/stackRoster'
+import { buildStackRosterFromUnits } from '#shared/stackRoster/index'
 import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 import { createRollQueue } from '#test/utils/rollQueue'
 

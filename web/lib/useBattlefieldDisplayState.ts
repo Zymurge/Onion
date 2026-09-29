@@ -20,7 +20,7 @@ import type { GameSessionViewState } from './gameSessionTypes'
 import type { SessionBinding } from './sessionBinding'
 import type { GameState, TurnPhase } from '../../shared/types/index'
 import { getSessionUnitType, isSessionUnitTypeStackable } from './sessionCatalog'
-import { validateStackRosterConsistency } from '../../shared/stackRoster'
+import { validateStackRosterConsistency } from '../../shared/stackRoster/index.js'
 import type { BattlefieldInteractionState } from './useBattlefieldInteractionState'
 
 type UseBattlefieldDisplayStateOptions = {

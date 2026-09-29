@@ -8,7 +8,7 @@ import type { BattlefieldOnionView } from '#web/lib/battlefieldView'
 import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion, type BattlefieldDefenderFixture, type BattlefieldOnionFixture } from '#test/utils/gameStateUtils'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
-import type { StackNamingSnapshot } from '#shared/stackNaming'
+import type { StackNamingSnapshot } from '#shared/stackNaming/index'
 import type { StackRosterState } from '#shared/types/index'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())

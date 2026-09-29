@@ -7,7 +7,7 @@ import {
 	resolveStackLabel,
 	resolveStackLabelFromSnapshot,
 	resolveStackUnitName,
-} from '#shared/stackNaming'
+} from '#shared/stackNaming/index'
 import { makeDefender, makeStackFixture } from '#test/utils/gameStateUtils'
 
 describe('stack naming', () => {

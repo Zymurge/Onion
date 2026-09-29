@@ -1,4 +1,4 @@
-import { buildStackRosterIndex, type StackRosterIndex } from '../../shared/stackRoster'
+import { buildStackRosterIndex, type StackRosterIndex } from '../../shared/stackRoster/index.js'
 import type { DefenderMap, StackRosterState } from '../../shared/types/index'
 import type { BattlefieldUnit } from './battlefieldView'
 import { filterStackRosterToUnitIds } from './stackSelection'

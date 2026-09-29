@@ -1,4 +1,4 @@
-import { buildStackGroupKey, type StackNamingSnapshot } from '#shared/stackNaming'
+import { buildStackGroupKey, type StackNamingSnapshot } from '#shared/stackNaming/index'
 import type { VictoryObjectiveState } from '#shared/apiProtocol'
 import type {
 	DefenderMap,

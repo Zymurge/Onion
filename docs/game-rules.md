@@ -15,7 +15,7 @@ This file does not own numbers, stack membership, or the running CRT. If it disa
 | --- | --- |
 | Unit and weapon numbers, ram profile, stack-size limit, terrain flags | `shared/config/unitCatalog.json` |
 | Movement legality | `shared/movementRules.ts` |
-| Stack membership | `shared/stackRoster.ts` |
+| Stack membership | `shared/stackRoster/index.ts` |
 | Combat odds and modifiers | `shared/combatCalculator.ts` |
 | CRT letters | `server/engine/combat/rolls.ts` |
 | Victory objectives | [scenario-schema.md](scenario-schema.md) |

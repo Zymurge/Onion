@@ -13,7 +13,7 @@ import { spendUnitMovement } from '#shared/unitMovement'
 import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
-import { reconcileStackRosterMoveLifecycle, refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
+import { reconcileStackRosterMoveLifecycle, refreshStackRosterNamingSnapshot } from '#shared/stackRoster/index'
 
 type EngineGameState = GameState
 /**

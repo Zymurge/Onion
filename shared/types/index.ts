@@ -18,7 +18,7 @@ export type UnitType = UnitTypeId
 import type { TargetRules } from '../targetRules.js'
 export type { TargetRules } from '../targetRules.js'
 
-import type { StackNamingSnapshot } from '../stackNaming.js'
+import type { StackNamingSnapshot } from '../stackNaming/index.js'
 
 export interface HexPos {
   q: number

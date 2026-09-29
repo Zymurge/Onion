@@ -3,7 +3,7 @@ import { normalizeSelectionIds, parseStackMemberSelectionId, resolveSelectionOwn
 import { resolveBattlefieldStackMemberIds, resolveBattlefieldStackSelectionIds, type WebStackSourceState } from './stackSelection'
 import type { BattlefieldOnionView, BattlefieldUnit } from './battlefieldView'
 import { isSessionUnitTypeStackable } from './sessionCatalog'
-import { buildStackRosterIndex } from '../../shared/stackRoster'
+import { buildStackRosterIndex } from '../../shared/stackRoster/index.js'
 import type { StackRosterState, DefenderMap } from '../../shared/types/index'
 
 type RightRailStackMemberView = BattlefieldUnit | BattlefieldOnionView

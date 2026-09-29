@@ -5,7 +5,7 @@ import type { BattlefieldDefenderView, BattlefieldOnionView, BattlefieldUnit, Te
 import type { ServerGameSnapshot } from './gameClient.js'
 import type { LiveConnectionStatus } from './gameSessionTypes.js'
 import { getSessionWeaponType, type SessionCatalog } from './sessionCatalog.js'
-import { buildStackRosterIndex } from '../../shared/stackRoster.js'
+import { buildStackRosterIndex } from '../../shared/stackRoster/index.js'
 import {
   isWeaponSelectionId,
   resolveSelectionOwnerUnitId,

@@ -2,7 +2,7 @@ import type { DefenderMap, GameState, OnionUnit, UnitState } from '../../shared/
 import { getSessionUnitType, isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog.js'
 import type { StackActionSelection } from './gameClient.js'
 import type { StackRosterState } from '../../shared/types/index.js'
-import { buildStackRosterIndex } from '../../shared/stackRoster.js'
+import { buildStackRosterIndex } from '../../shared/stackRoster/index.js'
 import {
   resolveSelectionOwnerUnitId,
 } from './selectionIds.js'

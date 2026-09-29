@@ -1,6 +1,6 @@
 import type { GameState, TurnPhase } from '#shared/types/index'
 import logger from '#server/logger'
-import { refreshStackRosterNamingSnapshot } from '#shared/stackRoster'
+import { refreshStackRosterNamingSnapshot } from '#shared/stackRoster/index'
 
 type EngineGameState = GameState
 

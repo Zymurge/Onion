@@ -32,7 +32,7 @@ When introducing or renaming source files it is imperative to update this docume
 | --- | --- | --- |
 | Unit or weapon numbers, ram profile, stack-size limit, or terrain flags | `shared/config/unitCatalog.json` | `shared/unitDefinitions.ts`. Do not take these numbers from [game-rules.md](game-rules.md) |
 | Movement legality | `shared/movementRules.ts` | `shared/moveValidator.ts` |
-| Stack membership, split, or merge | `shared/stackRoster.ts` | Do not infer membership from co-location or from [game-rules.md](game-rules.md) |
+| Stack membership, split, or merge | `shared/stackRoster/index.ts` | Do not infer membership from co-location or from [game-rules.md](game-rules.md) |
 | Combat odds and modifiers | `shared/combatCalculator.ts` | `shared/staticRules.ts` owns the ridgeline defense bonus |
 | CRT letters | `server/engine/combat/rolls.ts` CRT constant | The table in [game-rules.md](game-rules.md) currently matches. It does not override the code |
 | Onion tread movement bands | `shared/movementAllowance.ts` | Catalog `treadsPerMove` is declared but not read by that function |
@@ -95,8 +95,8 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `shared/unitMovement.ts` | Exposes phase-aware allowance and movement-spent counters. | `D+M`: spent-counter helpers mutate units. `WRAP`: ridgeline crossing delegates to `movementRules.ts`. |
 | `shared/moveValidator.ts` | Validates one move command against the shared movement rules. | |
 | `shared/movePlanner.ts` | Finds legal paths and reachable hexes. | |
-| `shared/stackRoster.ts` | Owns canonical membership and split, merge, move, and relocate transitions. | |
-| `shared/stackNaming.ts` | Owns group labels and naming snapshots. | `D+M`: `StackNamingEngine` mutates its own naming state. |
+| `shared/stackRoster/index.ts` | Owns canonical membership and split, merge, move, and relocate transitions. | |
+| `shared/stackNaming/index.ts` | Owns group labels and naming snapshots. | `D+M`: `StackNamingEngine` mutates its own naming state. |
 | `shared/combatCalculator.ts` | Decides attack strength, defense strength, modifiers, and CRT odds bands. | |
 | `shared/staticRules.ts` | Owns the ridgeline defense bonus and the calculator's static rules bundle. | |
 | `shared/targetRules.ts` | Decides whether a weapon may target a unit type. | |

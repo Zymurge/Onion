@@ -1,5 +1,5 @@
-import type { StackNamingSnapshot } from '../../shared/stackNaming.js'
-import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming.js'
+import type { StackNamingSnapshot } from '../../shared/stackNaming/index.js'
+import { buildStackGroupKey, resolveStackLabel } from '../../shared/stackNaming/index.js'
 import type { GameUnit, StackRosterState } from '../../shared/types/index.js'
 import { isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog.js'
 import { resolveSelectionName } from './resolveSelectionName.js'

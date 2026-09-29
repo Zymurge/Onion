@@ -1,4 +1,4 @@
-import type { StackNamingSnapshot } from '../../shared/stackNaming.js'
+import type { StackNamingSnapshot } from '../../shared/stackNaming/index.js'
 
 type UnitSelectionNameInput = {
   kind: 'unit'

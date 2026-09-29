@@ -14,7 +14,7 @@ import {
 	splitStackRosterGroup,
 	validateStackRoster,
 	validateStackRosterConsistency,
-} from '#shared/stackRoster'
+} from '#shared/stackRoster/index'
 import type { DefenderMap, StackRosterState } from '#shared/types/index'
 import { makeDefender, makeDefenderMap, makeStackFixture } from '#test/utils/gameStateUtils'
 
@@ -465,6 +465,7 @@ describe('stack roster', () => {
 		})
 
 		const retired = retireStackRosterGroup(split, 'g-c')
+		expect(retired.groupsById['g-c']).toBeUndefined()
 	})
 
 	it('moves a single selected member without inventing a new group name', () => {

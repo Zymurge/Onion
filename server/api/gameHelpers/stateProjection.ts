@@ -3,7 +3,7 @@ import type { MatchRecord } from '#server/db/adapter'
 import type { GameStateResponse } from '#shared/apiProtocol'
 import type { GameState, StackRosterState } from '#shared/types/index'
 import { getUnitDefinition } from '#shared/unitDefinitions'
-import { canonicalizeStackRoster, refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster'
+import { canonicalizeStackRoster, refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster/index'
 import { buildVictoryObjectiveStates } from './victory.js'
 import { getScenarioEscapeHexes, getScenarioMapSnapshot, type ScenarioSnapshot } from './scenario.js'
 
