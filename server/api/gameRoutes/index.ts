@@ -1,5 +1,26 @@
-/** Fastify game route plugin retained as the public route registration entry point. */
-export { gameRoutes } from '#server/api/games'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+
+import { createGameRouteContext, type GameRouteOptions } from './context.js'
+import { registerLifecycleRoutes } from './lifecycleRoutes.js'
+import { registerLobbyRoutes } from './lobbyRoutes.js'
+import { registerStateRoutes } from './stateRoutes.js'
+import { registerActionRoutes } from './actionRoutes.js'
+import { registerWebSocketRoutes } from './websocketRoutes.js'
+import { registerDiagnosticRoutes } from './diagnosticRoutes.js'
+import { registerEventRoutes } from './eventRoutes.js'
+
+/** Registers the complete game API route surface in Fastify order. */
+export const gameRoutes: FastifyPluginAsync<GameRouteOptions> = async (app: FastifyInstance, opts) => {
+	const routeContext = createGameRouteContext(opts)
+	await registerLifecycleRoutes(app, routeContext)
+	await registerLobbyRoutes(app, routeContext)
+	await registerStateRoutes(app, routeContext)
+	await registerWebSocketRoutes(app, routeContext)
+	await registerDiagnosticRoutes(app, routeContext)
+	await registerActionRoutes(app, routeContext)
+	await registerEventRoutes(app, routeContext)
+}
+
 /** Creates the shared context used by game HTTP and WebSocket handlers. */
 export { createGameRouteContext } from './context.js'
 export type { GameRouteContext, GameRouteOptions } from './context.js'

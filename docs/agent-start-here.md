@@ -67,7 +67,7 @@ When introducing or renaming source files it is imperative to update this docume
 | WebSocket protocol parsing or serialization | [api-contract.md](api-contract.md) L521-L533 | `server/api/gameHelpers/protocol.ts` |
 | Action or event delivery logging | [api-contract.md](api-contract.md) | `server/api/gameHelpers/logging.ts` |
 | Game ID parsing | [api-contract.md](api-contract.md) | `server/api/gameHelpers/ids.ts` |
-| Historical game API helper import | [api-contract.md](api-contract.md) | `server/api/gamesHelpers.ts`, then the owning `server/api/gameHelpers/` module |
+| Game API helper catalog or cross-helper entry point | [api-contract.md](api-contract.md) | `server/api/gameHelpers/index.ts`, then the owning helper module |
 | Scenario map requirement | [api-contract.md](api-contract.md) L460-L463 | `shared/scenarioMap.ts` |
 | Error body or error code | [api-contract.md](api-contract.md) L612-L642 | `server/api/` |
 | Board snapshot fields | [api-contract.md](api-contract.md) L559-L611 | `shared/types/` |
@@ -118,7 +118,6 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/engine/scenarioNormalizer.ts` | Builds the initial game state from scenario deployments. | |
 | `server/engine/units.ts` | Re-exports catalog, unit-state, and allowance helpers. | `WRAP`: not an owner. |
 | `server/engine/index.ts` | Re-exports the active engine surface. | `WRAP` |
-| `server/api/games.ts` | Compatibility/orchestration surface that registers the game route families. | `WRAP` |
 | `server/api/gameRoutes/lifecycleRoutes.ts` | Owns create, join, and start route registration and lifecycle persistence. | |
 | `server/api/gameRoutes/lobbyRoutes.ts` | Owns active/history/open listings and archive, restore, and delete management. | `D+M`: delete also closes live sockets and broadcasts `GAME_DELETED`. |
 | `server/api/gameRoutes/stateRoutes.ts` | Owns authenticated current-game state projection. | |
@@ -131,8 +130,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/api/gameRoutes/diagnosticRoutes.ts` | Owns client snapshot diagnostic validation, logging, and terminal abort-event emission. | `D+M` |
 | `server/api/gameRoutes/eventRoutes.ts` | Owns authenticated persisted-event polling and exclusive sequence-cursor reads. | |
 | `server/api/gameRoutes/context.ts` | Owns per-plugin live connection, presence, broadcast, and deterministic-roll context. | `D+M`: context-owned maps track active connections and timers. |
-| `server/api/gameRoutes/index.ts` | Entry point that exposes the game plugin, typed context factory, and extracted route-family registrars. | `WRAP` |
-| `server/api/gamesHelpers.ts` | Preserves the historical helper import path. | `WRAP` |
+| `server/api/gameRoutes/index.ts` | Registers the complete game plugin in Fastify order and exposes the route context and route-family registrars. | |
 | `server/api/gameHelpers/actionResponses.ts` | Builds successful action response payloads from persisted match metadata and post-action state. | |
 | `server/api/gameHelpers/eventBuilders.ts` | Adapts engine combat and movement results into API event envelopes. | |
 | `server/api/gameHelpers/ids.ts` | Parses positive safe game ids from route parameters. | |
@@ -141,6 +139,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/api/gameHelpers/scenario.ts` | Validates, translates, loads, and projects scenario snapshots for API use. | |
 | `server/api/gameHelpers/stateProjection.ts` | Clones engine state and projects persisted matches into client-facing state responses. | |
 | `server/api/gameHelpers/victory.ts` | Adapts canonical engine victory evaluation to API objective states and user ids. | `WRAP`: evaluation remains owned by `server/engine/victory.ts`. |
+| `server/api/gameHelpers/index.ts` | Catalogs the extracted game API helpers for layer-level imports. | `WRAP`: delegates to the owning helper modules. |
 | `server/api/auth.ts` | Owns registration and login routes. | |
 | `server/api/scenarios.ts` | Owns scenario list and detail routes. | |
 | `server/db/` | Stores users and matches through the adapter contract. | |

@@ -3,7 +3,7 @@ import type { WebSocket } from 'ws'
 import logger from '#server/logger'
 import type { DbAdapter, MatchRecord } from '#server/db/adapter'
 import type { RollSource } from '#server/engine/index'
-import { serializeWsMessage } from '#server/api/gamesHelpers'
+import { serializeWsMessage } from '#server/api/gameHelpers/protocol'
 import type { EventEnvelope } from '#shared/types/index'
 import type { WebSocketServerEventMessage, WebSocketServerPresenceMessage } from '#shared/websocketProtocol'
 
