@@ -12,7 +12,7 @@ import type { TurnHandoffGate } from '../lib/appTurnHandoffGate'
 import type { useBattlefieldDisplayState } from '../lib/useBattlefieldDisplayState'
 import type { useBattlefieldInteractionState } from '../lib/useBattlefieldInteractionState'
 import type { useDebugDiagnostics } from '../lib/useDebugDiagnostics'
-import type { useInactiveEventStream } from '../lib/useInactiveEventStream'
+import type { useInactiveEventStream } from '../lib/inactiveEvents/index'
 import { useScenarioInfo } from '../lib/useScenarioInfo'
 
 export type AppShellLayoutProps = {

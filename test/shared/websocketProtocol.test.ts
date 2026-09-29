@@ -8,6 +8,7 @@ import type {
 	WebSocketServerErrorMessage,
 	WebSocketServerEventMessage,
 	WebSocketServerMessage,
+	WebSocketServerPresenceMessage,
 	WebSocketServerSnapshotMessage,
 	WebSocketServerSessionInitMessage,
 } from '#shared/websocketProtocol'
@@ -61,6 +62,7 @@ describe('websocketProtocol definitions', () => {
 			| WebSocketServerSessionInitMessage
 			| WebSocketServerSnapshotMessage
 			| WebSocketServerEventMessage
+			| WebSocketServerPresenceMessage
 			| WebSocketServerErrorMessage
 		>()
 		expectTypeOf<Extract<WebSocketServerMessage, { kind: 'SESSION_INIT' }>>().toEqualTypeOf<WebSocketServerSessionInitMessage>()

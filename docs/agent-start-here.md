@@ -176,4 +176,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `web/lib/combatOdds.ts` | Formats preview odds through the shared CRT band. | `WRAP` |
 | `web/lib/combatPreview.ts` | Builds combat target options for display. | |
 | `web/lib/sessionCatalog.ts` | Reads the catalog payload supplied to the session. | Not a second numeric catalog. |
-| `web/lib/useInactiveEventStream.ts` | Polls inactive-player events and builds timeline presentation. | `UNCLEAR`: one hook owns both polling and display formatting. |
+| `web/lib/inactiveEvents/index.ts` | Public inactive-event stream and timeline entry point. | |
+| `web/lib/inactiveEvents/useInactiveEventStream.ts` | Polls and buffers inactive-player events, owns React state, effects, and dismissal. | |
+| `web/lib/inactiveEvents/timeline.ts` | Groups inactive events into display-ready timeline entries. | |
+| `web/lib/inactiveEvents/formatting.ts` | Builds inactive-event summaries, detail lines, and connection-noise filtering. | |

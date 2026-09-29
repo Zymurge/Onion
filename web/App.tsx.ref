@@ -22,7 +22,7 @@ import { useDebugDiagnostics } from './lib/useDebugDiagnostics'
 import { useBattlefieldInteractionState } from './lib/useBattlefieldInteractionState'
 import { useBattlefieldDisplayState } from './lib/useBattlefieldDisplayState'
 import { buildCombatCommitAction, buildEndPhaseCommitAction } from './lib/commitActionBuilders'
-import { useInactiveEventStream } from './lib/useInactiveEventStream'
+import { useInactiveEventStream } from './lib/inactiveEvents/index'
 import { buildAcknowledgementTurnKey } from './lib/turnKey'
 import { routeShellControl } from './lib/shellControlRouting'
 import type {

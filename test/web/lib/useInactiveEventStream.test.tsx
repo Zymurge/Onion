@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { useInactiveEventStream } from '#web/lib/useInactiveEventStream'
+import { useInactiveEventStream } from '#web/lib/inactiveEvents/index'
 import type { EventEnvelope } from '#shared/types/index'
 
 function createEvent(event: EventEnvelope): EventEnvelope {

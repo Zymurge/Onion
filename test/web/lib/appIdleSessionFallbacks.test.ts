@@ -11,6 +11,7 @@ describe('idle session fallbacks', () => {
 		expect(idleSessionState).toEqual({
 			status: 'idle',
 			catalog: null,
+			presence: null,
 			snapshot: null,
 			session: null,
 			liveConnection: 'idle',

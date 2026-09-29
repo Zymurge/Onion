@@ -4,6 +4,7 @@ import type { GameSessionController, GameSessionViewState, LiveEventSource } fro
 export const idleSessionState: GameSessionViewState = {
 	status: 'idle',
 	catalog: null,
+	presence: null,
 	snapshot: null,
 	session: null,
 	liveConnection: 'idle',

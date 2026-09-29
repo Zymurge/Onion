@@ -58,7 +58,7 @@ import { useAppDebugTelemetry } from './lib/appDebugTelemetry'
 /** Debug popup open state, layout, and captured log lines. */
 import { useDebugDiagnostics } from './lib/useDebugDiagnostics'
 /** Polls and buffers opponent events shown while the local player is inactive. */
-import { useInactiveEventStream } from './lib/useInactiveEventStream'
+import { useInactiveEventStream } from './lib/inactiveEvents/index'
 import { getSafeReturnTo } from './lib/authRouting'
 
 import type { GameClient } from './lib/gameClient'
