@@ -8,3 +8,6 @@ coverage/
 .e2e-runtime/*
 docs/api/*
 Container Local.session.sql
+
+# Temporary ln during some system debugging
+captures/

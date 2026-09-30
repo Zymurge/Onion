@@ -11,11 +11,19 @@ import type { DbAdapter } from '#server/db/adapter'
 import { InMemoryDb } from '#server/db/memory'
 import type { RollSource } from '#server/engine/movement'
 import { loadConfig, type ServerConfig } from '#server/config/loadConfig'
+import {
+  buildSafeRequestLog,
+  REQUEST_LOG_CENSOR,
+  REQUEST_LOG_REDACT_PATHS,
+  serializeLoggedRequest,
+} from '#server/logging/requestLog'
+import type { DestinationStream } from 'pino'
 
 type BuildAppOptions = {
   createRamRolls?: (scenarioId?: string) => RollSource
   createCombatRolls?: () => RollSource
   config?: ServerConfig
+  loggerDestination?: DestinationStream
 }
 
 function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
@@ -42,17 +50,21 @@ function resolveAdapter(db?: Partial<DbAdapter>): DbAdapter {
   }
 }
 
-function getDebugRequestData(req: {
-  params: unknown
-  query: unknown
-  headers: unknown
-  body: unknown
-}): Record<string, unknown> {
+function createLoggerOptions(config: ServerConfig, destination?: DestinationStream) {
+  if (config.nodeEnv === 'test' && destination === undefined) {
+    return false
+  }
+
   return {
-    params: req.params,
-    query: req.query,
-    headers: req.headers,
-    body: req.body,
+    level: config.logLevel,
+    redact: {
+      paths: [...REQUEST_LOG_REDACT_PATHS],
+      censor: REQUEST_LOG_CENSOR,
+    },
+    serializers: {
+      req: serializeLoggedRequest,
+    },
+    ...(destination === undefined ? {} : { stream: destination }),
   }
 }
 
@@ -60,7 +72,7 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
   const adapter = resolveAdapter(db)
   const config = options.config ?? loadConfig()
   const app = Fastify({
-    logger: config.nodeEnv !== 'test' ? { level: config.logLevel } : false,
+    logger: createLoggerOptions(config, options.loggerDestination),
   })
 
   app.register(fastifyJwt, {
@@ -83,7 +95,7 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
   })
 
   app.addHook('preValidation', async (req) => {
-    req.log.debug(getDebugRequestData(req), 'API request parameters')
+    req.log.debug(buildSafeRequestLog(req), 'API request parameters')
   })
 
   app.addHook('onSend', async (_req, reply, payload) => {
@@ -130,8 +142,10 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
       : undefined
 
     req.log.debug({
-      ...getDebugRequestData(req),
-      error,
+      ...buildSafeRequestLog(req),
+      errorCode,
+      errorName: error instanceof Error ? error.name : typeof error,
+      errorMessage: error instanceof Error ? error.message : String(error),
     }, 'API request failure details')
 
     // Payload too large
