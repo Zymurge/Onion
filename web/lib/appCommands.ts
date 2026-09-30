@@ -118,8 +118,14 @@ export function useAppCommands({
 			return
 		}
 
-		const { selectedCombatTarget, selectedCombatAttackCount, displayedOnion } = display
-		if (selectedCombatTarget === null || selectedCombatTarget.isDisabled === true || selectedCombatAttackCount === 0 || displayedOnion === null) {
+		const { selectedCombatTarget, selectedCombatAttackCount, selectedCombatAttackerIds, displayedOnion } = display
+		if (
+			selectedCombatTarget === null
+			|| selectedCombatTarget.isDisabled === true
+			|| selectedCombatAttackCount === 0
+			|| selectedCombatAttackerIds.length === 0
+			|| displayedOnion === null
+		) {
 			return
 		}
 

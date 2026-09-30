@@ -99,6 +99,21 @@ describe('buildCombatResolution', () => {
 		})
 	})
 
+	it('labels D against Onion treads with no tread loss as No Effect', () => {
+		const resolution = buildCombatResolution([
+			{
+				type: 'FIRE_RESOLVED',
+				targetId: 'onion-1:treads',
+				outcome: 'D',
+			},
+		])
+
+		expect(resolution).toMatchObject({
+			outcome: 'D',
+			outcomeLabel: 'No Effect',
+		})
+	})
+
 	it('keeps destruction details distinct for each stacked unit', () => {
 		const resolution = buildCombatResolution([
 			{

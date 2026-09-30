@@ -1,3 +1,5 @@
+import { resolveCombatOutcomeLabel } from './combatOutcome'
+
 export type CombatResolutionEvent = {
 	type: string
 	[key: string]: unknown
@@ -11,17 +13,14 @@ function getNumber(value: unknown): number | undefined {
 	return typeof value === 'number' ? value : undefined
 }
 
-function hasTreadLoss(events: ReadonlyArray<CombatResolutionEvent>): boolean {
-	return events.some((event) => event.type === 'ONION_TREADS_LOST')
-}
-
-function getOutcomeLabel(outcome: unknown, events: ReadonlyArray<CombatResolutionEvent>): 'Hit' | 'Miss' {
-	if (outcome === 'NE') {
+function getOutcomeLabel(event: CombatResolutionEvent, events: ReadonlyArray<CombatResolutionEvent>): 'Hit' | 'Miss' | 'No Effect' {
+	const semanticLabel = resolveCombatOutcomeLabel(event, events)
+	if (semanticLabel === 'missed') {
 		return 'Miss'
 	}
 
-	if (outcome === 'D' && hasTreadLoss(events)) {
-		return 'Miss'
+	if (semanticLabel === 'no effect') {
+		return 'No Effect'
 	}
 
 	return 'Hit'
@@ -44,7 +43,7 @@ export type CombatResolution = {
 	targetId: string
 	targetFriendlyName?: string
 	outcome: 'NE' | 'D' | 'X'
-	outcomeLabel: 'Hit' | 'Miss'
+	outcomeLabel: 'Hit' | 'Miss' | 'No Effect'
 	roll?: number
 	odds?: string
 	details: ReadonlyArray<string>
@@ -105,7 +104,7 @@ export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEven
 		targetId,
 		targetFriendlyName: typeof combatEvent.targetFriendlyName === 'string' ? combatEvent.targetFriendlyName : undefined,
 		outcome,
-		outcomeLabel: getOutcomeLabel(outcome, events),
+		outcomeLabel: getOutcomeLabel(combatEvent, events),
 		roll: getNumber(combatEvent.roll),
 		odds: typeof combatEvent.odds === 'string' ? combatEvent.odds : undefined,
 		details,

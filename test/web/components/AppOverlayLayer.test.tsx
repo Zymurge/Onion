@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { AppOverlayLayer, type AppOverlayLayerProps } from '#web/components/AppOverlayLayer'
@@ -29,6 +29,8 @@ function createProps(overrides: Partial<AppOverlayLayerProps> = {}): AppOverlayL
 			shouldShowActionError: false,
 			sessionWinner: null,
 			shouldShowGameOverToast: false,
+			playerPresenceNotification: null,
+			dismissPlayerPresenceNotification: vi.fn(),
 		},
 		...overrides,
 	}
@@ -46,6 +48,8 @@ describe('AppOverlayLayer', () => {
 				shouldShowActionError: true,
 				sessionWinner: null,
 				shouldShowGameOverToast: false,
+				playerPresenceNotification: null,
+				dismissPlayerPresenceNotification: vi.fn(),
 			},
 		})
 
@@ -65,6 +69,8 @@ describe('AppOverlayLayer', () => {
 				shouldShowActionError: false,
 				sessionWinner: null,
 				shouldShowGameOverToast: false,
+				playerPresenceNotification: null,
+				dismissPlayerPresenceNotification: vi.fn(),
 			},
 		})
 
@@ -103,6 +109,8 @@ describe('AppOverlayLayer', () => {
 				shouldShowActionError: false,
 				sessionWinner: 'defender',
 				shouldShowGameOverToast: true,
+				playerPresenceNotification: null,
+				dismissPlayerPresenceNotification: vi.fn(),
 			},
 		})
 
@@ -111,5 +119,26 @@ describe('AppOverlayLayer', () => {
 		expect(screen.getByTestId('combat-resolution-toast')).toBeInTheDocument()
 		expect(screen.getByTestId('ram-resolution-toast')).toBeInTheDocument()
 		expect(screen.getByTestId('game-over-toast')).toBeInTheDocument()
+	})
+
+	it('renders and dismisses player presence notifications', () => {
+		const dismissPlayerPresenceNotification = vi.fn()
+		render(<AppOverlayLayer {...createProps({
+			notifications: {
+				snapshotError: null,
+				shouldShowSnapshotError: false,
+				shouldShowSessionError: false,
+				sessionError: null,
+				shouldShowActionError: false,
+				sessionWinner: null,
+				shouldShowGameOverToast: false,
+				playerPresenceNotification: { role: 'defender', status: 'disconnected' },
+				dismissPlayerPresenceNotification,
+			},
+		})} />)
+
+		expect(screen.getByTestId('player-presence-toast')).toHaveTextContent('Defender disconnected')
+		fireEvent.click(screen.getByRole('button', { name: /dismiss player presence notification/i }))
+		expect(dismissPlayerPresenceNotification).toHaveBeenCalledOnce()
 	})
 })

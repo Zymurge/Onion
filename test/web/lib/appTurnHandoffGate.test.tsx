@@ -128,19 +128,23 @@ describe('useTurnHandoffGate', () => {
 		expect(result.current.currentActiveTurnKey).toBe('123:5:onion:ONION_MOVE')
 	})
 
-	it('labels a rejoined mid-phase acknowledgement as continue', async () => {
+	it.each([
+		['phase start', 8, 8, 'Begin Turn'],
+		['mid-phase', 8, 9, 'Continue Turn'],
+		['phase end', 8, 10, 'Continue Turn'],
+	] as const)('labels a rejoined %s acknowledgement correctly', async (_position, phaseStartEventSeq, lastEventSeq, expectedLabel) => {
 		const { result } = renderHook(() => useTurnHandoffGate({
 			activeGameId: 123,
 			controller: createController(),
 			inactiveEventStream: createStream(),
 			sessionStatus: 'ready',
-			turn: { ...activeTurn(), phaseStartEventSeq: 8, lastEventSeq: 9 },
+			turn: { ...activeTurn(), phaseStartEventSeq, lastEventSeq },
 		}))
 
 		await waitFor(() => {
 			expect(result.current.acknowledgementPending).toBe(true)
 		})
-		expect(result.current.acknowledgementLabel).toBe('Continue Turn')
+		expect(result.current.acknowledgementLabel).toBe(expectedLabel)
 	})
 
 	it('keeps controls locked for completed or aborted lifecycle states', () => {

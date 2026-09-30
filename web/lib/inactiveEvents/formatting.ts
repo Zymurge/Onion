@@ -1,5 +1,6 @@
 import { MOVE_EVENT_TYPES } from './eventFamilies'
 import type { InactiveEventPayload } from './types'
+import { resolveCombatOutcomeLabel as resolveSharedCombatOutcomeLabel } from '../combatOutcome'
 
 function isNonEmptyString(value: unknown): value is string {
 	return typeof value === 'string' && value.trim().length > 0
@@ -76,16 +77,12 @@ function formatDetailValue(value: unknown): string {
 	return String(value)
 }
 
-function isOnionTarget(targetId: unknown): boolean {
-	if (!isNonEmptyString(targetId)) {
-		return false
-	}
-
-	return /^onion(?:-\d+)?$/i.test(targetId) || targetId.endsWith(':treads') || /^(main|secondary_|ap_|missile_)/.test(targetId)
-}
-
 function isConnectionNoiseSummary(summary: string): boolean {
 	return /\b(join(?:ed|ing)?|connect(?:ed|ing|ion)?)\b/i.test(summary)
+}
+
+function hasDestroyedStatusChange(events: ReadonlyArray<InactiveEventPayload>): boolean {
+	return events.some((event) => event.type === 'UNIT_STATUS_CHANGED' && formatRawValue(event.to) === 'destroyed')
 }
 
 /** Returns whether an event should be hidden from the inactive timeline. */
@@ -112,49 +109,8 @@ export function getEventCauseId(event: InactiveEventPayload): string | null {
 	return causeId.length > 0 ? causeId : null
 }
 
-function hasDestroyedStatusChange(events: ReadonlyArray<InactiveEventPayload>): boolean {
-	return events.some((event) => event.type === 'UNIT_STATUS_CHANGED' && formatRawValue(event.to) === 'destroyed')
-}
-
-function getSquadsLost(events: ReadonlyArray<InactiveEventPayload>): number | null {
-	for (const event of events) {
-		if (event.type === 'UNIT_SQUADS_LOST' && typeof event.amount === 'number') {
-			return event.amount
-		}
-	}
-
-	return null
-}
-
-function hasOnionTreadLoss(events: ReadonlyArray<InactiveEventPayload>): boolean {
-	return events.some((event) => event.type === 'ONION_TREADS_LOST')
-}
-
 function resolveCombatOutcomeLabel(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {
-	switch (event.outcome) {
-		case 'NE':
-			return 'missed'
-		case 'X':
-			return 'destroyed'
-		case 'D': {
-			if (hasDestroyedStatusChange(relatedEvents)) {
-				return 'destroyed'
-			}
-
-			const squadsLost = getSquadsLost(relatedEvents)
-			if (squadsLost !== null) {
-				return squadsLost === 1 ? '1 squad lost' : `${squadsLost} squads lost`
-			}
-
-			if (isOnionTarget(event.targetId)) {
-				return hasOnionTreadLoss(relatedEvents) ? 'missed' : 'no effect'
-			}
-
-			return 'disabled'
-		}
-		default:
-			return formatDetailValue(event.outcome)
-	}
+	return resolveSharedCombatOutcomeLabel(event, relatedEvents)
 }
 
 function resolveRamOutcomeLabel(event: InactiveEventPayload, relatedEvents: ReadonlyArray<InactiveEventPayload>): string {

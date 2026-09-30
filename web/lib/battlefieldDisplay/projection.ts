@@ -22,7 +22,9 @@ import {
 	parseWeaponStats,
 	resolveBattlefieldWeaponName,
 } from '../weaponStats'
-import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from '../selectionIds'
+import { getUnitAttackStrength } from '../stackReadiness'
+import { getCombatUnitAvailabilityReason, getCombatWeaponAvailabilityReason } from '../combatAvailability'
+import { buildWeaponSelectionId, isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from '../selectionIds'
 import { buildCombatRangeHexKeys } from '../combatRange'
 import { buildCombatTargetOptions } from '../combatPreview'
 import { buildRightRailStackSelectionViewModel } from '../rightRailSelection'
@@ -112,7 +114,7 @@ export function buildBattlefieldDisplayModel({
 	const displayedOnion = displayedOnions.find((onion) => onion.unitId === selectedOnionId) ?? displayedOnions[0] ?? null
 	const stackNaming = hasValidationError ? null : authoritativeState?.stackNaming ?? null
 	const onionWeapons = parseWeaponStats(displayedOnion?.weapons ?? '')
-	const readyWeaponDetails = displayedOnion?.weapons.filter(isBattlefieldWeaponReady) ?? []
+	const displayedWeaponDetails = displayedOnion?.weapons ?? []
 	const readyDefenderUnitIds = new Set(
 		displayedDefenders
 			.filter(isBattlefieldUnitCombatReady)
@@ -226,6 +228,75 @@ export function buildBattlefieldDisplayModel({
 		? null
 		: combatTargetOptions.find((target) => target.id === selectedCombatTargetId && target.isDisabled !== true) ?? null
 	const selectedCombatTargetIdForRender = selectedCombatTarget?.id ?? null
+	const readyWeaponDetails = displayedOnion === null
+		? []
+		: displayedWeaponDetails.map((weapon) => {
+			const baseReason = getCombatWeaponAvailabilityReason(weapon, displayedOnion.state, activeTurnActive)
+			if (baseReason !== undefined || activeCombatRole !== 'onion' || !isCombatPhase || catalog === null) {
+				return { ...weapon, disabledReason: baseReason }
+			}
+
+			const weaponSelectionId = buildWeaponSelectionId(weapon.id)
+			const weaponRangeSources = buildCombatRangeSources(
+				activePhase,
+				activeCombatRole,
+				[weaponSelectionId],
+				displayedDefenders,
+				displayedOnion,
+				catalog,
+			)
+			const weaponTargetOptions = buildCombatTargetOptions({
+				activeCombatRole,
+				combatRangeHexKeys: buildCombatRangeHexKeys(weaponRangeSources, displayedScenarioMap ?? undefined),
+				displayedDefenders,
+				displayedOnion,
+				stackRoster: stackRoster ?? null,
+				stackNaming,
+				selectedUnitIds: [weaponSelectionId],
+				selectedAttackStrength: getBattlefieldWeaponAttack(weapon, catalog),
+				selectedAttackGroupCount: 1,
+				displayedScenarioMap,
+				catalog,
+			})
+			return {
+				...weapon,
+				disabledReason: getCombatWeaponAvailabilityReason(
+					weapon,
+					displayedOnion.state,
+					activeTurnActive,
+					weaponTargetOptions.some((target) => target.isDisabled !== true),
+				),
+			}
+		})
+	const combatUnitAvailabilityReasons = Object.fromEntries(displayedDefenders.map((unit) => {
+		const baseReason = getCombatUnitAvailabilityReason(unit, activeTurnActive)
+		if (baseReason !== undefined || activeCombatRole !== 'defender' || !isCombatPhase || catalog === null) {
+			return [unit.unitId, baseReason]
+		}
+
+		const unitRangeSources = buildCombatRangeSources(
+			activePhase,
+			activeCombatRole,
+			[unit.unitId],
+			displayedDefenders,
+			displayedOnion,
+			catalog,
+		)
+		const unitTargetOptions = buildCombatTargetOptions({
+			activeCombatRole,
+			combatRangeHexKeys: buildCombatRangeHexKeys(unitRangeSources, displayedScenarioMap ?? undefined),
+			displayedDefenders,
+			displayedOnion,
+			stackRoster: stackRoster ?? null,
+			stackNaming,
+			selectedUnitIds: [unit.unitId],
+			selectedAttackStrength: getUnitAttackStrength(unit, catalog),
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap,
+			catalog,
+		})
+		return [unit.unitId, getCombatUnitAvailabilityReason(unit, activeTurnActive, unitTargetOptions.some((target) => target.isDisabled !== true))]
+	}))
 	const connectionStatus = sessionState.liveConnection
 	const connectionLabel = formatLiveConnectionStatus(connectionStatus)
 	const lastUpdatedAt = sessionState.lastUpdatedAt ?? lastRefreshAt
@@ -260,6 +331,7 @@ export function buildBattlefieldDisplayModel({
 		onionWeapons,
 		phaseAdvanceLabel,
 		readyWeaponDetails,
+		combatUnitAvailabilityReasons,
 		stacksExpandable,
 		victoryObjectives,
 		escapeHexes,

@@ -125,6 +125,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           stacksExpandable={display.stacksExpandable}
           onionWeapons={display.onionWeapons}
           readyWeaponDetails={display.readyWeaponDetails}
+          combatUnitAvailabilityReasons={display.combatUnitAvailabilityReasons}
           selectedCombatAttackLabel={display.selectedCombatAttackLabel}
           stackNaming={stackNaming}
           stackRoster={stackRoster}
@@ -177,6 +178,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           selectedInspectorDefender={display.selectedInspectorDefender}
           selectedInspectorOnion={display.selectedInspectorOnion}
           readyWeaponDetails={display.readyWeaponDetails}
+          combatUnitAvailabilityReasons={display.combatUnitAvailabilityReasons}
           rightRailStackPanel={display.rightRailStackPanel}
           catalog={catalog}
           inactiveEventStream={inactiveEventStream}

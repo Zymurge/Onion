@@ -24,6 +24,24 @@ async function readWsMessage(ws: { once: (event: 'message', handler: (data: Buff
 	})
 }
 
+async function readWsMessages(ws: {
+	on: (event: 'message', handler: (data: Buffer | string) => void) => void
+	off: (event: 'message', handler: (data: Buffer | string) => void) => void
+}, count: number): Promise<WebSocketTestMessage[]> {
+	return new Promise<WebSocketTestMessage[]>((resolve) => {
+		const received: WebSocketTestMessage[] = []
+		const handler = (data: Buffer | string) => {
+			const text = typeof data === 'string' ? data : data.toString()
+			received.push(JSON.parse(text))
+			if (received.length === count) {
+				ws.off('message', handler)
+				resolve(received)
+			}
+		}
+		ws.on('message', handler)
+	})
+}
+
 async function readInitialMessages(ws: {
 	on: (event: 'message', handler: (data: Buffer | string) => void) => void
 	off: (event: 'message', handler: (data: Buffer | string) => void) => void
@@ -347,13 +365,13 @@ describe('GET /games/:id/ws', () => {
 		expect(snapshotMessage.kind).toBe('STATE_SNAPSHOT')
 		expect(snapshotMessage.snapshot.eventSeq).toBe(3)
 
-		const resumeEventPromise = readWsMessage(ws)
-		ws.send(JSON.stringify({ kind: 'RESUME', afterSeq: 2 }))
-		const resumeEventMessage = await resumeEventPromise
+		const resumeEventsPromise = readWsMessages(ws, 3)
+		ws.send(JSON.stringify({ kind: 'RESUME', afterSeq: 0 }))
+		const resumeMessages = await resumeEventsPromise
 
-		expect(resumeEventMessage.kind).toBe('EVENT')
-		expect(resumeEventMessage.event.seq).toBe(3)
-		expect(resumeEventMessage.event.type).toBe('PHASE_CHANGED')
+		expect(resumeMessages.map((message) => message.kind)).toEqual(['EVENT', 'EVENT', 'EVENT'])
+		expect(resumeMessages.map((message) => message.event.seq)).toEqual([1, 2, 3])
+		expect(resumeMessages.some((message) => message.kind === 'PLAYER_PRESENCE')).toBe(false)
 
 		ws.terminate()
 	})

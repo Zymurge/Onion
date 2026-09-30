@@ -513,6 +513,62 @@ describe('App UI', () => {
 		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
 	})
 
+	it.each([
+		['the start of a phase', 8, 8, 'Begin Turn'],
+		['the middle of a phase', 8, 9, 'Continue Turn'],
+		['the end of a phase', 8, 10, 'Continue Turn'],
+	] as const)('shows the correct acknowledgement after rejoining at %s', async (_position, phaseStartEventSeq, lastEventSeq, expectedLabel) => {
+		const snapshot = {
+			...createOnionMoveSnapshot(4),
+			phaseStartEventSeq,
+			lastEventSeq,
+		}
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} />)
+
+		expect(await screen.findByRole('button', { name: new RegExp(expectedLabel) })).not.toBeNull()
+	})
+
+	it('renders and dismisses a live opponent presence notification', async () => {
+		const user = userEvent.setup()
+		const snapshot = createOnionMoveSnapshot(4)
+		const liveEventSource = createLiveEventSourceStub()
+		const client = createGameClient({
+			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'defender' as const } }),
+			submitAction: vi.fn().mockResolvedValue(snapshot),
+			pollEvents: vi.fn().mockResolvedValue([]),
+		})
+
+		render(<App gameClient={client} gameId={123} liveEventSource={liveEventSource as LiveEventSource} />)
+		await screen.findByTestId('app-ready')
+
+		act(() => {
+			liveEventSource.emit({
+				kind: 'presence',
+				gameId: 123,
+				presence: { onion: 'connected', defender: 'connected' },
+			})
+		})
+		expect(screen.queryByTestId('player-presence-toast')).toBeNull()
+
+		act(() => {
+			liveEventSource.emit({
+				kind: 'presence',
+				gameId: 123,
+				presence: { onion: 'disconnected', defender: 'connected' },
+			})
+		})
+
+		expect(await screen.findByTestId('player-presence-toast')).toHaveTextContent('Onion player disconnected')
+		await user.click(screen.getByRole('button', { name: /dismiss player presence notification/i }))
+		expect(screen.queryByTestId('player-presence-toast')).toBeNull()
+	})
+
 	it('keeps a ready session locked until STARTED refreshes an active snapshot', async () => {
 		const user = userEvent.setup()
 		const readySnapshot = makeScenarioSnapshot({

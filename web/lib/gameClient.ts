@@ -25,7 +25,7 @@ export type CombatResolution = {
 	attackers: ReadonlyArray<string>
 	targetId: string
 	outcome: 'NE' | 'D' | 'X'
-	outcomeLabel: 'Hit' | 'Miss'
+	outcomeLabel: 'Hit' | 'Miss' | 'No Effect'
 	roll?: number
 	odds?: string
 	details: ReadonlyArray<string>

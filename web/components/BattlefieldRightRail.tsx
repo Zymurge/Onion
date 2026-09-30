@@ -4,6 +4,7 @@ import { CombatTargetList } from './CombatTargetList'
 import { BattlefieldInspectorPanel } from './BattlefieldInspectorPanel'
 import { InactiveEventStream } from './InactiveEventStream'
 import { resolveBattlefieldUnitName } from '../lib/battlefieldNaming'
+import { getCombatUnitAvailabilityReason } from '../lib/combatAvailability'
 import { isWeaponSelectionId } from '../lib/selectionIds'
 import { buildRightRailCombatPanelViewModel } from '../lib/rightRailCombatPanel'
 import type { BattlefieldDefenderView, BattlefieldOnionView } from '../lib/battlefieldView'
@@ -43,6 +44,7 @@ type BattlefieldRightRailProps = {
   selectedInspectorDefender: BattlefieldDefenderView | null
   selectedInspectorOnion: BattlefieldOnionView | null
   readyWeaponDetails: ReadonlyArray<Weapon>
+  combatUnitAvailabilityReasons?: Readonly<Record<string, string | undefined>>
   rightRailStackPanel: {
     isVisible: boolean
     selectedStackMembers: ReadonlyArray<BattlefieldDefenderView | BattlefieldOnionView>
@@ -88,6 +90,7 @@ export function BattlefieldRightRail({
   selectedInspectorDefender,
   selectedInspectorOnion,
   readyWeaponDetails,
+  combatUnitAvailabilityReasons,
   rightRailStackPanel,
   catalog,
   inactiveEventStream,
@@ -140,8 +143,10 @@ export function BattlefieldRightRail({
       <div className="attacker-selection-list stack-selection-list">
         {rightRailStackPanel.selectedStackMembers.map((unit) => {
           const isSelected = rightRailStackPanel.selectedStackSelectionIds.includes(unit.unitId)
-          const isCombatReady = activeCombatRole !== 'defender' || !('actionableModes' in unit) || unit.actionableModes.includes('fire')
-          const isDisabled = isInteractionLocked || (activeCombatRole === 'defender' && !isCombatReady)
+          const memberAvailabilityReason = activeCombatRole === 'defender' && 'actionableModes' in unit
+            ? combatUnitAvailabilityReasons?.[unit.unitId] ?? getCombatUnitAvailabilityReason(unit, true)
+            : undefined
+          const isDisabled = isInteractionLocked || memberAvailabilityReason !== undefined
           return (
             <button
               key={unit.unitId}
@@ -149,6 +154,7 @@ export function BattlefieldRightRail({
               className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}${isDisabled ? ' is-disabled' : ''}`}
               aria-pressed={isSelected}
               disabled={isDisabled}
+              title={memberAvailabilityReason}
               data-selected={isSelected}
               data-testid={`stack-member-${unit.unitId}`}
               onClick={() => {
@@ -177,7 +183,7 @@ export function BattlefieldRightRail({
               }}
             >
               <div className="weapon-card-name">{resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName)}</div>
-              <div className="weapon-card-stats">Toggle in stack</div>
+              <div className="weapon-card-stats">{memberAvailabilityReason ?? 'Toggle in stack'}</div>
             </button>
           )
         })}
@@ -234,6 +240,12 @@ export function BattlefieldRightRail({
   })
   const canConfirmCombat = selectedCombatTarget !== null
     && selectedCombatTarget.isDisabled !== true
+    && isCombatPhase
+    && activeCombatRole !== null
+    && activeRole === activeCombatRole
+    && selectedCombatAttackerIds.length > 0
+    && selectedCombatTargetId !== null
+    && combatTargetOptions.some((target) => target.id === selectedCombatTargetId && target.isDisabled !== true)
     && selectedCombatAttackStrength > 0
 
   const attackPlanningConfirmationProps = selectedCombatTarget !== null
