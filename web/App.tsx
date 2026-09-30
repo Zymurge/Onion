@@ -7,7 +7,7 @@
  * - Auth and session binding: lib/appAuthRedirect.ts, lib/appSessionWiring.ts
  * - Snapshot and live synchronization: lib/gameSessionController.ts, lib/useGameSession.ts
  * - Turn handoff: lib/appTurnHandoffGate.ts
- * - Battlefield interaction and display: lib/useBattlefieldInteractionState.ts, lib/battlefieldDisplay/index.ts
+ * - Battlefield interaction and display: lib/battlefieldInteraction/index.ts, lib/battlefieldDisplay/index.ts
  * - Notifications and commands: lib/appNotificationPolicy.ts, lib/appCommands.ts
  * - Diagnostics and telemetry: lib/appClientDiagnostics.ts, lib/appDebugTelemetry.ts
  * - Shell layout and overlays: components/AppShellLayout.tsx, components/AppOverlayLayer.tsx
@@ -42,7 +42,7 @@ import { useTurnHandoffGate } from './lib/appTurnHandoffGate'
 
 // --- Battlefield state (already extracted; reuse as-is) ---------------------
 /** Owns selection, move planning, ram prompts, and action submission. */
-import { useBattlefieldInteractionState } from './lib/useBattlefieldInteractionState'
+import { useBattlefieldInteractionState } from './lib/battlefieldInteraction/index'
 /** Derives display-ready view models and validates the snapshot shape. */
 import { useBattlefieldDisplayState } from './lib/battlefieldDisplay/index'
 

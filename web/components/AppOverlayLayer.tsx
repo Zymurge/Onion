@@ -9,7 +9,7 @@ import { formatRamResolutionTitle } from '../lib/moveResolution'
 import type { AppCommands } from '../lib/appCommands'
 import type { AppNotificationPolicy } from '../lib/appNotificationPolicy'
 import type { useBattlefieldDisplayState } from '../lib/battlefieldDisplay/index'
-import type { useBattlefieldInteractionState } from '../lib/useBattlefieldInteractionState'
+import type { useBattlefieldInteractionState } from '../lib/battlefieldInteraction/index'
 
 export type AppOverlayLayerProps = {
   commands: Pick<AppCommands, 'dismissActionError' | 'dismissSessionError' | 'dismissGameOverToast' | 'dismissCombatResolution' | 'dismissRamResolution'>

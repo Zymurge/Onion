@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildStackRosterFromUnits } from '#shared/stackRoster/index'
-import { useBattlefieldInteractionState } from '#web/lib/useBattlefieldInteractionState'
+import { useBattlefieldInteractionState } from '#web/lib/battlefieldInteraction/index'
 import type { GameSessionController } from '#web/lib/gameSessionTypes'
 import type { GameSnapshot } from '#web/lib/gameClient'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
@@ -636,20 +636,42 @@ describe('useBattlefieldInteractionState', () => {
 	it('ignores destroyed roster members omitted during Defender movement', async () => {
 		const snapshot = createGroupedDefenderSnapshot()
 		const authoritativeState = snapshot.authoritativeState!
-		authoritativeState.defenders['pigs-3'] = makeDefender({
-			unitId: 'pigs-3',
-			typeId: 'LittlePigs',
-			position: { q: 1, r: 1 },
-			state: 'destroyed',
-			weapons: [],
-		})
-		authoritativeState.stackRoster!.groupsById['LittlePigs:1,1'].unitIds.push('pigs-3')
+		const defenders = {
+			...authoritativeState.defenders,
+			'pigs-3': makeDefender({
+				unitId: 'pigs-3',
+				typeId: 'LittlePigs',
+				position: { q: 1, r: 1 },
+				state: 'destroyed',
+				weapons: [],
+			}),
+		}
+		const stackRoster = authoritativeState.stackRoster!
+		const stackGroup = stackRoster.groupsById['LittlePigs:1,1']
+		const updatedStackRoster = {
+			...stackRoster,
+			groupsById: {
+				...stackRoster.groupsById,
+				'LittlePigs:1,1': {
+					...stackGroup,
+					unitIds: [...stackGroup.unitIds, 'pigs-3'],
+				},
+			},
+		}
+		const snapshotWithDestroyedMember = {
+			...snapshot,
+			authoritativeState: {
+				...authoritativeState,
+				defenders,
+				stackRoster: updatedStackRoster,
+			},
+		}
 
 		const { result } = renderHook(() =>
 			useBattlefieldInteractionState({
 				activeSessionController: createController(),
 				activeTurnActive: true,
-				clientSnapshot: snapshot,
+				clientSnapshot: snapshotWithDestroyedMember,
 				clientSnapshotPhase: 'DEFENDER_MOVE',
 				catalog: sessionCatalog,
 				isControlledSession: true,

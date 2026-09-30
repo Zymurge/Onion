@@ -163,7 +163,11 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `web/lib/shellControlRouting.ts` | Decides which header controls are enabled. | |
 | `web/lib/rightRailControlRouting.ts` | Decides which right-rail controls are enabled. | |
 | `web/lib/appCommands.ts` | Turns shell decisions into submitted actions. | |
-| `web/lib/useBattlefieldInteractionState.ts` | Owns local selection, prompts, and interaction-triggered submissions. | |
+| `web/lib/battlefieldInteraction/index.ts` | Public battlefield interaction hook and contract entry point. | |
+| `web/lib/battlefieldInteraction/types.ts` | Defines interaction inputs, client-local state, prompts, and controller result contracts. | |
+| `web/lib/battlefieldInteraction/useBattlefieldInteractionState.ts` | Owns React state, effects, prompts, and interaction-triggered submissions; does not own stack membership. | |
+| `web/lib/battlefieldInteraction/selection.ts` | Filters snapshot selections and projects phase-visible stack selection sources. | Stack membership remains owned by `stackSelection.ts`. |
+| `web/lib/battlefieldInteraction/movement.ts` | Builds move-map snapshots and detects ram prompts. | |
 | `web/lib/selectionIds.ts` | Parses UI selection aliases and translates combat targets. | Aliases are not unit identity. |
 | `web/lib/stackSelection.ts` | Resolves roster-backed members and phase-visible projections. | Not a membership owner. |
 | `web/lib/rightRailSelection.ts` | Builds stack selection models and MOVE or FIRE payloads. | |

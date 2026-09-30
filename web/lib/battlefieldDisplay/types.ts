@@ -3,7 +3,7 @@ import type { buildBattlefieldDisplayModel } from './projection'
 import type { ServerGameSnapshot } from '../gameClient'
 import type { GameSessionViewState } from '../gameSessionTypes'
 import type { SessionBinding } from '../sessionBinding'
-import type { BattlefieldInteractionState } from '../useBattlefieldInteractionState'
+import type { BattlefieldInteractionState } from '../battlefieldInteraction/types'
 import type { buildRightRailStackSelectionViewModel } from '../rightRailSelection'
 
 /** Inputs used to derive the battlefield display state. */
