@@ -48,7 +48,7 @@ export default defineConfig({
     exclude: ['test/web/build.test.ts', '**/*.integration.test.ts', '**/node_modules/**', 'dist/**', 'server/db/migrations/**'],
     setupFiles: ['./test/server/setup.ts', './test/web/setup.ts'],
     testTimeout: 60_000,
-    maxWorkers: 1,
+    maxWorkers: 4,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

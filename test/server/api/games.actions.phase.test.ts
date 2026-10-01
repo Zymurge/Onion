@@ -218,6 +218,42 @@ describe('POST /games/:id/actions END_PHASE', () => {
     expect(res.json()).toHaveProperty('currentPhase')
   })
 
+  it.each([
+    {
+      name: 'MOVE with a non-array movers field',
+      payload: { type: 'MOVE', movers: 'wolf-1', to: { q: 1, r: 1 } },
+    },
+    {
+      name: 'FIRE without an Onion ID',
+      payload: { type: 'FIRE', attackers: ['wolf-1'], targetId: 'onion-1' },
+    },
+    {
+      name: 'END_PHASE with an unknown field',
+      payload: { type: 'END_PHASE', phase: 'ONION_MOVE' },
+    },
+  ])('returns 400 for $name', async ({ payload }) => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/actions`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+      payload,
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({
+      ok: false,
+      code: 'INVALID_INPUT',
+      detailCode: 'COMMAND_SCHEMA_INVALID',
+      currentPhase: 'ONION_MOVE',
+    })
+  })
+
   it('returns 500 for internal advancePhaseWithEvents failure', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')

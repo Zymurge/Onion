@@ -1,4 +1,5 @@
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { CommandSchema } from '#shared/protocolSchemas'
 import type { SessionInitPayload } from '#shared/types/index'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerPresenceMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
 
@@ -33,8 +34,17 @@ export function serializeWsMessage(message: WebSocketClientMessage | WebSocketSe
 export function parseWsMessage(rawMessage: string): WebSocketClientMessage | null {
   try {
     const parsed = JSON.parse(rawMessage) as Partial<WebSocketClientMessage> & { kind?: string }
-    if (parsed.kind === 'COMMAND' && parsed.command !== undefined) {
-      return parsed as WebSocketClientMessage
+    if (parsed.kind === 'COMMAND') {
+      const command = CommandSchema.safeParse(parsed.command)
+      if (!command.success || parsed.requestId !== undefined && typeof parsed.requestId !== 'string') {
+        return null
+      }
+
+      return {
+        kind: 'COMMAND',
+        command: command.data,
+        ...(parsed.requestId === undefined ? {} : { requestId: parsed.requestId }),
+      }
     }
 
     if (parsed.kind === 'RESUME' && typeof parsed.afterSeq === 'number') {

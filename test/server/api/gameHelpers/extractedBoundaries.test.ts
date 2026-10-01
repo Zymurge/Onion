@@ -63,6 +63,7 @@ describe('WebSocket protocol helpers', () => {
   it.each([
     'not-json',
     JSON.stringify({ kind: 'COMMAND' }),
+    JSON.stringify({ kind: 'COMMAND', command: { type: 'MOVE', movers: 'wolf-1', to: { q: 1, r: 1 } } }),
     JSON.stringify({ kind: 'RESUME', afterSeq: '7' }),
     JSON.stringify({ kind: 'EVENT', event: {} }),
   ])('returns null for unsupported or malformed client input %s', (rawMessage) => {

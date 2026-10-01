@@ -5,6 +5,7 @@ import { StaleMatchStateError } from '#server/db/adapter'
 import { phaseActor } from '#server/engine/phases'
 import { verifyUserId } from '#server/api/auth'
 import { parseGameId } from '#server/api/gameHelpers/ids'
+import { CommandSchema } from '#shared/protocolSchemas'
 import type { Command, EventEnvelope } from '#shared/types/index'
 import type { GameRouteContext } from './context.js'
 import { handleEndPhase } from './actionHandlers/endPhase.js'
@@ -55,14 +56,17 @@ export async function registerActionRoutes(app: FastifyInstance, context: GameRo
   const { db } = context
 
   /** Submit one validated game command for the active participant. */
-  app.post<{ Params: { id: string }; Body: Command }>('/:id/actions', async (req, reply) => {
+  app.post<{ Params: { id: string }; Body: unknown }>('/:id/actions', async (req, reply) => {
     const actionLogContext: Record<string, unknown> = {
       requestId: String(req.id),
       requestedGameId: req.params.id,
     }
 
     try {
-      logger.info({ id: req.params.id, command: req.body?.type }, 'Submitting game action')
+      const rawCommandType = typeof req.body === 'object' && req.body !== null && 'type' in req.body
+        ? (req.body as { type?: unknown }).type
+        : undefined
+      logger.info({ id: req.params.id, command: rawCommandType }, 'Submitting game action')
       const userId = await verifyUserId(app, req.headers.authorization)
       if (!userId) return reply.status(401).send({ ok: false, error: 'Unauthorized', code: 'UNAUTHORIZED' })
       actionLogContext.userId = userId
@@ -104,25 +108,38 @@ export async function registerActionRoutes(app: FastifyInstance, context: GameRo
         return reply.status(403).send({ ok: false, error: 'Not your turn', code: 'NOT_YOUR_TURN', currentPhase: match.phase })
       }
 
-      const command = req.body as Command
-      actionLogContext.commandType = command?.type
-      logger.debug({ command }, 'Received command')
-      if (!command?.type) {
-        logger.warn({ command }, 'Missing command type')
+      actionLogContext.commandType = rawCommandType
+      logger.debug({ command: req.body }, 'Received command')
+      if (!rawCommandType) {
+        logger.warn({ command: req.body }, 'Missing command type')
         return reply.status(400).send({ ok: false, error: 'Missing command type', code: 'INVALID_INPUT', currentPhase: match.phase })
       }
 
       const supportedCommands = new Set(['END_PHASE', 'MOVE', 'FIRE'])
-      if (!supportedCommands.has(command.type)) {
-        logger.warn({ commandType: command.type }, 'Unknown command type')
+      if (typeof rawCommandType !== 'string' || !supportedCommands.has(rawCommandType)) {
+        logger.warn({ commandType: rawCommandType }, 'Unknown command type')
         return reply.status(400).send({
           ok: false,
-          error: `Unknown command type: ${command.type}`,
+          error: `Unknown command type: ${String(rawCommandType)}`,
           code: 'COMMAND_INVALID',
-          detailCode: `UNKNOWN_COMMAND ${command.type}`,
+          detailCode: `UNKNOWN_COMMAND ${String(rawCommandType)}`,
           currentPhase: match.phase,
         })
       }
+
+      const parsedCommand = CommandSchema.safeParse(req.body)
+      if (!parsedCommand.success) {
+        logger.warn({ commandType: rawCommandType }, 'Invalid command payload')
+        return reply.status(400).send({
+          ok: false,
+          error: 'Invalid command payload',
+          code: 'INVALID_INPUT',
+          detailCode: 'COMMAND_SCHEMA_INVALID',
+          currentPhase: match.phase,
+        })
+      }
+
+      const command: Command = parsedCommand.data
 
       if (match.status !== 'active') {
         return reply.status(409).send({ ok: false, error: 'Game has not been started', code: 'GAME_NOT_STARTED', currentPhase: match.phase })
