@@ -50,6 +50,13 @@ export const GameStateResponseBoundarySchema = z.object({
 	state: z.record(z.string(), z.unknown()),
 }).passthrough()
 
+export const UnchangedGameStateResponseSchema = z.object({
+	ok: z.literal(true),
+	unchanged: z.literal(true),
+	snapshotRevision: z.number().int().nonnegative(),
+	eventSeq: z.number().int().nonnegative(),
+}).strict()
+
 export const ActionResponseBoundarySchema = z.object({
 	phase: TurnPhaseSchema,
 	turnNumber: z.number().int(),

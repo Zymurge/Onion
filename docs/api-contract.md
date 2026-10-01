@@ -38,7 +38,7 @@ Commands are submitted to `POST /games/{id}/actions`. The response body is that 
 
 ### Snapshot refresh
 
-`GET /games/{id}` returns the match state. Event sequence numbers are delivery cursors, not a snapshot version. The server sequences accepted actions. Retry limits and invalid-snapshot handling are in [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md).
+`GET /games/{id}` returns the match state. Event sequence numbers are delivery cursors, not a snapshot version. The response also includes a monotonic `snapshotRevision` for client-visible state changes. A client may request `GET /games/{id}?sinceRevision={revision}`: a matching positive revision returns an unchanged response without `state`, revision `0` or an omitted cursor returns the full snapshot, and a future revision returns `409 STALE_REVISION`. Retry limits and invalid-snapshot handling are in [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md).
 
 ### WebSocket
 
@@ -249,7 +249,19 @@ in this response or in `GameState`.
     "hexes": [ { "q": number, "r": number, "t": number } ]
   },
   "state": GameState,
-  "eventSeq":    number   // highest event sequence number so far
+  "eventSeq":    number,  // highest event sequence number so far
+  "snapshotRevision": number // monotonic client-visible snapshot version
+}
+```
+
+An unchanged conditional response has this shape and omits the full snapshot:
+
+```json
+{
+  "ok": true,
+  "unchanged": true,
+  "eventSeq": number,
+  "snapshotRevision": number
 }
 ```
 

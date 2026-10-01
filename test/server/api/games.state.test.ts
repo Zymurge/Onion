@@ -35,15 +35,17 @@ describe('GET /games/:id', () => {
 
   it('returns an unchanged response when the snapshot revision matches', async () => {
     const app = buildApp()
-    const { token } = await register(app, 'shrek')
-    const { gameId } = await createGame(app, token, 'onion')
-    const initial = await getGame(app, gameId, token)
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    await joinGame(app, gameId, fiona.token)
+    const initial = await getGame(app, gameId, shrek.token)
     const initialBody = initial.json<{ snapshotRevision: number; eventSeq: number }>()
 
     const res = await app.inject({
       method: 'GET',
       url: `/games/${gameId}?sinceRevision=${initialBody.snapshotRevision}`,
-      headers: { authorization: `Bearer ${token}` },
+      headers: { authorization: `Bearer ${shrek.token}` },
     })
 
     expect(res.statusCode).toBe(200)

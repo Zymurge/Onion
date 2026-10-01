@@ -18,7 +18,7 @@ export async function registerStateRoutes(app: FastifyInstance, context: GameRou
   const { db } = context
 
   /** Fetch the current state for a participating user. */
-  app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
+  app.get<{ Params: { id: string }; Querystring: { sinceRevision?: string } }>('/:id', async (req, reply) => {
     try {
       logger.info({ id: req.params.id }, 'Fetching game state')
       const userId = await verifyUserId(app, req.headers.authorization)
@@ -38,6 +38,32 @@ export async function registerStateRoutes(app: FastifyInstance, context: GameRou
 
       if (match.players.onion !== userId && match.players.defender !== userId) {
         return reply.status(403).send({ ok: false, error: 'Forbidden', code: 'FORBIDDEN' })
+      }
+
+      const currentRevision = match.snapshotRevision ?? 0
+      const rawSinceRevision = req.query.sinceRevision
+      if (rawSinceRevision !== undefined) {
+        const sinceRevision = Number(rawSinceRevision)
+        if (!Number.isSafeInteger(sinceRevision) || sinceRevision < 0) {
+          return reply.status(400).send({ ok: false, error: 'Invalid snapshot revision', code: 'INVALID_INPUT' })
+        }
+        if (sinceRevision > currentRevision) {
+          return reply.status(409).send({
+            ok: false,
+            error: 'Snapshot revision is ahead of the server',
+            code: 'STALE_REVISION',
+            snapshotRevision: currentRevision,
+            eventSeq: match.events.at(-1)?.seq ?? 0,
+          })
+        }
+        if (sinceRevision > 0 && sinceRevision === currentRevision) {
+          return reply.send({
+            ok: true,
+            unchanged: true,
+            snapshotRevision: currentRevision,
+            eventSeq: match.events.at(-1)?.seq ?? 0,
+          })
+        }
       }
 
       logger.debug({ gameId: match.gameId }, 'Game state fetched')

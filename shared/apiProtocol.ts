@@ -279,6 +279,15 @@ export type GameStateResponse = {
 	phaseStartEventSeq?: number
 }
 
+export type UnchangedGameStateResponse = {
+	ok: true
+	unchanged: true
+	snapshotRevision: number
+	eventSeq: number
+}
+
+export type GameStateFetchResponse = GameStateResponse | UnchangedGameStateResponse
+
 export type EventsResponse = {
 	events: EventEnvelope[]
 }

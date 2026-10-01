@@ -1,17 +1,27 @@
 import {
 	createGameClient,
 	GameClientSeamError,
+	type ClientDiagnosticReport,
 	type GameAction,
 	type GameClient,
 	type GameStateEnvelope,
 	type ServerGameSnapshot,
 } from './gameClient'
-import type { ClientDiagnosticReport } from './gameClient'
 import type { GameRequestTransport } from './gameSessionTypes'
-
-	import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse, type NetworkRetryPolicy } from '../../shared/apiProtocol'
-	import { ActionResponseBoundarySchema, GameStateResponseBoundarySchema } from '../../shared/protocolSchemas'
-	import type { ActionOkResponse, EventEnvelope, TurnPhase } from '../../shared/types/index'
+import { 
+	requestJson,
+	type ApiFailure, 
+	type EventsResponse, 
+	type GameStateResponse, 
+	type GameStateFetchResponse, 
+	type NetworkRetryPolicy 
+} from '#shared/apiProtocol'
+import { 
+	ActionResponseBoundarySchema, 
+	GameStateResponseBoundarySchema, 
+	UnchangedGameStateResponseSchema 
+} from '#shared/shared/protocolSchemas'
+import type { ActionOkResponse, EventEnvelope, TurnPhase } from '#shared/shared/types/index'
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
 import { validateBattlefieldSnapshot } from './battlefieldDisplay/snapshotValidation'
@@ -56,6 +66,19 @@ function parseGameStateResponse(response: unknown): GameStateResponse {
 	}
 
 	return response as GameStateResponse
+}
+
+function parseGameStateFetchResponse(response: unknown): GameStateFetchResponse {
+	const unchanged = UnchangedGameStateResponseSchema.safeParse(response)
+	if (unchanged.success) {
+		return unchanged.data
+	}
+
+	return parseGameStateResponse(response)
+}
+
+function isUnchangedGameStateResponse(response: GameStateFetchResponse): response is Extract<GameStateFetchResponse, { unchanged: true }> {
+	return 'unchanged' in response && response.unchanged === true
 }
 
 function parseActionResponse(response: unknown): ActionSuccessResponse {
@@ -213,6 +236,46 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 	const fetchImpl = options.fetchImpl ?? fetch
 	const baseUrl = trimTrailingSlash(options.baseUrl)
 	let currentSnapshot: ServerGameSnapshot | null = null
+	let currentSession: GameStateEnvelope['session'] | null = null
+
+	async function getStateEnvelope(gameId: number, sinceRevision?: number): Promise<GameStateEnvelope> {
+		const revisionQuery = sinceRevision === undefined || sinceRevision === 0 ? '' : `?sinceRevision=${sinceRevision}`
+		const result = await requestJson<GameStateFetchResponse>({
+			baseUrl,
+			path: `games/${gameId}${revisionQuery}`,
+			method: 'GET',
+			token: options.token,
+			fetchImpl,
+			captureRawResponseBody: true,
+			retry: READ_RETRY_POLICY,
+		})
+
+		if (!result.ok) {
+			const body = result.body
+			const isFutureRevision = typeof body === 'object'
+				&& body !== null
+				&& 'code' in body
+				&& body.code === 'STALE_REVISION'
+			if (isFutureRevision && sinceRevision !== undefined && sinceRevision !== 0) {
+				return getStateEnvelope(gameId, 0)
+			}
+			throw buildError(result)
+		}
+
+		const response = parseGameStateFetchResponse(result.data)
+		if (isUnchangedGameStateResponse(response)) {
+			if (currentSnapshot === null || currentSession === null) {
+				throw new GameClientSeamError('transport', 'Received unchanged game state before an initial snapshot')
+			}
+			return { snapshot: currentSnapshot, session: currentSession }
+		}
+
+		const envelope = mapServerSnapshot(response, gameId)
+		currentSnapshot = envelope.snapshot
+		currentSession = envelope.session
+		return envelope
+	}
+
 	async function reportDiagnostic(gameId: number, diagnostic: ClientDiagnosticReport): Promise<void> {
 		const result = await requestJson<{ ok: true; reportId: string }>({
 			baseUrl,
@@ -229,23 +292,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 	}
 	const requestTransport = {
 		async getState(gameId: number) {
-			const result = await requestJson<GameStateResponse>({
-				baseUrl,
-				path: `games/${gameId}`,
-				method: 'GET',
-				token: options.token,
-				fetchImpl,
-				captureRawResponseBody: true,
-				retry: READ_RETRY_POLICY,
-			})
-
-			if (!result.ok) {
-				throw buildError(result)
-			}
-
-			const envelope = mapServerSnapshot(result.data, gameId)
-			currentSnapshot = envelope.snapshot
-			return envelope
+			return getStateEnvelope(gameId, currentSnapshot?.snapshotRevision)
 		},
 		async submitAction(gameId: number, action: GameAction) {
 			if (currentSnapshot === null) {
@@ -320,22 +367,7 @@ function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 				return currentSnapshot
 				}
 				case 'refresh': {
-					const result = await requestJson<GameStateResponse>({
-					baseUrl,
-					path: `games/${gameId}`,
-					method: 'GET',
-					token: options.token,
-					fetchImpl,
-					captureRawResponseBody: true,
-					retry: READ_RETRY_POLICY,
-				})
-
-				if (!result.ok) {
-					throw buildError(result)
-				}
-
-				const envelope = mapServerSnapshot(result.data, gameId)
-					currentSnapshot = envelope.snapshot
+					const envelope = await getStateEnvelope(gameId, currentSnapshot.snapshotRevision)
 					return envelope.snapshot
 				}
 				default:

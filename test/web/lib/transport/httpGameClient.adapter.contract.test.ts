@@ -1270,6 +1270,35 @@ describe('http game client adapter contract', () => {
 		await expect(client.submitAction(123, { type: 'end-phase' })).rejects.toThrow(/invalid action response/i)
 	})
 
+	it('preserves the accepted snapshot when a refresh is unchanged', async () => {
+		const initialSnapshot = minimalStateResponse({ snapshotRevision: 3, eventSeq: 7 })
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(minimalJsonResponse(initialSnapshot))
+			.mockResolvedValueOnce(minimalJsonResponse({ ok: true, unchanged: true, snapshotRevision: 3, eventSeq: 7 }))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		const initial = await client.getState(123)
+		const refreshed = await client.submitAction(123, { type: 'refresh' })
+
+		expect(refreshed).toEqual(initial.snapshot)
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123?sinceRevision=3')
+	})
+
+	it('retries a future revision response with a full snapshot request', async () => {
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ snapshotRevision: 3 })))
+			.mockResolvedValueOnce(minimalJsonResponse({ ok: false, code: 'STALE_REVISION', error: 'Snapshot revision is ahead of the server' }, 409))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ snapshotRevision: 4 })))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await client.getState(123)
+		const refreshed = await client.submitAction(123, { type: 'refresh' })
+
+		expect(refreshed.snapshotRevision).toBe(4)
+		expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://onion.test/api/games/123?sinceRevision=3')
+		expect(fetchImpl.mock.calls[2]?.[0]).toBe('https://onion.test/api/games/123')
+	})
+
 	it('reuses semantic snapshot validation for canonical GameState responses', async () => {
 		const fetchImpl = vi.fn().mockResolvedValue(minimalJsonResponse(minimalStateResponse({
 			state: {
