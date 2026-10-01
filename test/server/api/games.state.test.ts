@@ -30,6 +30,82 @@ describe('GET /games/:id', () => {
     expect(body.scenarioMap.width).toBeGreaterThan(0)
     expect(body.scenarioMap.height).toBeGreaterThan(0)
     expect(typeof body.eventSeq).toBe('number')
+    expect(typeof body.snapshotRevision).toBe('number')
+  })
+
+  it('returns an unchanged response when the snapshot revision matches', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const { gameId } = await createGame(app, token, 'onion')
+    const initial = await getGame(app, gameId, token)
+    const initialBody = initial.json<{ snapshotRevision: number; eventSeq: number }>()
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}?sinceRevision=${initialBody.snapshotRevision}`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({
+      ok: true,
+      unchanged: true,
+      snapshotRevision: initialBody.snapshotRevision,
+      eventSeq: initialBody.eventSeq,
+    })
+  })
+
+  it('returns a full snapshot when the revision has changed', async () => {
+    const app = buildApp()
+    const shrek = await register(app, 'shrek')
+    const fiona = await register(app, 'fiona')
+    const { gameId } = await createGame(app, shrek.token, 'onion')
+    const initial = await getGame(app, gameId, shrek.token)
+    const initialRevision = initial.json<{ snapshotRevision: number }>().snapshotRevision
+
+    await joinGame(app, gameId, fiona.token)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}?sinceRevision=${initialRevision}`,
+      headers: { authorization: `Bearer ${shrek.token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    const body = res.json<{ snapshotRevision: number; state: unknown; players: { defender: string | null } }>()
+    expect(body.snapshotRevision).toBeGreaterThan(initialRevision)
+    expect(body.state).toBeDefined()
+    expect(body.players.defender).toBe(fiona.userId)
+  })
+
+  it('returns a full snapshot when sinceRevision is zero', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const { gameId } = await createGame(app, token, 'onion')
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}?sinceRevision=0`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toHaveProperty('state')
+  })
+
+  it('rejects a future snapshot revision cursor', async () => {
+    const app = buildApp()
+    const { token } = await register(app, 'shrek')
+    const { gameId } = await createGame(app, token, 'onion')
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/games/${gameId}?sinceRevision=999999`,
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ code: 'STALE_REVISION' })
   })
 
   it('returns 401 without auth', async () => {

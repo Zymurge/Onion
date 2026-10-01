@@ -12,7 +12,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 2. Canonical combat and movement adapters: implemented. Stack combat uses live members for target state and defense. Defender preview strength and readiness ignore spent or empty weapons. Map validation preserves movement spend and counts a selected batch against destination stack capacity.
 3. Reconnect and bounded refresh policy: implemented. The live event source now reconnects with bounded jittered backoff, resumes from the retained event cursor, and cancels reconnects on explicit disconnect. The session controller ignores stale failures and bounds transient live refresh retries with exponential delay.
 4. Runtime HTTP schemas: completed. Command and snapshot boundary validation is complete, with malformed inputs rejected deterministically, canonical snapshots reusing semantic validation, and focused contract coverage in the server and HTTP adapter tests.
-5. Combat projection performance: not started.
+5. Snapshot freshness and conditional refresh: not started. The original client projection-cache idea is rejected. The replacement is a server-owned monotonic snapshot revision, specified below.
 
 ## A. Executive Summary
 
@@ -98,7 +98,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 - **Evidence:** One projection builds target options globally, once per Onion weapon, and once per eligible defender. Each call filters/canonicalizes the roster, rebuilds indexes and lookups, and scans terrain/units. The interaction hook creates a new `interactionState` object on every parent render, invalidating the projection memo even when its fields did not change.
 - **Failure mode:** Work approaches quadratic behavior as units/weapons grow and repeats on unrelated App renders such as connection, notification, or event-stream updates.
 - **Impact:** UI latency risk in larger scenarios and increasingly difficult performance diagnosis.
-- **Recommendation:** Build a snapshot-scoped combat projection context once (unit, terrain, roster, and catalog lookups), calculate per-attacker availability in bulk, and stabilize or field-depend the memo input. Optimize only after adding measurements.
+- **Recommendation:** Do not add a client-side projection cache or suppress refreshes from derived UI state. Measure server snapshot construction first. If cost is real, add a monotonic `snapshotRevision` and conditional full-snapshot refresh, then optimize server projection behind that revision. Client memoization is out of scope unless a later profile proves a render bottleneck.
 - **Focused test:** Add a representative large-scenario benchmark or invocation-count test and React profiler regression threshold; verify identical target options before/after extraction.
 - **Effort:** Large.
 
@@ -123,6 +123,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 - Keep action legality and authoritative mutation on the server.
 - Keep events as refresh hints, not a second client state model.
+- Keep snapshot freshness on the server. The client may remember the last accepted revision only as a request cursor.
 - Keep pure shared rule calculators free of HTTP, React, and persistence concerns.
 - Keep interaction state separate from snapshots and avoid optimistic authoritative mutation.
 - Keep canonical stack membership in `stackRoster`, not inferred from co-location.
@@ -161,13 +162,30 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 - **Risk:** Medium; strict schemas can reveal noncanonical fixtures and clients.
 - **Validation:** malformed command tables, invalid successful-response tables, server API integration tests, and HTTP adapter contract tests.
 
-### 5. Build and measure a snapshot-scoped combat projection context
+### 5. Add server snapshot freshness and conditional refresh - Not started
 
-- **Goal:** Remove repeated roster/terrain/unit reconstruction from derived rendering.
-- **Modules:** `battlefieldDisplay/projection.ts`, `combatPreview.ts`, interaction/display memo boundaries.
-- **Benefit:** Lower render cost and clearer ownership for availability calculations.
-- **Risk:** Medium-high if combined with behavior changes; require parity tests first.
-- **Validation:** target-option parity suite, representative scenario benchmark, React profiler measurement, web test suite.
+- **Goal:** Let a stateless client ask whether the authoritative snapshot changed, without caching derived game state or applying patches.
+- **Rejected approach:** A client-side snapshot-scoped combat context that reduces server calls. That drifts toward a second state model and violates the server-authoritative boundary.
+- **Correction:** Use a monotonic integer `snapshotRevision`, not a wall-clock timestamp. Increment it only when a client-visible field in the full `GET /games/{id}` snapshot changes. Keep `eventSeq` as the event-delivery cursor. They answer different questions and must not be collapsed unless every client-visible state change is proven to emit an event.
+- **Protocol:**
+  - `GET /games/{id}` and action responses include `snapshotRevision`.
+  - `GET /games/{id}?sinceRevision=0`, or a missing cursor, always returns the full snapshot.
+  - `sinceRevision` equal to the current revision returns `200` with `{ ok: true, unchanged: true, snapshotRevision, eventSeq }` and no `state`.
+  - A lower revision returns the full current snapshot.
+  - A higher revision returns `409` with `STALE_REVISION`; the client retries with `0`.
+  - Do not use `304` yet. The current `requestJson` helper treats non-2xx responses as failures, so an explicit unchanged body is the compatible contract.
+  - Do not add a client patch or delta-apply model in this step. Existing `GET /games/{id}/events?after={seq}` remains the event stream.
+- **Server revision rule:** Increment `snapshotRevision` in the same persistence transaction as any client-visible snapshot change: unit state, position, weapons, ammo, stack roster or naming, phase, turn, victory, player assignments, match lifecycle status, join, or start. Immutable scenario/catalog data does not bump it. Events that are not fetched with `GameState` do not bump it. Lobby-only metadata such as `lastActivityAt` does not bump it. A partial server rebuild is allowed only after measurement and must bump the revision exactly when a client-visible piece changes.
+- **Modules:** `server/db`, `server/api/gameHelpers/stateProjection.ts`, `server/api/gameHelpers/actionResponses.ts`, `shared/apiProtocol.ts`, `shared/protocolSchemas.ts`, `web/lib/httpGameClient.ts`, `docs/api-contract.md`.
+- **TDD order and done criteria:**
+  1. **Revision contract tests first.** Add failing route tests for full fetch, unchanged, changed, forced `0`, and future revision. Done when those tests fail for the missing field or behavior, not for setup errors.
+  2. **Persist the revision.** Add failing adapter tests that gameplay persistence increments it once, joins and starts increment it once, event-only appends and lobby-only `lastActivityAt` updates do not, and unchanged reads do not. Done when memory and Postgres adapters agree, all client-visible mutation entry points are covered, and stale writes still fail on `expectedLastEventSeq`.
+  3. **Expose it on responses.** Add failing schema and projection tests requiring `snapshotRevision` on `GET /games/{id}` and action responses. Done when malformed or missing revisions fail validation and existing snapshot fields stay unchanged.
+  4. **Conditional read.** Implement `sinceRevision` against the tests from step 1. Done when unchanged requests do not include `state`, changed requests include the full snapshot, and `0` always forces a full snapshot.
+  5. **Client cursor only.** Add failing HTTP adapter tests that send the last accepted revision and replace local state only on a full snapshot. Done when an unchanged response does not clear or synthesize snapshot fields and a transport failure still falls back to `sinceRevision=0`.
+  6. **Measure before partial rebuild.** Add a server benchmark for `buildGameStateResponse` and `buildActionResponse` on a large scenario. Done when the benchmark is committed. Implement partial rebuild only if it shows a material cost, with parity tests proving byte-stable snapshots aside from the new revision.
+- **Risk:** Medium. Revision gaps are worse than extra full snapshots, so tests must fail if any mutation path forgets the increment.
+- **Validation:** New contract tests, db adapter tests, HTTP schema tests, client adapter tests, then `pnpm test` and `pnpm exec tsc --noEmit`.
 
 ## E. Highest-Leverage First Item
 

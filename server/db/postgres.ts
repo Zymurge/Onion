@@ -59,8 +59,8 @@ export class PostgresDb implements DbAdapter {
     const createdAt = match.createdAt ?? new Date().toISOString()
     const lastActivityAt = match.lastActivityAt ?? createdAt
     const { rows } = await this.pool.query<{ id: number }>(
-      `INSERT INTO matches (scenario_id, scenario_snapshot, host_user_id, onion_player_id, defender_player_id, lifecycle_status, current_phase, turn_number, winner, completed_at, created_at, last_activity_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO matches (scenario_id, scenario_snapshot, host_user_id, onion_player_id, defender_player_id, lifecycle_status, current_phase, turn_number, winner, completed_at, created_at, last_activity_at, snapshot_revision)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id`,
       [
         match.scenarioId,
@@ -75,6 +75,7 @@ export class PostgresDb implements DbAdapter {
         match.completedAt ?? (match.status === 'completed' ? new Date().toISOString() : null),
         createdAt,
         lastActivityAt,
+        match.snapshotRevision ?? 0,
       ],
     )
     const gameId = rows[0].id
@@ -177,7 +178,8 @@ export class PostgresDb implements DbAdapter {
       current_phase: string
       turn_number: number
       winner: string | null
-    }>('SELECT id, scenario_id, scenario_snapshot, host_user_id, created_at, last_activity_at, onion_player_id, defender_player_id, lifecycle_status, completed_at, current_phase, turn_number, winner FROM matches WHERE id = $1', [
+      snapshot_revision: number
+    }>('SELECT id, scenario_id, scenario_snapshot, host_user_id, created_at, last_activity_at, onion_player_id, defender_player_id, lifecycle_status, completed_at, current_phase, turn_number, winner, snapshot_revision FROM matches WHERE id = $1', [
       gameId,
     ])
     if (mRows.length === 0) return null
@@ -208,6 +210,7 @@ export class PostgresDb implements DbAdapter {
       createdAt: m.created_at.toISOString(),
       completedAt: m.completed_at?.toISOString() ?? null,
       lastActivityAt: m.last_activity_at.toISOString(),
+      snapshotRevision: m.snapshot_revision,
       state: sRows[0].state,
       events: eRows.map((e) => ({ seq: e.seq, type: e.type, timestamp: e.timestamp.toISOString(), ...e.payload })),
     }
@@ -215,7 +218,7 @@ export class PostgresDb implements DbAdapter {
 
   async updateMatchPlayers(gameId: number, players: { onion: string | null; defender: string | null }): Promise<void> {
     await this.pool.query(
-      'UPDATE matches SET onion_player_id = $1, defender_player_id = $2 WHERE id = $3',
+      'UPDATE matches SET onion_player_id = $1, defender_player_id = $2, snapshot_revision = snapshot_revision + 1 WHERE id = $3',
       [players.onion, players.defender, gameId],
     )
   }
@@ -229,7 +232,7 @@ export class PostgresDb implements DbAdapter {
     if (!match) throw new MatchManagementError('MATCH_NOT_FOUND', 'Game not found')
     if (match.host_user_id !== userId) throw new MatchManagementError('NOT_CREATOR', 'Only the game creator can archive it')
     if (match.lifecycle_status !== 'completed') throw new MatchManagementError('INVALID_STATUS', 'Only completed games can be archived')
-    await this.pool.query("UPDATE matches SET lifecycle_status = 'archived' WHERE id = $1", [gameId])
+    await this.pool.query("UPDATE matches SET lifecycle_status = 'archived', snapshot_revision = snapshot_revision + 1 WHERE id = $1", [gameId])
   }
 
   async restoreMatch(gameId: number, userId: string): Promise<void> {
@@ -241,7 +244,7 @@ export class PostgresDb implements DbAdapter {
     if (!match) throw new MatchManagementError('MATCH_NOT_FOUND', 'Game not found')
     if (match.host_user_id !== userId) throw new MatchManagementError('NOT_CREATOR', 'Only the game creator can restore it')
     if (match.lifecycle_status !== 'archived') throw new MatchManagementError('INVALID_STATUS', 'Only archived games can be restored')
-    await this.pool.query("UPDATE matches SET lifecycle_status = 'completed' WHERE id = $1", [gameId])
+    await this.pool.query("UPDATE matches SET lifecycle_status = 'completed', snapshot_revision = snapshot_revision + 1 WHERE id = $1", [gameId])
   }
 
   async deleteMatch(gameId: number, userId: string): Promise<void> {
@@ -301,7 +304,7 @@ export class PostgresDb implements DbAdapter {
       const { seq, type, timestamp, ...payload } = event
 
       await client.query(
-        "UPDATE matches SET onion_player_id = $1, defender_player_id = $2, lifecycle_status = 'ready', last_activity_at = $4 WHERE id = $3",
+        "UPDATE matches SET onion_player_id = $1, defender_player_id = $2, lifecycle_status = 'ready', snapshot_revision = snapshot_revision + 1, last_activity_at = $4 WHERE id = $3",
         [players.onion, players.defender, gameId, timestamp],
       )
       await client.query(
@@ -354,7 +357,7 @@ export class PostgresDb implements DbAdapter {
       }
       const { seq, type, timestamp, ...payload } = event
 
-      await client.query("UPDATE matches SET lifecycle_status = 'active', last_activity_at = $2 WHERE id = $1", [gameId, timestamp])
+      await client.query("UPDATE matches SET lifecycle_status = 'active', snapshot_revision = snapshot_revision + 1, last_activity_at = $2 WHERE id = $1", [gameId, timestamp])
       await client.query(
         'INSERT INTO game_events (match_id, seq, type, payload, timestamp) VALUES ($1, $2, $3, $4, $5)',
         [gameId, seq, type, JSON.stringify(payload), timestamp],
@@ -370,7 +373,7 @@ export class PostgresDb implements DbAdapter {
   }
 
   async updateMatchState(gameId: number, phase: TurnPhase, turnNumber: number, winner: string | null, state: GameState): Promise<void> {
-    await this.pool.query('UPDATE matches SET current_phase = $1, turn_number = $2, winner = $3 WHERE id = $4', [
+    await this.pool.query('UPDATE matches SET current_phase = $1, turn_number = $2, winner = $3, snapshot_revision = snapshot_revision + 1 WHERE id = $4', [
       phase,
       turnNumber,
       winner,
@@ -405,7 +408,7 @@ export class PostgresDb implements DbAdapter {
       }
 
       const lastActivityAt = input.events.at(-1)?.timestamp ?? null
-      await client.query("UPDATE matches SET current_phase = $1, turn_number = $2, winner = $3, lifecycle_status = $4, completed_at = CASE WHEN $4 = 'completed' AND lifecycle_status <> 'completed' THEN COALESCE(completed_at, NOW()) ELSE completed_at END, last_activity_at = COALESCE($6::timestamptz, last_activity_at) WHERE id = $5", [
+      await client.query("UPDATE matches SET current_phase = $1, turn_number = $2, winner = $3, lifecycle_status = $4, snapshot_revision = snapshot_revision + 1, completed_at = CASE WHEN $4 = 'completed' AND lifecycle_status <> 'completed' THEN COALESCE(completed_at, NOW()) ELSE completed_at END, last_activity_at = COALESCE($6::timestamptz, last_activity_at) WHERE id = $5", [
         input.phase,
         input.turnNumber,
         input.winner,

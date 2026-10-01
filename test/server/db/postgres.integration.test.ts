@@ -43,10 +43,15 @@ function makeMatch(overrides: Partial<Omit<MatchRecord, 'gameId'>> = {}): Omit<M
   }
 }
 
+function getSnapshotRevision(match: MatchRecord | null): number {
+  return (match as (MatchRecord & { snapshotRevision?: number }) | null)?.snapshotRevision ?? 0
+}
+
 beforeAll(async () => {
   container = await new PostgreSqlContainer('postgres:16-alpine').start()
   pool = new Pool({ connectionString: container.getConnectionUri() })
   await applyMigration('001_initial.sql')
+  await applyMigration('003_snapshot_revision.sql')
   db = new PostgresDb(pool)
 }, 60_000)
 
@@ -253,5 +258,56 @@ describe('PostgresDb - games', () => {
 
   it('getEvents returns [] for unknown gameId', async () => {
     expect(await db.getEvents(999999, 0)).toEqual([])
+  })
+
+  it('keeps event-only appends out of snapshot revisions while joins and starts increment them', async () => {
+    const joiner = await db.createUser('revision-joiner', 'revision-joiner@example.com', 'x')
+    const created = await db.createMatch(makeMatch({ players: { onion: HOST_ID, defender: null } }))
+
+    expect(getSnapshotRevision(await db.findMatch(created.gameId))).toBe(0)
+
+    await db.appendEvents(created.gameId, [{ seq: 1, type: 'DIAGNOSTIC_ONLY', timestamp: new Date().toISOString() }])
+    expect(getSnapshotRevision(await db.findMatch(created.gameId))).toBe(0)
+
+    await db.joinMatch(created.gameId, joiner.userId, 'join-1')
+    expect(getSnapshotRevision(await db.findMatch(created.gameId))).toBe(1)
+
+    await db.startMatch(created.gameId, HOST_ID, 'start-1')
+    expect(getSnapshotRevision(await db.findMatch(created.gameId))).toBe(2)
+  })
+
+  it('increments gameplay persistence once and preserves the revision on stale writes', async () => {
+    const defender = await db.createUser('revision-defender', 'revision-defender@example.com', 'x')
+    const created = await db.createMatch(makeMatch({
+      players: { onion: HOST_ID, defender: defender.userId },
+      status: 'active',
+    }))
+    const initial = await db.findMatch(created.gameId)
+
+    await db.persistMatchProgress({
+      gameId: created.gameId,
+      phase: 'ONION_COMBAT',
+      turnNumber: 1,
+      winner: null,
+      status: 'active',
+      state: structuredClone(SAMPLE_STATE),
+      events: [{ seq: 1, type: 'PHASE_CHANGED', timestamp: new Date().toISOString() }],
+      expectedLastEventSeq: initial?.events.at(-1)?.seq ?? 0,
+    })
+
+    expect(getSnapshotRevision(await db.findMatch(created.gameId))).toBe(1)
+
+    await expect(db.persistMatchProgress({
+      gameId: created.gameId,
+      phase: 'DEFENDER_MOVE',
+      turnNumber: 2,
+      winner: null,
+      status: 'active',
+      state: structuredClone(SAMPLE_STATE),
+      events: [{ seq: 1, type: 'STALE_WRITE', timestamp: new Date().toISOString() }],
+      expectedLastEventSeq: 0,
+    })).rejects.toMatchObject({ name: 'StaleMatchStateError' })
+
+    expect(getSnapshotRevision(await db.findMatch(created.gameId))).toBe(1)
   })
 })

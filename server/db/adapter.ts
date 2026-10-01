@@ -32,6 +32,8 @@ export interface MatchRecord {
   state: import('../../shared/types/index.js').GameState
   /** Ordered list of all events that have occurred */
   events: import('../../shared/types/index.js').EventEnvelope[]
+  /** Monotonic revision of client-visible snapshot state. */
+  snapshotRevision?: number
 }
 
 export type GameLifecycleStatus = 'waiting' | 'ready' | 'active' | 'completed' | 'archived'

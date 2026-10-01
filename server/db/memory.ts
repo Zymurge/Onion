@@ -63,6 +63,7 @@ export class InMemoryDb implements DbAdapter {
     this.matches.set(gameId, structuredClone({
       ...match,
       gameId,
+      snapshotRevision: match.snapshotRevision ?? 0,
       createdAt: match.createdAt ?? new Date().toISOString(),
       lastActivityAt: match.lastActivityAt ?? match.createdAt ?? new Date().toISOString(),
       completedAt: match.completedAt ?? (match.status === 'completed' ? new Date().toISOString() : null),
@@ -147,6 +148,7 @@ export class InMemoryDb implements DbAdapter {
       throw new MatchJoinError('GAME_FULL', 'Game is already full')
     }
     match.status = 'ready'
+    match.snapshotRevision = (match.snapshotRevision ?? 0) + 1
     const event = {
       seq: (match.events.at(-1)?.seq ?? 0) + 1,
       type: 'PLAYER_JOINED',
@@ -181,6 +183,7 @@ export class InMemoryDb implements DbAdapter {
       userId,
     }
     match.status = 'active'
+    match.snapshotRevision = (match.snapshotRevision ?? 0) + 1
     match.events.push(event)
     match.lastActivityAt = event.timestamp
     return { event: structuredClone(event) }
@@ -192,6 +195,7 @@ export class InMemoryDb implements DbAdapter {
     if (match.hostUserId !== userId) throw new MatchManagementError('NOT_CREATOR', 'Only the game creator can archive it')
     if (match.status !== 'completed') throw new MatchManagementError('INVALID_STATUS', 'Only completed games can be archived')
     match.status = 'archived'
+    match.snapshotRevision = (match.snapshotRevision ?? 0) + 1
   }
 
   async restoreMatch(gameId: number, userId: string): Promise<void> {
@@ -200,6 +204,7 @@ export class InMemoryDb implements DbAdapter {
     if (match.hostUserId !== userId) throw new MatchManagementError('NOT_CREATOR', 'Only the game creator can restore it')
     if (match.status !== 'archived') throw new MatchManagementError('INVALID_STATUS', 'Only archived games can be restored')
     match.status = 'completed'
+    match.snapshotRevision = (match.snapshotRevision ?? 0) + 1
   }
 
   async deleteMatch(gameId: number, userId: string): Promise<void> {
@@ -213,6 +218,7 @@ export class InMemoryDb implements DbAdapter {
     const m = this.matches.get(gameId)
     if (!m) throw new Error(`Match not found: ${gameId}`)
     m.players = players
+    m.snapshotRevision = (m.snapshotRevision ?? 0) + 1
   }
 
   async updateMatchState(gameId: number, phase: TurnPhase, turnNumber: number, winner: string | null, state: GameState): Promise<void> {
@@ -222,6 +228,7 @@ export class InMemoryDb implements DbAdapter {
     m.turnNumber = turnNumber
     m.winner = winner
     m.state = structuredClone(state)
+    m.snapshotRevision = (m.snapshotRevision ?? 0) + 1
   }
 
   async persistMatchProgress(input: PersistMatchProgressInput): Promise<void> {
@@ -238,6 +245,7 @@ export class InMemoryDb implements DbAdapter {
     }
 
     const previousStatus = m.status
+    m.snapshotRevision = (m.snapshotRevision ?? 0) + 1
     m.phase = input.phase
     m.turnNumber = input.turnNumber
     m.winner = input.winner
