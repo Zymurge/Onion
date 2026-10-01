@@ -10,9 +10,11 @@ import type { ClientDiagnosticReport } from './gameClient'
 import type { GameRequestTransport } from './gameSessionTypes'
 
 	import { requestJson, type ApiFailure, type EventsResponse, type GameStateResponse, type NetworkRetryPolicy } from '../../shared/apiProtocol'
+	import { ActionResponseBoundarySchema, GameStateResponseBoundarySchema } from '../../shared/protocolSchemas'
 	import type { ActionOkResponse, EventEnvelope, TurnPhase } from '../../shared/types/index'
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
+import { validateBattlefieldSnapshot } from './battlefieldDisplay/snapshotValidation'
 
 type ActionSuccessResponse = ActionOkResponse & {
 	scenarioId?: string
@@ -47,23 +49,24 @@ function trimTrailingSlash(baseUrl: string) {
 	return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 }
 
-const TURN_PHASES: readonly TurnPhase[] = [
-	'ONION_MOVE',
-	'ONION_COMBAT',
-	'DEFENDER_RECOVERY',
-	'DEFENDER_MOVE',
-	'DEFENDER_COMBAT',
-	'GEV_SECOND_MOVE',
-] as const
-
-function normalizePhase(phase: unknown): TurnPhase {
-	if (typeof phase !== 'string') {
-		return 'DEFENDER_MOVE'
+function parseGameStateResponse(response: unknown): GameStateResponse {
+	const parsed = GameStateResponseBoundarySchema.safeParse(response)
+	if (!parsed.success) {
+		throw new GameClientSeamError('transport', 'Invalid game state response')
 	}
 
-	const upperPhase = phase.toUpperCase()
-	return TURN_PHASES.includes(upperPhase as TurnPhase) ? (upperPhase as TurnPhase) : 'DEFENDER_MOVE'
+	return response as GameStateResponse
 }
+
+function parseActionResponse(response: unknown): ActionSuccessResponse {
+	const parsed = ActionResponseBoundarySchema.safeParse(response)
+	if (!parsed.success) {
+		throw new GameClientSeamError('transport', 'Invalid action response')
+	}
+
+	return response as ActionSuccessResponse
+}
+
 function requireScenarioMap(response: GameStateResponse) {
 	if (response.scenarioMap === undefined || response.scenarioMap === null) {
 		throw new GameClientSeamError('transport', 'Missing scenario map in game state response')
@@ -102,6 +105,25 @@ function requireStackRoster(response: GameStateResponse) {
 	return response.state.stackRoster
 }
 
+function isCanonicalGameState(value: unknown): value is { onions: unknown; turn: unknown } {
+	return typeof value === 'object'
+		&& value !== null
+		&& 'onions' in value
+		&& 'turn' in value
+}
+
+function assertValidMappedSnapshot(snapshot: ServerGameSnapshot, responseKind: 'game state' | 'action'): void {
+	const authoritativeState = snapshot.authoritativeState
+	if (!isCanonicalGameState(authoritativeState)) {
+		return
+	}
+
+	const validationError = validateBattlefieldSnapshot(snapshot)
+	if (validationError !== null) {
+		throw new GameClientSeamError('transport', `Invalid ${responseKind} response: ${validationError}`)
+	}
+}
+
 function buildError(result: ApiFailure): GameClientSeamError {
 	if (result.status === 404) {
 		return new GameClientSeamError('not-found', result.message, undefined, result.status)
@@ -115,18 +137,22 @@ function buildError(result: ApiFailure): GameClientSeamError {
 }
 
 function mapServerSnapshot(
-	response: GameStateResponse,
+	rawResponse: unknown,
 	gameId: number,
 ): GameStateEnvelope {
-	const scenarioMap = requireScenarioMap(response)
-	requireStackRoster(response)
-	return {
+	const response = parseGameStateResponse(rawResponse)
+	const canonicalState = isCanonicalGameState(response.state)
+	const scenarioMap = canonicalState ? response.scenarioMap : requireScenarioMap(response)
+	if (!canonicalState) {
+		requireStackRoster(response)
+	}
+	const envelope = {
 		snapshot: {
 			gameId: response.gameId ?? gameId,
 			scenarioId: response.scenarioId,
 			hostUserId: response.hostUserId,
 			status: response.status,
-			phase: normalizePhase(response.phase),
+			phase: response.phase,
 			winner: response.winner,
 			aborted: response.aborted,
 			scenarioName: response.scenarioName,
@@ -143,16 +169,19 @@ function mapServerSnapshot(
 			role: response.role,
 		},
 	}
+	assertValidMappedSnapshot(envelope.snapshot, 'game state')
+	return envelope
 }
 
 function mapActionSnapshot(
-	response: ActionSuccessResponse,
+	rawResponse: unknown,
 	gameId: number,
 	previousSnapshot: ServerGameSnapshot | null,
 ): ServerGameSnapshot {
+	const response = parseActionResponse(rawResponse)
 	const responseEvents = Array.isArray(response.events) ? response.events : []
 
-	return {
+	const snapshot = {
 		gameId,
 		scenarioId: response.scenarioId ?? previousSnapshot?.scenarioId,
 		hostUserId: response.hostUserId ?? previousSnapshot?.hostUserId,
@@ -172,6 +201,8 @@ function mapActionSnapshot(
 		combatResolution: buildCombatResolution(responseEvents),
 		ramResolution: buildRamResolution(responseEvents),
 	}
+	assertValidMappedSnapshot(snapshot, 'action')
+	return snapshot
 }
 function createHttpGameTransportRuntime(options: HttpGameClientOptions): {
 	requestTransport: GameRequestTransport

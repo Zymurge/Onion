@@ -1,4 +1,4 @@
-import type { EventEnvelope, GameState } from './types/index.js'
+import type { EventEnvelope, GameState, TurnPhase } from './types/index.js'
 
 export type ApiErrorBody = {
 	ok?: false
@@ -259,7 +259,7 @@ export type GameStateResponse = {
 	hostUserId: string
 	status: 'waiting' | 'ready' | 'active' | 'completed' | 'archived'
 	role: 'onion' | 'defender'
-	phase: string
+	phase: TurnPhase
 	turnNumber: number
 	winner: 'onion' | 'defender' | null
 	aborted: boolean

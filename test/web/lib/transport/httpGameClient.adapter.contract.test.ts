@@ -357,6 +357,7 @@ describe('http game client adapter contract', () => {
 				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
 				turnNumber: 8,
 				eventSeq: 48,
+				phase: 'DEFENDER_COMBAT',
 			}))
 			.mockResolvedValueOnce(jsonResponse({
 				gameId: 123,
@@ -438,6 +439,7 @@ describe('http game client adapter contract', () => {
 				state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
 				turnNumber: 8,
 				eventSeq: 50,
+				phase: 'DEFENDER_COMBAT',
 				winner: 'onion',
 				escapeHexes: [{ q: 9, r: 5 }],
 			}))
@@ -560,6 +562,7 @@ describe('http game client adapter contract', () => {
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				turnNumber: 8,
 				eventSeq: 48,
+				phase: 'DEFENDER_COMBAT',
 			}))
 
 		const client = createHttpGameClient({
@@ -631,6 +634,7 @@ describe('http game client adapter contract', () => {
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				turnNumber: 8,
 				eventSeq: 48,
+				phase: 'DEFENDER_MOVE',
 			}))
 
 		const client = createHttpGameClient({
@@ -860,6 +864,7 @@ describe('http game client adapter contract', () => {
 				state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 				turnNumber: 8,
 				eventSeq: 48,
+				phase: 'ONION_MOVE',
 			}))
 
 		const client = createHttpGameClient({
@@ -1277,16 +1282,53 @@ describe('http game client adapter contract', () => {
 		})
 	})
 
-	it('normalizes supported, lowercase, and unknown phases at the HTTP boundary', async () => {
+	it('rejects invalid phases and sequence values at the HTTP boundary', async () => {
 		const fetchImpl = vi.fn()
 			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ phase: 'onion_move' })))
 			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ phase: 'NOT_A_PHASE' })))
 			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ phase: null })))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse({ eventSeq: '47' })))
 		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
 
-		await expect(client.getState(123)).resolves.toMatchObject({ snapshot: { phase: 'ONION_MOVE' } })
-		await expect(client.getState(123)).resolves.toMatchObject({ snapshot: { phase: 'DEFENDER_MOVE' } })
-		await expect(client.getState(123)).resolves.toMatchObject({ snapshot: { phase: 'DEFENDER_MOVE' } })
+		await expect(client.getState(123)).rejects.toThrow(/invalid game state response/i)
+		await expect(client.getState(123)).rejects.toThrow(/invalid game state response/i)
+		await expect(client.getState(123)).rejects.toThrow(/invalid game state response/i)
+		await expect(client.getState(123)).rejects.toThrow(/invalid game state response/i)
+	})
+
+	it('rejects invalid phases in action responses', async () => {
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse()))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalActionResponse({ phase: 'NOT_A_PHASE' })))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await client.getState(123)
+		await expect(client.submitAction(123, { type: 'end-phase' })).rejects.toThrow(/invalid action response/i)
+	})
+
+	it('reuses semantic snapshot validation for canonical GameState responses', async () => {
+		const fetchImpl = vi.fn().mockResolvedValue(minimalJsonResponse(minimalStateResponse({
+			state: {
+				currentPhase: 'DEFENDER_MOVE',
+				turn: 1,
+				onions: {
+					'onion-1': {
+						unitId: 'wrong-id',
+						typeId: 'TheOnion',
+						position: { q: 0, r: 0 },
+						state: 'operational',
+						side: 'onion',
+						friendlyName: 'The Onion',
+						weapons: [],
+					},
+				},
+				defenders: {},
+				stackRoster: { groupsById: {} },
+			},
+		})))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await expect(client.getState(123)).rejects.toThrow(/authoritativeState\.onions\.onion-1 has an invalid unitId/i)
 	})
 
 	it('maps every supported action and preserves optional MOVE fields', async () => {

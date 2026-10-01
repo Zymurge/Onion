@@ -29,4 +29,31 @@ export const CommandSchema = z.discriminatedUnion('type', [
 	FireCommandSchema,
 ])
 
+export const TurnPhaseSchema = z.enum([
+	'ONION_MOVE',
+	'ONION_COMBAT',
+	'DEFENDER_RECOVERY',
+	'DEFENDER_MOVE',
+	'DEFENDER_COMBAT',
+	'GEV_SECOND_MOVE',
+])
+
+export const PlayerRoleSchema = z.enum(['onion', 'defender'])
+
+export const GameStateResponseBoundarySchema = z.object({
+	gameId: z.number().int(),
+	role: PlayerRoleSchema,
+	phase: TurnPhaseSchema,
+	turnNumber: z.number().int(),
+	eventSeq: z.number().int().nonnegative(),
+	state: z.record(z.string(), z.unknown()),
+}).passthrough()
+
+export const ActionResponseBoundarySchema = z.object({
+	phase: TurnPhaseSchema,
+	turnNumber: z.number().int(),
+	eventSeq: z.number().int().nonnegative(),
+	state: z.record(z.string(), z.unknown()),
+}).passthrough()
+
 export type ValidatedCommand = z.infer<typeof CommandSchema>
