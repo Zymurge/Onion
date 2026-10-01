@@ -48,9 +48,9 @@ export function formatWeaponSummary(weapons: ReadonlyArray<Weapon> | undefined) 
   return weapons.map((weapon) => `${weapon.id}: ${weapon.state}`).join(', ')
 }
 
-/** Reports whether a weapon is ready to fire. */
+/** Reports whether a weapon is ready to fire. Empty weapons are not ready. */
 export function isBattlefieldWeaponReady(weapon: Weapon): boolean {
-  return weapon.state === 'ready'
+  return weapon.state === 'ready' && (weapon.ammo === undefined || weapon.ammo > 0)
 }
 
 /**
@@ -110,7 +110,7 @@ export function getReadyWeaponRange(weapons: ReadonlyArray<Weapon> | undefined, 
   }
 
   return weapons
-    .filter((weapon) => weapon.state === 'ready')
+    .filter(isBattlefieldWeaponReady)
     .reduce((maxRange, weapon) => Math.max(maxRange, catalog === undefined ? 0 : getSessionWeaponType(catalog, weapon.typeId).range), 0)
 }
 
@@ -124,7 +124,7 @@ export function getActionableModes(status: UnitState | undefined, weapons: Reado
     return []
   }
 
-  const hasReadyWeapon = (weapons ?? []).some((weapon) => weapon.state === 'ready')
+  const hasReadyWeapon = (weapons ?? []).some(isBattlefieldWeaponReady)
   if (activePhase === 'DEFENDER_COMBAT') {
     return hasReadyWeapon ? ['fire', 'combined'] : []
   }

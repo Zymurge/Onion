@@ -108,6 +108,33 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
 
+	it('counts only ready defender weapons in the selected attack strength', () => {
+		const snapshot = createSnapshot()
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.defenders = {
+			'dragon-1': makeDefender({
+				unitId: 'dragon-1',
+				typeId: 'Dragon',
+				position: { q: 3, r: 3 },
+				weapons: [
+					makeWeapon({ id: 'main-1', typeId: 'Dragon.main_1', state: 'ready' }),
+					makeWeapon({ id: 'main-2', typeId: 'Dragon.main_2', state: 'spent' }),
+					makeWeapon({ id: 'main-3', typeId: 'Dragon.main_1', state: 'ready', ammo: 0 }),
+				],
+			}),
+		}
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds: ['dragon-1'] }),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.selectedCombatAttackStrength).toBe(6)
+	})
+
 	it('keeps the attack total populated during defender movement when defenders are selected', () => {
 		const snapshot = createSnapshot()
 		snapshot.phase = 'DEFENDER_MOVE'

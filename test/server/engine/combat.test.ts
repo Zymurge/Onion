@@ -656,6 +656,17 @@ describe('executeCombatAction', () => {
     expect(result.roll?.result).toBe('D')
     expect(state.defenders['pigs-1'].state).toBe('destroyed')
     expect(state.defenders['pigs-2'].state).toBe('operational')
+
+    const second = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['secondary_1'],
+      targetId: 'LittlePigs:1,1',
+      onionId: 'onion-1',
+    })
+
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    expect(second.plan.defense).toBe(1)
   })
 
   it('destroys every live Little Pigs member for an X result against a stack', () => {

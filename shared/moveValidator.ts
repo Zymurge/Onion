@@ -176,6 +176,7 @@ export function validateMove(
 	map: MoveMapSnapshot,
 	state: MoveValidationState,
 	command: SingleUnitMoveCommand,
+	options: { incomingMembers?: number } = {},
 ): MoveValidationResult {
 	const resolved = resolveUnit(state, command.unitId)
 	if (!resolved) {
@@ -185,7 +186,7 @@ export function validateMove(
 	const { unit, role } = resolved
 	const unitType = unit.typeId
 	const unitId = unit.unitId
-	const incomingMembers = 1
+	const incomingMembers = options.incomingMembers ?? 1
 	if (unit.state !== 'operational') {
 		return { valid: false, code: 'UNIT_NOT_OPERATIONAL', error: getMoveFailureMessage('UNIT_NOT_OPERATIONAL') }
 	}

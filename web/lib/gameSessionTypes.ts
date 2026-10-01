@@ -76,6 +76,7 @@ export type GameSessionControllerOptions = {
 	requestTransport: GameRequestTransport
 	liveEventSource: LiveEventSource
 	liveRefreshQuietWindowMs?: number
+	liveRefreshMaxAttempts?: number
 }
 
 /**

@@ -180,7 +180,7 @@ describe('live event source contract', () => {
 		source.connect(123)
 		sockets[0]?.open()
 		sockets[0]?.fail()
-		expect(source.getConnectionState(123)).toBe('disconnected')
+		expect(source.getConnectionState(123)).toBe('reconnecting')
 
 		source.connect(123)
 		sockets[1]?.open()
@@ -280,4 +280,95 @@ describe('live event source contract', () => {
 			{ kind: 'session-init', gameId: 123, payload: { unitTypes: { tank: { typeId: 'tank' } }, weaponTypes: { cannon: { typeId: 'cannon' } } } },
 		])
 	})
+
+	it('reconnects after an unexpected close and resumes from the retained cursor', () => {
+		vi.useFakeTimers()
+		try {
+			const sockets: FakeWebSocket[] = []
+			const source = createLiveEventSource({
+				baseUrl: 'https://onion.test/api',
+				reconnectDelaysMs: [25],
+				maxReconnectAttempts: 2,
+				reconnectJitter: (delay) => delay,
+				webSocketFactory: (url) => {
+					const socket = new FakeWebSocket(url)
+					sockets.push(socket)
+					return socket
+				},
+			})
+
+			source.connect(123)
+			sockets[0]?.open()
+			sockets[0]?.receive({ kind: 'EVENT', event: { seq: 9, type: 'UNIT_MOVED', timestamp: '2026-04-02T00:00:00.000Z' } })
+			sockets[0]?.close()
+
+			expect(source.getConnectionState(123)).toBe('reconnecting')
+			vi.advanceTimersByTime(25)
+			sockets[1]?.open()
+
+			expect(sockets[1]?.sentMessages).toEqual([JSON.stringify({ kind: 'RESUME', afterSeq: 9 })])
+			expect(source.getConnectionState(123)).toBe('connected')
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it('cancels a scheduled reconnect when the source is disconnected', () => {
+		vi.useFakeTimers()
+		try {
+			const sockets: FakeWebSocket[] = []
+			const source = createLiveEventSource({
+				baseUrl: 'https://onion.test/api',
+				reconnectDelaysMs: [25],
+				reconnectJitter: (delay) => delay,
+				webSocketFactory: (url) => {
+					const socket = new FakeWebSocket(url)
+					sockets.push(socket)
+					return socket
+				},
+			})
+
+			source.connect(123)
+			sockets[0]?.open()
+			sockets[0]?.close()
+			source.disconnect(123)
+			vi.advanceTimersByTime(25)
+
+			expect(sockets).toHaveLength(1)
+			expect(source.getConnectionState(123)).toBe('disconnected')
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it('stops reconnecting after the attempt budget is exhausted', () => {
+		vi.useFakeTimers()
+		try {
+			const sockets: FakeWebSocket[] = []
+			const source = createLiveEventSource({
+				baseUrl: 'https://onion.test/api',
+				reconnectDelaysMs: [10],
+				maxReconnectAttempts: 1,
+				reconnectJitter: (delay) => delay,
+				webSocketFactory: (url) => {
+					const socket = new FakeWebSocket(url)
+					sockets.push(socket)
+					return socket
+				},
+			})
+
+			source.connect(123)
+			sockets[0]?.open()
+			sockets[0]?.close()
+			vi.advanceTimersByTime(10)
+			sockets[1]?.close()
+			vi.advanceTimersByTime(10)
+
+			expect(sockets).toHaveLength(2)
+			expect(source.getConnectionState(123)).toBe('disconnected')
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
 })

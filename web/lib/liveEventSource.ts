@@ -21,10 +21,15 @@ export type WebSocketLike = {
 	onerror: null | ((event?: unknown) => void)
 }
 
+const DEFAULT_RECONNECT_DELAYS_MS = [250, 500, 1_000, 2_000, 4_000]
+
 export type LiveEventSourceOptions = {
 	baseUrl: string
 	token?: string
 	webSocketFactory?: (url: string) => WebSocketLike
+	reconnectDelaysMs?: readonly number[]
+	maxReconnectAttempts?: number
+	reconnectJitter?: (delayMs: number) => number
 }
 
 type LiveEventSourceState = {
@@ -91,6 +96,12 @@ export function createLiveEventSource(options: LiveEventSourceOptions): LiveEven
 	const listeners = new Set<(signal: LiveSessionSignal) => void>()
 	const socketsByGameId = new Map<number, WebSocketLike>()
 	const stateByGameId = new Map<number, LiveEventSourceState>()
+	const reconnectTimers = new Map<number, ReturnType<typeof setTimeout>>()
+	const reconnectAttempts = new Map<number, number>()
+	const intentionalDisconnects = new Set<number>()
+	const reconnectDelaysMs = options.reconnectDelaysMs ?? DEFAULT_RECONNECT_DELAYS_MS
+	const maxReconnectAttempts = options.maxReconnectAttempts ?? reconnectDelaysMs.length
+	const reconnectJitter = options.reconnectJitter ?? ((delayMs: number) => delayMs + Math.floor(Math.random() * Math.min(100, delayMs)))
 	const webSocketFactory = options.webSocketFactory ?? ((url) => new WebSocket(url) as unknown as WebSocketLike)
 
 	function getStateFor(gameId: number): LiveEventSourceState {
@@ -130,6 +141,143 @@ export function createLiveEventSource(options: LiveEventSourceOptions): LiveEven
 		return socketsByGameId.get(gameId) === socket
 	}
 
+	function clearReconnectTimer(gameId: number) {
+		const timer = reconnectTimers.get(gameId)
+		if (timer !== undefined) {
+			clearTimeout(timer)
+			reconnectTimers.delete(gameId)
+		}
+	}
+
+	function scheduleReconnect(gameId: number) {
+		if (intentionalDisconnects.has(gameId)) {
+			return
+		}
+
+		const attempt = reconnectAttempts.get(gameId) ?? 0
+		if (attempt >= maxReconnectAttempts) {
+			reconnectAttempts.delete(gameId)
+			emitConnection(gameId, 'disconnected')
+			return
+		}
+
+		clearReconnectTimer(gameId)
+		emitConnection(gameId, 'reconnecting')
+		const baseDelay = reconnectDelaysMs[Math.min(attempt, reconnectDelaysMs.length - 1)] ?? 1_000
+		reconnectTimers.set(gameId, setTimeout(() => {
+			reconnectTimers.delete(gameId)
+			if (intentionalDisconnects.has(gameId)) {
+				return
+			}
+			const existingSocket = socketsByGameId.get(gameId)
+			if (existingSocket !== undefined && existingSocket.readyState !== 3) {
+				return
+			}
+			reconnectAttempts.set(gameId, attempt + 1)
+			openSocket(gameId)
+		}, Math.max(0, reconnectJitter(baseDelay))))
+	}
+
+	function handleUnexpectedSocketEnd(gameId: number, socket: WebSocketLike) {
+		if (!isCurrentSocket(gameId, socket)) {
+			return
+		}
+
+		socketsByGameId.delete(gameId)
+		if (intentionalDisconnects.has(gameId)) {
+			intentionalDisconnects.delete(gameId)
+			emitConnection(gameId, 'disconnected')
+			return
+		}
+
+		if (socket.readyState !== 3) {
+			socket.close()
+		}
+		scheduleReconnect(gameId)
+	}
+
+	function openSocket(gameId: number) {
+		const previousState = getStateFor(gameId)
+		emitConnection(gameId, previousState.connectionStatus === 'idle' ? 'connecting' : 'reconnecting')
+
+		const socket = webSocketFactory(buildWebSocketUrl(options.baseUrl, gameId, options.token))
+		socketsByGameId.set(gameId, socket)
+
+		socket.onopen = () => {
+			if (!isCurrentSocket(gameId, socket)) {
+				return
+			}
+
+			reconnectAttempts.delete(gameId)
+			emitConnection(gameId, 'connected')
+
+			const liveState = getStateFor(gameId)
+			if (liveState.lastEventSeq !== null && liveState.lastEventSeq > 0) {
+				const resumeMessage: WebSocketClientMessage = {
+					kind: 'RESUME',
+					afterSeq: liveState.lastEventSeq,
+				}
+				socket.send(JSON.stringify(resumeMessage))
+			}
+		}
+
+		socket.onmessage = (event) => {
+			if (!isCurrentSocket(gameId, socket)) {
+				return
+			}
+
+			const parsed = parseMessage(event.data)
+			if (parsed === null) {
+				return
+			}
+
+			if (isSessionInitMessage(parsed)) {
+				emit({ kind: 'session-init', gameId, payload: parsed.payload })
+				return
+			}
+
+			if (isSnapshotMessage(parsed)) {
+				const eventSeq = typeof parsed.snapshot.eventSeq === 'number' ? parsed.snapshot.eventSeq : null
+				updateLastEventSeq(gameId, eventSeq)
+				emit({ kind: 'snapshot', gameId, eventSeq })
+				return
+			}
+
+			if (isPresenceMessage(parsed)) {
+				emit({ kind: 'presence', gameId, presence: parsed.presence })
+				return
+			}
+
+			if (isEventMessage(parsed)) {
+				updateLastEventSeq(gameId, parsed.event.seq)
+				emit({ kind: 'event', gameId, eventSeq: parsed.event.seq, eventType: parsed.event.type })
+				return
+			}
+
+			if (isErrorMessage(parsed)) {
+				emit({ kind: 'error', gameId, message: parsed.message })
+				if (!isCurrentSocket(gameId, socket)) {
+					return
+				}
+				socketsByGameId.delete(gameId)
+				clearReconnectTimer(gameId)
+				reconnectAttempts.delete(gameId)
+				emitConnection(gameId, 'disconnected')
+				if (socket.readyState !== 3) {
+					socket.close()
+				}
+			}
+		}
+
+		socket.onclose = () => {
+			handleUnexpectedSocketEnd(gameId, socket)
+		}
+
+		socket.onerror = () => {
+			handleUnexpectedSocketEnd(gameId, socket)
+		}
+	}
+
 	return {
 		subscribe(listener) {
 			listeners.add(listener)
@@ -138,103 +286,33 @@ export function createLiveEventSource(options: LiveEventSourceOptions): LiveEven
 			}
 		},
 		connect(gameId) {
+			intentionalDisconnects.delete(gameId)
+			clearReconnectTimer(gameId)
+			reconnectAttempts.delete(gameId)
 			const existingSocket = socketsByGameId.get(gameId)
 			if (existingSocket !== undefined && existingSocket.readyState !== 3) {
 				return
 			}
 
-			const previousState = getStateFor(gameId)
-			emitConnection(gameId, previousState.connectionStatus === 'idle' ? 'connecting' : 'reconnecting')
-
-			const socket = webSocketFactory(buildWebSocketUrl(options.baseUrl, gameId, options.token))
-			socketsByGameId.set(gameId, socket)
-
-			socket.onopen = () => {
-				if (!isCurrentSocket(gameId, socket)) {
-					return
-				}
-
-				emitConnection(gameId, 'connected')
-
-				const liveState = getStateFor(gameId)
-				if (liveState.lastEventSeq !== null && liveState.lastEventSeq > 0) {
-					const resumeMessage: WebSocketClientMessage = {
-						kind: 'RESUME',
-						afterSeq: liveState.lastEventSeq,
-					}
-					socket.send(JSON.stringify(resumeMessage))
-				}
-			}
-
-			socket.onmessage = (event) => {
-				if (!isCurrentSocket(gameId, socket)) {
-					return
-				}
-
-				const parsed = parseMessage(event.data)
-				if (parsed === null) {
-					return
-				}
-
-				if (isSessionInitMessage(parsed)) {
-					emit({ kind: 'session-init', gameId, payload: parsed.payload })
-					return
-				}
-
-				if (isSnapshotMessage(parsed)) {
-					const eventSeq = typeof parsed.snapshot.eventSeq === 'number' ? parsed.snapshot.eventSeq : null
-					updateLastEventSeq(gameId, eventSeq)
-					emit({ kind: 'snapshot', gameId, eventSeq })
-					return
-				}
-
-				if (isPresenceMessage(parsed)) {
-					emit({ kind: 'presence', gameId, presence: parsed.presence })
-					return
-				}
-
-				if (isEventMessage(parsed)) {
-					updateLastEventSeq(gameId, parsed.event.seq)
-					emit({ kind: 'event', gameId, eventSeq: parsed.event.seq, eventType: parsed.event.type })
-					return
-				}
-
-				if (isErrorMessage(parsed)) {
-					emit({ kind: 'error', gameId, message: parsed.message })
-					emitConnection(gameId, 'disconnected')
-				}
-			}
-
-			socket.onclose = () => {
-				if (!isCurrentSocket(gameId, socket)) {
-					return
-				}
-
-				socketsByGameId.delete(gameId)
-				emitConnection(gameId, 'disconnected')
-			}
-
-			socket.onerror = () => {
-				if (!isCurrentSocket(gameId, socket)) {
-					return
-				}
-
-				socketsByGameId.delete(gameId)
-				emitConnection(gameId, 'disconnected')
-			}
+			openSocket(gameId)
 		},
 		disconnect(gameId) {
+			intentionalDisconnects.add(gameId)
+			clearReconnectTimer(gameId)
+			reconnectAttempts.delete(gameId)
 			const socket = socketsByGameId.get(gameId)
 			if (socket === undefined) {
 				if (getStateFor(gameId).connectionStatus !== 'disconnected') {
 					emitConnection(gameId, 'disconnected')
 				}
+				intentionalDisconnects.delete(gameId)
 				return
 			}
 
 			if (socket.readyState === 3) {
 				socketsByGameId.delete(gameId)
 				emitConnection(gameId, 'disconnected')
+				intentionalDisconnects.delete(gameId)
 				return
 			}
 

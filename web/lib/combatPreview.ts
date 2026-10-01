@@ -11,7 +11,7 @@ import {
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex, type UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
 import { resolveBattlefieldFriendlyName } from './battlefieldNaming'
-import { resolveBattlefieldWeaponName } from './weaponStats'
+import { isBattlefieldWeaponReady, resolveBattlefieldWeaponName } from './weaponStats'
 import { getDisplayDefense, getTerrainValueAt } from './battlefieldViewBuilders'
 import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './selectionIds'
 import { formatCombatTargetId } from '../../shared/combatTarget'
@@ -158,13 +158,11 @@ function buildCombatCalculatorInputForWeaponTarget(
 	for (const attackerId of selectedAttackerIds) {
 		const attacker = displayedDefenders.find((unit) => unit.unitId === resolveSelectionOwnerUnitId(attackerId))
 		if (attacker !== undefined) {
-			const readyWeapons = attacker.weapons.filter((candidate) => candidate.state === 'ready')
+			const readyWeapons = attacker.weapons.filter(isBattlefieldWeaponReady)
 			attackers.push({
 				id: attackerId,
 				typeId: attacker.typeId,
-				weaponTypeIds: readyWeapons.length > 0
-					? readyWeapons.map((weapon) => weapon.typeId)
-					: attacker.weapons.map((weapon) => weapon.typeId),
+				weaponTypeIds: readyWeapons.map((weapon) => weapon.typeId),
 			})
 		}
 	}

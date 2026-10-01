@@ -110,6 +110,7 @@ async function createLoadedController(options: {
 	getState: ReturnType<typeof vi.fn>
 	liveConnection?: LiveConnectionStatus
 	liveRefreshQuietWindowMs?: number
+	liveRefreshMaxAttempts?: number
 }) {
 	const liveEventSource = createLiveEventSource(options.liveConnection ?? 'idle')
 	const controller = createGameSessionController({
@@ -117,6 +118,7 @@ async function createLoadedController(options: {
 		requestTransport: createTransport(options.getState as GameRequestTransport['getState']),
 		liveEventSource,
 		liveRefreshQuietWindowMs: options.liveRefreshQuietWindowMs ?? 5,
+		liveRefreshMaxAttempts: options.liveRefreshMaxAttempts,
 	}) as GameSessionController
 
 	await controller.load()
@@ -870,5 +872,89 @@ describe('createGameSessionController', () => {
 		expect(state.error?.message).toBe('mocked transport fault')
 
 		controller.dispose()
+	})
+
+	it('does not let a stale refresh failure overwrite a newer snapshot', async () => {
+		const firstRefresh = createDeferred<{ snapshot: GameSnapshot; session: { role: 'defender' } }>()
+		const secondRefresh = createDeferred<{ snapshot: GameSnapshot; session: { role: 'defender' } }>()
+		const initialSnapshot = createSnapshot({ phase: 'DEFENDER_MOVE', lastEventSeq: 10, scenarioName: 'Initial' })
+		const newerSnapshot = createSnapshot({ phase: 'ONION_MOVE', lastEventSeq: 12, scenarioName: 'Newer' })
+		const getState = vi.fn()
+			.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
+			.mockReturnValueOnce(firstRefresh.promise)
+			.mockReturnValueOnce(secondRefresh.promise)
+		const { controller } = await createLoadedController({ getState, liveRefreshQuietWindowMs: 5 })
+
+		const firstPromise = controller.refresh('manual')
+		const secondPromise = controller.refresh('manual')
+		secondRefresh.resolve({ snapshot: newerSnapshot, session: { role: 'defender' } })
+		await secondPromise
+		firstRefresh.reject(new Error('stale refresh failed'))
+		await firstPromise
+
+		expect(controller.getSnapshot()).toMatchObject({
+			status: 'ready',
+			error: null,
+			snapshot: newerSnapshot,
+		})
+		controller.dispose()
+	})
+
+	it('keeps live refresh retries bounded while live events continue during an outage', async () => {
+		vi.useFakeTimers()
+		try {
+			const initialSnapshot = createSnapshot({ phase: 'DEFENDER_MOVE', lastEventSeq: 4, scenarioName: 'Retry budget initial snapshot' })
+			const getState = vi.fn()
+				.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
+				.mockRejectedValue(new GameClientSeamError('transport', 'temporary server failure', undefined, 503))
+			const { controller, liveEventSource } = await createLoadedController({
+				getState,
+				liveRefreshQuietWindowMs: 10,
+				liveRefreshMaxAttempts: 3,
+			})
+
+			for (const eventSeq of [5, 6, 7, 8, 9]) {
+				liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq, eventType: 'PHASE_CHANGED' })
+				vi.advanceTimersByTime(10)
+				await flushMicrotasks()
+			}
+
+			expect(getState).toHaveBeenCalledTimes(4)
+			controller.dispose()
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it('stops retrying a permanent live refresh failure', async () => {
+		vi.useFakeTimers()
+		try {
+			const initialSnapshot = createSnapshot({ phase: 'DEFENDER_MOVE', lastEventSeq: 4, scenarioName: 'Initial' })
+			const getState = vi.fn()
+				.mockResolvedValueOnce({ snapshot: initialSnapshot, session: { role: 'defender' as const } })
+				.mockRejectedValue(new GameClientSeamError('transport', 'unauthorized', undefined, 401))
+			const { controller, liveEventSource } = await createLoadedController({
+				getState,
+				liveRefreshQuietWindowMs: 10,
+				liveRefreshMaxAttempts: 3,
+			})
+
+			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 5, eventType: 'PHASE_CHANGED' })
+			vi.advanceTimersByTime(10)
+			await flushMicrotasks()
+			vi.advanceTimersByTime(10)
+			await flushMicrotasks()
+			vi.advanceTimersByTime(20)
+			await flushMicrotasks()
+
+			expect(getState).toHaveBeenCalledTimes(2)
+			vi.advanceTimersByTime(1_000)
+			await flushMicrotasks()
+			expect(getState).toHaveBeenCalledTimes(2)
+			expect(controller.getSnapshot().status).toBe('error')
+			controller.dispose()
+		} finally {
+			vi.useRealTimers()
+		}
 	})
 })

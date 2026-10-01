@@ -28,7 +28,7 @@ import { buildWeaponSelectionId, isWeaponSelectionId, resolveSelectionOwnerUnitI
 import { buildCombatRangeHexKeys } from '../combatRange'
 import { buildCombatTargetOptions } from '../combatPreview'
 import { buildRightRailStackSelectionViewModel } from '../rightRailSelection'
-import { getSessionUnitType } from '../sessionCatalog'
+
 
 import { buildCombatMoveHandoffSnapshot } from './snapshotHandoff'
 import { assertCanonicalStackProjection, turnPhaseLabels, validateBattlefieldSnapshot } from './snapshotValidation'
@@ -143,7 +143,7 @@ export function buildBattlefieldDisplayModel({
 
 			return displayedDefenders
 				.filter((unit) => selectedUnitIdSet.has(unit.unitId))
-				.reduce((total, unit) => total + (catalog === null ? 0 : getSessionUnitType(catalog, unit.typeId).weapons.reduce((unitTotal, weapon) => unitTotal + weapon.attack, 0)), 0)
+				.reduce((total, unit) => total + getUnitAttackStrength(unit, catalog ?? undefined), 0)
 		})()
 	const selectedCombatAttackMemberLabels = hasValidationError
 		? []

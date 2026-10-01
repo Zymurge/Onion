@@ -85,6 +85,42 @@ describe('moveValidator', () => {
     })
   })
 
+  it('counts a batch arrival against the destination stack limit', () => {
+    const state = makeState({
+      defenders: makeDefenderMap({
+        'pigs-1': { typeId: 'LittlePigs', position: { q: 0, r: 0 }, weapons: [] },
+        'pigs-2': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+        'pigs-3': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+        'pigs-4': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+        'pigs-5': { typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [] },
+      }),
+    })
+
+    expect(validateMove(map, state, move('pigs-1', { q: 1, r: 0 }), { incomingMembers: 1 }).valid).toBe(true)
+    expect(validateMove(map, state, move('pigs-1', { q: 1, r: 0 }), { incomingMembers: 2 })).toMatchObject({
+      valid: false,
+      code: 'HEX_OCCUPIED',
+      detailCode: 'stack-limit',
+    })
+  })
+
+  it('uses movement already spent when calculating the remaining allowance', () => {
+    const state = makeState({
+      defenders: makeDefenderMap({
+        'puss-1': {
+          position: { q: 0, r: 0 },
+          weapons: [],
+          movementSpent: { DEFENDER_MOVE: 2 },
+        },
+      }),
+    })
+
+    expect(validateMove(map, state, move('puss-1', { q: 2, r: 0 }))).toMatchObject({
+      valid: false,
+      code: 'NO_PATH',
+    })
+  })
+
   it('reports mixed-stack as an occupancy detail', () => {
     const state = makeState({
       defenders: makeDefenderMap({

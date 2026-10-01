@@ -954,6 +954,32 @@ describe('HexMapBoard', () => {
 		expect(onMoveUnit).toHaveBeenCalledWith('puss-1', { q: 2, r: 1 })
 	})
 
+	it('does not submit a right-click beyond the movement already spent', () => {
+		const onMoveUnit = vi.fn()
+
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[
+					{
+						...defenders[0],
+						movesRemaining: 1,
+						movementSpent: { DEFENDER_MOVE: 2 },
+					},
+				]}
+				onions={[onion]}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={["puss-1"]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={onMoveUnit}
+			/>,
+		)
+
+		fireEvent.contextMenu(screen.getByTestId('hex-cell-4-1'))
+		expect(onMoveUnit).not.toHaveBeenCalled()
+	})
+
 	it('allows the Onion to be selected from the map during Onion movement', () => {
 		const onSelectUnit = vi.fn()
 

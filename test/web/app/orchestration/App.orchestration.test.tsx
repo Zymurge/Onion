@@ -663,20 +663,14 @@ describe('error handling', () => {
 describe('combat', () => {
 	it('renders attacker selection weapons during onion combat', async () => {
 		const user = userEvent.setup()
+		const inRangeSnapshot = createInRangeCombatSnapshot()
 		const snapshot = {
-			...baseOrchestrationSnapshot,
+			...inRangeSnapshot,
 			phase: 'ONION_COMBAT' as const,
 			authoritativeState: {
-				...baseOrchestrationSnapshot.authoritativeState,
+				...inRangeSnapshot.authoritativeState,
 				onions: {
-					...baseOrchestrationSnapshot.authoritativeState.onions,
-					'onion-1': makeOnion({
-						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
-						weapons: [
-							makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' }),
-							makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Weapon' }),
-						],
-					}),
+					...inRangeSnapshot.authoritativeState.onions,
 				},
 			},
 		}
@@ -777,35 +771,27 @@ describe('combat', () => {
 
 		render(<App gameClient={client} gameId={123} />)
 
-		const activeButton = await screen.findByTestId('combat-unit-active-1')
+		await screen.findByTestId('combat-unit-active-1')
 		const noReadyButton = await screen.findByTestId('combat-unit-no-ready-1')
 		const noReadyCombatButton = noReadyButton as HTMLButtonElement
 
 		expect(screen.queryByTestId('combat-unit-dead-1')).toBeNull()
 		expect(noReadyCombatButton.disabled).toBe(true)
 		expect(noReadyButton.getAttribute('class')).toContain('is-disabled')
-		expect(noReadyButton.getAttribute('title')).toBe('This unit is not eligible to attack.')
+		expect(noReadyButton.getAttribute('title')).toBe('Fired this turn')
 	})
 
 	it('renders a shared combat range overlay for selected onion weapons', async () => {
 		const user = userEvent.setup()
+		const inRangeSnapshot = createInRangeCombatSnapshot()
 		const snapshot = {
-			...baseOrchestrationSnapshot,
+			...inRangeSnapshot,
 			phase: 'ONION_COMBAT' as const,
 			authoritativeState: {
-				...baseOrchestrationSnapshot.authoritativeState,
+				...inRangeSnapshot.authoritativeState,
 				onions: {
-					...baseOrchestrationSnapshot.authoritativeState.onions,
-					'onion-1': makeOnion({
-						...baseOrchestrationSnapshot.authoritativeState.onions['onion-1'],
-						position: { q: 1, r: 1 },
-						weapons: [
-							makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' }),
-							makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Weapon' }),
-						],
-					}),
+					...inRangeSnapshot.authoritativeState.onions,
 				},
-				defenders: baseOrchestrationSnapshot.authoritativeState.defenders,
 			},
 		}
 		const session = { role: 'onion' as const }
@@ -820,8 +806,8 @@ describe('combat', () => {
 		await user.click(screen.getByTestId('combat-weapon-main-1'))
 		fireEvent.click(screen.getByTestId('combat-weapon-secondary-1'), { ctrlKey: true })
 
-		expect(screen.getByTestId('hex-cell-3-1').getAttribute('class')).toContain('hex-cell-combat-range')
-		expect(screen.getByTestId('hex-cell-4-1').getAttribute('class')).not.toContain('hex-cell-combat-range')
+		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-cell-combat-range')
+		expect(screen.getByTestId('hex-cell-3-1').getAttribute('class')).not.toContain('hex-cell-combat-range')
 	})
 
 	it('keeps the onion combat target rail visible when the active player clicks an enemy unit', async () => {
@@ -1116,10 +1102,10 @@ describe('combat', () => {
 					id: 'pigs-1',
 					type: 'LittlePigs',
 					friendlyName: 'Little Pigs 1',
-					pos: { q: 4, r: 4 },
+					pos: { q: 1, r: 1 },
 					weapons: [makeWeapon({ id: 'main', typeId: 'LittlePigs.rifle', friendlyName: 'Main Gun', state: 'spent' })],
 				},
-				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 4, r: 4 } },
+				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
 			],
 			groups: [
 				{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] },

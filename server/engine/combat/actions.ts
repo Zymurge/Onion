@@ -97,6 +97,7 @@ function buildCombatCalculatorInput(
     if (group === undefined) {
       throw new Error(`Defender target '${target.id}' was not found while building combat input`)
     }
+    const liveMembers = getLiveStackMembers(state, group.unitIds)
 
     return {
       attackers,
@@ -104,7 +105,7 @@ function buildCombatCalculatorInput(
         kind: 'stack',
         id: target.id,
         typeId: group.unitType,
-        size: group.unitIds.length,
+        size: liveMembers.length,
         terrainType: getTerrainTypeAt(map, group.position),
       },
     }
@@ -168,6 +169,12 @@ function resolveOnionTarget(state: GameState, onionId: string, targetId: string)
 
 function formatResolvedTargetId(target: CombatTarget): string {
   return target.id
+}
+
+function getLiveStackMembers(state: GameState, unitIds: readonly string[]): DefenderUnit[] {
+  return unitIds
+    .map((unitId) => state.defenders[unitId])
+    .filter((member): member is DefenderUnit => member !== undefined && member.state !== 'destroyed')
 }
 
 /**
@@ -241,11 +248,11 @@ export function validateCombatAction(
         return { ok: false, code: 'NO_TARGET', error: 'Target not found' }
       }
 
-      const members = group.unitIds
-        .map((id) => state.defenders[id])
-        .filter((member): member is DefenderUnit => member !== undefined)
-      const allDestroyed = members.length > 0 && members.every((member) => member.state === 'destroyed')
-      const representative = members[0]
+      const liveMembers = getLiveStackMembers(state, group.unitIds)
+      const representative = liveMembers[0]
+      if (representative === undefined) {
+        return { ok: false, code: 'NO_TARGET', error: 'Target is already destroyed' }
+      }
 
       target = {
         unitId: command.targetId,
@@ -253,9 +260,9 @@ export function validateCombatAction(
         role: 'defender',
         side: 'defender',
         position: group.position,
-        state: allDestroyed ? 'destroyed' : (representative?.state ?? 'operational'),
-        weapons: representative?.weapons ?? [],
-        friendlyName: representative?.friendlyName,
+        state: representative.state,
+        weapons: representative.weapons,
+        friendlyName: representative.friendlyName,
       }
     }
 

@@ -5,7 +5,7 @@ import { HexMapCell } from './HexMapCell'
 import { hexKey } from '../../shared/axialHex'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { getUnitMovementAllowance } from '../../shared/unitMovement'
-import { validateMove, type MoveValidationState } from '../../shared/moveValidator'
+import { validateMove, type MoveValidationResult, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import type { StackRosterState, TurnPhase } from '../../shared/types/index'
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex } from '../lib/battlefieldView'
@@ -78,6 +78,7 @@ function buildMoveValidationState(
       state: onion.state,
       treads: onion.treads,
       ramsRemaining: onion.ramsRemaining,
+      movementSpent: onion.movementSpent,
       weapons: onion.weapons,
     }])),
     defenders: Object.fromEntries(
@@ -89,6 +90,7 @@ function buildMoveValidationState(
         friendlyName: defender.friendlyName,
         position: defender.position,
         state: defender.state,
+        movementSpent: defender.movementSpent,
         weapons: defender.weapons,
       }]),
     ),
@@ -226,21 +228,45 @@ export function HexMapBoard({
       )
     : new Set<string>()
 
-  function validateMoveTarget(to: { q: number; r: number }) {
-    if (!selectedOccupant || !phase) {
+  function selectedMoverIds(): string[] {
+    const ids = [...new Set(selectedUnitIds
+      .filter((selectionId) => !selectionId.startsWith('weapon:'))
+      .map(resolveSelectionOwnerUnitId))]
+    if (selectedOccupant !== null && !ids.includes(selectedOccupant.unitId)) {
+      ids.unshift(selectedOccupant.unitId)
+    }
+    return ids
+  }
+
+  function validateMoveTarget(to: { q: number; r: number }): MoveValidationResult | null {
+    if (!phase) {
       return null
     }
 
     const validationState = buildMoveValidationState(phase, onions, defenders, stackNaming, stackRoster)
-    if (validationState === null) {
+    const moverIds = selectedMoverIds()
+    if (validationState === null || moverIds.length === 0) {
       return null
     }
 
-    return validateMove(
-      { ...scenarioMap, occupiedHexes },
-      validationState,
-      { type: 'MOVE', unitId: selectedOccupant.unitId, to },
-    )
+    const incomingMembers = moverIds.filter((unitId) => {
+      const mover = onions.find((unit) => unit.unitId === unitId) ?? defenders.find((unit) => unit.unitId === unitId)
+      return mover === undefined || mover.position.q !== to.q || mover.position.r !== to.r
+    }).length
+    let validation: MoveValidationResult | null = null
+    for (const unitId of moverIds) {
+      validation = validateMove(
+        { ...scenarioMap, occupiedHexes },
+        validationState,
+        { type: 'MOVE', unitId, to },
+        { incomingMembers: Math.max(incomingMembers, 1) },
+      )
+      if (!validation.valid) {
+        return validation
+      }
+    }
+
+    return validation
   }
 
   useEffect(() => {

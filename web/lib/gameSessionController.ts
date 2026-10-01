@@ -38,12 +38,14 @@ function createInitialState(options: GameSessionControllerOptions): GameSessionV
 export function createGameSessionController(options: GameSessionControllerOptions): GameSessionController {
 	const listeners = new Set<(state: GameSessionViewState) => void>()
 	const quietWindowMs = options.liveRefreshQuietWindowMs ?? DEFAULT_LIVE_REFRESH_QUIET_WINDOW_MS
+	const liveRefreshMaxAttempts = options.liveRefreshMaxAttempts ?? 3
 	let state = createInitialState(options)
 	let disposed = false
 	let liveRefreshTimer: ReturnType<typeof setTimeout> | null = null
 	let liveRefreshInFlight = false
 	let liveRefreshQueued = false
 	let liveRefreshRequestedSeq: number | null = null
+	let liveRefreshFailures = 0
 	let latestObservedEventSeq: number | null = null
 	let latestObservedEventType: string | null = null
 	let requestVersion = 0
@@ -155,7 +157,27 @@ export function createGameSessionController(options: GameSessionControllerOption
 		}
 	}
 
-	function scheduleLiveRefresh() {
+	function isCurrentRequest(version: number) {
+		return !disposed && version === requestVersion
+	}
+
+	function isRetryableRefreshError(error: GameClientSeamError) {
+		if (error.kind !== 'transport') {
+			return false
+		}
+		if (/missing|invalid|malformed/i.test(error.message)) {
+			return false
+		}
+		if (error.status === undefined) {
+			return true
+		}
+		return [408, 429, 500, 502, 503, 504].includes(error.status)
+	}
+
+	function scheduleLiveRefresh(source: 'signal' | 'retry' = 'signal') {
+		if (liveRefreshFailures > 0 && liveRefreshFailures >= liveRefreshMaxAttempts) {
+			return
+		}
 		if (disposed || state.status === 'aborted' || state.snapshot === null || latestObservedEventSeq === null) {
 			return
 		}
@@ -177,7 +199,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 		liveRefreshTimer = setTimeout(() => {
 			liveRefreshTimer = null
 			void refreshLiveSnapshot()
-		}, quietWindowMs)
+		}, source === 'retry' ? quietWindowMs * (2 ** Math.max(liveRefreshFailures - 1, 0)) : quietWindowMs)
 	}
 
 	function shouldAcceptSnapshot(nextSnapshotSeq: number, minimumAcceptedSeq: number | null, version: number) {
@@ -215,6 +237,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 		if (!preserveEventType && latestObservedEventSeq === nextSnapshot.lastEventSeq) {
 			latestObservedEventType = null
 		}
+		liveRefreshFailures = 0
 
 		state = {
 			...state,
@@ -241,7 +264,12 @@ export function createGameSessionController(options: GameSessionControllerOption
 			lastEventSeq: state.snapshot?.lastEventSeq ?? null,
 			status: state.status,
 		})
-		const envelope = await options.requestTransport.getState(options.gameId)
+		let envelope: Awaited<ReturnType<typeof options.requestTransport.getState>>
+		try {
+			envelope = await options.requestTransport.getState(options.gameId)
+		} catch (error) {
+			throw Object.assign(normalizeTransportError(error), { requestVersion: version })
+		}
 		debugLog('getState success', {
 			gameId: options.gameId,
 			version,
@@ -269,6 +297,9 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 		liveRefreshInFlight = true
 		let acceptedSnapshot: GameSessionViewState['snapshot'] = null
+		let requestWasCurrent = true
+		let retryFailure = false
+		let staleSnapshotResponse = false
 		debugLog('refreshLiveSnapshot start', {
 			gameId: options.gameId,
 			currentSnapshotSeq,
@@ -277,9 +308,13 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 		setState({ status: 'refreshing' })
 
+		let version = requestVersion
 		try {
 			const minimumAcceptedSeq = latestObservedEventSeq
-			const { envelope, version } = await getStateWithVersion()
+			const response = await getStateWithVersion()
+			version = response.version
+			requestWasCurrent = isCurrentRequest(version)
+			const { envelope } = response
 			const accepted = applySnapshot(
 				envelope.snapshot,
 				envelope.session,
@@ -289,7 +324,8 @@ export function createGameSessionController(options: GameSessionControllerOption
 				true,
 			)
 			acceptedSnapshot = accepted ? envelope.snapshot : null
-			if (!accepted) {
+			if (!accepted && requestWasCurrent) {
+				staleSnapshotResponse = true
 				restoreSnapshotEventState()
 			}
 			debugLog('refreshLiveSnapshot success', {
@@ -300,46 +336,55 @@ export function createGameSessionController(options: GameSessionControllerOption
 				version,
 			})
 		} catch (error) {
+			const normalizedError = normalizeTransportError(error)
+			const failedVersion = typeof (error as { requestVersion?: unknown }).requestVersion === 'number'
+				? (error as { requestVersion: number }).requestVersion
+				: version
+			requestWasCurrent = isCurrentRequest(failedVersion)
 			debugLog('refreshLiveSnapshot failure', {
 				gameId: options.gameId,
-				error,
+				error: normalizedError,
+				current: requestWasCurrent,
 			})
+			if (!requestWasCurrent) {
+				return
+			}
+			liveRefreshFailures += 1
+			retryFailure = isRetryableRefreshError(normalizedError) && liveRefreshFailures < liveRefreshMaxAttempts
 			setState({
 				status: 'error',
-				error: normalizeTransportError(error),
+				error: normalizedError,
 				lastAppliedEventSeq: state.snapshot?.lastEventSeq ?? null,
 				lastAppliedEventType: null,
 			})
 		} finally {
 			liveRefreshInFlight = false
-
-			if (liveRefreshQueued) {
+			if (!requestWasCurrent) {
+				if (liveRefreshQueued) {
+					liveRefreshQueued = false
+					scheduleLiveRefresh('signal')
+				}
+			} else if (liveRefreshQueued) {
 				liveRefreshQueued = false
 				if (
 					state.snapshot !== null
 					&& latestObservedEventSeq !== null
 					&& latestObservedEventSeq > state.snapshot.lastEventSeq
 				) {
-					scheduleLiveRefresh()
+					scheduleLiveRefresh('signal')
 				}
+			} else if (retryFailure) {
+				scheduleLiveRefresh('retry')
 			} else {
 				const currentSnapshotSeq = state.snapshot?.lastEventSeq ?? null
 				const currentLiveSeq = latestObservedEventSeq
-				const refreshStillStale = acceptedSnapshot === null
-					&& currentSnapshotSeq !== null
+				if (
+					currentSnapshotSeq !== null
 					&& currentLiveSeq !== null
 					&& currentLiveSeq > currentSnapshotSeq
-
-				if (
-					refreshStillStale
-					|| (
-						currentSnapshotSeq !== null
-						&& currentLiveSeq !== null
-						&& currentLiveSeq > currentSnapshotSeq
-						&& currentLiveSeq !== liveRefreshRequestedSeq
-					)
+					&& (currentLiveSeq !== liveRefreshRequestedSeq || staleSnapshotResponse)
 				) {
-						scheduleLiveRefresh()
+					scheduleLiveRefresh('signal')
 				}
 			}
 		}
@@ -362,12 +407,15 @@ export function createGameSessionController(options: GameSessionControllerOption
 
 		options.liveEventSource.connect(options.gameId)
 		setState({ status: state.snapshot === null ? 'loading' : 'refreshing', error: null })
+		let version = requestVersion
 
 		try {
 			const minimumAcceptedSeq = reason === 'manual'
 				? state.snapshot?.lastEventSeq ?? latestObservedEventSeq ?? null
 				: latestObservedEventSeq ?? state.snapshot?.lastEventSeq ?? null
-			const { envelope, version } = await getStateWithVersion()
+			const response = await getStateWithVersion()
+			version = response.version
+			const { envelope } = response
 			if (envelope.snapshot.aborted) {
 				abortSession('The game was aborted because a client reported an invalid snapshot.')
 				return
@@ -396,14 +444,21 @@ export function createGameSessionController(options: GameSessionControllerOption
 			}
 
 		} catch (error) {
+			const normalizedError = normalizeTransportError(error)
 			debugLog('loadOrRefresh failure', {
 				gameId: options.gameId,
 				reason,
-				error,
+				error: normalizedError,
 			})
+			const failedVersion = typeof (error as { requestVersion?: unknown }).requestVersion === 'number'
+				? (error as { requestVersion: number }).requestVersion
+				: version
+			if (!isCurrentRequest(failedVersion)) {
+				return
+			}
 			setState({
 				status: 'error',
-				error: normalizeTransportError(error),
+				error: normalizedError,
 			})
 		}
 	}
@@ -510,6 +565,7 @@ export function createGameSessionController(options: GameSessionControllerOption
 					? nextSnapshot.lastEventSeq
 					: Math.max(latestObservedEventSeq, nextSnapshot.lastEventSeq)
 				latestObservedEventType = null
+				liveRefreshFailures = 0
 
 				state = {
 					...state,
@@ -532,6 +588,9 @@ export function createGameSessionController(options: GameSessionControllerOption
 					version,
 					error: normalizedError,
 				})
+				if (!isCurrentRequest(version)) {
+					return null
+				}
 				setState({
 					status: 'error',
 					error: normalizedError,

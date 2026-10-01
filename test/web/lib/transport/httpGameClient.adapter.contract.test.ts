@@ -582,7 +582,7 @@ describe('http game client adapter contract', () => {
 				attackers: ['wolf-2', 'wolf-3'],
 				targetId: 'onion-1',
 				outcome: 'D',
-				outcomeLabel: 'Hit',
+				outcomeLabel: 'No Effect',
 				roll: 4,
 				odds: '2:1',
 			},

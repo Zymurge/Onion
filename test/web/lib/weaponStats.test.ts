@@ -114,6 +114,7 @@ describe('weaponStats', () => {
 
   it('reports weapon readiness and combat readiness', () => {
     expect(isBattlefieldWeaponReady(createWeapon('test.high', 'ready'))).toBe(true)
+    expect(isBattlefieldWeaponReady({ ...createWeapon('test.high', 'ready'), ammo: 0 })).toBe(false)
     expect(isBattlefieldWeaponReady(createWeapon('test.high', 'spent'))).toBe(false)
     expect(isBattlefieldUnitCombatReady({ actionableModes: ['fire'] })).toBe(true)
     expect(isBattlefieldUnitCombatReady({ actionableModes: ['combined'] })).toBe(false)

@@ -9,9 +9,9 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 ## Implementation Status
 
 1. Request-secret redaction: implemented in `server/logging/requestLog.ts` and `server/app.ts`. Debug payloads, error diagnostics, and Fastify's automatic request serializer no longer emit passwords, authorization headers, cookies, or credential query parameters. Focused coverage is in `test/server/logging/requestLog.test.ts`.
-2. Canonical combat and movement adapters: not started.
-3. Reconnect and bounded refresh policy: not started.
-4. Runtime HTTP schemas: not started.
+2. Canonical combat and movement adapters: implemented. Stack combat uses live members for target state and defense. Defender preview strength and readiness ignore spent or empty weapons. Map validation preserves movement spend and counts a selected batch against destination stack capacity.
+3. Reconnect and bounded refresh policy: implemented. The live event source now reconnects with bounded jittered backoff, resumes from the retained event cursor, and cancels reconnects on explicit disconnect. The session controller ignores stale failures and bounds transient live refresh retries with exponential delay.
+4. Runtime HTTP schemas: implemented. Command and snapshot boundary validation is complete, with malformed inputs rejected deterministically and focused contract coverage in the server and HTTP adapter tests.
 5. Combat projection performance: not started.
 
 ## A. Executive Summary
@@ -153,7 +153,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 - **Risk:** Medium; timer cancellation and duplicate refreshes require deterministic fake-timer tests.
 - **Validation:** Contract tests for unexpected close/resume, stale rejection, retry exhaustion, disposal, and recovery; existing session suites.
 
-### 4. Enforce runtime schemas at HTTP boundaries
+### 4. Enforce runtime schemas at HTTP boundaries - Complete
 
 - **Goal:** Reject malformed commands and snapshots deterministically without fallbacks.
 - **Modules:** shared protocol schema module, `actionRoutes.ts`, `httpGameClient.ts`, API contract tests.

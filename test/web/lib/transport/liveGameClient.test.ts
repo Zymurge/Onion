@@ -245,7 +245,6 @@ describe('createLiveGameClient', () => {
 			[expect.objectContaining({ lastEventSeq: 4, lastEventType: null })],
 			[expect.objectContaining({ connectionStatus: 'disconnected' })],
 			[expect.objectContaining({ connectionStatus: 'disconnected' })],
-			[expect.objectContaining({ connectionStatus: 'disconnected' })],
 		])
 		const callsAfterSignals = listener.mock.calls.length
 		unsubscribe()
