@@ -7,7 +7,7 @@ describe('http game request transport contract', () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,
 			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+			text: vi.fn().mockResolvedValue(JSON.stringify({ snapshotRevision: 0, ...(body as Record<string, unknown>) })),
 		})
 
 		const fetchImpl = vi.fn().mockResolvedValueOnce(
@@ -86,7 +86,7 @@ describe('http game request transport contract', () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,
 			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+			text: vi.fn().mockResolvedValue(JSON.stringify({ snapshotRevision: 0, ...(body as Record<string, unknown>) })),
 		})
 
 		const fetchImpl = vi
@@ -160,7 +160,7 @@ describe('http game request transport contract', () => {
 		const jsonResponse = (body: unknown, status = 200) => ({
 			ok: true,
 			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+			text: vi.fn().mockResolvedValue(JSON.stringify({ snapshotRevision: 0, ...(body as Record<string, unknown>) })),
 		})
 
 		const fetchImpl = vi.fn().mockResolvedValueOnce(

@@ -261,6 +261,7 @@ export type GameStateResponse = {
 	role: 'onion' | 'defender'
 	phase: TurnPhase
 	turnNumber: number
+	snapshotRevision: number
 	winner: 'onion' | 'defender' | null
 	aborted: boolean
 	players: {

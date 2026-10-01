@@ -272,6 +272,7 @@ export interface ActionOkResponse {
   state: GameState
   status: 'waiting' | 'ready' | 'active' | 'completed' | 'archived'
   hostUserId: string
+  snapshotRevision: number
   winner: 'onion' | 'defender' | null
 }
 

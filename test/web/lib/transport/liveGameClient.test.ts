@@ -28,6 +28,7 @@ function createStateResponse(gameId: number, eventSeq: number, phase = 'DEFENDER
 			hexes: [{ q: 0, r: 0, t: 0 }],
 		},
 		eventSeq,
+		snapshotRevision: 0,
 	}
 }
 
@@ -108,6 +109,7 @@ describe('createLiveGameClient', () => {
 					phase: 'DEFENDER_MOVE',
 					scenarioName: "The Siege of Shrek's Swamp",
 					turnNumber: 8,
+					snapshotRevision: 0,
 					state: { onion: { position: { q: 0, r: 0 }, treads: 45 }, defenders: {}, stackRoster: { groupsById: {} } },
 					eventSeq: 47,
 					scenarioMap,
@@ -122,6 +124,7 @@ describe('createLiveGameClient', () => {
 					phase: 'DEFENDER_MOVE',
 					scenarioName: "The Siege of Shrek's Swamp",
 					turnNumber: 8,
+					snapshotRevision: 0,
 					state: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
 					eventSeq: 48,
 					scenarioMap,

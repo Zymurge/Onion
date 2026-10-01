@@ -26,11 +26,13 @@ export function buildActionResponse(
   events: EventEnvelope[],
   status: MatchRecord['status'],
   winnerUserId: string | null,
+  snapshotRevision = (match.snapshotRevision ?? 0) + 1,
 ): ActionOkResponse & {
   turnNumber: number
   eventSeq: number
   phase: TurnPhase
   scenarioName: string
+  snapshotRevision: number
   scenarioMap: ScenarioMapSnapshot
   victoryObjectives: VictoryObjectiveState[]
   escapeHexes: VictoryEscapeHex[]
@@ -64,6 +66,7 @@ export function buildActionResponse(
     turnNumber,
     eventSeq,
     phase,
+    snapshotRevision,
     scenarioName,
     scenarioMap,
     victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber, [...historicalEvents, ...events]),

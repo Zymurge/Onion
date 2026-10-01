@@ -158,6 +158,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
     role,
     phase: match.phase,
     turnNumber: match.turnNumber,
+    snapshotRevision: match.snapshotRevision ?? 0,
     winner,
     aborted,
     players: match.players,

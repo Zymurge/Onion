@@ -45,6 +45,7 @@ export const GameStateResponseBoundarySchema = z.object({
 	role: PlayerRoleSchema,
 	phase: TurnPhaseSchema,
 	turnNumber: z.number().int(),
+	snapshotRevision: z.number().int().nonnegative(),
 	eventSeq: z.number().int().nonnegative(),
 	state: z.record(z.string(), z.unknown()),
 }).passthrough()
@@ -52,6 +53,7 @@ export const GameStateResponseBoundarySchema = z.object({
 export const ActionResponseBoundarySchema = z.object({
 	phase: TurnPhaseSchema,
 	turnNumber: z.number().int(),
+	snapshotRevision: z.number().int().nonnegative(),
 	eventSeq: z.number().int().nonnegative(),
 	state: z.record(z.string(), z.unknown()),
 }).passthrough()

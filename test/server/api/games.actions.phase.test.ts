@@ -37,6 +37,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
     expect(body).toHaveProperty('state')
     expect(body.status).toBe('active')
     expect(body.hostUserId).toBeDefined()
+    expect(typeof body.snapshotRevision).toBe('number')
   })
 
   it('advances phase from ONION_MOVE to ONION_COMBAT', async () => {

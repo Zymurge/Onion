@@ -29,6 +29,7 @@ function minimalStateResponse(overrides: Record<string, unknown> = {}) {
 			hexes: [{ q: 0, r: 0, t: 0 }],
 		},
 		eventSeq: 1,
+		snapshotRevision: 0,
 		...overrides,
 	}
 }
@@ -79,11 +80,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('loads state and polls events over HTTP', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+		const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -180,6 +177,7 @@ describe('http game client adapter contract', () => {
 				},
 				victoryObjectives: [],
 				scenarioName: "The Siege of Shrek's Swamp",
+				snapshotRevision: 0,
 				turnNumber: 8,
 				lastEventSeq: 47,
 				winner: undefined,
@@ -264,6 +262,7 @@ describe('http game client adapter contract', () => {
 					hexes: [],
 				},
 				eventSeq: 47,
+				snapshotRevision: 0,
 			})),
 		})
 
@@ -280,11 +279,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('rejects local-only actions through the client adapter', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi.fn().mockResolvedValueOnce(
 			jsonResponse({
@@ -325,11 +320,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('refreshes authoritative server state without carrying UI-local snapshot fields', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -388,6 +379,7 @@ describe('http game client adapter contract', () => {
 				authoritativeState: { onion: { position: { q: 0, r: 1 }, treads: 43 }, defenders: {}, stackRoster: { groupsById: {} } },
 			gameId: 123,
 			phase: 'DEFENDER_COMBAT',
+			snapshotRevision: 0,
 			scenarioName: "The Siege of Shrek's Swamp",
 			escapeHexes: [{ q: 9, r: 5 }],
 			scenarioMap: {
@@ -404,11 +396,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('maps action winner into the returned snapshot after escape victory', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -459,11 +447,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('maps action victory objectives into the current snapshot after Swamp destruction', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -529,11 +513,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('sends stack fire actions to the backend as FIRE commands', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -601,11 +581,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('sends MOVE actions to the backend with the mover list payload', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -664,11 +640,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('sends end phase actions to the backend', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -749,11 +721,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('sends MOVE actions to the backend actions endpoint', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -834,11 +802,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('serializes attemptRam when a move request includes it', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -884,11 +848,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('sends FIRE actions and captures combat resolution details', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+			const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -985,11 +945,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('rejects game state responses that omit scenario map data', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+		    const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi
 			.fn()
@@ -1035,11 +991,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('rejects responses that omit or malform the stack roster contract', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+		    const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi.fn()
 			.mockResolvedValueOnce(jsonResponse({
@@ -1137,11 +1089,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('rejects grouped units absent from defenders in stack roster payload', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+		   const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi.fn().mockResolvedValueOnce(jsonResponse({
 			gameId: 123,
@@ -1189,11 +1137,7 @@ describe('http game client adapter contract', () => {
 	})
 
 	it('accepts stack roster payloads that rely on defenders as canonical unit data', async () => {
-		const jsonResponse = (body: unknown, status = 200) => ({
-			ok: true,
-			status,
-			text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-		})
+		   const jsonResponse = (body: unknown, status = 200) => minimalJsonResponse({ snapshotRevision: 0, ...(body as Record<string, unknown>) }, status)
 
 		const fetchImpl = vi.fn().mockResolvedValueOnce(jsonResponse({
 			gameId: 123,
@@ -1300,6 +1244,26 @@ describe('http game client adapter contract', () => {
 		const fetchImpl = vi.fn()
 			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse()))
 			.mockResolvedValueOnce(minimalJsonResponse(minimalActionResponse({ phase: 'NOT_A_PHASE' })))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await client.getState(123)
+		await expect(client.submitAction(123, { type: 'end-phase' })).rejects.toThrow(/invalid action response/i)
+	})
+
+	it.each([
+		['missing', undefined],
+		['non-integer', '1'],
+	] as const)('rejects %s snapshot revisions in game-state responses', async (_name, snapshotRevision) => {
+		const fetchImpl = vi.fn().mockResolvedValue(minimalJsonResponse(minimalStateResponse({ snapshotRevision })))
+		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
+
+		await expect(client.getState(123)).rejects.toThrow(/invalid game state response/i)
+	})
+
+	it('rejects malformed snapshot revisions in action responses', async () => {
+		const fetchImpl = vi.fn()
+			.mockResolvedValueOnce(minimalJsonResponse(minimalStateResponse()))
+			.mockResolvedValueOnce(minimalJsonResponse(minimalActionResponse({ snapshotRevision: '1' })))
 		const client = createHttpGameClient({ baseUrl: 'https://onion.test/api', fetchImpl })
 
 		await client.getState(123)

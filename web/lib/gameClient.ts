@@ -41,6 +41,7 @@ export type ServerGameSnapshot = {
 	phase: TurnPhase
 	scenarioName: string
 	turnNumber?: number
+	snapshotRevision?: number
 	winner?: 'onion' | 'defender' | null
 	aborted?: boolean
 	lastEventSeq: number
