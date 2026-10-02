@@ -38,40 +38,41 @@ When introducing or renaming source files it is imperative to update this docume
 | Onion tread movement bands | `shared/movementAllowance.ts` | Catalog `treadsPerMove` is declared but not read by that function |
 | Stack damage or one missile per turn | `server/engine/combat/actions.ts` | [game-rules.md](game-rules.md) describes the same behavior. Do not edit the prose alone |
 | Onion subsystem or target-specific damage results | `server/engine/combat/outcomes.ts` | [game-rules.md](game-rules.md) describes the same behavior. Do not edit the prose alone |
-| Phases and recovery | [game-rules.md](game-rules.md) L203-L223 | `server/engine/game.ts` owns phase advancement, recovery maintenance, and phase events. `server/engine/phases.ts` owns phase order, actors, and reusable cleanup helpers. |
+| Phases and recovery | [game-rules.md](game-rules.md) `## Turn Structure` and `### Unit Status Lifecycle` | `server/engine/game.ts` owns phase advancement, recovery maintenance, and phase events. `server/engine/phases.ts` owns phase order, actors, and reusable cleanup helpers. |
 | Victory objectives | [scenario-schema.md](scenario-schema.md) | `server/engine/victory.ts` evaluates explicit, role-owned objectives. `server/api/gameHelpers/victory.ts` adapts the evaluator to API responses. The victory prose in [game-rules.md](game-rules.md) does not override the scenario |
 | Scenario JSON authoring | [scenario-schema.md](scenario-schema.md) | `scenarios/` and `server/engine/scenarioSchema.ts` |
 | Invalid snapshots or read retry | [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md) | Do not also load the API or web copies |
 | Account registration or login | [user-account-spec.md](user-account-spec.md) | `server/api/auth.ts` |
-| Register or login transport | [api-contract.md](api-contract.md) L49-L84 | `server/api/auth.ts` |
+| Register or login transport | [api-contract.md](api-contract.md) `### POST /auth/register` and `### POST /auth/login` | `server/api/auth.ts` |
 | Game API route registration or ownership | [api-contract.md](api-contract.md) | Start at `server/api/gameRoutes/index.ts`, then load the smallest route-family module named below |
-| Create, list, join, or start a game | [api-contract.md](api-contract.md) L130-L222 | `server/api/gameRoutes/index.ts`, then `lifecycleRoutes.ts` or `lobbyRoutes.ts` |
-| Fetch one game | [api-contract.md](api-contract.md) L223-L291 | `server/api/gameRoutes/stateRoutes.ts` |
-| Submit an action | [api-contract.md](api-contract.md) L292-L336, then one command row | `server/api/gameRoutes/actionRoutes.ts`, then the matching `actionHandlers/` module |
-| MOVE command | [api-contract.md](api-contract.md) L356-L368 | `server/engine/movement.ts` |
-| FIRE command | [api-contract.md](api-contract.md) L369-L412 and L421-L459 | `server/engine/combat/actions.ts` |
-| END_PHASE command | [api-contract.md](api-contract.md) L413-L420 | `server/api/gameRoutes/actionHandlers/endPhase.ts` |
-| Event polling | [api-contract.md](api-contract.md) L337-L355 | `server/api/gameRoutes/eventRoutes.ts` |
-| Event envelope | [api-contract.md](api-contract.md) L464-L476, then one event family below | `shared/websocketProtocol.ts` |
-| Movement events | [api-contract.md](api-contract.md) L477-L483 | `server/api/gameRoutes/actionHandlers/move.ts` |
-| Combat events | [api-contract.md](api-contract.md) L484-L496 | `server/api/gameRoutes/actionHandlers/fire.ts` |
-| State-change events | [api-contract.md](api-contract.md) L497-L507 | `server/api/gameRoutes/actionHandlers/move.ts` or `fire.ts` |
-| Phase and game events | [api-contract.md](api-contract.md) L508-L520 | `server/api/gameRoutes/actionHandlers/endPhase.ts` |
-| Sync events, including SESSION_INIT | [api-contract.md](api-contract.md) L521-L533 | `server/api/gameRoutes/websocketRoutes.ts` and `shared/websocketProtocol.ts` |
-| Per-game WebSocket stream | [api-contract.md](api-contract.md) L521-L533 | `server/api/gameRoutes/websocketRoutes.ts` |
+| Create, list, join, or start a game | [api-contract.md](api-contract.md) `## Games`, using the named `POST /games`, `GET /games`, `GET /games/open`, `POST /games/{id}/join`, and `POST /games/{id}/start` headings | `server/api/gameRoutes/index.ts`, then `lifecycleRoutes.ts` or `lobbyRoutes.ts` |
+| Fetch one game | [api-contract.md](api-contract.md) `### GET /games/{id}` | `server/api/gameRoutes/stateRoutes.ts` |
+| Snapshot freshness and conditional refresh | [api-contract.md](api-contract.md) `### Snapshot refresh` and `### GET /games/{id}` | `server/api/gameRoutes/stateRoutes.ts`, `server/db/`, `shared/apiProtocol.ts`, `web/lib/httpGameClient.ts`; `eventSeq` remains the event cursor |
+| Submit an action | [api-contract.md](api-contract.md) `### POST /games/{id}/actions`, then one command heading | `server/api/gameRoutes/actionRoutes.ts`, then the matching `actionHandlers/` module |
+| MOVE command | [api-contract.md](api-contract.md) `### MOVE` | `server/engine/movement.ts` |
+| FIRE command | [api-contract.md](api-contract.md) `### FIRE` and `#### Combat Target IDs` | `server/engine/combat/actions.ts` |
+| END_PHASE command | [api-contract.md](api-contract.md) `### END_PHASE` | `server/api/gameRoutes/actionHandlers/endPhase.ts` |
+| Event polling | [api-contract.md](api-contract.md) `### GET /games/{id}/events?after={seq}` | `server/api/gameRoutes/eventRoutes.ts` |
+| Event envelope | [api-contract.md](api-contract.md) `## Event Types`, then one event family heading | `shared/websocketProtocol.ts` |
+| Movement events | [api-contract.md](api-contract.md) `### Movement Events` | `server/api/gameRoutes/actionHandlers/move.ts` |
+| Combat events | [api-contract.md](api-contract.md) `### Combat Events` | `server/api/gameRoutes/actionHandlers/fire.ts` |
+| State-change events | [api-contract.md](api-contract.md) `### State Change Events` | `server/api/gameRoutes/actionHandlers/move.ts` or `fire.ts` |
+| Phase and game events | [api-contract.md](api-contract.md) `### Phase / Game Events` | `server/api/gameRoutes/actionHandlers/endPhase.ts` |
+| Sync events, including SESSION_INIT | [api-contract.md](api-contract.md) `### Sync Event` | `server/api/gameRoutes/websocketRoutes.ts` and `shared/websocketProtocol.ts` |
+| Per-game WebSocket stream | [api-contract.md](api-contract.md) `### Sync Event` | `server/api/gameRoutes/websocketRoutes.ts` |
 | Client snapshot diagnostics | [api-contract.md](api-contract.md) | `server/api/gameRoutes/diagnosticRoutes.ts` |
 | Scenario parsing, loading, or map checks for game API | [scenario-schema.md](scenario-schema.md) | `server/api/gameHelpers/scenario.ts` |
-| Game state response projection | [api-contract.md](api-contract.md) L223-L291 | `server/api/gameHelpers/stateProjection.ts` |
+| Game state response projection | [api-contract.md](api-contract.md) `### GET /games/{id}` | `server/api/gameHelpers/stateProjection.ts` |
 | API victory adaptation | [scenario-schema.md](scenario-schema.md) | `server/api/gameHelpers/victory.ts`, with evaluation owned by `server/engine/victory.ts` |
-| MOVE or FIRE event construction | [api-contract.md](api-contract.md) L477-L496 | `server/api/gameHelpers/eventBuilders.ts` |
-| Successful action response construction | [api-contract.md](api-contract.md) L292-L336 | `server/api/gameHelpers/actionResponses.ts` |
-| WebSocket protocol parsing or serialization | [api-contract.md](api-contract.md) L521-L533 | `server/api/gameHelpers/protocol.ts` |
+| MOVE or FIRE event construction | [api-contract.md](api-contract.md) `### Movement Events` and `### Combat Events` | `server/api/gameHelpers/eventBuilders.ts` |
+| Successful action response construction | [api-contract.md](api-contract.md) `### POST /games/{id}/actions` | `server/api/gameHelpers/actionResponses.ts` |
+| WebSocket protocol parsing or serialization | [api-contract.md](api-contract.md) `### Sync Event` | `server/api/gameHelpers/protocol.ts` |
 | Action or event delivery logging | [api-contract.md](api-contract.md) | `server/api/gameHelpers/logging.ts` |
 | Game ID parsing | [api-contract.md](api-contract.md) | `server/api/gameHelpers/ids.ts` |
 | Game API helper catalog or cross-helper entry point | [api-contract.md](api-contract.md) | `server/api/gameHelpers/index.ts`, then the owning helper module |
-| Scenario map requirement | [api-contract.md](api-contract.md) L460-L463 | `shared/scenarioMap.ts` |
-| Error body or error code | [api-contract.md](api-contract.md) L612-L642 | `server/api/` |
-| Board snapshot fields | [api-contract.md](api-contract.md) L559-L611 | `shared/types/` |
+| Scenario map requirement | [api-contract.md](api-contract.md) `## Scenario Map` | `shared/scenarioMap.ts` |
+| Error body or error code | [api-contract.md](api-contract.md) `## Error Response Shape` and `### Known Error Codes` | `server/api/` |
+| Board snapshot fields | [api-contract.md](api-contract.md) `## Shared Types` and `### GameState` | `shared/types/` |
 | Web lobby, board, combat UI, turn display, or client errors | [web-ui-spec.md](web-ui-spec.md), then the one area spec it names. Skip Future State | The module that area spec names |
 | Match storage or migrations | [persistence.md](persistence.md) | `server/db/` |
 | Which test to add or run | [testing-strategy.md](testing-strategy.md) through the layer map only. Skip the editor-troubleshooting section | The one test directory in that row |
@@ -107,6 +108,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `shared/unitState.ts` | Looks up live units and reports weapon availability. | `D+M`: weapon destruction mutates the unit. `DUP`: second-move, immobile, and defense helpers overlap the movement facade and combat calculator. |
 | `shared/unitWeapons.ts` | Mutates one weapon list for spend, recharge, and destroy. | `D+M` |
 | `shared/apiProtocol.ts` | Defines REST success, failure, and game-response types. | `UNCLEAR`: also contains a fetch client and debug traffic log. Production web calls use `web/lib/httpGameClient.ts`. |
+| `shared/protocolSchemas.ts` | Owns runtime Zod schemas for commands, game snapshots, action responses, and unchanged conditional-read envelopes. | |
 | `shared/websocketProtocol.ts` | Defines WebSocket message shapes. | |
 | `shared/types/` | Defines canonical game, command, and event types. | |
 | `server/engine/movement.ts` | Adapts engine state to the shared move validator and applies the accepted plan. | `D+M`: owns movement execution, state mutation, ramming application, and stack reconciliation. |
@@ -126,7 +128,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/engine/index.ts` | Re-exports the active engine surface. | `WRAP` |
 | `server/api/gameRoutes/lifecycleRoutes.ts` | Owns create, join, and start route registration and lifecycle persistence. | |
 | `server/api/gameRoutes/lobbyRoutes.ts` | Owns active/history/open listings and archive, restore, and delete management. | `D+M`: delete also closes live sockets and broadcasts `GAME_DELETED`. |
-| `server/api/gameRoutes/stateRoutes.ts` | Owns authenticated current-game state projection. | |
+| `server/api/gameRoutes/stateRoutes.ts` | Owns authenticated current-game state projection and conditional snapshot freshness reads. | |
 | `server/api/gameRoutes/actionRoutes.ts` | Owns action authorization, lifecycle guards, command dispatch, and shared action error mapping. | |
 | `server/api/gameRoutes/actionHandlers/endPhase.ts` | Owns END_PHASE execution, persistence, event logging, and broadcast adaptation. | `D+M` |
 | `server/api/gameRoutes/actionHandlers/move.ts` | Owns MOVE validation, execution, persistence, event logging, and broadcast adaptation. | `D+M` |
@@ -137,7 +139,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/api/gameRoutes/eventRoutes.ts` | Owns authenticated persisted-event polling and exclusive sequence-cursor reads. | |
 | `server/api/gameRoutes/context.ts` | Owns per-plugin live connection, presence, broadcast, and deterministic-roll context. | `D+M`: context-owned maps track active connections and timers. |
 | `server/api/gameRoutes/index.ts` | Registers the complete game plugin in Fastify order and exposes the route context and route-family registrars. | |
-| `server/api/gameHelpers/actionResponses.ts` | Builds successful action response payloads from persisted match metadata and post-action state. | |
+| `server/api/gameHelpers/actionResponses.ts` | Builds successful action response payloads, including the client-visible snapshot revision, from persisted match metadata and post-action state. | |
 | `server/api/gameHelpers/eventBuilders.ts` | Adapts engine combat and movement results into API event envelopes. | |
 | `server/api/gameHelpers/ids.ts` | Parses positive safe game ids from route parameters. | |
 | `server/api/gameHelpers/logging.ts` | Emits structured action and event delivery logs. | |
@@ -148,14 +150,15 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/api/gameHelpers/index.ts` | Catalogs the extracted game API helpers for layer-level imports. | `WRAP`: delegates to the owning helper modules. |
 | `server/api/auth.ts` | Owns registration and login routes. | |
 | `server/api/scenarios.ts` | Owns scenario list and detail routes. | |
-| `server/db/` | Stores users and matches through the adapter contract. | |
+| `server/db/` | Stores users, matches, and monotonic client-visible snapshot revisions through the adapter contract and migrations. | |
+| `scripts/benchmark-projection.ts` | Measures server snapshot and action-response projection cost for the architecture review. | `WRAP`: measurement only; it does not own projection behavior. |
 | `server/app.ts` | Composes the HTTP server, routes, and database adapter. | |
 | `web/lib/gameSessionTypes.ts` | Defines the session controller and transport contracts. | |
 | `web/lib/gameSessionController.ts` | Loads the authoritative snapshot and owns refresh, sequencing, and cleanup. | |
 | `web/lib/useGameSession.ts` | Adapts the session controller to React. | |
 | `web/lib/appSessionWiring.ts` | Selects one session binding and constructs the active controller. | |
 | `web/lib/useConnectionGate.ts` | Authenticates and creates the interactive session binding. | |
-| `web/lib/httpGameClient.ts` | Maps production HTTP requests, retries, and response validation. | |
+| `web/lib/httpGameClient.ts` | Maps production HTTP requests, retries, response validation, and the snapshot revision cursor. | |
 | `web/lib/liveEventSource.ts` | Parses WebSocket events and reports connection state. | |
 | `web/lib/gameClient.ts` | Holds the legacy request seam and shared action types. | `WRAP`: still used by the HTTP client; not a second transport policy. |
 | `web/lib/liveGameClient.ts` | Combines the legacy request client with the live event source. | `WRAP`: no production caller. |

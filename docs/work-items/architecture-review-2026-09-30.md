@@ -12,7 +12,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 2. Canonical combat and movement adapters: implemented. Stack combat uses live members for target state and defense. Defender preview strength and readiness ignore spent or empty weapons. Map validation preserves movement spend and counts a selected batch against destination stack capacity.
 3. Reconnect and bounded refresh policy: implemented. The live event source now reconnects with bounded jittered backoff, resumes from the retained event cursor, and cancels reconnects on explicit disconnect. The session controller ignores stale failures and bounds transient live refresh retries with exponential delay.
 4. Runtime HTTP schemas: completed. Command and snapshot boundary validation is complete, with malformed inputs rejected deterministically, canonical snapshots reusing semantic validation, and focused contract coverage in the server and HTTP adapter tests.
-5. Snapshot freshness and conditional refresh: not started. The original client projection-cache idea is rejected. The replacement is a server-owned monotonic snapshot revision, specified below.
+5. Snapshot freshness and conditional refresh: completed. The server-owned monotonic revision, conditional refresh protocol, client cursor, and projection benchmark are implemented. The current benchmark does not justify a partial rebuild or cache; the client remains stateless and authoritative.
 
 ## A. Executive Summary
 
@@ -162,7 +162,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 - **Risk:** Medium; strict schemas can reveal noncanonical fixtures and clients.
 - **Validation:** malformed command tables, invalid successful-response tables, server API integration tests, and HTTP adapter contract tests.
 
-### 5. Add server snapshot freshness and conditional refresh - Not started
+### 5. Add server snapshot freshness and conditional refresh - Complete
 
 - **Goal:** Let a stateless client ask whether the authoritative snapshot changed, without caching derived game state or applying patches.
 - **Rejected approach:** A client-side snapshot-scoped combat context that reduces server calls. That drifts toward a second state model and violates the server-authoritative boundary.
@@ -183,7 +183,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
   3. **Expose it on responses.** Add failing schema and projection tests requiring `snapshotRevision` on `GET /games/{id}` and action responses. Done when malformed or missing revisions fail validation and existing snapshot fields stay unchanged.
   4. **Conditional read.** Implement `sinceRevision` against the tests from step 1. Done when unchanged requests do not include `state`, changed requests include the full snapshot, and `0` always forces a full snapshot.
   5. **Client cursor only.** Add failing HTTP adapter tests that send the last accepted revision and replace local state only on a full snapshot. Done when an unchanged response does not clear or synthesize snapshot fields and a transport failure still falls back to `sinceRevision=0`.
-  6. **Measure before partial rebuild.** Add a server benchmark for `buildGameStateResponse` and `buildActionResponse` on a large scenario. Done when the benchmark is committed. Implement partial rebuild only if it shows a material cost, with parity tests proving byte-stable snapshots aside from the new revision.
+  6. **Measure before partial rebuild.** Complete. [scripts/benchmark-projection.ts](../../scripts/benchmark-projection.ts) runs through `pnpm benchmark:projection` and records the baseline. Current baseline: 203 units, `buildGameStateResponse` averages about 0.87 ms, and `buildActionResponse` about 0.05 ms over 100 iterations. No partial rebuild or cache is justified at this scale. If future measurements show a material cost, implement it only with parity tests proving byte-stable snapshots aside from the revision.
 - **Risk:** Medium. Revision gaps are worse than extra full snapshots, so tests must fail if any mutation path forgets the increment.
 - **Validation:** New contract tests, db adapter tests, HTTP schema tests, client adapter tests, then `pnpm test` and `pnpm exec tsc --noEmit`.
 
@@ -193,12 +193,11 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 ## Validation Performed
 
-The following focused suites passed, 122 tests total:
+- Full unit suite: 164 files, 1,561 tests passed.
+- Postgres revision integration suite: 17 tests passed.
+- Runtime boundary and session-focused suites passed as part of the full run.
+- `pnpm exec tsc --noEmit` passed.
+- Focused ESLint and `git diff --check` passed.
+- `pnpm benchmark:projection` measured 203 units at approximately 0.87 ms per game-state response and 0.05 ms per action response.
 
-- `test/server/engine/combat.test.ts`
-- `test/web/lib/useBattlefieldDisplayState.test.tsx`
-- `test/web/lib/session/gameSessionController.test.ts`
-- `test/web/lib/transport/liveEventSource.contract.test.ts`
-- `test/server/api/games.actions.phase.test.ts`
-
-No product code was changed during this review.
+The current architecture keeps the client snapshot-driven and stateless. Server-side partial projection and caching remain deferred until a larger workload demonstrates material cost.
