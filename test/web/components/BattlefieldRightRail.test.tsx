@@ -33,7 +33,6 @@ function renderRightRail(overrides: Partial<RightRailProps> = {}) {
     isCombatPhase: false,
     showInactiveEventStream: false,
     isInteractionLocked: false,
-    canDismissInactiveEventStream: false,
     pendingRamPrompt: null,
     selectedCombatAttackStrength: 0,
     selectedCombatAttackerIds: [],
@@ -55,9 +54,7 @@ function renderRightRail(overrides: Partial<RightRailProps> = {}) {
     inactiveEventStream: {
       entries: [],
       errorMessage: null,
-      clearEntries: vi.fn(),
       isLoading: false,
-      isDismissed: false,
       clearErrorMessage: vi.fn(),
     },
     combatTargetOptions: [],
@@ -103,7 +100,6 @@ describe('BattlefieldRightRail', () => {
         isCombatPhase={false}
         showInactiveEventStream={false}
         isInteractionLocked={false}
-        canDismissInactiveEventStream={false}
         pendingRamPrompt={{ unitId: 'onion-1', targetLabel: 'Little Pigs group 1', to: { q: 2, r: 3 } }}
         selectedCombatAttackStrength={0}
         selectedCombatAttackerIds={[]}
@@ -117,7 +113,7 @@ describe('BattlefieldRightRail', () => {
         rightRailStackPanel={{ isVisible: false, selectedStackMembers: [], selectedStackSelectionCount: 0, selectedStackSelectionIds: [] }}
         victoryObjectives={[]}
         escapeHexes={[]}
-        inactiveEventStream={{ entries: [], errorMessage: null, clearEntries: vi.fn(), isLoading: false, isDismissed: false, clearErrorMessage: vi.fn() }}
+        inactiveEventStream={{ entries: [], errorMessage: null, isLoading: false, clearErrorMessage: vi.fn() }}
         combatTargetOptions={[]}
         onConfirmCombat={vi.fn()}
         onAttemptRam={vi.fn()}
@@ -145,7 +141,6 @@ describe('BattlefieldRightRail', () => {
         isCombatPhase
         showInactiveEventStream={false}
         isInteractionLocked={false}
-        canDismissInactiveEventStream={false}
         pendingRamPrompt={null}
         selectedCombatAttackStrength={2}
         selectedCombatAttackRange={3}
@@ -168,9 +163,7 @@ describe('BattlefieldRightRail', () => {
         inactiveEventStream={{
           entries: [],
           errorMessage: null,
-          clearEntries: vi.fn(),
           isLoading: false,
-          isDismissed: false,
           clearErrorMessage: vi.fn(),
         }}
         combatTargetOptions={[{ id: 'LittlePigs:1,1', kind: 'defender', q: 1, r: 1, status: 'operational', label: 'Little Pigs group 1', detail: 'Defense: 2', defense: 2, modifiers: [] }]}
@@ -383,19 +376,15 @@ describe('BattlefieldRightRail', () => {
     expect(screen.queryByTestId('combat-target-list')).toBeNull()
   })
 
-  it('passes inactive event loading, error, and dismissal controls through', () => {
-    const clearEntries = vi.fn()
+  it('passes inactive event loading, error, and error-notice dismissal through', () => {
     const clearErrorMessage = vi.fn()
 
     renderRightRail({
       showInactiveEventStream: true,
-      canDismissInactiveEventStream: false,
       inactiveEventStream: {
         entries: [],
         errorMessage: 'Unable to refresh remote results.',
-        clearEntries,
         isLoading: true,
-        isDismissed: false,
         clearErrorMessage,
       },
     })
@@ -403,11 +392,8 @@ describe('BattlefieldRightRail', () => {
     expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
     expect(screen.getByText('Unable to refresh remote results.')).not.toBeNull()
     expect(screen.getByText('Refreshing remote results.')).not.toBeNull()
-    expect(screen.getByRole('button', { name: 'Dismiss inactive event stream' })).toBeDisabled()
-
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }))
 
-    expect(clearEntries).not.toHaveBeenCalled()
     expect(clearErrorMessage).toHaveBeenCalledOnce()
   })
 })

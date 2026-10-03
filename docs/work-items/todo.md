@@ -13,7 +13,8 @@ break down into features/tasks as needed.
 
 ### Features / Tasks
 
-- [ ] Replace the debug protocol viewer with `@uiw/react-json-view` and add custom expansion shortcuts for deep-dive trees (for example: double-click subtree expand/collapse and expand-all controls).
+No additional V1 feature work is currently defined. V2 backlog items are
+tracked in [v1-v2-scope.md](v1-v2-scope.md).
 
 ## Done
 

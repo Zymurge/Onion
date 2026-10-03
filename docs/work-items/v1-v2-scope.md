@@ -63,6 +63,14 @@ following deferred work is V2:
 The detailed multi-window contract lives in
 [multi-window-lobby-spec.md](multi-window-lobby-spec.md).
 
+### Debug Protocol Viewer
+
+The debug protocol viewer enhancement is V2 work:
+
+- Replace the current viewer with `@uiw/react-json-view`.
+- Add deep-tree expansion shortcuts such as double-click subtree
+  expand/collapse and expand-all controls.
+
 ## Agent Decision Rule
 
 When a task touches a V2 item:

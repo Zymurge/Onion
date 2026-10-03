@@ -29,7 +29,6 @@ type DebugDisplayInput = {
 
 type DebugInactiveEventStreamInput = {
 	entries: ReadonlyArray<unknown>
-	isDismissed: boolean
 }
 
 /** Inputs for change-gated session and turn transition telemetry. */
@@ -149,7 +148,6 @@ export function useAppDebugTelemetry({
 				activeGameId: currentState.activeGameId,
 				activeTurnOwner: currentState.activeTurnOwner,
 				inactiveEntryCount: inactiveEventStream.entries.length,
-				inactiveDismissed: inactiveEventStream.isDismissed,
 				inactiveEventControlsLocked: currentState.inactiveEventControlsLocked,
 				inactiveEventScreenLocked: currentState.inactiveEventScreenLocked,
 				inactiveEventWindowVisible: currentState.inactiveEventWindowVisible,
@@ -168,7 +166,6 @@ export function useAppDebugTelemetry({
 		gate.inactiveEventWindowVisible,
 		gate.screenLocked,
 		inactiveEventStream.entries.length,
-		inactiveEventStream.isDismissed,
 		session.activeGameId,
 		session.state.lastAppliedEventSeq,
 		session.turn.activeOwner,

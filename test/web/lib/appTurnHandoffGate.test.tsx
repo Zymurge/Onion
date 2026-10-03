@@ -35,8 +35,7 @@ function createStream(entries: ReadonlyArray<{ type: string }> = []) {
 		entries,
 		errorMessage: null,
 		isLoading: false,
-		isDismissed: false,
-		clearEntries: vi.fn(),
+		clearForTurnAcknowledgement: vi.fn(),
 		clearErrorMessage: vi.fn(),
 	}
 }
@@ -93,7 +92,7 @@ describe('useTurnHandoffGate', () => {
 			result.current.acknowledgeCurrentTurn()
 		})
 
-		expect(inactiveStream.clearEntries).toHaveBeenCalledTimes(1)
+		expect(inactiveStream.clearForTurnAcknowledgement).toHaveBeenCalledTimes(1)
 		expect(result.current.acknowledgementPending).toBe(false)
 		expect(result.current.inactiveEventWindowVisible).toBe(false)
 		expect(result.current.controlsLocked).toBe(false)

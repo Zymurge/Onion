@@ -20,8 +20,8 @@ import {
 	ActionResponseBoundarySchema, 
 	GameStateResponseBoundarySchema, 
 	UnchangedGameStateResponseSchema 
-} from '#shared/shared/protocolSchemas'
-import type { ActionOkResponse, EventEnvelope, TurnPhase } from '#shared/shared/types/index'
+} from '#shared/protocolSchemas'
+import type { ActionOkResponse, EventEnvelope, TurnPhase } from '#shared/types/index'
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
 import { validateBattlefieldSnapshot } from './battlefieldDisplay/snapshotValidation'

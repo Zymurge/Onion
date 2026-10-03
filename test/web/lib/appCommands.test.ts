@@ -58,7 +58,7 @@ function renderCommands(overrides: Record<string, unknown> = {}) {
 		catalog: null,
 		controlsLocked: false,
 		display: createDisplay(),
-		inactiveEventStream: { clearEntries: vi.fn() },
+		inactiveEventStream: { clearErrorMessage: vi.fn() },
 		interaction,
 		notifications,
 		setDebugOpen,

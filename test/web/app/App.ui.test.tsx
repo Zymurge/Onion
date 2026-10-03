@@ -417,8 +417,7 @@ describe('App UI', () => {
 		expect(screen.queryByTestId('ram-resolution-toast')).toBeNull()
 	})
 
-	it('shows a dismissible inactive-event stream for remote combat events', async () => {
-		const user = userEvent.setup()
+	it('shows an inactive-event stream for remote combat events', async () => {
 		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockImplementation(async (_gameId: number, afterSeq: number) => {
@@ -460,7 +459,6 @@ describe('App UI', () => {
 			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 48, eventType: 'FIRE_RESOLVED' })
 		})
 
-		await user.click(screen.getByRole('button', { name: /dismiss inactive event stream/i }))
 		expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
 
 		act(() => {
@@ -754,8 +752,7 @@ describe('App UI', () => {
 		).toBeNull()
 	})
 
-	it('keeps dismissed inactive events hidden when later polls include older seqs again', async () => {
-		const user = userEvent.setup()
+	it('deduplicates inactive events when later polls include older seqs again', async () => {
 		const snapshot = createOnionMoveSnapshot(4)
 		const liveEventSource = createLiveEventSourceStub()
 		const pollEvents = vi.fn().mockImplementation(async (_gameId: number, afterSeq: number) => {
@@ -796,7 +793,6 @@ describe('App UI', () => {
 		expect(await screen.findByTestId('inactive-event-stream')).not.toBeNull()
 		expect(screen.getByText(/Wolf-2 fired at the Onion and missed\./i)).not.toBeNull()
 
-		await user.click(screen.getByRole('button', { name: /dismiss inactive event stream/i }))
 		expect(screen.getByTestId('inactive-event-stream')).not.toBeNull()
 
 		act(() => {

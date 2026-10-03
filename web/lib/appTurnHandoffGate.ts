@@ -20,7 +20,7 @@ export type TurnHandoffGateTurn = {
 /** Minimal inactive-event stream contract needed by the handoff gate. */
 export type InactiveEventStreamForGate = {
 	entries: ReadonlyArray<{ type: string }>
-	clearEntries: () => void
+	clearForTurnAcknowledgement: () => void
 }
 
 /** Inputs for the inactive -> acknowledgement -> active turn contract. */
@@ -83,7 +83,7 @@ export function useTurnHandoffGate({
 		: 'Begin Turn'
 
 	const acknowledgeCurrentTurn = useCallback(() => {
-		inactiveEventStream.clearEntries()
+		inactiveEventStream.clearForTurnAcknowledgement()
 		setAcknowledgedActiveTurnKey(currentActiveTurnKey)
 	}, [currentActiveTurnKey, inactiveEventStream])
 

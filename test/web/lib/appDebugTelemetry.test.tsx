@@ -24,7 +24,6 @@ function createInputs(overrides: Record<string, unknown> = {}) {
 		},
 		inactiveEventStream: {
 			entries: [],
-			isDismissed: false,
 		},
 		session: {
 			activeGameId: 123,
@@ -87,7 +86,7 @@ describe('useAppDebugTelemetry', () => {
 				state: { ...initial.session.state, lastAppliedEventSeq: 11, lastAppliedEventType: 'event' },
 			},
 			gate: { ...initial.gate, controlsLocked: true, screenLocked: true, inactiveEventWindowVisible: true },
-			inactiveEventStream: { entries: [{ type: 'FIRE_RESOLVED' }], isDismissed: false },
+			inactiveEventStream: { entries: [{ type: 'FIRE_RESOLVED' }] },
 		}))
 
 		expect(messagesFor('[app-debug] session reload')).toHaveLength(2)
@@ -109,7 +108,7 @@ describe('useAppDebugTelemetry', () => {
 			},
 			gate: { controlsLocked: true, screenLocked: false, inactiveEventWindowVisible: true },
 			display: { phaseAdvanceLabel: 'Advance to defender combat' },
-			inactiveEventStream: { entries: [{ type: 'PHASE_CHANGED' }, { type: 'FIRE_RESOLVED' }], isDismissed: true },
+			inactiveEventStream: { entries: [{ type: 'PHASE_CHANGED' }, { type: 'FIRE_RESOLVED' }] },
 		}))
 
 		const reloadPayload = messagesFor('[app-debug] session reload')[1][1]
@@ -128,7 +127,6 @@ describe('useAppDebugTelemetry', () => {
 				sessionPhase: 'DEFENDER_MOVE',
 				sessionRole: 'defender',
 				inactiveEntryCount: 2,
-				inactiveDismissed: true,
 				lastAppliedEventSeq: 12,
 				phaseAdvanceLabel: 'Advance to defender combat',
 			}),

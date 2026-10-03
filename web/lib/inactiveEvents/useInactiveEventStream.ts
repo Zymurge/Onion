@@ -16,7 +16,6 @@ export function useInactiveEventStream({
 	pollEvents,
 }: UseInactiveEventStreamOptions): InactiveEventStream {
 	const [entries, setEntries] = useState<TimelineEvent[]>([])
-	const [isDismissed, setIsDismissed] = useState(false)
 	const [isLoading, setIsLoading] = useState(false)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 	const seenSeqsRef = useRef(new Set<number>())
@@ -28,7 +27,7 @@ export function useInactiveEventStream({
 	const lastActiveTurnActiveRef = useRef<boolean | null>(null)
 	const windowStartSeqRef = useRef<number | null>(null)
 	const lastPhaseRef = useRef<string | null>(null)
-	const dismissalVersionRef = useRef(0)
+	const clearVersionRef = useRef(0)
 
 	useEffect(() => {
 		latestAppliedEventSeqRef.current = lastAppliedEventSeq
@@ -41,7 +40,6 @@ export function useInactiveEventStream({
 			windowStartSeqRef.current = null
 			lastPhaseRef.current = currentPhase
 			setEntries([])
-			setIsDismissed(false)
 			setIsLoading(false)
 			setErrorMessage(null)
 			seenSeqsRef.current = new Set<number>()
@@ -59,7 +57,6 @@ export function useInactiveEventStream({
 		lastPhaseRef.current = currentPhase
 		windowStartSeqRef.current = phaseStartEventSeq
 		setEntries([])
-		setIsDismissed(false)
 		setIsLoading(false)
 		setErrorMessage(null)
 		seenSeqsRef.current = new Set<number>()
@@ -73,7 +70,6 @@ export function useInactiveEventStream({
 		if (previousActiveTurnActive === true && activeTurnActive === false) {
 			windowStartSeqRef.current = lastAppliedEventSeq
 			setEntries([])
-			setIsDismissed(false)
 			setIsLoading(false)
 			setErrorMessage(null)
 			seenSeqsRef.current = new Set<number>()
@@ -109,7 +105,7 @@ export function useInactiveEventStream({
 		}
 
 		let cancelled = false
-		const dismissalVersion = dismissalVersionRef.current
+			const clearVersion = clearVersionRef.current
 		inFlightAfterSeqRef.current = afterSeq
 
 		async function loadEvents() {
@@ -140,13 +136,12 @@ export function useInactiveEventStream({
 					seenSeqsRef.current.add(event.seq)
 				}
 
-				if (unseenEvents.length > 0 && dismissalVersion === dismissalVersionRef.current) {
+				if (unseenEvents.length > 0 && clearVersion === clearVersionRef.current) {
 					setEntries((currentEntries) => {
 						const nextEntries = currentEntries.concat(toTimelineEvents(unseenEvents))
 						nextEntries.sort((left, right) => left.seq - right.seq)
 						return nextEntries
 					})
-					setIsDismissed(false)
 				}
 
 				const maxReturnedSeq = events.reduce((maxSeq, event) => Math.max(maxSeq, event.seq), afterSeq)
@@ -193,10 +188,9 @@ export function useInactiveEventStream({
 		}
 	}, [activeGameId, activeTurnActive, currentPhase, currentTurnNumber, lastAppliedEventSeq, phaseStartEventSeq, pollEvents])
 
-	function clearEntries() {
-		dismissalVersionRef.current += 1
+	function clearForTurnAcknowledgement() {
+		clearVersionRef.current += 1
 		setEntries([])
-		setIsDismissed(true)
 		setIsLoading(false)
 		setErrorMessage(null)
 	}
@@ -206,11 +200,10 @@ export function useInactiveEventStream({
 	}
 
 	return {
-		clearEntries,
+		clearForTurnAcknowledgement,
 		entries,
 		errorMessage,
 		isLoading,
-		isDismissed,
 		clearErrorMessage,
 	}
 }

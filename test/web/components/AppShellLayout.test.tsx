@@ -60,9 +60,7 @@ function createProps(overrides: Partial<AppShellLayoutProps> = {}): AppShellLayo
 		inactiveEventStream: {
 			entries: [],
 			errorMessage: null,
-			isDismissed: false,
 			isLoading: false,
-			clearEntries: () => undefined,
 			clearErrorMessage: () => undefined,
 		},
 		interaction: {

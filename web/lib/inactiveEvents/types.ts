@@ -43,10 +43,9 @@ export type InactiveEventPayload = EventEnvelope & {
 
 /** Public state and actions returned by the inactive-event stream hook. */
 export type InactiveEventStream = {
-	clearEntries: () => void
+	clearForTurnAcknowledgement: () => void
 	entries: TimelineEvent[]
 	errorMessage: string | null
 	isLoading: boolean
-	isDismissed: boolean
 	clearErrorMessage: () => void
 }

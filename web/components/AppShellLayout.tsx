@@ -166,7 +166,6 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           gameOverSummary={terminalWinner === null ? null : { winner: terminalWinner, objectives: display.victoryObjectives }}
           showInactiveEventStream={gate.inactiveEventWindowVisible}
           isInteractionLocked={gate.controlsLocked}
-          canDismissInactiveEventStream={session.turn.isActive}
           pendingRamPrompt={interaction.pendingRamPrompt}
           selectedCombatAttackStrength={display.selectedCombatAttackStrength}
           selectedCombatAttackRange={display.selectedCombatAttackRange}

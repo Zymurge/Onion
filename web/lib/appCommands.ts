@@ -41,7 +41,6 @@ export type AppCommandsOptions = {
 	catalog: SessionCatalog | null
 	controlsLocked: boolean
 	display: CommandDisplayState
-	inactiveEventStream: { clearEntries: () => void }
 	interaction: CommandInteraction
 	notifications: CommandNotifications
 	setDebugOpen: Dispatch<SetStateAction<boolean>>

@@ -32,7 +32,6 @@ type BattlefieldRightRailProps = {
   gameOverSummary?: GameOverSummaryProps | null
   showInactiveEventStream: boolean
   isInteractionLocked: boolean
-  canDismissInactiveEventStream: boolean
   pendingRamPrompt: RamPrompt | null
   selectedCombatAttackStrength: number
   selectedCombatAttackRange?: number
@@ -55,9 +54,7 @@ type BattlefieldRightRailProps = {
   inactiveEventStream: {
     entries: ReadonlyArray<TimelineEvent>
     errorMessage: string | null
-    clearEntries: () => void
     isLoading: boolean
-    isDismissed: boolean
     clearErrorMessage: () => void
   }
   combatTargetOptions: ReadonlyArray<CombatTargetOption>
@@ -78,7 +75,6 @@ export function BattlefieldRightRail({
   gameOverSummary = null,
   showInactiveEventStream,
   isInteractionLocked,
-  canDismissInactiveEventStream,
   pendingRamPrompt,
   selectedCombatAttackStrength,
   selectedCombatAttackRange = 0,
@@ -283,8 +279,6 @@ export function BattlefieldRightRail({
           entries={inactiveEventStream.entries}
           errorMessage={inactiveEventStream.errorMessage}
           isLoading={inactiveEventStream.isLoading}
-          canDismiss={canDismissInactiveEventStream}
-          onDismiss={inactiveEventStream.clearEntries}
           onDismissError={inactiveEventStream.clearErrorMessage}
         />
       ) : null}

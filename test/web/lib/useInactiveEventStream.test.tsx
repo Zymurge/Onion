@@ -157,10 +157,9 @@ describe('useInactiveEventStream', () => {
 		})
 
 		act(() => {
-			result.current.clearEntries()
+			result.current.clearForTurnAcknowledgement()
 		})
 		expect(result.current.entries).toEqual([])
-		expect(result.current.isDismissed).toBe(true)
 
 		act(() => {
 			result.current.clearErrorMessage()

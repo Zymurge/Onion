@@ -153,7 +153,6 @@ function App({
     catalog: session.state.catalog,
     controlsLocked: gate.controlsLocked,
     display,
-    inactiveEventStream,
     interaction,
     notifications,
     setDebugOpen: debug.setDebugOpen,
