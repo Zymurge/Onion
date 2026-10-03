@@ -214,7 +214,7 @@ describe('battlefieldViewBuilders', () => {
       position: { q: 0, r: 0 },
       weapons: [
         makeWeapon({ id: 'ready', typeId: 'TheOnion.main', state: 'ready' }),
-        makeWeapon({ id: 'spent', typeId: 'TheOnion.secondary_1', state: 'spent' }),
+        makeWeapon({ id: 'spent', typeId: 'TheOnion.secondary', state: 'spent' }),
       ],
     }))
     const defender = buildBattlefieldDefenderView(makeDefender({

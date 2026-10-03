@@ -709,8 +709,8 @@ describe('buildVictoryObjectiveStates', () => {
             treads: 45,
             weapons: [
               { id: 'main', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' },
-              { id: 'secondary_1', typeId: 'TheOnion.secondary_1', weaponClass: 'secondary', state: 'ready', friendlyName: 'Secondary Weapon 1' },
-              { id: 'ap_1', typeId: 'TheOnion.ap_1', weaponClass: 'ap', state: 'ready', friendlyName: 'AP Gun 1' },
+              { id: 'secondary-1', typeId: 'TheOnion.secondary', weaponClass: 'secondary', state: 'ready', friendlyName: 'Secondary Weapon 1' },
+              { id: 'ap-1', typeId: 'TheOnion.ap', weaponClass: 'ap', state: 'ready', friendlyName: 'AP Gun 1' },
             ],
           },
           defenders: {

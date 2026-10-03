@@ -509,7 +509,7 @@ describe('ram flow', () => {
 
 		expect(submitAction).toHaveBeenCalledWith(123, { type: 'MOVE', movers: ['onion-1'], to: { q: 0, r: 1 }, attemptRam: true })
 		await acknowledgeTurnIfAvailable()
-		await user.click(await screen.findByTestId('combat-weapon-main'))
+		await user.click(await screen.findByTestId('combat-weapon-main-1'))
 		expect(await screen.findByTestId('combat-target-d1')).not.toBeNull()
 	})
 })
@@ -1145,7 +1145,7 @@ describe('combat', () => {
 							friendlyName: 'Dragon 1',
 							position: { q: 2, r: 4 },
 						weapons: [
-								makeWeapon({ id: 'main', typeId: 'Dragon.main_1', friendlyName: 'Main Gun', state: 'spent' }),
+								makeWeapon({ id: 'main-1', typeId: 'Dragon.main', friendlyName: 'Main Gun', state: 'spent' }),
 								makeWeapon({ id: 'secondary', typeId: 'Puss.main', friendlyName: 'Secondary Gun', state: 'ready' }),
 						],
 						}),

@@ -205,8 +205,8 @@ describe('combatCalculator', () => {
 						typeId: 'Dragon',
 						weaponIds: ['main_1', 'main_2'],
 						weapons: [
-							{ id: 'main_1', typeId: 'Dragon.main_1', weaponClass: 'main', friendlyName: 'A', state: 'ready', ammo: 1 },
-							{ id: 'main_2', typeId: 'Dragon.main_2', weaponClass: 'main', friendlyName: 'B', state: 'ready', ammo: 1 },
+									  { id: 'main-1', typeId: 'Dragon.main', weaponClass: 'main', friendlyName: 'A', state: 'ready', ammo: 1 },
+									  { id: 'main-2', typeId: 'Dragon.main', weaponClass: 'main', friendlyName: 'B', state: 'ready', ammo: 1 },
 						],
 					},
 					'target-1': { typeId: 'Puss' },
@@ -233,7 +233,7 @@ describe('combatCalculator', () => {
 						weaponId: 'secondary_1',
 						weapons: [
 							{ id: 'main', typeId: 'TheOnion.main', friendlyName: 'Main Weapon', weaponClass: 'main', state: 'ready', ammo: 1 },
-							{ id: 'secondary_1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Weapon 1', weaponClass: 'secondary', state: 'ready', ammo: 1 },
+													{ id: 'secondary-1', typeId: 'TheOnion.secondary', friendlyName: 'Secondary Weapon 1', weaponClass: 'secondary', state: 'ready', ammo: 1 },
 						],
 					},
 				},

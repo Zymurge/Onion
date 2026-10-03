@@ -7,6 +7,17 @@
     "radius": 2,
     "hexes": []
   },
+  "unitTypes": {
+    "ScenarioPuss": {
+      "extends": "Puss",
+      "overrides": {
+        "defense": 4,
+        "weaponOverrides": {
+          "Puss.main": { "attack": 5 }
+        }
+      }
+    }
+  },
   "initialState": {
     "deployments": {
       "onion-1": {
@@ -16,7 +27,7 @@
         "status": "operational"
       },
       "puss-1": {
-        "type": "Puss",
+        "type": "ScenarioPuss",
         "side": "defender",
         "position": { "q": 1, "r": 0 },
         "status": "operational"

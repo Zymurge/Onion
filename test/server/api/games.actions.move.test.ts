@@ -71,7 +71,7 @@ describe('POST /games/:id/actions MOVE', () => {
 								})),
 								...Array.from({ length: 8 }, (_, index) => ({
 									id: `ap_${index + 1}`,
-									typeId: 'TheOnion.ap_1',
+																	typeId: 'TheOnion.ap',
 									state: 'ready' as const,
 									friendlyName: `AP Gun ${index + 1}`,
 								})),

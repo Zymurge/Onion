@@ -7,6 +7,17 @@
     "radius": 3,
     "hexes": []
   },
+  "unitTypes": {
+    "ScenarioWolf": {
+      "extends": "BigBadWolf",
+      "overrides": {
+        "movement": 5,
+        "weaponQuantities": {
+          "BigBadWolf.main": 1
+        }
+      }
+    }
+  },
   "initialState": {
     "deployments": {
       "onion-1": {
@@ -30,7 +41,7 @@
         "status": "operational"
       },
       "wolf-1": {
-        "type": "BigBadWolf",
+        "type": "ScenarioWolf",
         "side": "defender",
         "position": { "q": 2, "r": 3 },
         "status": "operational"

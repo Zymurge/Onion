@@ -9,7 +9,7 @@ import type {
 
 type ExternalWeaponType = Omit<WeaponType, 'typeId'>
 type ExternalUnitType = Omit<UnitTypeBase, 'typeId' | 'stackable' | 'weapons'> & {
-  weaponTypeIds: ReadonlyArray<string>
+  weaponQuantities: Readonly<Record<string, number>>
 }
 
 type UnitCatalogConfig = {
@@ -32,8 +32,8 @@ function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig
     }
 
     const allowedFields = new Set([
-      'name', 'friendlyNameTemplate', 'movement', 'defense', 'cost', 'abilities',
-      'weaponTypeIds', 'targetRules', 'treads', 'treadsPerMove', 'ramsPerTurn', 'squads',
+      'name', 'friendlyNameTemplate', 'spriteKey', 'movement', 'defense', 'cost', 'abilities',
+      'weaponQuantities', 'targetRules', 'maxTreads', 'treadsPerMove', 'ramsPerTurn', 'squads',
     ])
     const unknownField = Object.keys(unitType).find((field) => !allowedFields.has(field))
     if (unknownField !== undefined) {
@@ -48,11 +48,11 @@ function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig
       throw new Error(`Invalid abilities for unit type: ${unitTypeId}`)
     }
 
-    if (!Array.isArray(unitType.weaponTypeIds) || unitType.weaponTypeIds.some((weaponTypeId) => typeof weaponTypeId !== 'string')) {
+    if (!isRecord(unitType.weaponQuantities) || Object.entries(unitType.weaponQuantities).some(([weaponTypeId, quantity]) => typeof weaponTypeId !== 'string' || typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 0)) {
       throw new Error(`Invalid weapon references for unit type: ${unitTypeId}`)
     }
 
-    for (const field of ['treads', 'treadsPerMove', 'ramsPerTurn', 'squads']) {
+    for (const field of ['maxTreads', 'treadsPerMove', 'ramsPerTurn', 'squads']) {
       if (field in unitType && typeof unitType[field] !== 'number') {
         throw new Error(`Invalid ${field} for unit type: ${unitTypeId}`)
       }
@@ -67,6 +67,7 @@ function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig
     const allowedFields = new Set([
       'name', 'weaponClass', 'attack', 'range', 'defense', 'individuallyTargetable',
       'targetRules', 'friendlyNameTemplate', 'maxAmmo',
+      'defaultQuantity',
     ])
     const unknownField = Object.keys(weaponType).find((field) => !allowedFields.has(field))
     if (unknownField !== undefined) {
@@ -80,11 +81,15 @@ function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig
     if ('maxAmmo' in weaponType && (typeof weaponType.maxAmmo !== 'number' || !Number.isInteger(weaponType.maxAmmo) || weaponType.maxAmmo <= 0)) {
       throw new Error(`Invalid maxAmmo for weapon type: ${weaponTypeId}`)
     }
+
+    if ('defaultQuantity' in weaponType && (typeof weaponType.defaultQuantity !== 'number' || !Number.isInteger(weaponType.defaultQuantity) || weaponType.defaultQuantity < 0)) {
+      throw new Error(`Invalid defaultQuantity for weapon type: ${weaponTypeId}`)
+    }
   }
 
   for (const [unitTypeId, unitType] of Object.entries(value.unitTypes)) {
     const configuredUnitType = unitType as ExternalUnitType
-    for (const weaponTypeId of configuredUnitType.weaponTypeIds) {
+    for (const weaponTypeId of Object.keys(configuredUnitType.weaponQuantities)) {
       if (!Object.hasOwn(value.weaponTypes, weaponTypeId)) {
         throw new Error(`Unit type ${unitTypeId} references missing weapon type: ${weaponTypeId}`)
       }
@@ -101,12 +106,13 @@ export function parseUnitCatalog(value: unknown): { unitTypes: UnitTypeCatalog; 
 
   const unitTypes: UnitTypeCatalog = Object.fromEntries(
     Object.entries(value.unitTypes).map(([typeId, definition]) => {
-      const { weaponTypeIds, ...unitTypeAttributes } = definition
+      const { weaponQuantities, ...unitTypeAttributes } = definition
       return [typeId, {
         ...unitTypeAttributes,
+        weaponQuantities,
         typeId,
         stackable: definition.abilities.maxStacks > 1,
-        weapons: weaponTypeIds.map((weaponTypeId) => weaponTypes[weaponTypeId]),
+        weapons: Object.keys(weaponQuantities).map((weaponTypeId) => weaponTypes[weaponTypeId]),
       }]
     }),
   ) as UnitTypeCatalog
@@ -134,7 +140,7 @@ export function buildFriendlyName(template: string, id: string): string {
 
 const { unitTypes: UNIT_TYPE_CATALOG, weaponTypes: WEAPON_TYPE_CATALOG } = parseUnitCatalog(catalogConfig)
 
-const DEFAULT_ONION_UNIT_TYPE = Object.values(UNIT_TYPE_CATALOG).find((definition) => definition.treads !== undefined)
+const DEFAULT_ONION_UNIT_TYPE = Object.values(UNIT_TYPE_CATALOG).find((definition) => definition.maxTreads !== undefined)
 if (DEFAULT_ONION_UNIT_TYPE === undefined) {
   throw new Error('Unit catalog must define an onion unit type')
 }

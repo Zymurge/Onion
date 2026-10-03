@@ -110,9 +110,9 @@ describe('scenario deployment normalization contract', () => {
     const state = normalizeTargetState(makeInitialState({
       'onion-1': { type: 'TheOnion', side: 'onion', position: { q: 1, r: 1 } },
     }))
-    const missile = state.onions['onion-1'].weapons.find((weapon) => weapon.typeId === 'TheOnion.missile_1')
+    const missile = state.onions['onion-1'].weapons.find((weapon) => weapon.typeId === 'TheOnion.missile')
 
-    expect(missile).toMatchObject({ typeId: 'TheOnion.missile_1', ammo: 1, state: 'ready' })
+    expect(missile).toMatchObject({ typeId: 'TheOnion.missile', ammo: 1, state: 'ready' })
   })
 
   it('NORM-007 applies a starting ammo override without copying static weapon data', () => {
@@ -121,10 +121,10 @@ describe('scenario deployment normalization contract', () => {
         type: 'TheOnion',
         side: 'onion',
         position: { q: 1, r: 1 },
-        startingAmmoByWeaponType: { 'TheOnion.missile_1': 0 },
+        startingAmmoByWeaponType: { 'TheOnion.missile': 0 },
       },
     }))
-    const missile = state.onions['onion-1'].weapons.find((weapon) => weapon.typeId === 'TheOnion.missile_1')
+    const missile = state.onions['onion-1'].weapons.find((weapon) => weapon.typeId === 'TheOnion.missile')
 
     expect(missile).toMatchObject({ ammo: 0, state: 'ready' })
     expect(missile).not.toHaveProperty('attack')
@@ -137,10 +137,10 @@ describe('scenario deployment normalization contract', () => {
         type: 'TheOnion',
         side: 'onion',
         position: { q: 1, r: 1 },
-        startingAmmoByWeaponType: { 'TheOnion.missile_1': 0 },
+        startingAmmoByWeaponType: { 'TheOnion.missile': 0 },
       },
     }))
-    const missile = state.onions['onion-1'].weapons.find((weapon) => weapon.typeId === 'TheOnion.missile_1')
+    const missile = state.onions['onion-1'].weapons.find((weapon) => weapon.typeId === 'TheOnion.missile')
 
     expect(missile?.state).toBe('ready')
     expect(missile?.ammo).toBe(0)
@@ -152,9 +152,9 @@ describe('scenario deployment normalization contract', () => {
         type: 'Puss',
         side: 'onion',
         position: { q: 1, r: 1 },
-        startingAmmoByWeaponType: { 'TheOnion.missile_1': 0 },
+        startingAmmoByWeaponType: { 'TheOnion.missile': 0 },
       },
-    }))).toThrow(/TheOnion\.missile_1/)
+    }))).toThrow(/TheOnion\.missile/)
   })
 
   it('NORM-012 applies stack side and deployment policy to every generated member', () => {
@@ -196,7 +196,7 @@ describe('scenario deployment normalization contract', () => {
         type: 'TheOnion',
         side: 'onion',
         position: { q: 1, r: 1 },
-        startingAmmoByWeaponType: { 'TheOnion.missile_1': 0 },
+        startingAmmoByWeaponType: { 'TheOnion.missile': 0 },
       },
     })
     const before = structuredClone(initial)
@@ -211,9 +211,9 @@ describe('scenario deployment normalization contract', () => {
         type: 'TheOnion',
         side: 'onion',
         position: { q: 1, r: 1 },
-        startingAmmoByWeaponType: { 'TheOnion.missile_1': 2 },
+        startingAmmoByWeaponType: { 'TheOnion.missile': 2 },
       },
-    }))).toThrow(/TheOnion\.missile_1.*above maxAmmo 1/)
+    }))).toThrow(/TheOnion\.missile.*above maxAmmo 1/)
   })
 
   it('NORM-011 rejects an override for an unlimited weapon', () => {
@@ -270,7 +270,7 @@ describe('scenario deployment normalization contract', () => {
     }))
 
     for (const unit of [...Object.values(state.onions), ...Object.values(state.defenders)]) {
-      for (const field of ['name', 'movement', 'defense', 'abilities', 'stackable', 'weaponTypeIds']) {
+      for (const field of ['name', 'movement', 'defense', 'abilities', 'stackable', 'weaponQuantities']) {
         expect(unit).not.toHaveProperty(field)
       }
       for (const weapon of unit.weapons) {

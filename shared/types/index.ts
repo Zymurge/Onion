@@ -71,6 +71,7 @@ export interface WeaponType {
   targetRules?: TargetRules
   friendlyNameTemplate?: string
   maxAmmo?: number
+  defaultQuantity?: number
 }
 
 /**
@@ -111,13 +112,15 @@ export interface UnitTypeBase {
   name: string
   stackable: boolean
   friendlyNameTemplate?: string
+  spriteKey?: string
   movement: number
   defense: number
   cost?: number
   abilities: UnitAbilities
   weapons: ReadonlyArray<WeaponType>
+  weaponQuantities: Readonly<Record<string, number>>
   targetRules?: TargetRules
-  treads?: number
+  maxTreads?: number
   treadsPerMove?: number
   ramsPerTurn?: number
   squads?: number

@@ -221,7 +221,7 @@ describe('useBattlefieldInteractionState', () => {
 						unitId: 'onion-1',
 						weapons: [
 							makeWeapon({ id: 'main', typeId: 'TheOnion.main' }),
-							makeWeapon({ id: 'secondary', typeId: 'TheOnion.secondary_1' }),
+													makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary' }),
 						],
 					}),
 				},

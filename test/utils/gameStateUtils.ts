@@ -89,9 +89,9 @@ export function makeOnion(overrides: Partial<OnionUnit> = {}): OnionUnit {
 		treads: 45,
 		ramsRemaining: 2,
 		weapons: [
-			makeWeapon({ id: 'main', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.main`, friendlyName: 'Main Weapon 1' }),
-			makeWeapon({ id: 'secondary_1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.secondary_1`, friendlyName: 'Secondary Weapon 1' }),
-			makeWeapon({ id: 'ap_1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.ap_1`, friendlyName: 'AP Gun 1' }),
+			makeWeapon({ id: 'main-1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.main`, friendlyName: 'Main Weapon 1' }),
+			makeWeapon({ id: 'secondary-1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.secondary`, friendlyName: 'Secondary Weapon 1' }),
+			makeWeapon({ id: 'ap-1', typeId: `${DEFAULT_ONION_UNIT_TYPE_ID}.ap`, friendlyName: 'AP Gun 1' }),
 		],
 		...overrides,
 	}

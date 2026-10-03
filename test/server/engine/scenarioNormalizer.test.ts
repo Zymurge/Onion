@@ -65,8 +65,8 @@ describe('normalizeInitialStateToGameState', () => {
     expect(onion1.state).toBe('operational')
     expect(onion1.treads).toBe(45)
     expect(onion1.weapons.length).toBeGreaterThan(0)
-    expect(onion1.weapons.find((weapon) => weapon.id === 'main')?.friendlyName).toBe('Main Weapon')
-    expect(onion1.weapons.find((weapon) => weapon.id === 'secondary_1')?.friendlyName).toBe('Secondary Weapon 1')
+    expect(onion1.weapons.find((weapon) => weapon.id === 'main-1')?.friendlyName).toBe('Main Weapon')
+    expect(onion1.weapons.find((weapon) => weapon.id === 'secondary-1')?.friendlyName).toBe('Secondary Weapon 1')
     expect(onion1).not.toHaveProperty('id')
     expect(onion1).not.toHaveProperty('type')
     expect(onion1).not.toHaveProperty('status')
@@ -110,6 +110,46 @@ describe('normalizeInitialStateToGameState', () => {
     expect(gameState.onions['onion-2'].weapons).toHaveLength(gameState.onions['onion-1'].weapons.length)
   })
 
+  it('normalizes a deployment from a scenario-local derived type using its resolved namespaced definition', () => {
+    const parsed = InitialStateSchema.parse({
+      deployments: {
+        'onion-1': {
+          type: 'TheOnion',
+          side: 'onion',
+          position: { q: 0, r: 0 },
+        },
+        'puss-1': {
+          type: 'ScenarioPuss',
+          side: 'defender',
+          position: { q: 1, r: 1 },
+        },
+      },
+    })
+    const scenarioDefinitions = {
+      ScenarioPuss: {
+        extends: 'Puss',
+        overrides: {
+          movement: 5,
+          defense: 4,
+          weaponQuantities: { 'Puss.main': 1 },
+          weaponOverrides: { 'Puss.main': { attack: 5 } },
+        },
+      },
+    }
+    const normalizeScenario = normalizeInitialStateToGameState as unknown as (
+      initial: typeof parsed,
+      scenarioId: string,
+      unitTypes: typeof scenarioDefinitions,
+    ) => ReturnType<typeof normalizeInitialStateToGameState>
+
+    const gameState = normalizeScenario(parsed, 'scenario-test', scenarioDefinitions)
+
+    expect(gameState.defenders['puss-1']).toMatchObject({
+      typeId: 'scenario-test:ScenarioPuss',
+      weapons: [{ typeId: 'Puss.main' }],
+    })
+  })
+
   it('normalizes a damaged Onion unit type with reduced starting treads', () => {
     const parsed = InitialStateSchema.parse({
       deployments: {
@@ -139,6 +179,21 @@ describe('normalizeInitialStateToGameState', () => {
     const gameState = normalizeInitialStateToGameState(parsed)
     expect(gameState.onions['onion-1'].state).toBe('operational')
     expect(gameState.defenders['wolf-1'].state).toBe('operational')
+  })
+
+  it('rejects a starting tread value above the resolved unit maximum', () => {
+    const parsed = InitialStateSchema.parse({
+      deployments: {
+        'onion-1': {
+          type: 'TheOnion',
+          side: 'onion',
+          position: { q: 0, r: 0 },
+          startingTreads: 46,
+        },
+      },
+    })
+
+    expect(() => normalizeInitialStateToGameState(parsed)).toThrow(/startingTreads.*maxTreads|above maxTreads/i)
   })
 
   it('logs error and throws for unknown unit type', () => {

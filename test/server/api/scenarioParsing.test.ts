@@ -43,7 +43,7 @@ const targetDeploymentScenario = {
         type: 'TheOnion',
         side: 'defender',
         position: { q: 2, r: 1 },
-        startingAmmoByWeaponType: { 'TheOnion.missile_1': 0 },
+        startingAmmoByWeaponType: { 'TheOnion.missile': 0 },
       },
       'pigs-stack-1': {
         kind: 'stack-group',
@@ -76,6 +76,31 @@ describe('parseScenarioSnapshot', () => {
     expect(scenario.id).toBe('valid-scenario')
     expect(scenario.map).toMatchObject({ width: 3, height: 3 })
     expect(scenario.initialState).toEqual(expect.objectContaining(validScenario.initialState))
+  })
+
+  it('accepts scenario-local numeric and weapon quantity overrides', () => {
+    const scenario = parseScenarioSnapshot({
+      ...validScenario,
+      unitTypes: {
+        ScenarioOnion: {
+          extends: 'TheOnion',
+          overrides: {
+            maxTreads: 30,
+            weaponQuantities: { 'TheOnion.secondary': 2 },
+            weaponOverrides: { 'TheOnion.secondary': { attack: 4 } },
+          },
+        },
+      },
+    })
+
+    expect(scenario.unitTypes?.ScenarioOnion).toEqual({
+      extends: 'TheOnion',
+      overrides: {
+        maxTreads: 30,
+        weaponQuantities: { 'TheOnion.secondary': 2 },
+        weaponOverrides: { 'TheOnion.secondary': { attack: 4 } },
+      },
+    })
   })
 
   it('accepts multiple authored Onions without static catalog fields', () => {
@@ -113,7 +138,7 @@ describe('parseScenarioSnapshot', () => {
     const deployments = (scenario.initialState as unknown as { deployments: Record<string, unknown> }).deployments
 
     expect(deployments['onion-1']).toMatchObject({
-      startingAmmoByWeaponType: { 'TheOnion.missile_1': 0 },
+      startingAmmoByWeaponType: { 'TheOnion.missile': 0 },
     })
   })
 
@@ -131,7 +156,7 @@ describe('parseScenarioSnapshot', () => {
   it.each([
     ['missing side', { type: 'Puss', position: { q: 1, r: 1 } }],
     ['invalid side', { type: 'Puss', side: 'neutral', position: { q: 1, r: 1 } }],
-    ['invalid ammo', { type: 'TheOnion', side: 'onion', position: { q: 1, r: 1 }, startingAmmoByWeaponType: { 'TheOnion.missile_1': -1 } }],
+    ['invalid ammo', { type: 'TheOnion', side: 'onion', position: { q: 1, r: 1 }, startingAmmoByWeaponType: { 'TheOnion.missile': -1 } }],
     ['unknown field', { type: 'Puss', side: 'onion', position: { q: 1, r: 1 }, role: 'onion' }],
   ])('DEP-002/003/006/004 rejects %s', (_description, deployment) => {
     const invalidScenario = {

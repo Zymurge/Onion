@@ -10,10 +10,11 @@
   "initialState": {
     "deployments": {
       "onion-1": {
-        "type": "TheOnionDamaged",
+        "type": "TheOnion",
         "side": "onion",
         "position": { "q": 4, "r": 4 },
-        "status": "operational"
+        "status": "operational",
+        "startingTreads": 15
       },
       "dragon-1": {
         "type": "Dragon",

@@ -49,13 +49,17 @@ function buildUnitWeapons(
     }
   }
 
-  return definition.weapons.map((weapon) => {
+  return definition.weapons.flatMap((weapon) => {
     const separatorIndex = weapon.typeId.lastIndexOf('.')
-    const id = separatorIndex === -1 ? weapon.typeId : weapon.typeId.slice(separatorIndex + 1)
+    const weaponName = separatorIndex === -1 ? weapon.typeId : weapon.typeId.slice(separatorIndex + 1)
     const ammo = weapon.maxAmmo === undefined
       ? undefined
       : overrides[weapon.typeId] ?? weapon.maxAmmo
-    return buildWeaponInstance(weapon, id, ammo)
+    const quantity = definition.weaponQuantities[weapon.typeId] ?? weapon.defaultQuantity ?? 1
+    return Array.from({ length: quantity }, (_unused, index) => {
+      const id = `${weaponName}-${index + 1}`
+      return buildWeaponInstance(weapon, id, ammo)
+    })
   })
 }
 
@@ -74,7 +78,7 @@ function buildRuntimeUnit(
     position: deployment.position,
     state: deployment.status ?? 'operational',
     weapons: buildUnitWeapons(definition, unitId, deployment.startingAmmoByWeaponType),
-    ...(definition.treads === undefined ? {} : { treads: definition.treads }),
+    ...(definition.maxTreads === undefined ? {} : { treads: deployment.startingTreads ?? definition.maxTreads }),
     ...(definition.ramsPerTurn === undefined ? {} : { ramsRemaining: definition.ramsPerTurn }),
   } satisfies Omit<OnionUnit, 'role'> & { role: 'onion' | 'defender' }
 

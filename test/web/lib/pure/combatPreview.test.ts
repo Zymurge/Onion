@@ -304,10 +304,10 @@ describe('buildCombatTargetOptions', () => {
 				makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
 			],
 			displayedOnion: makeBattlefieldOnion({
-			weapons: [makeWeapon({ id: 'ap_1', typeId: 'TheOnion.ap_1' })],
+					weapons: [makeWeapon({ id: 'ap-1', typeId: 'TheOnion.ap' })],
 		}),
 			...makeStackView({ unitType: 'LittlePigs', position: { q: 1, r: 1 }, unitIds: ['pigs-1'] }),
-			selectedUnitIds: ['weapon:ap_1'],
+					selectedUnitIds: ['weapon:ap-1'],
 			selectedAttackStrength: 1,
 			selectedAttackGroupCount: 1,
 			displayedScenarioMap: {
@@ -361,9 +361,9 @@ describe('buildCombatTargetOptions', () => {
 				),
 			],
 			displayedOnion: makeBattlefieldOnion({
-			weapons: [makeWeapon({ id: 'ap_1', typeId: 'TheOnion.ap_1' })],
+					weapons: [makeWeapon({ id: 'ap-1', typeId: 'TheOnion.ap' })],
 		}),
-			selectedUnitIds: ['weapon:ap_1'],
+					selectedUnitIds: ['weapon:ap-1'],
 			selectedAttackStrength: 1,
 			selectedAttackGroupCount: 1,
 			displayedScenarioMap: {
@@ -388,7 +388,7 @@ describe('buildCombatTargetOptions', () => {
 				),
 			],
 			displayedOnion: makeBattlefieldOnion({
-				weapons: [makeWeapon({ id: 'ap_1', typeId: 'TheOnion.ap_1' })],
+							weapons: [makeWeapon({ id: 'ap-1', typeId: 'TheOnion.ap' })],
 			}),
 			selectedUnitIds: ['wolf-2'],
 			selectedAttackStrength: 2,
@@ -400,7 +400,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 		})
 
-		expect(options.map((option) => option.id)).toEqual(['onion-1:treads', 'weapon:ap_1'])
+			expect(options.map((option) => option.id)).toEqual(['onion-1:treads', 'weapon:ap-1'])
 	})
 
 	it('offers spent individually targetable Onion weapons but excludes destroyed weapons', () => {
@@ -415,8 +415,8 @@ describe('buildCombatTargetOptions', () => {
 			],
 			displayedOnion: makeBattlefieldOnion({
 				weapons: [
-					makeWeapon({ id: 'secondary_1', typeId: 'TheOnion.secondary_1', state: 'spent' }),
-					makeWeapon({ id: 'secondary_2', typeId: 'TheOnion.secondary_2', state: 'destroyed' }),
+					makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary', state: 'spent' }),
+					makeWeapon({ id: 'secondary-2', typeId: 'TheOnion.secondary', state: 'destroyed' }),
 				],
 			}),
 			selectedUnitIds: ['wolf-2'],
@@ -429,7 +429,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 		})
 
-		expect(options.map((option) => option.id)).toEqual(['onion-1:treads', 'weapon:secondary_1'])
+			expect(options.map((option) => option.id)).toEqual(['onion-1:treads', 'weapon:secondary-1'])
 	})
 
 	it('disables treads when multiple defender groups are selected', () => {

@@ -323,7 +323,7 @@ function toExplicitInput(staticRules: CombatStaticRules, input: CombatCalculator
 	const definition = getUnitDefinitionByType(staticRules, target.typeId)
 	let exchangeTarget: CombatExchangeTarget
 
-	if (definition.treads !== undefined) {
+	if (definition.maxTreads !== undefined) {
 		if (target.weaponId === undefined) {
 			exchangeTarget = { kind: 'onion-treads', id: input.targetId, typeId: target.typeId }
 		} else {

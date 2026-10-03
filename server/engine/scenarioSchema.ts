@@ -15,10 +15,35 @@ const TerrainHexSchema = z.object({
 
 const StartingAmmoByWeaponTypeSchema = z.record(z.string().min(1), z.number().int().nonnegative())
 
+const NumericWeaponOverrideSchema = z.object({
+  attack: z.number().optional(),
+  range: z.number().optional(),
+  defense: z.number().optional(),
+  maxAmmo: z.number().int().positive().optional(),
+}).strict()
+
+const UnitTypeDerivationSchema = z.object({
+  extends: z.string().min(1),
+  overrides: z.object({
+    movement: z.number().optional(),
+    defense: z.number().optional(),
+    maxTreads: z.number().int().nonnegative().optional(),
+    treadsPerMove: z.number().optional(),
+    ramsPerTurn: z.number().int().nonnegative().optional(),
+    squads: z.number().int().positive().optional(),
+    maxStacks: z.number().int().positive().optional(),
+    weaponQuantities: z.record(z.string().min(1), z.number().int().nonnegative()).optional(),
+    weaponOverrides: z.record(z.string().min(1), NumericWeaponOverrideSchema).optional(),
+  }).strict(),
+}).strict()
+
+const UnitTypesSchema = z.record(z.string().min(1), UnitTypeDerivationSchema)
+
 const DeploymentBaseSchema = {
   side: z.enum(['onion', 'defender']),
   position: HexPosSchema,
   status: UnitStateSchema.optional(),
+  startingTreads: z.number().int().nonnegative().optional(),
   startingAmmoByWeaponType: StartingAmmoByWeaponTypeSchema.optional(),
 }
 
@@ -95,6 +120,7 @@ export const ScenarioSchema = z.object({
   name: z.string().min(1),
   displayName: z.string().min(1).optional(),
   description: z.string().min(1),
+  unitTypes: UnitTypesSchema.optional(),
   map: z.union([
   z.object({
     radius: z.number().int().nonnegative(),

@@ -11,7 +11,7 @@ const validUnitCatalogEntry = {
   movement: 1,
   defense: 1,
   abilities: { maxStacks: 1 },
-  weaponTypeIds: [],
+  weaponQuantities: {},
 }
 
 function makeCatalogConfig(unitOverrides: Record<string, unknown> = {}, weaponTypes: Record<string, unknown> = {}) {
@@ -52,6 +52,37 @@ describe('static unit and weapon catalogs', () => {
       expect(unitType.typeId).toBe(key)
       expect(unitType.weapons.length).toBeGreaterThanOrEqual(0)
     }
+  })
+
+  it('defines a sprite key and quantity-based loadout for every global unit type', () => {
+    const catalog = getUnitTypeCatalog()
+    const weapons = getWeaponTypeCatalog()
+
+    for (const unitType of Object.values(catalog)) {
+      expect(unitType.spriteKey).toEqual(expect.any(String))
+      expect(unitType).not.toHaveProperty('weaponTypeIds')
+      expect(unitType).not.toHaveProperty('treads')
+      for (const [weaponTypeId, quantity] of Object.entries(unitType.weaponQuantities)) {
+        expect(weapons[weaponTypeId]).toBeDefined()
+        expect(quantity).toEqual(expect.any(Number))
+        expect(quantity).toBeGreaterThanOrEqual(0)
+      }
+    }
+  })
+
+  it('keeps default quantities on weapon types and expands the Onion loadout contract', () => {
+    const catalog = getUnitTypeCatalog()
+    const weapons = getWeaponTypeCatalog()
+
+    expect(weapons['TheOnion.secondary']).toMatchObject({ defaultQuantity: 4 })
+    expect(weapons['TheOnion.ap']).toMatchObject({ defaultQuantity: 8 })
+    expect(weapons['TheOnion.missile']).toMatchObject({ defaultQuantity: 2 })
+    expect(catalog.TheOnion.weaponQuantities).toEqual({
+      'TheOnion.main': 1,
+      'TheOnion.secondary': 4,
+      'TheOnion.ap': 8,
+      'TheOnion.missile': 2,
+    })
   })
 
   it('contains unique weapon type IDs referenced by unit types', () => {
@@ -105,7 +136,7 @@ describe('static unit and weapon catalogs', () => {
       movement: 3,
       defense: 0,
       abilities: expect.objectContaining({ canRam: true, ramCapacity: 2 }),
-      treads: 45,
+      maxTreads: 45,
       treadsPerMove: 15,
       ramsPerTurn: 2,
     })
@@ -129,20 +160,9 @@ describe('static unit and weapon catalogs', () => {
 
     expect(catalog.TheOnion.weapons.map((weapon) => weapon.typeId)).toEqual([
       'TheOnion.main',
-      'TheOnion.secondary_1',
-      'TheOnion.secondary_2',
-      'TheOnion.secondary_3',
-      'TheOnion.secondary_4',
-      'TheOnion.ap_1',
-      'TheOnion.ap_2',
-      'TheOnion.ap_3',
-      'TheOnion.ap_4',
-      'TheOnion.ap_5',
-      'TheOnion.ap_6',
-      'TheOnion.ap_7',
-      'TheOnion.ap_8',
-      'TheOnion.missile_1',
-      'TheOnion.missile_2',
+      'TheOnion.secondary',
+      'TheOnion.ap',
+      'TheOnion.missile',
     ])
     for (const weapon of catalog.TheOnion.weapons) {
       expect(weapon).toEqual(weaponCatalog[weapon.typeId])
@@ -155,7 +175,7 @@ describe('static unit and weapon catalogs', () => {
     ['defense', { ...validUnitCatalogEntry, defense: '1' }],
     ['abilities', { ...validUnitCatalogEntry, abilities: undefined }],
     ['abilities.maxStacks', { ...validUnitCatalogEntry, abilities: { maxStacks: 1.5 } }],
-    ['weaponTypeIds', { ...omitField(validUnitCatalogEntry, 'weaponTypeIds') }],
+    ['weaponQuantities', { ...omitField(validUnitCatalogEntry, 'weaponQuantities') }],
   ])('CAT-006 rejects malformed required unit attribute %s through the pure catalog parser', (_field, unit) => {
     expect(() => parseUnitCatalog({ unitTypes: { TestUnit: unit }, weaponTypes: {} })).toThrow(/TestUnit/)
   })
@@ -172,12 +192,12 @@ describe('static unit and weapon catalogs', () => {
   })
 
   it('CAT-010 rejects a missing weapon reference through the pure catalog parser', () => {
-    expect(() => parseUnitCatalog(makeCatalogConfig({ weaponTypeIds: ['TestUnit.missing'] }))).toThrow(/TestUnit.*TestUnit\.missing/)
+    expect(() => parseUnitCatalog(makeCatalogConfig({ weaponQuantities: { 'TestUnit.missing': 1 } }))).toThrow(/TestUnit.*TestUnit\.missing/)
   })
 
   it('CAT-012 leaves frozen catalog input unchanged during normalization', () => {
     const catalogConfig = deepFreeze(makeCatalogConfig({
-      weaponTypeIds: ['TestUnit.main'],
+      weaponQuantities: { 'TestUnit.main': 1 },
     }, {
       'TestUnit.main': {
         name: 'Main Gun',
@@ -198,10 +218,10 @@ describe('static unit and weapon catalogs', () => {
     const weaponCatalog = getWeaponTypeCatalog()
 
     const unitTemplate = unitCatalog.TheOnion.friendlyNameTemplate
-    const weaponTemplate = weaponCatalog['TheOnion.secondary_1'].friendlyNameTemplate
+    const weaponTemplate = weaponCatalog['TheOnion.secondary'].friendlyNameTemplate
 
     expect(buildFriendlyName(unitTemplate ?? '', 'onion-1')).toBe('The Onion 1')
     expect(buildFriendlyName(unitTemplate ?? '', 'onion-1')).toBe(buildFriendlyName(unitTemplate ?? '', 'onion-1'))
-    expect(buildFriendlyName(weaponTemplate ?? '', 'secondary_1')).toBe('Secondary Weapon 1')
+    expect(buildFriendlyName(weaponTemplate ?? '', 'secondary-1')).toBe('Secondary Weapon 1')
   })
 })

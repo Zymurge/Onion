@@ -375,8 +375,8 @@ describe('getAllUnitDefinitions', () => {
     expect(shared.LittlePigs.friendlyNameTemplate).toBe('Little Pigs {{ordinal}}')
     expect(shared.BigBadWolf.friendlyNameTemplate).toBe('Big Bad Wolf {{ordinal}}')
     expect(shared.TheOnion.friendlyNameTemplate).toBe('The Onion {{ordinal}}')
-    expect(shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.secondary_1')?.friendlyNameTemplate).toBe('Secondary Weapon {{ordinal}}')
-    expect(shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.ap_1')?.friendlyNameTemplate).toBe('AP Gun {{ordinal}}')
+    expect(shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.secondary')?.friendlyNameTemplate).toBe('Secondary Weapon {{ordinal}}')
+    expect(shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.ap')?.friendlyNameTemplate).toBe('AP Gun {{ordinal}}')
   })
 
   it('includes ram profiles in the shared definition source for rammed units', () => {
@@ -501,11 +501,11 @@ describe('getWeaponDefense', () => {
   })
 
   it('returns AP defense for Onion', () => {
-    expect(getWeaponDefense('TheOnion.ap_1')).toBe(1)
+    expect(getWeaponDefense('TheOnion.ap')).toBe(1)
   })
 
   it('returns missile defense for Onion', () => {
-    expect(getWeaponDefense('TheOnion.missile_1')).toBe(3)
+    expect(getWeaponDefense('TheOnion.missile')).toBe(3)
   })
 
   it('returns configured defense for a non-individually-targetable weapon type', () => {

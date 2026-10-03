@@ -31,7 +31,7 @@ function makeWeaponCatalogConfig(weaponOverrides: Record<string, unknown> = {}) 
 				movement: 1,
 				defense: 1,
 				abilities: { maxStacks: 1 },
-				weaponTypeIds: ['TestUnit.main'],
+				weaponQuantities: { 'TestUnit.main': 1 },
 			},
 		},
 		weaponTypes: {
@@ -44,9 +44,9 @@ describe('UnitWeapons', () => {
 	it('counts weapons by class and state', () => {
 		const weapons = new UnitWeapons([
 			makeWeapon(),
-			makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', weaponClass: 'secondary' }),
-			makeWeapon({ id: 'missile-1', typeId: 'TheOnion.missile_1', weaponClass: 'missile', ammo: 1 }),
-			makeWeapon({ id: 'missile-2', typeId: 'TheOnion.missile_2', weaponClass: 'missile', ammo: 0, state: 'spent' }),
+						makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary', weaponClass: 'secondary' }),
+						makeWeapon({ id: 'missile-1', typeId: 'TheOnion.missile', weaponClass: 'missile', ammo: 1 }),
+						makeWeapon({ id: 'missile-2', typeId: 'TheOnion.missile', weaponClass: 'missile', ammo: 0, state: 'spent' }),
 		])
 
 		expect(weapons.countByWeaponClass()).toEqual({ main: 1, secondary: 1, ap: 0, missile: 2 })

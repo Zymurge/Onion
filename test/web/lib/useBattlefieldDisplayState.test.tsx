@@ -117,9 +117,9 @@ describe('useBattlefieldDisplayState', () => {
 				typeId: 'Dragon',
 				position: { q: 3, r: 3 },
 				weapons: [
-					makeWeapon({ id: 'main-1', typeId: 'Dragon.main_1', state: 'ready' }),
-					makeWeapon({ id: 'main-2', typeId: 'Dragon.main_2', state: 'spent' }),
-					makeWeapon({ id: 'main-3', typeId: 'Dragon.main_1', state: 'ready', ammo: 0 }),
+									makeWeapon({ id: 'main-1', typeId: 'Dragon.main', state: 'ready' }),
+									makeWeapon({ id: 'main-2', typeId: 'Dragon.main', state: 'spent' }),
+									makeWeapon({ id: 'main-3', typeId: 'Dragon.main', state: 'ready', ammo: 0 }),
 				],
 			}),
 		}

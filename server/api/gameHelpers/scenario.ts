@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { ScenarioSchema, type InitialState } from '#server/engine/scenarioSchema'
+import { ScenarioSchema, type InitialState, type Scenario } from '#server/engine/scenarioSchema'
 import type { GameState } from '#shared/types/index'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import type { VictoryEscapeHex } from '#shared/apiProtocol'
@@ -9,6 +9,7 @@ import type { VictoryConditions } from '#server/engine/victory'
 
 /** Authored scenario data before map materialization and initial-state normalization. */
 export type ScenarioSnapshot = {
+  unitTypes?: Scenario['unitTypes']
   name?: string
   displayName?: string
   victoryConditions?: VictoryConditions

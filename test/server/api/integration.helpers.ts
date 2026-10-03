@@ -63,7 +63,7 @@ export function buildExpectedState(initialState: ExpectedStateInput): ExpectedSt
           weapons: [],
         }
         if (def.side === 'onion') {
-          onions[unitId] = { ...expectedUnit, treads: definition.treads }
+          onions[unitId] = { ...expectedUnit, treads: definition.maxTreads }
         } else {
           defenders[unitId] = expectedUnit
         }
@@ -79,7 +79,7 @@ export function buildExpectedState(initialState: ExpectedStateInput): ExpectedSt
         weapons: [],
       }
       if (def.side === 'onion') {
-        onions[key] = { ...expectedUnit, treads: definition.treads }
+        onions[key] = { ...expectedUnit, treads: definition.maxTreads }
       } else {
         defenders[key] = expectedUnit
       }

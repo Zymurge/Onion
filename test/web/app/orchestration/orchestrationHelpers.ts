@@ -49,7 +49,7 @@ export function createAuthoritativeBattlefieldSnapshot(): TestScenarioSnapshot {
 					typeId: 'Dragon',
 					position: { q: 0, r: 1 },
 					friendlyName: 'Dragon 7',
-					weapons: [makeWeapon({ id: 'cannon-1', typeId: 'Dragon.main_1', friendlyName: 'Dragon Cannon' })],
+					weapons: [makeWeapon({ id: 'cannon-1', typeId: 'Dragon.main', friendlyName: 'Dragon Cannon' })],
 				}),
 			},
 			stackRoster: { groupsById: {} },
@@ -139,7 +139,7 @@ export function createInRangeCombatSnapshot(): TestScenarioSnapshot {
 					friendlyName: 'The Onion',
 					weapons: [
 						makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', friendlyName: 'Main Weapon' }),
-						makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary_1', friendlyName: 'Secondary Weapon' }),
+						makeWeapon({ id: 'secondary-1', typeId: 'TheOnion.secondary', friendlyName: 'Secondary Weapon' }),
 					],
 				}),
 			},

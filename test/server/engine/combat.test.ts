@@ -699,7 +699,7 @@ describe('executeCombatAction', () => {
   it('consumes a launched missile instead of destroying the weapon instance', () => {
     const onion = makeOnion({
       weapons: [
-        makeWeapon({ id: 'missile_1', typeId: 'TheOnion.missile_1', weaponClass: 'missile', ammo: 1 }),
+        makeWeapon({ id: 'missile-1', typeId: 'TheOnion.missile', weaponClass: 'missile', ammo: 1 }),
       ],
     })
     const state = makeState({
@@ -724,8 +724,8 @@ describe('executeCombatAction', () => {
   it('allows only one missile launch during an Onion combat phase', () => {
     const onion = makeOnion({
       weapons: [
-        makeWeapon({ id: 'missile_1', typeId: 'TheOnion.missile_1', weaponClass: 'missile', ammo: 1 }),
-        makeWeapon({ id: 'missile_2', typeId: 'TheOnion.missile_2', weaponClass: 'missile', ammo: 1 }),
+        makeWeapon({ id: 'missile-1', typeId: 'TheOnion.missile', weaponClass: 'missile', ammo: 1 }),
+        makeWeapon({ id: 'missile-2', typeId: 'TheOnion.missile', weaponClass: 'missile', ammo: 1 }),
       ],
     })
     const state = makeState({

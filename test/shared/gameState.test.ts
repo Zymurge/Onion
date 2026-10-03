@@ -48,9 +48,9 @@ describe('GameState test helpers', () => {
   })
 
   it('allows weapon defaults to be overridden without rebuilding the object', () => {
-    expect(makeWeapon({ id: 'missile', typeId: 'TheOnion.secondary_1', ammo: 3 })).toEqual({
+    expect(makeWeapon({ id: 'missile', typeId: 'TheOnion.secondary', ammo: 3 })).toEqual({
       id: 'missile',
-      typeId: 'TheOnion.secondary_1',
+      typeId: 'TheOnion.secondary',
       weaponClass: 'secondary',
       state: 'ready',
       friendlyName: 'Main Weapon 1',
