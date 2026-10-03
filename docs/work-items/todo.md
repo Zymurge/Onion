@@ -13,8 +13,7 @@ break down into features/tasks as needed.
 
 ### Features / Tasks
 
-No additional V1 feature work is currently defined. V2 backlog items are
-tracked in [v1-v2-scope.md](v1-v2-scope.md).
+- [ ] Define scenario-derived unit types, human-editable unit metadata, per-type sprites, and stack/unit presentation. See [unit-enhancements-spec.md](unit-enhancements-spec.md) and resolve its open questions before implementation.
 
 ## Done
 

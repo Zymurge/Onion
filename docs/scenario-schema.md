@@ -14,9 +14,16 @@ This schema is designed for authoring flexibility and robust normalization. The 
   - The backend translates authored `q`/`r` positions into runtime coordinates and materializes the full `cells` array.
   - The frontend always receives explicit `cells` and does not perform coordinate translation.
 - **Unit/Weapon Population:**
-  - Scenario JSON only declares starting unit types, positions, and stack sizes (for infantry).
-  - The engine populates all weapon lists, weapon stats, and targeting rules from the shared unit definitions at game start.
-  - Do not put combat target restrictions or weapon stats directly in scenario JSON; these are always sourced from the engine.
+  - The global catalog supplies reusable base unit and weapon types.
+  - A scenario may declare local unit derivations with single inheritance and
+    numeric/loadout overrides. The server resolves these definitions once
+    before deployment and sends the resolved catalog through `SESSION_INIT`.
+  - Deployments reference either a global type id or a scenario-local type key.
+    The server resolves local types first and materializes a namespaced runtime
+    id such as `scenarioId:ScenarioDragon`.
+  - Runtime state is populated from the resolved catalog plus deployment
+    starting values. Combat target rules and arbitrary ability structure are
+    not authored in scenario JSON.
 - **Unit Status State Machine:**
   - All units default to `operational` if status is missing.
   - Defender units cycle: `operational` → `disabled` (if hit) → `recovering` (start of next turn) → `operational` (start of Recovery Phase).
@@ -60,15 +67,19 @@ We use an **Axial Coordinate System** (q, r) where:
     ]
   },
   "initialState": {
-    "onions": {
+    "deployments": {
       "onion-1": {
         "type": "TheOnion",
+        "side": "onion",
         "position": { "q": 0, "r": 10 },
         "status": "operational"
+      },
+      "swamp-1": {
+        "type": "Swamp",
+        "side": "defender",
+        "position": { "q": 5, "r": 5 },
+        "status": "operational"
       }
-    },
-    "defenders": {
-      "swamp-1": { "type": "Swamp", "position": { "q": 5, "r": 5 }, "status": "operational" }
     }
   },
   "victoryConditions": {
@@ -129,13 +140,175 @@ Victory conditions are authored in the scenario under `victoryConditions`. The e
 5. Add new objective kinds only when the engine and API contract have been updated to support them end to end.
 6. Do not use the deprecated `victoryConditions.defender.condition` field or rely on an implicit immobilized-Onion fallback.
 
-## 4. Unit and Weapon Population
+## 4. Unit and Weapon Definitions
 
-Scenario JSON only declares the starting unit types, positions, and stack sizes. The engine populates the full weapon lists, weapon stats, and any target-rule metadata from the shared unit definitions at normalization time.
+The global catalog remains the base definition source. A scenario may add
+scenario-local derived unit types, but the runtime must always consume one
+resolved `UnitTypeCatalog` and `WeaponTypeCatalog`.
 
-1. Do not put combat target restrictions directly in scenario JSON.
-2. If a weapon or unit has special targeting restrictions, define them on the shared unit definition in the engine source of truth.
-3. Scenario `initialState` should remain focused on initial placement, stack sizes, and status fields that vary per scenario.
+### Global weapon type shape
+
+Global weapon types are keyed by stable ids. A weapon type contains:
+
+```json
+{
+  "id": "TheOnion.secondary",
+  "name": "Secondary Weapon",
+  "weaponClass": "main",
+  "attack": 4,
+  "range": 3,
+  "defense": 4,
+  "individuallyTargetable": true,
+  "maxAmmo": 1,
+  "defaultQuantity": 1,
+  "friendlyNameTemplate": "Secondary Weapon {{ordinal}}"
+}
+```
+
+The catalog defines weapon types, not individual mounted weapons.
+`defaultQuantity` is the number of runtime instances created when a unit
+loadout does not provide an explicit quantity. A unit loadout may override
+that quantity, including with zero to omit the type. The engine creates the
+requested instances during scenario normalization. Instance IDs are
+deterministic and unique within the match, using the owning unit ID, weapon
+type ID, and one-based ordinal (for example,
+`onion-1:TheOnion.secondary:1`); the friendly name template receives the same
+ordinal. Runtime weapon instances are mutable state and are never catalog
+entries.
+
+`maxAmmo` is the maximum remaining ammunition for finite-ammo weapons. It is
+not replenished during play. A weapon's `spent` readiness state may reset at
+the normal turn boundary when ammunition remains, but consumed ammunition does
+not return.
+
+### Global unit type shape
+
+Global unit types are keyed by stable ids and reference existing weapon types
+through a quantity map in the resolved model:
+
+```json
+{
+  "name": "The Onion",
+  "friendlyNameTemplate": "The Onion {{ordinal}}",
+  "spriteKey": "the-onion",
+  "movement": 3,
+  "defense": 0,
+  "maxTreads": 45,
+  "treadsPerMove": 15,
+  "ramsPerTurn": 2,
+  "abilities": {
+    "maxStacks": 1,
+    "canRam": true,
+    "ramCapacity": 2
+  },
+  "weaponQuantities": {
+    "TheOnion.main": 1,
+    "TheOnion.secondary": 4,
+    "TheOnion.missile": 2
+  }
+}
+```
+
+Each key identifies one global weapon type and each value is the number of
+instances mounted on this unit type. If a loadout omits a quantity, resolution
+uses the weapon type's `defaultQuantity`. The global catalog must therefore
+contain one entry for `TheOnion.secondary`, not four instance entries.
+
+Role remains a deployment-side concern. Base stackability and structural
+abilities are not scenario overrides. `maxStacks` may vary only within the
+base type's stackability contract.
+
+### Scenario-local unit derivation
+
+Scenario-local types use one base type and are declared at the scenario root:
+
+```json
+{
+  "unitTypes": {
+    "ScenarioDragon": {
+      "extends": "Dragon",
+      "overrides": {
+        "movement": 4,
+        "defense": 5,
+        "maxStacks": 2,
+        "weaponQuantities": {
+          "Dragon.main": 2
+        },
+        "weaponOverrides": {
+          "Dragon.main": {
+            "attack": 7,
+            "range": 4
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Resolution rules:
+
+1. Resolve the base type from the global catalog.
+2. Apply one level of scenario-local derivation.
+3. Namespace the runtime id as `scenarioId:localKey`.
+4. Inherit the base type's `spriteKey`; a scenario-local type cannot provide or
+  replace a sprite key. A new sprite requires a new global unit type.
+5. Permit numeric unit overrides, per-weapon quantities, and numeric overrides
+  for existing weapon values such as attack and range. These values are
+  resolved into the derived type and do not mutate the global catalog.
+6. Instantiate each weapon type using the derived quantity, or its global
+  `defaultQuantity` when no quantity override is present.
+7. Reject added weapon types, role changes, base-stackability changes, nested
+  inheritance, cycles, unknown bases, id collisions, and invalid values.
+  Overrides that do not apply to the base type, such as `startingTreads` on a
+  non-Onion type or a stack-size override on a non-stackable type, are ignored;
+  the server may log a warning and continues loading the scenario.
+8. Fail scenario loading when an applicable override is invalid.
+
+Deployments use the short authored key for a scenario-local type. The resolver
+expands it to the namespaced runtime type ID before creating state. The same
+expansion applies to `victoryConditions.objectives[].unitType`, so an objective
+may target `ScenarioDragon` without spelling `scenarioId:ScenarioDragon`.
+
+The engine, API, WebSocket catalog, replay path, and UI must consume the same
+resolved definitions. No runtime owner may inspect raw scenario overrides.
+
+### Deployment starting values
+
+Types define maximum capacities and default starting values. A deployment may
+override the initial mutable state within those maxima:
+
+```json
+{
+  "type": "TheOnion",
+  "side": "onion",
+  "position": { "q": 0, "r": 10 },
+  "startingTreads": 30,
+  "startingAmmoByWeaponType": {
+    "TheOnion.missile": 0
+  }
+}
+```
+
+`startingTreads` is optional and applies only to types that define `maxTreads`.
+On other types it is ignored, with an optional warning. When applicable, it
+must not exceed `maxTreads`. Treads are not repaired during play.
+`startingAmmoByWeaponType` is optional and addresses all generated instances
+of the referenced weapon type on that deployment. Each value must not exceed
+the referenced weapon type's `maxAmmo`; it is already part of the deployment
+validation contract. `ramsRemaining` is runtime state derived from
+`ramsPerTurn` and resets at the normal turn boundary rather than being a
+deployment override.
+
+### Authoring restrictions
+
+1. Do not put target restrictions or arbitrary ability structures in scenario
+   JSON.
+2. Do not define new weapon types inside a scenario derivation; promote a
+   frequently reused weapon modification to the global catalog instead.
+3. Do not use scenario overrides to change role or turn mechanics.
+4. Existing scenarios may be updated to this contract; no legacy compatibility
+   layer is required.
 
 ## 5. Map Encoding Convention
 
@@ -167,6 +340,7 @@ const ScenarioSchema = z.object({
   displayName: z.string().optional(),
   description: z.string(),
   map: MapSchema,
+  unitTypes: UnitTypesSchema.optional(),
   initialState: InitialStateSchema,
   victoryConditions: VictoryConditionsSchema
 });
@@ -193,6 +367,42 @@ const DefenderStackGroupSchema = z.object({
   groupName: z.string().optional(),
   status: UnitStatusSchema.optional()
 });
+
+const StartingAmmoByWeaponTypeSchema = z.record(
+  z.string().min(1),
+  z.number().int().nonnegative()
+);
+
+const UnitTypeDerivationSchema = z.object({
+  extends: z.string().min(1),
+  overrides: z.object({
+    movement: z.number().nonnegative().optional(),
+    defense: z.number().nonnegative().optional(),
+    maxTreads: z.number().int().nonnegative().optional(),
+    treadsPerMove: z.number().int().positive().optional(),
+    ramsPerTurn: z.number().int().nonnegative().optional(),
+    squads: z.number().int().positive().optional(),
+    maxStacks: z.number().int().positive().optional(),
+    weaponQuantities: z.record(z.string().min(1), z.number().int().nonnegative()).optional(),
+    weaponOverrides: z.record(z.string().min(1), z.object({
+      attack: z.number().nonnegative().optional(),
+      range: z.number().nonnegative().optional(),
+    }).strict()).optional(),
+  }).strict(),
+}).strict();
+
+const UnitTypesSchema = z.record(z.string().min(1), UnitTypeDerivationSchema);
+
+const DeploymentBaseSchema = {
+  side: z.enum(["onion", "defender"]),
+  position: z.object({ q: z.number(), r: z.number() }),
+  status: UnitStatusSchema.optional(),
+  startingTreads: z.number().int().nonnegative().optional(),
+  startingAmmoByWeaponType: StartingAmmoByWeaponTypeSchema.optional(),
+};
 ```
 
-The runtime unit definitions, not the scenario schema, supply the full weapon list and any weapon/unit target rules used by combat selection.
+The implementation must use `UnitTypesSchema` to validate scenario-local
+derivations and `DeploymentBaseSchema` for deployment starting values. The
+resolved global and scenario-local definitions, not raw scenario JSON, supply
+the full weapon list and any weapon/unit target rules used by combat selection.
