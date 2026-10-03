@@ -71,7 +71,7 @@ export const combatParityFixtures: ReadonlyArray<CombatParityFixture> = [
 			combatState: {
 				units: {
 					'puss-1': { typeId: 'Puss' },
-					'onion-1': { typeId: 'TheOnion', weaponId: 'secondary_1' },
+								  'onion-1': { typeId: 'TheOnion', weaponId: 'secondary-1' },
 				},
 			},
 		},

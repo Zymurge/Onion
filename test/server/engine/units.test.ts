@@ -195,13 +195,12 @@ describe('getUnitDefinition', () => {
   })
 
   describe('Dragon (Superheavy Tank)', () => {
-    it('has two weapons each attack 6, range 3', () => {
-      const { weapons } = getUnitDefinition('Dragon')
-      expect(weapons).toHaveLength(2)
+    it('has one weapon type with quantity 2, attack 6, range 3', () => {
+      const { weapons, weaponQuantities } = getUnitDefinition('Dragon')
+      expect(weapons).toHaveLength(1)
+      expect(weaponQuantities['Dragon.main']).toBe(2)
       expect(weapons[0].attack).toBe(6)
       expect(weapons[0].range).toBe(3)
-      expect(weapons[1].attack).toBe(6)
-      expect(weapons[1].range).toBe(3)
     })
 
     it('has movement 5', () => {
@@ -269,8 +268,10 @@ describe('getUnitDefinition', () => {
   })
 
   describe('TheOnion (Mk III)', () => {
-    it('has 15 weapons total (1 main + 4 secondary + 8 AP + 2 missiles)', () => {
-      expect(getUnitDefinition('TheOnion').weapons).toHaveLength(15)
+    it('has four weapon types with quantities totaling 15 instances', () => {
+      const definition = getUnitDefinition('TheOnion')
+      expect(definition.weapons).toHaveLength(4)
+      expect(Object.values(definition.weaponQuantities).reduce((total, quantity) => total + quantity, 0)).toBe(15)
     })
 
     it('has one main weapon: attack 4, range 3, defense 4', () => {
@@ -284,39 +285,21 @@ describe('getUnitDefinition', () => {
     })
 
     it('has four secondary weapons: attack 3, range 2, defense 3', () => {
-      const secondaries = getUnitDefinition('TheOnion').weapons.filter(w =>
-        w.typeId.includes('.secondary_')
-      )
-      expect(secondaries).toHaveLength(4)
-      secondaries.forEach(w => {
-        expect(w.attack).toBe(3)
-        expect(w.range).toBe(2)
-        expect(w.defense).toBe(3)
-      })
+      const secondary = getUnitDefinition('TheOnion').weapons.find(w => w.typeId === 'TheOnion.secondary')
+      expect(getUnitDefinition('TheOnion').weaponQuantities['TheOnion.secondary']).toBe(4)
+      expect(secondary).toMatchObject({ attack: 3, range: 2, defense: 3 })
     })
 
     it('has eight AP weapons: attack 1, range 1, defense 1', () => {
-      const apWeapons = getUnitDefinition('TheOnion').weapons.filter(w =>
-        w.typeId.includes('.ap_')
-      )
-      expect(apWeapons).toHaveLength(8)
-      apWeapons.forEach(w => {
-        expect(w.attack).toBe(1)
-        expect(w.range).toBe(1)
-        expect(w.defense).toBe(1)
-      })
+      const apWeapon = getUnitDefinition('TheOnion').weapons.find(w => w.typeId === 'TheOnion.ap')
+      expect(getUnitDefinition('TheOnion').weaponQuantities['TheOnion.ap']).toBe(8)
+      expect(apWeapon).toMatchObject({ attack: 1, range: 1, defense: 1 })
     })
 
     it('has two missiles: attack 6, range 5, defense 3', () => {
-      const missiles = getUnitDefinition('TheOnion').weapons.filter(w =>
-        w.typeId.includes('.missile_')
-      )
-      expect(missiles).toHaveLength(2)
-      missiles.forEach(w => {
-        expect(w.attack).toBe(6)
-        expect(w.range).toBe(5)
-        expect(w.defense).toBe(3)
-      })
+      const missile = getUnitDefinition('TheOnion').weapons.find(w => w.typeId === 'TheOnion.missile')
+      expect(getUnitDefinition('TheOnion').weaponQuantities['TheOnion.missile']).toBe(2)
+      expect(missile).toMatchObject({ attack: 6, range: 5, defense: 3 })
     })
 
     it('all weapons are individually targetable', () => {

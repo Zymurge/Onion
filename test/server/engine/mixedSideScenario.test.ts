@@ -47,7 +47,7 @@ describe('mixed-side scenario engine behavior', () => {
 		state.currentPhase = 'ONION_COMBAT'
 		const validation = validateCombatAction(CLEAR_MAP, state, {
 			type: 'FIRE',
-			attackers: ['main'],
+			attackers: ['main-1'],
 			targetId: 'defender-onion',
 			onionId: 'onion-puss',
 		})
@@ -58,9 +58,9 @@ describe('mixed-side scenario engine behavior', () => {
 		const result = executeCombatAction(state, validation.plan, 1)
 
 		expect(result.success).toBe(true)
-		expect(result.attackerIds).toEqual(['main'])
+		expect(result.attackerIds).toEqual(['main-1'])
 		expect(result.targetId).toBe('defender-onion')
-		expect(state.onions['onion-puss'].weapons.find((weapon) => weapon.id === 'main')?.state).toBe('spent')
+		expect(state.onions['onion-puss'].weapons.find((weapon) => weapon.id === 'main-1')?.state).toBe('spent')
 	})
 
 	it('applies phase-entry effects to units according to their side collections', () => {

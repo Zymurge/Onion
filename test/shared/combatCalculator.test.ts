@@ -164,7 +164,7 @@ describe('combatCalculator', () => {
 			combatState: {
 				units: {
 					'attack-1': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 1' },
-					'target-1': { typeId: 'TheOnion', friendlyName: 'The Onion 1', weaponId: 'secondary_1' },
+					'target-1': { typeId: 'TheOnion', friendlyName: 'The Onion 1', weaponId: 'secondary-1' },
 				},
 			},
 		}
@@ -203,7 +203,7 @@ describe('combatCalculator', () => {
 				units: {
 					'attack-1': {
 						typeId: 'Dragon',
-						weaponIds: ['main_1', 'main_2'],
+						weaponIds: ['main-1', 'main-2'],
 						weapons: [
 									  { id: 'main-1', typeId: 'Dragon.main', weaponClass: 'main', friendlyName: 'A', state: 'ready', ammo: 1 },
 									  { id: 'main-2', typeId: 'Dragon.main', weaponClass: 'main', friendlyName: 'B', state: 'ready', ammo: 1 },
@@ -230,7 +230,7 @@ describe('combatCalculator', () => {
 					'attack-1': { typeId: 'Puss' },
 					'target-1': {
 						typeId: 'TheOnion',
-						weaponId: 'secondary_1',
+						weaponId: 'secondary-1',
 						weapons: [
 							{ id: 'main', typeId: 'TheOnion.main', friendlyName: 'Main Weapon', weaponClass: 'main', state: 'ready', ammo: 1 },
 													{ id: 'secondary-1', typeId: 'TheOnion.secondary', friendlyName: 'Secondary Weapon 1', weaponClass: 'secondary', state: 'ready', ammo: 1 },

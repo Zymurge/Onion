@@ -1,9 +1,10 @@
-import type { InitialState, Deployment } from '#server/engine/scenarioSchema'
+import type { InitialState, Deployment, Scenario } from '#server/engine/scenarioSchema'
 import type { DefenderUnit, GameState, OnionUnit, UnitTypeBase, Weapon, WeaponType } from '#shared/types/index'
 import logger from '#server/logger'
-import { buildFriendlyName, getRequiredUnitDefinition } from '#shared/unitDefinitions'
+import { buildFriendlyName, getUnitTypeCatalog } from '#shared/unitDefinitions'
 import { buildStackGroupKey, createStackNamingEngine } from '#shared/stackNaming/index'
 import type { StackRosterState } from '#shared/types/index'
+import { getResolvedUnitTypeId, resolveScenarioDefinitions } from '#server/engine/scenarioDefinitions'
 
 type StackGroupDeployment = Extract<Deployment, { kind: 'stack-group' }>
 
@@ -69,6 +70,10 @@ function buildRuntimeUnit(
   unitId: string,
   collectionRole: 'onion' | 'defender',
 ): OnionUnit | DefenderUnit {
+  if (deployment.startingTreads !== undefined && definition.maxTreads !== undefined && deployment.startingTreads > definition.maxTreads) {
+    throw new Error(`Deployment ${unitId} sets startingTreads to ${deployment.startingTreads}, above maxTreads ${definition.maxTreads}`)
+  }
+
   const unit = {
     unitId,
     typeId: definition.typeId,
@@ -104,7 +109,14 @@ function addRuntimeUnit(
 }
 
 /** Normalize validated scenario deployments into the canonical runtime GameState. */
-export function normalizeInitialStateToGameState(initial: InitialState): GameState {
+export function normalizeInitialStateToGameState(
+  initial: InitialState,
+  scenarioId?: string,
+  scenarioUnitTypes?: Scenario['unitTypes'],
+): GameState {
+  const resolvedDefinitions = scenarioId === undefined
+    ? { unitTypes: getUnitTypeCatalog() }
+    : resolveScenarioDefinitions(scenarioId, scenarioUnitTypes)
   const onions: Record<string, OnionUnit> = {}
   const defenders: Record<string, DefenderUnit> = {}
   const stackRoster: StackRosterState = { groupsById: {} }
@@ -112,10 +124,14 @@ export function normalizeInitialStateToGameState(initial: InitialState): GameSta
   const nextStackUnitOrdinalByBase = new Map<string, number>()
 
   for (const [key, deployment] of Object.entries(initial.deployments)) {
-    const typeId = isStackGroupEntry(deployment) ? deployment.unitType : deployment.type
+    const authoredTypeId = isStackGroupEntry(deployment) ? deployment.unitType : deployment.type
+    const typeId = getResolvedUnitTypeId(scenarioId, authoredTypeId, scenarioUnitTypes)
     let definition: UnitTypeBase
     try {
-      definition = getRequiredUnitDefinition(typeId)
+      definition = resolvedDefinitions.unitTypes[typeId]
+      if (definition === undefined) {
+        throw new Error(`Unknown unit type: ${authoredTypeId}`)
+      }
     } catch (error) {
       logger.error({ type: typeId, key }, 'normalizeInitialStateToGameState: unknown unit type')
       throw error
@@ -136,12 +152,12 @@ export function normalizeInitialStateToGameState(initial: InitialState): GameSta
     }
     nextStackUnitOrdinalByBase.set(unitIdBase, nextOrdinal + deployment.count)
 
-    const groupKey = buildStackGroupKey(deployment.unitType, deployment.position)
+    const groupKey = buildStackGroupKey(typeId, deployment.position)
     const firstUnit = onions[unitIds[0]] ?? defenders[unitIds[0]]
     const firstUnitFriendlyName = firstUnit?.friendlyName
     const canonicalGroupName = stackNamingEngine.resolveGroupName(
       groupKey,
-      deployment.unitType,
+      typeId,
       unitIds[0],
       firstUnitFriendlyName,
       unitIds.length,
@@ -154,7 +170,7 @@ export function normalizeInitialStateToGameState(initial: InitialState): GameSta
 
     stackRoster.groupsById[groupKey] = {
       groupName: canonicalGroupName,
-      unitType: deployment.unitType,
+      unitType: typeId,
       position: deployment.position,
       unitIds,
     }

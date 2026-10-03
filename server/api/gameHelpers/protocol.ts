@@ -2,16 +2,22 @@ import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinition
 import { CommandSchema } from '#shared/protocolSchemas'
 import type { SessionInitPayload } from '#shared/types/index'
 import type { WebSocketClientMessage, WebSocketServerErrorMessage, WebSocketServerEventMessage, WebSocketServerPresenceMessage, WebSocketServerSessionInitMessage, WebSocketServerSnapshotMessage } from '#shared/websocketProtocol'
+import type { ScenarioSnapshot } from './scenario.js'
+import { resolveScenarioDefinitions } from '#server/engine/scenarioDefinitions'
 
 /**
  * Builds the static catalog payload sent before a WebSocket game snapshot.
  *
  * @returns Unit and weapon definitions without live unit state.
  */
-export function buildSessionInitPayload(): SessionInitPayload {
+export function buildSessionInitPayload(scenarioId?: string, scenarioSnapshot?: ScenarioSnapshot): SessionInitPayload {
+  const resolved = scenarioId === undefined
+    ? undefined
+    : resolveScenarioDefinitions(scenarioId, scenarioSnapshot?.unitTypes)
+
   return {
-    unitTypes: getUnitTypeCatalog(),
-    weaponTypes: getWeaponTypeCatalog(),
+    unitTypes: resolved?.unitTypes ?? getUnitTypeCatalog(),
+    weaponTypes: resolved?.weaponTypes ?? getWeaponTypeCatalog(),
   }
 }
 

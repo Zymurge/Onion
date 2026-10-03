@@ -54,6 +54,23 @@ describe('buildSessionInitPayload', () => {
     expect(payload.unitTypes.TheOnion).not.toHaveProperty('state')
     expect(payload.weaponTypes['TheOnion.main']).not.toHaveProperty('state')
   })
+
+  it('includes the scenario-resolved catalog for derived unit types', () => {
+    const payload = buildSessionInitPayload('scenario-catalog', {
+      unitTypes: {
+        ScenarioPuss: {
+          extends: 'Puss',
+          overrides: { defense: 4 },
+        },
+      },
+    })
+
+    expect(payload.unitTypes['scenario-catalog:ScenarioPuss']).toMatchObject({
+      typeId: 'scenario-catalog:ScenarioPuss',
+      defense: 4,
+      spriteKey: getUnitTypeCatalog().Puss.spriteKey,
+    })
+  })
 })
 
 describe('buildCombatEvents', () => {
@@ -98,13 +115,13 @@ describe('buildCombatEvents', () => {
   it('uses the weapon friendly name for weapon targets', () => {
     const events = buildCombatEvents(
       20,
-      { type: 'FIRE', attackers: ['pigs-1'], targetId: 'ap_1', onionId: 'onion-1' },
+      { type: 'FIRE', attackers: ['pigs-1'], targetId: 'ap-1', onionId: 'onion-1' },
       {
         success: true,
         actionType: 'FIRE',
         attackerIds: ['pigs-1'],
         onionId: 'onion-1',
-        targetId: 'ap_1',
+        targetId: 'ap-1',
         roll: { roll: 1, result: 'NE', odds: '1:1' },
       },
       state,

@@ -67,7 +67,11 @@ export async function registerLifecycleRoutes(app: FastifyInstance, context: Gam
       let state: GameState
       try {
         const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
-        state = normalizeInitialStateToGameState(scenarioSnapshot.initialState)
+        state = normalizeInitialStateToGameState(
+          scenarioSnapshot.initialState,
+          scenarioSnapshot.id,
+          scenarioSnapshot.unitTypes,
+        )
         assertScenarioStateFitsMap(scenarioMap, scenarioSnapshot, state)
         logger.debug({ state }, 'Parsed and normalized initial game state')
       } catch (err) {

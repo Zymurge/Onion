@@ -197,7 +197,11 @@ function getCombatant(staticRules: CombatStaticRules, liveState: CombatLiveState
 }
 
 function findWeaponType(definition: UnitTypeBase, weaponTypeId: string): WeaponType | undefined {
-	return definition.weapons.find((candidate) => candidate.typeId === weaponTypeId || candidate.typeId.endsWith(`.${weaponTypeId}`))
+	const canonicalWeaponId = weaponTypeId.replace(/[-_]\d+$/, '')
+	return definition.weapons.find((candidate) => candidate.typeId === weaponTypeId
+		|| candidate.typeId === canonicalWeaponId
+		|| candidate.typeId.endsWith(`.${weaponTypeId}`)
+		|| candidate.typeId.endsWith(`.${canonicalWeaponId}`))
 }
 
 function getTerrainRule(staticRules: CombatStaticRules, terrainType: TerrainType | undefined): CombatTerrainRule | undefined {
@@ -314,7 +318,9 @@ function toExplicitInput(staticRules: CombatStaticRules, input: CombatCalculator
 		const definition = getUnitDefinitionByType(staticRules, combatant.typeId)
 		const weaponTypeIds = combatant.weaponIds
 			?? combatant.weapons?.filter((weapon) => weapon.state === 'ready').map((weapon) => weapon.typeId)
-			?? definition.weapons.map((weapon) => weapon.typeId)
+			?? definition.weapons.flatMap((weapon) => Array.from({
+				length: definition.weaponQuantities[weapon.typeId] ?? weapon.defaultQuantity ?? 1,
+			}, () => weapon.typeId))
 
 		return { id: attackerId, typeId: combatant.typeId, weaponTypeIds }
 	})

@@ -129,7 +129,7 @@ export async function registerWebSocketRoutes(app: FastifyInstance, context: Gam
 
           const sessionInitMessage: WebSocketServerSessionInitMessage = {
             kind: 'SESSION_INIT',
-            payload: buildSessionInitPayload(),
+            payload: buildSessionInitPayload(match.scenarioId, match.scenarioSnapshot as Parameters<typeof buildSessionInitPayload>[1]),
           }
           socket.send(serializeWsMessage(sessionInitMessage))
 
