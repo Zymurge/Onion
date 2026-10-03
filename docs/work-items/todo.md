@@ -9,10 +9,7 @@ break down into features/tasks as needed.
 
 ### Epics / Major Work
 
-- [ ] Establish a web accessibility baseline and audit the full interface for keyboard-only and screen-reader usability. See [accessibility-overview-spec.md](accessibility-overview-spec.md).
-  - [ ] Review all interactive controls, disclosures, overlays, and rail flows for keyboard reachability, visible focus, and semantic roles.
-  - [ ] Replace tooltip-only detail exposure with explicit accessible disclosure patterns where details are important to gameplay comprehension.
-  - [ ] Known issue: `InactiveEventStream` currently exposes event details only through the row `title` tooltip, which is not a sufficient keyboard/screen-reader interaction path.
+- V2-deferred work is tracked in [v1-v2-scope.md](v1-v2-scope.md). Do not pull it into V1 tasks without explicit scope approval.
 
 ### Features / Tasks
 

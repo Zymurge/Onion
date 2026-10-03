@@ -20,7 +20,7 @@ or host-controlled start lifecycle. Those remain as implemented.
 The short-term scope is complete: lobby polling, lifecycle gating, ready-to-
 active handoff, configurable polling, dedicated game-window navigation, and
 stale-action recovery are implemented and covered by tests. The long-term
-items below remain an intentional backlog, not unfinished short-term work.
+items below are explicitly deferred, not unfinished short-term work.
 
 ## Product Model
 
@@ -143,7 +143,7 @@ The following are explicitly outside the short-term implementation:
 
 ## Long-Term Scope
 
-### Dedicated user/lobby live channel
+### Dedicated user/lobby live channel - Deferred
 
 Add a separate user or lobby channel only when polling latency becomes a
 meaningful product problem.
@@ -168,7 +168,7 @@ One physical connection with separate logical subscriptions could be considered
 as a later implementation optimization, but it must not merge the domain
 contracts.
 
-### Multi-window coordination
+### Multi-window coordination - Deferred
 
 After the basic model is stable, consider:
 

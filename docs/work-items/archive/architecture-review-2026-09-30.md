@@ -24,7 +24,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 ### 1. High - Debug request logging exposes secrets
 
-- **Files and symbols:** [`server/app.ts`](../server/app.ts), `getDebugRequestData`, global `preValidation`, and global error handler.
+- **Files and symbols:** [`server/app.ts`](../../../server/app.ts), `getDebugRequestData`, global `preValidation`, and global error handler.
 - **Evidence:** `getDebugRequestData` returns raw `query`, `headers`, and `body`; every request is passed through it before validation. That includes `Authorization: Bearer ...`, `/:id/ws?token=...`, and authentication payload passwords. The error handler logs the same fields again.
 - **Failure mode:** Enabling `LOG_LEVEL=debug` writes reusable credentials and plaintext passwords to application logs. Debug logging is a supported production configuration value, so this is not limited to tests.
 - **Impact:** Log readers or a log-system compromise become account/session compromise paths. Secret retention also complicates incident response and privacy obligations.
@@ -34,7 +34,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 ### 2. High - A partially destroyed stack can become untargetable and retain dead-member defense
 
-- **Files and symbols:** [`server/engine/combat/actions.ts`](../server/engine/combat/actions.ts), `validateCombatAction`, `buildCombatCalculatorInput`, and `executeCombatAction`.
+- **Files and symbols:** [`server/engine/combat/actions.ts`](../../../server/engine/combat/actions.ts), `validateCombatAction`, `buildCombatCalculatorInput`, and `executeCombatAction`.
 - **Evidence:** Group validation builds `members` from all roster IDs and chooses `members[0]` as representative. If that first member was destroyed by a prior `D`, the synthetic target state is `destroyed` even when later members survive, so validation returns `NO_TARGET`. The calculator also receives raw `group.unitIds.length`, while execution filters destroyed members and the web preview computes live stack size.
 - **Failure mode:** An Onion attack destroys or disables the first live member; a second legal attack against the surviving stack is rejected, or its defense is calculated using destroyed members.
 - **Impact:** Core combat can become impossible or resolve at incorrect odds. Client and server visibly disagree about a legal target.
@@ -44,7 +44,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 ### 3. High - Unexpected WebSocket disconnects do not reconnect automatically
 
-- **Files and symbols:** [`web/lib/liveEventSource.ts`](../web/lib/liveEventSource.ts), `createLiveEventSource`, especially `socket.onclose` and `socket.onerror`; [`web/lib/gameSessionController.ts`](../web/lib/gameSessionController.ts), `loadOrRefresh` and `submitAction`.
+- **Files and symbols:** [`web/lib/liveEventSource.ts`](../../../web/lib/liveEventSource.ts), `createLiveEventSource`, especially `socket.onclose` and `socket.onerror`; [`web/lib/gameSessionController.ts`](../../../web/lib/gameSessionController.ts), `loadOrRefresh` and `submitAction`.
 - **Evidence:** Close/error handlers delete the socket and emit `disconnected` but schedule no reconnect. A new socket is created only when an external caller invokes `connect()`, currently during load, manual refresh, or action submission. Existing “reconnect” tests explicitly call `connect()` again.
 - **Failure mode:** Connectivity drops while the opponent acts. No user action occurs locally, so no new connection is made; turn-change events are missed and the authoritative snapshot remains stale indefinitely.
 - **Impact:** A player can remain stuck on an inactive turn until manual refresh or another action happens. This contradicts the real-time/reconnection behavior in `turn-and-events-spec.md`.
@@ -54,7 +54,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 ### 4. Medium - Session refresh lifecycle can retry forever and let stale failures overwrite newer success
 
-- **Files and symbols:** [`web/lib/gameSessionController.ts`](../web/lib/gameSessionController.ts), `refreshLiveSnapshot`, `loadOrRefresh`, `submitAction`, and `shouldAcceptSnapshot`.
+- **Files and symbols:** [`web/lib/gameSessionController.ts`](../../../web/lib/gameSessionController.ts), `refreshLiveSnapshot`, `loadOrRefresh`, `submitAction`, and `shouldAcceptSnapshot`.
 - **Evidence:** Successful responses are guarded by `requestVersion`, but catch blocks set error state without checking their captured version. Separately, a failed live refresh leaves the observed cursor ahead of the snapshot; `finally` immediately schedules another refresh after the quiet window, with no retry classification or attempt budget.
 - **Failure mode:** Request B succeeds, then older request A rejects and changes the UI to `error` despite the newer snapshot. During an outage or malformed response, live refresh can generate two-attempt GET cycles every 500 ms indefinitely.
 - **Impact:** False error overlays, unnecessary request load, and violation of the repository’s bounded transient-retry policy.
@@ -64,7 +64,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 ### 5. Medium - Defender combat preview counts spent or empty weapons
 
-- **Files and symbols:** [`web/lib/battlefieldDisplay/projection.ts`](../web/lib/battlefieldDisplay/projection.ts), `selectedCombatAttackStrength`; [`web/lib/weaponStats.ts`](../web/lib/weaponStats.ts), readiness helpers; [`shared/unitState.ts`](../shared/unitState.ts), `getAvailableWeapons`; [`server/engine/combat/actions.ts`](../server/engine/combat/actions.ts), defender validation and calculator input.
+- **Files and symbols:** [`web/lib/battlefieldDisplay/projection.ts`](../../../web/lib/battlefieldDisplay/projection.ts), `selectedCombatAttackStrength`; [`web/lib/weaponStats.ts`](../../../web/lib/weaponStats.ts), readiness helpers; [`shared/unitState.ts`](../../../shared/unitState.ts), `getAvailableWeapons`; [`server/engine/combat/actions.ts`](../../../server/engine/combat/actions.ts), defender validation and calculator input.
 - **Evidence:** The display projection sums every catalog weapon on each selected defender. The server contributes only runtime weapons returned by `getAvailableWeapons`, which excludes spent, destroyed, and zero-ammo weapons. Web readiness currently checks only `state === 'ready'`, not ammo.
 - **Failure mode:** A unit with one ready and one spent weapon remains selectable but shows inflated attack/odds; a nominally ready zero-ammo weapon can make a unit appear actionable and in range although the server rejects it.
 - **Impact:** Resolve Combat presents a legal-looking action with incorrect strength or sends an action the server rejects.
@@ -74,7 +74,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 ### 6. Medium - Local movement validation reconstructs units without movement spent and validates only one member
 
-- **Files and symbols:** [`web/components/HexMapBoard.tsx`](../web/components/HexMapBoard.tsx), `buildMoveValidationState` and `validateMoveTarget`; [`shared/moveValidator.ts`](../shared/moveValidator.ts), `validateMove`; [`server/api/gameRoutes/actionHandlers/move.ts`](../server/api/gameRoutes/actionHandlers/move.ts), `handleMove`.
+- **Files and symbols:** [`web/components/HexMapBoard.tsx`](../../../web/components/HexMapBoard.tsx), `buildMoveValidationState` and `validateMoveTarget`; [`shared/moveValidator.ts`](../../../shared/moveValidator.ts), `validateMove`; [`server/api/gameRoutes/actionHandlers/move.ts`](../../../server/api/gameRoutes/actionHandlers/move.ts), `handleMove`.
 - **Evidence:** Battlefield views retain authoritative unit data, but `buildMoveValidationState` reconstructs units without `movementSpent`. The shared validator therefore computes full phase allowance. It also validates `incomingMembers = 1`, while the submitted command may move several selected stack members and the server validates them sequentially against changing state.
 - **Failure mode:** Right-click can locally approve a destination beyond remaining allowance or beyond destination stack capacity for the selected group; the server then rejects the apparently legal move.
 - **Impact:** Misleading board highlights/actions and avoidable round trips during a primary workflow.
@@ -84,7 +84,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 ### 7. Medium - Runtime protocol validation is inconsistent and sometimes masks invalid data
 
-- **Files and symbols:** [`server/api/gameRoutes/actionRoutes.ts`](../server/api/gameRoutes/actionRoutes.ts), action dispatcher; [`server/api/gameRoutes/actionHandlers/move.ts`](../server/api/gameRoutes/actionHandlers/move.ts), `handleMove`; [`web/lib/httpGameClient.ts`](../web/lib/httpGameClient.ts), `normalizePhase` and snapshot mapping.
+- **Files and symbols:** [`server/api/gameRoutes/actionRoutes.ts`](../../../server/api/gameRoutes/actionRoutes.ts), action dispatcher; [`server/api/gameRoutes/actionHandlers/move.ts`](../../../server/api/gameRoutes/actionHandlers/move.ts), `handleMove`; [`web/lib/httpGameClient.ts`](../../../web/lib/httpGameClient.ts), `normalizePhase` and snapshot mapping.
 - **Evidence:** `Body: Command` is compile-time only; the route validates `type` but not discriminated payload fields. A `MOVE` with non-array `movers` reaches `[...new Set(command.movers)]` and becomes a 500 instead of documented 400. On reads, an absent or unknown phase is silently converted to `DEFENDER_MOVE`, bypassing the later fail-loud snapshot validator.
 - **Failure mode:** Malformed clients trigger internal errors, while malformed server snapshots can put the UI into the wrong phase rather than terminate as invalid.
 - **Impact:** Weak diagnostics, contract drift, and incorrect UI authority at the network boundary.
@@ -94,7 +94,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
 
 ### 8. Medium - Display projection repeats full combat-context construction and its memo input is unstable
 
-- **Files and symbols:** [`web/lib/battlefieldDisplay/projection.ts`](../web/lib/battlefieldDisplay/projection.ts), `buildBattlefieldDisplayModel`; [`web/lib/combatPreview.ts`](../web/lib/combatPreview.ts), `buildCombatTargetOptions`; [`web/lib/battlefieldInteraction/useBattlefieldInteractionState.ts`](../web/lib/battlefieldInteraction/useBattlefieldInteractionState.ts), returned `interactionState`; [`web/lib/battlefieldDisplay/useBattlefieldDisplayState.ts`](../web/lib/battlefieldDisplay/useBattlefieldDisplayState.ts), memoization.
+- **Files and symbols:** [`web/lib/battlefieldDisplay/projection.ts`](../../../web/lib/battlefieldDisplay/projection.ts), `buildBattlefieldDisplayModel`; [`web/lib/combatPreview.ts`](../../../web/lib/combatPreview.ts), `buildCombatTargetOptions`; [`web/lib/battlefieldInteraction/useBattlefieldInteractionState.ts`](../../../web/lib/battlefieldInteraction/useBattlefieldInteractionState.ts), returned `interactionState`; [`web/lib/battlefieldDisplay/useBattlefieldDisplayState.ts`](../../../web/lib/battlefieldDisplay/useBattlefieldDisplayState.ts), memoization.
 - **Evidence:** One projection builds target options globally, once per Onion weapon, and once per eligible defender. Each call filters/canonicalizes the roster, rebuilds indexes and lookups, and scans terrain/units. The interaction hook creates a new `interactionState` object on every parent render, invalidating the projection memo even when its fields did not change.
 - **Failure mode:** Work approaches quadratic behavior as units/weapons grow and repeats on unrelated App renders such as connection, notification, or event-stream updates.
 - **Impact:** UI latency risk in larger scenarios and increasingly difficult performance diagnosis.
@@ -183,7 +183,7 @@ Focused baseline validation passed 122 tests across engine combat, battlefield d
   3. **Expose it on responses.** Add failing schema and projection tests requiring `snapshotRevision` on `GET /games/{id}` and action responses. Done when malformed or missing revisions fail validation and existing snapshot fields stay unchanged.
   4. **Conditional read.** Implement `sinceRevision` against the tests from step 1. Done when unchanged requests do not include `state`, changed requests include the full snapshot, and `0` always forces a full snapshot.
   5. **Client cursor only.** Add failing HTTP adapter tests that send the last accepted revision and replace local state only on a full snapshot. Done when an unchanged response does not clear or synthesize snapshot fields and a transport failure still falls back to `sinceRevision=0`.
-  6. **Measure before partial rebuild.** Complete. [scripts/benchmark-projection.ts](../../scripts/benchmark-projection.ts) runs through `pnpm benchmark:projection` and records the baseline. Current baseline: 203 units, `buildGameStateResponse` averages about 0.87 ms, and `buildActionResponse` about 0.05 ms over 100 iterations. No partial rebuild or cache is justified at this scale. If future measurements show a material cost, implement it only with parity tests proving byte-stable snapshots aside from the revision.
+  6. **Measure before partial rebuild.** Complete. [scripts/benchmark-projection.ts](../../../scripts/benchmark-projection.ts) runs through `pnpm benchmark:projection` and records the baseline. Current baseline: 203 units, `buildGameStateResponse` averages about 0.87 ms, and `buildActionResponse` about 0.05 ms over 100 iterations. No partial rebuild or cache is justified at this scale. If future measurements show a material cost, implement it only with parity tests proving byte-stable snapshots aside from the revision.
 - **Risk:** Medium. Revision gaps are worse than extra full snapshots, so tests must fail if any mutation path forgets the increment.
 - **Validation:** New contract tests, db adapter tests, HTTP schema tests, client adapter tests, then `pnpm test` and `pnpm exec tsc --noEmit`.
 

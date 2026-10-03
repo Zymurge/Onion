@@ -13,11 +13,12 @@ existing gameplay engine.
 
 ## Status
 
-The core lobby scope is implemented: authenticated users can create games,
-discover and join waiting games, observe readiness, and have the host start a
-ready match before entering gameplay. The remaining work is explicitly
-deferred to Phase 2 and is listed below rather than being part of the current
-implementation contract.
+The core lobby scope is complete for the current product phase: authenticated
+users can create games, discover and join waiting games, observe readiness,
+lock membership after start, and have the host start a ready match before
+entering gameplay. Steps 1-8 below are complete for this scope. The remaining
+work is explicitly deferred to Phase 2 and is listed below rather than being
+part of the current implementation contract.
 
 The polling and dedicated-window direction for the web lobby is specified in
 [multi-window-lobby-spec.md](multi-window-lobby-spec.md).
@@ -41,11 +42,11 @@ persists coarse game status, exposes waiting games for discovery, and lets the
 host explicitly start a ready match. User-controlled readiness and richer
 visibility policy remain future work.
 
-## Step 1: User Creation and Management
+## Step 1: User Creation and Management - Complete
 
 Establish the user identity and account operations the lobby depends on.
 
-See [user-account-spec.md](/docs/user-account-spec.md) for the detailed initial
+See [user-account-spec.md](../user-account-spec.md) for the detailed initial
 account scope.
 
 - Support authenticated user creation and login using the existing JWT-based
@@ -53,7 +54,7 @@ account scope.
 - Define the minimum user identity and account state needed by lobby actions,
   without introducing administrative account management.
 
-## Step 2: Game Creation
+## Step 2: Game Creation - Complete
 
 Allow an authenticated user to create a new game.
 
@@ -62,7 +63,7 @@ Allow an authenticated user to create a new game.
 - Establish the initial game configuration and available player roles needed
   for another player to join.
 
-## Step 3: Game Membership and Join
+## Step 3: Game Membership and Join - Complete
 
 Allow eligible authenticated users to enter an existing game.
 
@@ -71,7 +72,7 @@ Allow eligible authenticated users to enter an existing game.
 - Track the relationship between users and games so each participant can
   authenticate against the games they belong to.
 
-## Step 4: Game Lifecycle Management
+## Step 4: Game Lifecycle Management - Complete
 
 Define and persist the coarse lifecycle states that control what game membership
 operations are allowed.
@@ -82,7 +83,7 @@ operations are allowed.
   persisted.
 - Reject joins and open-lobby discovery after the game leaves `waiting`.
 
-## Step 5: Game Start
+## Step 5: Game Start - Complete
 
 Allow a game to move from lobby coordination into gameplay.
 
@@ -92,7 +93,7 @@ Allow a game to move from lobby coordination into gameplay.
 - Expose the persisted lifecycle status and host identity in authoritative game
   responses.
 
-## Step 6: Membership Lock After Start
+## Step 6: Membership Lock After Start - Complete
 
 Make the player roster stable once gameplay begins.
 
@@ -101,7 +102,7 @@ Make the player roster stable once gameplay begins.
 - Ensure every active player has a stable role and identity for gameplay
   authorization and event delivery.
 
-## Step 7: Lobby-to-Game Handoff
+## Step 7: Lobby-to-Game Handoff - Complete
 
 Define the boundary and data handoff between lobby state and the gameplay
 engine.
@@ -111,7 +112,7 @@ engine.
 - Ensure the gameplay engine receives a complete, immutable starting roster
   and scenario selection rather than continuing to depend on lobby operations.
 
-## Step 8: Client Integration
+## Step 8: Client Integration - Complete
 
 Connect the web and other clients to the lobby flow without redesigning the
 active gameplay surface.
