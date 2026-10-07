@@ -47,6 +47,15 @@ describe('scenario-local unit definition resolution', () => {
     expect(getUnitTypeCatalog().Puss.weapons[0]).not.toMatchObject({ attack: 5, range: 4 })
   })
 
+  it('does not share nested resolved definition data with the global catalog', () => {
+    const resolved = resolveScenarioDefinitions(scenarioId, derivedUnitTypes)
+    const derived = resolved.unitTypes['override-contract:ScenarioPuss']
+
+    ;(derived.abilities.ramProfile as { treadLoss?: number }).treadLoss = 99
+
+    expect(getUnitTypeCatalog().Puss.abilities.ramProfile?.treadLoss).not.toBe(99)
+  })
+
   it.each([
     ['unknown base type', { Missing: { extends: 'MissingBase', overrides: {} } }],
     ['unknown weapon quantity reference', { BadWeapon: { extends: 'Puss', overrides: { weaponQuantities: { 'Puss.missing': 1 } } } }],

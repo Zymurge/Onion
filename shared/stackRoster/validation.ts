@@ -54,13 +54,14 @@ export function validateStackRoster(
 export function validateStackRosterConsistency(
 	defenders: DefenderMap | undefined,
 	stackRoster: StackRosterState | undefined,
+	isStackable: (unitType: string) => boolean = isStackRosterUnitType,
 ): StackRosterConsistencyIssue[] {
 	const issues: StackRosterConsistencyIssue[] = []
 	const seenMemberIds = new Map<string, string>()
 	const groupedUnitIds = new Set<string>()
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
-		if (!isStackRosterUnitType(group.unitType)) {
+		if (!isStackable(group.unitType)) {
 			issues.push({
 				code: 'NON_STACKABLE_GROUP',
 				message: `Group ${groupId} has non-stackable unit type ${group.unitType}`,

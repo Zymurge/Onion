@@ -6,10 +6,9 @@ import {
   createCombatCalculator,
   type CombatExchangeInput,
 } from '#shared/combatCalculator'
-import { ONION_STATIC_RULES } from '#shared/staticRules'
+import { getRulesContext, type RulesContext } from '#shared/rulesContext'
 import { isTargetAllowedByRules } from '#shared/targetRules'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
-import { getUnitDefinition, getWeaponType } from '#shared/unitDefinitions'
 import { destroyWeapon, getAvailableWeapons, getOnion } from '#shared/unitState'
 import { UnitWeapons } from '#shared/unitWeapons'
 import { applyDamage } from './outcomes.js'
@@ -22,8 +21,6 @@ import type {
 } from './types.js'
 
 type FireCommand = Extract<Command, { type: 'FIRE' }>
-
-const combatCalculator = createCombatCalculator(ONION_STATIC_RULES)
 
 function getTerrainTypeAt(map: GameMap, position: { q: number; r: number }) {
   return map.hexes[`${position.q},${position.r}`]?.terrain
@@ -63,6 +60,7 @@ function buildCombatCalculatorInput(
   target: CombatTarget,
   attackerIds: string[],
   onionId: string,
+  rules: RulesContext,
 ): CombatExchangeInput {
   const onion = requireOnion(state, onionId)
 
@@ -152,14 +150,14 @@ function buildCombatCalculatorInput(
  * by combat planning. Tread ids must belong to the selected Onion; weapon
  * targets must refer to an individually targetable live weapon.
  */
-function resolveOnionTarget(state: GameState, onionId: string, targetId: string): CombatTarget | null {
+function resolveOnionTarget(state: GameState, onionId: string, targetId: string, rules: RulesContext): CombatTarget | null {
   const onion = requireOnion(state, onionId)
   const parsedTarget = parseCombatTargetId(targetId)
   if (parsedTarget?.kind === 'treads' && parsedTarget.onionId === onion.unitId) {
     return { kind: 'treads', id: formatCombatTargetId(parsedTarget) }
   }
 
-  const weapon = onion.weapons.find((candidate) => candidate.id === targetId && getWeaponType(candidate.typeId).individuallyTargetable)
+  const weapon = onion.weapons.find((candidate) => candidate.id === targetId && rules.getWeaponType(candidate.typeId).individuallyTargetable)
   if (weapon) {
     return { kind: 'weapon', id: weapon.id }
   }
@@ -215,7 +213,10 @@ export function validateCombatAction(
   map: GameMap,
   state: GameState,
   command: FireCommand,
+  rulesContext?: RulesContext,
 ): CombatValidation {
+  const rules = getRulesContext(rulesContext)
+  const combatCalculator = createCombatCalculator(rules.combatRules)
   logger.info({ commandType: command.type }, 'Validating combat action')
   logger.debug({ map, state, command }, 'validateCombatAction input')
 
@@ -295,7 +296,7 @@ export function validateCombatAction(
       weapons.push(weapon)
     }
 
-    const missileCount = weapons.filter((weapon) => getWeaponType(weapon.typeId).weaponClass === 'missile').length
+    const missileCount = weapons.filter((weapon) => rules.getWeaponType(weapon.typeId).weaponClass === 'missile').length
     if (missileCount > 1) {
       return { ok: false, code: 'WEAPON_EXHAUSTED', error: 'Only one missile may be launched per turn' }
     }
@@ -303,18 +304,18 @@ export function validateCombatAction(
     for (let index = 0; index < weapons.length; index += 1) {
       const weapon = weapons[index]
       const attackerId = command.attackers[index]
-      if (hexDistance(onion.position, target.position) > getWeaponType(weapon.typeId).range) {
+      if (hexDistance(onion.position, target.position) > rules.getWeaponType(weapon.typeId).range) {
         return { ok: false, code: 'TARGET_OUT_OF_RANGE', error: `Attacker '${attackerId}' is out of range` }
       }
     }
 
-    const defenderDefinition = getUnitDefinition(target.typeId)
+    const defenderDefinition = rules.getUnitDefinition(target.typeId)
     const targetAllowed = weapons.every((weapon) =>
       isTargetAllowedByRules(
         {
           unitType: onion.typeId,
           weaponId: weapon.id,
-          targetRules: getWeaponType(weapon.typeId).targetRules,
+          targetRules: rules.getWeaponType(weapon.typeId).targetRules,
         },
         {
           unitType: target.typeId,
@@ -329,7 +330,7 @@ export function validateCombatAction(
           {
             unitType: onion.typeId,
             weaponId: weapon.id,
-            targetRules: getWeaponType(weapon.typeId).targetRules,
+            targetRules: rules.getWeaponType(weapon.typeId).targetRules,
           },
           {
             unitType: target.typeId,
@@ -348,7 +349,7 @@ export function validateCombatAction(
     }
 
     const combatResult = combatCalculator.calculate(
-      buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.unitId }, [...command.attackers], onion.unitId),
+      buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.unitId }, [...command.attackers], onion.unitId, rules),
     )
 
     return {
@@ -366,7 +367,7 @@ export function validateCombatAction(
     }
   }
 
-  const target = resolveOnionTarget(state, command.onionId, command.targetId)
+  const target = resolveOnionTarget(state, command.onionId, command.targetId, rules)
   if (!target) {
     return { ok: false, code: 'INVALID_TARGET', error: `Target '${command.targetId}' is not valid for the selected weapon(s)` }
   }
@@ -394,14 +395,14 @@ export function validateCombatAction(
       return { ok: false, code: 'NO_READY_WEAPONS', error: `Attacker '${attackerId}' has no ready weapons` }
     }
 
-    const maxRange = Math.max(...availableWeapons.map((weapon) => getWeaponType(weapon.typeId).range), 0)
+    const maxRange = Math.max(...availableWeapons.map((weapon) => rules.getWeaponType(weapon.typeId).range), 0)
     if (hexDistance(unit.position, onion.position) > maxRange) {
       return { ok: false, code: 'TARGET_OUT_OF_RANGE', error: `Attacker '${attackerId}' is out of range` }
     }
   }
 
   const combatResult = combatCalculator.calculate(
-    buildCombatCalculatorInput(map, state, target, [...command.attackers], onion.unitId),
+    buildCombatCalculatorInput(map, state, target, [...command.attackers], onion.unitId, rules),
   )
 
   const targetWeapon = target.kind === 'weapon'
@@ -430,7 +431,9 @@ export function executeCombatAction(
   state: GameState,
   plan: CombatPlan,
   roll?: number,
+  rulesContext?: RulesContext,
 ): CombatExecutionResult {
+  const rules = getRulesContext(rulesContext)
   logger.info({ plan }, 'Executing combat action')
   logger.debug({ plan }, 'executeCombatAction input')
   const onion = requireOnion(state, plan.onionId)
@@ -495,12 +498,12 @@ export function executeCombatAction(
     }
 
     for (const firedWeapon of firingWeapons) {
-      if (getWeaponType(firedWeapon.typeId).weaponClass === 'missile') {
+      if (rules.getWeaponType(firedWeapon.typeId).weaponClass === 'missile') {
         if (!onionWeapons.consumeAmmo(firedWeapon.id)) {
           return { success: false, actionType: plan.actionType, attackerIds: plan.attackerIds, onionId: plan.onionId, targetId: formatResolvedTargetId(plan.target), error: `Weapon '${firedWeapon.id}' has no ammunition` }
         }
         for (const missile of onion.weapons) {
-          if (missile.id !== firedWeapon.id && getWeaponType(missile.typeId).weaponClass === 'missile' && missile.state === 'ready') {
+          if (missile.id !== firedWeapon.id && rules.getWeaponType(missile.typeId).weaponClass === 'missile' && missile.state === 'ready') {
             onionWeapons.spend(missile.id)
           }
         }

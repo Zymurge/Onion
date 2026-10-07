@@ -13,6 +13,7 @@ import {
 	isUnitImmobile,
 } from './unitMovement.js'
 import type { DefenderUnit, OnionUnit } from './types/index.js'
+import type { RulesContext } from './rulesContext.js'
 
 export type MoveValidationCode =
 	| 'WRONG_PHASE'
@@ -143,11 +144,11 @@ function getMoveFailureMessage(code: MoveValidationCode, detailCode?: MoveValida
 	return 'Move is not legal'
 }
 
-function getCapabilities(unitType: string): MoveCapabilities {
+function getCapabilities(unitType: string, rules?: RulesContext): MoveCapabilities {
 	return {
 		canRam: unitType === 'TheOnion',
 		hasTreads: unitType === 'TheOnion',
-		canSecondMove: canUnitSecondMove(unitType),
+		canSecondMove: canUnitSecondMove(unitType, rules),
 	}
 }
 
@@ -176,7 +177,7 @@ export function validateMove(
 	map: MoveMapSnapshot,
 	state: MoveValidationState,
 	command: SingleUnitMoveCommand,
-	options: { incomingMembers?: number } = {},
+	options: { incomingMembers?: number; rules?: RulesContext } = {},
 ): MoveValidationResult {
 	const resolved = resolveUnit(state, command.unitId)
 	if (!resolved) {
@@ -190,11 +191,11 @@ export function validateMove(
 	if (unit.state !== 'operational') {
 		return { valid: false, code: 'UNIT_NOT_OPERATIONAL', error: getMoveFailureMessage('UNIT_NOT_OPERATIONAL') }
 	}
-	if (isUnitImmobile(unitType)) {
+	if (isUnitImmobile(unitType, options.rules)) {
 		return { valid: false, code: 'UNIT_IMMOBILE', error: getMoveFailureMessage('UNIT_IMMOBILE') }
 	}
 
-	const capabilities = getCapabilities(unitType)
+	const capabilities = getCapabilities(unitType, options.rules)
 
 	if (role === 'onion') {
 		if (state.currentPhase !== 'ONION_MOVE') {
@@ -211,6 +212,7 @@ export function validateMove(
 	const movementAllowance = getRemainingUnitMovementAllowance(
 		unit,
 		state.currentPhase,
+		options.rules,
 	)
 
 	if (movementAllowance === 0) {
@@ -223,6 +225,7 @@ export function validateMove(
 		movingUnitType: unitType,
 		occupants,
 		incomingMembers,
+		rules: options.rules,
 	})
 
 	if (stopFailure) {
@@ -235,7 +238,7 @@ export function validateMove(
 	}
 
 	const destinationTerrain = getTerrainAt(map, command.to)
-	if (getTerrainMoveCost(unitType, destinationTerrain) === null) {
+	if (getTerrainMoveCost(unitType, destinationTerrain, options.rules) === null) {
 		return {
 			valid: false,
 			code: 'NO_PATH',
@@ -252,6 +255,7 @@ export function validateMove(
 		movingRole: role,
 		movingUnitType: unitType,
 		incomingMembers,
+		rules: options.rules,
 	})
 
 	if (!pathResult.found) {
@@ -262,8 +266,8 @@ export function validateMove(
 	const rammedUnits = capabilities.canRam && attemptRam ? collectRammedUnits(state, pathResult.path, command.unitId) : []
 	const ramCapacityUsed = rammedUnits.length
 	const ramCapacityLimit = role === 'onion'
-		? Math.min(getUnitRamCapacity(unitType), unit.ramsRemaining ?? 0)
-		: getUnitRamCapacity(unitType)
+			? Math.min(getUnitRamCapacity(unitType, options.rules), unit.ramsRemaining ?? 0)
+			: getUnitRamCapacity(unitType, options.rules)
 
 	if (capabilities.canRam && ramCapacityUsed > ramCapacityLimit) {
 		return {
@@ -274,7 +278,7 @@ export function validateMove(
 	}
 
 	const treadCost = capabilities.hasTreads
-		? rammedUnits.reduce((total, rammedUnit) => total + calculateRamming(rammedUnit.unitType, 6).treadCost, 0)
+		? rammedUnits.reduce((total, rammedUnit) => total + calculateRamming(rammedUnit.unitType, 6, options.rules).treadCost, 0)
 		: 0
 
 	return {

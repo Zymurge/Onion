@@ -1,4 +1,4 @@
-import { getUnitTypeCatalog } from './unitDefinitions.js'
+import { getRulesContext, type RulesContext } from './rulesContext.js'
 
 export type RammingResult = {
 	treadCost: number
@@ -10,18 +10,16 @@ export type RammingOutcome = RammingResult & {
 	roll: number
 }
 
-const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
-
-export function calculateRamming(unitType: string, roll?: number): RammingResult {
-	const outcome = resolveRammingOutcome(unitType, roll)
+export function calculateRamming(unitType: string, roll?: number, rules?: RulesContext): RammingResult {
+	const outcome = resolveRammingOutcome(unitType, roll, rules)
 	return {
 		treadCost: outcome.treadCost,
 		destroyed: outcome.destroyed,
 	}
 }
 
-export function resolveRammingOutcome(unitType: string, roll?: number): RammingOutcome {
-	const definition = UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]
+export function resolveRammingOutcome(unitType: string, roll?: number, rules?: RulesContext): RammingOutcome {
+	const definition = getRulesContext(rules).getUnitDefinition(unitType)
 	const ramProfile = definition?.abilities.ramProfile
 
 	if (definition === undefined || ramProfile === undefined) {

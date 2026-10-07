@@ -1,13 +1,18 @@
 node_modules/
 dist/
 .env
-coverage/
 *.tsbuildinfo
 .pnpm-store/
 .vscode/settings.local.json
 .e2e-runtime/*
-docs/api/*
 Container Local.session.sql
+
+# Automatically generated files
+coverage/
+docs/api/*
+
+# Temorary test files
+.tmp-onion-config-*/
 
 # Temporary ln during some system debugging
 captures/

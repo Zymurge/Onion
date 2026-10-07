@@ -103,6 +103,24 @@ describe('parseScenarioSnapshot', () => {
     })
   })
 
+  it.each([
+    { attack: -1 },
+    { range: 0 },
+    { maxAmmo: 0 },
+  ])('rejects invalid applicable weapon override values: %o', (weaponOverride) => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      unitTypes: {
+        ScenarioOnion: {
+          extends: 'TheOnion',
+          overrides: {
+            weaponOverrides: { 'TheOnion.secondary': weaponOverride },
+          },
+        },
+      },
+    })).toThrow(ScenarioValidationError)
+  })
+
   it('accepts multiple authored Onions without static catalog fields', () => {
     const scenario = parseScenarioSnapshot({
       ...validScenario,

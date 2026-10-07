@@ -59,7 +59,10 @@ function buildUnitWeapons(
     const quantity = definition.weaponQuantities[weapon.typeId] ?? weapon.defaultQuantity ?? 1
     return Array.from({ length: quantity }, (_unused, index) => {
       const id = `${weaponName}-${index + 1}`
-      return buildWeaponInstance(weapon, id, ammo)
+      const runtimeWeapon = definition.typeId.includes(':')
+        ? { ...weapon, typeId: `${definition.typeId}:${weapon.typeId}` }
+        : weapon
+      return buildWeaponInstance(runtimeWeapon, id, ammo)
     })
   })
 }

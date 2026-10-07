@@ -1,32 +1,30 @@
 import type { GameState, PlayerRole, TurnPhase, UnitStatus } from './types/index.js'
 import { onionMovementAllowance } from './movementAllowance.js'
-import { getUnitTypeCatalog } from './unitDefinitions.js'
 import { canCrossRidgelineByTerrainRule } from './movementRules.js'
+import { getRulesContext, type RulesContext } from './rulesContext.js'
 
-const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
-
-function getDefinition(unitType: string) {
-	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]
+function getDefinition(unitType: string, rules?: RulesContext) {
+	return getRulesContext(rules).getUnitDefinition(unitType)
 }
 
-export function canUnitCrossRidgeline(unitType: string): boolean {
-	return canCrossRidgelineByTerrainRule(unitType)
+export function canUnitCrossRidgeline(unitType: string, rules?: RulesContext): boolean {
+	return canCrossRidgelineByTerrainRule(unitType, rules)
 }
 
-export function getUnitRamCapacity(unitType: string): number {
-	return getDefinition(unitType)?.abilities.ramCapacity ?? 2
+export function getUnitRamCapacity(unitType: string, rules?: RulesContext): number {
+	return getDefinition(unitType, rules)?.abilities.ramCapacity ?? 2
 }
 
-export function canUnitSecondMove(unitType: string): boolean {
-	return getDefinition(unitType)?.abilities.secondMove === true
+export function canUnitSecondMove(unitType: string, rules?: RulesContext): boolean {
+	return getDefinition(unitType, rules)?.abilities.secondMove === true
 }
 
-export function isUnitImmobile(unitType: string): boolean {
-	return getDefinition(unitType)?.abilities.immobile === true
+export function isUnitImmobile(unitType: string, rules?: RulesContext): boolean {
+	return getDefinition(unitType, rules)?.abilities.immobile === true
 }
 
-export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, treads?: number, side?: PlayerRole): number {
-	const definition = getDefinition(unitType)
+export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, treads?: number, side?: PlayerRole, rules?: RulesContext): number {
+	const definition = getDefinition(unitType, rules)
 
 	if (side === 'onion') {
 		if (phase !== 'ONION_MOVE') {
@@ -38,7 +36,7 @@ export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, tre
 
 	if (side === 'defender') {
 		if (phase === 'GEV_SECOND_MOVE') {
-			return canUnitSecondMove(unitType) ? definition?.abilities.secondMoveAllowance ?? 0 : 0
+			return canUnitSecondMove(unitType, rules) ? definition?.abilities.secondMoveAllowance ?? 0 : 0
 		}
 
 		if (phase !== 'DEFENDER_MOVE') {
@@ -57,7 +55,7 @@ export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, tre
 	}
 
 	if (phase === 'GEV_SECOND_MOVE') {
-		return canUnitSecondMove(unitType) ? definition?.abilities.secondMoveAllowance ?? 0 : 0
+		return canUnitSecondMove(unitType, rules) ? definition?.abilities.secondMoveAllowance ?? 0 : 0
 	}
 
 	if (phase !== 'DEFENDER_MOVE') {
@@ -74,13 +72,14 @@ export function getUnitMovementSpent(unit: Pick<UnitStatus, 'movementSpent'> | n
 export function getRemainingUnitMovementAllowance(
 	unit: Pick<UnitStatus, 'typeId' | 'movementSpent' | 'side'> & { treads?: number } | null | undefined,
 	phase: TurnPhase,
+	rules?: RulesContext,
 ): number {
 	if (unit === null || unit === undefined) {
 		return 0
 	}
 
 	return Math.max(
-		getUnitMovementAllowance(unit.typeId, phase, unit.treads, unit.side) - getUnitMovementSpent(unit, phase),
+		getUnitMovementAllowance(unit.typeId, phase, unit.treads, unit.side, rules) - getUnitMovementSpent(unit, phase),
 		0,
 	)
 }

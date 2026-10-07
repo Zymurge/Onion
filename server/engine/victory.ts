@@ -3,6 +3,7 @@ import type { VictoryObjectiveKind, VictoryObjectiveState, VictoryObjectiveVicto
 import { hexKey } from '#shared/axialHex'
 import { getDefender } from '#shared/unitState'
 import type { ExplicitScenarioMap } from '#shared/scenarioMap'
+import type { RulesContext } from '#shared/rulesContext'
 
 export type VictoryObjective = {
   id: string
@@ -32,6 +33,7 @@ export type VictoryEvaluationContext = {
   state: GameState
   turnNumber: number
   events?: ReadonlyArray<EventEnvelope>
+  rules?: RulesContext
 }
 
 export type VictoryEvaluation = {

@@ -146,7 +146,7 @@ describe('normalizeInitialStateToGameState', () => {
 
     expect(gameState.defenders['puss-1']).toMatchObject({
       typeId: 'scenario-test:ScenarioPuss',
-      weapons: [{ typeId: 'Puss.main' }],
+      weapons: [{ typeId: 'scenario-test:ScenarioPuss:Puss.main' }],
     })
   })
 

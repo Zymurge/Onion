@@ -777,3 +777,77 @@ describe('buildVictoryObjectiveStates', () => {
     )).toThrow('Invalid stack roster for response')
   })
 })
+
+describe('scenario-derived runtime contracts', () => {
+  it('resolves a short scenario-local unitType objective against the runtime type id', () => {
+    const derivedTypeId = 'objective-contract:ScenarioPuss'
+    const derivedDefender = makeDefender({
+      unitId: 'puss-1',
+      typeId: derivedTypeId,
+      state: 'destroyed',
+    })
+    const match = {
+      scenarioId: 'objective-contract',
+      scenarioSnapshot: {
+        map: materializeScenarioMap({ width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [] }),
+        unitTypes: {
+          ScenarioPuss: { extends: 'Puss', overrides: {} },
+        },
+        victoryConditions: {
+          objectives: [
+            { id: 'destroy-puss', label: 'Destroy Puss', kind: 'destroy-unit', unitType: 'ScenarioPuss', victor: 'onion', required: true },
+          ],
+        },
+      },
+      players: { onion: 'onion-user', defender: 'defender-user' },
+      events: [],
+    }
+    const state = makeGameState({
+      defenders: { 'puss-1': derivedDefender },
+    })
+
+    expect(computeWinnerUserId(match as unknown as MatchRecord, state, 'ONION_MOVE', 1)).toBe('onion-user')
+  })
+
+  it('keeps a scenario-derived stack in the client state projection', () => {
+    const derivedTypeId = 'projection-contract:ScenarioPigs'
+    const stackRoster = makeStackRoster({
+      groupsById: {
+        [`${derivedTypeId}:1,1`]: makeStackGroup({
+          unitType: derivedTypeId,
+          unitIds: ['pigs-1', 'pigs-2'],
+        }),
+      },
+    })
+    const state = makeGameState({
+      defenders: {
+        'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: derivedTypeId, position: { q: 1, r: 1 } }),
+        'pigs-2': makeDefender({ unitId: 'pigs-2', typeId: derivedTypeId, position: { q: 1, r: 1 } }),
+      },
+      stackRoster,
+    })
+    const match = {
+      gameId: 1,
+      scenarioId: 'projection-contract',
+      scenarioSnapshot: {
+        map: materializeScenarioMap({ width: 2, height: 2, cells: [{ q: 1, r: 1 }], hexes: [] }),
+        unitTypes: {
+          ScenarioPigs: { extends: 'LittlePigs', overrides: {} },
+        },
+        victoryConditions: { objectives: [] },
+      },
+      players: { onion: 'onion-user', defender: 'defender-user' },
+      hostUserId: 'onion-user',
+      status: 'active',
+      phase: 'DEFENDER_MOVE',
+      turnNumber: 1,
+      winner: null,
+      state,
+      events: [],
+    }
+
+    const response = buildGameStateResponse(match as unknown as MatchRecord, 'onion-user')
+
+    expect(response.state.stackRoster.groupsById[`${derivedTypeId}:1,1`]).toBeDefined()
+  })
+})

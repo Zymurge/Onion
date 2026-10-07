@@ -125,6 +125,7 @@ describe('POST /games/:id/actions MOVE', () => {
 		expect(executeSpy).toHaveBeenCalledWith(expect.anything(), validatedPlan, {
 			reconcileStackRoster: false,
 			ramRolls,
+			rules: expect.anything(),
 		})
 		expect(createRamRolls).toHaveBeenCalledTimes(1)
 		validateSpy.mockRestore()

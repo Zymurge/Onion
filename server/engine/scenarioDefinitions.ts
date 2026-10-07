@@ -1,4 +1,5 @@
 import type { Scenario } from '#server/engine/scenarioSchema'
+import { createRulesContext, type RulesContext } from '#shared/rulesContext'
 import type { UnitTypeBase, UnitTypeCatalog, WeaponType, WeaponTypeCatalog } from '#shared/types/index'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 
@@ -21,10 +22,11 @@ function resolveDerivedUnitType(
   globalUnitTypes: UnitTypeCatalog,
   globalWeaponTypes: WeaponTypeCatalog,
 ): UnitTypeBase {
-  const base = globalUnitTypes[derivation.extends]
-  if (base === undefined) {
+  const baseDefinition = globalUnitTypes[derivation.extends]
+  if (baseDefinition === undefined) {
     throw new Error(`Unknown base unit type: ${derivation.extends}`)
   }
+  const base = structuredClone(baseDefinition)
 
   const overrides = derivation.overrides
   if (overrides.maxStacks !== undefined && base.abilities.maxStacks <= 1 && overrides.maxStacks > 1) {
@@ -96,10 +98,28 @@ export function resolveScenarioDefinitions(
     )
   }
 
+  const resolvedWeaponTypes: Record<string, WeaponType> = { ...globalWeaponTypes }
+  for (const [resolvedTypeId, definition] of Object.entries(resolvedUnitTypes)) {
+    if (!resolvedTypeId.startsWith(`${scenarioId}:`)) {
+      continue
+    }
+    for (const weapon of definition.weapons) {
+      const resolvedWeaponTypeId = `${resolvedTypeId}:${weapon.typeId}`
+      resolvedWeaponTypes[resolvedWeaponTypeId] = { ...weapon, typeId: resolvedWeaponTypeId }
+    }
+  }
+
   return {
     unitTypes: resolvedUnitTypes,
-    weaponTypes: { ...globalWeaponTypes },
+    weaponTypes: resolvedWeaponTypes,
   }
+}
+
+export function createScenarioRulesContext(
+  scenarioId: string,
+  unitTypes: ScenarioUnitTypes = {},
+): RulesContext {
+  return createRulesContext(resolveScenarioDefinitions(scenarioId, unitTypes))
 }
 
 export function getResolvedUnitTypeId(scenarioId: string | undefined, typeId: string, unitTypes: ScenarioUnitTypes | undefined): string {

@@ -16,9 +16,9 @@ const TerrainHexSchema = z.object({
 const StartingAmmoByWeaponTypeSchema = z.record(z.string().min(1), z.number().int().nonnegative())
 
 const NumericWeaponOverrideSchema = z.object({
-  attack: z.number().optional(),
-  range: z.number().optional(),
-  defense: z.number().optional(),
+  attack: z.number().positive().optional(),
+  range: z.number().positive().optional(),
+  defense: z.number().positive().optional(),
   maxAmmo: z.number().int().positive().optional(),
 }).strict()
 

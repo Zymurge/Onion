@@ -39,6 +39,7 @@ import { DEFAULT_ONION_UNIT_TYPE_ID } from '#shared/unitDefinitions'
 import { makeDefender, makeGameState, makeOnion, makeStackFixture, makeStackGroup, makeStackRoster, makeWeapon } from '#test/utils/gameStateUtils'
 import { createRollQueue } from '#test/utils/rollQueue'
 import { combatParityFixtures } from '#test/utils/combatParityFixtures'
+import { createScenarioRulesContext } from '#server/engine/scenarioDefinitions'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -349,6 +350,34 @@ describe('getValidTargets', () => {
 })
 
 describe('validateCombatAction', () => {
+  it('uses resolved weapon values for a scenario-derived attacker', () => {
+    const onion = makeOnion({ position: { q: 3, r: 0 } })
+    const defender = makeDefender({
+      unitId: 'derived-puss',
+      typeId: 'combat-contract:ScenarioPuss',
+      position: { q: 0, r: 0 },
+      weapons: [makeWeapon({ id: 'main-1', typeId: 'Puss.main' })],
+    })
+    const state = makeState({
+      onions: { 'onion-1': onion },
+      defenders: { 'derived-puss': defender },
+      currentPhase: 'DEFENDER_COMBAT',
+    })
+    const rules = createScenarioRulesContext('combat-contract', {
+      ScenarioPuss: { extends: 'Puss', overrides: { weaponOverrides: { 'Puss.main': { range: 4 } } } },
+    })
+    defender.weapons[0].typeId = 'combat-contract:ScenarioPuss:Puss.main'
+
+    const result = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['derived-puss'],
+      targetId: 'onion-1:treads',
+      onionId: 'onion-1',
+    }, rules)
+
+    expect(result.ok).toBe(true)
+  })
+
   it('does not mutate combat state while planning an Onion attack', () => {
     const defender = makeDefender({ unitId: 'd1', position: { q: 2, r: 0 } })
     const onion = makeOnion()

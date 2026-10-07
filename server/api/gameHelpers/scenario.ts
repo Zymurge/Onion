@@ -5,7 +5,9 @@ import { ScenarioSchema, type InitialState, type Scenario } from '#server/engine
 import type { GameState } from '#shared/types/index'
 import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import type { VictoryEscapeHex } from '#shared/apiProtocol'
+import type { RulesContext } from '#shared/rulesContext'
 import type { VictoryConditions } from '#server/engine/victory'
+import { createScenarioRulesContext } from '#server/engine/scenarioDefinitions'
 
 /** Authored scenario data before map materialization and initial-state normalization. */
 export type ScenarioSnapshot = {
@@ -70,6 +72,10 @@ export function getScenarioEscapeHexes(scenarioSnapshot: ScenarioSnapshot | unde
 
 /** An explicit, materialized scenario map used by API validation and projection. */
 export type ScenarioMapSnapshot = ExplicitScenarioMap
+
+export function getScenarioRulesContext(scenarioId: string, scenarioSnapshot: ScenarioSnapshot): RulesContext {
+  return createScenarioRulesContext(scenarioId, scenarioSnapshot.unitTypes)
+}
 
 /**
  * Materializes the authored map from a scenario snapshot.

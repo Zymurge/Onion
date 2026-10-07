@@ -2,10 +2,10 @@ import logger from '#server/logger'
 import type { MatchRecord } from '#server/db/adapter'
 import type { GameStateResponse } from '#shared/apiProtocol'
 import type { GameState, StackRosterState } from '#shared/types/index'
-import { getUnitDefinition } from '#shared/unitDefinitions'
+import type { RulesContext } from '#shared/rulesContext'
 import { canonicalizeStackRoster, refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster/index'
 import { buildVictoryObjectiveStates } from './victory.js'
-import { getScenarioEscapeHexes, getScenarioMapSnapshot, type ScenarioSnapshot } from './scenario.js'
+import { getScenarioEscapeHexes, getScenarioMapSnapshot, getScenarioRulesContext, type ScenarioSnapshot } from './scenario.js'
 
 function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void {
   const stackRoster = matchState.stackRoster
@@ -52,11 +52,11 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
   }
 }
 
-function buildResponseStackRoster(matchState: MatchRecord['state']): StackRosterState {
+function buildResponseStackRoster(matchState: MatchRecord['state'], rules: RulesContext): StackRosterState {
   const canonicalStackRoster = canonicalizeStackRoster(matchState.stackRoster ?? { groupsById: {} }, matchState.stackNaming, matchState.defenders).stackRoster
   const groupsById = Object.fromEntries(
     Object.entries(canonicalStackRoster.groupsById).flatMap(([groupId, group]) => {
-      if (!(getUnitDefinition(group.unitType)?.stackable === true)) {
+      if (rules.unitTypes[group.unitType]?.stackable !== true) {
         return []
       }
 
@@ -77,9 +77,9 @@ function buildResponseStackRoster(matchState: MatchRecord['state']): StackRoster
   return { groupsById }
 }
 
-function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state']): void {
-  const stackRoster: StackRosterState = buildResponseStackRoster(matchState)
-  const issues = validateStackRosterConsistency(matchState.defenders, stackRoster)
+function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state'], rules: RulesContext): void {
+	const stackRoster: StackRosterState = buildResponseStackRoster(matchState, rules)
+  const issues = validateStackRosterConsistency(matchState.defenders, stackRoster, (unitType) => rules.unitTypes[unitType]?.stackable === true)
   if (issues.length === 0) {
     return
   }
@@ -88,7 +88,7 @@ function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state'])
     issues,
     stackRosterGroups: Object.keys(matchState.stackRoster?.groupsById ?? {}),
     stackableDefenders: Object.values(matchState.defenders)
-      .filter((defender) => getUnitDefinition(defender.typeId)?.stackable === true)
+      .filter((defender) => rules.unitTypes[defender.typeId]?.stackable === true)
       .map((defender) => defender.unitId),
   }, 'Invalid stack roster detected during game state response validation')
 
@@ -124,8 +124,9 @@ export function buildEngineState(match: MatchRecord): GameState {
  */
 export function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
   assertCanonicalStackGroupNames(match.state)
-  assertCanonicalStackRosterConsistency(match.state)
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+  const rules = getScenarioRulesContext(match.scenarioId, scenarioSnapshot)
+  assertCanonicalStackRosterConsistency(match.state, rules)
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
   const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
@@ -140,7 +141,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
           ? 'defender'
           : null
 
-  const stackRoster = buildResponseStackRoster(match.state)
+  const stackRoster = buildResponseStackRoster(match.state, rules)
   const phaseStartEventSeq = [...match.events].reverse().find((event) =>
     event.type === 'PHASE_CHANGED' && event.to === match.phase && event.turnNumber === match.turnNumber,
   )?.seq ?? 0
@@ -168,7 +169,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
       stackRoster,
       stackNaming: refreshStackRosterNamingSnapshot(stackRoster, match.state.stackNaming, match.state.defenders),
     },
-    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber, match.events),
+    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber, match.events, rules, match.scenarioId),
     escapeHexes,
     scenarioMap,
     eventSeq: match.events.at(-1)?.seq ?? 0,

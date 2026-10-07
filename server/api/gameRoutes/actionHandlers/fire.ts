@@ -5,7 +5,7 @@ import { buildEngineState } from '#server/api/gameHelpers/stateProjection'
 import { buildActionResponse } from '#server/api/gameHelpers/actionResponses'
 import { buildCombatEvents } from '#server/api/gameHelpers/eventBuilders'
 import { computeWinnerUserId } from '#server/api/gameHelpers/victory'
-import { getScenarioMapSnapshot, type ScenarioSnapshot } from '#server/api/gameHelpers/scenario'
+import { getScenarioMapSnapshot, getScenarioRulesContext, type ScenarioSnapshot } from '#server/api/gameHelpers/scenario'
 import { logActionOutcome, logSentEvents } from '#server/api/gameHelpers/logging'
 import type { ActionHandlerContext, ActionHandlerResponse } from './types.js'
 
@@ -36,9 +36,10 @@ export async function handleFire(context: ActionHandlerContext, command: FireCom
   }
 
   const scenarioMap = getScenarioMapSnapshot(match.scenarioSnapshot as ScenarioSnapshot)
+  const rules = getScenarioRulesContext(match.scenarioId, match.scenarioSnapshot as ScenarioSnapshot)
   const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
   const state = buildEngineState(match)
-  const validation = validateCombatAction(map, state, command)
+  const validation = validateCombatAction(map, state, command, rules)
   if (!validation.ok) {
     logger.info({ gameId: match.gameId, error: validation.error }, 'Invalid combat command')
     return {
@@ -53,7 +54,7 @@ export async function handleFire(context: ActionHandlerContext, command: FireCom
     }
   }
 
-  const result = executeCombatAction(state, validation.plan, combatRollsForGame(match.gameId)?.next())
+  const result = executeCombatAction(state, validation.plan, combatRollsForGame(match.gameId)?.next(), rules)
   if (!result.success) {
     logger.info({ gameId: match.gameId, error: result.error }, 'Invalid combat command')
     return { statusCode: 422, payload: { ok: false, error: result.error, code: 'MOVE_INVALID', currentPhase: match.phase } }

@@ -1,6 +1,6 @@
 import type { TerrainType } from './types/index.js'
 import type { UnitTypeBase } from './types/index.js'
-import { getUnitTypeCatalog } from './unitDefinitions.js'
+import { getRulesContext, type RulesContext } from './rulesContext.js'
 
 export type MoveRole = 'onion' | 'defender'
 
@@ -18,14 +18,12 @@ export type StopOccupationFailure =
 	| 'mixed-stack'
 	| 'stack-limit'
 
-const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
-
-function getUnitDefinition(unitType: string): UnitTypeBase | undefined {
-	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]
+function getUnitDefinition(unitType: string, rules?: RulesContext): UnitTypeBase | undefined {
+	return getRulesContext(rules).getUnitDefinition(unitType)
 }
 
-export function canCrossRidgelineByTerrainRule(unitType: string): boolean {
-	const definition = getUnitDefinition(unitType)
+export function canCrossRidgelineByTerrainRule(unitType: string, rules?: RulesContext): boolean {
+	const definition = getUnitDefinition(unitType, rules)
 	if (definition === undefined) {
 		return false
 	}
@@ -33,8 +31,8 @@ export function canCrossRidgelineByTerrainRule(unitType: string): boolean {
 	return definition.abilities.terrainRules?.ridgeline?.canCross === true
 }
 
-export function canUnitAccessTerrainCover(unitType: string, terrainType: TerrainType): boolean {
-	const definition = getUnitDefinition(unitType)
+export function canUnitAccessTerrainCover(unitType: string, terrainType: TerrainType, rules?: RulesContext): boolean {
+	const definition = getUnitDefinition(unitType, rules)
 	if (definition === undefined) {
 		return false
 	}
@@ -42,13 +40,13 @@ export function canUnitAccessTerrainCover(unitType: string, terrainType: Terrain
 	return definition.abilities.terrainRules?.[terrainType]?.canAccessCover === true
 }
 
-export function getTerrainMoveCost(unitType: string, terrainType: TerrainType): number | null {
+export function getTerrainMoveCost(unitType: string, terrainType: TerrainType, rules?: RulesContext): number | null {
 	if (terrainType === 'crater') {
 		return null
 	}
 
 	if (terrainType === 'ridgeline') {
-			return canCrossRidgelineByTerrainRule(unitType) ? 2 : null
+			return canCrossRidgelineByTerrainRule(unitType, rules) ? 2 : null
 	}
 
 	return 1
@@ -72,8 +70,9 @@ export function getStopOnOccupiedHexFailure(input: {
 	occupants: MoveOccupant[]
 	incomingMembers?: number
 	incomingSquads?: number
+	rules?: RulesContext
 }): StopOccupationFailure | null {
-	const { movingRole, movingUnitType, occupants } = input
+	const { movingRole, movingUnitType, occupants, rules } = input
 	const incomingMembers = input.incomingMembers ?? input.incomingSquads ?? 1
 
 	if (occupants.length === 0) {
@@ -88,7 +87,7 @@ export function getStopOnOccupiedHexFailure(input: {
 		return 'occupied-by-onion'
 	}
 
-	if (getUnitDefinition(movingUnitType)?.stackable !== true) {
+	if (getUnitDefinition(movingUnitType, rules)?.stackable !== true) {
 		return 'occupied'
 	}
 
@@ -96,7 +95,7 @@ export function getStopOnOccupiedHexFailure(input: {
 		return 'mixed-stack'
 	}
 
-	const maxStacks = getUnitDefinition(movingUnitType)?.abilities.maxStacks ?? 1
+	const maxStacks = getUnitDefinition(movingUnitType, rules)?.abilities.maxStacks ?? 1
 	const destinationMembers = occupants.length
 	return incomingMembers + destinationMembers <= maxStacks ? null : 'stack-limit'
 }
@@ -107,6 +106,7 @@ export function canStopOnOccupiedHex(input: {
 	occupants: MoveOccupant[]
 	incomingMembers?: number
 	incomingSquads?: number
+	rules?: RulesContext
 }): boolean {
 	return getStopOnOccupiedHexFailure(input) === null
 }

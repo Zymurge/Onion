@@ -14,6 +14,7 @@ import { type MoveMapSnapshot } from '#shared/movePlanner'
 import { validateMove as validateSharedMove, type MoveValidationResult as SharedMoveValidationResult } from '#shared/moveValidator'
 import type { RammingOutcome } from '#shared/rammingCalculator'
 import { reconcileStackRosterMoveLifecycle, refreshStackRosterNamingSnapshot } from '#shared/stackRoster/index'
+import type { RulesContext } from '#shared/rulesContext'
 
 type EngineGameState = GameState
 /**
@@ -92,6 +93,7 @@ export type MovementExecutionOptions = {
   reconcileStackRoster?: boolean
   /** Consumed once per rammed unit, in order; omit to keep normal random ramming. */
   ramRolls?: RollSource
+  rules?: RulesContext
 }
 
 function hasTreads(unit: GameUnit): unit is OnionUnit {
@@ -138,9 +140,10 @@ function toMoveMapSnapshot(map: GameMap, state: EngineGameState, movingUnitId: s
 function validateMovePlan(
   map: GameMap,
   state: EngineGameState,
-  command: SingleUnitMoveCommand
+  command: SingleUnitMoveCommand,
+  rules?: RulesContext,
 ): MovementValidation {
-  return toMovementValidation(validateSharedMove(toMoveMapSnapshot(map, state, command.unitId), state, command))
+  return toMovementValidation(validateSharedMove(toMoveMapSnapshot(map, state, command.unitId), state, command, { rules }))
 }
 
 function toMovementValidation(result: SharedMoveValidationResult): MovementValidation {
@@ -272,7 +275,7 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan, options: Mo
     for (const rammedUnitId of plan.rammedUnitIds) {
       const rammedUnit = state.defenders[rammedUnitId]
       if (!rammedUnit) continue
-      const outcome = resolveRammingOutcome(rammedUnit.typeId, options.ramRolls?.next())
+      const outcome = resolveRammingOutcome(rammedUnit.typeId, options.ramRolls?.next(), options.rules)
       rammedUnitResults.push({
         unitId: rammedUnitId,
         unitType: rammedUnit.typeId,
@@ -308,9 +311,10 @@ function executeMovePlan(state: EngineGameState, plan: MovementPlan, options: Mo
 export function validateUnitMovement(
   map: GameMap,
   state: EngineGameState,
-  command: SingleUnitMoveCommand
+  command: SingleUnitMoveCommand,
+  rules?: RulesContext,
 ): MovementValidation {
-  return validateMovePlan(map, state, command)
+  return validateMovePlan(map, state, command, rules)
 }
 
 /**
@@ -324,7 +328,8 @@ export function validateUnitMovement(
 export function executeOnionMovement(
   map: GameMap,
   state: EngineGameState,
-  command: SingleUnitMoveCommand
+  command: SingleUnitMoveCommand,
+  rules?: RulesContext,
 ): MovementResult {
   const onion = state.onions[command.unitId]
   logger.debug({ position: onion?.position, command }, '[executeOnionMovement] called')
@@ -332,12 +337,12 @@ export function executeOnionMovement(
     logger.info({ command }, 'executeOnionMovement: Not an Onion move command')
     return { success: false, error: 'Not an Onion move command' }
   }
-  const validation = validateMovePlan(map, state, command)
+  const validation = validateMovePlan(map, state, command, rules)
   if (!validation.ok) {
     return { success: false, error: validation.error }
   }
 
-  return executeMovePlan(state, validation.plan)
+  return executeMovePlan(state, validation.plan, { rules })
 }
 
 /**

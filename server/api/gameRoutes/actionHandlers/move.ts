@@ -6,7 +6,7 @@ import { buildEngineState } from '#server/api/gameHelpers/stateProjection'
 import { buildActionResponse } from '#server/api/gameHelpers/actionResponses'
 import { buildMoveEvents } from '#server/api/gameHelpers/eventBuilders'
 import { computeWinnerUserId } from '#server/api/gameHelpers/victory'
-import { getScenarioMapSnapshot, type ScenarioSnapshot } from '#server/api/gameHelpers/scenario'
+import { getScenarioMapSnapshot, getScenarioRulesContext, type ScenarioSnapshot } from '#server/api/gameHelpers/scenario'
 import { logActionOutcome, logSentEvents } from '#server/api/gameHelpers/logging'
 import type { ActionHandlerContext, ActionHandlerResponse } from './types.js'
 
@@ -33,6 +33,7 @@ export async function handleMove(context: ActionHandlerContext, command: MoveCom
 
   logger.info({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Processing MOVE command')
   const scenarioMap = getScenarioMapSnapshot(match.scenarioSnapshot as ScenarioSnapshot)
+  const rules = getScenarioRulesContext(match.scenarioId, match.scenarioSnapshot as ScenarioSnapshot)
   const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
   const state = buildEngineState(match)
   const moveEvents: EventEnvelope[] = []
@@ -48,7 +49,7 @@ export async function handleMove(context: ActionHandlerContext, command: MoveCom
       ...(command.attemptRam === undefined ? {} : { attemptRam: command.attemptRam }),
     }
 
-    const validation = validateUnitMovement(map, state, moveCommand)
+    const validation = validateUnitMovement(map, state, moveCommand, rules)
     if (!validation.ok) {
       logger.info({ gameId: match.gameId, unitId: moveUnitId, error: validation.error }, 'Invalid move command')
       return {
@@ -66,6 +67,7 @@ export async function handleMove(context: ActionHandlerContext, command: MoveCom
     const result = executeUnitMovement(state, validation.plan, {
       reconcileStackRoster: false,
       ramRolls: ramRollsForGame(match.gameId, match.scenarioId),
+      rules,
     })
     if (!result.success) {
       logger.info({ gameId: match.gameId, unitId: moveUnitId, error: result.error }, 'Invalid move command')

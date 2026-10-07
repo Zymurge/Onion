@@ -8,7 +8,11 @@
     "vitest.logLevel": "verbose",
     "npm.scriptRunner": "pnpm",
     "files.exclude": {
-        "dist": true
+        "dist": true,
+        "**/.tmp-onion-config-*": true,
+        "captures/**": true,
+        "coverage/**": true,
+        "docs/api/**": true
     },
     "files.watcherExclude": {
         "**/.git/objects/**": true,
@@ -19,10 +23,17 @@
         "**/coverage/**": true,
         "**/web/coverage/**": true,
         "**/playwright-report/**": true,
-        "**/test-results/**": true
+        "**/test-results/**": true,
+        "**/.tmp-onion-config-*": true,
+        "captures/**": true,
+        "coverage/**": true,
+        "docs/api/**": true
     },
     "search.exclude": {
-        "dist": true
+        "dist": true,
+        "**/.tmp-onion-config-*": true,
+        "captures/**": true,
+        "coverage/**": true
     },
     "chat.tools.compressOutput.enabled": true,
     "chat.tools.terminal.autoApprove": {

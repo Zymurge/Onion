@@ -1,5 +1,5 @@
 import type { GameState, GameUnit, Weapon } from './types/index.js'
-import { getUnitDefinition, getWeaponType } from './unitDefinitions.js'
+import { getRulesContext, type RulesContext } from './rulesContext.js'
 import { UnitWeapons } from './unitWeapons.js'
 
 export type UnitKind = 'onion' | 'defender' | 'none'
@@ -31,16 +31,16 @@ export function getOnionOrDefender(unitId: string, state: GameState): UnitLookup
   return { unitId: undefined, kind: 'none' }
 }
 
-export function canSecondMove(unit: GameUnit): boolean {
-  return getUnitDefinition(unit.typeId)?.abilities.secondMove === true
+export function canSecondMove(unit: GameUnit, rules?: RulesContext): boolean {
+  return getRulesContext(rules).getUnitDefinition(unit.typeId)?.abilities.secondMove === true
 }
 
-export function isImmobile(unit: GameUnit): boolean {
-  return getUnitDefinition(unit.typeId)?.abilities.immobile === true
+export function isImmobile(unit: GameUnit, rules?: RulesContext): boolean {
+  return getRulesContext(rules).getUnitDefinition(unit.typeId)?.abilities.immobile === true
 }
 
-export function getUnitDefense(unit: GameUnit, inCover: boolean): number {
-  const definition = getUnitDefinition(unit.typeId)
+export function getUnitDefense(unit: GameUnit, inCover: boolean, rules?: RulesContext): number {
+  const definition = getRulesContext(rules).getUnitDefinition(unit.typeId)
   if (!definition) {
     throw new Error(`Unknown unit type: ${unit.typeId}`)
   }
@@ -60,9 +60,9 @@ export function isDestroyed(unit: GameUnit): boolean {
   return unit.state === 'destroyed'
 }
 
-export function canTargetWeapon(unit: GameUnit, weaponId: string): boolean {
+export function canTargetWeapon(unit: GameUnit, weaponId: string, rules?: RulesContext): boolean {
   const weapon = unit.weapons.find((candidate) => candidate.id === weaponId)
-  return weapon !== undefined && getWeaponType(weapon.typeId).individuallyTargetable
+  return weapon !== undefined && getRulesContext(rules).getWeaponType(weapon.typeId).individuallyTargetable
 }
 
 export function destroyWeapon(unit: GameUnit, weaponId: string): boolean {

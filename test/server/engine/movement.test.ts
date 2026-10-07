@@ -11,6 +11,9 @@ import type { GameState } from '#server/engine/units'
 import { buildStackRosterFromUnits } from '#shared/stackRoster/index'
 import { makeDefender, makeGameState, makeOnion, makeStackGroup, makeStackRoster } from '#test/utils/gameStateUtils'
 import { createRollQueue } from '#test/utils/rollQueue'
+import { InitialStateSchema } from '#server/engine/scenarioSchema'
+import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
+import { createScenarioRulesContext } from '#server/engine/scenarioDefinitions'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -34,6 +37,31 @@ function makeState({ ramsRemaining = 2, ...overrides }: MovementStateOverrides =
 // ─── validateUnitMovement ────────────────────────────────────────────────────
 
 describe('validateUnitMovement', () => {
+  it('uses the resolved scenario catalog when a derived type joins a stack', () => {
+    const initial = InitialStateSchema.parse({
+      deployments: {
+        'onion-1': { type: 'TheOnion', side: 'onion', position: { q: 4, r: 4 } },
+        'pigs-1': { type: 'ScenarioPigs', side: 'defender', position: { q: 1, r: 0 } },
+        'pigs-2': { type: 'ScenarioPigs', side: 'defender', position: { q: 0, r: 0 } },
+      },
+    })
+    const state = normalizeInitialStateToGameState(initial, 'movement-contract', {
+      ScenarioPigs: { extends: 'LittlePigs', overrides: { movement: 2 } },
+    })
+    state.currentPhase = 'DEFENDER_MOVE'
+
+    const rules = createScenarioRulesContext('movement-contract', {
+      ScenarioPigs: { extends: 'LittlePigs', overrides: { movement: 2 } },
+    })
+    const result = validateUnitMovement(CLEAR_MAP, state, {
+      type: 'MOVE',
+      unitId: 'pigs-1',
+      to: { q: 0, r: 0 },
+    }, rules)
+
+    expect(result.ok).toBe(true)
+  })
+
   it('returns a validated plan for a treaded ram-capable unit', () => {
     const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })

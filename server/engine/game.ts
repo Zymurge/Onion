@@ -5,10 +5,11 @@ import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
 import type { MatchRecord } from '#server/db/adapter'
 import { TURN_PHASES, clearDestroyedDefenders, clearDestroyedOnions, phaseActor } from '#server/engine/phases'
 import { UnitWeapons } from '#shared/unitWeapons'
+import type { RulesContext } from '#shared/rulesContext'
 
-function refreshOnionWeaponsForNewTurn(state: GameState): void {
+function refreshOnionWeaponsForNewTurn(state: GameState, rules?: RulesContext): void {
   for (const onion of Object.values(state.onions)) {
-    onion.ramsRemaining = getUnitRamCapacity(onion.typeId)
+    onion.ramsRemaining = getUnitRamCapacity(onion.typeId, rules)
     new UnitWeapons(onion.weapons).rechargeSpent()
   }
 }
@@ -22,7 +23,7 @@ function refreshOnionWeaponsForNewTurn(state: GameState): void {
  * @param match - Current match state snapshot
  * @returns New phase, turn number, game state, and events generated
  */
-export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnNumber' | 'state' | 'events'>): {
+export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnNumber' | 'state' | 'events'>, rules?: RulesContext): {
   phase: TurnPhase;
   turnNumber: number;
   state: GameState;
@@ -45,7 +46,7 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
   if (phase === 'ONION_MOVE') {
     clearDestroyedOnions(state)
     resetMovementSpent(state);
-    refreshOnionWeaponsForNewTurn(state);
+    refreshOnionWeaponsForNewTurn(state, rules);
     // Reset defender weapons for the new turn
     for (const unit of Object.values(state.defenders)) {
       if (unit.weapons) {

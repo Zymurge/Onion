@@ -2,6 +2,8 @@ import type { MatchRecord } from '#server/db/adapter'
 import { evaluateVictoryConditions, type VictoryConditions } from '#server/engine/victory'
 import type { VictoryObjectiveState } from '#shared/apiProtocol'
 import type { EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
+import { createScenarioRulesContext } from '#server/engine/scenarioDefinitions'
+import type { RulesContext } from '#shared/rulesContext'
 import { getScenarioMapSnapshot, type ScenarioMapSnapshot, type ScenarioSnapshot } from './scenario.js'
 
 /** Scenario objective contract evaluated by the authoritative engine module. */
@@ -23,14 +25,39 @@ export function buildVictoryObjectiveStates(
   state: GameState,
   turnNumber = 1,
   events: ReadonlyArray<EventEnvelope> = [],
+  rulesContext?: RulesContext,
+  scenarioId?: string,
 ): VictoryObjectiveState[] {
+  const rules = rulesContext ?? (scenarioId === undefined ? undefined : createScenarioRulesContext(scenarioId, scenarioSnapshot?.unitTypes))
+  const victoryConditions = resolveVictoryConditions(scenarioSnapshot?.victoryConditions, rules, scenarioId)
   return evaluateVictoryConditions({
-    victoryConditions: scenarioSnapshot?.victoryConditions,
+    victoryConditions,
     scenarioMap,
     state,
     turnNumber,
     events,
+    rules,
   }).objectives
+}
+
+function resolveVictoryConditions(
+  victoryConditions: VictoryConditions | undefined,
+  rules: RulesContext | undefined,
+  scenarioId: string | undefined,
+): VictoryConditions | undefined {
+  if (victoryConditions === undefined || rules === undefined || scenarioId === undefined) {
+    return victoryConditions
+  }
+
+  return {
+    ...victoryConditions,
+    objectives: victoryConditions.objectives?.map((objective) => ({
+      ...objective,
+      ...(objective.unitType !== undefined && Object.hasOwn(rules.unitTypes, `${scenarioId}:${objective.unitType}`)
+        ? { unitType: `${scenarioId}:${objective.unitType}` }
+        : {}),
+    })),
+  }
 }
 
 /**
@@ -49,9 +76,10 @@ export function computeWinnerUserId(
   turnNumber: number,
 ): string | null {
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+  const rules = createScenarioRulesContext(match.scenarioId, scenarioSnapshot.unitTypes)
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const evaluation = evaluateVictoryConditions({
-    victoryConditions: scenarioSnapshot.victoryConditions,
+    victoryConditions: resolveVictoryConditions(scenarioSnapshot.victoryConditions, rules, match.scenarioId),
     scenarioMap,
     state: {
       ...structuredClone(state),
@@ -60,6 +88,7 @@ export function computeWinnerUserId(
     },
     turnNumber,
     events: match.events,
+    rules,
   })
   return evaluation.winner === null ? null : match.players[evaluation.winner]
 }

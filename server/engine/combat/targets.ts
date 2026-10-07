@@ -3,7 +3,7 @@ import type { GameMap } from '#server/engine/map'
 import { formatCombatTargetId } from '#shared/combatTarget'
 import type { GameState, GameUnit } from '#shared/types/index'
 import { getAvailableWeapons } from '#shared/unitState'
-import { getWeaponType } from '#shared/unitDefinitions'
+import { getRulesContext, type RulesContext } from '#shared/rulesContext'
 
 /**
  * Get every live target within the firing unit's maximum weapon range.
@@ -15,8 +15,10 @@ export function getValidTargets(
   _map: GameMap,
   state: GameState,
   firingUnit: GameUnit,
+  rulesContext?: RulesContext,
 ): string[] {
-  const maxRange = Math.max(...getAvailableWeapons(firingUnit).map((weapon) => getWeaponType(weapon.typeId).range), 0)
+  const rules = getRulesContext(rulesContext)
+  const maxRange = Math.max(...getAvailableWeapons(firingUnit).map((weapon) => rules.getWeaponType(weapon.typeId).range), 0)
   const results: string[] = []
 
   if (firingUnit.role === 'onion') {

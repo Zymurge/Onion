@@ -6,6 +6,7 @@ import {
 	type MoveOccupant,
 	type MoveRole,
 } from './movementRules.js'
+import type { RulesContext } from './rulesContext.js'
 
 export type MoveMapSnapshot = {
 	width: number
@@ -74,6 +75,7 @@ function exploreReachableMoves(
 	movementAllowance: number,
 	movingUnitType: string,
 	movingRole: MoveRole,
+	rules?: RulesContext,
 ) {
 	const terrainLookup = getTerrainLookup(map)
 	const occupiedLookup = getOccupiedLookup(map)
@@ -95,7 +97,7 @@ function exploreReachableMoves(
 			if (!canTraverseOccupiedHex(movingRole, neighborOccupants)) continue
 
 			const terrain = terrainLookup.get(hexKey(neighbor)) ?? 'clear'
-			const stepCost = getTerrainMoveCost(movingUnitType, terrain)
+			const stepCost = getTerrainMoveCost(movingUnitType, terrain, rules)
 			if (stepCost === null) continue
 
 			const newCost = cost + stepCost
@@ -122,6 +124,7 @@ export function findMovePath(input: {
 	movingUnitType: string
 	incomingMembers?: number
 	incomingSquads?: number
+	rules?: RulesContext
 }): { found: true; path: HexPos[]; cost: number } | { found: false; path: []; cost: 0 } {
 	const cellLookup = getCellLookup(input.map)
 
@@ -155,6 +158,7 @@ export function findMovePath(input: {
 				movingUnitType: input.movingUnitType,
 				occupants: currentOccupants,
 				incomingMembers: input.incomingMembers ?? input.incomingSquads ?? 1,
+				rules: input.rules,
 			})
 		) {
 			return { found: true, path: reconstructPath(prev, input.from, input.to), cost }
@@ -166,7 +170,7 @@ export function findMovePath(input: {
 			if (!canTraverseOccupiedHex(input.movingRole, neighborOccupants)) continue
 
 			const terrain = terrainLookup.get(hexKey(neighbor)) ?? 'clear'
-			const stepCost = getTerrainMoveCost(input.movingUnitType, terrain)
+			const stepCost = getTerrainMoveCost(input.movingUnitType, terrain, input.rules)
 			if (stepCost === null) continue
 
 			const newCost = cost + stepCost
@@ -192,8 +196,9 @@ export function listReachableMoves(input: {
 	movingUnitType: string
 	incomingMembers?: number
 	incomingSquads?: number
+	rules?: RulesContext
 }): ReachableMove[] {
-	const { dist, prev } = exploreReachableMoves(input.map, input.from, input.movementAllowance, input.movingUnitType, input.movingRole)
+	const { dist, prev } = exploreReachableMoves(input.map, input.from, input.movementAllowance, input.movingUnitType, input.movingRole, input.rules)
 	const occupiedLookup = getOccupiedLookup(input.map)
 
 	const moves: ReachableMove[] = []
@@ -208,6 +213,7 @@ export function listReachableMoves(input: {
 			movingUnitType: input.movingUnitType,
 			occupants,
 			incomingMembers: input.incomingMembers ?? input.incomingSquads ?? 1,
+			rules: input.rules,
 		})) {
 			continue
 		}
