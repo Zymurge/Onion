@@ -12,10 +12,23 @@ export type RulesContext = {
   getWeaponType(typeId: string): WeaponType
 }
 
+export function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) {
+    return value
+  }
+
+  for (const nestedValue of Object.values(value as Record<string, unknown>)) {
+    deepFreeze(nestedValue)
+  }
+
+  return Object.freeze(value)
+}
+
 export function createRulesContext(
   definitions: { unitTypes: UnitTypeCatalog; weaponTypes: WeaponTypeCatalog },
 ): RulesContext {
-  const unitTypes = Object.fromEntries(Object.entries(definitions.unitTypes).map(([unitTypeId, definition]) => {
+  const sourceUnitTypes = structuredClone(definitions.unitTypes)
+  const unitTypes = Object.fromEntries(Object.entries(sourceUnitTypes).map(([unitTypeId, definition]) => {
     if (!unitTypeId.includes(':')) {
       return [unitTypeId, definition]
     }
@@ -29,7 +42,7 @@ export function createRulesContext(
     ]))
     return [unitTypeId, { ...definition, weapons, weaponQuantities }]
   })) as UnitTypeCatalog
-  const weaponTypes = definitions.weaponTypes
+  const weaponTypes = structuredClone(definitions.weaponTypes)
   const context: RulesContext = {
     unitTypes,
     weaponTypes,
@@ -53,7 +66,7 @@ export function createRulesContext(
     },
   }
 
-  return context
+  return deepFreeze(context)
 }
 
 export function createGlobalRulesContext(): RulesContext {

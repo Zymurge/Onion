@@ -18,6 +18,7 @@ export function refreshStackNamingSnapshotFromRoster(
 	seed: StackNamingSnapshot | undefined,
 	stackRoster: StackRosterState | undefined,
 	sourceUnits: ReadonlyArray<StackNamingSourceUnit>,
+	unitTypes?: Readonly<Record<string, { stackable?: boolean }>>,
 ): StackNamingSnapshot {
 	const sourceUnitById = new Map(sourceUnits.map((unit) => [unit.unitId, unit]))
 	const activeGroupKeys: string[] = []
@@ -31,7 +32,7 @@ export function refreshStackNamingSnapshotFromRoster(
 			continue
 		}
 
-		if (!isUnitTypeStackable(group.unitType) && unitIds.length <= 1) {
+		if (!(unitTypes?.[group.unitType]?.stackable === true || isUnitTypeStackable(group.unitType)) && unitIds.length <= 1) {
 			continue
 		}
 

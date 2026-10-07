@@ -1,5 +1,5 @@
 import type { Scenario } from '#server/engine/scenarioSchema'
-import { createRulesContext, type RulesContext } from '#shared/rulesContext'
+import { createRulesContext, deepFreeze, type RulesContext } from '#shared/rulesContext'
 import type { UnitTypeBase, UnitTypeCatalog, WeaponType, WeaponTypeCatalog } from '#shared/types/index'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 
@@ -48,6 +48,17 @@ function resolveDerivedUnitType(
     if (!Object.hasOwn(base.weaponQuantities, weaponTypeId)) {
       throw new Error(`Derived unit type ${unitTypeId} cannot override weapon type ${weaponTypeId}`)
     }
+
+    const baseWeapon = base.weapons.find((weapon) => weapon.typeId === weaponTypeId)
+    const override = weaponOverrides[weaponTypeId]
+    if (override.maxAmmo !== undefined) {
+      if (baseWeapon?.maxAmmo === undefined) {
+        throw new Error(`Derived unit type ${unitTypeId} cannot add maxAmmo to unlimited weapon type ${weaponTypeId}`)
+      }
+      if (override.maxAmmo > baseWeapon.maxAmmo) {
+        throw new Error(`Derived unit type ${unitTypeId} cannot increase maxAmmo for weapon type ${weaponTypeId}`)
+      }
+    }
   }
 
   const weapons = base.weapons.map((weapon) => {
@@ -82,7 +93,7 @@ export function resolveScenarioDefinitions(
 ): ResolvedScenarioDefinitions {
   const globalUnitTypes = getUnitTypeCatalog()
   const globalWeaponTypes = getWeaponTypeCatalog()
-  const resolvedUnitTypes: Record<string, UnitTypeBase> = { ...globalUnitTypes }
+  const resolvedUnitTypes: Record<string, UnitTypeBase> = structuredClone(globalUnitTypes)
 
   for (const [unitTypeId, derivation] of Object.entries(unitTypes)) {
     const resolvedTypeId = namespaceUnitTypeId(scenarioId, unitTypeId)
@@ -98,7 +109,7 @@ export function resolveScenarioDefinitions(
     )
   }
 
-  const resolvedWeaponTypes: Record<string, WeaponType> = { ...globalWeaponTypes }
+  const resolvedWeaponTypes: Record<string, WeaponType> = structuredClone(globalWeaponTypes)
   for (const [resolvedTypeId, definition] of Object.entries(resolvedUnitTypes)) {
     if (!resolvedTypeId.startsWith(`${scenarioId}:`)) {
       continue
@@ -109,10 +120,10 @@ export function resolveScenarioDefinitions(
     }
   }
 
-  return {
+  return deepFreeze({
     unitTypes: resolvedUnitTypes,
     weaponTypes: resolvedWeaponTypes,
-  }
+  })
 }
 
 export function createScenarioRulesContext(

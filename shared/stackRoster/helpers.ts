@@ -1,16 +1,17 @@
 import { getUnitTypeCatalog } from '../unitDefinitions.js'
 import type { DefenderMap, HexPos, StackRosterGroupState } from '../types/index.js'
+import type { StackRosterRules } from './types.js'
 
 const UNIT_TYPE_CATALOG = getUnitTypeCatalog()
 
 /** Return the catalog-defined squad count for a unit type. */
-export function getStaticSquadCount(unitType: string): number | undefined {
-	return UNIT_TYPE_CATALOG[unitType]?.squads
+export function getStaticSquadCount(unitType: string, rules?: StackRosterRules): number | undefined {
+	return rules?.unitTypes[unitType]?.squads ?? UNIT_TYPE_CATALOG[unitType]?.squads
 }
 
 /** Determine whether a unit type belongs in stack roster groups. */
-export function isStackRosterUnitType(unitType: string): boolean {
-	return UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]?.stackable === true
+export function isStackRosterUnitType(unitType: string, rules?: StackRosterRules): boolean {
+	return rules?.unitTypes[unitType]?.stackable === true || UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]?.stackable === true
 }
 
 /** Read and copy the canonical member ids from a roster group. */

@@ -2,7 +2,7 @@ import type { MatchRecord } from '#server/db/adapter'
 import type { ActionOkResponse, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
 import type { VictoryEscapeHex, VictoryObjectiveState } from '#shared/apiProtocol'
 import { buildVictoryObjectiveStates } from './victory.js'
-import { getScenarioEscapeHexes, getScenarioMapSnapshot, type ScenarioMapSnapshot, type ScenarioSnapshot } from './scenario.js'
+import { getScenarioEscapeHexes, getScenarioMapSnapshot, getScenarioRulesContext, type ScenarioMapSnapshot, type ScenarioSnapshot } from './scenario.js'
 
 /**
  * Builds the successful action response from the post-action state and events.
@@ -41,6 +41,7 @@ export function buildActionResponse(
   phaseStartEventSeq: number
 } {
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
+  const rules = getScenarioRulesContext(match.scenarioId, scenarioSnapshot)
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
@@ -69,7 +70,7 @@ export function buildActionResponse(
     snapshotRevision,
     scenarioName,
     scenarioMap,
-    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber, [...historicalEvents, ...events]),
+    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber, [...historicalEvents, ...events], rules, match.scenarioId),
     escapeHexes,
     phaseStartEventSeq,
   }

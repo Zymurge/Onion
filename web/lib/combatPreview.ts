@@ -220,6 +220,7 @@ export function buildCombatTargetOptions({
 			displayedStackRoster,
 			stackNaming ?? undefined,
 			Object.fromEntries(displayedDefenders.map((unit) => [unit.unitId, unit])),
+			catalog,
 		)
 		resolvedStackRoster = canonicalStackState.stackRoster
 		resolvedStackNaming = canonicalStackState.stackNaming

@@ -209,7 +209,9 @@ export function assertCanonicalStackProjection(authoritativeState: GameState, ca
 		}
 	}
 
-	const consistencyIssues = validateStackRosterConsistency(authoritativeState.defenders, stackRoster)
+	const consistencyIssues = catalog === null || catalog === undefined
+		? validateStackRosterConsistency(authoritativeState.defenders, stackRoster)
+		: validateStackRosterConsistency(authoritativeState.defenders, stackRoster, (unitType) => isSessionUnitTypeStackable(catalog, unitType))
 	if (consistencyIssues.length > 0) {
 		return {
 			error: `Loaded game snapshot has invalid stack roster: ${consistencyIssues.map((issue) => issue.message).join('; ')} (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupKeys.join(', ') || 'none'})`,

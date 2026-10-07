@@ -7,9 +7,9 @@ import { canonicalizeStackRoster, refreshStackRosterNamingSnapshot, validateStac
 import { buildVictoryObjectiveStates } from './victory.js'
 import { getScenarioEscapeHexes, getScenarioMapSnapshot, getScenarioRulesContext, type ScenarioSnapshot } from './scenario.js'
 
-function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void {
+function assertCanonicalStackGroupNames(matchState: MatchRecord['state'], rules?: RulesContext): void {
   const stackRoster = matchState.stackRoster
-  const canonicalStackState = canonicalizeStackRoster(stackRoster ?? { groupsById: {} }, undefined, matchState.defenders)
+  const canonicalStackState = canonicalizeStackRoster(stackRoster ?? { groupsById: {} }, undefined, matchState.defenders, rules)
   const rosterGroups = Object.entries(canonicalStackState.stackRoster.groupsById)
   if (rosterGroups.length === 0) {
     return
@@ -53,7 +53,7 @@ function assertCanonicalStackGroupNames(matchState: MatchRecord['state']): void 
 }
 
 function buildResponseStackRoster(matchState: MatchRecord['state'], rules: RulesContext): StackRosterState {
-  const canonicalStackRoster = canonicalizeStackRoster(matchState.stackRoster ?? { groupsById: {} }, matchState.stackNaming, matchState.defenders).stackRoster
+  const canonicalStackRoster = canonicalizeStackRoster(matchState.stackRoster ?? { groupsById: {} }, matchState.stackNaming, matchState.defenders, rules).stackRoster
   const groupsById = Object.fromEntries(
     Object.entries(canonicalStackRoster.groupsById).flatMap(([groupId, group]) => {
       if (rules.unitTypes[group.unitType]?.stackable !== true) {
@@ -102,9 +102,9 @@ function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state'],
  * @returns Independent engine state with canonical stack metadata.
  * @throws Error when persisted stack naming conflicts with canonical roster naming.
  */
-export function buildEngineState(match: MatchRecord): GameState {
-  assertCanonicalStackGroupNames(match.state)
-  const canonicalStackState = canonicalizeStackRoster(match.state.stackRoster ?? { groupsById: {} }, match.state.stackNaming, match.state.defenders)
+export function buildEngineState(match: MatchRecord, rules?: RulesContext): GameState {
+  assertCanonicalStackGroupNames(match.state, rules)
+  const canonicalStackState = canonicalizeStackRoster(match.state.stackRoster ?? { groupsById: {} }, match.state.stackNaming, match.state.defenders, rules)
   return {
     ...structuredClone(match.state),
     stackRoster: canonicalStackState.stackRoster,
@@ -123,9 +123,9 @@ export function buildEngineState(match: MatchRecord): GameState {
  * @throws Error when persisted stack roster or naming data is invalid.
  */
 export function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
-  assertCanonicalStackGroupNames(match.state)
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const rules = getScenarioRulesContext(match.scenarioId, scenarioSnapshot)
+  assertCanonicalStackGroupNames(match.state, rules)
   assertCanonicalStackRosterConsistency(match.state, rules)
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
@@ -167,7 +167,7 @@ export function buildGameStateResponse(match: MatchRecord, userId: string): Game
       ...match.state,
       defenders,
       stackRoster,
-      stackNaming: refreshStackRosterNamingSnapshot(stackRoster, match.state.stackNaming, match.state.defenders),
+      stackNaming: refreshStackRosterNamingSnapshot(stackRoster, match.state.stackNaming, match.state.defenders, rules),
     },
     victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, match.state, match.turnNumber, match.events, rules, match.scenarioId),
     escapeHexes,

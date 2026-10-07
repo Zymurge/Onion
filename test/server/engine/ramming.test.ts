@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { calculateRamming, resolveRammingOutcome } from '#shared/rammingCalculator'
+import { createScenarioRulesContext } from '#server/engine/scenarioDefinitions'
 
 describe('resolveRammingOutcome', () => {
 	it('resolves Little Pigs ramming as destroyed on qualifying rolls', () => {
@@ -39,5 +40,18 @@ describe('resolveRammingOutcome', () => {
 describe('calculateRamming', () => {
 	it('preserves the legacy treadCost and destroyed contract', () => {
 		expect(calculateRamming('Puss', 1)).toEqual({ treadCost: 1, destroyed: true })
+	})
+
+	it('resolves a scenario-derived unit through the explicit rules context', () => {
+		expect(() => calculateRamming('ramming-contract:ScenarioPuss', 4)).toThrow(/ram profile/i)
+
+		const rules = createScenarioRulesContext('ramming-contract', {
+			ScenarioPuss: { extends: 'Puss', overrides: {} },
+		})
+
+		expect(calculateRamming('ramming-contract:ScenarioPuss', 4, rules)).toEqual({
+			treadCost: 1,
+			destroyed: true,
+		})
 	})
 })

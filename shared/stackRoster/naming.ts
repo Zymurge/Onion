@@ -11,12 +11,13 @@ import {
 	isStackRosterUnitType,
 	resolveGroupUnitIds,
 } from './helpers.js'
-import type { StackRosterSourceUnit } from './types.js'
+import type { StackRosterRules, StackRosterSourceUnit } from './types.js'
 
 /** Convert persisted roster membership and defenders into naming inputs. */
 export function buildStackRosterNamingSourceUnits(
 	stackRoster: StackRosterState | undefined,
 	defenders: DefenderMap | undefined,
+	rules?: StackRosterRules,
 ): StackNamingSourceUnit[] {
 	const defenderLookup = buildDefenderLookup(defenders)
 	const sourceUnits: StackNamingSourceUnit[] = []
@@ -38,7 +39,7 @@ export function buildStackRosterNamingSourceUnits(
 				position: group.position,
 				state: unit.state,
 				friendlyName: unit.friendlyName,
-				squads: getStaticSquadCount(group.unitType),
+				squads: getStaticSquadCount(group.unitType, rules),
 			})
 		}
 	}
@@ -51,8 +52,9 @@ export function refreshStackRosterNamingSnapshot(
 	stackRoster: StackRosterState | undefined,
 	seed: StackNamingSnapshot | undefined = undefined,
 	defenders: DefenderMap | undefined = undefined,
+	rules?: StackRosterRules,
 ): StackNamingSnapshot {
-	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster, defenders))
+	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster, defenders, rules), rules?.unitTypes)
 }
 
 /** Canonicalize persisted group names against the naming snapshot. */
@@ -60,8 +62,9 @@ export function canonicalizeStackRoster(
 	stackRoster: StackRosterState,
 	seed: StackNamingSnapshot | undefined,
 	defenders: DefenderMap | undefined,
+	rules?: StackRosterRules,
 ): { stackRoster: StackRosterState; stackNaming: StackNamingSnapshot } {
-	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster, seed, defenders)
+	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster, seed, defenders, rules)
 	const groupNamesByKey = new Map(stackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
 	const groupsById = Object.fromEntries(
 		Object.entries(stackRoster.groupsById).map(([groupId, group]) => {

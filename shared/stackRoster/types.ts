@@ -1,4 +1,8 @@
-import type { DefenderMap, HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState } from '../types/index.js'
+import type { DefenderMap, HexPos, StackRosterGroupState, StackRosterState, StackRosterUnitState, UnitTypeBase } from '../types/index.js'
+
+export type StackRosterRules = {
+	unitTypes: Readonly<Record<string, Pick<UnitTypeBase, 'stackable' | 'squads'>>>
+}
 
 /** Minimal defender record used to construct canonical stack groups. */
 export type StackRosterSourceUnit = {

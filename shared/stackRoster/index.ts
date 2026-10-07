@@ -12,6 +12,7 @@ export type {
 	StackRosterSourceUnit,
 	StackRosterUnitView,
 	StackRosterValidationIssue,
+	StackRosterRules,
 } from './types.js'
 
 export { buildStackGroupKey } from '../stackNaming/index.js'
