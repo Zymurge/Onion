@@ -121,6 +121,25 @@ describe('parseScenarioSnapshot', () => {
     })).toThrow(ScenarioValidationError)
   })
 
+  it.each([
+    ['movement', { movement: -1 }],
+    ['defense', { defense: -1 }],
+    ['treadsPerMove', { treadsPerMove: 0 }],
+    ['ramsPerTurn', { ramsPerTurn: -1 }],
+    ['squads', { squads: 0 }],
+    ['maxStacks', { maxStacks: 0 }],
+  ])('rejects invalid %s unit override values', (_field, override) => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      unitTypes: {
+        ScenarioOnion: {
+          extends: 'TheOnion',
+          overrides: override,
+        },
+      },
+    })).toThrow(ScenarioValidationError)
+  })
+
   it('accepts multiple authored Onions without static catalog fields', () => {
     const scenario = parseScenarioSnapshot({
       ...validScenario,

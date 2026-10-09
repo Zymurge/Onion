@@ -26,5 +26,9 @@ describe('RulesContext', () => {
       attack: 5,
       range: 4,
     })
+    expect(Object.isFrozen(rules)).toBe(true)
+    expect(Object.isFrozen(rules.unitTypes)).toBe(true)
+    expect(Object.isFrozen(rules.weaponTypes)).toBe(true)
+    expect(Object.isFrozen(rules.getRequiredUnitDefinition(unitTypeId).abilities)).toBe(true)
   })
 })

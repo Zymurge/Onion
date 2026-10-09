@@ -2,10 +2,9 @@
 
 ## Status
 
-**V1 work item: planning.** This document defines the design questions and
-implementation order for scenario-editable unit definitions and per-unit-type
-sprites. It does not change the current global catalog or rendering behavior
-until the open questions are answered.
+**Status:** Core V1 catalog and scenario-derivation work is implemented. This
+document remains the design record for the completed rules/catalog boundary and
+the open V2 sprite and presentation questions below.
 
 ## Goals
 
@@ -25,9 +24,11 @@ until the open questions are answered.
 - `shared/config/unitCatalog.json` is the current human-edited global catalog.
 - `shared/unitDefinitions.ts` validates and resolves that catalog into runtime
   unit and weapon definitions.
-- `server/engine/scenarioSchema.ts` validates authored scenario deployments,
-  but deployments currently reference unit types instead of defining derived
-  types.
+- `server/engine/scenarioSchema.ts` validates authored deployments and
+   scenario-local unit derivations.
+- `server/engine/scenarioDefinitions.ts` resolves derived types into namespaced
+   immutable catalogs, and `shared/rulesContext.ts` exposes those catalogs as
+   the per-match lookup boundary.
 - `server/engine/scenarioNormalizer.ts` creates runtime state from scenario
   deployments.
 - `server/api/gameHelpers/protocol.ts` sends resolved catalogs through
@@ -35,6 +36,11 @@ until the open questions are answered.
 - `web/lib/sessionCatalog.ts` consumes the session catalog.
 - `web/components/HexMapBoard.tsx` and the battlefield view builders own map
   presentation; `shared/stackRoster` owns canonical stack membership.
+
+The implementation entry points are [scenario-schema.md](../scenario-schema.md)
+for authoring and [agent-start-here.md](../agent-start-here.md) for the task
+router. Do not treat the remaining presentation questions in this work-item as
+requirements for catalog or engine changes.
 
 ## Canonical Design: Resolved Catalog Plus Scenario Derivations
 
@@ -233,7 +239,7 @@ The chosen treatment must define behavior for:
 - Add scenario fixtures for one base type, one derived type, and one invalid
   override.
 
-**Done when:** scenario parsing produces deterministic resolved definitions,
+**Status:** Complete. Scenario parsing produces deterministic resolved definitions,
 invalid definitions fail before gameplay starts, and existing scenarios resolve
 unchanged.
 
@@ -244,7 +250,7 @@ unchanged.
   and missing weapon references.
 - Ensure `SESSION_INIT` sends the resolved catalog used by the match.
 
-**Done when:** engine, API, WebSocket catalog, and replay paths consume the same
+**Status:** Complete. The engine, API, WebSocket catalog, and replay paths consume the same
 resolved definitions and tests prove no runtime lookup reads authored overrides
 directly.
 

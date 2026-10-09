@@ -32,7 +32,9 @@ When introducing or renaming source files it is imperative to update this docume
 | --- | --- | --- |
 | Version scope or deferred work | [v1-v2-scope.md](work-items/v1-v2-scope.md) | Read this before selecting adjacent work. Do not implement V2 items unless the user explicitly expands scope. |
 | Unit or weapon numbers, ram profile, stack-size limit, or terrain flags | `shared/config/unitCatalog.json` | `shared/unitDefinitions.ts`. Do not take these numbers from [game-rules.md](game-rules.md) |
-| Unit definitions, scenario-derived types, sprites, or stack presentation | [unit-enhancements-spec.md](work-items/unit-enhancements-spec.md) | Resolve the document's open questions before changing the catalog, scenario schema, or map rendering. |
+| Unit definitions or scenario-derived types | [scenario-schema.md](scenario-schema.md) `## 4. Unit and Weapon Definitions` | `server/engine/scenarioSchema.ts`, `server/engine/scenarioDefinitions.ts`, and `server/engine/scenarioNormalizer.ts`; `shared/rulesContext.ts` is the authoritative per-match lookup boundary. |
+| Rules context or scenario catalog lookup | `shared/rulesContext.ts` | Trace the caller-provided `RulesContext` into the owning engine/API path; use `server/engine/scenarioDefinitions.ts` for resolution. |
+| Unit sprites or stack presentation | [web-ui-spec.md](web-ui-spec.md) | Use the resolved session catalog for unit definitions and `shared/stackRoster` for membership. Do not reopen the completed unit-enhancements planning document unless changing its remaining presentation questions. |
 | Movement legality | `shared/movementRules.ts` | `shared/moveValidator.ts` |
 | Stack membership, split, or merge | `shared/stackRoster/index.ts` | Do not infer membership from co-location or from [game-rules.md](game-rules.md) |
 | Combat odds and modifiers | `shared/combatCalculator.ts` | `shared/staticRules.ts` owns the ridgeline defense bonus |
@@ -91,8 +93,9 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 
 | Module | Responsibility | Flags |
 | --- | --- | --- |
-| `shared/config/unitCatalog.json` | Stores unit, weapon, ram, stack-size, and terrain-flag numbers. | `DUP`: `treadsPerMove` is declared and not read. |
-| `shared/unitDefinitions.ts` | Parses the catalog and exposes definition accessors. | |
+| `shared/config/unitCatalog.json` | Stores global unit and weapon definitions, including ram, stack-size, and terrain capabilities. | `DUP`: `treadsPerMove` is declared and not read by `shared/movementAllowance.ts`. |
+| `shared/unitDefinitions.ts` | Parses the global catalog and exposes global definition accessors. | Scenario-local definitions are resolved elsewhere. |
+| `shared/rulesContext.ts` | Provides the immutable per-match unit/weapon catalog and combat-rule lookup boundary. | `WRAP`: falls back to the global context only for callers without a scenario context. |
 | `shared/movementRules.ts` | Decides terrain access, move cost, and occupied-hex legality. | |
 | `shared/movementAllowance.ts` | Decides Onion tread-band movement allowance. | `DUP`: hardcodes the 15-tread bands instead of reading the catalog. |
 | `shared/unitMovement.ts` | Exposes phase-aware allowance and movement-spent counters. | `D+M`: spent-counter helpers mutate units. `WRAP`: ridgeline crossing delegates to `movementRules.ts`. |
@@ -125,6 +128,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/engine/victory.ts` | Evaluates scenario objectives with map, state, turn, and event context, then selects the winning role. | `D+M` |
 | `server/engine/game.ts` | Owns phase advancement, recovery maintenance, state metadata, and phase events for the API. | `D+M` |
 | `server/engine/scenarioSchema.ts` | Validates authored scenario JSON. | |
+| `server/engine/scenarioDefinitions.ts` | Resolves scenario-local derivations into namespaced, immutable unit and weapon catalogs. | |
 | `server/engine/scenarioNormalizer.ts` | Builds the initial game state from scenario deployments. | |
 | `server/engine/units.ts` | Re-exports catalog, unit-state, and allowance helpers. | `WRAP`: not an owner. |
 | `server/engine/index.ts` | Re-exports the active engine surface. | `WRAP` |

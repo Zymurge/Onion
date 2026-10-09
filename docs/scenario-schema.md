@@ -29,7 +29,7 @@ This schema is designed for authoring flexibility and robust normalization. The 
   - Defender units cycle: `operational` → `disabled` (if hit) → `recovering` (start of next turn) → `operational` (start of Recovery Phase).
   - The engine manages all status transitions automatically.
 - **IDs:**
-  - The keys in `initialState.onions` and `initialState.defenders` are the authored unit IDs for non-stack defenders and Onions. Stack-group keys are used as the source for deterministic member ID bases; the engine expands each group into unique member IDs.
+  - The keys in `initialState.deployments` are authored deployment IDs for individual units or stack groups. Stack-group keys are used as the source for deterministic member ID bases; the engine expands each group into unique member IDs.
 - **Victory Conditions:**
   - Scenario JSON specifies victory conditions, but the engine enforces and tracks win/loss state.
 
@@ -112,7 +112,7 @@ We use an **Axial Coordinate System** (q, r) where:
 }
 ```
 
-The engine's normalized runtime state uses the explicit `onions` map shown above. Scenario authors may use `kind: "stack-group"` with `unitType`, `position`, and `count` for stackable defenders.
+The engine's normalized runtime state uses separate `onions` and `defenders` maps, but scenario authors use the single `initialState.deployments` map shown above. Scenario authors may use `kind: "stack-group"` with `unitType`, `position`, and `count` for stackable units.
 
 ## 3. Victory Conditions
 
@@ -353,25 +353,36 @@ const HexSchema = z.object({
 
 const UnitStatusSchema = z.enum(["operational", "disabled", "recovering", "destroyed"]);
 
-const OnionSchema = z.object({
-  type: z.string().min(1),
-  position: z.object({ q: z.number(), r: z.number() }),
-  status: UnitStatusSchema.optional()
-});
-
-const DefenderStackGroupSchema = z.object({
-  kind: z.literal("stack-group"),
-  unitType: z.string().min(1),
-  position: z.object({ q: z.number(), r: z.number() }),
-  count: z.number().int().positive(),
-  groupName: z.string().optional(),
-  status: UnitStatusSchema.optional()
-});
-
 const StartingAmmoByWeaponTypeSchema = z.record(
   z.string().min(1),
   z.number().int().nonnegative()
 );
+
+const DeploymentBaseSchema = {
+  side: z.enum(["onion", "defender"]),
+  position: z.object({ q: z.number(), r: z.number() }),
+  status: UnitStatusSchema.optional(),
+  startingTreads: z.number().int().nonnegative().optional(),
+  startingAmmoByWeaponType: StartingAmmoByWeaponTypeSchema.optional(),
+};
+
+const StackGroupDeploymentSchema = z.object({
+  kind: z.literal("stack-group"),
+  unitType: z.string().min(1),
+  count: z.number().int().positive(),
+  groupName: z.string().optional(),
+  ...DeploymentBaseSchema
+}).strict();
+
+const UnitDeploymentSchema = z.object({
+  type: z.string().min(1),
+  ...DeploymentBaseSchema
+}).strict();
+
+const DeploymentSchema = z.union([
+  UnitDeploymentSchema,
+  StackGroupDeploymentSchema
+]);
 
 const UnitTypeDerivationSchema = z.object({
   extends: z.string().min(1),
@@ -385,22 +396,23 @@ const UnitTypeDerivationSchema = z.object({
     maxStacks: z.number().int().positive().optional(),
     weaponQuantities: z.record(z.string().min(1), z.number().int().nonnegative()).optional(),
     weaponOverrides: z.record(z.string().min(1), z.object({
-      attack: z.number().nonnegative().optional(),
-      range: z.number().nonnegative().optional(),
+      attack: z.number().positive().optional(),
+      range: z.number().positive().optional(),
+      defense: z.number().positive().optional(),
+      maxAmmo: z.number().int().positive().optional(),
     }).strict()).optional(),
   }).strict(),
 }).strict();
 
 const UnitTypesSchema = z.record(z.string().min(1), UnitTypeDerivationSchema);
-
-const DeploymentBaseSchema = {
-  side: z.enum(["onion", "defender"]),
-  position: z.object({ q: z.number(), r: z.number() }),
-  status: UnitStatusSchema.optional(),
-  startingTreads: z.number().int().nonnegative().optional(),
-  startingAmmoByWeaponType: StartingAmmoByWeaponTypeSchema.optional(),
-};
 ```
+
+The deployment union is `UnitDeploymentSchema | StackGroupDeploymentSchema`;
+both forms use `DeploymentBaseSchema`, and `InitialStateSchema` requires at
+least one Onion deployment. `startingAmmoByWeaponType` is checked against the
+resolved finite-ammo weapon definition during normalization. A scenario-local
+weapon override may reduce a finite `maxAmmo`, but cannot add ammunition to an
+unlimited weapon or exceed the base maximum.
 
 The implementation must use `UnitTypesSchema` to validate scenario-local
 derivations and `DeploymentBaseSchema` for deployment starting values. The

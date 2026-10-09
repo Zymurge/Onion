@@ -25,10 +25,10 @@ const NumericWeaponOverrideSchema = z.object({
 const UnitTypeDerivationSchema = z.object({
   extends: z.string().min(1),
   overrides: z.object({
-    movement: z.number().optional(),
-    defense: z.number().optional(),
+    movement: z.number().nonnegative().optional(),
+    defense: z.number().nonnegative().optional(),
     maxTreads: z.number().int().nonnegative().optional(),
-    treadsPerMove: z.number().optional(),
+    treadsPerMove: z.number().int().positive().optional(),
     ramsPerTurn: z.number().int().nonnegative().optional(),
     squads: z.number().int().positive().optional(),
     maxStacks: z.number().int().positive().optional(),
