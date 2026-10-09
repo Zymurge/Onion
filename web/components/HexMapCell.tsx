@@ -177,7 +177,7 @@ export function HexMapCell({
           />
         )
       })}
-      <text className="hex-coord" x={center.x} y={center.y + 18} textAnchor="middle">
+      <text className="hex-coord" x={center.x} y={center.y + 28} textAnchor="middle">
         {coord.q},{coord.r}
       </text>
     </g>

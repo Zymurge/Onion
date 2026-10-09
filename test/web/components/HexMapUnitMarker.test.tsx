@@ -65,6 +65,48 @@ describe('HexMapUnitMarker', () => {
     expect(screen.getByTestId('hex-unit-swamp-1').querySelector('image')).toHaveAttribute('href', expect.stringContaining('destroyed'))
   })
 
+  it('renders defender sprites without a background box and wraps their label below', () => {
+    const pig: BattlefieldUnit = {
+      ...defender,
+      unitId: 'pigs-1',
+      typeId: 'LittlePigs',
+      friendlyName: 'Little Pigs group 2',
+      state: 'operational',
+    }
+
+    render(
+      <svg>
+        <HexMapUnitMarker
+          activeCombatRole={null}
+          center={{ x: 36, y: 36 }}
+          combatMembers={[pig]}
+          isCombatPhase={false}
+          isMovementPhase={false}
+          isOccupantSelected={false}
+          isSelectionLocked={false}
+          occupant={pig}
+          offsetIndex={0}
+          renderedOccupantCount={1}
+          onion={onion}
+          phase="ONION_COMBAT"
+          resolvedPhaseMode="locked"
+          resolvedViewerActivity="active"
+          resolvedViewerRole="onion"
+          routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
+          rosterGroup={null}
+          onDeselect={vi.fn()}
+          onSelectUnit={vi.fn()}
+        />
+      </svg>,
+    )
+
+    const marker = screen.getByTestId('hex-unit-pigs-1')
+    expect(marker.querySelector('.hex-unit-rect-defender')).toBeNull()
+    expect(marker.querySelector('image')).toHaveAttribute('width', '65')
+    expect(marker.querySelector('image')).toHaveAttribute('y', '1')
+    expect(marker.querySelectorAll('tspan')).toHaveLength(2)
+  })
+
   it('uses lighter orange for a destroyed member of a partial stack', () => {
     const livePig: BattlefieldUnit = {
       ...defender,

@@ -18,6 +18,28 @@ import type {
 import { getUnitDefinition } from '../../shared/unitDefinitions'
 import { getUnitSpriteHref } from '../lib/unitSpriteRegistry'
 
+function wrapMarkerText(text: string, maximumLineLength = 12): string[] {
+  const words = text.split(/\s+/)
+  const lines: string[] = []
+  let currentLine = ''
+
+  for (const word of words) {
+    const candidate = currentLine === '' ? word : `${currentLine} ${word}`
+    if (currentLine !== '' && candidate.length > maximumLineLength) {
+      lines.push(currentLine)
+      currentLine = word
+    } else {
+      currentLine = candidate
+    }
+  }
+
+  if (currentLine !== '') {
+    lines.push(currentLine)
+  }
+
+  return lines
+}
+
 type HexMapUnitMarkerProps = {
   activeCombatRole: 'onion' | 'defender' | null
   center: { x: number; y: number }
@@ -128,6 +150,7 @@ export function HexMapUnitMarker({
   const unitRectWidth = isSwamp ? 48 : 32
   const unitRectHeight = isSwamp ? 48 : 22
   const markerText = getUnitMarkerText(occupant, stackNaming)
+  const markerTextLines = markerText === null ? [] : wrapMarkerText(markerText)
   const markerToneClass = !isSwamp && (
     movementEligibilityClass === 'hex-unit-rect-move-inspectable'
       || combatEligibilityClass === 'hex-unit-rect-combat-inspectable'
@@ -203,38 +226,44 @@ export function HexMapUnitMarker({
       transform={`translate(${offset.dx}, ${offset.dy})`}
       onClick={handleClick}
     >
-      <rect
-        className={[
-          'hex-unit-rect',
-          isSwamp ? swampRectClass : isOccupantOnion ? 'hex-unit-rect-onion' : 'hex-unit-rect-defender',
-          isOccupantSelected ? 'hex-unit-rect-selected' : '',
-          isSwamp ? '' : movementEligibilityClass,
-          isDisabled ? 'hex-unit-rect-disabled' : '',
-          isSwamp ? '' : combatEligibilityClass,
-        ].join(' ')}
-        x={unitRectX}
-        y={unitRectY}
-        width={unitRectWidth}
-        height={unitRectHeight}
-        rx={isSwamp ? 4 : 2}
-      />
+      {isSwamp || isOccupantOnion ? (
+        <rect
+          className={[
+            'hex-unit-rect',
+            isSwamp ? swampRectClass : 'hex-unit-rect-onion',
+            isOccupantSelected ? 'hex-unit-rect-selected' : '',
+            isSwamp ? '' : movementEligibilityClass,
+            isDisabled ? 'hex-unit-rect-disabled' : '',
+            isSwamp ? '' : combatEligibilityClass,
+          ].join(' ')}
+          x={unitRectX}
+          y={unitRectY}
+          width={unitRectWidth}
+          height={unitRectHeight}
+          rx={isSwamp ? 4 : 2}
+        />
+      ) : null}
       {markerText !== null ? (
         <text
           className={['hex-unit-marker', markerToneClass].join(' ')}
           x={center.x}
-          y={center.y + 4}
+          y={center.y + 16}
           textAnchor="middle"
         >
-          {markerText}
+          {markerTextLines.map((line, index) => (
+            <tspan key={`${line}-${index}`} x={center.x} dy={index === 0 ? 0 : 10}>
+              {line}
+            </tspan>
+          ))}
         </text>
       ) : null}
       {spriteHref !== undefined ? (
         <image
           href={spriteHref}
-          x={center.x - 19}
-          y={center.y - 19}
-          width={38}
-          height={38}
+          x={center.x - 32.5}
+          y={center.y - 35}
+          width={65}
+          height={65}
           preserveAspectRatio="xMidYMid meet"
         />
       ) : null}

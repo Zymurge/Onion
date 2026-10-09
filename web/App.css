@@ -1683,7 +1683,7 @@
 
 .hex-coord,
 .hex-caption {
-  font-size: 7px;
+  font-size: 6px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   fill: var(--ink-soft);
