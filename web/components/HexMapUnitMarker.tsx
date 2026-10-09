@@ -15,8 +15,8 @@ import type {
   InteractionViewerActivity,
   InteractionViewerRole,
 } from '../lib/interactionRouting'
-import swampDestroyedSprite from '../assets/The Swamp - destroyed.png'
-import swampIntactSprite from '../assets/The Swamp - intact.png'
+import { getUnitDefinition } from '../../shared/unitDefinitions'
+import { getUnitSpriteHref } from '../lib/unitSpriteRegistry'
 
 type HexMapUnitMarkerProps = {
   activeCombatRole: 'onion' | 'defender' | null
@@ -40,10 +40,6 @@ type HexMapUnitMarkerProps = {
   stackNaming?: StackNamingSnapshot
   onDeselect: () => void
   onSelectUnit: (unitId: string, additive?: boolean) => void
-}
-
-function getSwampSpriteHref(status: string) {
-  return status === 'destroyed' ? swampDestroyedSprite : swampIntactSprite
 }
 
 /** Renders one occupant marker and routes its selection interaction. */
@@ -73,6 +69,7 @@ export function HexMapUnitMarker({
   const isOccupantOnion = occupant.unitId === onion.unitId
   const offset = getStackOffset(offsetIndex, renderedOccupantCount)
   const isSwamp = occupant.typeId === 'Swamp'
+  const spriteHref = getUnitSpriteHref(getUnitDefinition(occupant.typeId)?.spriteKey, occupant.state)
   const isDestroyed = occupant.state === 'destroyed'
   const isPartialDestroyed = combatMembers.some((member) => member.state === 'destroyed')
     && combatMembers.some((member) => member.state !== 'destroyed')
@@ -231,9 +228,9 @@ export function HexMapUnitMarker({
           {markerText}
         </text>
       ) : null}
-      {isSwamp ? (
+      {spriteHref !== undefined ? (
         <image
-          href={getSwampSpriteHref(occupant.state)}
+          href={spriteHref}
           x={center.x - 19}
           y={center.y - 19}
           width={38}
