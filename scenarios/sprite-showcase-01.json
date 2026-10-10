@@ -1,0 +1,87 @@
+{
+  "id": "sprite-showcase-01",
+  "name": "sprite-showcase-01",
+  "displayName": "Unit Sprite Showcase",
+  "description": "Compact visual test scenario with one deployment of every catalog unit type.",
+  "map": {
+    "radius": 4,
+    "hexes": []
+  },
+  "initialState": {
+    "deployments": {
+      "onion-1": {
+        "type": "TheOnion",
+        "side": "onion",
+        "position": { "q": 4, "r": 4 },
+        "status": "operational"
+      },
+      "onion-damaged-1": {
+        "type": "TheOnionDamaged",
+        "side": "onion",
+        "position": { "q": 4, "r": 3 },
+        "status": "operational"
+      },
+      "swamp-1": {
+        "type": "Swamp",
+        "side": "defender",
+        "position": { "q": 4, "r": 5 },
+        "status": "operational"
+      },
+      "puss-1": {
+        "type": "Puss",
+        "side": "defender",
+        "position": { "q": 3, "r": 3 },
+        "status": "operational"
+      },
+      "wolf-1": {
+        "type": "BigBadWolf",
+        "side": "defender",
+        "position": { "q": 5, "r": 3 },
+        "status": "operational"
+      },
+      "witch-1": {
+        "type": "Witch",
+        "side": "defender",
+        "position": { "q": 3, "r": 5 },
+        "status": "operational"
+      },
+      "farquaad-1": {
+        "type": "LordFarquaad",
+        "side": "defender",
+        "position": { "q": 5, "r": 5 },
+        "status": "operational"
+      },
+      "pinocchio-1": {
+        "type": "Pinocchio",
+        "side": "defender",
+        "position": { "q": 2, "r": 4 },
+        "status": "operational"
+      },
+      "dragon-1": {
+        "type": "Dragon",
+        "side": "defender",
+        "position": { "q": 6, "r": 4 },
+        "status": "operational"
+      },
+      "pigs-1": {
+        "kind": "stack-group",
+        "unitType": "LittlePigs",
+        "side": "defender",
+        "position": { "q": 4, "r": 2 },
+        "count": 1,
+        "status": "operational"
+      }
+    }
+  },
+  "victoryConditions": {
+    "objectives": [
+      {
+        "id": "immobilize-onion",
+        "label": "Immobilize The Onion",
+        "kind": "immobilize-onion",
+        "victor": "defender",
+        "required": true
+      }
+    ]
+  }
+}
