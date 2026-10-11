@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildFriendlyName, getUnitTypeCatalog, getWeaponTypeCatalog, parseUnitCatalog } from '#shared/unitDefinitions'
+import { buildFriendlyName, getUnitDefinition, getUnitTypeCatalog, getWeaponType, getWeaponTypeCatalog, parseUnitCatalog } from '#shared/unitDefinitions'
 import type { UnitTypeId } from '#shared/types/index'
 
 const configuredTypeId: UnitTypeId = 'configured-unit-from-external-catalog'
@@ -52,6 +52,11 @@ describe('static unit and weapon catalogs', () => {
       expect(unitType.typeId).toBe(key)
       expect(unitType.weapons.length).toBeGreaterThanOrEqual(0)
     }
+  })
+
+  it('resolves legacy Lord Farquaad snapshot identifiers', () => {
+    expect(getUnitDefinition('LordFarquaad')).toBe(getUnitDefinition('Farquaad'))
+    expect(getWeaponType('LordFarquaad.main')).toBe(getWeaponType('Farquaad.main'))
   })
 
   it('defines a sprite key and quantity-based loadout for every global unit type', () => {

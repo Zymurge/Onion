@@ -243,6 +243,16 @@ export function HexMapUnitMarker({
           rx={isSwamp ? 4 : 2}
         />
       ) : null}
+      {spriteHref !== undefined ? (
+        <image
+          href={spriteHref}
+          x={center.x - 32.5}
+          y={center.y - 35}
+          width={65}
+          height={65}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      ) : null}
       {markerText !== null ? (
         <text
           className={['hex-unit-marker', markerToneClass].join(' ')}
@@ -256,16 +266,6 @@ export function HexMapUnitMarker({
             </tspan>
           ))}
         </text>
-      ) : null}
-      {spriteHref !== undefined ? (
-        <image
-          href={spriteHref}
-          x={center.x - 32.5}
-          y={center.y - 35}
-          width={65}
-          height={65}
-          preserveAspectRatio="xMidYMid meet"
-        />
       ) : null}
       {isDisabled ? (
         <g className="hex-unit-disabled-indicator">

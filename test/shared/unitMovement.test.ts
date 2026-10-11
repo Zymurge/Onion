@@ -34,7 +34,7 @@ describe('unit movement helpers', () => {
 		expect(canUnitCrossRidgeline('LittlePigs')).toBe(true)
 		expect(canUnitCrossRidgeline('Puss')).toBe(false)
 		expect(getUnitRamCapacity('TheOnion')).toBe(2)
-		expect(isUnitImmobile('LordFarquaad')).toBe(true)
+			 expect(isUnitImmobile('Farquaad')).toBe(true)
 		expect(isUnitImmobile('Puss')).toBe(false)
 	})
 

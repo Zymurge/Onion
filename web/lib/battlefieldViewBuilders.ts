@@ -114,7 +114,7 @@ export function getDisplayDefense(type: string, squads: number | undefined, terr
       return 3
     case 'Witch':
       return 2
-    case 'LordFarquaad':
+    case 'Farquaad':
       return 0
     case 'Pinocchio':
       return 3

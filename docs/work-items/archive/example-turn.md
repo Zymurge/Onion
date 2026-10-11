@@ -9,7 +9,7 @@ This document provides a detailed walkthrough of a single game round to illustra
   - **1 Big Bad Wolf (GEV)**: Operational.
   - **1 Puss (Heavy Tank)**: Operational.
   - **1 Witch (Missile Tank)**: Operational.
-  - **1 Lord Farquaad (Howitzer)**: **Disabled** (from previous turn).
+   - **1 Farquaad (Howitzer)**: **Disabled** (from previous turn).
   - **1 Little Pigs (Infantry)**: In the path of the Onion.
 
 ---
@@ -41,18 +41,18 @@ This document provides a detailed walkthrough of a single game round to illustra
 
 ### Phase: Defender Recovery
 
-- **Lord Farquaad (Howitzer)**: Was disabled. It returns to **Operational** status.
+- **Farquaad (Howitzer)**: Was disabled. It returns to **Operational** status.
 - **Puss Tank**: Was just disabled. It remains disabled.
 
 ### Phase: Defender Movement
 
 1. **Big Bad Wolf (GEV)**: Moves 4 hexes.
-2. **Other Units**: Puss is disabled; Lord Farquaad is immobile.
+2. **Other Units**: Puss is disabled; Farquaad is immobile.
 
 ### Phase: Defender Combat
 
 1. **Sequential Attacks on Treads** (Rule 7.13.2): (Attackers must attack treads individually at 1:1 odds).
-   - **Lord Farquaad Attack**: Targets Treads at 1:1. Roll: **5 (X)**.
+   - **Farquaad Attack**: Targets Treads at 1:1. Roll: **5 (X)**.
      - *Effect*: Onion loses **6 Tread Points** (Strength of unit).
    - **Big Bad Wolf Attack**: Targets Treads at 1:1. Roll: **6 (X)**.
      - *Effect*: Onion loses **2 Tread Points**.
@@ -71,5 +71,5 @@ This document provides a detailed walkthrough of a single game round to illustra
   - **Puss**: Disabled.
   - **Witch**: Destroyed.
   - **Little Pigs**: Destroyed.
-  - **Lord Farquaad**: Operational.
+   - **Farquaad**: Operational.
   - **Big Bad Wolf**: Relocated.

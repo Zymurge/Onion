@@ -119,7 +119,7 @@ describe('validateUnitMovement', () => {
   })
 
   it('returns UNIT_IMMOBILE when the unit cannot move', () => {
-    const farquaad = makeDefender({ unitId: 'f1', typeId: 'LordFarquaad', position: { q: 0, r: 0 } })
+    const farquaad = makeDefender({ unitId: 'f1', typeId: 'Farquaad', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { f1: farquaad } })
     const result = validateUnitMovement(CLEAR_MAP, state, { type: 'MOVE', unitId: 'f1', to: { q: 1, r: 0 } })
 

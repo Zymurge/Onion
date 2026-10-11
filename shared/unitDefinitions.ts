@@ -140,6 +140,14 @@ export function buildFriendlyName(template: string, id: string): string {
 
 const { unitTypes: UNIT_TYPE_CATALOG, weaponTypes: WEAPON_TYPE_CATALOG } = parseUnitCatalog(catalogConfig)
 
+const LEGACY_UNIT_TYPE_ALIASES: Readonly<Record<string, string>> = {
+  LordFarquaad: 'Farquaad',
+}
+
+const LEGACY_WEAPON_TYPE_ALIASES: Readonly<Record<string, string>> = {
+  'LordFarquaad.main': 'Farquaad.main',
+}
+
 const DEFAULT_ONION_UNIT_TYPE = Object.values(UNIT_TYPE_CATALOG).find((definition) => definition.maxTreads !== undefined)
 if (DEFAULT_ONION_UNIT_TYPE === undefined) {
   throw new Error('Unit catalog must define an onion unit type')
@@ -156,7 +164,7 @@ export function getWeaponTypeCatalog(): WeaponTypeCatalog {
 }
 
 export function getUnitDefinition(typeId: UnitType): UnitTypeCatalog[UnitType] | undefined {
-  return UNIT_TYPE_CATALOG[typeId]
+  return UNIT_TYPE_CATALOG[LEGACY_UNIT_TYPE_ALIASES[typeId] ?? typeId]
 }
 
 export function getRequiredUnitDefinition(typeId: UnitType): UnitTypeCatalog[UnitType] {
@@ -173,7 +181,7 @@ export function getAllUnitDefinitions(): UnitTypeCatalog {
 }
 
 export function getWeaponType(typeId: string): WeaponType {
-  const weaponType = WEAPON_TYPE_CATALOG[typeId]
+  const weaponType = WEAPON_TYPE_CATALOG[LEGACY_WEAPON_TYPE_ALIASES[typeId] ?? typeId]
   if (!weaponType) {
     throw new Error(`Unknown weapon type: ${typeId}`)
   }

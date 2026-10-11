@@ -187,7 +187,7 @@ Guidelines:
 - Big Bad Wolf: `BW`
 - Puss: `PU`
 - Witch: `WI`
-- Lord Farquaad: `LF`
+- Farquaad: `FQ`
 - Pinocchio: `PI`
 - Dragon: `DR`
 - Little Pigs: `LP`

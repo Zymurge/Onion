@@ -24,8 +24,8 @@ function unitCode(unitType: string): string {
       return 'PU'
     case 'Witch':
       return 'WI'
-    case 'LordFarquaad':
-      return 'LF'
+    case 'Farquaad':
+      return 'FQ'
     case 'Pinocchio':
       return 'PI'
     case 'Dragon':

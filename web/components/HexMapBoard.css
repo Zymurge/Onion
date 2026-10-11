@@ -357,6 +357,12 @@
   filter: saturate(0.9) brightness(1.02);
 }
 
+.hex-unit-stack-onion .hex-unit-rect-onion {
+  fill: transparent !important;
+  stroke: transparent !important;
+  filter: none !important;
+}
+
 .hex-map-toast-overlay {
   position: absolute;
   inset: 0;

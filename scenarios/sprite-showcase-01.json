@@ -46,7 +46,7 @@
         "status": "operational"
       },
       "farquaad-1": {
-        "type": "LordFarquaad",
+        "type": "Farquaad",
         "side": "defender",
         "position": { "q": 5, "r": 5 },
         "status": "operational"

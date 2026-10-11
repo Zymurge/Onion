@@ -26,7 +26,7 @@ Suggested order: 1, 4, 3, 2, 5, 8, 6, 7, 9. Item 1 should land first because it 
 
 **Winner:** `shared/config/unitCatalog.json` for numbers. `shared/movementRules.ts` for movement legality. `shared/stackRoster.ts` for membership. `shared/combatCalculator.ts` for odds and modifiers. `server/engine/combat.ts` for the CRT and for applying stack damage, missile limits, and Onion subsystem results. `scenario-schema.md` for victory objectives. `docs/game-rules.md` is a player-facing description and does not override those owners.
 
-- The rules table disagreed with the catalog: Big Bad Wolf movement was listed as 2 while the catalog and special-ability prose say 4; Lord Farquaad movement was listed as 1 while the catalog says immobile; Little Pigs defense was listed as 2 while the catalog says 1 per squad. Those numeric cells are no longer a contract.
+- The rules table disagreed with the catalog: Big Bad Wolf movement was listed as 2 while the catalog and special-ability prose say 4; Farquaad movement was listed as 1 while the catalog says immobile; Little Pigs defense was listed as 2 while the catalog says 1 per squad. Those numeric cells are no longer a contract.
 - The CRT copy in `docs/game-rules.md` matches the `CRT` constant in `server/engine/combat.ts`. The code wins if they diverge.
 - `treadsPerMove` is declared on the Onion catalog entry and is not read. `shared/movementAllowance.ts` hardcodes the 15-tread bands.
 - `resolveCombatOutcome` still has a local attack-strength path that predates `shared/combatCalculator.ts`. That belongs to item 5, not a second rules owner.

@@ -30,15 +30,15 @@
       "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
       "weaponQuantities": { "Witch.main": 1 }
     },
-    "LordFarquaad": {
-      "name": "Lord Farquaad",
-      "friendlyNameTemplate": "Lord Farquaad {{ordinal}}",
-      "spriteKey": "lord-farquaad",
+    "Farquaad": {
+      "name": "Farquaad",
+      "friendlyNameTemplate": "Farquaad {{ordinal}}",
+      "spriteKey": "farquaad",
       "movement": 0,
       "defense": 0,
       "cost": 2,
       "abilities": { "maxStacks": 1, "immobile": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
-      "weaponQuantities": { "LordFarquaad.main": 1 }
+      "weaponQuantities": { "Farquaad.main": 1 }
     },
     "Pinocchio": {
       "name": "Pinocchio",
@@ -118,7 +118,7 @@
     "Puss.main": { "name": "Main Gun", "weaponClass": "main", "attack": 4, "range": 2, "defense": 3, "individuallyTargetable": false },
     "BigBadWolf.main": { "name": "Cannon", "weaponClass": "main", "attack": 2, "range": 2, "defense": 4, "individuallyTargetable": false },
     "Witch.main": { "name": "Missile Launcher", "weaponClass": "main", "attack": 3, "range": 4, "defense": 2, "individuallyTargetable": false },
-    "LordFarquaad.main": { "name": "Howitzer", "weaponClass": "main", "attack": 6, "range": 8, "defense": 0, "individuallyTargetable": false },
+    "Farquaad.main": { "name": "Howitzer", "weaponClass": "main", "attack": 6, "range": 8, "defense": 0, "individuallyTargetable": false },
     "Pinocchio.main": { "name": "Light Gun", "weaponClass": "main", "attack": 2, "range": 2, "defense": 3, "individuallyTargetable": false },
     "Dragon.main": { "name": "Heavy Gun", "weaponClass": "main", "attack": 6, "range": 3, "defense": 3, "individuallyTargetable": false, "defaultQuantity": 2 },
     "LittlePigs.rifle": { "name": "Rifle", "weaponClass": "main", "attack": 1, "range": 1, "defense": 1, "individuallyTargetable": false },

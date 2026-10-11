@@ -38,7 +38,7 @@ Names only. Numbers live in `shared/config/unitCatalog.json`.
 | Heavy Tank | Puss | `Puss` |
 | Missile Tank | Witch | `Witch` |
 | GEV | Big Bad Wolf | `BigBadWolf` |
-| Howitzer | Lord Farquaad | `LordFarquaad` |
+| Howitzer | Farquaad | `Farquaad` |
 | Light Tank | Pinocchio | `Pinocchio` |
 | Superheavy Tank | Dragon | `Dragon` |
 | Infantry | Little Pigs | `LittlePigs` |
@@ -106,7 +106,7 @@ The UI may show objective completion state in the inspector, and should surface 
 
 - **Big Bad Wolf (GEV)**: Can move 4 hexes, fire, and then move an additional 3 hexes (Second Move Phase).
 - **Little Pigs (Infantry)**: Can stack up to 5 squads per hex. Their defense is the sum of squads. They are the only units that can benefit from certain terrain cover. Attacks of "D" on a stack reduce it by 1 squad; "X" destroys the entire stack.
-- **Lord Farquaad (Howitzer)**: Immobile once placed.
+- **Farquaad (Howitzer)**: Immobile once placed.
 - **Dragon (Superheavy)**: A powerful conventional unit with two 6-strength attacks.
 - **The Swamp (Command Post)**: The primary objective. Defense 0. Any "X" result against it wins the game for the Onion.
 - **The Onion (Super-Unit)**:

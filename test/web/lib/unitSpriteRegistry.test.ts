@@ -4,10 +4,14 @@ import { getUnitSpriteHref } from '#web/lib/unitSpriteRegistry'
 
 describe('unit sprite registry', () => {
 	it('resolves ordinary unit sprites from their sprite keys', () => {
-		for (const spriteKey of ['puss', 'big-bad-wolf', 'lord-farquaad', 'dragon', 'little-pigs']) {
+		for (const spriteKey of ['puss', 'dragon']) {
 			expect(getUnitSpriteHref(spriteKey, 'operational')).toContain('puss-sprite.png')
 		}
+		expect(getUnitSpriteHref('big-bad-wolf', 'operational')).toContain('big-bad-wolf-sprite.png')
+		expect(getUnitSpriteHref('farquaad', 'operational')).toContain('farquaad-sprite.png')
 		expect(getUnitSpriteHref('pinocchio', 'operational')).toContain('pinocchio-sprite.png')
+		expect(getUnitSpriteHref('little-pigs', 'operational')).toContain('little-pigs-sprite.png')
+		expect(getUnitSpriteHref('the-onion', 'operational')).toContain('the-onion-sprite.png')
 	})
 
 	it('selects the Swamp asset by state', () => {

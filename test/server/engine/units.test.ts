@@ -157,27 +157,27 @@ describe('getUnitDefinition', () => {
     })
   })
 
-  describe('LordFarquaad (Howitzer)', () => {
+  describe('Farquaad (Howitzer)', () => {
     it('has attack 6, range 8', () => {
-      const { weapons } = getUnitDefinition('LordFarquaad')
+      const { weapons } = getUnitDefinition('Farquaad')
       expect(weapons[0].attack).toBe(6)
       expect(weapons[0].range).toBe(8)
     })
 
     it('has defense 0', () => {
-      expect(getUnitDefinition('LordFarquaad').defense).toBe(0)
+      expect(getUnitDefinition('Farquaad').defense).toBe(0)
     })
 
     it('is immobile', () => {
-      expect(getUnitDefinition('LordFarquaad').abilities.immobile).toBe(true)
+      expect(getUnitDefinition('Farquaad').abilities.immobile).toBe(true)
     })
 
     it('has movement 0', () => {
-      expect(getUnitDefinition('LordFarquaad').movement).toBe(0)
+      expect(getUnitDefinition('Farquaad').movement).toBe(0)
     })
 
     it('has cost 2', () => {
-      expect(getUnitDefinition('LordFarquaad').cost).toBe(2)
+      expect(getUnitDefinition('Farquaad').cost).toBe(2)
     })
   })
 
@@ -326,7 +326,7 @@ describe('getAllUnitDefinitions', () => {
     expect(keys).toContain('Puss')
     expect(keys).toContain('BigBadWolf')
     expect(keys).toContain('Witch')
-    expect(keys).toContain('LordFarquaad')
+    expect(keys).toContain('Farquaad')
     expect(keys).toContain('Pinocchio')
     expect(keys).toContain('Dragon')
     expect(keys).toContain('LittlePigs')
@@ -425,8 +425,8 @@ describe('canSecondMove', () => {
 // ─── isImmobile ───────────────────────────────────────────────────────────────
 
 describe('isImmobile', () => {
-  it('returns true for LordFarquaad', () => {
-    expect(isImmobile(makeUnit({ typeId: 'LordFarquaad' }))).toBe(true)
+  it('returns true for Farquaad', () => {
+    expect(isImmobile(makeUnit({ typeId: 'Farquaad' }))).toBe(true)
   })
 
   it('returns false for Puss', () => {
@@ -453,8 +453,8 @@ describe('getUnitDefense', () => {
     expect(getUnitDefense(makeUnit({ typeId: 'Swamp' }), false)).toBe(0)
   })
 
-  it('returns defense 0 for LordFarquaad', () => {
-    expect(getUnitDefense(makeUnit({ typeId: 'LordFarquaad' }), false)).toBe(0)
+  it('returns defense 0 for Farquaad', () => {
+    expect(getUnitDefense(makeUnit({ typeId: 'Farquaad' }), false)).toBe(0)
   })
 
   describe('infantry (LittlePigs)', () => {
