@@ -1,5 +1,6 @@
 import pussSprite from '../assets/unit-sprites/puss-sprite.png'
 import bigBadWolfSprite from '../assets/unit-sprites/big-bad-wolf-sprite.png'
+import dragonSprite from '../assets/unit-sprites/dragon-sprite.png'
 import farquaadSprite from '../assets/unit-sprites/farquaad-sprite.png'
 import littlePigsSprite from '../assets/unit-sprites/little-pigs-sprite.png'
 import onionSprite from '../assets/unit-sprites/the-onion-sprite.png'
@@ -16,7 +17,7 @@ export const unitSpriteRegistry: Readonly<Record<string, UnitSprite>> = {
 	'witch': witchSprite,
 	'farquaad': farquaadSprite,
 	'pinocchio': pinocchioSprite,
-	'dragon': pussSprite,
+	'dragon': dragonSprite,
 	'little-pigs': littlePigsSprite,
 	'the-onion': onionSprite,
 	'swamp': { operational: swampIntactSprite, destroyed: swampDestroyedSprite },
