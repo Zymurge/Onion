@@ -1720,6 +1720,24 @@
   margin: 2px 0 0;
 }
 
+.inspector-sprite-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  margin: 0 -4px 16px;
+  border-radius: 12px;
+  background: rgba(255, 252, 245, 0.42);
+  overflow: hidden;
+}
+
+.inspector-sprite {
+  display: block;
+  width: min(100%, 280px);
+  height: 190px;
+  object-fit: contain;
+}
+
 .selection-panel-content {
   display: flex;
   align-items: flex-start;

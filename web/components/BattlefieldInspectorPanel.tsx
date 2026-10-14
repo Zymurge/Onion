@@ -3,6 +3,8 @@ import { getPrimaryWeaponStats, parseWeaponStats } from '../lib/weaponStats'
 import type { BattlefieldOnionView, BattlefieldUnit } from '../lib/battlefieldView'
 import { resolveInspectorStackCount } from '../lib/rightRailInspector'
 import type { SessionCatalog } from '../lib/sessionCatalog'
+import { getUnitDefinition } from '../../shared/unitDefinitions'
+import { getUnitSpriteHref } from '../lib/unitSpriteRegistry'
 
 type BattlefieldInspectorPanelProps = {
   selectedInspectorLabel: string | null
@@ -34,13 +36,25 @@ export function BattlefieldInspectorPanel({
 
   const selectedLabel = selectedUnit !== null ? selectedInspectorLabel : null
   const subjectDataTestId = selectedUnit !== null ? `battlefield-inspector-subject-${selectedUnit.unitId}` : undefined
+  const selectedUnitSpriteHref = selectedUnit !== null
+    ? getUnitSpriteHref(
+      getUnitDefinition(selectedUnit.typeId)?.spriteKey,
+      selectedUnit.state,
+      selectedUnit.role === 'onion' && (
+        selectedUnit.typeId === 'TheOnionDamaged'
+          || (selectedUnit.treads !== undefined && selectedUnit.treads < 45)
+          || selectedUnit.weapons.some((weapon) => weapon.state === 'destroyed')
+      ),
+    )
+    : undefined
 
   if (selectedInspectorOnion !== null) {
     return renderInspectorPanel({
       dataTestId,
       subjectDataTestId,
       label: selectedLabel,
-      headerMeta: <span className="mini-tag">Selected</span>,
+      headerMeta: null,
+      spriteHref: selectedUnitSpriteHref,
       body: (
         <dl className="inspector-grid inspector-grid-right">
           <div>
@@ -80,7 +94,8 @@ export function BattlefieldInspectorPanel({
       dataTestId,
       subjectDataTestId,
       label: selectedLabel,
-      headerMeta: <span className="mini-tag">Selected</span>,
+      headerMeta: null,
+      spriteHref: selectedUnitSpriteHref,
       body: (
         <>
           <dl className="inspector-grid inspector-grid-right">
@@ -119,6 +134,7 @@ export function BattlefieldInspectorPanel({
     subjectDataTestId: undefined,
     label: null,
     headerMeta: null,
+    spriteHref: undefined,
     body: <div className="empty-state">Select a unit on the map or in the rail to inspect it here.</div>,
   })
 }
@@ -128,10 +144,11 @@ type InspectorPanelShellProps = {
   subjectDataTestId: string | undefined
   label: string | null
   headerMeta: ReactNode
+  spriteHref: string | undefined
   body: ReactNode
 }
 
-function renderInspectorPanel({ dataTestId, subjectDataTestId, label, headerMeta, body }: InspectorPanelShellProps) {
+function renderInspectorPanel({ dataTestId, subjectDataTestId, label, headerMeta, spriteHref, body }: InspectorPanelShellProps) {
   return (
     <section className="selection-panel panel-subtle" data-testid={dataTestId} role="region" aria-label="Inspector">
       <div className="selection-panel-header">
@@ -141,6 +158,11 @@ function renderInspectorPanel({ dataTestId, subjectDataTestId, label, headerMeta
         </div>
         {headerMeta}
       </div>
+      {spriteHref !== undefined && label !== null ? (
+        <div className="inspector-sprite-frame">
+          <img className="inspector-sprite" src={spriteHref} alt={`${label} sprite`} />
+        </div>
+      ) : null}
       {body}
     </section>
   )

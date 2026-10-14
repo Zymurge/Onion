@@ -43,6 +43,7 @@ describe('BattlefieldInspectorPanel', () => {
 
     const inspector = screen.getByTestId('battlefield-inspector')
     expect(within(inspector).getByTestId('battlefield-inspector-subject-pigs-1').textContent).toBe('Little Pigs 1')
+    expect(within(inspector).getByRole('img', { name: 'Little Pigs 1 sprite' })).toBeInTheDocument()
     expect(getLabeledValue('Stack')).toBe('2')
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
   })
@@ -105,6 +106,7 @@ describe('BattlefieldInspectorPanel', () => {
 
     const inspector = screen.getByTestId('battlefield-inspector')
     expect(within(inspector).getByTestId('battlefield-inspector-subject-onion-1').textContent).toBe('TheOnion')
+    expect(within(inspector).getByRole('img', { name: 'TheOnion sprite' })).toHaveAttribute('src', expect.stringContaining('the-onion-damaged-sprite.png'))
     expect(getLabeledValue('Stack')).toBe('1')
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
   })
