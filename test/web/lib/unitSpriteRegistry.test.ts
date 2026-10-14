@@ -13,6 +13,9 @@ describe('unit sprite registry', () => {
 		expect(getUnitSpriteHref('pinocchio', 'operational')).toContain('pinocchio-sprite.png')
 		expect(getUnitSpriteHref('little-pigs', 'operational')).toContain('little-pigs-sprite.png')
 		expect(getUnitSpriteHref('the-onion', 'operational')).toContain('the-onion-sprite.png')
+		expect(getUnitSpriteHref('the-onion', 'operational', true)).toContain('the-onion-damaged-sprite.png')
+		expect(getUnitSpriteHref('the-onion', 'destroyed')).toContain('the-onion-damaged-sprite.png')
+		expect(getUnitSpriteHref('the-onion-damaged', 'operational')).toContain('the-onion-damaged-sprite.png')
 	})
 
 	it('selects the Swamp asset by state', () => {

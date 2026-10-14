@@ -88,16 +88,23 @@ export function HexMapUnitMarker({
   onDeselect,
   onSelectUnit,
 }: HexMapUnitMarkerProps) {
-  const isOccupantOnion = occupant.unitId === onion.unitId
+  const isOccupantOnion = occupant.role === 'onion'
+  const occupantMovesRemaining = occupant.unitId === onion.unitId
+    ? onion.movesRemaining
+    : occupant.movesRemaining
   const offset = getStackOffset(offsetIndex, renderedOccupantCount)
   const isSwamp = occupant.typeId === 'Swamp'
-  const spriteHref = getUnitSpriteHref(getUnitDefinition(occupant.typeId)?.spriteKey, occupant.state)
   const isDestroyed = occupant.state === 'destroyed'
   const isPartialDestroyed = combatMembers.some((member) => member.state === 'destroyed')
     && combatMembers.some((member) => member.state !== 'destroyed')
   const hasDestroyedOnionSubsystem = isOccupantOnion && (
     occupant.weapons.some((weapon) => weapon.state === 'destroyed')
       || ('treads' in occupant && occupant.treads !== undefined && occupant.treads < 45)
+  )
+  const spriteHref = getUnitSpriteHref(
+    getUnitDefinition(occupant.typeId)?.spriteKey,
+    occupant.state,
+    hasDestroyedOnionSubsystem,
   )
   const showOnionDamageTone = hasDestroyedOnionSubsystem
     && (phase === 'DEFENDER_COMBAT' || phase === 'GEV_SECOND_MOVE' || (phase === 'ONION_MOVE' && isTurnHandoffLocked))
@@ -109,9 +116,7 @@ export function HexMapUnitMarker({
       : false
   const combatHasReadyAttack = getGroupCombatReadyCount(combatMembers) > 0
   const combatIsDisabled = isGroupCombatDisabled(combatMembers)
-  const moveHasRemaining = isOccupantOnion
-    ? onion.movesRemaining > 0
-    : 'movesRemaining' in occupant && occupant.movesRemaining > 0
+  const moveHasRemaining = occupantMovesRemaining > 0
   const combatEligibilityClass = !isCombatPhase
     ? ''
     : isDestroyed || isDisabled
@@ -179,9 +184,7 @@ export function HexMapUnitMarker({
       subjectKind: rosterGroup !== null ? 'stack' : 'unit',
       subjectCapability: {
         inspectable: occupant.state !== 'destroyed' || isSwamp,
-        moveEligible: isMovementPhase && occupant.state === 'operational' && (
-          isOccupantOnion ? onion.movesRemaining > 0 : 'movesRemaining' in occupant && occupant.movesRemaining > 0
-        ),
+        moveEligible: isMovementPhase && occupant.state === 'operational' && occupantMovesRemaining > 0,
         attackerEligible: isCombatPhase && !combatIsDisabled && (
           isOccupantOnion
             ? resolvedViewerRole === 'onion' && combatHasReadyAttack
@@ -228,19 +231,15 @@ export function HexMapUnitMarker({
     >
       {isSwamp || isOccupantOnion ? (
         <rect
-          className={[
-            'hex-unit-rect',
-            isSwamp ? swampRectClass : 'hex-unit-rect-onion',
-            isOccupantSelected ? 'hex-unit-rect-selected' : '',
-            isSwamp ? '' : movementEligibilityClass,
-            isDisabled ? 'hex-unit-rect-disabled' : '',
-            isSwamp ? '' : combatEligibilityClass,
-          ].join(' ')}
+          className={isSwamp ? ['hex-unit-rect', swampRectClass, isOccupantSelected ? 'hex-unit-rect-selected' : ''].join(' ') : 'hex-unit-onion-hit-target'}
+          fill={isSwamp ? undefined : 'transparent'}
+          stroke={isSwamp ? undefined : 'none'}
           x={unitRectX}
           y={unitRectY}
           width={unitRectWidth}
           height={unitRectHeight}
           rx={isSwamp ? 4 : 2}
+          pointerEvents="all"
         />
       ) : null}
       {spriteHref !== undefined ? (

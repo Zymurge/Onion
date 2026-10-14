@@ -14,6 +14,7 @@ break down into features/tasks as needed.
 ### Features / Tasks
 
 - [ ] Define scenario-derived unit types, human-editable unit metadata, per-type sprites, and stack/unit presentation. See [unit-enhancements-spec.md](unit-enhancements-spec.md) and resolve its open questions before implementation.
+- [ ] Future multi-Onion scenarios: allow a destroyed Onion relic to remain on the battlefield as an impassable hex after the game-over condition is relaxed for scenarios with multiple Onions. Define relic persistence, selection/inspection, movement blocking, rendering, and victory interactions.
 
 ## Done
 

@@ -51,7 +51,8 @@
         "set": true,
         "printf": true,
         "tee": true,
-        "awk": true
+        "awk": true,
+        "magick": true
     },
     "github.copilot.chat.cli.forkSessions.enabled": true,
     "github.copilot.chat.localIndex.enabled": true,
