@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { buildActionResponse } from '#server/api/gameHelpers/actionResponses'
 import { buildCombatEvents, buildMoveEvents, getWeaponTypeFromId } from '#server/api/gameHelpers/eventBuilders'
-import { buildSessionInitPayload } from '#server/api/gameHelpers/protocol'
+import { applyCurrentMapPresentation, buildSessionInitPayload } from '#server/api/gameHelpers/protocol'
 import { buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gameHelpers/victory'
 import { getUnitDefinition } from '#shared/unitDefinitions'
 import type { ScenarioSnapshot } from '#server/api/gameHelpers/scenario'
@@ -57,19 +57,39 @@ describe('buildSessionInitPayload', () => {
   })
 
   it('includes the scenario-resolved catalog for derived unit types', () => {
-    const payload = buildSessionInitPayload('scenario-catalog', {
+    const scenarioSnapshot: ScenarioSnapshot = {
       unitTypes: {
         ScenarioPuss: {
           extends: 'Puss',
           overrides: { defense: 4 },
         },
       },
-    })
+    }
+    const payload = buildSessionInitPayload('scenario-catalog', scenarioSnapshot)
 
     expect(payload.unitTypes['scenario-catalog:ScenarioPuss']).toMatchObject({
       typeId: 'scenario-catalog:ScenarioPuss',
       defense: 4,
       spriteKey: getUnitTypeCatalog().Puss.spriteKey,
+    })
+
+    const staticUnitTypes = getUnitTypeCatalog()
+    const currentUnitTypes = {
+      ...staticUnitTypes,
+      Puss: { ...staticUnitTypes.Puss, hexMapScale: 1.5, hexMapOffsetY: 10 },
+    }
+    const refreshedUnitTypes = applyCurrentMapPresentation(
+      payload.unitTypes,
+      currentUnitTypes,
+      'scenario-catalog',
+      scenarioSnapshot.unitTypes,
+    )
+
+    expect(refreshedUnitTypes.Puss).toMatchObject({ hexMapScale: 1.5, hexMapOffsetY: 10 })
+    expect(refreshedUnitTypes['scenario-catalog:ScenarioPuss']).toMatchObject({
+      hexMapScale: 1.5,
+      hexMapOffsetY: 10,
+      defense: 4,
     })
   })
 })

@@ -113,7 +113,7 @@
 		}).toThrow('Missing stackRoster for grouped defenders')
 	})
 
-	it('applies dim marker styling to inspectable yellow markers', () => {
+	it('keeps inspectable defender marker labels dark', () => {
 		const inspectableUnit: BattlefieldUnit = {
 			...defenders[1],
 			unitId: 'wolf-2',
@@ -134,7 +134,7 @@
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('text')?.getAttribute('class')).toContain('tone-dim')
+		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('text')).toHaveAttribute('fill', '#111111')
 	})
 
 	it('colors Onion combat map state with Onion green and defenders yellow', () => {

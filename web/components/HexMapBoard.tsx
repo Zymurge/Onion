@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import { axialToPixel, boardPixelSize, hexCorners, pointsToString } from '../lib/hexPixelLayout'
+import { axialToPixel, boardPixelSize, DEFAULT_HEX_SIZE as HEX_SIZE, hexCorners, pointsToString } from '../lib/hexPixelLayout'
 import { resolveSelectionOwnerUnitId } from '../lib/selectionIds'
 import { HexMapCell } from './HexMapCell'
 import { hexKey } from '../../shared/axialHex'
@@ -53,7 +53,6 @@ type HexMapBoardProps = {
   onMoveUnit: (unitId: string, to: { q: number; r: number }) => void
 }
 
-const HEX_SIZE = 36
 const MAP_PADDING = 28
 
 function buildMoveValidationState(
@@ -361,6 +360,7 @@ export function HexMapBoard({
                   key={`${coord.q}-${coord.r}`}
                   activeCombatRole={activeCombatRole}
                   center={center}
+                  catalog={catalog}
                   cellOccupants={cellOccupants}
                   combatRange={combatRangeHexKeys?.has(cellKey) ?? false}
                   combatTargetSelected={targetSelected}

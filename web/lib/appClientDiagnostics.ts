@@ -48,7 +48,7 @@ export function useClientDiagnosticsReporter({
 		const reportDiagnostic = binding?.requestTransport.reportDiagnostic
 		const snapshot = sessionState.snapshot
 		const gameId = binding?.gameId
-		if (reportDiagnostic === undefined || snapshot === null || gameId === undefined || sessionState.status !== 'ready') {
+		if (reportDiagnostic === undefined || snapshot === null || snapshotError !== null || gameId === undefined || sessionState.status !== 'ready') {
 			return
 		}
 
@@ -73,7 +73,7 @@ export function useClientDiagnosticsReporter({
 				error,
 			})
 		})
-	}, [binding, sessionState.snapshot, sessionState.status])
+	}, [binding, sessionState.snapshot, sessionState.status, snapshotError])
 
 	useEffect(() => {
 		const reportDiagnostic = binding?.requestTransport.reportDiagnostic

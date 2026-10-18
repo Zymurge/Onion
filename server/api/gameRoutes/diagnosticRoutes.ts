@@ -77,7 +77,12 @@ export async function registerDiagnosticRoutes(app: FastifyInstance, context: Ga
     }
 
     const diagnostic = parsed.data
-    logger.error({ gameId, reportId: diagnostic.reportId, diagnostic }, 'Client reported invalid game snapshot')
+    if (diagnostic.code === 'SNAPSHOT_INVALID') {
+      logger.error({ gameId, reportId: diagnostic.reportId, diagnostic }, 'Client reported invalid game snapshot')
+    } else {
+      logger.info({ gameId, reportId: diagnostic.reportId, diagnostic }, 'Client loaded an authoritative game snapshot')
+    }
+
     if (diagnostic.code === 'SNAPSHOT_INVALID' && !match.events.some((event) => event.type === 'GAME_ABORTED')) {
       const event: EventEnvelope = {
         seq: (match.events.at(-1)?.seq ?? 0) + 1,

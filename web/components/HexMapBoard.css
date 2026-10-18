@@ -45,21 +45,6 @@
 .hex-unit-rect-move-disabled {
   stroke-width: 2.5;
 }
-.hex-unit-rect-swamp {
-  fill: rgba(255, 255, 255, 0.08) !important;
-  stroke: rgba(79, 69, 52, 0.34) !important;
-  stroke-width: 1.5;
-  filter: none;
-}
-
-.hex-unit-rect-swamp-destroyed {
-  fill: rgba(255, 255, 255, 0.04) !important;
-  stroke: rgba(79, 69, 52, 0.24) !important;
-  stroke-width: 1.5;
-  filter: grayscale(0.06) brightness(0.98);
-}
-
-.hex-unit-stack-swamp .hex-unit-rect,
 .hex-unit-stack-swamp .hex-unit-disabled-indicator {
   filter: none;
 }
@@ -217,25 +202,25 @@
 /* Use SVG images for terrain backgrounds */
 .hex-terrain-default > .hex-shape {
   fill: url('/terrain/default.svg');
-  stroke: #8b7355;
+  stroke: #c1ad84;
   stroke-width: 1;
 }
 
 .hex-terrain-1 > .hex-shape {
   fill: url('/terrain/ridges.svg');
-  stroke: #5c4a2f;
+  stroke: #c1ad84;
   stroke-width: 1;
 }
 
 .hex-terrain-2 > .hex-shape {
   fill: url('/terrain/craters.svg');
-  stroke: #2d2d2d;
+  stroke: #c1ad84;
   stroke-width: 1;
 }
 
 .hex-terrain-3 > .hex-shape {
   fill: #2d5a2d;
-  stroke: #1a3a1a;
+  stroke: #c1ad84;
   stroke-width: 1;
 }
 
@@ -316,7 +301,7 @@
   pointer-events: all;
 }
 
-.hex-unit-stack-selected .hex-unit-rect {
+.hex-unit-stack-selected:not(.hex-unit-stack-swamp) .hex-unit-rect {
   stroke: #ffeb3b;
   stroke-width: 3;
 }
@@ -396,16 +381,8 @@
 .hex-unit-marker {
   font-size: 10px;
   font-weight: bold;
-  fill: #ffffff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
   pointer-events: none;
-}
-
-/* Make marker text black on yellow/inactive units */
-.hex-unit-marker.tone-dim {
-  fill: var(--ink, #544b3d);
-  font-family: var(--display-font, 'Rajdhani', 'Aptos Narrow', 'Arial Narrow', sans-serif);
-  text-shadow: none;
 }
 
 .hex-stack-badge {

@@ -7,6 +7,7 @@ const configuredTypeId: UnitTypeId = 'configured-unit-from-external-catalog'
 
 const validUnitCatalogEntry = {
   name: 'Test Unit',
+  description: 'A test unit.',
   friendlyNameTemplate: 'Test Unit {{ordinal}}',
   movement: 1,
   defense: 1,
@@ -65,6 +66,10 @@ describe('static unit and weapon catalogs', () => {
 
     for (const unitType of Object.values(catalog)) {
       expect(unitType.spriteKey).toEqual(expect.any(String))
+      expect(unitType.hexMapScale).toEqual(expect.any(Number))
+      expect(unitType.hexMapScale).toBeGreaterThan(0)
+      expect(unitType.hexMapOffsetY).toEqual(expect.any(Number))
+      expect(unitType).not.toHaveProperty('hexMapVerticalAlignment')
       expect(unitType).not.toHaveProperty('weaponTypeIds')
       expect(unitType).not.toHaveProperty('treads')
       for (const [weaponTypeId, quantity] of Object.entries(unitType.weaponQuantities)) {
@@ -73,6 +78,27 @@ describe('static unit and weapon catalogs', () => {
         expect(quantity).toBeGreaterThanOrEqual(0)
       }
     }
+  })
+
+  it('sizes battlefield sprites in the configured relative hierarchy', () => {
+    const catalog = getUnitTypeCatalog()
+
+    expect(catalog.Farquaad.hexMapScale).toBeCloseTo(0.528)
+    expect(catalog.Farquaad.hexMapOffsetY).toBe(8.6)
+    expect(catalog.Pinocchio.hexMapScale).toBeLessThan(catalog.BigBadWolf.hexMapScale!)
+    expect(catalog.Pinocchio.hexMapOffsetX).toBe(-5)
+    expect(catalog.Pinocchio.hexMapOffsetY).toBe(9)
+    expect(catalog.Witch.hexMapScale).toBeLessThan(catalog.Puss.hexMapScale!)
+    expect(catalog.Puss.hexMapScale).toBeLessThan(catalog.Dragon.hexMapScale!)
+    expect(catalog.Dragon.hexMapScale).toBe(0.7)
+    expect(catalog.Dragon.hexMapScale).toBeLessThan(catalog.TheOnion.hexMapScale!)
+    expect(catalog.LittlePigs.hexMapOffsetY).toBe(6)
+    expect(catalog.Swamp.hexMapScale).toBe(1)
+    expect(catalog.Swamp.hexMapOffsetY).toBe(-5)
+    expect(catalog.TheOnion.hexMapScale).toBe(1)
+    expect(catalog.TheOnion.hexMapOffsetY).toBe(0)
+    expect(catalog.TheOnionDamaged.hexMapScale).toBe(1)
+    expect(catalog.TheOnionDamaged.hexMapOffsetY).toBe(0)
   })
 
   it('keeps default quantities on weapon types and expands the Onion loadout contract', () => {
@@ -190,6 +216,17 @@ describe('static unit and weapon catalogs', () => {
     ['arbitrary field', { misspelledField: true }],
   ])('CAT-007 rejects %s through the pure catalog parser', (_field, extraFields) => {
     expect(() => parseUnitCatalog(makeCatalogConfig(extraFields))).toThrow(/TestUnit/)
+  })
+
+  it.each([
+    ['hexMapScale', 0],
+    ['hexMapScale', Number.NaN],
+    ['hexMapScale', Number.POSITIVE_INFINITY],
+    ['hexMapOffsetX', Number.POSITIVE_INFINITY],
+    ['hexMapOffsetY', Number.NaN],
+    ['hexMapVerticalAlignment', 'top'],
+  ])('CAT-013 rejects invalid %s through the pure catalog parser', (field, value) => {
+    expect(() => parseUnitCatalog(makeCatalogConfig({ [field]: value }))).toThrow(/TestUnit/)
   })
 
   it.each(['id', 'unitId', 'type', 'state', 'status', 'position', 'movementSpent', 'side', 'ramsRemaining'])('CAT-008 rejects dynamic unit alias %s through the pure catalog parser', (field) => {

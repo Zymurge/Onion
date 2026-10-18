@@ -162,6 +162,22 @@ maximum, and preserve the resolved values for replay.
 
 Every resolved unit type should expose a stable `spriteKey` or asset reference.
 The runtime catalog, not UI type-name heuristics, should determine the sprite.
+Canonical sprite assets are 1024 pixels wide with the visible artwork normalized
+to a 940-pixel width. Their transparent top margin is cropped by about 20% while
+the bottom padding and artwork scale remain unchanged. Standard display surfaces
+should size these images by their common width. Unit types may define
+`hexMapScale` as a multiplier of hex diameter and `hexMapOffsetX` /
+`hexMapOffsetY` as percentage-point offsets from the hex center, measured
+against the hex diameter. Zero offsets center the sprite; positive X moves
+right, negative X left, positive Y up, and negative Y down. This replaces the
+former vertical-alignment mode and provides continuous placement control.
+`hexMapScale` may exceed 1 to deliberately render a sprite beyond the hex
+bounds. These definition fields are included in the catalog sent to the web client;
+scenario-derived types inherit them from their global base type. On each
+WebSocket connection, the server rereads and validates the global catalog and
+refreshes only these map-presentation fields in `SESSION_INIT`. This lets
+presentation tuning appear after reconnecting an active game without changing
+the match's resolved gameplay rules.
 The asset mapping should support at least:
 
 - Base unit sprite by resolved type
@@ -209,10 +225,10 @@ The chosen treatment must define behavior for:
    sprite sheets, SVG assets, or a mixture?
 2. Who creates and approves the initial sprite set, and what dimensions/aspect
    ratio should assets use?
-3. The ownership decision is resolved: `spriteKey` lives on global unit types,
-   and scenario-derived types inherit it without override. The remaining
-   question is whether a separate presentation registry is needed for asset
-   delivery metadata.
+3. The ownership decision is resolved: `spriteKey`, `hexMapScale`, and map
+   offsets live on global unit types, and scenario-derived types inherit them
+   without override. The canonical centered sprite is the default for non-map
+   surfaces; map sizing and placement are unit-type metadata.
 4. Which unit states require distinct artwork versus a status overlay?
 5. Should labels always be visible, hover/focus-only, or controlled by a display
    setting?

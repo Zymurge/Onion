@@ -10,10 +10,12 @@ import type {
   InteractionViewerRole,
 } from '../lib/interactionRouting'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
+import type { SessionCatalog } from '../lib/sessionCatalog'
 
 type HexMapCellProps = {
   activeCombatRole: 'onion' | 'defender' | null
   center: { x: number; y: number }
+  catalog?: SessionCatalog
   cellOccupants: ReadonlyArray<HexOccupant>
   combatRange: boolean
   combatTargetSelected: boolean
@@ -53,6 +55,7 @@ function terrainImage(terrainType?: number): string {
 export function HexMapCell({
   activeCombatRole,
   center,
+  catalog,
   cellOccupants,
   combatRange,
   combatTargetSelected,
@@ -155,6 +158,7 @@ export function HexMapCell({
             key={occupant.unitId}
             activeCombatRole={activeCombatRole}
             center={center}
+            catalog={catalog}
             combatMembers={combatMembers}
             isCombatPhase={activeCombatRole !== null}
             isMovementPhase={phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'}

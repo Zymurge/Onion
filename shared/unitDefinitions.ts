@@ -32,7 +32,7 @@ function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig
     }
 
     const allowedFields = new Set([
-      'name', 'friendlyNameTemplate', 'spriteKey', 'movement', 'defense', 'cost', 'abilities',
+      'name', 'description', 'friendlyNameTemplate', 'spriteKey', 'hexMapScale', 'hexMapOffsetX', 'hexMapOffsetY', 'movement', 'defense', 'cost', 'abilities',
       'weaponQuantities', 'targetRules', 'maxTreads', 'treadsPerMove', 'ramsPerTurn', 'squads',
     ])
     const unknownField = Object.keys(unitType).find((field) => !allowedFields.has(field))
@@ -40,8 +40,22 @@ function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig
       throw new Error(`Unknown field ${unknownField} in unit type configuration: ${unitTypeId}`)
     }
 
-    if (typeof unitType.name !== 'string' || typeof unitType.movement !== 'number' || typeof unitType.defense !== 'number') {
+    if (typeof unitType.name !== 'string' || typeof unitType.description !== 'string' || typeof unitType.movement !== 'number' || typeof unitType.defense !== 'number') {
       throw new Error(`Invalid unit catalog attributes for unit type: ${unitTypeId}`)
+    }
+
+    if ('hexMapScale' in unitType && (
+      typeof unitType.hexMapScale !== 'number'
+      || !Number.isFinite(unitType.hexMapScale)
+      || unitType.hexMapScale <= 0
+    )) {
+      throw new Error(`Invalid hexMapScale for unit type: ${unitTypeId}; expected a finite value greater than 0`)
+    }
+
+    for (const field of ['hexMapOffsetX', 'hexMapOffsetY']) {
+      if (field in unitType && (typeof unitType[field] !== 'number' || !Number.isFinite(unitType[field]))) {
+        throw new Error(`Invalid ${field} for unit type: ${unitTypeId}`)
+      }
     }
 
     if (!isRecord(unitType.abilities) || typeof unitType.abilities.maxStacks !== 'number' || !Number.isInteger(unitType.abilities.maxStacks) || unitType.abilities.maxStacks < 1) {

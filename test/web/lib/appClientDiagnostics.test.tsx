@@ -127,9 +127,10 @@ describe('useClientDiagnosticsReporter', () => {
 
 		await waitFor(() => expect(controller.abort).toHaveBeenCalledWith('Loaded game snapshot is invalid'))
 		expect(controller.abort).toHaveBeenCalledTimes(1)
-		await waitFor(() => expect(reportDiagnostic).toHaveBeenCalledTimes(2))
+		await waitFor(() => expect(reportDiagnostic).toHaveBeenCalledTimes(1))
 		const invalidCall = reportDiagnostic.mock.calls.find(([, diagnostic]) => diagnostic.code === 'SNAPSHOT_INVALID')
 		expect(invalidCall).toBeDefined()
+		expect(reportDiagnostic.mock.calls.some(([, diagnostic]) => diagnostic.code === 'CLIENT_SESSION_READY')).toBe(false)
 		expect(invalidCall?.[1]).toMatchObject({
 			code: 'SNAPSHOT_INVALID',
 			path: 'authoritativeState',
@@ -139,7 +140,7 @@ describe('useClientDiagnosticsReporter', () => {
 
 		view.rerender()
 		expect(controller.abort).toHaveBeenCalledTimes(1)
-		expect(reportDiagnostic).toHaveBeenCalledTimes(2)
+		expect(reportDiagnostic).toHaveBeenCalledTimes(1)
 	})
 
 	it('aborts invalid snapshots even when diagnostic reporting is unavailable', async () => {

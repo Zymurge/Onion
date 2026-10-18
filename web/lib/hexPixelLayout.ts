@@ -10,6 +10,8 @@ export type HexCoord = {
 
 const SQRT_3 = Math.sqrt(3)
 
+export const DEFAULT_HEX_SIZE = 36
+
 export function axialToPixel({ q, r }: HexCoord, size: number): HexPoint {
   return {
     x: size * SQRT_3 * (q + r / 2),

@@ -1733,9 +1733,14 @@
 
 .inspector-sprite {
   display: block;
-  width: min(100%, 280px);
-  height: 190px;
-  object-fit: contain;
+  width: min(100%, 190px);
+  height: auto;
+}
+
+.inspector-description {
+  margin: 0 0 16px;
+  color: var(--ink-muted);
+  line-height: 1.5;
 }
 
 .selection-panel-content {

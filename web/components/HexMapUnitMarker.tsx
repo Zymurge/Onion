@@ -17,6 +17,11 @@ import type {
 } from '../lib/interactionRouting'
 import { getUnitDefinition } from '../../shared/unitDefinitions'
 import { getUnitSpriteHref } from '../lib/unitSpriteRegistry'
+import type { SessionCatalog } from '../lib/sessionCatalog'
+import { DEFAULT_HEX_SIZE } from '../lib/hexPixelLayout'
+import { resolveHexMapSpriteLayout } from '../lib/hexMapSpriteLayout'
+
+const DEFENDER_LABEL_LIFT = DEFAULT_HEX_SIZE * 2 * 0.1
 
 function wrapMarkerText(text: string, maximumLineLength = 12): string[] {
   const words = text.split(/\s+/)
@@ -43,6 +48,7 @@ function wrapMarkerText(text: string, maximumLineLength = 12): string[] {
 type HexMapUnitMarkerProps = {
   activeCombatRole: 'onion' | 'defender' | null
   center: { x: number; y: number }
+  catalog?: SessionCatalog
   combatMembers: ReadonlyArray<HexOccupant>
   isCombatPhase: boolean
   isMovementPhase: boolean
@@ -66,8 +72,8 @@ type HexMapUnitMarkerProps = {
 
 /** Renders one occupant marker and routes its selection interaction. */
 export function HexMapUnitMarker({
-  activeCombatRole,
   center,
+  catalog,
   combatMembers,
   isCombatPhase,
   isMovementPhase,
@@ -101,11 +107,13 @@ export function HexMapUnitMarker({
     occupant.weapons.some((weapon) => weapon.state === 'destroyed')
       || ('treads' in occupant && occupant.treads !== undefined && occupant.treads < 45)
   )
+  const unitDefinition = catalog?.unitTypes[occupant.typeId] ?? getUnitDefinition(occupant.typeId)
   const spriteHref = getUnitSpriteHref(
-    getUnitDefinition(occupant.typeId)?.spriteKey,
+    unitDefinition?.spriteKey,
     occupant.state,
     hasDestroyedOnionSubsystem,
   )
+  const spriteLayout = resolveHexMapSpriteLayout(unitDefinition, center, DEFAULT_HEX_SIZE)
   const showOnionDamageTone = hasDestroyedOnionSubsystem
     && (phase === 'DEFENDER_COMBAT' || phase === 'GEV_SECOND_MOVE' || (phase === 'ONION_MOVE' && isTurnHandoffLocked))
   const isDisabled = occupant.state === 'disabled'
@@ -117,23 +125,6 @@ export function HexMapUnitMarker({
   const combatHasReadyAttack = getGroupCombatReadyCount(combatMembers) > 0
   const combatIsDisabled = isGroupCombatDisabled(combatMembers)
   const moveHasRemaining = occupantMovesRemaining > 0
-  const combatEligibilityClass = !isCombatPhase
-    ? ''
-    : isDestroyed || isDisabled
-      ? 'hex-unit-rect-combat-disabled'
-      : activeCombatRole === 'onion'
-        ? isOccupantOnion
-          ? combatHasReadyAttack
-            ? 'hex-unit-rect-combat-eligible'
-            : 'hex-unit-rect-combat-ineligible'
-          : 'hex-unit-rect-combat-inspectable'
-        : activeCombatRole === 'defender'
-          ? !isOccupantOnion
-            ? combatHasReadyAttack
-              ? 'hex-unit-rect-combat-eligible'
-              : 'hex-unit-rect-combat-ineligible'
-            : 'hex-unit-rect-combat-inspectable'
-          : ''
   const movementEligibilityClass = !isMovementPhase
     ? ''
     : isSwamp
@@ -156,13 +147,6 @@ export function HexMapUnitMarker({
   const unitRectHeight = isSwamp ? 48 : 22
   const markerText = getUnitMarkerText(occupant, stackNaming)
   const markerTextLines = markerText === null ? [] : wrapMarkerText(markerText)
-  const markerToneClass = !isSwamp && (
-    movementEligibilityClass === 'hex-unit-rect-move-inspectable'
-      || combatEligibilityClass === 'hex-unit-rect-combat-inspectable'
-  )
-    ? 'tone-dim'
-    : ''
-
   function handleClick(event: MouseEvent<SVGGElement>) {
     if (isSelectionLocked) {
       event.stopPropagation()
@@ -231,9 +215,9 @@ export function HexMapUnitMarker({
     >
       {isSwamp || isOccupantOnion ? (
         <rect
-          className={isSwamp ? ['hex-unit-rect', swampRectClass, isOccupantSelected ? 'hex-unit-rect-selected' : ''].join(' ') : 'hex-unit-onion-hit-target'}
-          fill={isSwamp ? undefined : 'transparent'}
-          stroke={isSwamp ? undefined : 'none'}
+          className={isSwamp ? ['hex-unit-rect', swampRectClass].join(' ') : 'hex-unit-onion-hit-target'}
+          fill="transparent"
+          stroke="none"
           x={unitRectX}
           y={unitRectY}
           width={unitRectWidth}
@@ -245,22 +229,23 @@ export function HexMapUnitMarker({
       {spriteHref !== undefined ? (
         <image
           href={spriteHref}
-          x={center.x - 32.5}
-          y={center.y - 35}
-          width={65}
-          height={65}
+          x={spriteLayout.x}
+          y={spriteLayout.y}
+          width={spriteLayout.width}
+          height={spriteLayout.height}
           preserveAspectRatio="xMidYMid meet"
         />
       ) : null}
       {markerText !== null ? (
         <text
-          className={['hex-unit-marker', markerToneClass].join(' ')}
+          className="hex-unit-marker"
+          fill={isOccupantOnion ? '#ffffff' : '#111111'}
           x={center.x}
-          y={center.y + 16}
+          y={center.y + (isOccupantOnion ? 16 : 24 - DEFENDER_LABEL_LIFT)}
           textAnchor="middle"
         >
           {markerTextLines.map((line, index) => (
-            <tspan key={`${line}-${index}`} x={center.x} dy={index === 0 ? 0 : 10}>
+            <tspan key={`${line}-${index}`} x={center.x} dy={index === 0 ? 0 : isOccupantOnion ? 10 : 8}>
               {line}
             </tspan>
           ))}

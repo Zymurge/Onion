@@ -4,6 +4,7 @@ import '@testing-library/jest-dom/vitest'
 import { describe, expect, it, vi } from 'vitest'
 import { HexMapUnitMarker } from '#web/components/HexMapUnitMarker'
 import type { BattlefieldOnionView, BattlefieldUnit } from '#web/lib/battlefieldView'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 
 const onion: BattlefieldOnionView = {
   unitId: 'onion-1',
@@ -34,18 +35,73 @@ const defender: BattlefieldUnit = {
 }
 
 describe('HexMapUnitMarker', () => {
-  it('renders a destroyed Swamp sprite and preserves marker identity', () => {
+  it('uses per-unit map scale and center-relative offsets from the session catalog', () => {
+    const unitTypes = getUnitTypeCatalog()
+    const sessionCatalog = {
+      unitTypes: {
+        ...unitTypes,
+        LittlePigs: { ...unitTypes.LittlePigs, hexMapScale: 0.5, hexMapOffsetY: 10 },
+      },
+      weaponTypes: getWeaponTypeCatalog(),
+    }
+    const pig: BattlefieldUnit = {
+      ...defender,
+      unitId: 'pigs-1',
+      typeId: 'LittlePigs',
+      friendlyName: 'Little Pigs',
+      state: 'operational',
+    }
+
     render(
       <svg>
         <HexMapUnitMarker
           activeCombatRole={null}
           center={{ x: 36, y: 36 }}
-          combatMembers={[defender]}
+          catalog={sessionCatalog}
+          combatMembers={[pig]}
+          isCombatPhase={false}
+          isMovementPhase={false}
+          isOccupantSelected={false}
+          isSelectionLocked={false}
+          occupant={pig}
+          offsetIndex={0}
+          renderedOccupantCount={1}
+          onion={onion}
+          phase="ONION_COMBAT"
+          resolvedPhaseMode="locked"
+          resolvedViewerActivity="active"
+          resolvedViewerRole="onion"
+          routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
+          rosterGroup={null}
+          onDeselect={vi.fn()}
+          onSelectUnit={vi.fn()}
+        />
+      </svg>,
+    )
+
+    const sprite = screen.getByTestId('hex-unit-pigs-1').querySelector('image')
+    expect(Number(sprite?.getAttribute('width'))).toBe(36)
+    expect(Number(sprite?.getAttribute('height'))).toBe(36)
+    expect(Number(sprite?.getAttribute('x'))).toBe(14.4)
+    expect(Number(sprite?.getAttribute('y'))).toBeCloseTo(10.8)
+  })
+
+  it.each([
+    { state: 'operational' as const, sprite: 'intact' },
+    { state: 'destroyed' as const, sprite: 'destroyed' },
+  ])('renders the $state Swamp sprite without a visible square border', ({ state, sprite }) => {
+    const swamp: BattlefieldUnit = { ...defender, state }
+    render(
+      <svg>
+        <HexMapUnitMarker
+          activeCombatRole={null}
+          center={{ x: 36, y: 36 }}
+          combatMembers={[swamp]}
           isCombatPhase={false}
           isMovementPhase
           isOccupantSelected
           isSelectionLocked={false}
-          occupant={defender}
+          occupant={swamp}
           offsetIndex={0}
           renderedOccupantCount={1}
           onion={onion}
@@ -61,8 +117,13 @@ describe('HexMapUnitMarker', () => {
       </svg>,
     )
 
-    expect(screen.getByTestId('hex-unit-swamp-1')).toHaveAttribute('data-selected', 'true')
-    expect(screen.getByTestId('hex-unit-swamp-1').querySelector('image')).toHaveAttribute('href', expect.stringContaining('destroyed'))
+    const marker = screen.getByTestId('hex-unit-swamp-1')
+    const hitTarget = marker.querySelector('rect')
+    expect(marker).toHaveAttribute('data-selected', 'true')
+    expect(marker.querySelector('image')).toHaveAttribute('href', expect.stringContaining(sprite))
+    expect(hitTarget).toHaveAttribute('fill', 'transparent')
+    expect(hitTarget).toHaveAttribute('stroke', 'none')
+    expect(hitTarget).not.toHaveClass('hex-unit-rect-selected')
   })
 
   it('renders defender sprites without a background box and wraps their label below', () => {
@@ -102,9 +163,50 @@ describe('HexMapUnitMarker', () => {
 
     const marker = screen.getByTestId('hex-unit-pigs-1')
     expect(marker.querySelector('.hex-unit-rect-defender')).toBeNull()
-    expect(marker.querySelector('image')).toHaveAttribute('width', '65')
-    expect(marker.querySelector('image')).toHaveAttribute('y', '1')
+    expect(Number(marker.querySelector('image')?.getAttribute('width'))).toBeCloseTo(72 * getUnitTypeCatalog().LittlePigs.hexMapScale!)
+    expect(Number(marker.querySelector('image')?.getAttribute('y'))).toBeCloseTo(10.8)
+    expect(marker.querySelector('text')).toHaveAttribute('fill', '#111111')
+    expect(marker.querySelector('text')).not.toHaveClass('tone-dim')
+    expect(Number(marker.querySelector('text')?.getAttribute('y'))).toBeCloseTo(52.8)
     expect(marker.querySelectorAll('tspan')).toHaveLength(2)
+  })
+
+  it('centers the full-size Onion sprite and keeps its label over the sprite in white', () => {
+    render(
+      <svg>
+        <HexMapUnitMarker
+          activeCombatRole={null}
+          center={{ x: 36, y: 36 }}
+          combatMembers={[onion]}
+          isCombatPhase={false}
+          isMovementPhase
+          isOccupantSelected={false}
+          isSelectionLocked={false}
+          occupant={onion}
+          offsetIndex={0}
+          renderedOccupantCount={1}
+          onion={onion}
+          phase="DEFENDER_MOVE"
+          resolvedPhaseMode="movement"
+          resolvedViewerActivity="active"
+          resolvedViewerRole="defender"
+          routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
+          rosterGroup={null}
+          onDeselect={vi.fn()}
+          onSelectUnit={vi.fn()}
+        />
+      </svg>,
+    )
+
+    const marker = screen.getByTestId('hex-unit-onion-1')
+    const sprite = marker.querySelector('image')
+    const label = marker.querySelector('text')
+    expect(Number(sprite?.getAttribute('x'))).toBeCloseTo(0)
+    expect(Number(sprite?.getAttribute('y'))).toBeCloseTo(0)
+    expect(Number(sprite?.getAttribute('width'))).toBeCloseTo(72)
+    expect(label).toHaveAttribute('fill', '#ffffff')
+    expect(marker.children.item(1)).toBe(sprite)
+    expect(marker.children.item(2)).toBe(label)
   })
 
   it('uses lighter orange for a destroyed member of a partial stack', () => {

@@ -110,9 +110,16 @@ export interface Weapon {
 export interface UnitTypeBase {
   typeId: UnitTypeId
   name: string
+  description: string
   stackable: boolean
   friendlyNameTemplate?: string
   spriteKey?: string
+  /** Sprite viewport size as a multiplier of the hex diameter; values above 1 extend beyond the hex. */
+  hexMapScale?: number
+  /** Horizontal offset from the hex center in percentage points of the hex diameter; positive is right. */
+  hexMapOffsetX?: number
+  /** Vertical offset from the hex center in percentage points of the hex diameter; positive is up. */
+  hexMapOffsetY?: number
   movement: number
   defense: number
   cost?: number

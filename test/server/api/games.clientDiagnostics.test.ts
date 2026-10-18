@@ -32,13 +32,16 @@ const diagnosticPayload = {
 }
 
 let errorSpy: ReturnType<typeof vi.spyOn>
+let infoSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
   errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+  infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
 })
 
 afterEach(() => {
   errorSpy.mockRestore()
+  infoSpy.mockRestore()
 })
 
 describe('POST /games/:id/client-diagnostics API contract', () => {
@@ -91,6 +94,41 @@ describe('POST /games/:id/client-diagnostics API contract', () => {
       eventSeq: expect.any(Number),
     })
     expect(after.json()).not.toEqual(before.json())
+  })
+
+  it('logs successful snapshot readiness at info level', async () => {
+    const app = buildApp()
+    const reporter = await register(app, 'shrek')
+    const { gameId } = await createGame(app, reporter.token, 'onion')
+    const response = await app.inject({
+      method: 'POST',
+      url: `/games/${gameId}/client-diagnostics`,
+      headers: { authorization: `Bearer ${reporter.token}` },
+      payload: {
+        reportId: '550e8400-e29b-41d4-a716-446655440001',
+        code: 'CLIENT_SESSION_READY',
+        message: 'Client loaded an authoritative game snapshot',
+        snapshot: {
+          gameId,
+          scenarioName: 'The Siege of Shrek\'s Swamp',
+          phase: 'DEFENDER_COMBAT',
+          turnNumber: 8,
+          lastEventSeq: 47,
+        },
+        client: { build: 'web-test-build', userAgent: 'vitest' },
+        protocolTraffic: [],
+      },
+    })
+
+    expect(response.statusCode).toBe(202)
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gameId,
+        diagnostic: expect.objectContaining({ code: 'CLIENT_SESSION_READY' }),
+      }),
+      'Client loaded an authoritative game snapshot',
+    )
+    expect(errorSpy).not.toHaveBeenCalled()
   })
 
   it('requires authentication and participant membership', async () => {
