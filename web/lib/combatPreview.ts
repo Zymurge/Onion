@@ -278,7 +278,7 @@ export function buildCombatTargetOptions({
 			if (rosterGroup === null && stackedDefenderKeys.has(`${unit.typeId}:${unitPosition.q},${unitPosition.r}`)) {
 				throw new Error(`Missing stackRoster entry for grouped unit ${unit.unitId}`)
 			}
-			const groupId = rosterGroup !== null && rosterGroup.unitIds.length > 1 ? rosterGroup.groupId : unit.unitId
+			const groupId = rosterGroup?.groupId ?? unit.unitId
 			if (!groupedTargets.has(groupId)) {
 				groupedTargets.set(groupId, unit)
 			}
@@ -286,15 +286,13 @@ export function buildCombatTargetOptions({
 
 		return [...groupedTargets.values()].map((unit) => {
 			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.unitId) ?? null
-			const stackSize = rosterGroup !== null && rosterGroup.unitIds.length > 1
+			const stackSize = rosterGroup !== null
 				? resolveGroupedDefenderStackSize(rosterGroup.unitIds, validDefenders)
 				: 1
 			const unitPosition = getBattlefieldPosition(unit)
 			const terrainType = getTerrainValueAt(displayedScenarioMap, unitPosition.q, unitPosition.r)
 			const defense = getDisplayDefense(unit.typeId, stackSize, terrainType)
-			const targetId = rosterGroup !== null && rosterGroup.unitIds.length > 1
-				? rosterGroup.groupId
-				: unit.unitId
+			const targetId = rosterGroup?.groupId ?? unit.unitId
 			const result = combatCalculator.calculate(
 				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, { ...unit }, stackSize, displayedScenarioMap),
 			)

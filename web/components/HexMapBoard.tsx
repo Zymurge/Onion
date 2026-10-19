@@ -297,8 +297,8 @@ export function HexMapBoard({
   }
 
   function selectCombatTarget(occupant: HexOccupant) {
-    const combatTargetId = getCombatTargetIdForOccupant(occupant, activeCombatRole, onion)
-    if (isCombatTargetSelectable(occupant, activeCombatRole, onion, combatTargetIds)) {
+    const combatTargetId = getCombatTargetIdForOccupant(occupant, activeCombatRole, onion, stackRosterIndex)
+    if (isCombatTargetSelectable(occupant, activeCombatRole, onion, combatTargetIds, stackRosterIndex)) {
       onSelectCombatTarget?.(combatTargetId)
     }
   }
@@ -349,6 +349,7 @@ export function HexMapBoard({
                 activeCombatRole,
                 onion,
                 selectedCombatTargetId,
+                stackRosterIndex,
               ))
               const targetOccupant = resolveCanonicalOccupant(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)
               const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
@@ -426,7 +427,7 @@ export function HexMapBoard({
                         inspectable: cellOccupants.some((occupant) => occupant.state !== 'destroyed'),
                         moveEligible: selectedIsEligible,
                         attackerEligible: false,
-                        targetEligible: targetOccupant !== undefined && isCombatTargetSelectable(targetOccupant, activeCombatRole, onion, combatTargetIds),
+                        targetEligible: targetOccupant !== undefined && isCombatTargetSelectable(targetOccupant, activeCombatRole, onion, combatTargetIds, stackRosterIndex),
                       },
                       interactionMode: { destinationReachable },
                     })

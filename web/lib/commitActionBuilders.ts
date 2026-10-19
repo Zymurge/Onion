@@ -49,6 +49,13 @@ function isStackableUnitType(state: WebStackSourceState, unitType: string | null
   return unitType !== null && state.catalog !== undefined && isSessionUnitTypeStackable(state.catalog, unitType)
 }
 
+function resolveStackGroupTargetId(state: WebStackSourceState, targetId: string): string {
+  const matchingGroup = Object.entries(state.stackRoster?.groupsById ?? {})
+    .find(([, group]) => group.unitIds.includes(targetId))
+
+  return matchingGroup?.[0] ?? targetId
+}
+
 function buildMovePayload(
   state: WebStackSourceState,
   unitId: string,
@@ -111,7 +118,10 @@ function buildCombatPayload(
   targetId: string,
   onionId: string,
 ): CommitActionResult<Extract<GameAction, { type: 'FIRE' }>> {
-  const translatedTargetId = buildCombatTargetActionId(targetId, onionId)
+  const translatedTargetId = resolveStackGroupTargetId(
+    state,
+    buildCombatTargetActionId(targetId, onionId),
+  )
   const stackSubmission = buildRightRailCombatSubmissionAction({
     state,
     anchorUnitId,

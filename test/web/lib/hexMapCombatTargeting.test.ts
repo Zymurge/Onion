@@ -5,6 +5,7 @@ import {
   isCombatTargetSelectable,
   isCombatTargetSelected,
 } from '#web/lib/hexMapCombatTargeting'
+import type { OccupantRosterIndex } from '#web/lib/hexMapOccupancy'
 
 const onion = { unitId: 'onion-1', typeId: 'TheOnion' } as BattlefieldOnionView
 const defender = { unitId: 'puss-1', typeId: 'Puss' } as BattlefieldUnit
@@ -25,5 +26,18 @@ describe('hexMapCombatTargeting', () => {
     expect(isCombatTargetSelected(onion, 'defender', onion, 'onion-1:treads')).toBe(true)
     expect(isCombatTargetSelected(onion, 'defender', onion, 'weapon:main-1')).toBe(true)
     expect(isCombatTargetSelected(defender, 'onion', onion, 'puss-1')).toBe(true)
+  })
+
+  it('uses the roster group ID for a stacked map target, including a single visible member', () => {
+    const pig = { unitId: 'pigs-1', typeId: 'LittlePigs', role: 'defender' } as BattlefieldUnit
+    const rosterIndex: OccupantRosterIndex = {
+      getUnitGroup: (unitId) => unitId === pig.unitId
+        ? { groupId: 'LittlePigs:3,2', unitIds: ['pigs-1'] }
+        : null,
+    }
+
+    expect(getCombatTargetIdForOccupant(pig, 'onion', onion, rosterIndex)).toBe('LittlePigs:3,2')
+    expect(isCombatTargetSelectable(pig, 'onion', onion, new Set(['LittlePigs:3,2']), rosterIndex)).toBe(true)
+    expect(isCombatTargetSelected(pig, 'onion', onion, 'LittlePigs:3,2', rosterIndex)).toBe(true)
   })
 })

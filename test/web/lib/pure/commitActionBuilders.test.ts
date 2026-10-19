@@ -142,6 +142,26 @@ describe('commitActionBuilders', () => {
   })
 
   describe('buildCombatCommitAction', () => {
+    it('normalizes an individual stacked target to its roster group ID', () => {
+      const state = createTestStackState()
+
+      expect(buildCombatCommitAction({
+        state,
+        anchorUnitId: null,
+        selectedUnitIds: ['main'],
+        targetId: 'pigs-1',
+        onionId: 'onion-1',
+      })).toEqual({
+        ok: true,
+        action: {
+          type: 'FIRE',
+          attackers: ['main'],
+          targetId: 'stack-a',
+          onionId: 'onion-1',
+        },
+      })
+    })
+
     it('preserves the explicit tread target identity in a FIRE action', () => {
       const state = createTestStackState()
 

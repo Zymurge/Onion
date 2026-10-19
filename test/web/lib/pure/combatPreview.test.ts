@@ -127,6 +127,10 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options).toHaveLength(1)
+		expect(options[0]).toMatchObject({
+			id: 'LittlePigs:3,2',
+			label: 'Little Pigs group 1',
+		})
 	})
 
 	it('builds shared combat preview data for ridgeline targets', () => {
@@ -161,7 +165,7 @@ describe('buildCombatTargetOptions', () => {
 
 		expect(options).toHaveLength(1)
 			expect(options[0]).toMatchObject({
-				id: 'near-1',
+				id: 'LittlePigs:3,2',
 				label: 'Little Pigs group 1',
 				defense: 2,
 				modifiers: expect.arrayContaining(['Ridgeline cover: +1 defense']),
@@ -317,7 +321,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 		})
 
-		expect(options.map((option) => option.id)).toEqual(['pigs-1'])
+		expect(options.map((option) => option.id)).toEqual(['LittlePigs:1,1'])
 	})
 
 	it('keeps Swamp targetable for non-AP Onion weapons', () => {
