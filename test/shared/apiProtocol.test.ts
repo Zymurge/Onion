@@ -62,6 +62,29 @@ describe('apiProtocol traffic logging', () => {
 		expect(formatApiProtocolTrafficEntry(snapshot[1]).join('\n')).toContain('  "token": "(redacted)"')
 	})
 
+	it('omits the JSON content type when a request has no body', async () => {
+		const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+			const headers = new Headers(init?.headers)
+			expect(headers.has('content-type')).toBe(false)
+			expect(headers.get('authorization')).toBe('Bearer test-token')
+			expect(init?.body).toBeUndefined()
+			return new Response(JSON.stringify({ gameId: 123, deleted: true }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' },
+			})
+		})
+
+		const result = await requestJson<{ gameId: number; deleted: boolean }>({
+			baseUrl: 'http://example.com',
+			path: 'games/123',
+			method: 'DELETE',
+			token: 'test-token',
+			fetchImpl,
+		})
+
+		expect(result).toEqual({ ok: true, status: 200, data: { gameId: 123, deleted: true } })
+	})
+
 	it('captures the raw response body when requested before parsing', async () => {
 		await requestJson({
 			baseUrl: 'http://example.com',

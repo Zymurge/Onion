@@ -355,7 +355,7 @@ export async function requestJson<T>(options: {
 		try {
 			response = await fetchImpl(requestUrl, {
 				method: options.method,
-				headers: buildHeaders(options.token),
+				headers: buildHeaders(options.token, requestBody !== undefined),
 				body: requestBody,
 			})
 			if (!response.ok && retryableStatuses.has(response.status) && attempt < maxAttempts) {
