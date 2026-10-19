@@ -95,6 +95,10 @@ export function spendUnitMovement(unit: UnitStatus, phase: TurnPhase, spent: num
 
 export function resetMovementSpent(state: GameState): void {
 	for (const unit of [...Object.values(state.onions), ...Object.values(state.defenders)]) {
+		if (unit.state === 'destroyed') {
+			continue
+		}
+
 		unit.movementSpent = {}
 	}
 }

@@ -58,6 +58,7 @@ type DefenderStackGroup = {
   isActionable: boolean
   isDestroyed: boolean
   isPartiallyDestroyed: boolean
+  hasDisabledUnit: boolean
   label: string
   members: DefenderStackGroupMember[]
   range: number
@@ -142,14 +143,14 @@ function buildDefenderGroupFromUnits(
       selectionId: unit.unitId,
       testId: `combat-stack-member-${unit.unitId}`,
       label: resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName),
-      disabledReason: availabilityReasonForUnit(unit),
+      disabledReason: unit.state === 'destroyed' ? 'Destroyed' : availabilityReasonForUnit(unit),
     }))
     : stackSize > 1
       ? Array.from({ length: stackSize }, (_, index) => ({
         selectionId: buildStackMemberSelectionId(anchorUnit.unitId, index + 1),
         testId: `combat-stack-member-${anchorUnit.unitId}-${index + 1}`,
         label: resolveBattlefieldUnitName(anchorUnit.typeId, anchorUnit.unitId, anchorUnit.friendlyName),
-        disabledReason: availabilityReasonForUnit(anchorUnit),
+        disabledReason: anchorUnit.state === 'destroyed' ? 'Destroyed' : availabilityReasonForUnit(anchorUnit),
       }))
       : []
 
@@ -157,13 +158,17 @@ function buildDefenderGroupFromUnits(
     anchorUnit,
     attackStrength: displayedUnits.reduce((total, unit) => total + getUnitAttackStrength(unit, catalog), 0),
     attackReadyCount,
-      isActionable: groupMode === 'combat' && units.some((unit) => unit.actionableModes.includes(activeMode) && availabilityReasonForUnit(unit) === undefined),
+      isActionable: groupMode === 'combat' && units.some((unit) =>
+        unit.state !== 'destroyed'
+        && unit.actionableModes.includes(activeMode)
+        && availabilityReasonForUnit(unit) === undefined),
       isDestroyed: groupMode === 'combat'
         ? units.every((unit) => unit.state === 'destroyed')
         : anchorUnit.state === 'destroyed',
       isPartiallyDestroyed: units.some((unit) => unit.state === 'destroyed')
         && units.some((unit) => unit.state !== 'destroyed'),
-    label,
+      hasDisabledUnit: units.some((unit) => unit.state === 'disabled'),
+      label,
     members,
     availabilityReason: groupMode === 'combat' && unavailableCombatUnits.length === units.length
       ? availabilityReasonForUnit(anchorUnit) ?? 'Unavailable'
@@ -284,7 +289,11 @@ function BattlefieldStackGroup({
           isSelected ? 'is-selected' : '',
           isActionable ? 'is-actionable' : '',
           isSelectionLocked ? 'is-disabled' : '',
-          group.isPartiallyDestroyed ? 'tone-destroyed-partial' : `tone-${statusTone(group.anchorUnit.state)}`,
+          group.isPartiallyDestroyed
+            ? 'tone-destroyed-partial'
+            : group.hasDisabledUnit
+              ? 'tone-dim'
+              : `tone-${statusTone(group.anchorUnit.state)}`,
         ].join(' ')}
         aria-pressed={isSelected}
         disabled={isSelectionLocked}
@@ -328,14 +337,14 @@ function BattlefieldStackGroup({
         <div className="combat-stack-member-list">
           {group.members.map((member) => {
             const isMemberSelected = activeSelectedUnitIds.includes(member.selectionId)
-            const memberUnit = isCombatGroup ? displayedDefenders.find((unit) => unit.unitId === member.selectionId) : undefined
-            const memberAvailabilityReason = member.disabledReason ?? (memberUnit === undefined ? undefined : getCombatUnitAvailabilityReason(memberUnit, activeTurnActive))
+            const memberUnit = displayedDefenders.find((unit) => unit.unitId === member.selectionId)
+            const memberAvailabilityReason = member.disabledReason ?? (isCombatGroup && memberUnit !== undefined ? getCombatUnitAvailabilityReason(memberUnit, activeTurnActive) : undefined)
             const isMemberDisabled = isSelectionLocked || (isCombatGroup && activeTurnActive && viewerRole === 'defender' && memberAvailabilityReason !== undefined)
             return (
               <button
                 key={member.selectionId}
                 type="button"
-                className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}${isMemberDisabled ? ' is-disabled' : ''}`}
+                className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}${isMemberDisabled ? ' is-disabled' : ''}${memberAvailabilityReason === 'Destroyed' ? ' tone-destroyed' : memberUnit?.state === 'disabled' ? ' tone-dim' : ''}`}
                 aria-pressed={isMemberSelected}
                 disabled={isMemberDisabled}
                 data-selected={isMemberSelected}
@@ -473,7 +482,7 @@ export function BattlefieldLeftRail({
                     <button
                       key={weapon.id}
                       type="button"
-                      className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}${isWeaponDisabled ? ' is-disabled' : ''}`}
+                      className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}${isWeaponDisabled ? ' is-disabled' : ''}${weapon.state === 'destroyed' ? ' tone-destroyed' : ''}`}
                       aria-pressed={isSelected}
                       disabled={isWeaponDisabled}
                       title={weapon.disabledReason}

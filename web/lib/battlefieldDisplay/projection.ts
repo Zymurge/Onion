@@ -102,6 +102,9 @@ export function buildBattlefieldDisplayModel({
 	const displayedDefenders = authoritativeState === null || hasValidationError || clientSnapshot === null
 		? []
 		: buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive, handoffSnapshot !== null)
+	const defenderRoster = authoritativeState === null || hasValidationError || clientSnapshot === null
+		? []
+		: buildLiveDefenders(clientSnapshot, activePhase, activeTurnActive, true)
 	const visibleStackSourceState = projectWebStackSourceStateToUnitIds(
 		stackSourceState,
 		new Set(displayedDefenders.map((unit) => unit.unitId)),
@@ -197,7 +200,7 @@ export function buildBattlefieldDisplayModel({
 		selectedInspectorOnion !== null ||
 		selectedInspectorUnitId === null
 			? null
-			: displayedDefenders.find((unit) => unit.unitId === selectedInspectorUnitId) ?? null
+			: defenderRoster.find((unit) => unit.unitId === selectedInspectorUnitId) ?? null
 	const selectedInspectorLabel = selectedInspectorOnion !== null
 		? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackRoster, catalog ?? undefined)
 		: selectedInspectorDefender !== null
@@ -320,6 +323,7 @@ export function buildBattlefieldDisplayModel({
 		combatTargetOptions,
 		connectionLabel,
 		connectionStatus,
+		defenderRoster,
 		displayedDefenders,
 		displayedOnion,
 		displayedOnions,

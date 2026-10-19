@@ -166,7 +166,7 @@ function hasImplicitStackedDefenders(authoritativeState: GameState, catalog: Gam
 	const stackableUnitCountsByPosition = new Map<string, number>()
 
 	for (const defender of Object.values(authoritativeState.defenders)) {
-		if (catalog === null || catalog === undefined || !isSessionUnitTypeStackable(catalog, defender.typeId)) {
+		if (defender.state === 'destroyed' || catalog === null || catalog === undefined || !isSessionUnitTypeStackable(catalog, defender.typeId)) {
 			continue
 		}
 
@@ -185,7 +185,7 @@ function hasImplicitStackedDefenders(authoritativeState: GameState, catalog: Gam
 export function assertCanonicalStackProjection(authoritativeState: GameState, catalog: GameSessionViewState['catalog']): { error: string | null } {
 	const stackRoster = authoritativeState.stackRoster
 	const stackableDefenderIds = Object.values(authoritativeState.defenders)
-		.filter((defender) => catalog !== null && catalog !== undefined && isSessionUnitTypeStackable(catalog, defender.typeId))
+		.filter((defender) => defender.state !== 'destroyed' && catalog !== null && catalog !== undefined && isSessionUnitTypeStackable(catalog, defender.typeId))
 		.map((defender) => defender.unitId)
 	const stackRosterGroupKeys = Object.keys(stackRoster?.groupsById ?? {})
 	if (hasImplicitStackedDefenders(authoritativeState, catalog) && stackRoster === undefined) {

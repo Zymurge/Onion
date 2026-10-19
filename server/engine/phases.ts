@@ -36,7 +36,7 @@ export function phaseActor(phase: TurnPhase): PhaseActor {
   }
 }
 
-export function clearDestroyedDefenders(state: EngineGameState): void {
+export function pruneDestroyedDefendersFromStackRoster(state: EngineGameState): void {
   const destroyedUnitIds = new Set<string>()
   for (const [unitId, unit] of Object.entries(state.defenders)) {
     if (unit.state === 'destroyed') {
@@ -48,10 +48,6 @@ export function clearDestroyedDefenders(state: EngineGameState): void {
   if (destroyedUnitIds.size === 0) {
     return
   }
-
-  state.defenders = Object.fromEntries(
-    Object.entries(state.defenders).filter(([, unit]) => unit.state !== 'destroyed' || unit.typeId === 'Swamp'),
-  )
 
   if (state.stackRoster !== undefined) {
     const groupsById = Object.fromEntries(

@@ -3,7 +3,7 @@ import { getUnitRamCapacity } from '#shared/unitMovement'
 import logger from '#server/logger'
 import type { TurnPhase, GameState, EventEnvelope } from '#shared/types/index'
 import type { MatchRecord } from '#server/db/adapter'
-import { TURN_PHASES, clearDestroyedDefenders, clearDestroyedOnions, phaseActor } from '#server/engine/phases'
+import { TURN_PHASES, clearDestroyedOnions, phaseActor, pruneDestroyedDefendersFromStackRoster } from '#server/engine/phases'
 import { UnitWeapons } from '#shared/unitWeapons'
 import type { RulesContext } from '#shared/rulesContext'
 
@@ -49,6 +49,7 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
     refreshOnionWeaponsForNewTurn(state, rules);
     // Reset defender weapons for the new turn
     for (const unit of Object.values(state.defenders)) {
+      if (unit.state === 'destroyed') continue
       if (unit.weapons) {
         for (const weapon of unit.weapons) {
           if (weapon.state === 'spent') {
@@ -80,7 +81,7 @@ export function advancePhaseWithEvents(match: Pick<MatchRecord, 'phase' | 'turnN
     if (engineNextIdx === 0) turnNumber++;
     phase = TURN_PHASES[engineNextIdx];
     if (phase === 'DEFENDER_MOVE') {
-      clearDestroyedDefenders(state)
+      pruneDestroyedDefendersFromStackRoster(state)
     }
     newEvents.push({ seq: seq++, type: 'PHASE_CHANGED', timestamp, phase: engineFrom, from: engineFrom, to: phase, turnNumber });
   }

@@ -326,6 +326,12 @@ export function HexMapBoard({
           aria-label="Swamp Siege hex map"
         >
           <defs>
+            <pattern id="destroyed-unit-stripes" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+              <rect width="4" height="8" fill="#874b52" fillOpacity="0.36" />
+            </pattern>
+            <pattern id="disabled-unit-stripes" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+              <rect width="6" height="10" fill="#cc901f" fillOpacity="0.4" />
+            </pattern>
             <pattern id={escapePatternId} width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="18" height="18" fill="rgba(155, 148, 112, 0.18)" />
               <path d="M 0 0 L 0 18" stroke="rgba(62, 84, 43, 0.88)" strokeWidth="12" strokeLinecap="square" />

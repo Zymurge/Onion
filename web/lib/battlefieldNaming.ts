@@ -85,6 +85,10 @@ export function resolveBattlefieldFriendlyName(
   stackRoster?: StackRosterState,
   catalog?: SessionCatalog,
 ): string {
+  if (unit.state === 'destroyed') {
+    return resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName)
+  }
+
   const position = unit.position
   const groupKey = buildStackGroupKey(unit.typeId, position)
   const rosterGroup = stackRoster === undefined

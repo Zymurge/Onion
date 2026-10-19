@@ -115,6 +115,10 @@ export function validateStackRosterConsistency(
 	}
 
 	for (const [defenderKey, defender] of Object.entries(defenders ?? {})) {
+		if (defender.state === 'destroyed') {
+			continue
+		}
+
 		const defenderId = defender.unitId ?? defenderKey
 		if (!isStackRosterUnitType(defender.typeId)) {
 			continue

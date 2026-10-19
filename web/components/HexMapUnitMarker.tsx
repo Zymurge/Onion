@@ -105,7 +105,6 @@ export function HexMapUnitMarker({
   const isDestroyed = occupant.state === 'destroyed'
   const isPartialDestroyed = combatMembers.some((member) => member.state === 'destroyed')
     && combatMembers.some((member) => member.state !== 'destroyed')
-  const hasDestroyedMembers = isDestroyed || isPartialDestroyed
   const hasDestroyedOnionSubsystem = isOccupantOnion && (
     occupant.weapons.some((weapon) => weapon.state === 'destroyed')
       || ('treads' in occupant && occupant.treads !== undefined && occupant.treads < 45)
@@ -239,31 +238,6 @@ export function HexMapUnitMarker({
           preserveAspectRatio="xMidYMid meet"
         />
       ) : null}
-      {hasDestroyedMembers ? (
-        <g
-          className="hex-unit-destroyed-indicator"
-          data-testid={`hex-unit-destroyed-indicator-${occupant.unitId}`}
-          role="img"
-          aria-label={isDestroyed ? 'Destroyed' : 'Destroyed unit in stack'}
-          pointerEvents="none"
-        >
-          <circle
-            cx={center.x + 17}
-            cy={center.y - 16}
-            r={8.5}
-            fill={isDestroyed ? '#b71c1c' : '#c76b2f'}
-            stroke="#ffffff"
-            strokeWidth={1.5}
-          />
-          <path
-            d={`M ${center.x + 13.5} ${center.y - 19.5} L ${center.x + 20.5} ${center.y - 12.5} M ${center.x + 20.5} ${center.y - 19.5} L ${center.x + 13.5} ${center.y - 12.5}`}
-            fill="none"
-            stroke="#ffffff"
-            strokeLinecap="round"
-            strokeWidth={2}
-          />
-        </g>
-      ) : null}
       {markerText !== null ? (
         <text
           className="hex-unit-marker"
@@ -281,20 +255,11 @@ export function HexMapUnitMarker({
       ) : null}
       {isDisabled ? (
         <g className="hex-unit-disabled-indicator">
-          <rect
-            x={center.x - 16}
-            y={center.y - 11}
-            width={32}
-            height={22}
-            rx={2}
-            fill="#888"
-            opacity="0.18"
-          />
           <text
             x={center.x + 12}
             y={center.y - 7}
             fontSize="13"
-            fill="#b71c1c"
+            fill="#9b6b13"
             fontWeight="bold"
             textAnchor="middle"
             className="hex-unit-disabled-icon"

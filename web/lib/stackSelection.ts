@@ -126,6 +126,10 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
     return [unitId]
   }
 
+  if (selectedUnit.state === 'destroyed') {
+    return [unitId]
+  }
+
   if (!isStackableUnitType(selectedUnit.typeId, catalog ?? state.catalog)) {
     return [unitId]
   }

@@ -183,11 +183,11 @@ describe('advancePhaseWithEvents', () => {
       })
       advanceState(state)
       expect(state.defenders['alive'].state).toBe('operational')
-      expect(state.defenders['dead']).toBeUndefined()
+      expect(state.defenders['dead']).toMatchObject({ unitId: 'dead', state: 'destroyed' })
       expect(state.defenders['swamp']).toMatchObject({ typeId: 'Swamp', state: 'destroyed' })
     })
 
-    it('prunes destroyed units from the stack roster before Defender Movement', () => {
+    it('retains destroyed units outside active stack groups before Defender Movement', () => {
       const state = makeState('ONION_COMBAT', {
         'pigs-1': makeUnit({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 }, state: 'destroyed' }),
         'pigs-2': makeUnit({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
@@ -200,7 +200,7 @@ describe('advancePhaseWithEvents', () => {
 
       advanceState(state)
 
-      expect(state.defenders['pigs-1']).toBeUndefined()
+      expect(state.defenders['pigs-1']).toMatchObject({ unitId: 'pigs-1', state: 'destroyed' })
       expect(state.stackRoster.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-2'])
     })
   })

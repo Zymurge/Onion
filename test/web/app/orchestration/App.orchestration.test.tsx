@@ -748,8 +748,8 @@ describe('combat', () => {
 		expect(attacker.getAttribute('data-selected')).toBe('true')
 	})
 
-	it('removes destroyed defenders before the Defender combat roster renders', async () => {
-		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
+	it('keeps destroyed defenders in the roster for inspection without making them actionable', async () => {
+		const { defenders, stackNaming } = buildDefenderTree({
 			units: [
 				{
 					id: 'no-ready-1',
@@ -759,26 +759,32 @@ describe('combat', () => {
 						weapons: [makeWeapon({ id: 'main', typeId: 'Witch.main', friendlyName: 'Main Gun', state: 'spent' })],
 				},
 				{ id: 'active-1', type: 'BigBadWolf', friendlyName: 'Big Bad Wolf 1', pos: { q: 3, r: 5 } },
-				{ id: 'dead-1', type: 'Puss', friendlyName: 'Puss 1', pos: { q: 4, r: 5 }, state: 'destroyed' },
+				{ id: 'dead-1', type: 'LittlePigs', friendlyName: 'Little Pig 1', pos: { q: 4, r: 5 }, state: 'destroyed' },
 			],
 		})
 		const snapshot = {
 			...baseOrchestrationSnapshot,
-			authoritativeState: { ...baseOrchestrationSnapshot.authoritativeState, defenders, stackRoster, stackNaming },
+			phase: 'DEFENDER_MOVE' as const,
+			authoritativeState: { ...baseOrchestrationSnapshot.authoritativeState, defenders, stackRoster: { groupsById: {} }, stackNaming },
 		}
 		const session = { role: 'defender' as const }
-		const client = createTestClient(snapshot, session)
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
+		const client = createTestClient(snapshot, session, { submitAction })
 
-		render(<App gameClient={client} gameId={123} />)
+		await renderAppAndAcknowledgeTurn(client)
 
 		await screen.findByTestId('combat-unit-active-1')
-		const noReadyButton = await screen.findByTestId('combat-unit-no-ready-1')
-		const noReadyCombatButton = noReadyButton as HTMLButtonElement
+		const destroyedButton = await screen.findByTestId('combat-unit-dead-1')
 
-		expect(screen.queryByTestId('combat-unit-dead-1')).toBeNull()
-		expect(noReadyCombatButton.disabled).toBe(true)
-		expect(noReadyButton.getAttribute('class')).toContain('is-disabled')
-		expect(noReadyButton.getAttribute('title')).toBe('Fired this turn')
+		expect(destroyedButton.className).toContain('tone-destroyed')
+		expect(destroyedButton.className).not.toContain('is-actionable')
+		expect(destroyedButton.textContent).toContain('Destroyed')
+		expect(screen.queryByTestId('hex-unit-dead-1')).toBeNull()
+
+		await userEvent.click(destroyedButton)
+
+		expect(screen.getByTestId('battlefield-inspector-subject-dead-1')).not.toBeNull()
+		expect(submitAction).not.toHaveBeenCalled()
 	})
 
 	it('renders a shared combat range overlay for selected onion weapons', async () => {

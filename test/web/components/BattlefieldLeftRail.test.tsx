@@ -244,6 +244,7 @@ describe('BattlefieldLeftRail', () => {
   })
 
   it('renders a destroyed Little Pigs group without combat attributes', () => {
+    const onSelectUnit = vi.fn()
     const displayedDefenders: BattlefieldDefenderFixture[] = [1, 2, 3].map((index) => ({
       id: `pigs-${index}`,
       type: 'LittlePigs',
@@ -277,15 +278,45 @@ describe('BattlefieldLeftRail', () => {
         },
       },
       catalog: sessionCatalog,
+      onSelectUnit,
     })
 
     const card = screen.getByTestId('combat-unit-pigs-1')
     expect(card.className).toContain('tone-destroyed')
+    expect(card.className).not.toContain('is-actionable')
     expect(card.textContent).toContain('Destroyed')
     expect(card.textContent).not.toContain('Attack:')
     expect(card.textContent).not.toContain('Range:')
     expect(card.textContent).not.toContain('Move:')
     expect(card.textContent).not.toContain('0/3')
+    expect((card as HTMLButtonElement).disabled).toBe(false)
+
+    fireEvent.click(card)
+    expect(onSelectUnit).toHaveBeenCalledWith('pigs-1', false)
+  })
+
+  it('marks disabled unit cards with the dim tone used for orange crosshatching', () => {
+    const disabledDefender: BattlefieldDefenderFixture = {
+      id: 'swamp-1',
+      type: 'Swamp',
+      friendlyName: 'The Swamp',
+      status: 'disabled',
+      position: { q: 4, r: 4 },
+      move: 0,
+      weapons: 'main: ready',
+      attack: '1 / rng 1',
+      actionableModes: [],
+    }
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      isCombatPhase: true,
+      displayedDefenders: canonicalizeBattlefieldDefenders([disabledDefender]),
+      catalog: sessionCatalog,
+    })
+
+    expect(screen.getByTestId('combat-unit-swamp-1')).toHaveClass('tone-dim')
   })
 
   it('shows the canonical stack name instead of the first member friendly name', () => {
@@ -1293,6 +1324,31 @@ describe('BattlefieldLeftRail', () => {
 
     expect(onSelectUnit).toHaveBeenNthCalledWith(1, 'weapon:main-1', false)
     expect(onSelectUnit).toHaveBeenNthCalledWith(2, 'weapon:main-1', true)
+  })
+
+  it('marks destroyed Onion weapons with the destroyed tone', () => {
+    const weapon = {
+      id: 'main-destroyed',
+      typeId: 'TheOnion.main',
+      weaponClass: 'main' as const,
+      state: 'destroyed' as const,
+      friendlyName: 'Main gun',
+      disabledReason: 'Destroyed',
+    }
+
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isCombatPhase: true,
+      displayedOnion: createOnion({ weaponDetails: [weapon] }),
+      readyWeaponDetails: [weapon],
+      catalog: sessionCatalog,
+    })
+
+    const weaponCard = screen.getByTestId('combat-weapon-main-destroyed')
+    expect(weaponCard.className).toContain('tone-destroyed')
+    expect(weaponCard).toBeDisabled()
+    expect(weaponCard.textContent).toContain('Destroyed')
   })
 
   it('routes Onion movement selection with additive gestures', () => {

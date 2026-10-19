@@ -1602,31 +1602,34 @@
 }
 
 .tone-dim {
-  opacity: 0.72;
+  opacity: 0.86;
 }
 
-.tone-destroyed {
+.attacker-card-button.tone-dim,
+.defender-card-button.tone-dim {
+  color: #805a14;
+  background-color: rgba(255, 247, 221, 0.94);
+  background-image:
+    repeating-linear-gradient(45deg, rgba(204, 144, 31, 0.4) 0 6px, transparent 6px 10px);
+  border-color: rgba(177, 123, 24, 0.48);
+}
+
+.tone-destroyed,
+.tone-destroyed-partial {
   opacity: 0.78;
   color: #874b52;
-  background: linear-gradient(90deg, rgba(135, 75, 82, 0.22), rgba(247, 239, 240, 0.94));
+  background-color: rgba(247, 239, 240, 0.94);
+  background-image:
+    repeating-linear-gradient(45deg, rgba(135, 75, 82, 0.36) 0 4px, transparent 4px 8px);
   border-color: rgba(135, 75, 82, 0.42);
   text-decoration: none;
 }
 
 .tone-destroyed h3,
-.tone-destroyed .summary-line strong {
-  color: #874b52;
-}
-
-.tone-destroyed-partial {
-  color: #b9652f;
-  background: linear-gradient(90deg, rgba(238, 145, 78, 0.16), rgba(255, 248, 241, 0.94));
-  border-color: rgba(211, 119, 54, 0.34);
-}
-
+.tone-destroyed .summary-line strong,
 .tone-destroyed-partial h3,
 .tone-destroyed-partial .summary-line strong {
-  color: #b9652f;
+  color: #874b52;
 }
 
 .map-frame {

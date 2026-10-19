@@ -213,7 +213,6 @@ describe('HexMapUnitMarker', () => {
 
     const marker = screen.getByTestId('hex-unit-puss-1')
     expect(marker).toHaveClass('tone-destroyed')
-    expect(screen.getByTestId('hex-unit-destroyed-indicator-puss-1')).toHaveAttribute('aria-label', 'Destroyed')
 
     fireEvent.click(marker)
 

@@ -89,6 +89,9 @@ export function HexMapCell({
   onSelectUnit,
 }: HexMapCellProps) {
   const imgSize = 72
+  const hasDestroyedUnit = cellOccupants.some((occupant) => occupant.state === 'destroyed')
+  const hasDisabledUnit = !hasDestroyedUnit && cellOccupants.some((occupant) => occupant.state === 'disabled')
+  const statusHatch = hasDestroyedUnit ? 'destroyed' : hasDisabledUnit ? 'disabled' : null
 
   return (
     <g
@@ -184,6 +187,15 @@ export function HexMapCell({
           />
         )
       })}
+      {statusHatch !== null ? (
+        <polygon
+          className={`hex-unit-${statusHatch}-crosshatch`}
+          data-testid={`hex-${statusHatch}-crosshatch-${coord.q}-${coord.r}`}
+          points={polygonPoints}
+          fill={`url(#${statusHatch}-unit-stripes)`}
+          pointerEvents="none"
+        />
+      ) : null}
       <text className="hex-coord" x={center.x} y={center.y + 28} textAnchor="middle">
         {coord.q},{coord.r}
       </text>

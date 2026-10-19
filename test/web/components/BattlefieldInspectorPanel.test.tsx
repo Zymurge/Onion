@@ -81,7 +81,7 @@ describe('BattlefieldInspectorPanel', () => {
   it('shows destroyed status for an inspected defender', () => {
     const destroyedDefender: BattlefieldUnit = {
       unitId: 'puss-1',
-      typeId: 'Puss',
+      typeId: 'LittlePigs',
       role: 'defender',
       friendlyName: 'Puss 1',
       state: 'destroyed',
@@ -97,7 +97,7 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorLabel={destroyedDefender.friendlyName}
         selectedInspectorDefender={destroyedDefender}
         selectedInspectorOnion={null}
-        selectedStackMemberCount={1}
+        selectedStackMemberCount={0}
         activeSelectedUnitCount={0}
       />,
     )

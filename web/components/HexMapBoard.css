@@ -310,7 +310,8 @@
   filter: saturate(1.15);
 }
 
-.hex-unit-destroyed-indicator {
+.hex-unit-destroyed-crosshatch,
+.hex-unit-disabled-crosshatch {
   pointer-events: none;
 }
 

@@ -4,7 +4,7 @@ import { advancePhaseWithEvents } from '#server/engine/game'
 import { makeDefender, makeGameState, makeOnion } from '#test/utils/gameStateUtils'
 
 describe('advancePhaseWithEvents', () => {
-  it('clears destroyed defenders when the automatic recovery phase reaches Defender Movement', () => {
+  it('retains destroyed defenders and removes them from stack groups when entering Defender Movement', () => {
     const state = makeGameState({
       onions: { onion: makeOnion({ unitId: 'onion' }) },
       defenders: {
@@ -23,7 +23,7 @@ describe('advancePhaseWithEvents', () => {
     })
 
     expect(result.phase).toBe('DEFENDER_MOVE')
-    expect(result.state.defenders.dead).toBeUndefined()
+    expect(result.state.defenders.dead).toMatchObject({ unitId: 'dead', state: 'destroyed' })
     expect(result.state.defenders.alive).toBeDefined()
   })
 

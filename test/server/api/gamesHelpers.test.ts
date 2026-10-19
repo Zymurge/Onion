@@ -4,6 +4,7 @@ import { buildActionResponse } from '#server/api/gameHelpers/actionResponses'
 import { buildCombatEvents, buildMoveEvents, getWeaponTypeFromId } from '#server/api/gameHelpers/eventBuilders'
 import { applyCurrentMapPresentation, buildSessionInitPayload } from '#server/api/gameHelpers/protocol'
 import { buildVictoryObjectiveStates, computeWinnerUserId } from '#server/api/gameHelpers/victory'
+import { advancePhaseWithEvents } from '#server/engine/game'
 import { getUnitDefinition } from '#shared/unitDefinitions'
 import type { ScenarioSnapshot } from '#server/api/gameHelpers/scenario'
 import type { MatchRecord } from '#server/db/adapter'
@@ -581,6 +582,41 @@ describe('buildVictoryObjectiveStates', () => {
       position: { q: 1, r: 1 },
       unitIds: ['pigs-1', 'pigs-2'],
     })
+  })
+
+  it('includes destroyed Defender records in snapshots after removing them from active stack groups', () => {
+    const destroyedState = structuredClone(state)
+    destroyedState.defenders['pigs-1'].state = 'destroyed'
+    const phaseResult = advancePhaseWithEvents({
+      phase: 'ONION_COMBAT',
+      turnNumber: 1,
+      state: destroyedState,
+      events: [],
+    })
+    const response = buildGameStateResponse(
+      {
+        gameId: 1,
+        scenarioId: 'scenario-1',
+        scenarioSnapshot: { name: 'Scenario 1', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        players: { onion: 'onion-1', defender: 'defender-1' },
+        hostUserId: 'onion-1',
+        status: 'active',
+        phase: phaseResult.phase,
+        turnNumber: phaseResult.turnNumber,
+        winner: null,
+        state: phaseResult.state,
+        events: phaseResult.newEvents,
+      },
+      'defender-1',
+    )
+
+    expect(response.state.defenders['pigs-1']).toMatchObject({
+      unitId: 'pigs-1',
+      typeId: 'LittlePigs',
+      state: 'destroyed',
+      position: { q: 1, r: 1 },
+    })
+    expect(response.state.stackRoster?.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-2'])
   })
 
   it('projects mixed-side deployments into the correct API collections', () => {
