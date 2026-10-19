@@ -19,6 +19,8 @@
     "cli": "tsx server/cli/index.ts",
     "cli:dev": "tsx watch server/cli/index.ts",
     "cli:test-game": "npm run build && node dist/server/cli/test-game.js",
+    "validate": "tsx scripts/validate-scenario.ts",
+    "scenario:validate": "tsx scripts/validate-scenario.ts",
     "lint": "eslint .",
     "web:dev": "pnpm --dir web dev",
     "web:build": "pnpm --dir web build",

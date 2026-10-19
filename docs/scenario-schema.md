@@ -35,6 +35,20 @@ This schema is designed for authoring flexibility and robust normalization. The 
 
 See also: [shared/config/unitCatalog.json] and [shared/unitDefinitions.ts] for canonical unit/weapon definitions and rules.
 
+## Validate an Authored Scenario
+
+Run the parser-backed validator with a path to one scenario JSON file:
+
+```sh
+pnpm run validate scenarios/swamp-siege-01.json
+```
+
+The `scenario:validate` script name is also available as an alias.
+The command checks JSON syntax and the scenario schema, then uses the existing
+scenario parser to materialize and validate map coordinates. On success it
+prints the scenario name and ID; on failure it exits non-zero and reports the
+JSON, schema, or map validation error.
+
 ## 1. Map Configuration (Axial Hex Coordinates)
 
 We use an **Axial Coordinate System** (q, r) where:
