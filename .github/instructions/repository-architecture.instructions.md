@@ -9,7 +9,7 @@ applyTo: "**"
 
 - The backend engine is authoritative for game rules, phase transitions, action legality, combat resolution, and committed game state.
 - Shared modules own domain contracts and rules that must agree across engine, API, CLI, and web. Do not create a second implementation of shared coordinate, movement, unit, weapon, target, or combat rules in a client layer.
-- Unit and weapon numbers, ram profiles, stack-size limits, and terrain flags come from `shared/config/unitCatalog.json`. `docs/game-rules.md` does not override them. Stack membership comes from `shared/stackRoster.ts`. The running CRT is the constant in `server/engine/combat.ts`.
+- Unit and weapon numbers, ram profiles, stack-size limits, and terrain flags come from `shared/config/unitCatalog.json`. `docs/game-rules.md` does not override them. Stack membership comes from `shared/stackRoster/index.ts`. The running CRT is the constant in `server/engine/combat/rolls.ts`.
 - The API owns transport and persistence concerns. Routes call named database operations and preserve structured backend errors instead of rewriting them into vague client messages.
 - The web client is a React + TypeScript presentation and interaction layer. It prepares commands locally, but committed actions must round trip through the backend; do not optimistically mutate authoritative game state.
 
@@ -42,5 +42,6 @@ Hard reload must reconstruct the app from a fresh server snapshot plus empty loc
 ## Source Selection
 
 - Start at `docs/agent-start-here.md`. Load only the spec row for the task, and only the listed line range when one is given.
+- For design, architecture, or feature-level work, review the relevant specs and documentation, then update any that the change makes inaccurate or incomplete. Keep `docs/agent-start-here.md` and its task routing current when ownership, contracts, behavior, or source locations change; keep documentation index-driven and avoid duplicating unrelated detail.
 - Do not open `docs/archive/`, `docs/work-items/`, `docs/cli-spec.md`, `docs/configuration.md`, or generated `docs/api/` HTML unless the user names that surface.
 - Prefer the smallest existing abstraction that owns a behavior. Keep domain logic in shared/engine modules and projections or rendering logic in web modules.
