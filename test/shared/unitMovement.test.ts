@@ -17,7 +17,7 @@ describe('unit movement helpers', () => {
 
 	it('returns defender movement allowance during defender movement', () => {
 		expect(getUnitMovementAllowance('Puss', 'DEFENDER_MOVE')).toBe(3)
-		expect(getUnitMovementAllowance('Witch', 'DEFENDER_MOVE')).toBe(2)
+		expect(getUnitMovementAllowance('Witch', 'DEFENDER_MOVE')).toBe(3)
 		expect(getUnitMovementAllowance('Dragon', 'DEFENDER_MOVE')).toBe(5)
 	})
 

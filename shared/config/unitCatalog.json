@@ -33,7 +33,7 @@
       "spriteKey": "witch",
       "hexMapScale": 0.53,
       "hexMapOffsetY": 10,
-      "movement": 2,
+      "movement": 3,
       "defense": 2,
       "cost": 1,
       "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
