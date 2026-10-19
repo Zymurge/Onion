@@ -8,10 +8,10 @@ Core rules mechanics referenced from the public domain portions of the [OGRE Des
 
 This schema is designed for authoring flexibility and robust normalization. The backend engine materializes all runtime geometry and unit/weapon state from authored scenario JSON as follows:
 
-- **Authoring:** Scenarios may specify a map by `radius` (for a regular hexagon) or by explicit `cells`/`hexes`. Only non-clear terrain needs to be listed in `hexes`.
+- **Authoring:** Scenarios specify compact map geometry with `shape` and dimensions. Supported shapes are regular `hex` maps with an odd `size` and `rectangle` maps with `width` and `height`. Only non-clear terrain needs to be listed in `hexes`.
 - **Backend Normalization:**
-  - If `radius` is present, the backend generates a canonical list of axial coordinates for all valid map cells, centered at `(radius, radius)`.
-  - The backend translates authored `q`/`r` positions into runtime coordinates and materializes the full `cells` array.
+  - The backend generates the canonical list of axial coordinates for all valid map cells.
+  - Terrain, deployment, and escape positions use the same absolute, nonnegative `q`/`r` coordinates as generated cells; materialization does not translate positions.
   - The frontend always receives explicit `cells` and does not perform coordinate translation.
 - **Unit/Weapon Population:**
   - The global catalog supplies reusable base unit and weapon types.
@@ -64,6 +64,25 @@ We use an **Axial Coordinate System** (q, r) where:
 - `2`: Crater
 - `3`: The Swamp (Objective)
 
+### Compact Map Definitions
+
+Map coordinates are absolute axial `q`/`r` coordinates. Generated maps start
+at `(0, 0)` in the lower-left of their coordinate bounds. Terrain entries in
+`map.hexes`, unit deployment positions, and Onion escape hexes use these same
+coordinates directly. No origin or center is authored, and no positions are
+translated during materialization.
+
+A regular hex map uses an odd `size`, the number of cells across each side of
+its coordinate bounds. Its axial center is `((size - 1) / 2, (size - 1) / 2)`;
+generated cells are the coordinates whose axial distance from that center is
+at most `(size - 1) / 2`. For example, `size: 5` generates 19 cells whose `q`
+and `r` values are each between 0 and 4.
+
+A rectangular map uses positive `width` and `height` dimensions and generates
+every coordinate from `(0, 0)` through `(width - 1, height - 1)`. Six-corner
+polygon maps are deferred to v2. Runtime and API maps continue to use explicit
+`cells` regardless of authored shape.
+
 ## 2. JSON Structure Example
 
 ```json
@@ -73,11 +92,11 @@ We use an **Axial Coordinate System** (q, r) where:
   "displayName": "The Siege of Shrek's Swamp",
   "description": "The Onion must destroy the Swamp and then escape the map.",
   "map": {
-    "radius": 7,
+    "shape": "hex",
+    "size": 15,
     "hexes": [
-      { "q": 0, "r": 0, "t": 0 },
-      { "q": 1, "r": 0, "t": 1 },
-      { "q": 5, "r": 5, "t": 3 }
+      { "q": 8, "r": 0, "t": 1 },
+      { "q": 7, "r": 7, "t": 3 }
     ]
   },
   "initialState": {
@@ -85,13 +104,13 @@ We use an **Axial Coordinate System** (q, r) where:
       "onion-1": {
         "type": "TheOnion",
         "side": "onion",
-        "position": { "q": 0, "r": 10 },
+        "position": { "q": 0, "r": 14 },
         "status": "operational"
       },
       "swamp-1": {
         "type": "Swamp",
         "side": "defender",
-        "position": { "q": 5, "r": 5 },
+        "position": { "q": 7, "r": 7 },
         "status": "operational"
       }
     }
@@ -121,7 +140,7 @@ We use an **Axial Coordinate System** (q, r) where:
         "required": true
       }
     ],
-    "onion": { "escapeHexes": [{ "q": 2, "r": 9 }] }
+    "onion": { "escapeHexes": [{ "q": 1, "r": 14 }] }
   }
 }
 ```
@@ -326,11 +345,13 @@ deployment override.
 
 ## 5. Map Encoding Convention
 
-Authored scenarios may declare a hex map by `radius` instead of enumerating every cell. In that authoring mode, the backend/shared scenario pipeline converts the authored positions into runtime axial coordinates and materializes the map as an explicit `cells` array centered at `(radius, radius)`, which keeps the generated board geometry consistent and non-negative.
-
-When `radius` is used, the authored coordinates are not raw runtime coordinates. The backend treats `r` as the authored row index and `q` as the authored column index within that row, then translates those authored positions into runtime axial coordinates before the scenario reaches the client.
-
-The runtime/API map shape still uses explicit `cells`; `radius` is only an authoring convenience for scenario authors. The frontend consumes the materialized axial coordinates as-is and does not perform any coordinate translation.
+Authored scenarios use compact `hex` or `rectangle` map definitions. Every
+terrain, deployment, and escape coordinate is written directly in the
+nonnegative absolute axial coordinate system defined above. The backend
+materializes the map shape as explicit `cells`, validates all authored
+positions against those cells, and passes the same coordinates to the client.
+The frontend performs no coordinate translation. Polygon map definitions are
+deferred to v2.
 
 Only non-clear hexes need to appear in the `hexes` array. Any hex coordinate not listed is assumed to be terrain type `0` (Clear). This keeps scenario files compact.
 

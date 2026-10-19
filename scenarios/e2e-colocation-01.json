@@ -4,7 +4,8 @@
   "displayName": "E2E Co-location Rendering",
   "description": "Deterministic browser scenario for stacked and adjacent unit rendering.",
   "map": {
-    "radius": 3,
+    "shape": "hex",
+    "size": 7,
     "hexes": []
   },
   "unitTypes": {
@@ -23,27 +24,39 @@
       "onion-1": {
         "type": "TheOnion",
         "side": "onion",
-        "position": { "q": 3, "r": 3 },
+        "position": {
+          "q": 3,
+          "r": 3
+        },
         "status": "operational"
       },
       "pigs-stack-1": {
         "kind": "stack-group",
         "unitType": "LittlePigs",
         "side": "defender",
-        "position": { "q": 2, "r": 2 },
+        "position": {
+          "q": 3,
+          "r": 2
+        },
         "count": 3,
         "status": "operational"
       },
       "puss-1": {
         "type": "Puss",
         "side": "defender",
-        "position": { "q": 3, "r": 2 },
+        "position": {
+          "q": 4,
+          "r": 2
+        },
         "status": "operational"
       },
       "wolf-1": {
         "type": "ScenarioWolf",
         "side": "defender",
-        "position": { "q": 2, "r": 3 },
+        "position": {
+          "q": 2,
+          "r": 3
+        },
         "status": "operational"
       }
     }

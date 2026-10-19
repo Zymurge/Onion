@@ -4,7 +4,8 @@
   "displayName": "E2E Combat Selection",
   "description": "Deterministic browser scenario for weapon-target and stale-selection regressions.",
   "map": {
-    "radius": 2,
+    "shape": "hex",
+    "size": 5,
     "hexes": []
   },
   "unitTypes": {
@@ -13,7 +14,9 @@
       "overrides": {
         "defense": 4,
         "weaponOverrides": {
-          "Puss.main": { "attack": 5 }
+          "Puss.main": {
+            "attack": 5
+          }
         }
       }
     }
@@ -23,20 +26,29 @@
       "onion-1": {
         "type": "TheOnion",
         "side": "onion",
-        "position": { "q": 0, "r": 0 },
+        "position": {
+          "q": 2,
+          "r": 0
+        },
         "status": "operational"
       },
       "puss-1": {
         "type": "ScenarioPuss",
         "side": "defender",
-        "position": { "q": 1, "r": 0 },
+        "position": {
+          "q": 3,
+          "r": 0
+        },
         "status": "operational"
       },
       "pigs-stack-1": {
         "kind": "stack-group",
         "unitType": "LittlePigs",
         "side": "defender",
-        "position": { "q": 1, "r": 1 },
+        "position": {
+          "q": 2,
+          "r": 1
+        },
         "count": 2,
         "status": "operational"
       }

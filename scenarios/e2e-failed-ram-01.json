@@ -4,7 +4,8 @@
   "displayName": "E2E Failed Ram",
   "description": "Deterministic browser scenario for mixed destroyed and survived ram outcomes.",
   "map": {
-    "radius": 2,
+    "shape": "hex",
+    "size": 5,
     "hexes": []
   },
   "initialState": {
@@ -12,13 +13,19 @@
       "onion-1": {
         "type": "TheOnion",
         "side": "onion",
-        "position": { "q": 0, "r": 0 },
+        "position": {
+          "q": 2,
+          "r": 0
+        },
         "status": "operational"
       },
       "puss-1": {
         "type": "Puss",
         "side": "defender",
-        "position": { "q": 0, "r": 1 },
+        "position": {
+          "q": 1,
+          "r": 1
+        },
         "status": "operational"
       }
     }

@@ -4,7 +4,8 @@
   "displayName": "Rapid Defender Endgame",
   "description": "The Onion starts with minimal treads while two Dragons begin in firing range for a fast defender victory test.",
   "map": {
-    "radius": 4,
+    "shape": "hex",
+    "size": 9,
     "hexes": []
   },
   "initialState": {
@@ -12,20 +13,29 @@
       "onion-1": {
         "type": "TheOnion",
         "side": "onion",
-        "position": { "q": 4, "r": 4 },
+        "position": {
+          "q": 4,
+          "r": 4
+        },
         "status": "operational",
         "startingTreads": 15
       },
       "dragon-1": {
         "type": "Dragon",
         "side": "defender",
-        "position": { "q": 4, "r": 2 },
+        "position": {
+          "q": 6,
+          "r": 2
+        },
         "status": "operational"
       },
       "dragon-2": {
         "type": "Dragon",
         "side": "defender",
-        "position": { "q": 6, "r": 4 },
+        "position": {
+          "q": 6,
+          "r": 4
+        },
         "status": "operational"
       }
     }
