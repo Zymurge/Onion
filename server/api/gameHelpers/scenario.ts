@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { ScenarioSchema, type InitialState, type Scenario } from '#server/engine/scenarioSchema'
 import type { GameState } from '#shared/types/index'
-import { assertScenarioPositionsInMap, materializeScenarioMap, translateScenarioCoord, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
+import { assertScenarioPositionsInMap, materializeScenarioMap, type AuthoredScenarioMap, type ExplicitScenarioMap } from '#shared/scenarioMap'
 import type { VictoryEscapeHex } from '#shared/apiProtocol'
 import type { RulesContext } from '#shared/rulesContext'
 import type { VictoryConditions } from '#server/engine/victory'
@@ -49,12 +49,12 @@ export function parseScenarioSnapshot(raw: unknown): ValidatedScenarioSnapshot {
   }
 
   try {
-    const translated = translateScenarioSnapshot(parsed.data)
-    if (translated === undefined || translated.map === undefined) {
+    const materialized = materializeScenarioSnapshot(parsed.data)
+    if (materialized === undefined || materialized.map === undefined) {
       throw new Error('Scenario map is missing')
     }
 
-    return translated as ValidatedScenarioSnapshot
+    return materialized as ValidatedScenarioSnapshot
   } catch (error) {
     throw new ScenarioValidationError('Scenario map is invalid', { cause: error })
   }
@@ -94,58 +94,19 @@ export function getScenarioMapSnapshot(scenarioSnapshot: ScenarioSnapshot | unde
 }
 
 /**
- * Translates radius-based authored coordinates into the explicit map coordinate space.
+ * Materializes authored scenario geometry into the explicit map coordinate space.
  *
  * @param initial Scenario snapshot to translate; explicit maps pass through unchanged.
- * @returns The original snapshot or a translated snapshot with map, deployments, and escape hexes updated.
+ * @returns The original snapshot or a snapshot with a materialized map.
  */
-export function translateScenarioSnapshot(initial: ScenarioSnapshot | undefined): ScenarioSnapshot | undefined {
-  if (initial === undefined || initial.map === undefined || !('radius' in initial.map)) {
+export function materializeScenarioSnapshot(initial: ScenarioSnapshot | undefined): ScenarioSnapshot | undefined {
+  if (initial === undefined || initial.map === undefined) {
     return initial
   }
-
-  const radius = Math.max(0, Math.floor(initial.map.radius))
-  const translatedInitialState = initial.initialState && typeof initial.initialState === 'object'
-    ? (() => {
-      const state = initial.initialState
-
-      return {
-        ...state,
-        deployments: Object.fromEntries(
-          Object.entries(state.deployments).map(([key, deployment]) => [
-            key,
-            { ...deployment, position: translateScenarioCoord(deployment.position, radius) },
-          ]),
-        ),
-      } as InitialState
-    })()
-    : initial.initialState
-
-  const translatedVictoryConditions = initial.victoryConditions && typeof initial.victoryConditions === 'object'
-    ? (() => {
-      const victoryConditions = initial.victoryConditions as {
-        onion?: {
-          escapeHexes?: Array<{ q: number; r: number }>
-        }
-      }
-
-      return victoryConditions.onion
-        ? {
-          ...victoryConditions,
-          onion: {
-            ...victoryConditions.onion,
-            escapeHexes: victoryConditions.onion.escapeHexes?.map((hex) => translateScenarioCoord(hex, radius)),
-          },
-        }
-        : victoryConditions
-    })()
-    : initial.victoryConditions
 
   return {
     ...initial,
     map: materializeScenarioMap(initial.map),
-    initialState: translatedInitialState,
-    victoryConditions: translatedVictoryConditions,
   }
 }
 

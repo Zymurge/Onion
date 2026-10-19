@@ -32,6 +32,7 @@ function makeWeaponCatalogConfig(weaponOverrides: Record<string, unknown> = {}) 
 				defense: 1,
 				abilities: { maxStacks: 1 },
 				weaponQuantities: { 'TestUnit.main': 1 },
+				description: 'Test Unit description',
 			},
 		},
 		weaponTypes: {

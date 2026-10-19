@@ -13,47 +13,31 @@ export type ExplicitScenarioMap = {
 	hexes: ScenarioTerrainHex[]
 }
 
-export type RadiusScenarioMap = {
-	radius: number
-	shape?: 'hex'
-	hexes?: ScenarioTerrainHex[]
+export type CompactHexScenarioMap = {
+	shape: 'hex'
+	size: number
+	hexes: ScenarioTerrainHex[]
 }
 
-export type AuthoredScenarioMap = ExplicitScenarioMap | RadiusScenarioMap
+export type CompactRectangleScenarioMap = {
+	shape: 'rectangle'
+	width: number
+	height: number
+	hexes: ScenarioTerrainHex[]
+}
+
+export type AuthoredScenarioMap = ExplicitScenarioMap | CompactHexScenarioMap | CompactRectangleScenarioMap
 
 function buildCellLookup(cells: ReadonlyArray<HexPos>): Set<string> {
 	return new Set(cells.map(hexKey))
 }
 
 /**
- * Translate an authored radius coordinate into runtime axial coordinates.
- *
- * In radius-authored scenarios, `q` is the authored column index within the row
- * and `r` is the authored row index. The backend materializes those authored
- * coordinates before the client receives the scenario data.
- *
- * Caches the last used radius for test access.
- */
-type TranslateScenarioCoord = {
-	(coord: HexPos, radius: number): HexPos
-	lastRadius: number | undefined
-}
-
-export const translateScenarioCoord: TranslateScenarioCoord = (coord, radius) => {
-	translateScenarioCoord.lastRadius = radius
-	return {
-		q: coord.q + radius - coord.r,
-		r: coord.r,
-	}
-}
-
-translateScenarioCoord.lastRadius = undefined
-
-/**
  * Materialize an authored scenario map into the canonical explicit runtime map.
  *
- * Radius-authored maps are converted into runtime axial cells; explicit maps are
- * validated and passed through as-is.
+ * Compact maps are converted into runtime axial cells; explicit maps are
+ * validated and passed through as-is. Authored coordinates are already in the
+ * runtime coordinate space and are never translated.
  */
 export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenarioMap {
 	const materialized =
@@ -64,20 +48,7 @@ export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenar
 				cells: map.cells,
 				hexes: map.hexes,
 			}
-			: (() => {
-				if (map.shape !== undefined && map.shape !== 'hex') {
-					throw new Error(`Unsupported scenario map shape: ${map.shape}`)
-				}
-
-				const radius = Math.max(0, Math.floor(map.radius))
-				const cells = createAxialRegion(radius, { q: radius, r: radius }).cells
-				return {
-					width: radius * 2 + 1,
-					height: radius * 2 + 1,
-					cells,
-					hexes: (map.hexes ?? []).map((hex) => ({ ...translateScenarioCoord(hex, radius), t: hex.t })),
-				}
-			})()
+			: materializeCompactMap(map)
 
 	const cellLookup = buildCellLookup(materialized.cells)
 	if (materialized.cells.length === 0) {
@@ -91,6 +62,40 @@ export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenar
 	}
 
 	return materialized
+}
+
+function materializeCompactMap(map: CompactHexScenarioMap | CompactRectangleScenarioMap): ExplicitScenarioMap {
+	if (map.shape === 'hex') {
+		if (!Number.isInteger(map.size) || map.size <= 0 || map.size % 2 === 0) {
+			throw new Error('Hex map size must be a positive odd integer')
+		}
+
+		const radius = (map.size - 1) / 2
+		return {
+			width: map.size,
+			height: map.size,
+			cells: createAxialRegion(radius, { q: radius, r: radius }).cells,
+			hexes: map.hexes.map((hex) => ({ ...hex })),
+		}
+	}
+
+	if (!Number.isInteger(map.width) || map.width <= 0 || !Number.isInteger(map.height) || map.height <= 0) {
+		throw new Error('Rectangle map dimensions must be positive integers')
+	}
+
+	const cells: HexPos[] = []
+	for (let r = 0; r < map.height; r += 1) {
+		for (let q = 0; q < map.width; q += 1) {
+			cells.push({ q, r })
+		}
+	}
+
+	return {
+		width: map.width,
+		height: map.height,
+		cells,
+		hexes: map.hexes.map((hex) => ({ ...hex })),
+	}
 }
 
 /**

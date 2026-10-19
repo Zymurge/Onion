@@ -48,35 +48,21 @@ describe('scenarioMap materialization', () => {
 		)
 	})
 
-	it('materializes a translated non-negative hex region from radius', () => {
-		const map = materializeScenarioMap({ radius: 2, hexes: [] })
-
-		expect(map.width).toBe(5)
-		expect(map.height).toBe(5)
-		expect(map.cells).toHaveLength(19)
-		expect(map.cells).toContainEqual({ q: 2, r: 0 })
-		expect(map.cells).toContainEqual({ q: 4, r: 0 })
-		expect(map.cells).toContainEqual({ q: 1, r: 1 })
-		expect(map.cells).toContainEqual({ q: 0, r: 2 })
-		expect(map.cells).toContainEqual({ q: 0, r: 4 })
-		expect(map.cells).not.toContainEqual({ q: 0, r: 0 })
-		expect(map.cells).not.toContainEqual({ q: 5, r: 0 })
-		expect(map.hexes).toEqual([])
-	})
-
-	it('translates authored terrain hexes into runtime coordinates', () => {
-		const map = materializeScenarioMap({
-			radius: 2,
-			hexes: [{ q: 1, r: 0, t: 1 }, { q: 2, r: 1, t: 3 }],
-		})
-
-		expect(map.hexes).toContainEqual({ q: 3, r: 0, t: 1 })
-		expect(map.hexes).toContainEqual({ q: 3, r: 1, t: 3 })
+	it('rejects invalid compact map dimensions', () => {
+		expect(() => materializeScenarioMap({ shape: 'hex', size: 4, hexes: [] })).toThrow(
+			'Hex map size must be a positive odd integer',
+		)
+		expect(() => materializeScenarioMap({ shape: 'hex', size: 0, hexes: [] })).toThrow(
+			'Hex map size must be a positive odd integer',
+		)
+		expect(() => materializeScenarioMap({ shape: 'rectangle', width: 0, height: 2, hexes: [] })).toThrow(
+			'Rectangle map dimensions must be positive integers',
+		)
 	})
 
 	it('rejects terrain outside the generated map membership', () => {
-		expect(() => materializeScenarioMap({ radius: 1, hexes: [{ q: 4, r: 4, t: 1 }] })).toThrow(
-			'Scenario terrain hex is outside the map at (1, 4)',
+		expect(() => materializeScenarioMap({ shape: 'hex', size: 3, hexes: [{ q: 3, r: 0, t: 1 }] })).toThrow(
+			'Scenario terrain hex is outside the map at (3, 0)',
 		)
 	})
 
@@ -92,7 +78,7 @@ describe('scenarioMap materialization', () => {
 	})
 
 	it('rejects authored positions outside the map membership', () => {
-		const map = materializeScenarioMap({ radius: 1, hexes: [] })
+		const map = materializeScenarioMap({ shape: 'hex', size: 3, hexes: [] })
 
 		expect(() =>
 			assertScenarioPositionsInMap(map, [{ label: 'onion start', position: { q: 4, r: 4 } }]),

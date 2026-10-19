@@ -7,7 +7,8 @@ const validScenario = {
   name: 'Valid Scenario',
   description: 'A complete scenario fixture.',
   map: {
-    radius: 1,
+    shape: 'hex',
+    size: 3,
     hexes: [],
   },
   initialState: {
@@ -29,7 +30,8 @@ const targetDeploymentScenario = {
   name: 'Target Deployment Scenario',
   description: 'A mixed-side deployment contract fixture.',
   map: {
-    radius: 2,
+    shape: 'hex',
+    size: 5,
     hexes: [],
   },
   initialState: {
@@ -37,12 +39,12 @@ const targetDeploymentScenario = {
       'puss-1': {
         type: 'Puss',
         side: 'onion',
-        position: { q: 1, r: 1 },
+        position: { q: 2, r: 1 },
       },
       'onion-1': {
         type: 'TheOnion',
         side: 'defender',
-        position: { q: 2, r: 1 },
+        position: { q: 3, r: 1 },
         startingAmmoByWeaponType: { 'TheOnion.missile': 0 },
       },
       'pigs-stack-1': {
@@ -70,6 +72,11 @@ const legacySplitScenario = {
 }
 
 describe('parseScenarioSnapshot', () => {
+  it('requires compact map definitions and rejects legacy radius maps', () => {
+    expect(() => parseScenarioSnapshot({ ...validScenario, map: { radius: 1, hexes: [] } })).toThrow(ScenarioValidationError)
+    expect(() => parseScenarioSnapshot({ ...validScenario, map: { shape: 'hex', size: 4, hexes: [] } })).toThrow(ScenarioValidationError)
+  })
+
   it('validates and materializes a complete authored scenario', () => {
     const scenario = parseScenarioSnapshot(validScenario)
 
@@ -150,7 +157,7 @@ describe('parseScenarioSnapshot', () => {
           'onion-2': {
             type: 'TheOnion',
               side: 'onion',
-            position: { q: 2, r: 2 },
+              position: { q: 1, r: 2 },
           },
         },
       },

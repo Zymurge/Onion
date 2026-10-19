@@ -1,7 +1,6 @@
 import { expect } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { getNeighbors, hexDistance, type HexPos } from '#shared/axialHex'
-import { translateScenarioCoord } from '#shared/scenarioMap'
 import { getUnitTypeCatalog } from '#shared/unitDefinitions'
 import type { Command, DefenderUnit, EventEnvelope, GameState, OnionUnit, StackRosterGroupState } from '#shared/types/index'
 import type { Deployment, InitialState } from '#server/engine/scenarioSchema'
@@ -30,11 +29,6 @@ export function clone<T>(value: T): T {
 }
 
 export function buildExpectedState(initialState: ExpectedStateInput): ExpectedState {
-  const radius = translateScenarioCoord.lastRadius
-  if (radius === undefined) {
-    throw new Error('translateScenarioCoord.lastRadius is undefined')
-  }
-
   const onions: Record<string, ExpectedOnion> = {}
   const defenders: Record<string, ExpectedDefender> = {}
   const deployments = Object.entries(initialState.deployments) as Array<[string, Deployment]>
@@ -49,7 +43,7 @@ export function buildExpectedState(initialState: ExpectedStateInput): ExpectedSt
 
     if ('kind' in def) {
       const count = def.count
-      const position = translateScenarioCoord(def.position, radius)
+      const position = { ...def.position }
       // Use the same base as scenarioNormalizer
       const unitIdBase = unitType === 'LittlePigs' ? 'pigs' : unitType.toLowerCase()
       const ordinal = stackOrdinals[unitIdBase] || 0
@@ -70,7 +64,7 @@ export function buildExpectedState(initialState: ExpectedStateInput): ExpectedSt
       }
       stackOrdinals[unitIdBase] = ordinal + count
     } else {
-      const position = translateScenarioCoord(def.position, radius)
+      const position = { ...def.position }
       const expectedUnit = {
         unitId: key,
         typeId: def.type,

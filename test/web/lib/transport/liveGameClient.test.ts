@@ -83,15 +83,16 @@ class FakeWebSocket {
 describe('createLiveGameClient', () => {
 	it('connects to the websocket endpoint and refreshes state when live events arrive', async () => {
 		// Import the scenario map materializer
-		// Use a radius-7 map with a few terrain hexes for test realism
+		// Use a size-15 map with a few terrain hexes for test realism
 		const scenarioMap = materializeScenarioMap({
-			radius: 7,
+			shape: 'hex',
+			size: 15,
 			hexes: [
-				{ q: 1, r: 0, t: 1 },
-				{ q: 2, r: 0, t: 1 },
-				{ q: 3, r: 1, t: 1 },
-				{ q: 4, r: 1, t: 1 },
-				{ q: 5, r: 2, t: 1 },
+				{ q: 8, r: 0, t: 1 },
+				{ q: 9, r: 0, t: 1 },
+				{ q: 9, r: 1, t: 1 },
+				{ q: 10, r: 1, t: 1 },
+				{ q: 10, r: 2, t: 1 },
 				{ q: 3, r: 8, t: 2 },
 				{ q: 4, r: 8, t: 2 },
 				{ q: 7, r: 5, t: 3 },

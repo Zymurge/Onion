@@ -64,6 +64,19 @@ export const DeploymentSchema = z.union([UnitDeploymentSchema, StackGroupDeploym
 
 export const DeploymentsRecordSchema = z.record(z.string().min(1), DeploymentSchema)
 
+const CompactHexMapSchema = z.object({
+  shape: z.literal('hex'),
+  size: z.number().int().positive().refine((size) => size % 2 === 1, 'Hex map size must be odd'),
+  hexes: z.array(TerrainHexSchema).default([]),
+}).strict()
+
+const CompactRectangleMapSchema = z.object({
+  shape: z.literal('rectangle'),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  hexes: z.array(TerrainHexSchema).default([]),
+}).strict()
+
 export const InitialStateSchema = z
   .object({
     deployments: DeploymentsRecordSchema,
@@ -121,19 +134,7 @@ export const ScenarioSchema = z.object({
   displayName: z.string().min(1).optional(),
   description: z.string().min(1),
   unitTypes: UnitTypesSchema.optional(),
-  map: z.union([
-  z.object({
-    radius: z.number().int().nonnegative(),
-    shape: z.literal('hex').optional(),
-    hexes: z.array(TerrainHexSchema).default([]),
-  }),
-  z.object({
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
-    cells: z.array(HexPosSchema).min(1),
-    hexes: z.array(TerrainHexSchema),
-  }),
-  ]),
+  map: z.union([CompactHexMapSchema, CompactRectangleMapSchema]),
   initialState: InitialStateSchema,
   victoryConditions: VictoryConditionsSchema,
 })

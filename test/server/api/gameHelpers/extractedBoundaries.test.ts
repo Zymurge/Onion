@@ -9,7 +9,7 @@ import {
   getScenarioEscapeHexes,
   getScenarioMapSnapshot,
   loadScenario,
-  translateScenarioSnapshot,
+  materializeScenarioSnapshot,
 } from '#server/api/gameHelpers/scenario'
 import { parseGameId } from '#server/api/gameHelpers/ids'
 import { logActionOutcome, logSentEvents } from '#server/api/gameHelpers/logging'
@@ -105,13 +105,13 @@ describe('logging helpers', () => {
 describe('scenario helpers', () => {
   it('returns safe defaults and materializes authored maps', () => {
     expect(getScenarioEscapeHexes(undefined)).toEqual([])
-    expect(getScenarioMapSnapshot({ map: { radius: 0, hexes: [] } })).toMatchObject({ width: 1, height: 1 })
+    expect(getScenarioMapSnapshot({ map: { shape: 'hex', size: 1, hexes: [] } })).toMatchObject({ width: 1, height: 1 })
     expect(() => getScenarioMapSnapshot(undefined)).toThrow('Invalid scenario map snapshot')
   })
 
-  it('translates authored radius coordinates without mutating the input', () => {
+  it('preserves authored coordinates without mutating the input', () => {
     const initial = {
-      map: { radius: 2, hexes: [] },
+      map: { shape: 'hex' as const, size: 5, hexes: [] },
       initialState: {
         deployments: {
           'onion-1': { type: 'TheOnion', side: 'onion' as const, position: { q: 1, r: 1 } },
@@ -120,10 +120,10 @@ describe('scenario helpers', () => {
       victoryConditions: { onion: { escapeHexes: [{ q: 2, r: 1 }] } },
     }
 
-    const translated = translateScenarioSnapshot(initial)
+    const translated = materializeScenarioSnapshot(initial)
 
-    expect(translated?.initialState?.deployments['onion-1']?.position).toEqual({ q: 2, r: 1 })
-    expect(translated?.victoryConditions?.onion?.escapeHexes).toEqual([{ q: 3, r: 1 }])
+    expect(translated?.initialState?.deployments['onion-1']?.position).toEqual({ q: 1, r: 1 })
+    expect(translated?.victoryConditions?.onion?.escapeHexes).toEqual([{ q: 2, r: 1 }])
     expect(initial.initialState.deployments['onion-1'].position).toEqual({ q: 1, r: 1 })
   })
 
