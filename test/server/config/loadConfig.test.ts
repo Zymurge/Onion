@@ -50,6 +50,10 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...validEnvironment, LOG_LEVEL: 'verbose' })).toThrow(/LOG_LEVEL/)
   })
 
+  it('accepts trace logging for high-frequency diagnostics', () => {
+    expect(loadConfig({ ...validEnvironment, LOG_LEVEL: 'trace' }).logLevel).toBe('trace')
+  })
+
   it('does not supply defaults for blank required values', () => {
     expect(() => loadConfig({ ...validEnvironment, HOST: ' ' })).toThrow(/HOST/)
     expect(() => loadConfig({ ...validEnvironment, SCENARIOS_DIR: '' })).toThrow(/SCENARIOS_DIR/)

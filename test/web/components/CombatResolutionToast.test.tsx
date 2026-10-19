@@ -70,4 +70,26 @@ describe('CombatResolutionToast', () => {
 		vi.advanceTimersByTime(10_000)
 		expect(onDismiss).toHaveBeenCalledTimes(1)
 	})
+
+	it('renders No Effect for a tread D result without tread loss', () => {
+		render(
+			<CombatResolutionToast
+				title="Combat resolved on Treads"
+				resolution={{
+					actionType: 'FIRE',
+					attackers: ['wolf-2'],
+					targetId: 'onion-1:treads',
+					outcome: 'D',
+					outcomeLabel: 'No Effect',
+					details: [],
+				}}
+				modifiers={[]}
+				onDismiss={vi.fn()}
+			/>,
+		)
+
+		const toast = screen.getByTestId('combat-resolution-toast')
+		expect(toast).toHaveTextContent('No Effect')
+		expect(toast).not.toHaveTextContent(/^Hit$/)
+	})
 })

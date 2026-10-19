@@ -30,6 +30,14 @@ function debugConfig() {
   })
 }
 
+function traceConfig() {
+  return loadConfig({
+    ...process.env,
+    NODE_ENV: 'development',
+    LOG_LEVEL: 'trace',
+  })
+}
+
 describe('request log redaction', () => {
   it('redacts sensitive query values without dropping the route', () => {
     expect(redactRequestUrl(`/games/123/ws?token=${WEBSOCKET_TOKEN}&after=4`)).toBe('/games/123/ws?token=(redacted)&after=4')
@@ -110,6 +118,30 @@ describe('request log redaction', () => {
     expect(text).not.toContain(BEARER)
     expect(text).not.toContain(WEBSOCKET_TOKEN)
 
+    await app.close()
+  })
+
+  it('keeps lobby freshness diagnostics at trace while retaining debug diagnostics for other requests', async () => {
+    const logs = new LogStream()
+    const app = buildApp(undefined, { config: debugConfig(), loggerDestination: logs })
+
+    await app.inject({ method: 'GET', url: '/games' })
+    expect(logs.text()).not.toContain('"/games"')
+
+    await app.inject({ method: 'GET', url: '/health' })
+    expect(logs.text()).toContain('API request parameters')
+
+    await app.close()
+  })
+
+  it('emits lobby freshness diagnostics when trace logging is enabled', async () => {
+    const logs = new LogStream()
+    const app = buildApp(undefined, { config: traceConfig(), loggerDestination: logs })
+
+    await app.inject({ method: 'GET', url: '/games' })
+
+    expect(logs.text()).toContain('"/games"')
+    expect(logs.text()).toContain('API request parameters')
     await app.close()
   })
 })

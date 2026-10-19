@@ -13,7 +13,7 @@ server startup, the Fastify app, database access, logging, and scenario routes.
 | `HOST` | Listen address | `0.0.0.0` |
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://onion:onionpass@localhost:5432/onion` |
 | `NODE_ENV` | Runtime environment: `development`, `test`, or `production` | `development` |
-| `LOG_LEVEL` | Server log level: `debug`, `info`, `warn`, or `error` | `info` |
+| `LOG_LEVEL` | Server log level: `trace`, `debug`, `info`, `warn`, or `error` | `info` |
 | `SCENARIOS_DIR` | Directory containing scenario JSON files | `./scenarios` |
 | `LOBBY_POLL_INTERVAL_MS` | Browser lobby refresh interval in milliseconds | `3000` |
 | `PRESENCE_DISCONNECT_GRACE_MS` | Delay before a disconnected player is reported offline | `3000` |

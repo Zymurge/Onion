@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react'
 
 import { BattlefieldLeftRail } from '#web/components/BattlefieldLeftRail'
 import type { BattlefieldOnionView } from '#web/lib/battlefieldView'
+import type { CombatWeaponDetail } from '#web/lib/combatAvailability'
 import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion, type BattlefieldDefenderFixture, type BattlefieldOnionFixture } from '#test/utils/gameStateUtils'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
@@ -56,6 +57,73 @@ function renderLeftRail(overrides: Partial<LeftRailProps> = {}) {
 }
 
 describe('BattlefieldLeftRail', () => {
+  it('renders weapon availability reasons and blocks unavailable weapon selection', () => {
+    const onSelectUnit = vi.fn()
+    const weapons: CombatWeaponDetail[] = [
+      { id: 'destroyed', typeId: 'TheOnion.main', weaponClass: 'main', state: 'destroyed', friendlyName: 'Destroyed gun', disabledReason: 'Destroyed' },
+      { id: 'disabled', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Disabled gun', disabledReason: 'Disabled' },
+      { id: 'out-of-ammo', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Empty gun', disabledReason: 'Out of ammo' },
+      { id: 'spent', typeId: 'TheOnion.main', weaponClass: 'main', state: 'spent', friendlyName: 'Spent gun', disabledReason: 'Fired this turn' },
+      { id: 'no-target', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'No-target gun', disabledReason: 'No targets in range' },
+    ]
+
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isCombatPhase: true,
+      displayedOnion: createOnion(),
+      readyWeaponDetails: weapons,
+      onionWeapons: { operationalWeapons: 5, operationalMissiles: 0 },
+      catalog: sessionCatalog,
+      onSelectUnit,
+    })
+
+    for (const weapon of weapons) {
+      const card = screen.getByTestId(`combat-weapon-${weapon.id}`)
+      expect(card).toBeDisabled()
+      expect(card).toHaveAttribute('title', weapon.disabledReason)
+      expect(card).toHaveTextContent(weapon.disabledReason ?? '')
+      fireEvent.click(card)
+    }
+
+    expect(onSelectUnit).not.toHaveBeenCalled()
+  })
+
+  it('renders availability reasons on unavailable defender combat groups', () => {
+    const cases = [
+      { id: 'disabled', status: 'disabled' as const, reason: 'Disabled' },
+      { id: 'recovering', status: 'recovering' as const, reason: 'Recovering' },
+      { id: 'spent', status: 'operational' as const, reason: 'Fired this turn' },
+      { id: 'out-of-range', status: 'operational' as const, reason: 'Out of range' },
+    ]
+    const displayedDefenders: BattlefieldDefenderFixture[] = cases.map(({ id, status }) => ({
+      id: `reason-${id}`,
+      type: 'Puss',
+      friendlyName: `Puss ${id}`,
+      status,
+      position: { q: 1, r: 1 },
+      move: 3,
+      weapons: 'main: ready',
+      attack: '1 / rng 1',
+      actionableModes: ['fire'],
+    }))
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      isCombatPhase: true,
+      displayedDefenders: canonicalizeBattlefieldDefenders(displayedDefenders),
+      combatUnitAvailabilityReasons: Object.fromEntries(cases.map(({ id, reason }) => [`reason-${id}`, reason])),
+      catalog: sessionCatalog,
+    })
+
+    for (const { id, reason } of cases) {
+      const card = screen.getByTestId(`combat-unit-reason-${id}`)
+      expect(card).toHaveAttribute('title', reason)
+      expect(card).toHaveTextContent(reason)
+    }
+  })
+
   it('renders onion weapon metadata from the session catalog', () => {
     const weaponType = sessionCatalog.weaponTypes['TheOnion.main']
     const onion: BattlefieldOnionFixture = {

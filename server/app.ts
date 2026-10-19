@@ -15,6 +15,7 @@ import {
   buildSafeRequestLog,
   REQUEST_LOG_CENSOR,
   REQUEST_LOG_REDACT_PATHS,
+  isLobbyFreshnessRequest,
   serializeLoggedRequest,
 } from '#server/logging/requestLog'
 import type { DestinationStream } from 'pino'
@@ -73,6 +74,7 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
   const config = options.config ?? loadConfig()
   const app = Fastify({
     logger: createLoggerOptions(config, options.loggerDestination),
+    disableRequestLogging: isLobbyFreshnessRequest,
   })
 
   app.register(fastifyJwt, {
@@ -95,7 +97,8 @@ export function buildApp(db?: Partial<DbAdapter>, options: BuildAppOptions = {})
   })
 
   app.addHook('preValidation', async (req) => {
-    req.log.debug(buildSafeRequestLog(req), 'API request parameters')
+    const logRequest = isLobbyFreshnessRequest(req) ? req.log.trace.bind(req.log) : req.log.debug.bind(req.log)
+    logRequest(buildSafeRequestLog(req), 'API request parameters')
   })
 
   app.addHook('onSend', async (_req, reply, payload) => {

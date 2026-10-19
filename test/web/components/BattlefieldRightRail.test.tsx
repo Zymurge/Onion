@@ -377,16 +377,23 @@ describe('BattlefieldRightRail', () => {
   })
 
   it('shows the no-valid-targets fallback when combat has no targets in range', () => {
+    const onConfirmCombat = vi.fn()
+
     renderRightRail({
       activeCombatRole: 'onion',
       activeRole: 'onion',
       isCombatPhase: true,
       selectedCombatAttackStrength: 2,
       selectedCombatAttackerIds: ['weapon:main-1'],
+      onConfirmCombat,
     })
 
     expect(screen.getByText('No valid targets are currently in range.')).not.toBeNull()
     expect(screen.queryByTestId('combat-target-list')).toBeNull()
+    const resolveButton = screen.getByRole('button', { name: 'Resolve combat' })
+    expect(resolveButton).toBeDisabled()
+    fireEvent.click(resolveButton)
+    expect(onConfirmCombat).not.toHaveBeenCalled()
   })
 
   it('passes inactive event loading, error, and error-notice dismissal through', () => {

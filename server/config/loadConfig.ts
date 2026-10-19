@@ -26,7 +26,7 @@ export const serverConfigSchema = z.object({
   DATABASE_URL: nonEmptyString,
   JWT_SECRET: nonEmptyString.pipe(z.string().min(32)),
   NODE_ENV: z.enum(['development', 'test', 'production']),
-  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']),
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']),
   SCENARIOS_DIR: nonEmptyString,
   LOBBY_POLL_INTERVAL_MS: z.preprocess(
     (value) => typeof value === 'string' ? value.trim() : value,

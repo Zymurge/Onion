@@ -1317,6 +1317,37 @@ describe('combat', () => {
 		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
 		expect(await screen.findByTestId('combat-resolution-toast')).not.toBeNull()
 	})
+
+	it('renders No Effect in the active toast for a tread D result without tread loss', async () => {
+		const user = userEvent.setup()
+		const snapshot = createInRangeCombatSnapshot()
+		const resolvedSnapshot = {
+			...snapshot,
+			combatResolution: {
+				actionType: 'FIRE' as const,
+				attackers: ['wolf-2'],
+				attackerFriendlyNames: ['Big Bad Wolf 2'],
+				targetId: 'onion-1:treads',
+				targetFriendlyName: 'The Onion treads',
+				outcome: 'D' as const,
+				outcomeLabel: 'No Effect' as const,
+				details: [],
+			},
+		}
+		const submitAction = vi.fn().mockResolvedValue(resolvedSnapshot)
+		const client = createTestClient(snapshot, { role: 'defender' as const }, { submitAction })
+
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		await user.click(await screen.findByTestId('combat-unit-wolf-2'))
+		await user.click(await screen.findByTestId('combat-target-onion-1:treads'))
+		await user.click(screen.getByRole('button', { name: /resolve combat/i }))
+
+		const toast = await screen.findByTestId('combat-resolution-toast')
+		expect(toast).toHaveTextContent('No Effect')
+		expect(toast).not.toHaveTextContent(/^Hit$/)
+	})
 })
 
 // ---- phase progression ----

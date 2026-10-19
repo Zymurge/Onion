@@ -55,6 +55,8 @@ export type RequestLogSource = {
   raw?: { url?: string }
 }
 
+const LOBBY_FRESHNESS_PATHS = new Set(['/games', '/games/open', '/games/history'])
+
 function normalizeKey(key: string): string {
   return key.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
@@ -97,6 +99,16 @@ export function redactRequestUrl(url: string): string {
     .map(([key, value]) => `${encodeURIComponent(key)}=${isSensitiveLogKey(key) ? REQUEST_LOG_CENSOR : encodeURIComponent(value)}`)
     .join('&')
   return query.length > 0 ? `${path}?${query}` : path
+}
+
+export function isLobbyFreshnessRequest(request: Pick<RequestLogSource, 'method' | 'url' | 'raw'>): boolean {
+  if (request.method !== 'GET') {
+    return false
+  }
+
+  const url = request.url ?? request.raw?.url ?? ''
+  const path = url.split('?', 1)[0].replace(/\/+$/, '') || '/'
+  return LOBBY_FRESHNESS_PATHS.has(path)
 }
 
 function safeHeaders(headers: unknown): Record<string, unknown> {

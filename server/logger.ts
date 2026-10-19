@@ -1,8 +1,9 @@
 import { loadConfig } from '#server/config/loadConfig'
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error'
 
 const levelOrder: Record<LogLevel, number> = {
+  trace: 0,
   debug: 10,
   info: 20,
   warn: 30,
@@ -46,7 +47,7 @@ class SimpleLogger {
     }
 
     const message = formatLogPayload(args)
-    const loggerMethod = level === 'debug' ? console.debug : level === 'info' ? console.info : level === 'warn' ? console.warn : console.error
+    const loggerMethod = level === 'trace' || level === 'debug' ? console.debug : level === 'info' ? console.info : level === 'warn' ? console.warn : console.error
     loggerMethod.call(console, message)
   }
 
