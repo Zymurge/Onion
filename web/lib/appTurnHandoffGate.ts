@@ -64,7 +64,6 @@ export function useTurnHandoffGate({
 	const currentActiveTurnKey = buildAcknowledgementTurnKey({
 		activeGameId,
 		currentTurnNumber: turn.number,
-		currentPhase: turn.phase,
 		sessionRole: turn.role,
 		sessionTurnActive: turn.isKnown && turn.isActive,
 	})

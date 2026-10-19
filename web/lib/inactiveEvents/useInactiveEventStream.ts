@@ -9,12 +9,11 @@ import type { InactiveEventStream, UseInactiveEventStreamOptions } from './types
 export function useInactiveEventStream({
 	activeGameId,
 	activeTurnActive,
-	currentPhase = null,
-	currentTurnNumber,
 	phaseStartEventSeq = null,
 	lastAppliedEventSeq,
 	pollEvents,
 }: UseInactiveEventStreamOptions): InactiveEventStream {
+	const [isInactiveEventWindowOpen, setIsInactiveEventWindowOpen] = useState(!activeTurnActive)
 	const [entries, setEntries] = useState<TimelineEvent[]>([])
 	const [isLoading, setIsLoading] = useState(false)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -26,7 +25,6 @@ export function useInactiveEventStream({
 	const lastGameIdRef = useRef<number | null>(null)
 	const lastActiveTurnActiveRef = useRef<boolean | null>(null)
 	const windowStartSeqRef = useRef<number | null>(null)
-	const lastPhaseRef = useRef<string | null>(null)
 	const clearVersionRef = useRef(0)
 
 	useEffect(() => {
@@ -37,8 +35,8 @@ export function useInactiveEventStream({
 		if (lastGameIdRef.current !== activeGameId) {
 			lastGameIdRef.current = activeGameId
 			lastActiveTurnActiveRef.current = activeTurnActive
-			windowStartSeqRef.current = null
-			lastPhaseRef.current = currentPhase
+			windowStartSeqRef.current = activeTurnActive ? null : phaseStartEventSeq
+			setIsInactiveEventWindowOpen(!activeTurnActive)
 			setEntries([])
 			setIsLoading(false)
 			setErrorMessage(null)
@@ -47,28 +45,13 @@ export function useInactiveEventStream({
 			inFlightAfterSeqRef.current = null
 			queuedRefreshRef.current = false
 		}
-	}, [activeGameId, activeTurnActive, currentPhase, currentTurnNumber])
-
-	useEffect(() => {
-		if (lastPhaseRef.current === currentPhase) {
-			return
-		}
-
-		lastPhaseRef.current = currentPhase
-		windowStartSeqRef.current = phaseStartEventSeq
-		setEntries([])
-		setIsLoading(false)
-		setErrorMessage(null)
-		seenSeqsRef.current = new Set<number>()
-		loadedThroughSeqRef.current = null
-		inFlightAfterSeqRef.current = null
-		queuedRefreshRef.current = false
-	}, [currentPhase, phaseStartEventSeq])
+	}, [activeGameId, activeTurnActive, phaseStartEventSeq])
 
 	useEffect(() => {
 		const previousActiveTurnActive = lastActiveTurnActiveRef.current
 		if (previousActiveTurnActive === true && activeTurnActive === false) {
 			windowStartSeqRef.current = lastAppliedEventSeq
+			setIsInactiveEventWindowOpen(true)
 			setEntries([])
 			setIsLoading(false)
 			setErrorMessage(null)
@@ -84,7 +67,7 @@ export function useInactiveEventStream({
 	useEffect(() => {
 		if (
 			lastAppliedEventSeq === null ||
-			activeTurnActive ||
+			!isInactiveEventWindowOpen ||
 			activeGameId === null ||
 			pollEvents === undefined
 		) {
@@ -118,19 +101,7 @@ export function useInactiveEventStream({
 				}
 
 				const unseenEvents = events.filter((event) => {
-					if (seenSeqsRef.current.has(event.seq)) {
-						return false
-					}
-
-					if (currentTurnNumber !== null && event.turnNumber !== undefined && event.turnNumber !== currentTurnNumber) {
-						return false
-					}
-
-					if (currentPhase !== null && typeof event.phase === 'string' && event.phase !== currentPhase) {
-						return event.type === 'PHASE_CHANGED' && event.to === currentPhase
-					}
-
-					return true
+					return event.seq > afterSeq && !seenSeqsRef.current.has(event.seq)
 				})
 				for (const event of unseenEvents) {
 					seenSeqsRef.current.add(event.seq)
@@ -186,10 +157,11 @@ export function useInactiveEventStream({
 				inFlightAfterSeqRef.current = null
 			}
 		}
-	}, [activeGameId, activeTurnActive, currentPhase, currentTurnNumber, lastAppliedEventSeq, phaseStartEventSeq, pollEvents])
+	}, [activeGameId, isInactiveEventWindowOpen, lastAppliedEventSeq, phaseStartEventSeq, pollEvents])
 
 	function clearForTurnAcknowledgement() {
 		clearVersionRef.current += 1
+		setIsInactiveEventWindowOpen(false)
 		setEntries([])
 		setIsLoading(false)
 		setErrorMessage(null)

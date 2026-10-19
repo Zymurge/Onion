@@ -63,6 +63,10 @@ export function BattlefieldInspectorPanel({
       body: (
         <dl className="inspector-grid inspector-grid-right">
           <div>
+            <dt>Status</dt>
+            <dd>{selectedInspectorOnion.state}</dd>
+          </div>
+          <div>
             <dt>Stack</dt>
             <dd>1</dd>
           </div>

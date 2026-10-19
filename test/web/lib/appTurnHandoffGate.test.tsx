@@ -85,7 +85,7 @@ describe('useTurnHandoffGate', () => {
 		expect(result.current.inactiveEventWindowVisible).toBe(true)
 		expect(result.current.controlsLocked).toBe(true)
 		expect(result.current.screenLocked).toBe(true)
-		expect(result.current.currentActiveTurnKey).toBe('123:4:onion:ONION_MOVE')
+		expect(result.current.currentActiveTurnKey).toBe('123:4:onion')
 		expect(result.current.acknowledgementLabel).toBe('Begin Turn')
 
 		act(() => {
@@ -99,17 +99,17 @@ describe('useTurnHandoffGate', () => {
 		expect(result.current.screenLocked).toBe(false)
 	})
 
-	it('requires a new acknowledgement when the active turn key changes', async () => {
+	it('does not require acknowledgement for a phase change but does for a new turn', async () => {
 		const inactiveStream = createStream()
 		const { result, rerender } = renderHook(
-			(props: { turnNumber: number }) => useTurnHandoffGate({
+			(props: { turnNumber: number; phase: 'ONION_MOVE' | 'ONION_COMBAT' }) => useTurnHandoffGate({
 				activeGameId: 123,
 				controller: createController(),
 				inactiveEventStream: inactiveStream,
 				sessionStatus: 'ready',
-				turn: { ...activeTurn(), number: props.turnNumber },
+				turn: { ...activeTurn(), number: props.turnNumber, phase: props.phase },
 			}),
-			{ initialProps: { turnNumber: 4 } },
+			{ initialProps: { turnNumber: 4, phase: 'ONION_MOVE' } },
 		)
 
 		await waitFor(() => {
@@ -120,11 +120,15 @@ describe('useTurnHandoffGate', () => {
 		})
 		expect(result.current.acknowledgementPending).toBe(false)
 
-		rerender({ turnNumber: 5 })
+		rerender({ turnNumber: 4, phase: 'ONION_COMBAT' })
+		expect(result.current.currentActiveTurnKey).toBe('123:4:onion')
+		expect(result.current.acknowledgementPending).toBe(false)
+
+		rerender({ turnNumber: 5, phase: 'ONION_MOVE' })
 		await waitFor(() => {
 			expect(result.current.acknowledgementPending).toBe(true)
 		})
-		expect(result.current.currentActiveTurnKey).toBe('123:5:onion:ONION_MOVE')
+		expect(result.current.currentActiveTurnKey).toBe('123:5:onion')
 	})
 
 	it.each([

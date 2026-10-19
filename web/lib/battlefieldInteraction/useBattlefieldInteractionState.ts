@@ -288,6 +288,19 @@ export function useBattlefieldInteractionState({
 				})()
 
 		if (destroyedUnit) {
+			const currentSelection = selectedUnitIds ?? []
+			const preservedWeaponSelection = clientSnapshotPhase === 'ONION_COMBAT'
+				? currentSelection.filter(isWeaponSelectionId)
+				: []
+			const nextSelection = additive && currentSelection.includes(selectionOwnerUnitId)
+				? preservedWeaponSelection
+				: [...preservedWeaponSelection, selectionOwnerUnitId]
+
+			setSelectedUnitIds(nextSelection)
+			setHasExplicitSelection(true)
+			if (nextSelection.length === 0) {
+				setSelectedCombatTargetId(null)
+			}
 			return
 		}
 

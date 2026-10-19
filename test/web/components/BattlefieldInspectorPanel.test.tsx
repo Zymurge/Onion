@@ -78,6 +78,33 @@ describe('BattlefieldInspectorPanel', () => {
     expect(within(inspector).queryByText(/escape hexes/i)).toBeNull()
   })
 
+  it('shows destroyed status for an inspected defender', () => {
+    const destroyedDefender: BattlefieldUnit = {
+      unitId: 'puss-1',
+      typeId: 'Puss',
+      role: 'defender',
+      friendlyName: 'Puss 1',
+      state: 'destroyed',
+      position: { q: 3, r: 5 },
+      movesRemaining: 0,
+      stackSize: 1,
+      weapons: [],
+      actionableModes: [],
+    }
+
+    render(
+      <BattlefieldInspectorPanel
+        selectedInspectorLabel={destroyedDefender.friendlyName}
+        selectedInspectorDefender={destroyedDefender}
+        selectedInspectorOnion={null}
+        selectedStackMemberCount={1}
+        activeSelectedUnitCount={0}
+      />,
+    )
+
+    expect(getLabeledValue('Status')).toBe('destroyed')
+  })
+
   it('renders onion inspector stats and keeps stack count fixed at one', () => {
     const onion: BattlefieldOnionView = {
       unitId: 'onion-1',
@@ -110,6 +137,7 @@ describe('BattlefieldInspectorPanel', () => {
     expect(within(inspector).getByRole('img', { name: 'TheOnion sprite' })).toHaveAttribute('src', expect.stringContaining('the-onion-damaged-sprite.png'))
     expect(within(inspector).getByText(/heavily armed mobile fortress/i)).toBeInTheDocument()
     expect(getLabeledValue('Stack')).toBe('1')
+    expect(getLabeledValue('Status')).toBe('operational')
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
   })
 

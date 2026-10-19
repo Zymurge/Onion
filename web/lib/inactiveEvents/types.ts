@@ -3,12 +3,10 @@ import type { EventEnvelope } from '../../../shared/types/index.js'
 import type { TimelineEvent } from '../battlefieldView'
 import type { GameRequestTransport } from '../gameSessionTypes'
 
-/** Options used to load and filter inactive-player events. */
+/** Options used to load inactive-player events for the current acknowledgement window. */
 export type UseInactiveEventStreamOptions = {
 	activeGameId: number | null
 	activeTurnActive: boolean
-	currentPhase?: string | null
-	currentTurnNumber: number | null
 	phaseStartEventSeq?: number | null
 	lastAppliedEventSeq: number | null
 	pollEvents?: GameRequestTransport['pollEvents']

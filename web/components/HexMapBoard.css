@@ -310,6 +310,15 @@
   filter: saturate(1.15);
 }
 
+.hex-unit-destroyed-indicator {
+  pointer-events: none;
+}
+
+.hex-unit-stack.tone-destroyed:not(.hex-unit-stack-swamp) image {
+  filter: grayscale(0.85);
+  opacity: 0.78;
+}
+
 /* Unit rectangle - defender (red) */
 .hex-unit-rect-defender {
   fill: #d32f2f;

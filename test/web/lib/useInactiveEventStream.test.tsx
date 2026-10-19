@@ -20,7 +20,6 @@ describe('useInactiveEventStream', () => {
 				useInactiveEventStream({
 					activeGameId: 123,
 					activeTurnActive,
-					currentTurnNumber: 4,
 					lastAppliedEventSeq: 10,
 					pollEvents,
 				}),
@@ -39,54 +38,96 @@ describe('useInactiveEventStream', () => {
 		expect(result.current.entries[0]).toMatchObject({ seq: 11 })
 	})
 
-	it('filters inactive events to the current turn window', async () => {
+	it('filters by the event-window sequence rather than event turn numbers', async () => {
 		const pollEvents = vi.fn().mockResolvedValue([
-			createEvent({ seq: 1, type: 'FIRE_RESOLVED', timestamp: 't1', turnNumber: 2, targetId: 'onion-1', outcome: 'X' }),
-			createEvent({ seq: 2, type: 'UNIT_MOVED', timestamp: 't2', turnNumber: 3, unitFriendlyName: 'The Onion 1', to: { q: 1, r: 2 } }),
+			createEvent({ seq: 9, type: 'FIRE_RESOLVED', timestamp: 't9', turnNumber: 2, targetId: 'onion-1', outcome: 'X' }),
+			createEvent({ seq: 11, type: 'FIRE_RESOLVED', timestamp: 't11', turnNumber: 2, targetId: 'onion-2', outcome: 'NE' }),
+			createEvent({ seq: 12, type: 'UNIT_MOVED', timestamp: 't12', turnNumber: 3, unitFriendlyName: 'The Onion 1', to: { q: 1, r: 2 } }),
 		])
 
 		const { result } = renderHook(() =>
 			useInactiveEventStream({
 				activeGameId: 123,
 				activeTurnActive: false,
-				currentTurnNumber: 3,
-				lastAppliedEventSeq: 10,
+				phaseStartEventSeq: 10,
+				lastAppliedEventSeq: 12,
 				pollEvents,
 			}),
 		)
 
 		await waitFor(() => {
-			expect(pollEvents).toHaveBeenCalledWith(123, 0)
-			expect(result.current.entries).toHaveLength(1)
+			expect(pollEvents).toHaveBeenCalledWith(123, 10)
+			expect(result.current.entries).toHaveLength(2)
 		})
 
-		expect(result.current.entries[0]).toMatchObject({ seq: 2 })
+		expect(result.current.entries.map((entry) => entry.seq)).toEqual([11, 12])
 	})
 
-	it('starts from the phase boundary and excludes events from other phases', async () => {
+	it('starts from the phase boundary and retains events across phases and turn numbers', async () => {
 		const pollEvents = vi.fn().mockResolvedValue([
 			createEvent({ seq: 6, type: 'FIRE_RESOLVED', timestamp: 't6', turnNumber: 3, phase: 'ONION_COMBAT', outcome: 'X' }),
-			createEvent({ seq: 8, type: 'PHASE_CHANGED', timestamp: 't8', turnNumber: 3, phase: 'ONION_COMBAT', to: 'DEFENDER_MOVE' }),
-			createEvent({ seq: 9, type: 'UNIT_MOVED', timestamp: 't9', turnNumber: 3, phase: 'DEFENDER_MOVE', unitFriendlyName: 'Wolf 1', to: { q: 1, r: 2 } }),
-			createEvent({ seq: 10, type: 'FIRE_RESOLVED', timestamp: 't10', turnNumber: 3, outcome: 'NE' }),
+			createEvent({ seq: 8, type: 'FIRE_RESOLVED', timestamp: 't8', turnNumber: 3, phase: 'ONION_COMBAT', outcome: 'X' }),
+			createEvent({ seq: 9, type: 'PHASE_CHANGED', timestamp: 't9', turnNumber: 3, phase: 'ONION_COMBAT', to: 'DEFENDER_MOVE' }),
+			createEvent({ seq: 10, type: 'UNIT_MOVED', timestamp: 't10', turnNumber: 4, phase: 'DEFENDER_MOVE', unitFriendlyName: 'Wolf 1', to: { q: 1, r: 2 } }),
+			createEvent({ seq: 11, type: 'FIRE_RESOLVED', timestamp: 't11', turnNumber: 4, phase: 'DEFENDER_COMBAT', outcome: 'NE' }),
 		])
 
 		const { result } = renderHook(() => useInactiveEventStream({
 			activeGameId: 123,
 			activeTurnActive: false,
-			currentPhase: 'DEFENDER_MOVE',
-			currentTurnNumber: 3,
 			phaseStartEventSeq: 7,
-			lastAppliedEventSeq: 10,
+			lastAppliedEventSeq: 11,
 			pollEvents,
 		}))
 
 		await waitFor(() => {
 			expect(pollEvents).toHaveBeenCalledWith(123, 7)
-			expect(result.current.entries).toHaveLength(2)
+			expect(result.current.entries).toHaveLength(3)
 		})
 
-		expect(result.current.entries.map((entry) => entry.seq)).toEqual([9, 10])
+		expect(result.current.entries.map((entry) => entry.seq)).toEqual([8, 10, 11])
+	})
+
+	it('keeps the event window through phase and turn changes until acknowledged', async () => {
+		const pollEvents = vi.fn()
+			.mockResolvedValueOnce([
+				createEvent({ seq: 8, type: 'FIRE_RESOLVED', timestamp: 't8', turnNumber: 3, phase: 'ONION_COMBAT', outcome: 'X' }),
+			])
+			.mockResolvedValueOnce([
+				createEvent({ seq: 11, type: 'FIRE_RESOLVED', timestamp: 't11', turnNumber: 3, phase: 'GEV_SECOND_MOVE', outcome: 'NE' }),
+				createEvent({ seq: 12, type: 'UNIT_MOVED', timestamp: 't12', turnNumber: 4, phase: 'ONION_MOVE', unitFriendlyName: 'The Onion 1', to: { q: 1, r: 2 } }),
+			])
+		const { result, rerender } = renderHook(
+			(props: { activeTurnActive: boolean; phaseStartEventSeq: number; lastAppliedEventSeq: number }) =>
+				useInactiveEventStream({
+					activeGameId: 123,
+					activeTurnActive: props.activeTurnActive,
+					phaseStartEventSeq: props.phaseStartEventSeq,
+					lastAppliedEventSeq: props.lastAppliedEventSeq,
+					pollEvents,
+				}),
+			{ initialProps: { activeTurnActive: false, phaseStartEventSeq: 7, lastAppliedEventSeq: 10 } },
+		)
+
+		await waitFor(() => {
+			expect(pollEvents).toHaveBeenCalledWith(123, 7)
+			expect(result.current.entries.map((entry) => entry.seq)).toEqual([8])
+		})
+
+		rerender({ activeTurnActive: true, phaseStartEventSeq: 12, lastAppliedEventSeq: 12 })
+
+		await waitFor(() => {
+			expect(pollEvents).toHaveBeenCalledWith(123, 10)
+			expect(result.current.entries.map((entry) => entry.seq)).toEqual([8, 11, 12])
+		})
+
+		act(() => {
+			result.current.clearForTurnAcknowledgement()
+		})
+		expect(result.current.entries).toEqual([])
+
+		rerender({ activeTurnActive: true, phaseStartEventSeq: 13, lastAppliedEventSeq: 13 })
+		expect(pollEvents).toHaveBeenCalledTimes(2)
 	})
 
 	it('groups inactive events into timeline entries and supports clearing them', async () => {
@@ -136,7 +177,6 @@ describe('useInactiveEventStream', () => {
 			useInactiveEventStream({
 				activeGameId: 123,
 				activeTurnActive: false,
-				currentTurnNumber: 3,
 				lastAppliedEventSeq: 10,
 				pollEvents,
 			}),
@@ -173,7 +213,6 @@ describe('useInactiveEventStream', () => {
 			useInactiveEventStream({
 				activeGameId: 123,
 				activeTurnActive: false,
-				currentTurnNumber: 3,
 				lastAppliedEventSeq: 10,
 				pollEvents,
 			}),
@@ -200,7 +239,6 @@ describe('useInactiveEventStream', () => {
 				useInactiveEventStream({
 					activeGameId: gameId,
 					activeTurnActive: false,
-					currentTurnNumber: 3,
 					lastAppliedEventSeq: 10,
 					pollEvents,
 				}),
@@ -248,7 +286,6 @@ describe('useInactiveEventStream', () => {
 			useInactiveEventStream({
 				activeGameId: 123,
 				activeTurnActive: false,
-				currentTurnNumber: 3,
 				lastAppliedEventSeq: 10,
 				pollEvents,
 			}),
@@ -311,7 +348,6 @@ describe('useInactiveEventStream', () => {
 			useInactiveEventStream({
 				activeGameId: 123,
 				activeTurnActive: false,
-				currentTurnNumber: 3,
 				lastAppliedEventSeq: 10,
 				pollEvents,
 			}),
@@ -344,7 +380,6 @@ describe('useInactiveEventStream', () => {
 			useInactiveEventStream({
 				activeGameId: 123,
 				activeTurnActive: false,
-				currentTurnNumber: 3,
 				lastAppliedEventSeq: 10,
 				pollEvents,
 			}),
@@ -373,7 +408,6 @@ describe('useInactiveEventStream', () => {
 			useInactiveEventStream({
 				activeGameId: 123,
 				activeTurnActive: false,
-				currentTurnNumber: 3,
 				lastAppliedEventSeq: 10,
 				pollEvents,
 			}),
@@ -422,7 +456,6 @@ describe('useInactiveEventStream', () => {
 			useInactiveEventStream({
 				activeGameId: 123,
 				activeTurnActive: false,
-				currentTurnNumber: 3,
 				lastAppliedEventSeq: 10,
 				pollEvents,
 			}),
@@ -445,7 +478,6 @@ describe('useInactiveEventStream', () => {
 			useInactiveEventStream({
 				activeGameId: 123,
 				activeTurnActive: true,
-				currentTurnNumber: 3,
 				lastAppliedEventSeq: 10,
 				pollEvents,
 			}),

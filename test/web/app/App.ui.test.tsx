@@ -724,7 +724,7 @@ describe('App UI', () => {
 		expect(navigate).toHaveBeenCalledWith('/user/history?creator=me')
 	})
 
-	it('builds an acknowledgement key with phase data when available', () => {
+	it('builds an acknowledgement key from the game, turn, and role', () => {
 		expect(
 			buildAcknowledgementTurnKey({
 				activeGameId: 123,
@@ -733,15 +733,6 @@ describe('App UI', () => {
 				sessionTurnActive: true,
 			}),
 		).toBe('123:11:onion')
-		expect(
-			buildAcknowledgementTurnKey({
-				activeGameId: 123,
-				currentTurnNumber: 11,
-				currentPhase: 'ONION_COMBAT',
-				sessionRole: 'onion',
-				sessionTurnActive: true,
-			}),
-		).toBe('123:11:onion:ONION_COMBAT')
 		expect(
 			buildAcknowledgementTurnKey({
 				activeGameId: 123,

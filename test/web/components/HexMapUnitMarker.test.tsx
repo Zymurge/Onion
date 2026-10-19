@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { describe, expect, it, vi } from 'vitest'
 import { HexMapUnitMarker } from '#web/components/HexMapUnitMarker'
@@ -169,6 +169,58 @@ describe('HexMapUnitMarker', () => {
     expect(marker.querySelector('text')).not.toHaveClass('tone-dim')
     expect(Number(marker.querySelector('text')?.getAttribute('y'))).toBeCloseTo(52.8)
     expect(marker.querySelectorAll('tspan')).toHaveLength(2)
+  })
+
+  it('shows destroyed markers and lets either player inspect them without targeting', () => {
+    const destroyedDefender: BattlefieldUnit = {
+      ...defender,
+      unitId: 'puss-1',
+      typeId: 'Puss',
+      friendlyName: 'Puss 1',
+      state: 'destroyed',
+    }
+    const routeMapInteraction = vi.fn(() => ({
+      intent: 'inspect-subject' as const,
+      reason: 'combat-illegal-but-inspectable-subject' as const,
+    }))
+    const onSelectUnit = vi.fn()
+
+    render(
+      <svg>
+        <HexMapUnitMarker
+          activeCombatRole="onion"
+          center={{ x: 36, y: 36 }}
+          combatMembers={[destroyedDefender]}
+          isCombatPhase
+          isMovementPhase={false}
+          isOccupantSelected={false}
+          isSelectionLocked={false}
+          occupant={destroyedDefender}
+          offsetIndex={0}
+          renderedOccupantCount={1}
+          onion={onion}
+          phase="ONION_COMBAT"
+          resolvedPhaseMode="combat"
+          resolvedViewerActivity="active"
+          resolvedViewerRole="onion"
+          routeMapInteraction={routeMapInteraction}
+          rosterGroup={null}
+          onDeselect={vi.fn()}
+          onSelectUnit={onSelectUnit}
+        />
+      </svg>,
+    )
+
+    const marker = screen.getByTestId('hex-unit-puss-1')
+    expect(marker).toHaveClass('tone-destroyed')
+    expect(screen.getByTestId('hex-unit-destroyed-indicator-puss-1')).toHaveAttribute('aria-label', 'Destroyed')
+
+    fireEvent.click(marker)
+
+    expect(routeMapInteraction).toHaveBeenCalledWith(expect.objectContaining({
+      subjectCapability: expect.objectContaining({ inspectable: true, targetEligible: false }),
+    }))
+    expect(onSelectUnit).toHaveBeenCalledWith('puss-1', false)
   })
 
   it('centers the full-size Onion sprite and keeps its label over the sprite in white', () => {
