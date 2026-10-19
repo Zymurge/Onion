@@ -54,6 +54,7 @@ type HexMapUnitMarkerProps = {
   isMovementPhase: boolean
   isOccupantSelected: boolean
   isSelectionLocked: boolean
+  isInspectionOnly?: boolean
   isTurnHandoffLocked?: boolean
   occupant: HexOccupant
   offsetIndex: number
@@ -79,6 +80,7 @@ export function HexMapUnitMarker({
   isMovementPhase,
   isOccupantSelected,
   isSelectionLocked,
+  isInspectionOnly = false,
   isTurnHandoffLocked = false,
   occupant,
   offsetIndex,
@@ -149,7 +151,7 @@ export function HexMapUnitMarker({
   const markerText = getUnitMarkerText(occupant, stackNaming)
   const markerTextLines = markerText === null ? [] : wrapMarkerText(markerText)
   function handleClick(event: MouseEvent<SVGGElement>) {
-    if (isSelectionLocked) {
+    if (isSelectionLocked && !isInspectionOnly) {
       event.stopPropagation()
       return
     }

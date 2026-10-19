@@ -149,11 +149,12 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           combatTargetIds={display.combatTargetIds}
           escapeHexes={display.escapeHexes}
           isSelectionLocked={gate.screenLocked || isGameOver}
+          isInspectionOnly={gate.screenLocked && !isGameOver}
           isInteractionLocked={gate.controlsLocked || isGameOver}
           canSubmitMove={!isGameOver && (display.activePhase === 'ONION_MOVE' || display.activePhase === 'DEFENDER_MOVE' || display.activePhase === 'GEV_SECOND_MOVE')}
           viewerRole={display.activeRole}
           onSelectUnit={interaction.handleSelectUnit}
-          onSelectCombatTarget={interaction.setSelectedCombatTargetId}
+          onSelectCombatTarget={interaction.handleSelectCombatTarget}
           onDeselect={interaction.handleDeselectUnit}
           onMoveUnit={interaction.handleMoveUnit}
         />
@@ -185,7 +186,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           onConfirmCombat={commands.confirmCombat}
           onAttemptRam={commands.attemptRam}
           onDeclineRam={commands.declineRam}
-          onSelectCombatTarget={interaction.setSelectedCombatTargetId}
+          onSelectCombatTarget={interaction.handleSelectCombatTarget}
           onToggleStackMember={(unitId) => interaction.handleSelectStackMember(unitId, display.rightRailStackPanel.selectedStackMemberIds)}
           onSelectAllStackMembers={() => interaction.handleSelectAllStackMembers(display.rightRailStackPanel.selectedStackMemberIds)}
           onClearStackSelection={interaction.handleClearStackSelection}

@@ -131,7 +131,7 @@ describe('BattlefieldRightRail', () => {
     expect(confirmation.querySelector('.mini-tag-live')?.textContent).toBe('confirmation')
   })
 
-  it('shows the attack summary above targets and hides the inspector during combat', () => {
+  it('shows the attack summary and target list when no Inspector selection is active', () => {
     const onSelectCombatTarget = vi.fn()
     render(
       <BattlefieldRightRail
@@ -190,6 +190,19 @@ describe('BattlefieldRightRail', () => {
 
 	fireEvent.click(screen.getByTestId('combat-target-LittlePigs:1,1'))
 	expect(onSelectCombatTarget).toHaveBeenCalledWith('LittlePigs:1,1')
+  })
+
+  it('shows the Inspector instead of attack planning for a defender selected during Onion combat', () => {
+    renderRightRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isCombatPhase: true,
+      selectedInspectorLabel: 'Puss 1',
+      selectedInspectorDefender: createDefender({ typeId: 'Puss', friendlyName: 'Puss 1' }),
+    })
+
+    expect(screen.getByTestId('battlefield-inspector-subject-pigs-1')).not.toBeNull()
+    expect(screen.queryByRole('heading', { name: /attack planning/i })).toBeNull()
   })
 
   it('routes both ram confirmation decisions to their callbacks', () => {

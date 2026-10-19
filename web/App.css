@@ -566,6 +566,10 @@
   pointer-events: none;
 }
 
+.shell.inactive-event-screen-locked .battlefield-grid > .map-stage {
+  pointer-events: auto;
+}
+
 .shell.inactive-event-screen-locked > header {
   position: relative;
 }

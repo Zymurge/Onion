@@ -122,6 +122,7 @@ function App({
     isControlledSession: session.isControlled,
     isInteractionLocked: gate.controlsLocked,
     isSelectionLocked: gate.screenLocked,
+    isInspectionOnly: gate.screenLocked,
   })
 
   const display = useBattlefieldDisplayState({

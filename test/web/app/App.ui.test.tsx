@@ -496,19 +496,27 @@ describe('App UI', () => {
 	it('shows Begin Turn for the active player until the turn is acknowledged', async () => {
 		const user = userEvent.setup()
 		const snapshot = createOnionMoveSnapshot(4)
+		const submitAction = vi.fn().mockResolvedValue(snapshot)
 		const client = createGameClient({
 			getState: vi.fn().mockResolvedValue({ snapshot, session: { role: 'onion' as const } }),
-			submitAction: vi.fn().mockResolvedValue(snapshot),
+			submitAction,
 			pollEvents: vi.fn().mockResolvedValue([]),
 		})
 
 		render(<App gameClient={client} gameId={123} />)
 
 		const beginTurnButton = await screen.findByRole('button', { name: /begin turn/i })
-		expect(beginTurnButton).not.toBeNull()
+		const phaseAdvanceButton = screen.getByRole('button', { name: 'Start Combat' })
+		expect(phaseAdvanceButton.hasAttribute('disabled')).toBe(true)
+
+		await user.click(await screen.findByTestId('hex-unit-wolf-2'))
+		expect(await screen.findByTestId('battlefield-inspector-subject-wolf-2')).not.toBeNull()
+		expect(phaseAdvanceButton.hasAttribute('disabled')).toBe(true)
+		expect(submitAction).not.toHaveBeenCalled()
 
 		await user.click(beginTurnButton)
 		expect(screen.queryByRole('button', { name: /begin turn/i })).toBeNull()
+		expect(phaseAdvanceButton.hasAttribute('disabled')).toBe(false)
 	})
 
 	it.each([

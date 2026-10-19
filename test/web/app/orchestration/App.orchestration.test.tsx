@@ -810,7 +810,7 @@ describe('combat', () => {
 		expect(screen.getByTestId('hex-cell-3-1').getAttribute('class')).not.toContain('hex-cell-combat-range')
 	})
 
-	it('keeps the onion combat target rail visible when the active player clicks an enemy unit', async () => {
+	it('inspects defenders during Onion combat and opens attack planning from the Onion or a weapon', async () => {
 		const user = userEvent.setup()
 		const snapshot = {
 			...baseOrchestrationSnapshot,
@@ -838,15 +838,33 @@ describe('combat', () => {
 		const client = createTestClient(snapshot, session)
 
 		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
 
 		await screen.findByTestId('combat-weapon-main-1')
 		await user.click(screen.getByTestId('combat-weapon-main-1'))
-		expect(screen.getByRole('heading', { name: /attack planning/i })).not.toBeNull()
-
 		await user.click(screen.getByTestId('hex-unit-puss-1'))
 
+		expect(screen.getByTestId('battlefield-inspector-subject-puss-1')).not.toBeNull()
+		expect(screen.queryByRole('heading', { name: /attack planning/i })).toBeNull()
+
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-unit-puss-1'))
+		})
+
+		expect(screen.queryByTestId('battlefield-inspector')).toBeNull()
 		expect(screen.getByRole('heading', { name: /attack planning/i })).not.toBeNull()
-		expect(screen.queryByText(/Inspector/i)).toBeNull()
+		expect(screen.getByTestId('combat-target-puss-1').getAttribute('data-selected')).toBe('true')
+		expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Main Weapon')
+
+		await user.click(screen.getByTestId('hex-unit-puss-1'))
+		expect(screen.getByTestId('battlefield-inspector-subject-puss-1')).not.toBeNull()
+		expect(screen.queryByRole('heading', { name: /attack planning/i })).toBeNull()
+
+		await user.click(screen.getByTestId('hex-unit-onion-1'))
+
+		expect(screen.queryByTestId('battlefield-inspector')).toBeNull()
+		expect(screen.getByRole('heading', { name: /attack planning/i })).not.toBeNull()
+		expect(screen.getByTestId('combat-confirmation-view').textContent).toContain('Main Weapon')
 	})
 
 	it('renders a right-rail target list filtered to the active combat range', async () => {
@@ -1018,6 +1036,34 @@ describe('combat', () => {
 
 		await user.click(screen.getByTestId('combat-target-weapon:main-1'))
 		expect(screen.getByTestId('combat-target-weapon:main-1').getAttribute('data-selected')).toBe('true')
+	})
+
+	it('opens Defender Attack Planning on the Onion after inspecting it without losing attackers', async () => {
+		const user = userEvent.setup()
+		const snapshot = createInRangeCombatSnapshot()
+		const session = { role: 'defender' as const }
+		const client = createTestClient(snapshot, session)
+
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		await user.click(await screen.findByTestId('combat-unit-wolf-2'))
+		await user.click(screen.getByTestId('hex-unit-onion-1'))
+
+		expect(screen.getByTestId('battlefield-inspector-subject-onion-1')).not.toBeNull()
+		expect(screen.queryByRole('heading', { name: /attack planning/i })).toBeNull()
+
+		await act(async () => {
+			fireEvent.contextMenu(screen.getByTestId('hex-unit-onion-1'))
+		})
+
+		expect(screen.queryByTestId('battlefield-inspector')).toBeNull()
+		expect(screen.getByRole('heading', { name: /attack planning/i })).not.toBeNull()
+		const targetList = screen.getByTestId('combat-target-list')
+		expect(targetList.textContent).toContain('Main Weapon')
+		expect(targetList.textContent).toContain('Secondary Weapon')
+		const treadsTarget = within(targetList).getByRole('button', { name: /treads/i })
+		expect(treadsTarget.getAttribute('data-selected')).toBe('true')
 	})
 
 	it('selects a combat target from the rail on right click', async () => {

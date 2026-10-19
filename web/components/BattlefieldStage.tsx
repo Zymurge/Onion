@@ -24,6 +24,7 @@ type BattlefieldStageProps = {
   escapeHexes: ReadonlyArray<{ q: number; r: number }>
   canSubmitMove: boolean
   isSelectionLocked: boolean
+  isInspectionOnly?: boolean
   isInteractionLocked: boolean
   viewerRole: 'onion' | 'defender' | null
   onDeselect: () => void
@@ -48,6 +49,7 @@ export function BattlefieldStage({
   escapeHexes,
   canSubmitMove,
   isSelectionLocked,
+  isInspectionOnly = false,
   isInteractionLocked,
   viewerRole,
   onDeselect,
@@ -76,6 +78,7 @@ export function BattlefieldStage({
             canSubmitMove={canSubmitMove && activeTurnActive && !isInteractionLocked}
             isInteractionLocked={isInteractionLocked}
             isSelectionLocked={isSelectionLocked}
+            isInspectionOnly={isInspectionOnly}
             onSelectUnit={onSelectUnit}
             onSelectCombatTarget={onSelectCombatTarget}
             onDeselect={onDeselect}

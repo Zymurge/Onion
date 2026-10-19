@@ -48,6 +48,7 @@ export function useBattlefieldInteractionState({
 	isControlledSession,
 	isInteractionLocked,
 	isSelectionLocked,
+	isInspectionOnly = false,
 }: UseBattlefieldInteractionStateOptions): BattlefieldInteractionController {
 	const [selectedUnitIds, setSelectedUnitIds] = useState<string[] | null>(null)
 	const [hasExplicitSelection, setHasExplicitSelection] = useState(false)
@@ -267,6 +268,13 @@ export function useBattlefieldInteractionState({
 
 	function handleSelectUnit(unitId: string, additive = false) {
 		if (isSelectionLocked) {
+			if (isInspectionOnly) {
+				setSelectedUnitIds([resolveSelectionOwnerUnitId(unitId)])
+				setHasExplicitSelection(true)
+				setSelectedCombatTargetId(null)
+				return
+			}
+
 			debugLog('handleSelectUnit blocked', {
 				unitId,
 				additive,
@@ -305,6 +313,37 @@ export function useBattlefieldInteractionState({
 		}
 
 		const baseSelection = selectedUnitIds ?? []
+		if (clientSnapshotPhase === 'ONION_COMBAT' && authoritativeOnion?.unitId === selectionOwnerUnitId) {
+			clearPendingCombatResolution(false)
+			setPendingRamPrompt(null)
+			setSelectedUnitIds(baseSelection.filter(isWeaponSelectionId))
+			setHasExplicitSelection(true)
+			setActionError(null)
+			return
+		}
+
+		if (clientSnapshotPhase === 'DEFENDER_COMBAT' && authoritativeOnion?.unitId === selectionOwnerUnitId) {
+			const retainedAttackers = baseSelection.filter((selectedId) => {
+				if (isWeaponSelectionId(selectedId)) {
+					return false
+				}
+
+				return authoritativeState?.defenders[resolveSelectionOwnerUnitId(selectedId)] !== undefined
+			})
+
+			if (retainedAttackers.length > 0) {
+				clearPendingCombatResolution(false)
+				setPendingRamPrompt(null)
+				setSelectedUnitIds([
+					selectionOwnerUnitId,
+					...retainedAttackers.filter((selectedId) => resolveSelectionOwnerUnitId(selectedId) !== selectionOwnerUnitId),
+				])
+				setHasExplicitSelection(true)
+				setActionError(null)
+				return
+			}
+		}
+
 		const preserveCombatSelection =
 			clientSnapshotPhase === 'ONION_COMBAT' &&
 			!additive &&
@@ -313,7 +352,14 @@ export function useBattlefieldInteractionState({
 			baseSelection.some(isWeaponSelectionId)
 
 		if (preserveCombatSelection) {
-			debugLog('handleSelectUnit preserved combat selection', {
+			clearPendingCombatResolution(false)
+			setPendingRamPrompt(null)
+			applySelection([
+				...baseSelection.filter(isWeaponSelectionId),
+				selectionOwnerUnitId,
+			])
+			setActionError(null)
+			debugLog('handleSelectUnit opened defender inspection during Onion combat', {
 				unitId,
 				clientSnapshotPhase,
 				selectedUnitIds,
@@ -365,6 +411,24 @@ export function useBattlefieldInteractionState({
 		setActionError(null)
 	}
 
+	function handleSelectCombatTarget(targetId: string) {
+		const currentSelection = selectedUnitIds ?? []
+
+		if (clientSnapshotPhase === 'ONION_COMBAT') {
+			setSelectedUnitIds(currentSelection.filter(isWeaponSelectionId))
+			setHasExplicitSelection(true)
+		} else if (clientSnapshotPhase === 'DEFENDER_COMBAT') {
+			const defenders = clientSnapshot?.authoritativeState?.defenders
+			setSelectedUnitIds(currentSelection.filter((selectionId) =>
+				!isWeaponSelectionId(selectionId)
+				&& defenders?.[resolveSelectionOwnerUnitId(selectionId)] !== undefined,
+			))
+			setHasExplicitSelection(true)
+		}
+
+		setSelectedCombatTargetId(targetId)
+	}
+
 	function handleSelectStackMember(unitId: string, stackMemberIds: readonly string[]) {
 		if (isSelectionLocked) {
 			debugLog('handleSelectStackMember blocked', {
@@ -414,6 +478,13 @@ export function useBattlefieldInteractionState({
 
 	function handleDeselectUnit() {
 		if (isSelectionLocked) {
+			if (isInspectionOnly) {
+				setSelectedUnitIds([])
+				setHasExplicitSelection(true)
+				setSelectedCombatTargetId(null)
+				return
+			}
+
 			debugLog('handleDeselectUnit blocked', {
 				isSelectionLocked,
 			})
@@ -555,6 +626,7 @@ export function useBattlefieldInteractionState({
 		handleMoveUnit,
 		handleResolveRamPrompt,
 		handleRefresh,
+		handleSelectCombatTarget,
 		handleSelectUnit,
 		handleSelectStackMember,
 		handleSelectAllStackMembers,

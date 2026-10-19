@@ -17,6 +17,7 @@ export type UseBattlefieldInteractionStateOptions = {
 	isControlledSession: boolean
 	isInteractionLocked: boolean
 	isSelectionLocked: boolean
+	isInspectionOnly?: boolean
 }
 
 /** Prompt shown before committing a move that would ram an occupied hex. */
@@ -53,6 +54,7 @@ export type BattlefieldInteractionController = {
 	handleMoveUnit: (unitId: string, to: { q: number; r: number }) => Promise<void>
 	handleResolveRamPrompt: (attemptRam: boolean) => void
 	handleRefresh: () => Promise<void>
+	handleSelectCombatTarget: (targetId: string) => void
 	handleSelectUnit: (unitId: string, additive?: boolean) => void
 	handleSelectStackMember: (unitId: string, stackMemberIds: readonly string[]) => void
 	handleSelectAllStackMembers: (stackMemberIds: readonly string[]) => void

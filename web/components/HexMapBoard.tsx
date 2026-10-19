@@ -47,6 +47,7 @@ type HexMapBoardProps = {
   canSubmitMove?: boolean
   isInteractionLocked?: boolean
   isSelectionLocked?: boolean
+  isInspectionOnly?: boolean
   onSelectUnit: (unitId: string, additive?: boolean) => void
   onSelectCombatTarget?: (targetId: string) => void
   onDeselect: () => void
@@ -118,6 +119,7 @@ export function HexMapBoard({
   canSubmitMove = true,
   isInteractionLocked = false,
   isSelectionLocked = false,
+  isInspectionOnly = false,
   onSelectUnit,
   onSelectCombatTarget,
   onDeselect,
@@ -373,9 +375,13 @@ export function HexMapBoard({
                   isReachable={isReachable}
                   isSelected={cellOccupants.some((occupant) => selectedUnitSet.has(occupant.unitId))}
                   isSelectionLocked={isSelectionLocked}
+                  isInspectionOnly={isInspectionOnly}
                   isTurnHandoffLocked={isInteractionLocked}
                   onBackgroundClick={() => {
                     if (isSelectionLocked) {
+                      if (isInspectionOnly) {
+                        onDeselect()
+                      }
                       return
                     }
 

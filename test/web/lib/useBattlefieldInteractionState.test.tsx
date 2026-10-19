@@ -302,6 +302,94 @@ describe('useBattlefieldInteractionState', () => {
 		expect(result.current.selectedCombatTargetId).toBe('def-1')
 	})
 
+	it('clears inspected units on target selection while preserving the combat attackers', async () => {
+		const onionSnapshot = createSnapshot({
+			phase: 'ONION_COMBAT',
+		})
+		const { result: onionResult } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: createController(),
+				activeTurnActive: true,
+				clientSnapshot: onionSnapshot,
+				clientSnapshotPhase: 'ONION_COMBAT',
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			onionResult.current.setSelectedUnitIds(['weapon:main', 'def-1'])
+		})
+
+		await act(async () => {
+			onionResult.current.handleSelectCombatTarget('def-1')
+		})
+
+		expect(onionResult.current.selectedUnitIds).toEqual(['weapon:main'])
+		expect(onionResult.current.selectedCombatTargetId).toBe('def-1')
+
+		const defenderSnapshot = createSnapshot({
+			phase: 'DEFENDER_COMBAT',
+		})
+		const { result: defenderResult } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: createController(),
+				activeTurnActive: true,
+				clientSnapshot: defenderSnapshot,
+				clientSnapshotPhase: 'DEFENDER_COMBAT',
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			defenderResult.current.setSelectedUnitIds(['def-1', 'onion-1'])
+		})
+
+		await act(async () => {
+			defenderResult.current.handleSelectCombatTarget('onion:1: treads')
+		})
+
+		expect(defenderResult.current.selectedUnitIds).toEqual(['def-1'])
+		expect(defenderResult.current.selectedCombatTargetId).toBe('onion:1: treads')
+	})
+
+	it('inspects an operational defender during Onion combat and reopens attack planning from the Onion', async () => {
+		const snapshot = createSnapshot({ phase: 'ONION_COMBAT' })
+		const { result } = renderHook(() =>
+			useBattlefieldInteractionState({
+				activeSessionController: createController(),
+				activeTurnActive: true,
+				clientSnapshot: snapshot,
+				clientSnapshotPhase: 'ONION_COMBAT',
+				catalog: sessionCatalog,
+				isControlledSession: true,
+				isInteractionLocked: false,
+				isSelectionLocked: false,
+			}),
+		)
+
+		await act(async () => {
+			result.current.setSelectedUnitIds(['weapon:main'])
+		})
+
+		await act(async () => {
+			result.current.handleSelectUnit('def-1')
+		})
+
+		expect(result.current.selectedUnitIds).toEqual(['weapon:main', 'def-1'])
+
+		await act(async () => {
+			result.current.handleSelectUnit('onion-1')
+		})
+
+		expect(result.current.selectedUnitIds).toEqual(['weapon:main'])
+	})
+
 	it('preserves the Defender combat target while changing a non-empty attacker group', async () => {
 		const controller = createController()
 		const baseSnapshot = createSnapshot({ phase: 'DEFENDER_COMBAT' })
