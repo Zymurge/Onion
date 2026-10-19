@@ -608,6 +608,9 @@
 }
 
 .inactive-event-stream {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 16px 18px;
   border-radius: 20px;
   display: flex;
@@ -710,6 +713,8 @@
 
 .inactive-event-stream-list {
   flex: none;
+  width: 100%;
+  min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -721,6 +726,8 @@
 }
 
 .inactive-event-stream-entry {
+  min-width: 0;
+  max-width: 100%;
   padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid rgba(191, 174, 122, 0.34);
@@ -733,9 +740,8 @@
   margin: 0;
   color: #332b1a;
   line-height: 1.35;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .inactive-event-stream-entry:hover,
