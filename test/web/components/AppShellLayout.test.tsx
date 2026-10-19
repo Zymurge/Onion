@@ -26,6 +26,7 @@ function createProps(overrides: Partial<AppShellLayoutProps> = {}): AppShellLayo
 			combatTargetIds: new Set(),
 			combatTargetOptions: [],
 			displayedDefenders: [],
+			defenderRoster: [],
 			displayedOnion: null,
 			displayedOnions: [],
 			displayedScenarioMap: null,

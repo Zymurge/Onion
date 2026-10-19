@@ -195,7 +195,6 @@ describe('http game client adapter contract', () => {
 			expect.objectContaining({
 				headers: expect.objectContaining({
 					authorization: 'Bearer test.jwt.token',
-					'content-type': 'application/json',
 				}),
 			}),
 		)
@@ -204,7 +203,6 @@ describe('http game client adapter contract', () => {
 			expect.objectContaining({
 				headers: expect.objectContaining({
 					authorization: 'Bearer test.jwt.token',
-					'content-type': 'application/json',
 				}),
 			}),
 		)

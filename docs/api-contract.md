@@ -291,6 +291,12 @@ Notes:
 - `friendlyName` on a unit is stable and does not change when the unit changes groups.
 - `groupName` is the only stack-level display label used by rails, combat UI, and event text.
 - Per-unit runtime movement spend is stored on the unit record itself via `movementSpent[phase]`.
+- Destroyed Defender records remain in `state.defenders`. When cleanup reaches
+  `DEFENDER_MOVE`, destroyed members are removed from `stackRoster` group
+  membership without deleting their individual records.
+- Use `stackRoster` for canonical group membership and targeting; do not infer
+  that a retained Defender record is still an active stack member from its
+  position or presence in `state.defenders`.
 
 **Notes:**
 
@@ -399,6 +405,10 @@ identity:
 - Defender units, defender stacks, and individually targetable weapons use the
   opaque IDs supplied by the game state, such as `wolf-1`, `LittlePigs:3,2`, or
   `main`.
+- A Little Pigs stack target must use its canonical group ID from
+  `stackRoster`, such as `LittlePigs:3,2`. An individual member ID is not a
+  valid substitute; clients must resolve a selected member to its group ID
+  before submitting `FIRE`.
 - Onion treads use the explicit structured form `{onionId}:treads`, such as
   `onion-1:treads`.
 - A bare Onion unit ID is not a tread target. `onion-1` must not be submitted

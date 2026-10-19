@@ -13,7 +13,7 @@ break down into features/tasks as needed.
 
 ### Features / Tasks
 
-- [ ] Define scenario-derived unit types, human-editable unit metadata, per-type sprites, and stack/unit presentation. See [unit-enhancements-spec.md](unit-enhancements-spec.md) and resolve its open questions before implementation.
+- [ ] Define validation or fallback behavior for an absent or unrecognized `spriteKey` before adding authoring tools for new sprite assets. See [unit-presentation-spec.md](../web-ui/unit-presentation-spec.md).
 - [ ] Future multi-Onion scenarios: allow a destroyed Onion relic to remain on the battlefield as an impassable hex after the game-over condition is relaxed for scenarios with multiple Onions. Define relic persistence, selection/inspection, movement blocking, rendering, and victory interactions.
 
 ## Done
@@ -32,6 +32,7 @@ break down into features/tasks as needed.
   - [x] Extract the shared stack naming engine into a standalone module that can track used group names and active groups.
   - [x] Move per-unit movement spend onto the unit records themselves and reset it at phase boundaries.
   - [x] Code and regression coverage are complete; browser E2E coverage validates stack movement, selection, co-location, and ram flows.
+- [x] Implement V1 scenario-derived unit definitions and the shared unit-presentation foundation: resolved sprite keys, map-only scale/offset metadata, reusable Inspector assets, state overlays, and roster-backed stack display. See [unit-enhancements-spec.md](unit-enhancements-spec.md) and [unit-presentation-spec.md](../web-ui/unit-presentation-spec.md).
 
 - [x] Implement the section 1b/1c stack-roster lifecycle rules as a standalone step: bundle groups and units into a dedicated state element, keep the persisted roster minimal, assign unique finalized stack names at end of movement, carry names forward correctly across splits and merges, never recycle stack names, and expose canonical member names plus finalized stack names to UI/messages and left-rail selection rows so member identity is preserved there.
 - [x] Make Onion identity explicit throughout runtime events and combat

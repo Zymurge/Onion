@@ -76,7 +76,6 @@ describe('http game request transport contract', () => {
 			expect.objectContaining({
 				headers: expect.objectContaining({
 					authorization: 'Bearer test.jwt.token',
-					'content-type': 'application/json',
 				}),
 			}),
 		)

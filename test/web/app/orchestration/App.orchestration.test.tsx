@@ -189,7 +189,8 @@ describe('rendering and display', () => {
 		render(<App gameClient={client} gameId={123} />)
 
 		const firedPuss = await screen.findByTestId('hex-unit-fired-puss')
-		expect(firedPuss.querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-ineligible')
+		expect(firedPuss).toHaveClass('hex-unit-stack-defender')
+		expect(firedPuss.querySelector('image')).not.toBeNull()
 		fireEvent.click(firedPuss)
 
 		expect(screen.getByTestId('battlefield-inspector-subject-fired-puss').textContent).toBe('Fired Puss')
@@ -198,7 +199,8 @@ describe('rendering and display', () => {
 		expect(screen.queryByTestId('combat-target-list')).toBeNull()
 
 		const readyPuss = await screen.findByTestId('hex-unit-ready-puss')
-		expect(readyPuss.querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		expect(readyPuss).toHaveClass('hex-unit-stack-defender')
+		expect(readyPuss.querySelector('image')).not.toBeNull()
 		fireEvent.click(readyPuss)
 
 		expect(screen.getByTestId('battlefield-inspector-subject-ready-puss').textContent).toBe('Ready Puss')
@@ -717,8 +719,9 @@ describe('combat', () => {
 		const weapon = await screen.findByTestId('combat-weapon-main-1')
 		await user.click(weapon)
 
-		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
-		expect(screen.getByTestId('hex-unit-onion-1').getAttribute('data-selected')).toBe('true')
+		const onionMarker = screen.getByTestId('hex-unit-onion-1')
+		expect(onionMarker).toHaveClass('hex-unit-stack-onion')
+		expect(onionMarker.getAttribute('data-selected')).toBe('true')
 	})
 
 	it('keeps a co-located defender eligible during Defender combat', async () => {
@@ -743,7 +746,9 @@ describe('combat', () => {
 		await acknowledgeTurnIfAvailable()
 
 		const attacker = await screen.findByTestId('combat-unit-wolf-2')
-		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		const defenderMarker = screen.getByTestId('hex-unit-wolf-2')
+		expect(defenderMarker).toHaveClass('hex-unit-stack-defender')
+		expect(defenderMarker.querySelector('image')).not.toBeNull()
 		await userEvent.click(attacker)
 		expect(attacker.getAttribute('data-selected')).toBe('true')
 	})
@@ -950,7 +955,7 @@ describe('combat', () => {
 
 		await screen.findByTestId('combat-weapon-main-1')
 		await user.click(screen.getByTestId('combat-weapon-main-1'))
-		await user.click(screen.getByTestId('combat-target-near-1'))
+		await user.click(screen.getByTestId('combat-target-LittlePigs:2,2'))
 
 		const confirmationView = await screen.findByTestId('combat-confirmation-view')
 		expect(confirmationView.textContent).toContain('Attackers (1):')

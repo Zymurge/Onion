@@ -22,7 +22,8 @@ loaded independently.
 | Architecture and state | Client architecture, authority boundaries, snapshot synchronization, local versus derived state, and stable UI identity | [architecture-and-state-spec.md](web-ui/architecture-and-state-spec.md) |
 | Lobby and game sessions | Lobby lifecycle, polling, discovery, mutations, game-window handoff, and lifecycle gating | [lobby-and-session-spec.md](web-ui/lobby-and-session-spec.md) |
 | Interaction routing | Normalized interaction requests, routing matrix, intent vocabulary, role-specific combat routing, and stack expansion | [interaction-routing-spec.md](web-ui/interaction-routing-spec.md) |
-| Battlefield and combat | Board geometry, movement, combat preparation, targeting, objectives, colors, and combat results | [battlefield-and-combat-spec.md](web-ui/battlefield-and-combat-spec.md) |
+| Unit presentation | Sprite asset management, map sizing and positioning, Inspector rendering, and unit-state visual cues | [unit-presentation-spec.md](web-ui/unit-presentation-spec.md) |
+| Battlefield and combat | Board geometry, movement, combat preparation, targeting, objectives, and combat results | [battlefield-and-combat-spec.md](web-ui/battlefield-and-combat-spec.md) |
 | Turn and event display | Turn acknowledgement, phase controls, inactive event stream, and combat event presentation | [turn-and-events-spec.md](web-ui/turn-and-events-spec.md) |
 | Errors and validation | User-facing errors, terminal snapshot failures, diagnostics, retry boundaries, and test obligations | [errors-and-validation-spec.md](web-ui/errors-and-validation-spec.md) |
 
@@ -36,9 +37,12 @@ loaded independently.
 - [Interaction routing](web-ui/interaction-routing-spec.md) converts UI
   gestures into local intents or backend commands but never mutates
   authoritative state directly.
+- [Unit presentation](web-ui/unit-presentation-spec.md) owns sprite lookup,
+  map-only sizing and offsets, Inspector sizing, and unit-state visual cues.
 - [Battlefield and combat](web-ui/battlefield-and-combat-spec.md) owns map and
-  combat presentation; [turn and events](web-ui/turn-and-events-spec.md) owns
-  turn handoff and event presentation around it.
+  combat interactions and consumes the unit-presentation contract;
+  [turn and events](web-ui/turn-and-events-spec.md) owns turn handoff and event
+  presentation around it.
 - [Errors and validation](web-ui/errors-and-validation-spec.md) applies to all
   areas, including the distinction between recoverable errors and terminal
   invalid snapshots.

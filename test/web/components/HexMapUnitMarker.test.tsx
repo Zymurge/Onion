@@ -222,6 +222,61 @@ describe('HexMapUnitMarker', () => {
     expect(onSelectUnit).toHaveBeenCalledWith('puss-1', false)
   })
 
+  it.each([
+    { description: 'one ready member', readyModes: ['fire'] as const, expected: true },
+    { description: 'no ready members', readyModes: [] as const, expected: false },
+  ])('routes combat eligibility for a group with $description', ({ readyModes, expected }) => {
+    const members: BattlefieldUnit[] = [
+      {
+        ...defender,
+        unitId: 'pigs-1',
+        typeId: 'LittlePigs',
+        state: 'operational',
+        actionableModes: [],
+      },
+      {
+        ...defender,
+        unitId: 'pigs-2',
+        typeId: 'LittlePigs',
+        state: 'operational',
+        actionableModes: [...readyModes],
+      },
+    ]
+    const routeMapInteraction = vi.fn(() => ({ intent: 'noop' as const, reason: 'test' }))
+
+    render(
+      <svg>
+        <HexMapUnitMarker
+          activeCombatRole="defender"
+          center={{ x: 36, y: 36 }}
+          combatMembers={members}
+          isCombatPhase
+          isMovementPhase={false}
+          isOccupantSelected={false}
+          isSelectionLocked={false}
+          occupant={members[0]}
+          offsetIndex={0}
+          renderedOccupantCount={1}
+          onion={onion}
+          phase="DEFENDER_COMBAT"
+          resolvedPhaseMode="combat"
+          resolvedViewerActivity="active"
+          resolvedViewerRole="defender"
+          routeMapInteraction={routeMapInteraction}
+          rosterGroup={null}
+          onDeselect={vi.fn()}
+          onSelectUnit={vi.fn()}
+        />
+      </svg>,
+    )
+
+    fireEvent.click(screen.getByTestId('hex-unit-pigs-1'))
+
+    expect(routeMapInteraction).toHaveBeenCalledWith(expect.objectContaining({
+      subjectCapability: expect.objectContaining({ attackerEligible: expected }),
+    }))
+  })
+
   it('centers the full-size Onion sprite and keeps its label over the sprite in white', () => {
     render(
       <svg>

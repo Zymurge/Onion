@@ -59,9 +59,8 @@
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs group')
+		expect(getMarkerLabel('pigs-1')).toBe('Little Pigs group')
 		expect(screen.queryByTestId('hex-unit-pigs-2')).toBeNull()
-		expect(screen.getAllByText('Little Pigs group')).toHaveLength(1)
 		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()
 	})
@@ -137,7 +136,7 @@
 		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('text')).toHaveAttribute('fill', '#111111')
 	})
 
-	it('colors Onion combat map state with Onion green and defenders yellow', () => {
+	it('renders box-free combat sprites for Onion and defenders', () => {
 		const eligible: BattlefieldUnit = {
 			...defenders[0],
 			unitId: 'puss-1',
@@ -168,15 +167,21 @@
 				onMoveUnit={vi.fn()}
 			/>,
 		)
-		// Onion is the active combat side and should be green.
-		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
-		// Defenders are non-active in Onion combat and should be yellow.
-		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
-		// Disabled unit should be grey
-		expect(screen.getByTestId('hex-unit-witch-3').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-disabled')
+		const onionMarker = getSpriteMarker('onion-1')
+		expect(onionMarker.classList.contains('hex-unit-stack-onion')).toBe(true)
+		expect(onionMarker.querySelector('rect')?.getAttribute('class')).toBe('hex-unit-onion-hit-target')
+
+		const defenderMarker = getSpriteMarker('wolf-2')
+		expect(defenderMarker.classList.contains('hex-unit-stack-defender')).toBe(true)
+		expect(defenderMarker.querySelector('rect')).toBeNull()
+
+		const disabledMarker = getSpriteMarker('witch-3')
+		expect(disabledMarker.classList.contains('hex-unit-stack-disabled')).toBe(true)
+		expect(disabledMarker.classList.contains('tone-dim')).toBe(true)
+		expect(disabledMarker.querySelector('.hex-unit-disabled-icon')).not.toBeNull()
 	})
 
-	it('colors Defender combat map state with defenders green and Onion yellow', () => {
+	it('renders box-free defender and Onion sprites during Defender combat', () => {
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}
@@ -190,11 +195,16 @@
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
-		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
+		const defenderMarker = getSpriteMarker('wolf-2')
+		expect(defenderMarker.classList.contains('hex-unit-stack-defender')).toBe(true)
+		expect(defenderMarker.querySelector('rect')).toBeNull()
+
+		const onionMarker = getSpriteMarker('onion-1')
+		expect(onionMarker.classList.contains('hex-unit-stack-onion')).toBe(true)
+		expect(onionMarker.querySelector('rect')?.getAttribute('class')).toBe('hex-unit-onion-hit-target')
 	})
 
-	it('keeps a partial-group combat marker eligible when any member is ready', () => {
+	it('renders a partial-group combat marker as a box-free sprite', () => {
 		const partialGroup: BattlefieldUnit[] = [
 			{
 				...defenders[0],
@@ -237,10 +247,10 @@
 			/> ,
 		)
 
-		expect(screen.getByTestId('hex-unit-pigs-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
+		expect(getSpriteMarker('pigs-1').querySelector('rect')).toBeNull()
 	})
 
-	it('marks a grouped combat marker ineligible when every member has fired', () => {
+	it('renders an all-spent grouped combat marker as a box-free sprite', () => {
 		const spentGroup = defenders.slice(0, 2).map((defender, index) => ({
 			...defender,
 			unitId: `pigs-${index + 1}`,
@@ -273,7 +283,7 @@
 			/> ,
 		)
 
-		expect(screen.getByTestId('hex-unit-pigs-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-ineligible')
+		expect(getSpriteMarker('pigs-1').querySelector('rect')).toBeNull()
 	})
 
 	it('shows Onion and a surviving defender as shared occupants', () => {
@@ -303,7 +313,7 @@
 		expect(screen.getByTestId('hex-cell-0-0').querySelector('.hex-shared-occupancy-ring')).not.toBeNull()
 	})
 
-	it('keeps the Onion combat marker eligible when sharing a hex with a defender', () => {
+	it('renders Onion and defender sprites together during combat', () => {
 		const coLocatedDefender: BattlefieldUnit = {
 			...defenders[0],
 			unitId: 'bbw-1',
@@ -325,11 +335,15 @@
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-eligible')
-		expect(screen.getByTestId('hex-unit-bbw-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-combat-inspectable')
+		const onionMarker = getSpriteMarker('onion-1')
+		expect(onionMarker.classList.contains('hex-unit-stack-onion')).toBe(true)
+		expect(onionMarker.querySelector('rect')?.getAttribute('class')).toBe('hex-unit-onion-hit-target')
+		const defenderMarker = getSpriteMarker('bbw-1')
+		expect(defenderMarker.classList.contains('hex-unit-stack-defender')).toBe(true)
+		expect(defenderMarker.querySelector('rect')).toBeNull()
 	})
 
-	it('applies correct movement eligibility coloring for eligible and disabled units', () => {
+	it('marks active movement and disabled states on sprite markers', () => {
 		const eligible: BattlefieldUnit = {
 			...defenders[0],
 			state: 'operational',
@@ -352,10 +366,13 @@
 				onMoveUnit={vi.fn()}
 			/>,
 		)
-		// Eligible unit should be green.
-		expect(screen.getByTestId('hex-unit-puss-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-eligible')
-		// Disabled unit should be grey
-		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-disabled')
+		const eligibleMarker = getSpriteMarker('puss-1')
+		expect(eligibleMarker.classList.contains('hex-unit-stack-move-ready')).toBe(true)
+
+		const disabledMarker = getSpriteMarker('wolf-2')
+		expect(disabledMarker.classList.contains('hex-unit-stack-disabled')).toBe(true)
+		expect(disabledMarker.classList.contains('tone-dim')).toBe(true)
+		expect(disabledMarker.querySelector('.hex-unit-disabled-icon')).not.toBeNull()
 	})
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -373,6 +390,17 @@ import type { StackRosterState } from '#shared/types/index'
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
 const HexMapBoard = ProductionHexMapBoard
+
+function getMarkerLabel(unitId: string): string {
+	const marker = screen.getByTestId(`hex-unit-${unitId}`)
+	return Array.from(marker.querySelectorAll('tspan'), (line) => line.textContent ?? '').join(' ')
+}
+
+function getSpriteMarker(unitId: string): HTMLElement {
+	const marker = screen.getByTestId(`hex-unit-${unitId}`)
+	expect(marker.querySelector('image')).not.toBeNull()
+	return marker
+}
 
 const scenarioMap = {
 	width: 5,
@@ -492,7 +520,7 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-pigs-1').textContent).toContain('Little Pigs 1')
+		expect(getMarkerLabel('pigs-1')).toBe('Little Pigs 1')
 		expect(screen.queryByTestId('hex-unit-pigs-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()
@@ -538,7 +566,7 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-cell-2-1').getAttribute('class')).not.toContain('hex-cell-reachable')
 	})
 
-	it('colors Onion move map state with Onion green and defenders yellow', () => {
+	it('marks the Onion as move-ready on the Onion movement side', () => {
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}
@@ -552,12 +580,12 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-eligible')
-		expect(screen.getByTestId('hex-unit-puss-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-inspectable')
-		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-inspectable')
+		expect(getSpriteMarker('onion-1').classList.contains('hex-unit-stack-move-ready')).toBe(true)
+		expect(getSpriteMarker('puss-1').classList.contains('hex-unit-stack-move-ready')).toBe(false)
+		expect(getSpriteMarker('wolf-2').classList.contains('hex-unit-stack-move-ready')).toBe(false)
 	})
 
-	it('colors Defender move map state with defenders green and Onion yellow', () => {
+	it('marks defenders as move-ready on the Defender movement side', () => {
 		render(
 			<HexMapBoard
 				scenarioMap={scenarioMap}
@@ -571,11 +599,11 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-wolf-2').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-eligible')
-		expect(screen.getByTestId('hex-unit-onion-1').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-inspectable')
+		expect(getSpriteMarker('wolf-2').classList.contains('hex-unit-stack-move-ready')).toBe(true)
+		expect(getSpriteMarker('onion-1').classList.contains('hex-unit-stack-move-ready')).toBe(false)
 	})
 
-	it('keeps disabled movement units color-coded on the map', () => {
+	it('marks disabled movement units in the sprite marker', () => {
 		const disabledDefender: BattlefieldUnit = {
 			...defenders[0],
 			unitId: 'puss-disabled',
@@ -596,7 +624,10 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-unit-puss-disabled').querySelector('rect')?.getAttribute('class')).toContain('hex-unit-rect-move-disabled')
+		const marker = getSpriteMarker('puss-disabled')
+		expect(marker.classList.contains('hex-unit-stack-disabled')).toBe(true)
+		expect(marker.classList.contains('tone-dim')).toBe(true)
+		expect(marker.querySelector('.hex-unit-disabled-icon')).not.toBeNull()
 	})
 
 	it('keeps a destroyed swamp visible and selectable on the map', () => {

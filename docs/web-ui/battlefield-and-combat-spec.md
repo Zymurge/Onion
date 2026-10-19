@@ -72,38 +72,36 @@ objective display, and visual state rules.
 
 - Combat results appear in a detailed toast.
 - The toast dismisses after 10 seconds or by user action.
-- Destroyed units are removed after combat resolves; disabled units remain
-  visible but greyed out.
+- Destroyed Defender records are retained for roster and Inspector history;
+  they are not all kept on the active map after combat. See the phase visibility
+  table below.
 
-## Visual State Rules
+## Unit State and Map Visibility
 
-| Color | Meaning |
+Sprite asset lookup, map positioning, Inspector sizing, and hatch rendering are
+owned by the [unit-presentation specification](unit-presentation-spec.md).
+Map unit identity comes from the resolved sprite key; movement/range overlays
+and selected-target outlines are separate from the sprite.
+
+| View | Destroyed Defender presentation |
 | --- | --- |
-| Green | Actionable |
-| Red | Inactionable for the active player |
-| Yellow | Operational but not actionable for the inactive player |
-| Grey | Disabled or destroyed |
+| Map before Defender cleanup (`ONION_MOVE`, `ONION_COMBAT`) | May remain visible with the destroyed state overlay. |
+| Map after cleanup starts (`DEFENDER_MOVE`, `DEFENDER_COMBAT`, `GEV_SECOND_MOVE`) | Omitted from the active map projection; destroyed Swamp remains visible. |
+| Left-rail roster and Inspector | Retained, sorted below operational entries, inspectable, and not eligible as an attacker. |
+| Server/API Defender state | Individual destroyed records remain in `state.defenders`; destroyed members are pruned from stack-roster membership when entering `DEFENDER_MOVE`. |
 
-The standard applies consistently to Onion and defender views.
+Disabled and destroyed map states use different full-hex hatch treatments, with
+destroyed taking precedence when both states share a hex. The left rail uses
+matching state treatments. Eligibility is not expressed by the old
+green/red/yellow unit-rectangle scheme.
 
-### Phase Visibility Matrix
-
-| Phase | Active-side units | Inactive-side units |
-| --- | --- | --- |
-| Move (`ONION_MOVE`, `DEFENDER_MOVE`, `GEV_SECOND_MOVE`) | Green if move-eligible, red if ineligible, grey if disabled/destroyed | Yellow if operational, grey if disabled/destroyed |
-| Combat (`ONION_COMBAT`, `DEFENDER_COMBAT`) | Green if attack-eligible, red if ineligible, grey if disabled/destroyed | Yellow if operational, grey if disabled/destroyed |
-
-- Colors are phase-relative and identical for Onion and defender clients.
-- The active side owns green, red, and grey states.
-- The inactive side is yellow unless disabled or destroyed.
-- Any inactive player's units can be inspected.
-
-### Selection and Eligibility
+## Selection and Eligibility
 
 - Only the active player assigns their own attackers.
-- Ctrl-click toggles membership in the current attacker group.
-- Left-clicking non-unit map space clears the current group and overlays.
-- Disabled or ineligible attackers and targets remain visible but are not
-  selectable.
-- Destroyed defender units remain visible for context, are greyed out, sorted
-  to the bottom of the defender list, and cannot be selected as attackers.
+- Defender stack membership and group selection come from `stackRoster`, not
+  from co-location. Active Defender stack-member editing is defined in the
+  [interaction-routing specification](interaction-routing-spec.md).
+- Disabled or destroyed units remain inspectable but cannot be selected as
+  attackers.
+- Selecting a legal combat target does not submit an attack; resolution still
+  requires explicit confirmation.

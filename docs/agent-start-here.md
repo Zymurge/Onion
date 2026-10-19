@@ -34,7 +34,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Unit or weapon numbers, ram profile, stack-size limit, or terrain flags | `shared/config/unitCatalog.json` | `shared/unitDefinitions.ts`. Do not take these numbers from [game-rules.md](game-rules.md) |
 | Unit definitions or scenario-derived types | [scenario-schema.md](scenario-schema.md) `## 4. Unit and Weapon Definitions` | `server/engine/scenarioSchema.ts`, `server/engine/scenarioDefinitions.ts`, and `server/engine/scenarioNormalizer.ts`; `shared/rulesContext.ts` is the authoritative per-match lookup boundary. |
 | Rules context or scenario catalog lookup | `shared/rulesContext.ts` | Trace the caller-provided `RulesContext` into the owning engine/API path; use `server/engine/scenarioDefinitions.ts` for resolution. |
-| Unit sprites or stack presentation | [web-ui-spec.md](web-ui-spec.md) | Use the resolved session catalog for unit definitions and `shared/stackRoster` for membership. Do not reopen the completed unit-enhancements planning document unless changing its remaining presentation questions. |
+| Sprite asset lookup, map sizing/positioning, Inspector rendering, or unit-state visuals | [web-ui/unit-presentation-spec.md](web-ui/unit-presentation-spec.md) | Use the resolved session catalog for visual metadata and `shared/stackRoster` for canonical membership; use [interaction-routing-spec.md](web-ui/interaction-routing-spec.md) for combat selection and target behavior. |
 | Movement legality | `shared/movementRules.ts` | `shared/moveValidator.ts` |
 | Stack membership, split, or merge | `shared/stackRoster/index.ts` | Do not infer membership from co-location or from [game-rules.md](game-rules.md) |
 | Combat odds and modifiers | `shared/combatCalculator.ts` | `shared/staticRules.ts` owns the ridgeline defense bonus |
@@ -95,6 +95,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | --- | --- | --- |
 | `shared/config/unitCatalog.json` | Stores global unit and weapon definitions, including ram, stack-size, and terrain capabilities. | `DUP`: `treadsPerMove` is declared and not read by `shared/movementAllowance.ts`. |
 | `shared/unitDefinitions.ts` | Parses the global catalog and exposes global definition accessors. | Scenario-local definitions are resolved elsewhere. |
+| `shared/types/index.ts` | Defines unit catalog metadata, including sprite keys and map-only sprite layout fields. | |
 | `shared/rulesContext.ts` | Provides the immutable per-match unit/weapon catalog and combat-rule lookup boundary. | `WRAP`: falls back to the global context only for callers without a scenario context. |
 | `shared/movementRules.ts` | Decides terrain access, move cost, and occupied-hex legality. | |
 | `shared/movementAllowance.ts` | Decides Onion tread-band movement allowance. | `DUP`: hardcodes the 15-tread bands instead of reading the catalog. |
@@ -193,6 +194,13 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `web/lib/combatOdds.ts` | Formats preview odds through the shared CRT band. | `WRAP` |
 | `web/lib/combatPreview.ts` | Builds combat target options for display. | |
 | `web/lib/sessionCatalog.ts` | Reads the catalog payload supplied to the session. | Not a second numeric catalog. |
+| `web/lib/unitSpriteRegistry.ts` | Maps resolved sprite keys to bundled assets and state variants. | |
+| `web/lib/hexMapSpriteLayout.ts` | Applies type-specific scale and offsets to map sprite boxes. | Inspector sizing is separate. |
+| `web/components/HexMapBoard.tsx` | Renders the board, map overlays, and state-pattern definitions. | |
+| `web/components/HexMapCell.tsx` | Renders occupants and whole-hex status overlays. | |
+| `web/components/HexMapUnitMarker.tsx` | Renders a unit sprite, map label, and interaction target. | |
+| `web/components/BattlefieldInspectorPanel.tsx` | Resolves and renders the selected unit's Inspector content and sprite. | |
+| `web/App.css` | Owns Inspector frame sizing and left-rail status treatments. | |
 | `web/lib/inactiveEvents/index.ts` | Public inactive-event stream and timeline entry point. | |
 | `web/lib/inactiveEvents/useInactiveEventStream.ts` | Polls and buffers inactive-player events, owns React state, effects, and dismissal. | |
 | `web/lib/inactiveEvents/timeline.ts` | Groups inactive events into display-ready timeline entries. | |

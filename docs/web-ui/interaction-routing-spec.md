@@ -66,10 +66,11 @@ Each request includes:
 | Active | Combat | Primary on self attacker-eligible source | Select attacker source |
 | Active | Combat | Primary on collapsed group summary | Expand group |
 | Active | Combat | Primary-additive on self attacker-eligible source | Toggle attacker membership |
-| Active | Combat | Primary on legal target | Select combat target |
-| Active | Combat | Primary on inspectable illegal target | Inspect only |
+| Active | Combat | Primary on an inspectable map opponent | Inspect; retain the current attacker selection |
+| Active | Combat | Primary on a legal right-rail target-list entry | Select combat target in Attack Planning |
 | Active | Combat | Primary on background | Clear combat preparation and inspection |
-| Active | Combat | Secondary on map or rail subject | No direct combat action; confirmation stays explicit |
+| Active | Combat | Secondary on a legal map target | Select target and open/return to Attack Planning; do not submit |
+| Active | Combat | Secondary on an invalid map target or non-target subject | No-op |
 | Any | Any | Header/control surface | No-op in battlefield router |
 
 ## Role-Specific Combat Rules
@@ -80,11 +81,13 @@ limited to source and target availability.
 | Viewer role | Activity | Subject | Routed behavior |
 | --- | --- | --- | --- |
 | Onion | Active | Onion weapons in left rail | Select or toggle attackers |
-| Onion | Active | Defender unit or stack | Select target if legal, otherwise inspect |
+| Onion | Active | Defender unit or stack, primary map click | Inspect; retain selected weapons |
+| Onion | Active | Legal Defender map target, secondary click | Select the unit or canonical stack target and show Attack Planning |
 | Onion | Active | Onion body during combat | Inspect only |
 | Defender | Active | Defender unit or stack | Select or toggle attackers |
 | Defender | Active | Right-rail stack member | Toggle within current attacker group |
-| Defender | Active | Onion body | Select treads if legal, otherwise inspect |
+| Defender | Active | Onion body, primary click | Inspect while retaining selected attackers |
+| Defender | Active | Onion body, secondary click | Select the canonical tread target and show Attack Planning |
 | Defender | Active | Onion subsystem | Select subsystem target if legal |
 | Either | Inactive | Any inspectable subject | Inspect only |
 | Either | Inactive | Right-rail stack members | Not shown; grouped summary only |
@@ -165,9 +168,14 @@ protocol value:
 
 - Defender units, defender stacks, and individually targetable Onion weapons
   use authoritative IDs.
+- A stack target uses its canonical group ID from `stackRoster` (for example,
+  `LittlePigs:3,2`), never an individual member ID. The server rejects an
+  individual stack-member ID as a combat target.
 - Onion tread selection emits `{onionId}:treads`, such as `onion-1:treads`.
 - A bare Onion ID is never emitted for tread selection.
 - `weapon:` prefixes are UI-only and must be removed before `FIRE` submission.
+- Map secondary-click and right-rail target selection only prepare the attack;
+  the active player must still explicitly confirm combat.
 - `FIRE_RESOLVED` and `ONION_TREADS_LOST` provide canonical `targetId` and
   `targetFriendlyName`; labels are display data and legality remains backend
   owned.
@@ -184,5 +192,4 @@ protocol value:
   on verifying that map and rail surfaces are wired to the router.
 
 The historical migration sequence is intentionally kept out of this permanent
-contract; implementation history remains available in
-[web-ui-spec.md.ref](../web-ui-spec.md.ref).
+contract.

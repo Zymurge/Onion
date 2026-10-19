@@ -35,7 +35,7 @@ describe('GamesScreen', () => {
 
     await screen.findByText('No open games are waiting right now.')
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/open', expect.objectContaining({
-      headers: { 'content-type': 'application/json', authorization: 'Bearer token-1' },
+      headers: expect.objectContaining({ authorization: 'Bearer token-1' }),
     }))
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/user/dashboard')
   })

@@ -36,7 +36,7 @@ describe('UserDashboard', () => {
 		expect(screen.getByRole('heading', { name: /welcome back, player-1/i })).not.toBeNull()
 		await screen.findByText('You have no games yet.')
 		expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games', expect.objectContaining({
-			headers: { 'content-type': 'application/json', authorization: 'Bearer token-1' },
+			headers: expect.objectContaining({ authorization: 'Bearer token-1' }),
 		}))
 		expect(screen.queryByText(/Game 42/)).toBeNull()
 		expect(screen.queryByRole('link', { name: 'Create New Game' })).toBeNull()

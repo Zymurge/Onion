@@ -2,9 +2,11 @@
 
 ## Status
 
-**Status:** Core V1 catalog and scenario-derivation work is implemented. This
-document remains the design record for the completed rules/catalog boundary and
-the open V2 sprite and presentation questions below.
+**Status:** V1 catalog, scenario derivation, and the shipped web unit-presentation
+foundation are implemented. The permanent rendering contract is
+[unit-presentation-spec.md](../web-ui/unit-presentation-spec.md); this document
+remains the design record for catalog and scenario-derivation decisions plus
+the remaining missing-sprite behavior.
 
 ## Goals
 
@@ -160,89 +162,17 @@ maximum, and preserve the resolved values for replay.
 
 ## Sprite and Unit Presentation
 
-Every resolved unit type should expose a stable `spriteKey` or asset reference.
-The runtime catalog, not UI type-name heuristics, should determine the sprite.
-Canonical sprite assets are 1024 pixels wide with the visible artwork normalized
-to a 940-pixel width. Their transparent top margin is cropped by about 20% while
-the bottom padding and artwork scale remain unchanged. Standard display surfaces
-should size these images by their common width. Unit types may define
-`hexMapScale` as a multiplier of hex diameter and `hexMapOffsetX` /
-`hexMapOffsetY` as percentage-point offsets from the hex center, measured
-against the hex diameter. Zero offsets center the sprite; positive X moves
-right, negative X left, positive Y up, and negative Y down. This replaces the
-former vertical-alignment mode and provides continuous placement control.
-`hexMapScale` may exceed 1 to deliberately render a sprite beyond the hex
-bounds. These definition fields are included in the catalog sent to the web client;
-scenario-derived types inherit them from their global base type. On each
-WebSocket connection, the server rereads and validates the global catalog and
-refreshes only these map-presentation fields in `SESSION_INIT`. This lets
-presentation tuning appear after reconnecting an active game without changing
-the match's resolved gameplay rules.
-The asset mapping should support at least:
+Runtime sprite lookup, state variants, Inspector reuse, map positioning, and
+status hatching are defined in
+[unit-presentation-spec.md](../web-ui/unit-presentation-spec.md). The current
+web client uses a bundled registry keyed by the resolved `spriteKey`; the same
+asset is used on the map and in the Inspector, with per-type sizing and offsets
+applied only on the map. Stack identity remains owned by `stackRoster`.
 
-- Base unit sprite by resolved type
-- Disabled, recovering, and destroyed variants where applicable
-- Onion damage or tread-state variants where the rules require them
-- Swamp/HQ presentation and destroyed-state presentation
-- A deterministic fallback sprite for missing or invalid assets
-
-### Display layers
-
-Keep the visual layers separate:
-
-1. **Sprite:** identifies the unit type.
-2. **Unit label:** identifies the individual unit or friendly name.
-3. **Stack indicator:** shows the canonical stack size and supports member
-   inspection without replacing individual identity.
-4. **Status indicator:** shows operational, disabled, recovering, or destroyed
-   state without relying on color alone.
-5. **Selection/interaction layer:** shows selected units, legal targets, range,
-   and movement state.
-
-A stack label must be derived from `stackRoster` and live member state. It must
-not be reconstructed from co-location.
-
-### Multiple units in one hex after a ram miss
-
-A ram miss can leave multiple units in one hex. The display must keep every
-unit inspectable and preserve the canonical roster relationship. Candidate
-presentations include a stack badge with an expandable member list, a controlled
-fan/offset layout, or a selected-member spotlight with the remaining members
-behind it.
-
-The chosen treatment must define behavior for:
-
-- Selecting one member versus the whole stack
-- Showing individual friendly names and statuses
-- Showing destroyed members that remain inspectable
-- Movement and combat range overlays for a partially selected stack
-- Narrow viewports and overlapping labels
-- Ordering members deterministically
-
-## Open Questions: Sprites and Presentation
-
-1. What asset format and delivery path should be canonical: bitmap files,
-   sprite sheets, SVG assets, or a mixture?
-2. Who creates and approves the initial sprite set, and what dimensions/aspect
-   ratio should assets use?
-3. The ownership decision is resolved: `spriteKey`, `hexMapScale`, and map
-   offsets live on global unit types, and scenario-derived types inherit them
-   without override. The canonical centered sprite is the default for non-map
-   surfaces; map sizing and placement are unit-type metadata.
-4. Which unit states require distinct artwork versus a status overlay?
-5. Should labels always be visible, hover/focus-only, or controlled by a display
-   setting?
-6. What exact stack count should be shown: all members, living members only,
-   or both?
-7. How should a destroyed member remain inspectable without implying that it
-   is still actionable?
-8. Which interaction wins when a hex contains multiple units after a ram miss:
-   click cycles members, opens a member list, or selects the canonical stack?
-9. What is the deterministic visual ordering for co-located units?
-10. What is the fallback when a sprite asset is missing, malformed, or not
-    available in a replay?
-11. Which display requirements are V1 and which should be deferred to the V2
-    accessibility/presentation backlog?
+One implementation gap remains: absent or unrecognized sprite keys resolve to
+no image, and the catalog parser does not validate the registry mapping. Define
+whether catalog validation or an explicit fallback owns that failure before
+adding authoring tools for new sprite keys.
 
 ## TDD Implementation Plan
 
@@ -273,35 +203,35 @@ directly.
 ### 3. Render unit sprites and presentation
 
 - Consume the resolved unit-type `spriteKey`; do not derive sprites from names.
-- Create the initial asset set and deterministic asset-loading fallback.
+- Use one bundled asset registry for map and Inspector surfaces; use explicit
+  per-type variants only where the state has distinct artwork.
 - Implement labels, stack counts, status overlays, selection, destroyed-member
    inspection, and the chosen co-location layout.
 - Add component tests and the ram-miss multi-unit presentation fixture.
 
-**Done when:** every shipped resolved type renders through its resolved
-`spriteKey` or an intentional fallback, and unit/stack presentation remains
-stable and inspectable across movement, combat, destruction, and co-location.
+**Status:** Implemented for the shipped catalog. Unknown or missing registry
+keys currently render no image; explicit validation or fallback behavior
+remains open as noted above.
 
 ### 4. Define unit and stack presentation
 
-- Add component tests for labels, stack counts, status overlays, selection,
-  destroyed members, and co-located units.
-- Implement the chosen stack presentation using canonical `stackRoster` data.
-- Add a scenario fixture covering a ram miss with multiple units in one hex.
-
-**Done when:** individual members remain inspectable and correctly actionable,
-stack counts/statuses remain correct after movement/combat, and the board has a
-stable layout on desktop and narrow viewports.
+**Status:** Implemented for the current V1 presentation. Group identity,
+co-located membership, and selection use canonical `stackRoster` data; the
+shipped web tests cover map markers, stack interaction, destroyed-member
+inspection, and ram/co-location flows. See the
+[unit-presentation specification](../web-ui/unit-presentation-spec.md) and
+[interaction-routing specification](../web-ui/interaction-routing-spec.md) for
+the current contracts.
 
 ### 5. Verify cross-layer parity
 
-- Run engine scenario tests, API snapshot/catalog tests, WebSocket session-init
-  tests, and focused web rendering tests.
-- Add a browser smoke flow for a derived unit, a sprite variant, a stack, and a
-  ram miss.
+For catalog changes, exercise scenario resolution, API/`SESSION_INIT`
+serialization, and web catalog consumption. For rendering changes, use the
+focused tests linked from the
+[unit-presentation specification](../web-ui/unit-presentation-spec.md). Add a
+broader end-to-end flow when a change crosses those boundaries.
 
-**Done when:** server rules, serialized catalogs, sprites, labels, stack
-presentation, and interaction state agree for the same match snapshot.
+**Status:** Ongoing regression guidance, not an outstanding V1 feature.
 
 ## Explicit Non-Goals
 

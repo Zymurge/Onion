@@ -87,5 +87,11 @@ races or invent missing authoritative data.
 - The right rail is the default inspector surface in every phase.
 - Any unselected unit can be inspected regardless of owner.
 - Destroyed Swamp units remain in map state and remain inspectable.
+- Destroyed Defender records remain in authoritative state and the full
+  Defender roster. The map and action projections may filter them by phase;
+  destroying a unit does not itself erase its record.
+- `stackRoster` defines current group membership. Destroyed Defender members
+  are pruned from groups when cleanup reaches `DEFENDER_MOVE`, while their
+  individual Defender records remain available for inspection.
 - During combat, the right rail may combine inspection with targeting and
   confirmation; inactive players remain inspection-only.
