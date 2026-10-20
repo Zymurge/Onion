@@ -124,6 +124,30 @@ describe('BattlefieldLeftRail', () => {
     }
   })
 
+  it('renders no attack capabilities for a weaponless defender', () => {
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      activeTurnActive: true,
+      isCombatPhase: true,
+      displayedDefenders: canonicalizeBattlefieldDefenders([{
+        id: 'swamp',
+        type: 'Swamp',
+        friendlyName: 'The Swamp',
+        status: 'operational',
+        position: { q: 1, r: 1 },
+        weapons: [],
+        actionableModes: [],
+      }]),
+      combatUnitAvailabilityReasons: { swamp: 'No attack capabilities' },
+      catalog: sessionCatalog,
+    })
+
+    const card = screen.getByTestId('combat-unit-swamp')
+    expect(card).toHaveAttribute('title', 'No attack capabilities')
+    expect(card).toHaveTextContent('No attack capabilities')
+  })
+
   it('renders onion weapon metadata from the session catalog', () => {
     const weaponType = sessionCatalog.weaponTypes['TheOnion.main']
     const onion: BattlefieldOnionFixture = {

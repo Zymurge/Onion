@@ -39,7 +39,7 @@ export function getCombatWeaponAvailabilityReason(
 }
 
 export function getCombatUnitAvailabilityReason(
-	unit: { state: UnitState; actionableModes: ReadonlyArray<Mode> },
+	unit: { state: UnitState; actionableModes: ReadonlyArray<Mode>; weapons?: ReadonlyArray<Weapon> },
 	activeTurnActive: boolean,
 	hasLegalTarget?: boolean,
 ): string | undefined {
@@ -53,6 +53,10 @@ export function getCombatUnitAvailabilityReason(
 
 	if (unit.state === 'recovering') {
 		return 'Recovering'
+	}
+
+	if (unit.weapons !== undefined && unit.weapons.length === 0) {
+		return 'No attack capabilities'
 	}
 
 	if (!activeTurnActive) {

@@ -36,6 +36,10 @@ describe('combat availability', () => {
 		expect(getCombatUnitAvailabilityReason(unit, true)).toBe(reason)
 	})
 
+	it('explains when a defender has no attack capabilities', () => {
+		expect(getCombatUnitAvailabilityReason({ state: 'operational', actionableModes: [], weapons: [] }, true)).toBe('No attack capabilities')
+	})
+
 	it('explains when a ready defender is out of range', () => {
 		expect(getCombatUnitAvailabilityReason({ state: 'operational', actionableModes: ['fire'] }, true, false)).toBe('Out of range')
 	})
