@@ -2,7 +2,7 @@
   "id": "onion-ring-iii",
   "name": "Onion Ring III",
   "displayName": "Onion Ring III",
-  "description": "Full-scale Mark III-style battle on a 22-row field. Defender roster: 4 Puss (heavy tanks), 2 Witch (missile tanks), 4 Big Bad Wolf (GEVs), 1 Farquaad (Howitzer, counts as two armor choices), and 20 Little Pigs infantry strength points. The Onion implementation is authoritative: Big Bad Wolf keeps its higher defense and second move; Little Pigs may stack five per hex; Witch, Farquaad, and Little Pigs use their catalog movement and defense values. The command post is represented by The Swamp. The engine models ridgelines as terrain hexes, not hexsides; escape is represented by reaching a marked southern-edge hex after turn one, not by moving off-map.",
+  "description": "Full-scale Mark III-style battle on a 22-row field. The objective command post is represented by The Swamp. Escape is represented by reaching marked southern-edge hexes after turn one.",
   "map": {
     "shape": "rectangle",
     "width": 22,
@@ -216,8 +216,7 @@
           "q": 4,
           "r": 9
         },
-        "count": 5,
-        "groupName": "Forward Rifle Platoon A"
+        "count": 5
       },
       "infantry-forward-2": {
         "kind": "stack-group",
@@ -227,8 +226,7 @@
           "q": 9,
           "r": 11
         },
-        "count": 5,
-        "groupName": "Forward Rifle Platoon B"
+        "count": 5
       },
       "infantry-forward-3": {
         "kind": "stack-group",
@@ -238,8 +236,7 @@
           "q": 14,
           "r": 9
         },
-        "count": 5,
-        "groupName": "Forward Rifle Platoon C"
+        "count": 5
       },
       "infantry-forward-4": {
         "kind": "stack-group",
@@ -249,8 +246,7 @@
           "q": 18,
           "r": 11
         },
-        "count": 5,
-        "groupName": "Forward Rifle Platoon D"
+        "count": 5
       },
       "onion-1": {
         "type": "TheOnion",
@@ -290,6 +286,7 @@
       }
     ],
     "onion": {
+      "escapeLocation": "south side",
       "escapeHexes": [
         {
           "q": 0,
@@ -311,11 +308,7 @@
           "q": 21,
           "r": 21
         }
-      ],
-      "description": "The Onion must destroy the command post and then reach one of the marked southern-edge hexes after turn one. The engine currently models an in-map edge objective rather than off-map escape."
-    },
-    "defender": {
-      "description": "The defender wins by immobilizing or destroying The Onion. The engine does not currently model the classic surviving-30-attack-points complete-defense tier."
+      ]
     }
   }
 }

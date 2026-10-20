@@ -57,41 +57,20 @@ Names only. Numbers live in `shared/config/unitCatalog.json`.
 
 ### Victory Conditions
 
-Victory is scenario-driven, but the following conditions are modeled after the original Ogre rules and adapted for Onion/Swamp:
+Victory is scenario-driven. Each scenario declares explicit objectives, and a
+role wins when all of its required objectives are complete. The objective
+schema and authoring rules are defined in [scenario-schema.md](scenario-schema.md);
+the engine evaluator is the runtime authority.
 
-#### Onion (Attacker) Victory Conditions
+The supported objective kinds are:
 
-- **Complete Onion Victory:** All defending units are destroyed.
-- **Onion Victory:** The Swamp (Command Post) is destroyed and the Onion escapes from the south end of the map.
-- **Marginal Onion Victory:** The Swamp is destroyed and the Onion is destroyed or immobilized before escaping.
+- `destroy-unit`: Completes when the targeted unit or unit type is destroyed.
+- `escape-map`: Completes when the Onion reaches an explicit escape hex after
+  turn one, or leaves the map when no escape hexes are configured.
+- `immobilize-onion`: Completes for the Defender when every Onion has no tread
+  points remaining or is destroyed.
 
-#### Defender Victory Conditions
-
-- **Complete Defense Victory:** The Swamp survives, the Onion is destroyed, and at least 30 points of attack strength survive.
-- **Defense Victory:** The Swamp survives and the Onion is destroyed (regardless of surviving attack strength).
-- **Marginal Defense Victory:** The Swamp survives, but the Onion escapes.
-
-#### Additional Notes
-
-- Escape hexes are inactive during Onion turn 1 and become active starting on Onion turn 2.
-- The match ends as soon as a victory condition is met.
-- The UI and inspector should display both Onion and Defender victory conditions, and indicate which have been achieved or are still possible.
-
-Currently supported objective kinds (for scenario authoring):
-
-- `destroy-unit`: Destroy a specific unit (`unitId`) or any unit of a given type (`unitType`).
-- `escape-map`: Move the Onion off the map after the prerequisite objective sequence is satisfied.
-
-For the Swamp objective scenario, the core objectives are:
-
-- **Objective 1:** Destroy The Swamp (status: destroyed)
-- **Objective 2:** Escape the Onion off the map after The Swamp is destroyed
-
-- **Defender objective:** Immobilize or destroy every Onion before the Onion objectives are complete.
-
-Defender victory is possible if the Onion is immobilized or destroyed before completing all required objectives, or if the Swamp survives and the Onion is destroyed.
-
-The UI may show objective completion state in the inspector, and should surface both Onion and Defender victory paths.
+The UI presents objective completion separately from overall match victory.
 
 ### Combat & Ramming
 
@@ -108,7 +87,9 @@ The UI may show objective completion state in the inspector, and should surface 
 - **Little Pigs (Infantry)**: Can stack up to 5 squads per hex. Their defense is the sum of squads. They are the only units that can benefit from certain terrain cover. Attacks of "D" on a stack reduce it by 1 squad; "X" destroys the entire stack.
 - **Farquaad (Howitzer)**: Immobile once placed.
 - **Dragon (Superheavy)**: A powerful conventional unit with two 6-strength attacks.
-- **The Swamp (Command Post)**: The primary objective. Defense 0. Any "X" result against it wins the game for the Onion.
+- **The Swamp (Command Post)**: A scenario-defined objective unit. Defense 0;
+  any "X" result destroys it and completes an applicable `destroy-unit`
+  objective.
 - **The Onion (Super-Unit)**:
   - **Main Weapon (×1)**: Attack 4 / Range 3 / Defense 4.
   - **Secondary Weapons (×4)**: Attack 3 / Range 2 / Defense 3.

@@ -10,7 +10,6 @@ type Deployment = {
   position: { q: number; r: number }
   status?: 'operational' | 'disabled' | 'recovering' | 'destroyed'
   count?: number
-  groupName?: string
   kind?: 'stack-group'
   startingAmmoByWeaponType?: Record<string, number>
 }

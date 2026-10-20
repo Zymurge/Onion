@@ -47,6 +47,21 @@ loaded independently.
   areas, including the distinction between recoverable errors and terminal
   invalid snapshots.
 
+## Scenario Briefing Presentation
+
+Scenario descriptions preserve authored line breaks. Lines beginning with `-`
+or `*` render as bullet items; other lines remain paragraph text. The shared
+briefing renderer is used by both the Create Game preview and the in-game
+scenario dialog.
+
+Briefing objectives are grouped by their `victor` with separate headings for
+The Onion and Defenders. Each objective bubble exposes generated,
+condition-specific hover detail. Required markers are omitted when all
+objectives are required. Escape coordinates are not listed; the escape
+condition's hover detail uses its location label and mentions the map's green
+crosshatching. Force summaries are generated from structured deployments and
+aggregated by side and unit type.
+
 ## Contract Sources
 
 Load a second spec only when this UI change depends on that contract.

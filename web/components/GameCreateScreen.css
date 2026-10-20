@@ -150,18 +150,20 @@
 }
 
 .create-game-objectives {
+  margin-top: 24px;
   padding-top: 18px;
   border-top: 1px dashed var(--border-strong);
 }
 
-.create-game-objectives ul {
-  margin: 12px 0 0;
-  padding-left: 20px;
-  color: var(--ink-soft);
+.create-game-objectives > .eyebrow,
+.create-game-forces > .eyebrow {
+  margin: 0 0 12px;
 }
 
-.create-game-objectives li + li {
-  margin-top: 8px;
+.create-game-forces {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border-strong);
 }
 
 @media (max-width: 760px) {

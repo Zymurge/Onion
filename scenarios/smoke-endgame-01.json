@@ -138,9 +138,6 @@
         "victor": "defender",
         "required": true
       }
-    ],
-    "defender": {
-      "description": "Defender wins when the Onion has no tread movement remaining."
-    }
+    ]
   }
 }

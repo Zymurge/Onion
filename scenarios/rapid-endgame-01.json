@@ -62,16 +62,13 @@
       }
     ],
     "onion": {
+      "escapeLocation": "west side",
       "escapeHexes": [
         {
           "q": 0,
           "r": 4
         }
-      ],
-      "description": "After destroying The Swamp, the Onion can complete the scenario by moving three hexes west to the escape hex."
-    },
-    "defender": {
-      "description": "Defender wins when the Onion's tread points reach 0."
+      ]
     }
   }
 }

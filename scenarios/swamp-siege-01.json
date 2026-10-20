@@ -150,6 +150,7 @@
       }
     ],
     "onion": {
+      "escapeLocation": "west side",
       "escapeHexes": [
         {
           "q": 0,
@@ -163,11 +164,7 @@
           "q": 0,
           "r": 11
         }
-      ],
-      "description": "The Onion may escape by entering any scenario-defined escape hex after The Swamp is destroyed and once the escape hexes are active on Onion turn 2."
-    },
-    "defender": {
-      "description": "Defender wins when the Onion's tread points reach 0 (MA 0). A stationary Onion cannot complete the objective set."
+      ]
     }
   }
 }

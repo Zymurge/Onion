@@ -20,10 +20,6 @@ export type VictoryConditions = {
   objectives?: VictoryObjective[]
   onion?: {
     escapeHexes?: Array<{ q: number; r: number }>
-    description?: string
-  }
-  defender?: {
-    description?: string
   }
 }
 

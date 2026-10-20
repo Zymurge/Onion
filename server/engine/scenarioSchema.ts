@@ -56,7 +56,6 @@ export const StackGroupDeploymentSchema = z.object({
   kind: z.literal('stack-group'),
   unitType: z.string().min(1),
   count: z.number().int().positive(),
-  groupName: z.string().optional(),
   ...DeploymentBaseSchema,
 }).strict()
 
@@ -118,10 +117,7 @@ const VictoryConditionsSchema = z.object({
   objectives: z.array(VictoryObjectiveSchema).min(1),
   onion: z.object({
     escapeHexes: z.array(HexPosSchema).optional(),
-    description: z.string().optional(),
-  }).optional(),
-  defender: z.object({
-    description: z.string().optional(),
+    escapeLocation: z.string().trim().min(1).optional(),
   }).optional(),
 }).passthrough().refine(
   (conditions) => conditions.objectives.some((objective) => objective.kind === 'immobilize-onion' && objective.victor === 'defender'),

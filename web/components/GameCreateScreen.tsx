@@ -4,6 +4,8 @@ import type { WebRuntimeConfig } from '../lib/appBootstrap'
 import { clearAuthSession, getAuthSession } from '../lib/authSession'
 import { requestJson } from '../../shared/apiProtocol'
 import { UserSideMenu } from './UserSideMenu'
+import { ScenarioDescription, ScenarioForceManifest, ScenarioVictoryConditions } from './ScenarioBriefingContent'
+import { buildScenarioInfoData, type ScenarioDetailResponse } from '../lib/scenarioInfo'
 import './GameCreateScreen.css'
 
 type ScenarioSummary = {
@@ -11,12 +13,6 @@ type ScenarioSummary = {
   name: string
   displayName: string
   description: string
-}
-
-type ScenarioDetail = ScenarioSummary & {
-  map?: { cells?: unknown[] }
-  initialState?: { deployments?: Record<string, unknown> }
-  victoryConditions?: { objectives?: Array<{ label?: string }> }
 }
 
 type GameCreateScreenProps = {
@@ -29,7 +25,7 @@ export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenPr
   const session = getAuthSession()
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([])
   const [selectedScenarioId, setSelectedScenarioId] = useState('')
-  const [selectedScenarioDetail, setSelectedScenarioDetail] = useState<ScenarioDetail | null>(null)
+  const [selectedScenarioDetail, setSelectedScenarioDetail] = useState<ScenarioDetailResponse | null>(null)
   const [role, setRole] = useState<'onion' | 'defender'>('onion')
   const [loadingScenarios, setLoadingScenarios] = useState(true)
   const [working, setWorking] = useState(false)
@@ -66,7 +62,7 @@ export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenPr
     }
 
     let cancelled = false
-    void requestJson<ScenarioDetail>({
+    void requestJson<ScenarioDetailResponse>({
       baseUrl: apiBaseUrl,
       path: `scenarios/${selectedScenarioId}`,
       method: 'GET',
@@ -120,12 +116,10 @@ export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenPr
 
   const selectedScenario = scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? null
   const selectedDetail = selectedScenarioDetail?.id === selectedScenarioId ? selectedScenarioDetail : null
+  const previewData = buildScenarioInfoData(null, selectedDetail, null)
   const deploymentCount = selectedDetail?.initialState?.deployments
     ? Object.keys(selectedDetail.initialState.deployments).length
     : null
-  const objectiveLabels = selectedDetail?.victoryConditions?.objectives
-    ?.map((objective) => objective.label)
-    .filter((label): label is string => Boolean(label)) ?? []
 
   return (
     <div className="shell create-game-shell">
@@ -182,21 +176,30 @@ export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenPr
                 <h2>{selectedScenario?.displayName ?? 'Select a scenario'}</h2>
               </div>
             </div>
-            <p className="create-game-description">
-              {selectedScenario?.description ?? 'Choose a scenario to see its objective and battlefield summary.'}
-            </p>
+            <ScenarioDescription
+              className="create-game-description"
+              text={previewData.description ?? selectedScenario?.description ?? 'Choose a scenario to see its objective and battlefield summary.'}
+            />
             {selectedScenario ? (
               <div className="create-game-preview-details">
                 <div className="preview-stat"><span>Map cells</span><strong>{selectedDetail?.map?.cells?.length ?? 'n/a'}</strong></div>
                 <div className="preview-stat"><span>Deployments</span><strong>{deploymentCount ?? 'n/a'}</strong></div>
-                <div className="preview-stat"><span>Objectives</span><strong>{objectiveLabels.length || 'n/a'}</strong></div>
+                <div className="preview-stat"><span>Objectives</span><strong>{previewData.objectives.length || 'n/a'}</strong></div>
               </div>
             ) : null}
-            {objectiveLabels.length > 0 ? (
-              <div className="create-game-objectives">
-                <span className="stat-label">Victory objectives</span>
-                <ul>{objectiveLabels.map((label) => <li key={label}>{label}</li>)}</ul>
-              </div>
+            {selectedDetail ? (
+              <section className="create-game-objectives">
+                <p className="eyebrow">Victory conditions</p>
+                <ScenarioVictoryConditions
+                  objectives={previewData.objectives}
+                />
+              </section>
+            ) : null}
+            {selectedDetail ? (
+              <section className="create-game-forces">
+                <p className="eyebrow">Forces</p>
+                <ScenarioForceManifest manifest={previewData.manifest} />
+              </section>
             ) : null}
           </aside>
           </div>

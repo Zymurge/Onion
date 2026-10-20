@@ -38,6 +38,13 @@ The full payload contract is in [api-contract.md](../api-contract.md).
 - Open-game discovery contains only currently joinable waiting games. When a
   game leaves `waiting`, it is removed on the next authoritative refresh.
 
+## Scenario Preview
+
+- Create Game loads the selected scenario detail and presents its description,
+  map size, victory conditions, and forces before creation.
+- Scenario preview rendering follows the shared
+  [scenario briefing presentation contract](../web-ui-spec.md#scenario-briefing-presentation).
+
 ## Lobby Freshness and Convergence
 
 - Lobby summaries are authoritative REST data. The client does not maintain a

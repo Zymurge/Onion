@@ -145,7 +145,11 @@ polygon maps are deferred to v2. Runtime and API maps continue to use explicit
 }
 ```
 
-The engine's normalized runtime state uses separate `onions` and `defenders` maps, but scenario authors use the single `initialState.deployments` map shown above. Scenario authors may use `kind: "stack-group"` with `unitType`, `position`, and `count` for stackable units.
+Scenario rosters are derived from `initialState.deployments` rather than
+duplicated in the description. Client rendering of scenario descriptions is
+defined in the [scenario briefing presentation contract](web-ui-spec.md#scenario-briefing-presentation).
+
+The engine's normalized runtime state uses separate `onions` and `defenders` maps, but scenario authors use the single `initialState.deployments` map shown above. Scenario authors may use `kind: "stack-group"` with `unitType`, `position`, and `count` for stackable units. Stack group names are not scenario-authored: the engine assigns and maintains names and ordinals as groups are created or merged.
 
 ## 3. Victory Conditions
 
@@ -156,12 +160,13 @@ Victory conditions are authored in the scenario under `victoryConditions`. The e
 - `maxTurns`: Optional turn limit for the scenario. If omitted, the engine uses its default maximum turn count.
 - `objectives`: Ordered list of scenario objectives. Each objective is evaluated independently and exposed to the API/UI as its own completion state.
 - Every scenario must declare at least one objective with `kind: "immobilize-onion"` and `victor: "defender"`.
-- `onion.escapeHexes`: Array of explicit escape hexes. The Onion completes the `escape-map` objective by reaching any listed hex after the prerequisite objective sequence is satisfied.
+- `onion.escapeHexes`: Array of explicit escape hexes. The Onion completes the `escape-map` objective by reaching any listed hex after turn one. If no escape hexes are configured, leaving the map completes the objective.
+- `onion.escapeLocation`: Optional concise location label such as `south side` or `west side`, shown with the map's green crosshatching instead of listing escape coordinates.
 
 ### Currently Supported Objective Types
 
 - `destroy-unit`: Completes when the named unit is destroyed. Use either `unitId` for a specific authored unit or `unitType` for any unit of that type.
-- `escape-map`: Completes when the Onion leaves the map after the prerequisite objective sequence has been satisfied.
+- `escape-map`: Completes when the Onion reaches an explicit escape hex after turn one, or leaves the map when no escape hexes are configured.
 - `immobilize-onion`: Completes when every Onion has no tread points remaining or is destroyed. This is a defender objective.
 
 ### Authoring Rules

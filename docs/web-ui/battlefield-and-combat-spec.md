@@ -26,6 +26,8 @@ objective display, and visual state rules.
   and completion state appear in passive toasts and event streams.
 - Objectives are scenario-defined and individually inspectable. The match ends
   when all required objectives are complete.
+- Scenario briefing rendering follows the shared
+  [scenario briefing presentation contract](../web-ui-spec.md#scenario-briefing-presentation).
 - Escape hex objectives do not activate until Onion turn 2.
 - Victory feedback distinguishes objective completion from overall match end.
 

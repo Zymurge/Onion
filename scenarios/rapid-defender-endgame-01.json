@@ -49,9 +49,6 @@
         "victor": "defender",
         "required": true
       }
-    ],
-    "defender": {
-      "description": "Defender wins when the Onion's tread points reach 0."
-    }
+    ]
   }
 }

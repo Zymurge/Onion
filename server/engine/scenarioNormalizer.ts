@@ -166,11 +166,6 @@ export function normalizeInitialStateToGameState(
       unitIds.length,
     )
 
-    if (deployment.groupName !== undefined && deployment.groupName.trim().length > 0 && deployment.groupName !== canonicalGroupName) {
-      logger.error({ key, groupKey, expected: canonicalGroupName, actual: deployment.groupName }, 'normalizeInitialStateToGameState: conflicting stack group name')
-      throw new Error(`Conflicting stack group name for ${key}: expected ${canonicalGroupName}, received ${deployment.groupName}`)
-    }
-
     stackRoster.groupsById[groupKey] = {
       groupName: canonicalGroupName,
       unitType: typeId,

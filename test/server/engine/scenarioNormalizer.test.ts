@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { InitialStateSchema } from '#server/engine/scenarioSchema'
+import { InitialStateSchema, ScenarioSchema } from '#server/engine/scenarioSchema'
 import { normalizeInitialStateToGameState } from '#server/engine/scenarioNormalizer'
 
 vi.mock('#server/logger', () => ({
@@ -41,12 +42,46 @@ beforeEach(() => {
 })
 
 describe('normalizeInitialStateToGameState', () => {
+  it('normalizes the Onion Ring III scenario fixture with canonical stack names', () => {
+    const scenario = ScenarioSchema.parse(JSON.parse(readFileSync(new URL('../../../scenarios/onion-ring-iii.json', import.meta.url), 'utf8')))
+    const initialState = InitialStateSchema.parse(scenario.initialState)
+
+    expect(scenario.victoryConditions.onion?.escapeLocation).toBe('south side')
+    const gameState = normalizeInitialStateToGameState(initialState, scenario.id, scenario.unitTypes)
+
+    expect(Object.values(gameState.stackRoster.groupsById).map((group) => group.groupName)).toEqual([
+      'Little Pigs group 1',
+      'Little Pigs group 2',
+      'Little Pigs group 3',
+      'Little Pigs group 4',
+    ])
+  })
+
   it('rejects legacy stack squads entries', () => {
     const parsed = InitialStateSchema.safeParse({
       ...validInitialState,
       deployments: {
         ...validInitialState.deployments,
         'pigs-group-1': { kind: 'stack-group', unitType: 'LittlePigs', side: 'defender', position: { q: 4, r: 7 }, count: 3, squads: 3 },
+      },
+    })
+
+    expect(parsed.success).toBe(false)
+  })
+
+  it('rejects authored stack group names', () => {
+    const parsed = InitialStateSchema.safeParse({
+      ...validInitialState,
+      deployments: {
+        ...validInitialState.deployments,
+        'pigs-group-1': {
+          kind: 'stack-group',
+          unitType: 'LittlePigs',
+          side: 'defender',
+          position: { q: 4, r: 7 },
+          count: 3,
+          groupName: 'Forward Platoon',
+        },
       },
     })
 
@@ -261,7 +296,6 @@ describe('normalizeInitialStateToGameState', () => {
           position: { q: 4, r: 7 },
           count: 3,
           status: 'operational',
-          groupName: 'Little Pigs group 1',
         },
         'wolf-1': { type: 'BigBadWolf', side: 'defender', position: { q: 5, r: 6 }, status: 'operational' },
       },
@@ -282,27 +316,6 @@ describe('normalizeInitialStateToGameState', () => {
     expect(pigGroups).toHaveLength(1)
     expect(pigGroups[0]?.unitIds).toHaveLength(3)
     expect((pigGroups[0]?.unitIds ?? []).every((unitId) => gameState.defenders[unitId] !== undefined)).toBe(true)
-  })
-
-  it('throws when an authored stack group name conflicts with canonical naming', () => {
-    const groupedInitialState = {
-      deployments: {
-        'onion-1': validInitialState.deployments['onion-1'],
-        'pigs-group-1': {
-          kind: 'stack-group',
-          unitType: 'LittlePigs',
-          side: 'defender',
-          position: { q: 4, r: 7 },
-          count: 3,
-          status: 'operational',
-          groupName: 'Little Pigs group 99',
-        },
-      },
-    }
-
-    const parsed = InitialStateSchema.parse(groupedInitialState as unknown as object)
-
-    expect(() => normalizeInitialStateToGameState(parsed)).toThrow('Conflicting stack group name')
   })
 
   it('assigns Little Pigs ids and friendly names from a single ordinal sequence across stack groups', () => {

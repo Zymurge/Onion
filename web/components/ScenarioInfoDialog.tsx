@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { ScenarioInfoData } from '../lib/scenarioInfo'
+import { ScenarioDescription, ScenarioForceManifest, ScenarioVictoryConditions } from './ScenarioBriefingContent'
 
 export type { ScenarioInfoData as ScenarioInfoDialogData } from '../lib/scenarioInfo'
 
@@ -49,43 +50,18 @@ export function ScenarioInfoDialog({ data, loading, error, onClose }: ScenarioIn
         {data.description ? (
           <section className="scenario-info-section">
             <p className="eyebrow">Briefing</p>
-            <p>{data.description}</p>
+            <ScenarioDescription text={data.description} />
           </section>
         ) : null}
 
         <section className="scenario-info-section">
           <p className="eyebrow">Victory conditions</p>
-          {data.objectives.length > 0 ? (
-            <ul className="scenario-info-objective-list">
-              {data.objectives.map((objective) => (
-                <li key={objective.id} className={objective.completed ? 'is-complete' : undefined}>
-                  <strong>{objective.label}</strong>
-                  <span>{objective.required ? 'Required' : 'Optional'}{objective.completed ? ' · Complete' : ''}</span>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="scenario-info-muted">No objective details are available.</p>}
-          {data.onionDescription ? <p><strong>The Onion:</strong> {data.onionDescription}</p> : null}
-          {data.escapeHexes.length > 0 ? (
-            <p>
-              <strong>Escape hexes:</strong> {data.escapeHexes.join(' · ')}. Escape hexes are highlighted on the map with green crosshatch.
-            </p>
-          ) : null}
-          {data.defenderDescription ? <p><strong>Defenders:</strong> {data.defenderDescription}</p> : null}
+          <ScenarioVictoryConditions objectives={data.objectives} />
         </section>
 
         <section className="scenario-info-section scenario-info-manifest" data-testid="scenario-info-manifest">
           <p className="eyebrow">Forces</p>
-          <div className="scenario-info-manifest-columns">
-            <div>
-              <h3>The Onion</h3>
-              {data.manifest.onion.length > 0 ? <ul>{data.manifest.onion.map((entry) => <li key={entry}>{entry}</li>)}</ul> : <p className="scenario-info-muted">No manifest available.</p>}
-            </div>
-            <div>
-              <h3>Defenders</h3>
-              {data.manifest.defender.length > 0 ? <ul>{data.manifest.defender.map((entry) => <li key={entry}>{entry}</li>)}</ul> : <p className="scenario-info-muted">No manifest available.</p>}
-            </div>
-          </div>
+          <ScenarioForceManifest manifest={data.manifest} />
         </section>
       </section>
     </div>
