@@ -462,8 +462,8 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options.find((option) => option.id === 'onion-1:treads')).toMatchObject({
-			isDisabled: true,
-			disabledTitle: 'Select attackers from one defender stack to target treads.',
+			isUnavailable: true,
+			unavailableTitle: 'Select attackers from one defender stack to target treads.',
 		})
 	})
 
@@ -488,7 +488,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options.find((option) => option.id === 'onion-1:treads')).toMatchObject({
-			isDisabled: true,
+			isUnavailable: true,
 		})
 	})
 })

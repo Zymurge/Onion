@@ -229,7 +229,7 @@ export function buildBattlefieldDisplayModel({
 	const combatTargetIds = new Set(combatTargetOptions.map((target) => target.id))
 	const selectedCombatTarget = selectedCombatTargetId === null
 		? null
-		: combatTargetOptions.find((target) => target.id === selectedCombatTargetId && target.isDisabled !== true) ?? null
+		: combatTargetOptions.find((target) => target.id === selectedCombatTargetId && target.isUnavailable !== true) ?? null
 	const selectedCombatTargetIdForRender = selectedCombatTarget?.id ?? null
 	const readyWeaponDetails = displayedOnion === null
 		? []
@@ -267,7 +267,7 @@ export function buildBattlefieldDisplayModel({
 					weapon,
 					displayedOnion.state,
 					activeTurnActive,
-					weaponTargetOptions.some((target) => target.isDisabled !== true),
+					weaponTargetOptions.some((target) => target.isUnavailable !== true),
 				),
 			}
 		})
@@ -298,7 +298,7 @@ export function buildBattlefieldDisplayModel({
 			displayedScenarioMap,
 			catalog,
 		})
-		return [unit.unitId, getCombatUnitAvailabilityReason(unit, activeTurnActive, unitTargetOptions.some((target) => target.isDisabled !== true))]
+		return [unit.unitId, getCombatUnitAvailabilityReason(unit, activeTurnActive, unitTargetOptions.some((target) => target.isUnavailable !== true))]
 	}))
 	const connectionStatus = sessionState.liveConnection
 	const connectionLabel = formatLiveConnectionStatus(connectionStatus)

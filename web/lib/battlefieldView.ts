@@ -1,23 +1,13 @@
-import type { DefenderUnit, HexPos, OnionUnit } from '../../shared/types/index.js'
+import type { DefenderUnit, HexPos, OnionUnit, TurnPhase } from '../../shared/types/index.js'
+import { evaluateMovementEligibility } from './actionEligibility/movement.js'
 
 // Returns true if the unit is eligible to move for the given player and phase
 export function isUnitMoveEligible(
   unit: BattlefieldDefenderView | BattlefieldOnionView,
-  phase: string | null,
+  phase: TurnPhase | null,
   playerRole: 'onion' | 'defender'
 ): boolean {
-  if (!unit || !phase) return false
-  // Only allow movement in movement phases
-  const isMovementPhase = phase === 'ONION_MOVE' || phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
-  if (!isMovementPhase) return false
-  // Only allow movement for player's own units
-  if (playerRole === 'onion' && 'movesAllowed' in unit) {
-    return unit.state === 'operational' && unit.movesRemaining > 0
-  }
-  if (playerRole === 'defender' && 'actionableModes' in unit) {
-    return unit.state === 'operational' && unit.movesRemaining > 0
-  }
-  return false
+  return evaluateMovementEligibility({ unit, phase, viewerRole: playerRole }).eligible
 }
 export type Mode = 'fire' | 'combined' | 'end-phase'
 export type UnitStatus = 'operational' | 'disabled' | 'recovering' | 'destroyed'

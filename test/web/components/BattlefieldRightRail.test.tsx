@@ -318,7 +318,11 @@ describe('BattlefieldRightRail', () => {
         isVisible: true,
         selectedStackMembers: [
           createDefender({ unitId: 'pigs-1', friendlyName: 'Little Pigs 1' }),
-          createDefender({ unitId: 'pigs-2', friendlyName: 'Little Pigs 2' }),
+          createDefender({
+            unitId: 'pigs-2',
+            friendlyName: 'Little Pigs 2',
+            weapons: [{ id: 'main-1', typeId: 'LittlePigs.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main gun' }],
+          }),
         ],
         selectedStackSelectionCount: 1,
         selectedStackSelectionIds: ['pigs-1'],

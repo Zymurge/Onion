@@ -237,13 +237,13 @@ export function BattlefieldRightRail({
     rightRailStackPanel,
   })
   const canConfirmCombat = selectedCombatTarget !== null
-    && selectedCombatTarget.isDisabled !== true
+    && selectedCombatTarget.isUnavailable !== true
     && isCombatPhase
     && activeCombatRole !== null
     && activeRole === activeCombatRole
     && selectedCombatAttackerIds.length > 0
     && selectedCombatTargetId !== null
-    && combatTargetOptions.some((target) => target.id === selectedCombatTargetId && target.isDisabled !== true)
+    && combatTargetOptions.some((target) => target.id === selectedCombatTargetId && target.isUnavailable !== true)
     && selectedCombatAttackStrength > 0
 
   const attackPlanningConfirmationProps = selectedCombatTarget !== null

@@ -75,6 +75,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Game ID parsing | [api-contract.md](api-contract.md) | `server/api/gameHelpers/ids.ts` |
 | Game API helper catalog or cross-helper entry point | [api-contract.md](api-contract.md) | `server/api/gameHelpers/index.ts`, then the owning helper module |
 | Scenario map requirement | [api-contract.md](api-contract.md) `## Scenario Map` | `shared/scenarioMap.ts` |
+| Web action eligibility or availability projection | [web-ui-spec.md](web-ui-spec.md) | `web/lib/actionEligibility/`; keep movement and combat eligibility pure and leave shared movement, weapon, and target rules authoritative |
 | Error body or error code | [api-contract.md](api-contract.md) `## Error Response Shape` and `### Known Error Codes` | `server/api/` |
 | Board snapshot fields | [api-contract.md](api-contract.md) `## Shared Types` and `### GameState` | `shared/types/` |
 | Web lobby, board, combat UI, turn display, or client errors | [web-ui-spec.md](web-ui-spec.md), then the one area spec it names. Skip Future State | The module that area spec names; scenario preview and briefing use `web/components/GameCreateScreen.tsx`, `ScenarioBriefingContent.tsx`, `ScenarioInfoDialog.tsx`, `web/lib/scenarioInfo.ts`, and `web/lib/victoryConditionDefinitions.ts` |

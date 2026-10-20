@@ -18,7 +18,7 @@ export function CombatTargetList({
     <div className="attacker-selection-list combat-target-list" data-testid="combat-target-list">
       {targets.map((target) => {
         const isSelected = selectedTargetId === target.id
-        const targetIsDisabled = isDisabled || target.isDisabled === true
+        const targetIsUnavailable = isDisabled || target.isUnavailable === true
 
         return (
           <button
@@ -28,17 +28,17 @@ export function CombatTargetList({
               'attacker-card-button',
               'slim-weapon-card',
               isSelected ? 'is-selected' : '',
-              targetIsDisabled ? 'is-disabled' : '',
+              targetIsUnavailable ? 'is-disabled' : '',
               `tone-${statusTone(target.status)}`,
             ].join(' ')}
-            disabled={targetIsDisabled}
-            title={targetIsDisabled ? target.disabledTitle ?? 'Controls are unavailable until the inactive event window is dismissed.' : undefined}
+            disabled={targetIsUnavailable}
+            title={targetIsUnavailable ? target.unavailableTitle ?? 'Controls are unavailable until the inactive event window is dismissed.' : undefined}
             aria-pressed={isSelected}
-            aria-disabled={targetIsDisabled}
+            aria-disabled={targetIsUnavailable}
             data-selected={isSelected}
             data-testid={`combat-target-${target.id}`}
             onClick={(event) => {
-              if (targetIsDisabled) {
+              if (targetIsUnavailable) {
                 event.preventDefault()
                 event.stopPropagation()
                 return

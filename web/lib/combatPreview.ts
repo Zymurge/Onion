@@ -32,8 +32,8 @@ export type CombatTargetOption = {
 	detail: string
 	defense: number
 	modifiers: ReadonlyArray<string>
-	isDisabled?: boolean
-	disabledTitle?: string
+	isUnavailable?: boolean
+	unavailableTitle?: string
 }
 
 type CombatPreviewInput = {
@@ -358,8 +358,8 @@ export function buildCombatTargetOptions({
 			defense: selectedAttackStrength,
 			modifiers: selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 			detail: `Treads: ${displayedOnion.treads}`,
-				isDisabled: activeCombatRole === 'defender' && selectedAttackerIds.length > 1,
-			disabledTitle:
+				isUnavailable: activeCombatRole === 'defender' && selectedAttackerIds.length > 1,
+				unavailableTitle:
 					activeCombatRole === 'defender' && selectedAttackerIds.length > 1
 					? 'Select attackers from one defender stack to target treads.'
 					: undefined,
