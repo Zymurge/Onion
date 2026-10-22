@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react'
 import { HexMapUnitMarker } from './HexMapUnitMarker'
+import type { BattlefieldActionEligibility } from '../lib/actionEligibility/projection'
 import type { BattlefieldOnionView } from '../lib/battlefieldView'
 import type { HexOccupant, OccupantRosterIndex } from '../lib/hexMapOccupancy'
 import type {
@@ -13,6 +14,7 @@ import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import type { SessionCatalog } from '../lib/sessionCatalog'
 
 type HexMapCellProps = {
+  actionEligibility: BattlefieldActionEligibility
   activeCombatRole: 'onion' | 'defender' | null
   center: { x: number; y: number }
   catalog?: SessionCatalog
@@ -54,6 +56,7 @@ function terrainImage(terrainType?: number): string {
 
 /** Renders terrain, overlays, and occupant markers for one map cell. */
 export function HexMapCell({
+  actionEligibility,
   activeCombatRole,
   center,
   catalog,
@@ -160,6 +163,7 @@ export function HexMapCell({
 
         return (
           <HexMapUnitMarker
+            actionEligibility={actionEligibility}
             key={occupant.unitId}
             activeCombatRole={activeCombatRole}
             center={center}

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { describe, expect, it, vi } from 'vitest'
 import { HexMapCell } from '#web/components/HexMapCell'
+import type { BattlefieldActionEligibility } from '#web/lib/actionEligibility/projection'
 import type { BattlefieldOnionView } from '#web/lib/battlefieldView'
 import { getUnitSpriteHref } from '#web/lib/unitSpriteRegistry'
 import { getUnitTypeCatalog } from '#shared/unitDefinitions'
@@ -21,11 +22,18 @@ const onion: BattlefieldOnionView = {
   weapons: [],
 }
 
+const emptyActionEligibility: BattlefieldActionEligibility = {
+  movementByUnitId: {},
+  defenderCombatByUnitId: {},
+  onionCombatByWeaponId: {},
+}
+
 describe('HexMapCell', () => {
   it('preserves cell identity and escape overlays', () => {
     render(
       <svg>
         <HexMapCell
+          actionEligibility={emptyActionEligibility}
           activeCombatRole="onion"
           center={{ x: 36, y: 36 }}
           cellOccupants={[onion]}
@@ -82,6 +90,7 @@ describe('HexMapCell', () => {
     render(
       <svg>
         <HexMapCell
+          actionEligibility={emptyActionEligibility}
           activeCombatRole="onion"
           center={{ x: 36, y: 36 }}
           cellOccupants={[occupant]}
@@ -135,6 +144,7 @@ describe('HexMapCell', () => {
     render(
       <svg>
         <HexMapCell
+          actionEligibility={emptyActionEligibility}
           activeCombatRole="onion"
           center={{ x: 36, y: 36 }}
           cellOccupants={[disabledOnion, destroyedOnion]}
@@ -186,6 +196,7 @@ describe('HexMapCell', () => {
     render(
       <svg>
         <HexMapCell
+          actionEligibility={emptyActionEligibility}
           activeCombatRole="onion"
           center={{ x: 36, y: 36 }}
           cellOccupants={[damagedOnion]}

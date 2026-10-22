@@ -48,7 +48,7 @@ export function CombatTargetList({
               onSelectTarget(target.id)
             }}
             onContextMenu={(event) => {
-              if (targetIsDisabled) {
+              if (targetIsUnavailable) {
                 event.preventDefault()
                 event.stopPropagation()
                 return

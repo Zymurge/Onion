@@ -381,15 +381,60 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { HexMapBoard as ProductionHexMapBoard } from '#web/components/HexMapBoard'
 import { boardPixelSize } from '#web/lib/hexPixelLayout'
+import type { CombatActionEligibility } from '#web/lib/actionEligibility/projection'
+import type { CombatEligibility, CombatEligibilityReason } from '#web/lib/actionEligibility/combat'
+import type { MovementEligibility } from '#web/lib/actionEligibility/movement'
 import type { BattlefieldOnionView, BattlefieldUnit, TerrainHex } from '#web/lib/battlefieldView'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
+import type { BattlefieldActionEligibility } from '#web/lib/actionEligibility/projection'
 import type { StackNamingSnapshot } from '#shared/stackNaming/index'
 import type { StackRosterState } from '#shared/types/index'
+import type { ComponentProps } from 'react'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
-const HexMapBoard = ProductionHexMapBoard
+type TestHexMapBoardProps = Omit<ComponentProps<typeof ProductionHexMapBoard>, 'actionEligibility'> & {
+	actionEligibility?: BattlefieldActionEligibility
+}
+
+function buildTestActionEligibility({ defenders, onions, phase, viewerRole }: TestHexMapBoardProps): BattlefieldActionEligibility {
+	const activeMovementRole = phase === 'ONION_MOVE' ? 'onion' : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE' ? 'defender' : null
+	const effectiveViewerRole = viewerRole ?? (phase?.startsWith('DEFENDER') || phase === 'GEV_SECOND_MOVE' ? 'defender' : 'onion')
+	const buildMovementEligibility = (eligible: boolean): MovementEligibility => eligible
+		? { eligible: true }
+		: { eligible: false, reason: 'no-movement-remaining' }
+	const buildCombatEligibility = (eligible: boolean, reason: CombatEligibilityReason): CombatEligibility => eligible
+		? { eligible: true }
+		: { eligible: false, reason }
+	const buildCombatActionEligibility = (eligible: boolean, reason: CombatEligibilityReason): CombatActionEligibility => ({
+		eligibility: buildCombatEligibility(eligible, reason),
+		targetIds: ['test-target'],
+		targetHexKeys: [],
+	})
+	const movementByUnitId: Record<string, MovementEligibility> = Object.fromEntries(
+		[...defenders, ...onions].map((unit): [string, MovementEligibility] => [
+			unit.unitId,
+			buildMovementEligibility(activeMovementRole !== null && effectiveViewerRole === activeMovementRole && unit.role === activeMovementRole && unit.state === 'operational' && unit.movesRemaining > 0),
+		]),
+	)
+	const defenderCombatByUnitId: Record<string, CombatActionEligibility> = Object.fromEntries(defenders.map((unit): [string, CombatActionEligibility] => {
+		const eligible = phase === 'DEFENDER_COMBAT' && effectiveViewerRole === 'defender' && unit.state === 'operational' && unit.actionableModes.includes('fire')
+		return [unit.unitId, buildCombatActionEligibility(eligible, 'no-attack-capabilities')]
+	}))
+	const onionCombatByWeaponId: Record<string, CombatActionEligibility> = Object.fromEntries(onions.flatMap((unit) => unit.weapons.map((weapon): [string, CombatActionEligibility] => {
+		const eligible = phase === 'ONION_COMBAT' && viewerRole === 'onion' && unit.state === 'operational' && weapon.state === 'ready'
+		return [weapon.id, buildCombatActionEligibility(eligible, 'attacks-spent')]
+	})))
+
+	return { movementByUnitId, defenderCombatByUnitId, onionCombatByWeaponId }
+}
+
+function TestHexMapBoard({ actionEligibility, ...props }: TestHexMapBoardProps) {
+	return <ProductionHexMapBoard {...props} actionEligibility={actionEligibility ?? buildTestActionEligibility(props)} />
+}
+
+const HexMapBoard = TestHexMapBoard
 
 function getMarkerLabel(unitId: string): string {
 	const marker = screen.getByTestId(`hex-unit-${unitId}`)
@@ -473,7 +518,94 @@ const staleDefenderMove: BattlefieldUnit[] = [
 	},
 ]
 
+const spentMovementEligibility: BattlefieldActionEligibility = {
+	movementByUnitId: {
+		'puss-1': { eligible: false, reason: 'no-movement-remaining' },
+		'onion-1': { eligible: false, reason: 'not-your-turn' },
+	},
+	defenderCombatByUnitId: {},
+	onionCombatByWeaponId: {},
+}
+
 describe('HexMapBoard', () => {
+	it('uses projected movement eligibility instead of local allowance values', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[{ ...defenders[0], movesRemaining: 3 }]}
+				onions={[onion]}
+				actionEligibility={spentMovementEligibility}
+				phase="DEFENDER_MOVE"
+				viewerRole="defender"
+				selectedUnitIds={['puss-1']}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-1-1')).not.toHaveClass('hex-cell-move-ready')
+		expect(screen.getByTestId('hex-cell-2-1')).not.toHaveClass('hex-cell-reachable')
+		expect(screen.getByTestId('hex-unit-puss-1')).not.toHaveClass('hex-unit-stack-move-ready')
+	})
+
+	it('does not highlight an eligible unit for an inactive viewer', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={defenders}
+				onions={[onion]}
+				actionEligibility={{
+					movementByUnitId: {
+						'puss-1': { eligible: false, reason: 'not-your-turn' },
+						'wolf-2': { eligible: false, reason: 'not-your-turn' },
+						'onion-1': { eligible: false, reason: 'not-your-turn' },
+					},
+					defenderCombatByUnitId: {},
+					onionCombatByWeaponId: {},
+				}}
+				phase="DEFENDER_MOVE"
+				viewerRole="onion"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-1-1')).not.toHaveClass('hex-cell-move-ready')
+		expect(screen.getByTestId('hex-unit-puss-1')).not.toHaveClass('hex-unit-stack-move-ready')
+	})
+
+	it('uses projected movement eligibility during GEV secondary movement', () => {
+		const secondaryMover = { ...defenders[1], movesRemaining: 1 }
+		render(
+			<HexMapBoard
+				scenarioMap={scenarioMap}
+				defenders={[secondaryMover]}
+				onions={[onion]}
+				actionEligibility={{
+					movementByUnitId: {
+						'wolf-2': { eligible: true },
+						'onion-1': { eligible: false, reason: 'not-your-turn' },
+					},
+					defenderCombatByUnitId: {},
+					onionCombatByWeaponId: {},
+				}}
+				phase="GEV_SECOND_MOVE"
+				viewerRole="defender"
+				selectedUnitIds={['wolf-2']}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-1-2')).toHaveClass('hex-cell-move-ready')
+		expect(screen.getByTestId('hex-cell-2-2')).toHaveClass('hex-cell-reachable')
+		expect(screen.getByTestId('hex-unit-wolf-2')).toHaveClass('hex-unit-stack-move-ready')
+	})
+
 	it('renders stacked Little Pigs without a badge overlay', () => {
 		const stackedDefenders: BattlefieldUnit[] = [
 			{

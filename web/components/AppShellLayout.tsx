@@ -136,6 +136,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
         <AppBattlefieldStage
           activePhase={display.activePhase}
           activeTurnActive={display.activeTurnActive}
+          actionEligibility={display.actionEligibility}
           defenders={display.displayedDefenders}
           lifecycleStatus={session.state.snapshot?.status}
           onions={display.displayedOnions}

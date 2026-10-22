@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import { getGroupCombatReadyCount, isGroupCombatDisabled } from '../lib/stackReadiness'
+import type { BattlefieldActionEligibility } from '../lib/actionEligibility/projection'
 import {
   getStackOffset,
   getUnitMarkerText,
@@ -46,6 +46,7 @@ function wrapMarkerText(text: string, maximumLineLength = 12): string[] {
 }
 
 type HexMapUnitMarkerProps = {
+  actionEligibility: BattlefieldActionEligibility
   activeCombatRole: 'onion' | 'defender' | null
   center: { x: number; y: number }
   catalog?: SessionCatalog
@@ -73,6 +74,7 @@ type HexMapUnitMarkerProps = {
 
 /** Renders one occupant marker and routes its selection interaction. */
 export function HexMapUnitMarker({
+  actionEligibility,
   center,
   catalog,
   combatMembers,
@@ -96,10 +98,7 @@ export function HexMapUnitMarker({
   onDeselect,
   onSelectUnit,
 }: HexMapUnitMarkerProps) {
-  const isOccupantOnion = occupant.role === 'onion'
-  const occupantMovesRemaining = occupant.unitId === onion.unitId
-    ? onion.movesRemaining
-    : occupant.movesRemaining
+  const isOccupantOnion = occupant.role === 'onion' && occupant.unitId === onion.unitId
   const offset = getStackOffset(offsetIndex, renderedOccupantCount)
   const isSwamp = occupant.typeId === 'Swamp'
   const isDestroyed = occupant.state === 'destroyed'
@@ -124,17 +123,18 @@ export function HexMapUnitMarker({
     : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
       ? !isOccupantOnion
       : false
-  const combatHasReadyAttack = getGroupCombatReadyCount(combatMembers) > 0
-  const combatIsDisabled = isGroupCombatDisabled(combatMembers)
-  const moveHasRemaining = occupantMovesRemaining > 0
+  const combatHasReadyAttack = combatMembers.some((member) => member.role === 'onion'
+    ? member.weapons.some((weapon) => actionEligibility.onionCombatByWeaponId[weapon.id]?.eligibility.eligible === true)
+    : actionEligibility.defenderCombatByUnitId[member.unitId]?.eligibility.eligible === true)
+  const movementEligible = combatMembers.some((member) => actionEligibility.movementByUnitId[member.unitId]?.eligible === true)
   const movementEligibilityClass = !isMovementPhase
     ? ''
     : isSwamp
       ? isDestroyed ? 'hex-unit-rect-swamp-destroyed' : 'hex-unit-rect-swamp'
-      : combatIsDisabled
+      : isDisabled
         ? 'hex-unit-rect-move-disabled'
         : isMovementPhaseActiveSide
-          ? moveHasRemaining
+          ? movementEligible
             ? 'hex-unit-rect-move-eligible'
             : 'hex-unit-rect-move-ineligible'
           : 'hex-unit-rect-move-inspectable'
@@ -170,8 +170,8 @@ export function HexMapUnitMarker({
       subjectKind: rosterGroup !== null ? 'stack' : 'unit',
       subjectCapability: {
         inspectable: true,
-        moveEligible: isMovementPhase && occupant.state === 'operational' && occupantMovesRemaining > 0,
-        attackerEligible: isCombatPhase && !combatIsDisabled && (
+        moveEligible: isMovementPhase && movementEligible,
+        attackerEligible: isCombatPhase && (
           isOccupantOnion
             ? resolvedViewerRole === 'onion' && combatHasReadyAttack
             : resolvedViewerRole === 'defender' && combatHasReadyAttack
