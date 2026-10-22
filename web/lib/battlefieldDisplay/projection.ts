@@ -23,8 +23,8 @@ import {
 	resolveBattlefieldWeaponName,
 } from '../weaponStats'
 import { getUnitAttackStrength } from '../stackReadiness'
-import { getCombatUnitAvailabilityReason, getCombatWeaponAvailabilityReason } from '../combatAvailability'
 import { buildBattlefieldActionEligibility } from '../actionEligibility/projection'
+import { formatEligibilityReason } from '../actionEligibility/reasons'
 import { buildWeaponSelectionId, isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from '../selectionIds'
 import { buildCombatRangeHexKeys } from '../combatRange'
 import { buildCombatTargetOptions } from '../combatPreview'
@@ -285,30 +285,22 @@ export function buildBattlefieldDisplayModel({
 	const readyWeaponDetails = displayedOnion === null
 		? []
 		: displayedWeaponDetails.map((weapon) => {
-			const baseReason = getCombatWeaponAvailabilityReason(weapon, displayedOnion.state, activeTurnActive)
-			if (baseReason !== undefined || activeCombatRole !== 'onion' || !isCombatPhase || catalog === null) {
-				return { ...weapon, disabledReason: baseReason }
-			}
-
-			const weaponEligibility = actionEligibility.onionCombatByWeaponId[weapon.id]
+			const weaponEligibility = actionEligibility.onionCombatByWeaponId[weapon.id]?.eligibility
 			return {
 				...weapon,
-				disabledReason: getCombatWeaponAvailabilityReason(
-					weapon,
-					displayedOnion.state,
-					activeTurnActive,
-					weaponEligibility.targetIds.length > 0,
-				),
+				disabledReason: activeCombatRole === 'onion' && isCombatPhase && weaponEligibility !== undefined && !weaponEligibility.eligible
+					? formatEligibilityReason(weaponEligibility.reason)
+					: undefined,
 			}
 		})
 	const combatUnitAvailabilityReasons = Object.fromEntries(displayedDefenders.map((unit) => {
-		const baseReason = getCombatUnitAvailabilityReason(unit, activeTurnActive)
-		if (baseReason !== undefined || activeCombatRole !== 'defender' || !isCombatPhase || catalog === null) {
-			return [unit.unitId, baseReason]
-		}
-
-		const unitEligibility = actionEligibility.defenderCombatByUnitId[unit.unitId]
-		return [unit.unitId, getCombatUnitAvailabilityReason(unit, activeTurnActive, unitEligibility.targetIds.length > 0)]
+		const unitEligibility = actionEligibility.defenderCombatByUnitId[unit.unitId]?.eligibility
+		return [
+			unit.unitId,
+			activeCombatRole === 'defender' && isCombatPhase && unitEligibility !== undefined && !unitEligibility.eligible
+				? formatEligibilityReason(unitEligibility.reason)
+				: undefined,
+		]
 	}))
 	const connectionStatus = sessionState.liveConnection
 	const connectionLabel = formatLiveConnectionStatus(connectionStatus)

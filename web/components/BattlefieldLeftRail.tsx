@@ -9,12 +9,16 @@ import { countSelectedBattlefieldStackMembers, filterStackRosterToUnitIds, shoul
 import { getBattlefieldStackSize, resolveBattlefieldDisplayName, resolveBattlefieldStackLabel, resolveBattlefieldUnitName } from '../lib/battlefieldNaming'
 import { getBattlefieldWeaponAttack, getReadyWeaponRange, parseWeaponStats, resolveBattlefieldWeaponName } from '../lib/weaponStats'
 import { getGroupAttackReadyCount, getUnitAttackStrength } from '../lib/stackReadiness'
-import { getCombatUnitAvailabilityReason, type CombatWeaponDetail } from '../lib/combatAvailability'
+import type { CombatWeaponDetail } from '../lib/actionEligibility/reasons'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import type { StackRosterState } from '../../shared/types/index'
 import { getSessionWeaponType, type SessionCatalog } from '../lib/sessionCatalog'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { buildBattlefieldRosterProjection } from '../lib/battlefieldGroupProjection'
+import type { BattlefieldActionEligibility } from '../lib/actionEligibility/projection'
+import type { CombatEligibility } from '../lib/actionEligibility/combat'
+import type { MovementEligibility } from '../lib/actionEligibility/movement'
+import { formatEligibilityReason } from '../lib/actionEligibility/reasons'
 import logger from '../lib/logger'
 import { ErrorOverlay } from './ErrorOverlay'
 
@@ -24,6 +28,7 @@ type BattlefieldLeftRailProps = {
   activeTurnActive: boolean
   activeMode: Mode
   activeSelectedUnitIds: string[]
+  actionEligibility?: BattlefieldActionEligibility
   displayedDefenders: ReadonlyArray<BattlefieldUnit>
   displayedOnion: BattlefieldOnionView | null
   displayedOnions?: ReadonlyArray<BattlefieldOnionView>
@@ -48,6 +53,7 @@ type DefenderStackGroupMember = {
   selectionId: string
   testId: string
   label: string
+  isActionable: boolean
   disabledReason?: string
 }
 
@@ -125,6 +131,7 @@ function buildDefenderGroupFromUnits(
   selectionState: WebStackSourceState,
   catalog: SessionCatalog | undefined,
   combatUnitAvailabilityReasons: Readonly<Record<string, string | undefined>> | undefined,
+  actionEligibility: BattlefieldActionEligibility | undefined,
   groupKey?: string,
 ): DefenderStackGroup {
   const anchorUnit = units[0]
@@ -136,13 +143,39 @@ function buildDefenderGroupFromUnits(
     : resolveBattlefieldDisplayName({ ...anchorUnit, stackSize }, stackNaming)
   const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.unitId, activeSelectedUnitIds)
   const attackReadyCount = getGroupAttackReadyCount(displayedUnits, catalog)
-  const availabilityReasonForUnit = (unit: BattlefieldUnit) => combatUnitAvailabilityReasons?.[unit.unitId]
+  const projectedEligibilityForUnit = (unit: BattlefieldUnit): MovementEligibility | CombatEligibility | undefined => groupMode === 'move'
+    ? actionEligibility?.movementByUnitId[unit.unitId]
+    : actionEligibility?.defenderCombatByUnitId[unit.unitId]?.eligibility
+  const isUnitActionable = (unit: BattlefieldUnit) => {
+    const projectedEligibility = projectedEligibilityForUnit(unit)
+    if (projectedEligibility !== undefined) {
+      return projectedEligibility.eligible
+    }
+
+    return groupMode === 'combat'
+      ? unit.state !== 'destroyed'
+        && unit.actionableModes.includes(activeMode)
+        && combatUnitAvailabilityReasons?.[unit.unitId] === undefined
+      : unit.state !== 'destroyed'
+  }
+  const availabilityReasonForUnit = (unit: BattlefieldUnit) => {
+    const legacyReason = combatUnitAvailabilityReasons?.[unit.unitId]
+    const projectedEligibility = projectedEligibilityForUnit(unit)
+    if (projectedEligibility === undefined) {
+      return legacyReason
+    }
+
+    return projectedEligibility.eligible
+      ? undefined
+      : formatEligibilityReason(projectedEligibility.reason)
+  }
   const unavailableCombatUnits = units.filter((unit) => availabilityReasonForUnit(unit) !== undefined)
   const members = units.length > 1
     ? units.map((unit) => ({
       selectionId: unit.unitId,
       testId: `combat-stack-member-${unit.unitId}`,
       label: resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName),
+      isActionable: isUnitActionable(unit),
       disabledReason: unit.state === 'destroyed' ? 'Destroyed' : availabilityReasonForUnit(unit),
     }))
     : stackSize > 1
@@ -150,6 +183,7 @@ function buildDefenderGroupFromUnits(
         selectionId: buildStackMemberSelectionId(anchorUnit.unitId, index + 1),
         testId: `combat-stack-member-${anchorUnit.unitId}-${index + 1}`,
         label: resolveBattlefieldUnitName(anchorUnit.typeId, anchorUnit.unitId, anchorUnit.friendlyName),
+        isActionable: isUnitActionable(anchorUnit),
         disabledReason: anchorUnit.state === 'destroyed' ? 'Destroyed' : availabilityReasonForUnit(anchorUnit),
       }))
       : []
@@ -158,17 +192,14 @@ function buildDefenderGroupFromUnits(
     anchorUnit,
     attackStrength: displayedUnits.reduce((total, unit) => total + getUnitAttackStrength(unit, catalog), 0),
     attackReadyCount,
-      isActionable: groupMode === 'combat' && units.some((unit) =>
-        unit.state !== 'destroyed'
-        && unit.actionableModes.includes(activeMode)
-        && availabilityReasonForUnit(unit) === undefined),
-      isDestroyed: groupMode === 'combat'
-        ? units.every((unit) => unit.state === 'destroyed')
-        : anchorUnit.state === 'destroyed',
-      isPartiallyDestroyed: units.some((unit) => unit.state === 'destroyed')
-        && units.some((unit) => unit.state !== 'destroyed'),
-      hasDisabledUnit: units.some((unit) => unit.state === 'disabled'),
-      label,
+    isActionable: units.some(isUnitActionable),
+    isDestroyed: groupMode === 'combat'
+      ? units.every((unit) => unit.state === 'destroyed')
+      : anchorUnit.state === 'destroyed',
+    isPartiallyDestroyed: units.some((unit) => unit.state === 'destroyed')
+      && units.some((unit) => unit.state !== 'destroyed'),
+    hasDisabledUnit: units.some((unit) => unit.state === 'disabled'),
+    label,
     members,
     availabilityReason: groupMode === 'combat' && unavailableCombatUnits.length === units.length
       ? availabilityReasonForUnit(anchorUnit) ?? 'Unavailable'
@@ -178,20 +209,21 @@ function buildDefenderGroupFromUnits(
         ? Math.min(...displayedUnits.map((unit) => getReadyWeaponRange(unit.weapons, catalog)))
         : 0
       : 0,
-      moveAllowance: groupMode === 'move' ? Math.max(...units.map((unit) => unit.movesRemaining)) : 0,
+    moveAllowance: groupMode === 'move' ? Math.max(...units.map((unit) => unit.movesRemaining)) : 0,
     selectedCount,
   }
 }
 
-  function buildDefenderGroups(
+function buildDefenderGroups(
   displayedDefenders: ReadonlyArray<BattlefieldUnit>,
-    groupMode: 'combat' | 'move',
+  groupMode: 'combat' | 'move',
   activeMode: Mode,
   activeSelectedUnitIds: string[],
   stackNaming: StackNamingSnapshot | undefined,
   stackRoster: StackRosterState | undefined,
   catalog: SessionCatalog | undefined,
   combatUnitAvailabilityReasons: Readonly<Record<string, string | undefined>> | undefined,
+  actionEligibility: BattlefieldActionEligibility | undefined,
 ): DefenderStackGroup[] {
   const projection = stackRoster !== undefined
     ? buildBattlefieldRosterProjection(displayedDefenders, stackRoster)
@@ -214,7 +246,7 @@ function buildDefenderGroupFromUnits(
         consumedUnitIds.add(unit.unitId)
       }
 
-      selectionGroups.push(buildDefenderGroupFromUnits(units, groupMode, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog, combatUnitAvailabilityReasons, rosterGroup.groupKey))
+      selectionGroups.push(buildDefenderGroupFromUnits(units, groupMode, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog, combatUnitAvailabilityReasons, actionEligibility, rosterGroup.groupKey))
     }
   }
 
@@ -223,7 +255,7 @@ function buildDefenderGroupFromUnits(
       continue
     }
 
-    selectionGroups.push(buildDefenderGroupFromUnits([unit], groupMode, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog, combatUnitAvailabilityReasons))
+    selectionGroups.push(buildDefenderGroupFromUnits([unit], groupMode, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog, combatUnitAvailabilityReasons, actionEligibility))
   }
 
   return selectionGroups
@@ -266,9 +298,7 @@ function BattlefieldStackGroup({
 }: BattlefieldStackGroupProps) {
   const isCombatGroup = groupMode === 'combat'
   const isSelected = group.selectedCount > 0
-  const isActionable = isCombatGroup
-    ? activeTurnActive && viewerRole === 'defender' && group.isActionable
-    : activeTurnActive && viewerRole === 'defender' && !group.isDestroyed
+  const isActionable = activeTurnActive && viewerRole === 'defender' && group.isActionable
   const isExpanded = shouldExpandBattlefieldStackGroup({
     memberCount: group.members.length,
     selectedCount: group.selectedCount,
@@ -338,13 +368,14 @@ function BattlefieldStackGroup({
           {group.members.map((member) => {
             const isMemberSelected = activeSelectedUnitIds.includes(member.selectionId)
             const memberUnit = displayedDefenders.find((unit) => unit.unitId === member.selectionId)
-            const memberAvailabilityReason = member.disabledReason ?? (isCombatGroup && memberUnit !== undefined ? getCombatUnitAvailabilityReason(memberUnit, activeTurnActive) : undefined)
+            const memberAvailabilityReason = member.disabledReason
             const isMemberDisabled = isSelectionLocked || (isCombatGroup && activeTurnActive && viewerRole === 'defender' && memberAvailabilityReason !== undefined)
+            const isMemberActionable = activeTurnActive && viewerRole === 'defender' && member.isActionable
             return (
               <button
                 key={member.selectionId}
                 type="button"
-                className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}${isMemberDisabled ? ' is-disabled' : ''}${memberAvailabilityReason === 'Destroyed' ? ' tone-destroyed' : memberUnit?.state === 'disabled' ? ' tone-dim' : ''}`}
+                className={`attacker-card-button slim-weapon-card combat-stack-member-button${isMemberSelected ? ' is-selected' : ''}${isMemberActionable ? ' is-actionable' : ''}${isMemberDisabled ? ' is-disabled' : ''}${memberAvailabilityReason === 'Destroyed' ? ' tone-destroyed' : memberUnit?.state === 'disabled' ? ' tone-dim' : ''}`}
                 aria-pressed={isMemberSelected}
                 disabled={isMemberDisabled}
                 data-selected={isMemberSelected}
@@ -377,6 +408,7 @@ export function BattlefieldLeftRail({
   activeTurnActive,
   activeMode,
   activeSelectedUnitIds,
+  actionEligibility,
   displayedDefenders,
   displayedOnion,
   displayedOnions = displayedOnion === null ? [] : [displayedOnion],
@@ -403,10 +435,10 @@ export function BattlefieldLeftRail({
 
   try {
     defenderCombatGroups = activeCombatRole === 'defender' && isCombatPhase
-      ? buildDefenderGroups(displayedDefenders, 'combat', activeMode, activeSelectedUnitIds, stackNaming, stackRoster, catalog, combatUnitAvailabilityReasons)
+      ? buildDefenderGroups(displayedDefenders, 'combat', activeMode, activeSelectedUnitIds, stackNaming, stackRoster, catalog, combatUnitAvailabilityReasons, actionEligibility)
       : []
     defenderMoveGroups = activeCombatRole === 'defender' && isMovementPhase
-      ? buildDefenderGroups(displayedDefenders, 'move', activeMode, activeSelectedUnitIds, stackNaming, stackRoster, catalog, combatUnitAvailabilityReasons)
+      ? buildDefenderGroups(displayedDefenders, 'move', activeMode, activeSelectedUnitIds, stackNaming, stackRoster, catalog, combatUnitAvailabilityReasons, actionEligibility)
       : []
   } catch (error) {
     renderError = buildRenderErrorMessage(error, {
@@ -477,15 +509,24 @@ export function BattlefieldLeftRail({
                 readyWeaponDetails.map((weapon) => {
                   const selectionId = buildWeaponSelectionId(weapon.id)
                   const isSelected = activeSelectedUnitIds.includes(selectionId)
-                  const isWeaponDisabled = isSelectionLocked || weapon.disabledReason !== undefined
+                  const projectedEligibility = actionEligibility?.onionCombatByWeaponId[weapon.id]?.eligibility
+                  const isWeaponActionable = projectedEligibility?.eligible ?? weapon.disabledReason === undefined
+                  const projectedDisabledReason = projectedEligibility === undefined || projectedEligibility.eligible
+                    ? undefined
+                    : formatEligibilityReason(projectedEligibility.reason)
+                  const weaponDisabledReason = projectedEligibility === undefined
+                    ? weapon.disabledReason
+                    : projectedDisabledReason
+                  const isWeaponDisabled = isSelectionLocked || !isWeaponActionable
+                  const isActionable = activeTurnActive && viewerRole === 'onion' && isWeaponActionable
                   return (
                     <button
                       key={weapon.id}
                       type="button"
-                      className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}${isWeaponDisabled ? ' is-disabled' : ''}${weapon.state === 'destroyed' ? ' tone-destroyed' : ''}`}
+                      className={`attacker-card-button slim-weapon-card${isSelected ? ' is-selected' : ''}${isActionable ? ' is-actionable' : ''}${isWeaponDisabled ? ' is-disabled' : ''}${weapon.state === 'destroyed' ? ' tone-destroyed' : ''}`}
                       aria-pressed={isSelected}
                       disabled={isWeaponDisabled}
-                      title={weapon.disabledReason}
+                      title={weaponDisabledReason}
                       data-selected={isSelected}
                       data-testid={`combat-weapon-${weapon.id}`}
                       onClick={(event) => {
@@ -508,7 +549,7 @@ export function BattlefieldLeftRail({
                             subjectCapability: {
                               inspectable: true,
                               moveEligible: false,
-                              attackerEligible: activeTurnActive && viewerRole === 'onion',
+                              attackerEligible: isActionable,
                               targetEligible: false,
                             },
                           },
@@ -518,7 +559,7 @@ export function BattlefieldLeftRail({
                       }}
                     >
                       <div className="weapon-card-name">{resolveBattlefieldWeaponName(weapon, catalog)}</div>
-                      <div className="weapon-card-stats">{weapon.disabledReason ?? <>Attack: {getBattlefieldWeaponAttack(weapon, catalog)} &nbsp;·&nbsp; Range: {catalog === undefined ? 0 : getSessionWeaponType(catalog, weapon.typeId).range}</>}</div>
+                      <div className="weapon-card-stats">{weaponDisabledReason ?? <>Attack: {getBattlefieldWeaponAttack(weapon, catalog)} &nbsp;·&nbsp; Range: {catalog === undefined ? 0 : getSessionWeaponType(catalog, weapon.typeId).range}</>}</div>
                     </button>
                   )
                 })
@@ -561,8 +602,7 @@ export function BattlefieldLeftRail({
                       )
                     }}
                     onSelectMember={(selectionId) => {
-                      const memberUnit = displayedDefenders.find((unit) => unit.unitId === selectionId)
-                      const isMemberActionable = memberUnit?.actionableModes.includes(activeMode) === true
+                      const isMemberActionable = group.members.find((member) => member.selectionId === selectionId)?.isActionable === true
                       routeSourceSelection(
                         {
                           viewerRole,
@@ -686,7 +726,7 @@ export function BattlefieldLeftRail({
                           subjectKind: 'stack',
                           subjectCapability: {
                             inspectable: true,
-                            moveEligible: activeTurnActive && viewerRole === 'defender' && !group.isDestroyed,
+                            moveEligible: activeTurnActive && viewerRole === 'defender' && group.isActionable,
                             attackerEligible: false,
                             targetEligible: false,
                           },
@@ -696,6 +736,7 @@ export function BattlefieldLeftRail({
                       )
                     }}
                     onSelectMember={(selectionId) => {
+                      const isMemberActionable = group.members.find((member) => member.selectionId === selectionId)?.isActionable === true
                       routeSourceSelection(
                         {
                           viewerRole,
@@ -707,7 +748,7 @@ export function BattlefieldLeftRail({
                           subjectKind: 'stack',
                           subjectCapability: {
                             inspectable: true,
-                            moveEligible: activeTurnActive && viewerRole === 'defender' && !group.isDestroyed,
+                            moveEligible: activeTurnActive && viewerRole === 'defender' && isMemberActionable,
                             attackerEligible: false,
                             targetEligible: false,
                           },

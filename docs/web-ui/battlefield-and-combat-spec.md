@@ -33,9 +33,13 @@ objective display, and visual state rules.
 
 ## Movement UI
 
-- A unit is move-eligible when operational with at least 1 movement allowance
-  remaining in the current phase.
-- Eligible units are highlighted and selectable during movement.
+- Movement eligibility is projected for `ONION_MOVE`, `DEFENDER_MOVE`, and
+  `GEV_SECOND_MOVE`. A unit is eligible only when its role matches the active
+  phase and viewer, it is operational and mobile, and it has at least 1
+  movement allowance remaining.
+- Only the active user's eligible units are highlighted and selectable. An
+  inactive viewer may inspect the same units but does not receive actionable
+  highlights.
 - The selected unit's hex is distinctly highlighted and reachable hexes use a
   subtle green overlay.
 - Left-click selects a unit; empty map space deselects.
@@ -53,8 +57,14 @@ objective display, and visual state rules.
 ### Attacker Selection
 
 - The left rail is used for attacker selection.
-- Onion combat shows eligible Onion weapons.
-- Defender combat shows eligible defender units.
+- In `DEFENDER_COMBAT`, a Defender unit is eligible only when it has at least
+  one ready attack capability and at least one legal target in range.
+- In `ONION_COMBAT`, eligibility is evaluated per weapon. A weapon is eligible
+  only when it is usable and has at least one legal target in range; the Onion
+  unit and its map representation are actionable when any weapon is eligible.
+- The left rail shows only actionable highlights for the active user's
+  eligible sources. Spent, out-of-range, disabled, destroyed, weaponless, and
+  inactive sources remain inspectable without actionable styling.
 - Onion board clicks do not add attackers; Onion weapon selection comes from
   the rail.
 - Defender combat may select attacker sources from the map or left rail, but
@@ -100,10 +110,22 @@ green/red/yellow unit-rectangle scheme.
 ## Selection and Eligibility
 
 - Only the active player assigns their own attackers.
+- Battlefield highlights and left-rail action styling consume the same
+  `BattlefieldActionEligibility` projection. The board and rail consume this
+  derived result; neither surface recomputes unit, group, member, or weapon
+  eligibility independently.
+- An expandable Defender group is actionable when at least one projected
+  member is eligible. Expanded members use their own projected eligibility;
+  a group with no eligible members is not actionable.
+- Eligibility is recomputed from the current snapshot, phase, viewer role, and
+  legal target set. When any of those inputs changes, stale actionable
+  highlights are removed rather than retained from the previous projection.
 - Defender stack membership and group selection come from `stackRoster`, not
   from co-location. Active Defender stack-member editing is defined in the
   [interaction-routing specification](interaction-routing-spec.md).
 - Disabled or destroyed units remain inspectable but cannot be selected as
   attackers.
+- When a projection record is unavailable, the rail may retain its existing
+  human-readable availability reason as a presentation fallback.
 - Selecting a legal combat target does not submit an attack; resolution still
   requires explicit confirmation.

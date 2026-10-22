@@ -4,7 +4,6 @@ import { CombatTargetList } from './CombatTargetList'
 import { BattlefieldInspectorPanel } from './BattlefieldInspectorPanel'
 import { InactiveEventStream } from './InactiveEventStream'
 import { resolveBattlefieldUnitName } from '../lib/battlefieldNaming'
-import { getCombatUnitAvailabilityReason } from '../lib/combatAvailability'
 import { isWeaponSelectionId } from '../lib/selectionIds'
 import { buildRightRailCombatPanelViewModel } from '../lib/rightRailCombatPanel'
 import type { BattlefieldDefenderView, BattlefieldOnionView } from '../lib/battlefieldView'
@@ -141,8 +140,8 @@ export function BattlefieldRightRail({
       <div className="attacker-selection-list stack-selection-list">
         {rightRailStackPanel.selectedStackMembers.map((unit) => {
           const isSelected = rightRailStackPanel.selectedStackSelectionIds.includes(unit.unitId)
-          const memberAvailabilityReason = activeCombatRole === 'defender' && 'actionableModes' in unit
-            ? combatUnitAvailabilityReasons?.[unit.unitId] ?? getCombatUnitAvailabilityReason(unit, true)
+          const memberAvailabilityReason = activeCombatRole === 'defender'
+            ? combatUnitAvailabilityReasons?.[unit.unitId]
             : undefined
           const isDisabled = isInteractionLocked || memberAvailabilityReason !== undefined
           return (

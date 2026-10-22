@@ -6,6 +6,7 @@ import {
 	type DefenderCombatEligibilityInput,
 	type OnionWeaponCombatEligibilityInput,
 } from '#web/lib/actionEligibility/combat'
+import { formatEligibilityReason } from '#web/lib/actionEligibility/reasons'
 import type { Weapon } from '#shared/types/index'
 
 function createWeapon(overrides: Partial<Weapon> = {}): Weapon {
@@ -174,5 +175,15 @@ describe('Onion weapon combat eligibility', () => {
 			owner: { role: 'onion', state: 'disabled' },
 			weapon: createWeapon({ ammo: 0 }),
 		}))).toEqual({ eligible: false, reason: 'disabled' })
+	})
+})
+
+describe('eligibility reason presentation', () => {
+	it.each([
+		['attacks-spent', 'Fired this turn'],
+		['no-attack-capabilities', 'No attack capabilities'],
+		['no-target-in-range', 'Out of range'],
+	] as const)('formats %s through the shared presentation mapping', (reason, label) => {
+		expect(formatEligibilityReason(reason)).toBe(label)
 	})
 })

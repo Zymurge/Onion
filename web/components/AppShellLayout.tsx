@@ -116,6 +116,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           activeTurnActive={display.activeTurnActive}
           activeMode={display.activeMode}
           activeSelectedUnitIds={display.activeSelectedUnitIds}
+          actionEligibility={display.actionEligibility}
           displayedDefenders={display.defenderRoster}
           displayedOnion={display.displayedOnion}
           displayedOnions={display.displayedOnions}

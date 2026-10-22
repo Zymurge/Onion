@@ -47,6 +47,12 @@ Each request includes:
   `targetEligible`, and `inspectable`
 - interaction flags: `groupExpansionTarget` and `expandedStackEditor`
 
+The `moveEligible` and `attackerEligible` flags are supplied by the shared
+phase-specific action-eligibility projection defined in the
+[battlefield and combat specification](battlefield-and-combat-spec.md#selection-and-eligibility).
+The router consumes those flags and does not recompute movement, weapon, or
+target legality.
+
 ## Base Matrix
 
 | Viewer activity | Phase mode | Surface / gesture / subject | Routed behavior |
