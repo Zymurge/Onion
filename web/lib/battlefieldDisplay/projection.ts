@@ -24,6 +24,7 @@ import {
 } from '../weaponStats'
 import { getUnitAttackStrength } from '../stackReadiness'
 import { getCombatUnitAvailabilityReason, getCombatWeaponAvailabilityReason } from '../combatAvailability'
+import { buildBattlefieldActionEligibility } from '../actionEligibility/projection'
 import { buildWeaponSelectionId, isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from '../selectionIds'
 import { buildCombatRangeHexKeys } from '../combatRange'
 import { buildCombatTargetOptions } from '../combatPreview'
@@ -226,6 +227,56 @@ export function buildBattlefieldDisplayModel({
 		displayedScenarioMap,
 		catalog: catalog ?? undefined,
 	})
+	const buildEligibilityTargetOptions = (selectedIds: ReadonlyArray<string>, selectedAttackStrength: number) => {
+		if (!isCombatPhase || activeCombatRole === null) {
+			return []
+		}
+
+		const rangeSources = buildCombatRangeSources(
+			activePhase,
+			activeCombatRole,
+			selectedIds,
+			displayedDefenders,
+			displayedOnion,
+			catalog ?? undefined,
+		)
+
+		return buildCombatTargetOptions({
+			activeCombatRole,
+			combatRangeHexKeys: buildCombatRangeHexKeys(rangeSources, displayedScenarioMap ?? undefined),
+			displayedDefenders,
+			displayedOnion,
+			stackRoster: stackRoster ?? null,
+			stackNaming,
+			selectedUnitIds: selectedIds,
+			selectedAttackStrength,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap,
+			catalog: catalog ?? undefined,
+		})
+	}
+	const targetOptionsByDefenderId = Object.fromEntries(displayedDefenders.map((unit) => [
+		unit.unitId,
+		activeCombatRole === 'defender'
+			? buildEligibilityTargetOptions([unit.unitId], getUnitAttackStrength(unit, catalog ?? undefined))
+			: [],
+	]))
+	const targetOptionsByWeaponId = displayedOnion === null
+		? {}
+		: Object.fromEntries(displayedOnion.weapons.map((weapon) => [
+			weapon.id,
+			activeCombatRole === 'onion'
+				? buildEligibilityTargetOptions([buildWeaponSelectionId(weapon.id)], getBattlefieldWeaponAttack(weapon, catalog ?? undefined))
+				: [],
+		]))
+	const actionEligibility = buildBattlefieldActionEligibility({
+		phase: activePhase,
+		viewerRole: activeRole,
+		defenders: displayedDefenders,
+		onion: displayedOnion,
+		targetOptionsByDefenderId,
+		targetOptionsByWeaponId,
+	})
 	const combatTargetIds = new Set(combatTargetOptions.map((target) => target.id))
 	const selectedCombatTarget = selectedCombatTargetId === null
 		? null
@@ -239,35 +290,14 @@ export function buildBattlefieldDisplayModel({
 				return { ...weapon, disabledReason: baseReason }
 			}
 
-			const weaponSelectionId = buildWeaponSelectionId(weapon.id)
-			const weaponRangeSources = buildCombatRangeSources(
-				activePhase,
-				activeCombatRole,
-				[weaponSelectionId],
-				displayedDefenders,
-				displayedOnion,
-				catalog,
-			)
-			const weaponTargetOptions = buildCombatTargetOptions({
-				activeCombatRole,
-				combatRangeHexKeys: buildCombatRangeHexKeys(weaponRangeSources, displayedScenarioMap ?? undefined),
-				displayedDefenders,
-				displayedOnion,
-				stackRoster: stackRoster ?? null,
-				stackNaming,
-				selectedUnitIds: [weaponSelectionId],
-				selectedAttackStrength: getBattlefieldWeaponAttack(weapon, catalog),
-				selectedAttackGroupCount: 1,
-				displayedScenarioMap,
-				catalog,
-			})
+			const weaponEligibility = actionEligibility.onionCombatByWeaponId[weapon.id]
 			return {
 				...weapon,
 				disabledReason: getCombatWeaponAvailabilityReason(
 					weapon,
 					displayedOnion.state,
 					activeTurnActive,
-					weaponTargetOptions.some((target) => target.isUnavailable !== true),
+					weaponEligibility.targetIds.length > 0,
 				),
 			}
 		})
@@ -277,28 +307,8 @@ export function buildBattlefieldDisplayModel({
 			return [unit.unitId, baseReason]
 		}
 
-		const unitRangeSources = buildCombatRangeSources(
-			activePhase,
-			activeCombatRole,
-			[unit.unitId],
-			displayedDefenders,
-			displayedOnion,
-			catalog,
-		)
-		const unitTargetOptions = buildCombatTargetOptions({
-			activeCombatRole,
-			combatRangeHexKeys: buildCombatRangeHexKeys(unitRangeSources, displayedScenarioMap ?? undefined),
-			displayedDefenders,
-			displayedOnion,
-			stackRoster: stackRoster ?? null,
-			stackNaming,
-			selectedUnitIds: [unit.unitId],
-			selectedAttackStrength: getUnitAttackStrength(unit, catalog),
-			selectedAttackGroupCount: 1,
-			displayedScenarioMap,
-			catalog,
-		})
-		return [unit.unitId, getCombatUnitAvailabilityReason(unit, activeTurnActive, unitTargetOptions.some((target) => target.isUnavailable !== true))]
+		const unitEligibility = actionEligibility.defenderCombatByUnitId[unit.unitId]
+		return [unit.unitId, getCombatUnitAvailabilityReason(unit, activeTurnActive, unitEligibility.targetIds.length > 0)]
 	}))
 	const connectionStatus = sessionState.liveConnection
 	const connectionLabel = formatLiveConnectionStatus(connectionStatus)
@@ -309,6 +319,7 @@ export function buildBattlefieldDisplayModel({
 		activeCombatRole,
 		activeGameId,
 		activeMode,
+		actionEligibility,
 		activePhase,
 		activePhaseLabel,
 		activeRole,
