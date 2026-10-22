@@ -126,18 +126,17 @@ export function HexMapUnitMarker({
   const combatHasReadyAttack = combatMembers.some((member) => member.role === 'onion'
     ? member.weapons.some((weapon) => actionEligibility.onionCombatByWeaponId[weapon.id]?.eligibility.eligible === true)
     : actionEligibility.defenderCombatByUnitId[member.unitId]?.eligibility.eligible === true)
+  const combatReady = isCombatPhase && resolvedViewerActivity === 'active' && (
+    isOccupantOnion
+      ? resolvedViewerRole === 'onion' && combatHasReadyAttack
+      : resolvedViewerRole === 'defender' && combatHasReadyAttack
+  )
   const movementEligible = combatMembers.some((member) => actionEligibility.movementByUnitId[member.unitId]?.eligible === true)
-  const movementEligibilityClass = !isMovementPhase
-    ? ''
-    : isSwamp
-      ? isDestroyed ? 'hex-unit-rect-swamp-destroyed' : 'hex-unit-rect-swamp'
-      : isDisabled
-        ? 'hex-unit-rect-move-disabled'
-        : isMovementPhaseActiveSide
-          ? movementEligible
-            ? 'hex-unit-rect-move-eligible'
-            : 'hex-unit-rect-move-ineligible'
-          : 'hex-unit-rect-move-inspectable'
+  const movementReady = isMovementPhase
+    && !isSwamp
+    && !isDisabled
+    && isMovementPhaseActiveSide
+    && movementEligible
   const swampRectClass = isSwamp
     ? isDestroyed || isDisabled
       ? 'hex-unit-rect-swamp-destroyed'
@@ -171,11 +170,7 @@ export function HexMapUnitMarker({
       subjectCapability: {
         inspectable: true,
         moveEligible: isMovementPhase && movementEligible,
-        attackerEligible: isCombatPhase && (
-          isOccupantOnion
-            ? resolvedViewerRole === 'onion' && combatHasReadyAttack
-            : resolvedViewerRole === 'defender' && combatHasReadyAttack
-        ),
+        attackerEligible: combatReady,
         targetEligible: false,
       },
       interactionMode: rosterGroup !== null ? { groupExpansionTarget: true } : undefined,
@@ -202,7 +197,8 @@ export function HexMapUnitMarker({
         isOccupantOnion ? 'hex-unit-stack-onion' : 'hex-unit-stack-defender',
         isSwamp ? 'hex-unit-stack-swamp' : '',
         isOccupantSelected ? 'hex-unit-stack-selected' : '',
-        isMovementPhase && movementEligibilityClass === 'hex-unit-rect-move-eligible' ? 'hex-unit-stack-move-ready' : '',
+        combatReady ? 'hex-unit-stack-combat-ready' : '',
+        movementReady ? 'hex-unit-stack-move-ready' : '',
         isDisabled ? 'hex-unit-stack-disabled' : '',
         isSwamp
           ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral')

@@ -639,11 +639,14 @@ export function BattlefieldLeftRail({
                 <p className="eyebrow">Onion</p>
               </div>
             </div>
-            {displayedOnions.length > 0 ? displayedOnions.map((onion) => (
+            {displayedOnions.length > 0 ? displayedOnions.map((onion) => {
+              const movementEligibility = actionEligibility?.movementByUnitId[onion.unitId]
+              const isActionable = activeTurnActive && viewerRole === 'onion' && movementEligibility?.eligible === true
+              return (
               <button
                 key={onion.unitId}
                 type="button"
-                className={`onion-card-button ${activeSelectedUnitIds.includes(onion.unitId) ? 'is-selected' : ''}`}
+                className={`onion-card-button ${activeSelectedUnitIds.includes(onion.unitId) ? 'is-selected' : ''}${isActionable ? ' is-actionable' : ''}`}
                 aria-pressed={activeSelectedUnitIds.includes(onion.unitId)}
                 disabled={isSelectionLocked}
                 data-selected={activeSelectedUnitIds.includes(onion.unitId)}
@@ -690,7 +693,8 @@ export function BattlefieldLeftRail({
                   </div>
                 </div>
               </button>
-            )) : (
+              )
+            }) : (
               <p className="summary-line">Waiting for battlefield data.</p>
             )}
           </section>

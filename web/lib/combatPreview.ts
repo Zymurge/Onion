@@ -3,6 +3,7 @@ import {
 	type CombatExchangeInput,
 	type CombatAttackerContribution,
 	} from '../../shared/combatCalculator.js'
+import { createRulesContext } from '../../shared/rulesContext.js'
 import { ONION_STATIC_RULES } from '../../shared/staticRules.js'
 import {
 	isTargetAllowedByRules,
@@ -51,8 +52,24 @@ type CombatPreviewInput = {
 }
 
 const combatRules = ONION_STATIC_RULES
+const defaultCombatCalculator = createCombatCalculator(combatRules)
+const combatCalculatorsByCatalog = new WeakMap<SessionCatalog, ReturnType<typeof createCombatCalculator>>()
 
-const combatCalculator = createCombatCalculator(combatRules)
+function getCombatCalculator(catalog?: SessionCatalog) {
+	if (catalog === undefined) {
+		return defaultCombatCalculator
+	}
+
+	const cachedCalculator = combatCalculatorsByCatalog.get(catalog)
+	if (cachedCalculator !== undefined) {
+		return cachedCalculator
+	}
+
+	const calculator = createCombatCalculator(createRulesContext(catalog).combatRules)
+	combatCalculatorsByCatalog.set(catalog, calculator)
+	return calculator
+}
+
 function isStackableUnitType(unitType: string, catalog?: SessionCatalog): boolean {
 	return catalog !== undefined && isSessionUnitTypeStackable(catalog, unitType)
 }
@@ -201,6 +218,7 @@ export function buildCombatTargetOptions({
 	if (activeCombatRole === null) {
 		return []
 	}
+	const combatCalculator = getCombatCalculator(catalog)
 
 	const selectedAttackerIds = getSelectedAttackerIds(activeCombatRole, selectedUnitIds)
 	let resolvedStackRoster = stackRoster

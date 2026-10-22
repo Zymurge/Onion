@@ -33,6 +33,63 @@ function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRos
 }
 
 describe('buildCombatTargetOptions', () => {
+	it('uses scenario-local unit definitions for combat previews', () => {
+		const scenarioUnitTypeId = 'e2e-combat-01:ScenarioPuss'
+		const scenarioWeaponTypeId = `${scenarioUnitTypeId}:Puss.main`
+		const scenarioCatalog = createSessionCatalog({
+			...sessionCatalog.unitTypes,
+			[scenarioUnitTypeId]: {
+				...sessionCatalog.unitTypes.Puss,
+				typeId: scenarioUnitTypeId,
+			},
+		}, {
+			...sessionCatalog.weaponTypes,
+			[scenarioWeaponTypeId]: {
+				...sessionCatalog.weaponTypes['Puss.main'],
+				typeId: scenarioWeaponTypeId,
+			},
+		})
+
+		const options = buildCombatTargetOptionsWithCatalog({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['1,0']),
+			displayedDefenders: [
+				makeBattlefieldDefender({ unitId: 'scenario-puss-1', typeId: scenarioUnitTypeId, position: { q: 1, r: 0 } }),
+			],
+			displayedOnion: makeBattlefieldOnion({
+				position: { q: 0, r: 0 },
+				weapons: [makeWeapon({ id: 'main', typeId: 'TheOnion.main' })],
+			}),
+			selectedUnitIds: ['weapon:main'],
+			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: { width: 8, height: 8, hexes: [] },
+			catalog: scenarioCatalog,
+		})
+
+		expect(options).toHaveLength(1)
+		expect(options[0]?.id).toBe('scenario-puss-1')
+
+		const defenderOptions = buildCombatTargetOptionsWithCatalog({
+			activeCombatRole: 'defender',
+			combatRangeHexKeys: new Set(['0,0']),
+			displayedDefenders: [
+				makeBattlefieldDefender(
+					{ unitId: 'scenario-puss-1', typeId: scenarioUnitTypeId, position: { q: 1, r: 0 } },
+					{ weapons: [{ ...makeWeapon(), typeId: scenarioWeaponTypeId }] },
+				),
+			],
+			displayedOnion: makeBattlefieldOnion({ position: { q: 0, r: 0 } }),
+			selectedUnitIds: ['scenario-puss-1'],
+			selectedAttackStrength: 5,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: { width: 8, height: 8, hexes: [] },
+			catalog: scenarioCatalog,
+		})
+
+		expect(defenderOptions.length).toBeGreaterThan(0)
+	})
+
 	it('matches the shared parity fixture for an Onion attack against a ridgeline stack', () => {
 		const fixture = combatParityFixtures.find((candidate) => candidate.name.startsWith('Onion main weapon'))
 		if (fixture === undefined) throw new Error('Missing Onion parity fixture')

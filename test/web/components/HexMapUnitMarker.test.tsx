@@ -321,6 +321,13 @@ describe('HexMapUnitMarker', () => {
 
     fireEvent.click(screen.getByTestId('hex-unit-pigs-1'))
 
+    const marker = screen.getByTestId('hex-unit-pigs-1')
+    if (expected) {
+      expect(marker).toHaveClass('hex-unit-stack-combat-ready')
+    } else {
+      expect(marker).not.toHaveClass('hex-unit-stack-combat-ready')
+    }
+
     expect(routeMapInteraction).toHaveBeenCalledWith(expect.objectContaining({
       subjectCapability: expect.objectContaining({ attackerEligible: expected }),
     }))
@@ -369,9 +376,55 @@ describe('HexMapUnitMarker', () => {
 
     fireEvent.click(screen.getByTestId('hex-unit-pigs-1'))
 
+    expect(screen.getByTestId('hex-unit-pigs-1')).toHaveClass('hex-unit-stack-combat-ready')
     expect(routeMapInteraction).toHaveBeenCalledWith(expect.objectContaining({
       subjectCapability: expect.objectContaining({ attackerEligible: true }),
     }))
+  })
+
+  it('does not highlight an eligible combat marker for an inactive viewer', () => {
+    const livePig: BattlefieldUnit = {
+      ...defender,
+      unitId: 'pigs-1',
+      typeId: 'LittlePigs',
+      state: 'operational',
+      actionableModes: ['fire'],
+    }
+
+    render(
+      <svg>
+        <HexMapUnitMarker
+          actionEligibility={{
+            movementByUnitId: {},
+            defenderCombatByUnitId: {
+              'pigs-1': { eligibility: { eligible: true }, targetIds: ['onion-1'], targetHexKeys: ['0,0'] },
+            },
+            onionCombatByWeaponId: {},
+          }}
+          activeCombatRole="defender"
+          center={{ x: 36, y: 36 }}
+          combatMembers={[livePig]}
+          isCombatPhase
+          isMovementPhase={false}
+          isOccupantSelected={false}
+          isSelectionLocked={false}
+          occupant={livePig}
+          offsetIndex={0}
+          renderedOccupantCount={1}
+          onion={onion}
+          phase="DEFENDER_COMBAT"
+          resolvedPhaseMode="combat"
+          resolvedViewerActivity="inactive"
+          resolvedViewerRole="defender"
+          routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
+          rosterGroup={null}
+          onDeselect={vi.fn()}
+          onSelectUnit={vi.fn()}
+        />
+      </svg>,
+    )
+
+    expect(screen.getByTestId('hex-unit-pigs-1')).not.toHaveClass('hex-unit-stack-combat-ready')
   })
 
   it('marks an Onion attacker-ready when any projected weapon is eligible', () => {
@@ -420,6 +473,7 @@ describe('HexMapUnitMarker', () => {
 
     fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
 
+    expect(screen.getByTestId('hex-unit-onion-1')).toHaveClass('hex-unit-stack-combat-ready')
     expect(routeMapInteraction).toHaveBeenCalledWith(expect.objectContaining({
       subjectCapability: expect.objectContaining({ attackerEligible: true }),
     }))
