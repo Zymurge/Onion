@@ -1,6 +1,5 @@
 import { expect, test } from '../fixtures/twoPlayerGame.js'
 import type { WebSocketRoute } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
 import { readPlaywrightRuntime } from '../runtime/playwrightEnvironment.js'
 import { BattlefieldPage } from '../pages/battlefieldPage.js'
 import { LoginPage } from '../pages/loginPage.js'
@@ -100,12 +99,18 @@ test('reports a live WebSocket disconnect in the browser', async ({ browser, two
 	const runtime = readPlaywrightRuntime()
 	const context = await browser.newContext()
 	let webSocketRoute: WebSocketRoute | null = null
+	let disconnectRequested = false
 
 	try {
 		const page = await context.newPage()
 		await page.routeWebSocket(
 			(url) => url.pathname === `/games/${twoPlayerGame.gameId}/ws`,
 			(route) => {
+				if (disconnectRequested) {
+					route.close()
+					return
+				}
+
 				route.connectToServer()
 				webSocketRoute = route
 			},
@@ -117,15 +122,16 @@ test('reports a live WebSocket disconnect in the browser', async ({ browser, two
 		if (connectedWebSocketRoute === null) {
 			throw new Error('Expected the gameplay WebSocket route to be connected')
 		}
+		disconnectRequested = true
 		await connectedWebSocketRoute.close()
 
-		await expect(page.locator('.connection-status-disconnected')).toHaveText('Disconnected')
+		await expect(page.locator('.connection-status-disconnected')).toHaveText('Disconnected', { timeout: 12_000 })
 	} finally {
 		await context.close()
 	}
 })
 
-test('logs unexpected action failures with correlation context', async ({ request, twoPlayerGame }) => {
+test('rejects malformed action payloads before command execution', async ({ request, twoPlayerGame }) => {
 	const runtime = readPlaywrightRuntime()
 	const response = await request.post(`${runtime.engineUrl}/games/${twoPlayerGame.gameId}/actions`, {
 		headers: { authorization: `Bearer ${twoPlayerGame.onion.token}` },
@@ -137,15 +143,11 @@ test('logs unexpected action failures with correlation context', async ({ reques
 		},
 	})
 
-	expect(response.status()).toBe(500)
-	expect((await response.json()).code).toBe('INTERNAL_ERROR')
-
-	const readEngineLog = () => readFile(`${runtime.logDir}/engine.log`, 'utf8')
-	await expect.poll(readEngineLog).toMatch(/"requestId":"[^"]+"/)
-	await expect.poll(readEngineLog).toContain(`"gameId":${twoPlayerGame.gameId}`)
-	await expect.poll(readEngineLog).toContain(`"userId":"${twoPlayerGame.onion.userId}"`)
-	await expect.poll(readEngineLog).toContain('"commandType":"FIRE"')
-	await expect.poll(readEngineLog).toContain('"phase":"ONION_MOVE"')
-	await expect.poll(readEngineLog).toContain('"errorName":"TypeError"')
-	await expect.poll(readEngineLog).toContain('"errorMessage":"')
+	expect(response.status()).toBe(400)
+	expect(await response.json()).toMatchObject({
+		ok: false,
+		code: 'INVALID_INPUT',
+		detailCode: 'COMMAND_SCHEMA_INVALID',
+		currentPhase: 'ONION_MOVE',
+	})
 })

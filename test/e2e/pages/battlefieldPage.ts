@@ -72,7 +72,7 @@ export class BattlefieldPage {
 	}
 
 	async expectDestroyed(unitId: string): Promise<void> {
-		await expect(this.page.getByTestId(`hex-unit-${unitId}`)).toHaveCount(0)
+		await expect(this.page.getByTestId(`hex-unit-${unitId}`)).toHaveClass(/tone-destroyed/)
 	}
 
 	async expectUnitMoveReady(unitId: string, expected: boolean): Promise<void> {
@@ -207,7 +207,7 @@ export class BattlefieldPage {
 			const marker = this.page.getByTestId(`hex-unit-${unitId}`)
 			await expect(marker).toHaveCount(1)
 			return [unitId, {
-				text: await marker.textContent(),
+				text: (await marker.locator('text.hex-unit-marker tspan').allTextContents()).join(' '),
 				transform: await marker.getAttribute('transform'),
 			}]
 		})))
