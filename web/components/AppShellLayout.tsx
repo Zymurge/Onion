@@ -116,6 +116,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           activeTurnActive={display.activeTurnActive}
           activeMode={display.activeMode}
           activeSelectedUnitIds={display.activeSelectedUnitIds}
+          actionEligibility={display.actionEligibility}
           displayedDefenders={display.defenderRoster}
           displayedOnion={display.displayedOnion}
           displayedOnions={display.displayedOnions}
@@ -136,6 +137,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
         <AppBattlefieldStage
           activePhase={display.activePhase}
           activeTurnActive={display.activeTurnActive}
+          actionEligibility={display.actionEligibility}
           defenders={display.displayedDefenders}
           lifecycleStatus={session.state.snapshot?.status}
           onions={display.displayedOnions}

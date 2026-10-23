@@ -31,7 +31,7 @@ function createDisplay(overrides: Record<string, unknown> = {}) {
 		selectedCombatAttackerIds: ['weapon:main'],
 		selectedCombatTarget: {
 			id: 'defender-1:treads',
-			isDisabled: false,
+			isUnavailable: false,
 			label: 'Defender 1 treads',
 			modifiers: [],
 		},

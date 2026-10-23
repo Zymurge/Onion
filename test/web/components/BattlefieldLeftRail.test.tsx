@@ -4,8 +4,10 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ComponentProps } from 'react'
 
 import { BattlefieldLeftRail } from '#web/components/BattlefieldLeftRail'
+import { HexMapUnitMarker } from '#web/components/HexMapUnitMarker'
 import type { BattlefieldOnionView } from '#web/lib/battlefieldView'
-import type { CombatWeaponDetail } from '#web/lib/combatAvailability'
+import type { CombatWeaponDetail } from '#web/lib/actionEligibility/reasons'
+import { buildBattlefieldActionEligibility, type BattlefieldActionEligibility } from '#web/lib/actionEligibility/projection'
 import { canonicalizeBattlefieldDefenders, canonicalizeBattlefieldOnion, type BattlefieldDefenderFixture, type BattlefieldOnionFixture } from '#test/utils/gameStateUtils'
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
@@ -57,6 +59,475 @@ function renderLeftRail(overrides: Partial<LeftRailProps> = {}) {
 }
 
 describe('BattlefieldLeftRail', () => {
+  function emptyActionEligibility(): BattlefieldActionEligibility {
+    return {
+      movementByUnitId: {},
+      defenderCombatByUnitId: {},
+      onionCombatByWeaponId: {},
+    }
+  }
+
+  it('uses projected movement eligibility for defender highlighting', () => {
+    const defender = canonicalizeBattlefieldDefenders([{
+      id: 'swamp-1',
+      type: 'Swamp',
+      friendlyName: 'The Swamp',
+      status: 'operational',
+      position: { q: 1, r: 1 },
+      move: 3,
+      weapons: 'main: ready',
+      attack: '1 / rng 1',
+      actionableModes: ['fire'],
+    }])
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      activeTurnActive: true,
+      isMovementPhase: true,
+      displayedDefenders: defender,
+      actionEligibility: {
+        ...emptyActionEligibility(),
+        movementByUnitId: {
+          'swamp-1': { eligible: false, reason: 'no-movement-remaining' },
+        },
+      },
+    })
+
+    expect(screen.getByTestId('combat-unit-swamp-1')).not.toHaveClass('is-actionable')
+  })
+
+  it('highlights a combat stack when one member remains eligible', () => {
+    const displayedDefenders = canonicalizeBattlefieldDefenders([
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 1',
+        status: 'operational',
+        position: { q: 1, r: 1 },
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: [],
+      },
+      {
+        id: 'pigs-2',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 2',
+        status: 'operational',
+        position: { q: 1, r: 1 },
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: [],
+      },
+    ])
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      activeTurnActive: true,
+      isCombatPhase: true,
+      stacksExpandable: true,
+      displayedDefenders,
+      stackNaming: {
+        groupsInUse: [{ groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
+        usedGroupNames: ['Little Pigs group 1'],
+      },
+      stackRoster: {
+        groupsById: {
+          'LittlePigs:1,1': {
+            groupName: 'Little Pigs group 1',
+            unitType: 'LittlePigs',
+            position: { q: 1, r: 1 },
+            unitIds: ['pigs-1', 'pigs-2'],
+          },
+        },
+      },
+      actionEligibility: {
+        ...emptyActionEligibility(),
+        defenderCombatByUnitId: {
+          'pigs-1': { eligibility: { eligible: false, reason: 'attacks-spent' }, targetIds: [], targetHexKeys: [] },
+          'pigs-2': { eligibility: { eligible: true }, targetIds: ['onion-1'], targetHexKeys: ['0,0'] },
+        },
+      },
+    })
+
+    expect(screen.getByTestId('combat-unit-pigs-1')).toHaveClass('is-actionable')
+  })
+
+  it.each([
+    { description: 'a legal target is available', status: 'operational' as const, weaponDetails: [{ id: 'main-1', typeId: 'Puss.main', weaponClass: 'main' as const, state: 'ready' as const }], hasLegalTarget: true, viewerActive: true, expected: true },
+    { description: 'no target is in range', status: 'operational' as const, weaponDetails: [{ id: 'main-1', typeId: 'Puss.main', weaponClass: 'main' as const, state: 'ready' as const }], hasLegalTarget: false, viewerActive: true, expected: false },
+    { description: 'all attacks are spent', status: 'operational' as const, weaponDetails: [{ id: 'main-1', typeId: 'Puss.main', weaponClass: 'main' as const, state: 'spent' as const }], hasLegalTarget: true, viewerActive: true, expected: false },
+    { description: 'the unit has no weapons', status: 'operational' as const, weaponDetails: [], hasLegalTarget: true, viewerActive: true, expected: false },
+    { description: 'the unit is disabled', status: 'disabled' as const, weaponDetails: [{ id: 'main-1', typeId: 'Puss.main', weaponClass: 'main' as const, state: 'ready' as const }], hasLegalTarget: true, viewerActive: true, expected: false },
+    { description: 'the unit is destroyed', status: 'destroyed' as const, weaponDetails: [{ id: 'main-1', typeId: 'Puss.main', weaponClass: 'main' as const, state: 'ready' as const }], hasLegalTarget: true, viewerActive: true, expected: false },
+    { description: 'the viewer is inactive', status: 'operational' as const, weaponDetails: [{ id: 'main-1', typeId: 'Puss.main', weaponClass: 'main' as const, state: 'ready' as const }], hasLegalTarget: true, viewerActive: false, expected: false },
+  ])('keeps map and rail combat highlights aligned when $description', ({ status, weaponDetails, hasLegalTarget, viewerActive, expected }) => {
+    const displayedDefenders = canonicalizeBattlefieldDefenders([{
+      id: 'puss-1',
+      type: 'Puss',
+      friendlyName: 'Puss 1',
+      status,
+      position: { q: 1, r: 1 },
+      move: 3,
+      weaponDetails,
+      attack: '4 / rng 3',
+      actionableModes: weaponDetails.some((weapon) => weapon.state === 'ready') ? ['fire'] : [],
+    }])
+    const defender = displayedDefenders[0]
+    const actionEligibility = buildBattlefieldActionEligibility({
+      phase: 'DEFENDER_COMBAT',
+      viewerRole: viewerActive ? 'defender' : null,
+      defenders: displayedDefenders,
+      onion: null,
+      targetOptionsByDefenderId: {
+        'puss-1': hasLegalTarget ? [{ id: 'onion-1', q: 0, r: 0 }] : [],
+      },
+      targetOptionsByWeaponId: {},
+    })
+
+    render(
+      <>
+        <BattlefieldLeftRail
+          {...createLeftRailProps({
+            activeCombatRole: 'defender',
+            activeRole: 'defender',
+            activeTurnActive: viewerActive,
+            isCombatPhase: true,
+            displayedDefenders,
+            actionEligibility,
+            catalog: sessionCatalog,
+          })}
+        />
+        <svg>
+          <HexMapUnitMarker
+            actionEligibility={actionEligibility}
+            activeCombatRole="defender"
+            center={{ x: 36, y: 36 }}
+            combatMembers={[defender]}
+            isCombatPhase
+            isMovementPhase={false}
+            isOccupantSelected={false}
+            isSelectionLocked={false}
+            occupant={defender}
+            offsetIndex={0}
+            renderedOccupantCount={1}
+            onion={createOnion()}
+            phase="DEFENDER_COMBAT"
+            resolvedPhaseMode="combat"
+            resolvedViewerActivity={viewerActive ? 'active' : 'inactive'}
+            resolvedViewerRole="defender"
+            routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
+            rosterGroup={null}
+            onDeselect={vi.fn()}
+            onSelectUnit={vi.fn()}
+          />
+        </svg>
+      </>,
+    )
+
+    const markerIsActionable = screen.getByTestId('hex-unit-puss-1').classList.contains('hex-unit-stack-combat-ready')
+    const railIsActionable = screen.getByTestId('combat-unit-puss-1').classList.contains('is-actionable')
+    expect(markerIsActionable).toBe(expected)
+    expect(railIsActionable).toBe(expected)
+    expect(markerIsActionable).toBe(railIsActionable)
+  })
+
+  it.each([
+    { description: 'Onion movement remains', phase: 'ONION_MOVE' as const, role: 'onion' as const, viewerRole: 'onion' as const, movesRemaining: 1, active: true, expected: true },
+    { description: 'Onion movement is spent', phase: 'ONION_MOVE' as const, role: 'onion' as const, viewerRole: 'onion' as const, movesRemaining: 0, active: true, expected: false },
+    { description: 'Onion movement is viewed by the inactive player', phase: 'ONION_MOVE' as const, role: 'onion' as const, viewerRole: 'defender' as const, movesRemaining: 1, active: false, expected: false },
+    { description: 'Defender movement remains', phase: 'DEFENDER_MOVE' as const, role: 'defender' as const, viewerRole: 'defender' as const, movesRemaining: 1, active: true, expected: true },
+    { description: 'Defender movement is spent', phase: 'DEFENDER_MOVE' as const, role: 'defender' as const, viewerRole: 'defender' as const, movesRemaining: 0, active: true, expected: false },
+    { description: 'GEV secondary movement remains', phase: 'GEV_SECOND_MOVE' as const, role: 'defender' as const, viewerRole: 'defender' as const, movesRemaining: 1, active: true, expected: true },
+    { description: 'GEV secondary movement is spent', phase: 'GEV_SECOND_MOVE' as const, role: 'defender' as const, viewerRole: 'defender' as const, movesRemaining: 0, active: true, expected: false },
+  ])('keeps map and rail movement indicators aligned when $description', ({ phase, role, viewerRole, movesRemaining, active, expected }) => {
+    const defenders = role === 'defender'
+      ? canonicalizeBattlefieldDefenders([{
+        id: 'puss-1',
+        type: 'Puss',
+        friendlyName: 'Puss 1',
+        status: 'operational',
+        position: { q: 1, r: 1 },
+        movesRemaining,
+        move: 3,
+        weapons: 'main: ready',
+        attack: '4 / rng 3',
+        actionableModes: ['fire'],
+      }])
+      : []
+    const onionUnit = role === 'onion'
+      ? createOnion({ movesRemaining, position: { q: 1, r: 1 } })
+      : null
+    const occupant = role === 'onion' ? onionUnit! : defenders[0]!
+    const actionEligibility = buildBattlefieldActionEligibility({
+      phase,
+      viewerRole,
+      defenders,
+      onion: onionUnit,
+      targetOptionsByDefenderId: {},
+      targetOptionsByWeaponId: {},
+    })
+
+    render(
+      <>
+        <BattlefieldLeftRail
+          {...createLeftRailProps({
+            activeCombatRole: role,
+            activeRole: viewerRole,
+            activeTurnActive: active,
+            isMovementPhase: true,
+            displayedDefenders: defenders,
+            displayedOnion: onionUnit,
+            actionEligibility,
+            catalog: sessionCatalog,
+          })}
+        />
+        <svg>
+          <HexMapUnitMarker
+            actionEligibility={actionEligibility}
+            activeCombatRole={role}
+            center={{ x: 36, y: 36 }}
+            combatMembers={[occupant]}
+            isCombatPhase={false}
+            isMovementPhase
+            isOccupantSelected={false}
+            isSelectionLocked={false}
+            occupant={occupant}
+            offsetIndex={0}
+            renderedOccupantCount={1}
+            onion={onionUnit ?? createOnion()}
+            phase={phase}
+            resolvedPhaseMode="movement"
+            resolvedViewerActivity={active ? 'active' : 'inactive'}
+            resolvedViewerRole={viewerRole}
+            routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
+            rosterGroup={null}
+            onDeselect={vi.fn()}
+            onSelectUnit={vi.fn()}
+          />
+        </svg>
+      </>,
+    )
+
+    const markerIsActionable = screen.getByTestId(`hex-unit-${occupant.unitId}`).classList.contains('hex-unit-stack-move-ready')
+    const railIsActionable = screen.getByTestId(`combat-unit-${occupant.unitId}`).classList.contains('is-actionable')
+    expect(markerIsActionable).toBe(expected)
+    expect(railIsActionable).toBe(expected)
+    expect(markerIsActionable).toBe(railIsActionable)
+  })
+
+  it('keeps Onion map readiness aligned with per-weapon rail eligibility', () => {
+    const onion = canonicalizeBattlefieldOnion({
+      id: 'onion-1',
+      type: 'TheOnion',
+      position: { q: 0, r: 0 },
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weaponDetails: [
+        { id: 'main-1', typeId: 'TheOnion.main', weaponClass: 'main', state: 'spent', friendlyName: 'Main Weapon' },
+        { id: 'secondary-1', typeId: 'TheOnion.secondary', weaponClass: 'secondary', state: 'ready', friendlyName: 'Secondary Weapon' },
+      ],
+    })
+    const actionEligibility = buildBattlefieldActionEligibility({
+      phase: 'ONION_COMBAT',
+      viewerRole: 'onion',
+      defenders: [],
+      onion,
+      targetOptionsByDefenderId: {},
+      targetOptionsByWeaponId: {
+        'main-1': [],
+        'secondary-1': [{ id: 'puss-1', q: 1, r: 1 }],
+      },
+    })
+
+    render(
+      <>
+        <BattlefieldLeftRail
+          {...createLeftRailProps({
+            activeCombatRole: 'onion',
+            activeRole: 'onion',
+            activeTurnActive: true,
+            isCombatPhase: true,
+            displayedOnion: onion,
+            readyWeaponDetails: onion.weapons,
+            onionWeapons: { operationalWeapons: 1, operationalMissiles: 0 },
+            actionEligibility,
+            catalog: sessionCatalog,
+          })}
+        />
+        <svg>
+          <HexMapUnitMarker
+            actionEligibility={actionEligibility}
+            activeCombatRole="onion"
+            center={{ x: 36, y: 36 }}
+            combatMembers={[onion]}
+            isCombatPhase
+            isMovementPhase={false}
+            isOccupantSelected={false}
+            isSelectionLocked={false}
+            occupant={onion}
+            offsetIndex={0}
+            renderedOccupantCount={1}
+            onion={onion}
+            phase="ONION_COMBAT"
+            resolvedPhaseMode="combat"
+            resolvedViewerActivity="active"
+            resolvedViewerRole="onion"
+            routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
+            rosterGroup={null}
+            onDeselect={vi.fn()}
+            onSelectUnit={vi.fn()}
+          />
+        </svg>
+      </>,
+    )
+
+    expect(screen.getByTestId('combat-weapon-main-1')).not.toHaveClass('is-actionable')
+    expect(screen.getByTestId('combat-weapon-secondary-1')).toHaveClass('is-actionable')
+    expect(screen.getByTestId('hex-unit-onion-1')).toHaveClass('hex-unit-stack-combat-ready')
+  })
+
+  it('keeps partially eligible stack readiness aligned between map and rail', () => {
+    const displayedDefenders = canonicalizeBattlefieldDefenders([
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 1',
+        status: 'operational',
+        position: { q: 1, r: 1 },
+        weaponDetails: [{ id: 'rifle-1', typeId: 'LittlePigs.rifle', weaponClass: 'main', state: 'spent' }],
+        actionableModes: [],
+      },
+      {
+        id: 'pigs-2',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 2',
+        status: 'operational',
+        position: { q: 1, r: 1 },
+        weaponDetails: [{ id: 'rifle-1', typeId: 'LittlePigs.rifle', weaponClass: 'main', state: 'ready' }],
+        actionableModes: ['fire'],
+      },
+    ])
+    const stackRoster = {
+      groupsById: {
+        'LittlePigs:1,1': {
+          groupName: 'Little Pigs group 1',
+          unitType: 'LittlePigs',
+          position: { q: 1, r: 1 },
+          unitIds: ['pigs-1', 'pigs-2'],
+        },
+      },
+    }
+    const stackNaming = {
+      groupsInUse: [{ groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
+      usedGroupNames: ['Little Pigs group 1'],
+    }
+    const actionEligibility = buildBattlefieldActionEligibility({
+      phase: 'DEFENDER_COMBAT',
+      viewerRole: 'defender',
+      defenders: displayedDefenders,
+      onion: null,
+      targetOptionsByDefenderId: {
+        'pigs-1': [{ id: 'onion-1', q: 0, r: 0 }],
+        'pigs-2': [{ id: 'onion-1', q: 0, r: 0 }],
+      },
+      targetOptionsByWeaponId: {},
+    })
+
+    render(
+      <>
+        <BattlefieldLeftRail
+          {...createLeftRailProps({
+            activeCombatRole: 'defender',
+            activeRole: 'defender',
+            activeTurnActive: true,
+            isCombatPhase: true,
+            stacksExpandable: true,
+            displayedDefenders,
+            actionEligibility,
+            stackNaming,
+            stackRoster,
+            catalog: sessionCatalog,
+          })}
+        />
+        <svg>
+          <HexMapUnitMarker
+            actionEligibility={actionEligibility}
+            activeCombatRole="defender"
+            center={{ x: 36, y: 36 }}
+            combatMembers={displayedDefenders}
+            isCombatPhase
+            isMovementPhase={false}
+            isOccupantSelected={false}
+            isSelectionLocked={false}
+            occupant={displayedDefenders[0]}
+            offsetIndex={0}
+            renderedOccupantCount={1}
+            onion={createOnion()}
+            phase="DEFENDER_COMBAT"
+            resolvedPhaseMode="combat"
+            resolvedViewerActivity="active"
+            resolvedViewerRole="defender"
+            routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
+            rosterGroup={{ groupId: 'LittlePigs:1,1', unitIds: ['pigs-1', 'pigs-2'] }}
+            stackNaming={stackNaming}
+            onDeselect={vi.fn()}
+            onSelectUnit={vi.fn()}
+          />
+        </svg>
+      </>,
+    )
+
+    const markerIsActionable = screen.getByTestId('hex-unit-pigs-1').classList.contains('hex-unit-stack-combat-ready')
+    const railIsActionable = screen.getByTestId('combat-unit-pigs-1').classList.contains('is-actionable')
+    expect(actionEligibility.defenderCombatByUnitId['pigs-1']?.eligibility.eligible).toBe(false)
+    expect(actionEligibility.defenderCombatByUnitId['pigs-2']?.eligibility.eligible).toBe(true)
+    expect(markerIsActionable).toBe(true)
+    expect(railIsActionable).toBe(true)
+    expect(markerIsActionable).toBe(railIsActionable)
+  })
+
+  it('uses projected weapon eligibility for Onion highlighting', () => {
+    const onion = canonicalizeBattlefieldOnion({
+      id: 'onion-1',
+      type: 'TheOnion',
+      position: { q: 0, r: 0 },
+      status: 'operational',
+      treads: 33,
+      movesAllowed: 3,
+      movesRemaining: 3,
+      rams: 0,
+      weapons: 'main: ready',
+      weaponDetails: [{ id: 'main-1', typeId: 'TheOnion.main', weaponClass: 'main', state: 'ready', friendlyName: 'Main Weapon' }],
+    })
+
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      activeTurnActive: true,
+      isCombatPhase: true,
+      displayedOnion: onion,
+      readyWeaponDetails: onion.weapons,
+      onionWeapons: { operationalWeapons: 1, operationalMissiles: 0 },
+      actionEligibility: {
+        ...emptyActionEligibility(),
+        onionCombatByWeaponId: {
+          'main-1': { eligibility: { eligible: false, reason: 'no-target-in-range' }, targetIds: [], targetHexKeys: [] },
+        },
+      },
+    })
+
+    const weapon = screen.getByTestId('combat-weapon-main-1')
+    expect(weapon).not.toHaveClass('is-actionable')
+    expect(weapon).toBeDisabled()
+  })
+
   it('renders weapon availability reasons and blocks unavailable weapon selection', () => {
     const onSelectUnit = vi.fn()
     const weapons: CombatWeaponDetail[] = [
@@ -1445,12 +1916,28 @@ describe('BattlefieldLeftRail', () => {
 
   it('routes Onion movement selection with additive gestures', () => {
     const onSelectUnit = vi.fn()
+    const displayedOnion = canonicalizeBattlefieldOnion(createOnion())
+    const actionEligibility = buildBattlefieldActionEligibility({
+      phase: 'ONION_MOVE',
+      viewerRole: 'onion',
+      defenders: [],
+      onion: {
+        unitId: displayedOnion.unitId,
+        role: 'onion',
+        state: displayedOnion.state,
+        movesRemaining: displayedOnion.movesRemaining,
+        weapons: displayedOnion.weapons,
+      },
+      targetOptionsByDefenderId: {},
+      targetOptionsByWeaponId: {},
+    })
 
     renderLeftRail({
       activeCombatRole: 'onion',
       activeRole: 'onion',
       isMovementPhase: true,
-      displayedOnion: canonicalizeBattlefieldOnion(createOnion()),
+      displayedOnion,
+      actionEligibility,
       onSelectUnit,
     })
 
@@ -1460,6 +1947,43 @@ describe('BattlefieldLeftRail', () => {
 
     expect(onSelectUnit).toHaveBeenNthCalledWith(1, 'onion-1', false)
     expect(onSelectUnit).toHaveBeenNthCalledWith(2, 'onion-1', true)
+  })
+
+  it.each([
+    { description: 'movement is spent', movesRemaining: 0, immobile: false },
+    { description: 'the Onion is immobile', movesRemaining: 1, immobile: true },
+  ])('does not forward additive selection when $description', ({ movesRemaining, immobile }) => {
+    const onSelectUnit = vi.fn()
+    const displayedOnion = canonicalizeBattlefieldOnion(createOnion({ movesRemaining }))
+    const actionEligibility = buildBattlefieldActionEligibility({
+      phase: 'ONION_MOVE',
+      viewerRole: 'onion',
+      defenders: [],
+      onion: {
+        unitId: displayedOnion.unitId,
+        role: 'onion',
+        state: displayedOnion.state,
+        movesRemaining,
+        immobile,
+        weapons: displayedOnion.weapons,
+      },
+      targetOptionsByDefenderId: {},
+      targetOptionsByWeaponId: {},
+    })
+
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isMovementPhase: true,
+      displayedOnion,
+      actionEligibility,
+      onSelectUnit,
+    })
+
+    fireEvent.click(screen.getByTestId('combat-unit-onion-1'), { ctrlKey: true })
+
+    expect(onSelectUnit).toHaveBeenCalledWith('onion-1', false)
+    expect(onSelectUnit).not.toHaveBeenCalledWith('onion-1', true)
   })
 
   it('shows the Onion movement waiting state when no Onion is available', () => {
@@ -1562,6 +2086,14 @@ describe('BattlefieldLeftRail', () => {
       stackRoster,
       stacksExpandable: true,
       catalog: sessionCatalog,
+      actionEligibility: {
+        movementByUnitId: {},
+        defenderCombatByUnitId: {
+          'pigs-1': { eligibility: { eligible: true }, targetIds: ['onion-1'], targetHexKeys: ['0,0'] },
+          'pigs-2': { eligibility: { eligible: false, reason: 'attacks-spent' }, targetIds: [], targetHexKeys: [] },
+        },
+        onionCombatByWeaponId: {},
+      },
       onSelectUnit,
     })
 

@@ -58,20 +58,73 @@ function createSnapshot(): GameSnapshot {
 	})
 }
 
-function createSessionState(snapshot: GameSnapshot, previousSnapshot: GameSnapshot | null = null): GameSessionViewState {
+function createSessionState(snapshot: GameSnapshot, previousSnapshot: GameSnapshot | null = null, role: 'onion' | 'defender' = 'defender'): GameSessionViewState {
 	return {
 		status: 'ready',
 		catalog: sessionCatalog,
 		presence: null,
 		snapshot,
 		previousSnapshot,
-		session: { role: 'defender' },
+		session: { role },
 		liveConnection: 'connected',
 		lastAppliedEventSeq: snapshot.lastEventSeq,
 		lastAppliedEventType: 'snapshot',
 		lastUpdatedAt: new Date('2024-01-01T00:00:00.000Z'),
 		error: null,
 	}
+}
+
+function createActionEligibilitySnapshot(phase: 'ONION_COMBAT' | 'DEFENDER_COMBAT'): GameSnapshot {
+	const defenders = phase === 'DEFENDER_COMBAT'
+		? {
+			'wolf-in-range': makeDefender({
+				unitId: 'wolf-in-range',
+				typeId: 'BigBadWolf',
+				position: { q: 2, r: 0 },
+				friendlyName: 'Big Bad Wolf In Range',
+				weapons: [makeWeapon({ id: 'wolf-in-range-main', typeId: 'BigBadWolf.main' })],
+			}),
+			'wolf-out-of-range': makeDefender({
+				unitId: 'wolf-out-of-range',
+				typeId: 'BigBadWolf',
+				position: { q: 7, r: 7 },
+				friendlyName: 'Big Bad Wolf Out Of Range',
+				weapons: [makeWeapon({ id: 'wolf-out-of-range-main', typeId: 'BigBadWolf.main' })],
+			}),
+		}
+		: {
+			'puss-in-range': makeDefender({
+				unitId: 'puss-in-range',
+				typeId: 'Puss',
+				position: { q: 2, r: 0 },
+				friendlyName: 'Puss In Range',
+				weapons: [makeWeapon({ id: 'puss-in-range-main', typeId: 'Puss.main' })],
+			}),
+		}
+
+	return makeScenarioSnapshot({
+		gameId: 321,
+		phase,
+		scenarioName: 'Action eligibility projection scenario',
+		turnNumber: 8,
+		lastEventSeq: 12,
+		authoritativeState: {
+			onions: {
+				'onion-live': makeOnion({
+					unitId: 'onion-live',
+					position: { q: 1, r: 0 },
+				}),
+			},
+			defenders,
+			stackNaming: { groupsInUse: [], usedGroupNames: [] },
+			stackRoster: { groupsById: {} },
+			currentPhase: phase,
+			turn: 8,
+		},
+		scenarioMap: {
+			hexes: [],
+		},
+	})
 }
 
 function createInteractionState(overrides: Partial<BattlefieldInteractionState> = {}): BattlefieldInteractionState {
@@ -92,6 +145,93 @@ function createInteractionState(overrides: Partial<BattlefieldInteractionState> 
 }
 
 describe('useBattlefieldDisplayState', () => {
+	it('exposes defender eligibility and reuses projected target availability for unit controls', () => {
+		const snapshot = createActionEligibilitySnapshot('DEFENDER_COMBAT')
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.error).toBeNull()
+		expect(result.current.actionEligibility.defenderCombatByUnitId['wolf-in-range']).toEqual({
+			eligibility: { eligible: true },
+			targetIds: ['onion-live:treads', 'weapon:main-1', 'weapon:secondary-1', 'weapon:ap-1'],
+			targetHexKeys: ['1,0'],
+		})
+		expect(result.current.actionEligibility.defenderCombatByUnitId['wolf-out-of-range']).toEqual({
+			eligibility: { eligible: false, reason: 'no-target-in-range' },
+			targetIds: [],
+			targetHexKeys: [],
+		})
+		expect(result.current.combatUnitAvailabilityReasons['wolf-in-range']).toBeUndefined()
+		expect(result.current.combatUnitAvailabilityReasons['wolf-out-of-range']).toBe('Out of range')
+	})
+
+	it('exposes Onion weapon eligibility and reuses projected target availability for weapon controls', () => {
+		const snapshot = createActionEligibilitySnapshot('ONION_COMBAT')
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot, null, 'onion'),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.error).toBeNull()
+		expect(result.current.actionEligibility.onionCombatByWeaponId['main-1']).toEqual({
+			eligibility: { eligible: true },
+			targetIds: ['puss-in-range'],
+			targetHexKeys: ['2,0'],
+		})
+		expect(result.current.readyWeaponDetails.find((weapon) => weapon.id === 'main-1')?.disabledReason).toBeUndefined()
+	})
+
+	it('removes range and targets when a selected Onion weapon runs out of ammo after refresh', () => {
+		function createOnionCombatSnapshot(ammo?: number): GameSnapshot {
+			const snapshot = createActionEligibilitySnapshot('ONION_COMBAT')
+			const onion = snapshot.authoritativeState!.onions['onion-live']
+			snapshot.authoritativeState!.onions = {
+				...snapshot.authoritativeState!.onions,
+				'onion-live': {
+					...onion,
+					weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', ammo })],
+				},
+			}
+			return snapshot
+		}
+
+		const initialSnapshot = createOnionCombatSnapshot()
+		const { result, rerender } = renderHook(
+			({ snapshot }: { snapshot: GameSnapshot }) =>
+				useBattlefieldDisplayState({
+					combatBaseSnapshot: null,
+					interactionState: createInteractionState({ selectedUnitIds: ['weapon:main-1'] }),
+					sessionState: createSessionState(snapshot, null, 'onion'),
+					activeSessionBinding: null,
+				}),
+			{ initialProps: { snapshot: initialSnapshot } },
+		)
+
+		expect(result.current.actionEligibility.onionCombatByWeaponId['main-1']?.eligibility).toEqual({ eligible: true })
+		expect(result.current.combatRangeHexKeys.has('2,0')).toBe(true)
+		expect(result.current.combatTargetOptions.map((target) => target.id)).toEqual(['puss-in-range'])
+
+		const refreshedSnapshot = createOnionCombatSnapshot(0)
+		rerender({ snapshot: refreshedSnapshot })
+
+		expect(result.current.actionEligibility.onionCombatByWeaponId['main-1']?.eligibility).toEqual({
+			eligible: false,
+			reason: 'out-of-ammo',
+		})
+		expect(result.current.combatRangeHexKeys).toEqual(new Set())
+		expect(result.current.combatTargetOptions).toEqual([])
+	})
+
 	it('returns error if stacked defenders are present but stackRoster is missing', () => {
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({

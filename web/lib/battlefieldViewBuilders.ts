@@ -14,6 +14,7 @@ import {
 import {
   getActionableModes,
   getReadyWeaponRange,
+  isBattlefieldWeaponReady,
 } from './weaponStats.js'
 
 /** Resolves the role owning a turn phase. */
@@ -101,7 +102,21 @@ export function getTerrainValueAt(scenarioMap: { width: number; height: number; 
 }
 
 /** Resolves display defense from unit type, stack size, and terrain. */
-export function getDisplayDefense(type: string, squads: number | undefined, terrainType: number | undefined): number {
+export function getDisplayDefense(
+  type: string,
+  squads: number | undefined,
+  terrainType: number | undefined,
+  unitDefinition?: { defense: number; stackable: boolean },
+): number {
+  if (unitDefinition !== undefined) {
+    if (unitDefinition.stackable) {
+      const stackSize = squads ?? 1
+      return stackSize + (terrainType === 1 ? 1 : 0)
+    }
+
+    return unitDefinition.defense
+  }
+
   if (type === 'LittlePigs') {
     const stackSize = squads ?? 1
     return stackSize + (terrainType === 1 ? 1 : 0)
@@ -292,7 +307,7 @@ export function buildCombatRangeSources(
     const selectedWeaponIds = new Set(activeSelectedUnitIds.filter(isWeaponSelectionId).map(stripWeaponSelectionId))
 
     return displayedOnion.weapons
-      .filter((weapon) => weapon.state === 'ready' && selectedWeaponIds.has(weapon.id))
+      .filter((weapon) => isBattlefieldWeaponReady(weapon) && selectedWeaponIds.has(weapon.id))
       .map((weapon) => ({
         q: displayedOnion.position.q,
         r: displayedOnion.position.r,

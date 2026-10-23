@@ -2,9 +2,57 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { describe, expect, it, vi } from 'vitest'
-import { HexMapUnitMarker } from '#web/components/HexMapUnitMarker'
+import { HexMapUnitMarker as ProductionHexMapUnitMarker } from '#web/components/HexMapUnitMarker'
 import type { BattlefieldOnionView, BattlefieldUnit } from '#web/lib/battlefieldView'
+import type { CombatActionEligibility, BattlefieldActionEligibility } from '#web/lib/actionEligibility/projection'
+import type { CombatEligibility, CombatEligibilityReason } from '#web/lib/actionEligibility/combat'
+import type { MovementEligibility } from '#web/lib/actionEligibility/movement'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import type { ComponentProps } from 'react'
+
+type TestHexMapUnitMarkerProps = Omit<ComponentProps<typeof ProductionHexMapUnitMarker>, 'actionEligibility'> & {
+  actionEligibility?: BattlefieldActionEligibility
+}
+
+function buildTestActionEligibility({ combatMembers, phase, resolvedViewerRole }: TestHexMapUnitMarkerProps): BattlefieldActionEligibility {
+  const movementRole = phase === 'ONION_MOVE' ? 'onion' : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE' ? 'defender' : null
+  const buildMovementEligibility = (eligible: boolean): MovementEligibility => eligible
+    ? { eligible: true }
+    : { eligible: false, reason: 'no-movement-remaining' }
+  const buildCombatEligibility = (eligible: boolean, reason: CombatEligibilityReason): CombatEligibility => eligible
+    ? { eligible: true }
+    : { eligible: false, reason }
+  const buildCombatActionEligibility = (eligible: boolean, reason: CombatEligibilityReason): CombatActionEligibility => ({
+    eligibility: buildCombatEligibility(eligible, reason),
+    targetIds: ['test-target'],
+    targetHexKeys: [],
+  })
+  const movementByUnitId: Record<string, MovementEligibility> = Object.fromEntries(combatMembers.map((member): [string, MovementEligibility] => {
+    const movesRemaining = 'movesRemaining' in member ? member.movesRemaining : 0
+    const eligible = movementRole !== null && resolvedViewerRole === movementRole && member.role === movementRole && member.state === 'operational' && movesRemaining > 0
+    return [member.unitId, buildMovementEligibility(eligible)]
+  }))
+  const defenderCombatByUnitId: Record<string, CombatActionEligibility> = Object.fromEntries(combatMembers
+    .filter((member) => member.role === 'defender')
+    .map((member): [string, CombatActionEligibility] => {
+      const eligible = phase === 'DEFENDER_COMBAT' && resolvedViewerRole === 'defender' && member.state === 'operational' && 'actionableModes' in member && member.actionableModes.includes('fire')
+      return [member.unitId, buildCombatActionEligibility(eligible, 'no-attack-capabilities')]
+    }))
+  const onionCombatByWeaponId: Record<string, CombatActionEligibility> = Object.fromEntries(combatMembers
+    .filter((member) => member.role === 'onion')
+    .flatMap((member) => member.weapons.map((weapon): [string, CombatActionEligibility] => {
+      const eligible = phase === 'ONION_COMBAT' && resolvedViewerRole === 'onion' && member.state === 'operational' && weapon.state === 'ready'
+      return [weapon.id, buildCombatActionEligibility(eligible, 'attacks-spent')]
+    })))
+
+  return { movementByUnitId, defenderCombatByUnitId, onionCombatByWeaponId }
+}
+
+function TestHexMapUnitMarker({ actionEligibility, ...props }: TestHexMapUnitMarkerProps) {
+  return <ProductionHexMapUnitMarker {...props} actionEligibility={actionEligibility ?? buildTestActionEligibility(props)} />
+}
+
+const HexMapUnitMarker = TestHexMapUnitMarker
 
 const onion: BattlefieldOnionView = {
   unitId: 'onion-1',
@@ -12,6 +60,7 @@ const onion: BattlefieldOnionView = {
   role: 'onion',
   friendlyName: 'The Onion',
   position: { q: 0, r: 0 },
+  side: 'onion',
   state: 'operational',
   treads: 33,
   movesAllowed: 3,
@@ -272,8 +321,161 @@ describe('HexMapUnitMarker', () => {
 
     fireEvent.click(screen.getByTestId('hex-unit-pigs-1'))
 
+    const marker = screen.getByTestId('hex-unit-pigs-1')
+    if (expected) {
+      expect(marker).toHaveClass('hex-unit-stack-combat-ready')
+    } else {
+      expect(marker).not.toHaveClass('hex-unit-stack-combat-ready')
+    }
+
     expect(routeMapInteraction).toHaveBeenCalledWith(expect.objectContaining({
       subjectCapability: expect.objectContaining({ attackerEligible: expected }),
+    }))
+  })
+
+  it('uses projected eligibility for a partially eligible defender stack', () => {
+    const members: BattlefieldUnit[] = [
+      { ...defender, unitId: 'pigs-1', typeId: 'LittlePigs', state: 'operational', actionableModes: [] },
+      { ...defender, unitId: 'pigs-2', typeId: 'LittlePigs', state: 'operational', actionableModes: [] },
+    ]
+    const routeMapInteraction = vi.fn(() => ({ intent: 'noop' as const, reason: 'test' }))
+
+    render(
+      <svg>
+        <HexMapUnitMarker
+          actionEligibility={{
+            movementByUnitId: {},
+            defenderCombatByUnitId: {
+              'pigs-1': { eligibility: { eligible: false, reason: 'attacks-spent' }, targetIds: [], targetHexKeys: [] },
+              'pigs-2': { eligibility: { eligible: true }, targetIds: ['onion-1'], targetHexKeys: ['0,0'] },
+            },
+            onionCombatByWeaponId: {},
+          }}
+          activeCombatRole="defender"
+          center={{ x: 36, y: 36 }}
+          combatMembers={members}
+          isCombatPhase
+          isMovementPhase={false}
+          isOccupantSelected={false}
+          isSelectionLocked={false}
+          occupant={members[0]}
+          offsetIndex={0}
+          renderedOccupantCount={1}
+          onion={onion}
+          phase="DEFENDER_COMBAT"
+          resolvedPhaseMode="combat"
+          resolvedViewerActivity="active"
+          resolvedViewerRole="defender"
+          routeMapInteraction={routeMapInteraction}
+          rosterGroup={null}
+          onDeselect={vi.fn()}
+          onSelectUnit={vi.fn()}
+        />
+      </svg>,
+    )
+
+    fireEvent.click(screen.getByTestId('hex-unit-pigs-1'))
+
+    expect(screen.getByTestId('hex-unit-pigs-1')).toHaveClass('hex-unit-stack-combat-ready')
+    expect(routeMapInteraction).toHaveBeenCalledWith(expect.objectContaining({
+      subjectCapability: expect.objectContaining({ attackerEligible: true }),
+    }))
+  })
+
+  it('does not highlight an eligible combat marker for an inactive viewer', () => {
+    const livePig: BattlefieldUnit = {
+      ...defender,
+      unitId: 'pigs-1',
+      typeId: 'LittlePigs',
+      state: 'operational',
+      actionableModes: ['fire'],
+    }
+
+    render(
+      <svg>
+        <HexMapUnitMarker
+          actionEligibility={{
+            movementByUnitId: {},
+            defenderCombatByUnitId: {
+              'pigs-1': { eligibility: { eligible: true }, targetIds: ['onion-1'], targetHexKeys: ['0,0'] },
+            },
+            onionCombatByWeaponId: {},
+          }}
+          activeCombatRole="defender"
+          center={{ x: 36, y: 36 }}
+          combatMembers={[livePig]}
+          isCombatPhase
+          isMovementPhase={false}
+          isOccupantSelected={false}
+          isSelectionLocked={false}
+          occupant={livePig}
+          offsetIndex={0}
+          renderedOccupantCount={1}
+          onion={onion}
+          phase="DEFENDER_COMBAT"
+          resolvedPhaseMode="combat"
+          resolvedViewerActivity="inactive"
+          resolvedViewerRole="defender"
+          routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
+          rosterGroup={null}
+          onDeselect={vi.fn()}
+          onSelectUnit={vi.fn()}
+        />
+      </svg>,
+    )
+
+    expect(screen.getByTestId('hex-unit-pigs-1')).not.toHaveClass('hex-unit-stack-combat-ready')
+  })
+
+  it('marks an Onion attacker-ready when any projected weapon is eligible', () => {
+    const onionWithTwoWeapons = {
+      ...onion,
+      weapons: [
+        { id: 'main', typeId: 'TheOnion.main', weaponClass: 'main' as const, state: 'spent' as const, friendlyName: 'Main Weapon' },
+        { id: 'ap', typeId: 'TheOnion.ap', weaponClass: 'secondary' as const, state: 'ready' as const, friendlyName: 'AP Weapon' },
+      ],
+    }
+    const routeMapInteraction = vi.fn(() => ({ intent: 'noop' as const, reason: 'test' }))
+
+    render(
+      <svg>
+        <HexMapUnitMarker
+          actionEligibility={{
+            movementByUnitId: {},
+            defenderCombatByUnitId: {},
+            onionCombatByWeaponId: {
+              main: { eligibility: { eligible: false, reason: 'attacks-spent' }, targetIds: [], targetHexKeys: [] },
+              ap: { eligibility: { eligible: true }, targetIds: ['puss-1'], targetHexKeys: ['1,1'] },
+            },
+          }}
+          activeCombatRole="onion"
+          center={{ x: 36, y: 36 }}
+          combatMembers={[onionWithTwoWeapons]}
+          isCombatPhase
+          isMovementPhase={false}
+          isOccupantSelected={false}
+          isSelectionLocked={false}
+          occupant={onionWithTwoWeapons}
+          offsetIndex={0}
+          renderedOccupantCount={1}
+          onion={onionWithTwoWeapons}
+          phase="ONION_COMBAT"
+          resolvedPhaseMode="combat"
+          resolvedViewerActivity="active"
+          resolvedViewerRole="onion"
+          routeMapInteraction={routeMapInteraction}
+          rosterGroup={null}
+          onDeselect={vi.fn()}
+          onSelectUnit={vi.fn()}
+        />
+      </svg>,
+    )
+
+    fireEvent.click(screen.getByTestId('hex-unit-onion-1'))
+
+    expect(screen.getByTestId('hex-unit-onion-1')).toHaveClass('hex-unit-stack-combat-ready')
+    expect(routeMapInteraction).toHaveBeenCalledWith(expect.objectContaining({
+      subjectCapability: expect.objectContaining({ attackerEligible: true }),
     }))
   })
 
@@ -469,14 +671,14 @@ describe('HexMapUnitMarker', () => {
   })
 
   it('marks a live stack anchor as partially destroyed when a stackmate is destroyed', () => {
-    const livePig = {
+    const livePig: BattlefieldUnit = {
       ...defender,
       unitId: 'pigs-1',
       typeId: 'LittlePigs',
       friendlyName: 'Little Pigs 1',
       state: 'operational',
     }
-    const destroyedPig = {
+    const destroyedPig: BattlefieldUnit = {
       ...livePig,
       unitId: 'pigs-2',
       friendlyName: 'Little Pigs 2',

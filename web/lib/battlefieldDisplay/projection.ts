@@ -23,7 +23,8 @@ import {
 	resolveBattlefieldWeaponName,
 } from '../weaponStats'
 import { getUnitAttackStrength } from '../stackReadiness'
-import { getCombatUnitAvailabilityReason, getCombatWeaponAvailabilityReason } from '../combatAvailability'
+import { buildBattlefieldActionEligibility } from '../actionEligibility/projection'
+import { formatEligibilityReason } from '../actionEligibility/reasons'
 import { buildWeaponSelectionId, isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from '../selectionIds'
 import { buildCombatRangeHexKeys } from '../combatRange'
 import { buildCombatTargetOptions } from '../combatPreview'
@@ -226,79 +227,80 @@ export function buildBattlefieldDisplayModel({
 		displayedScenarioMap,
 		catalog: catalog ?? undefined,
 	})
-	const combatTargetIds = new Set(combatTargetOptions.map((target) => target.id))
-	const selectedCombatTarget = selectedCombatTargetId === null
-		? null
-		: combatTargetOptions.find((target) => target.id === selectedCombatTargetId && target.isDisabled !== true) ?? null
-	const selectedCombatTargetIdForRender = selectedCombatTarget?.id ?? null
-	const readyWeaponDetails = displayedOnion === null
-		? []
-		: displayedWeaponDetails.map((weapon) => {
-			const baseReason = getCombatWeaponAvailabilityReason(weapon, displayedOnion.state, activeTurnActive)
-			if (baseReason !== undefined || activeCombatRole !== 'onion' || !isCombatPhase || catalog === null) {
-				return { ...weapon, disabledReason: baseReason }
-			}
-
-			const weaponSelectionId = buildWeaponSelectionId(weapon.id)
-			const weaponRangeSources = buildCombatRangeSources(
-				activePhase,
-				activeCombatRole,
-				[weaponSelectionId],
-				displayedDefenders,
-				displayedOnion,
-				catalog,
-			)
-			const weaponTargetOptions = buildCombatTargetOptions({
-				activeCombatRole,
-				combatRangeHexKeys: buildCombatRangeHexKeys(weaponRangeSources, displayedScenarioMap ?? undefined),
-				displayedDefenders,
-				displayedOnion,
-				stackRoster: stackRoster ?? null,
-				stackNaming,
-				selectedUnitIds: [weaponSelectionId],
-				selectedAttackStrength: getBattlefieldWeaponAttack(weapon, catalog),
-				selectedAttackGroupCount: 1,
-				displayedScenarioMap,
-				catalog,
-			})
-			return {
-				...weapon,
-				disabledReason: getCombatWeaponAvailabilityReason(
-					weapon,
-					displayedOnion.state,
-					activeTurnActive,
-					weaponTargetOptions.some((target) => target.isDisabled !== true),
-				),
-			}
-		})
-	const combatUnitAvailabilityReasons = Object.fromEntries(displayedDefenders.map((unit) => {
-		const baseReason = getCombatUnitAvailabilityReason(unit, activeTurnActive)
-		if (baseReason !== undefined || activeCombatRole !== 'defender' || !isCombatPhase || catalog === null) {
-			return [unit.unitId, baseReason]
+	const buildEligibilityTargetOptions = (selectedIds: ReadonlyArray<string>, selectedAttackStrength: number) => {
+		if (!isCombatPhase || activeCombatRole === null) {
+			return []
 		}
 
-		const unitRangeSources = buildCombatRangeSources(
+		const rangeSources = buildCombatRangeSources(
 			activePhase,
 			activeCombatRole,
-			[unit.unitId],
+			selectedIds,
 			displayedDefenders,
 			displayedOnion,
-			catalog,
+			catalog ?? undefined,
 		)
-		const unitTargetOptions = buildCombatTargetOptions({
+
+		return buildCombatTargetOptions({
 			activeCombatRole,
-			combatRangeHexKeys: buildCombatRangeHexKeys(unitRangeSources, displayedScenarioMap ?? undefined),
+			combatRangeHexKeys: buildCombatRangeHexKeys(rangeSources, displayedScenarioMap ?? undefined),
 			displayedDefenders,
 			displayedOnion,
 			stackRoster: stackRoster ?? null,
 			stackNaming,
-			selectedUnitIds: [unit.unitId],
-			selectedAttackStrength: getUnitAttackStrength(unit, catalog),
+			selectedUnitIds: selectedIds,
+			selectedAttackStrength,
 			selectedAttackGroupCount: 1,
 			displayedScenarioMap,
-			catalog,
+			catalog: catalog ?? undefined,
 		})
-		return [unit.unitId, getCombatUnitAvailabilityReason(unit, activeTurnActive, unitTargetOptions.some((target) => target.isDisabled !== true))]
+	}
+	const targetOptionsByDefenderId = Object.fromEntries(displayedDefenders.map((unit) => [
+		unit.unitId,
+		activeCombatRole === 'defender'
+			? buildEligibilityTargetOptions([unit.unitId], getUnitAttackStrength(unit, catalog ?? undefined))
+			: [],
+	]))
+	const targetOptionsByWeaponId = displayedOnion === null
+		? {}
+		: Object.fromEntries(displayedOnion.weapons.map((weapon) => [
+			weapon.id,
+			activeCombatRole === 'onion'
+				? buildEligibilityTargetOptions([buildWeaponSelectionId(weapon.id)], getBattlefieldWeaponAttack(weapon, catalog ?? undefined))
+				: [],
+		]))
+	const actionEligibility = buildBattlefieldActionEligibility({
+		phase: activePhase,
+		viewerRole: activeRole,
+		defenders: displayedDefenders,
+		onion: displayedOnion,
+		targetOptionsByDefenderId,
+		targetOptionsByWeaponId,
+	})
+	const combatTargetIds = new Set(combatTargetOptions.map((target) => target.id))
+	const selectedCombatTarget = selectedCombatTargetId === null
+		? null
+		: combatTargetOptions.find((target) => target.id === selectedCombatTargetId && target.isUnavailable !== true) ?? null
+	const selectedCombatTargetIdForRender = selectedCombatTarget?.id ?? null
+	const readyWeaponDetails = displayedOnion === null
+		? []
+		: displayedWeaponDetails.map((weapon) => {
+			const weaponEligibility = actionEligibility.onionCombatByWeaponId[weapon.id]?.eligibility
+			return {
+				...weapon,
+				disabledReason: activeCombatRole === 'onion' && isCombatPhase && weaponEligibility !== undefined && !weaponEligibility.eligible
+					? formatEligibilityReason(weaponEligibility.reason)
+					: undefined,
+			}
+		})
+	const combatUnitAvailabilityReasons = Object.fromEntries(displayedDefenders.map((unit) => {
+		const unitEligibility = actionEligibility.defenderCombatByUnitId[unit.unitId]?.eligibility
+		return [
+			unit.unitId,
+			activeCombatRole === 'defender' && isCombatPhase && unitEligibility !== undefined && !unitEligibility.eligible
+				? formatEligibilityReason(unitEligibility.reason)
+				: undefined,
+		]
 	}))
 	const connectionStatus = sessionState.liveConnection
 	const connectionLabel = formatLiveConnectionStatus(connectionStatus)
@@ -309,6 +311,7 @@ export function buildBattlefieldDisplayModel({
 		activeCombatRole,
 		activeGameId,
 		activeMode,
+		actionEligibility,
 		activePhase,
 		activePhaseLabel,
 		activeRole,

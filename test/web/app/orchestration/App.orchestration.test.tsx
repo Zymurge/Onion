@@ -1115,6 +1115,69 @@ describe('combat', () => {
 		expect(treadsTarget.getAttribute('data-selected')).toBe('false')
 	})
 
+	it('selects every member when a grouped map occupant is clicked', async () => {
+		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
+			units: [
+				{ id: 'pigs-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', pos: { q: 1, r: 1 } },
+				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
+			],
+			groups: [
+				{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] },
+			],
+		})
+		const snapshot = {
+			...baseOrchestrationSnapshot,
+			phase: 'DEFENDER_COMBAT' as const,
+			authoritativeState: { ...baseOrchestrationSnapshot.authoritativeState, defenders, stackRoster, stackNaming },
+		}
+		const client = createTestClient(snapshot, { role: 'defender' as const })
+
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		fireEvent.click(await screen.findByTestId('hex-unit-pigs-1'))
+
+		expect(screen.getByTestId('hex-unit-pigs-1')).toHaveAttribute('data-selected', 'true')
+		expect(screen.getByTestId('combat-stack-member-pigs-1')).toHaveAttribute('data-selected', 'true')
+		expect(screen.getByTestId('combat-stack-member-pigs-2')).toHaveAttribute('data-selected', 'true')
+	})
+
+	it('keeps map routing and rail styling aligned for a spent defender', async () => {
+		const { defenders, stackNaming } = buildDefenderTree({
+			units: [{
+				id: 'spent-puss',
+				type: 'Puss',
+				friendlyName: 'Spent Puss',
+				pos: { q: 1, r: 1 },
+				weapons: [makeWeapon({ id: 'main', typeId: 'Puss.main', state: 'spent' })],
+			}],
+		})
+		const snapshot = {
+			...baseOrchestrationSnapshot,
+			phase: 'DEFENDER_COMBAT' as const,
+			authoritativeState: { ...baseOrchestrationSnapshot.authoritativeState, defenders, stackRoster: { groupsById: {} }, stackNaming },
+		}
+		const debugSpy = vi.spyOn(logger, 'debug')
+		const client = createTestClient(snapshot, { role: 'defender' as const })
+
+		render(<App gameClient={client} gameId={123} />)
+		await acknowledgeTurnIfAvailable()
+
+		const railButton = await screen.findByTestId('combat-unit-spent-puss')
+		const mapMarker = await screen.findByTestId('hex-unit-spent-puss')
+		expect(railButton).not.toHaveClass('is-actionable')
+
+		fireEvent.click(mapMarker)
+
+		const mapRoute = debugSpy.mock.calls.find(([message]) => message === '[interaction-debug] map routed')
+		expect(mapRoute?.[1]).toEqual(expect.objectContaining({
+			request: expect.objectContaining({
+				subjectCapability: expect.objectContaining({ attackerEligible: false }),
+			}),
+		}))
+		debugSpy.mockRestore()
+	})
+
 	it('clears a selected treads target when a second member of one stack is added', async () => {
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
 			units: [

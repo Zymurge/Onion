@@ -14,7 +14,7 @@ type CommandDisplayState = {
 	selectedCombatAttackCount: number
 	selectedCombatTarget: {
 		id: string
-		isDisabled?: boolean
+		isUnavailable?: boolean
 		label: string
 		modifiers: ReadonlyArray<string>
 	} | null
@@ -120,7 +120,7 @@ export function useAppCommands({
 		const { selectedCombatTarget, selectedCombatAttackCount, selectedCombatAttackerIds, displayedOnion } = display
 		if (
 			selectedCombatTarget === null
-			|| selectedCombatTarget.isDisabled === true
+			|| selectedCombatTarget.isUnavailable === true
 			|| selectedCombatAttackCount === 0
 			|| selectedCombatAttackerIds.length === 0
 			|| displayedOnion === null

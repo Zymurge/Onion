@@ -3,6 +3,7 @@ import {
 	type CombatExchangeInput,
 	type CombatAttackerContribution,
 	} from '../../shared/combatCalculator.js'
+import { createRulesContext } from '../../shared/rulesContext.js'
 import { ONION_STATIC_RULES } from '../../shared/staticRules.js'
 import {
 	isTargetAllowedByRules,
@@ -32,8 +33,8 @@ export type CombatTargetOption = {
 	detail: string
 	defense: number
 	modifiers: ReadonlyArray<string>
-	isDisabled?: boolean
-	disabledTitle?: string
+	isUnavailable?: boolean
+	unavailableTitle?: string
 }
 
 type CombatPreviewInput = {
@@ -51,8 +52,24 @@ type CombatPreviewInput = {
 }
 
 const combatRules = ONION_STATIC_RULES
+const defaultCombatCalculator = createCombatCalculator(combatRules)
+const combatCalculatorsByCatalog = new WeakMap<SessionCatalog, ReturnType<typeof createCombatCalculator>>()
 
-const combatCalculator = createCombatCalculator(combatRules)
+function getCombatCalculator(catalog?: SessionCatalog) {
+	if (catalog === undefined) {
+		return defaultCombatCalculator
+	}
+
+	const cachedCalculator = combatCalculatorsByCatalog.get(catalog)
+	if (cachedCalculator !== undefined) {
+		return cachedCalculator
+	}
+
+	const calculator = createCombatCalculator(createRulesContext(catalog).combatRules)
+	combatCalculatorsByCatalog.set(catalog, calculator)
+	return calculator
+}
+
 function isStackableUnitType(unitType: string, catalog?: SessionCatalog): boolean {
 	return catalog !== undefined && isSessionUnitTypeStackable(catalog, unitType)
 }
@@ -201,6 +218,7 @@ export function buildCombatTargetOptions({
 	if (activeCombatRole === null) {
 		return []
 	}
+	const combatCalculator = getCombatCalculator(catalog)
 
 	const selectedAttackerIds = getSelectedAttackerIds(activeCombatRole, selectedUnitIds)
 	let resolvedStackRoster = stackRoster
@@ -259,7 +277,7 @@ export function buildCombatTargetOptions({
 				selectedWeapons.every((weapon) =>
 					isTargetAllowedByRules(
 						{
-							unitType: 'TheOnion',
+							unitType: displayedOnion!.typeId,
 							weaponId: weapon.id,
 							targetRules: catalog === undefined ? undefined : getSessionWeaponType(catalog, weapon.typeId).targetRules,
 						},
@@ -291,7 +309,12 @@ export function buildCombatTargetOptions({
 				: 1
 			const unitPosition = getBattlefieldPosition(unit)
 			const terrainType = getTerrainValueAt(displayedScenarioMap, unitPosition.q, unitPosition.r)
-			const defense = getDisplayDefense(unit.typeId, stackSize, terrainType)
+			const defense = getDisplayDefense(
+				unit.typeId,
+				stackSize,
+				terrainType,
+				catalog === undefined ? undefined : getSessionUnitType(catalog, unit.typeId),
+			)
 			const targetId = rosterGroup?.groupId ?? unit.unitId
 			const result = combatCalculator.calculate(
 				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, { ...unit }, stackSize, displayedScenarioMap),
@@ -358,8 +381,8 @@ export function buildCombatTargetOptions({
 			defense: selectedAttackStrength,
 			modifiers: selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 			detail: `Treads: ${displayedOnion.treads}`,
-				isDisabled: activeCombatRole === 'defender' && selectedAttackerIds.length > 1,
-			disabledTitle:
+				isUnavailable: activeCombatRole === 'defender' && selectedAttackerIds.length > 1,
+				unavailableTitle:
 					activeCombatRole === 'defender' && selectedAttackerIds.length > 1
 					? 'Select attackers from one defender stack to target treads.'
 					: undefined,

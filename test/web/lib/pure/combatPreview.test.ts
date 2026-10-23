@@ -33,6 +33,111 @@ function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRos
 }
 
 describe('buildCombatTargetOptions', () => {
+	it('matches target restrictions against the namespaced scenario Onion type', () => {
+		const onionTypeId = 'scenario:ScenarioOnion'
+		const onionWeaponTypeId = `${onionTypeId}:TheOnion.main`
+		const targetTypeId = 'scenario:ScenarioTarget'
+		const scenarioCatalog = createSessionCatalog({
+			...sessionCatalog.unitTypes,
+			[onionTypeId]: {
+				...sessionCatalog.unitTypes.TheOnion,
+				typeId: onionTypeId,
+			},
+			[targetTypeId]: {
+				...sessionCatalog.unitTypes.Puss,
+				typeId: targetTypeId,
+				targetRules: { allowedAttackerUnitTypes: [onionTypeId] },
+			},
+		}, {
+			...sessionCatalog.weaponTypes,
+			[onionWeaponTypeId]: {
+				...sessionCatalog.weaponTypes['TheOnion.main'],
+				typeId: onionWeaponTypeId,
+			},
+		})
+
+		const options = buildCombatTargetOptionsWithCatalog({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['1,0']),
+			displayedDefenders: [
+				makeBattlefieldDefender({ unitId: 'target-1', typeId: targetTypeId, position: { q: 1, r: 0 } }),
+			],
+			displayedOnion: {
+				...makeBattlefieldOnion({
+					position: { q: 0, r: 0 },
+					weapons: [{ ...makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' }), typeId: onionWeaponTypeId }],
+				}),
+				typeId: onionTypeId,
+			},
+			selectedUnitIds: ['weapon:main-1'],
+			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: { width: 3, height: 3, hexes: [] },
+			catalog: scenarioCatalog,
+		})
+
+		expect(options.map((option) => option.id)).toEqual(['target-1'])
+	})
+
+	it('uses scenario-local unit definitions for combat previews', () => {
+		const scenarioUnitTypeId = 'e2e-combat-01:ScenarioPuss'
+		const scenarioWeaponTypeId = `${scenarioUnitTypeId}:Puss.main`
+		const scenarioCatalog = createSessionCatalog({
+			...sessionCatalog.unitTypes,
+			[scenarioUnitTypeId]: {
+				...sessionCatalog.unitTypes.Puss,
+				typeId: scenarioUnitTypeId,
+				defense: 99,
+			},
+		}, {
+			...sessionCatalog.weaponTypes,
+			[scenarioWeaponTypeId]: {
+				...sessionCatalog.weaponTypes['Puss.main'],
+				typeId: scenarioWeaponTypeId,
+			},
+		})
+
+		const options = buildCombatTargetOptionsWithCatalog({
+			activeCombatRole: 'onion',
+			combatRangeHexKeys: new Set(['1,0']),
+			displayedDefenders: [
+				makeBattlefieldDefender({ unitId: 'scenario-puss-1', typeId: scenarioUnitTypeId, position: { q: 1, r: 0 } }),
+			],
+			displayedOnion: makeBattlefieldOnion({
+				position: { q: 0, r: 0 },
+				weapons: [makeWeapon({ id: 'main', typeId: 'TheOnion.main' })],
+			}),
+			selectedUnitIds: ['weapon:main'],
+			selectedAttackStrength: 4,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: { width: 8, height: 8, hexes: [] },
+			catalog: scenarioCatalog,
+		})
+
+		expect(options).toHaveLength(1)
+		expect(options[0]?.id).toBe('scenario-puss-1')
+		expect(options[0]?.defense).toBe(99)
+
+		const defenderOptions = buildCombatTargetOptionsWithCatalog({
+			activeCombatRole: 'defender',
+			combatRangeHexKeys: new Set(['0,0']),
+			displayedDefenders: [
+				makeBattlefieldDefender(
+					{ unitId: 'scenario-puss-1', typeId: scenarioUnitTypeId, position: { q: 1, r: 0 } },
+					{ weapons: [{ ...makeWeapon(), typeId: scenarioWeaponTypeId }] },
+				),
+			],
+			displayedOnion: makeBattlefieldOnion({ position: { q: 0, r: 0 } }),
+			selectedUnitIds: ['scenario-puss-1'],
+			selectedAttackStrength: 5,
+			selectedAttackGroupCount: 1,
+			displayedScenarioMap: { width: 8, height: 8, hexes: [] },
+			catalog: scenarioCatalog,
+		})
+
+		expect(defenderOptions.length).toBeGreaterThan(0)
+	})
+
 	it('matches the shared parity fixture for an Onion attack against a ridgeline stack', () => {
 		const fixture = combatParityFixtures.find((candidate) => candidate.name.startsWith('Onion main weapon'))
 		if (fixture === undefined) throw new Error('Missing Onion parity fixture')
@@ -462,8 +567,8 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options.find((option) => option.id === 'onion-1:treads')).toMatchObject({
-			isDisabled: true,
-			disabledTitle: 'Select attackers from one defender stack to target treads.',
+			isUnavailable: true,
+			unavailableTitle: 'Select attackers from one defender stack to target treads.',
 		})
 	})
 
@@ -488,7 +593,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options.find((option) => option.id === 'onion-1:treads')).toMatchObject({
-			isDisabled: true,
+			isUnavailable: true,
 		})
 	})
 })

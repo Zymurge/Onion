@@ -792,7 +792,7 @@ function App({ gameClient, gameId, liveEventSource, navigate, runtimeConfig, sho
       return
     }
 
-    if (selectedCombatTarget === null || selectedCombatTarget.isDisabled === true || selectedCombatAttackCount === 0 || displayedOnion === null) {
+    if (selectedCombatTarget === null || selectedCombatTarget.isUnavailable === true || selectedCombatAttackCount === 0 || displayedOnion === null) {
       return
     }
 

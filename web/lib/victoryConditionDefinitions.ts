@@ -31,7 +31,7 @@ export const victoryConditionDefinitions = {
     buildDetail: ({ detail }) => {
       const escape = detail?.victoryConditions?.onion
       const locationDetail = (escape?.escapeHexes?.length ?? 0) > 0
-        ? ` Escape zone: ${escape.escapeLocation ?? 'marked area'}; green crosshatching marks it on the map.`
+        ? ` Escape zone: ${escape?.escapeLocation ?? 'marked area'}; green crosshatching marks it on the map.`
         : ''
       return `Move The Onion to a marked escape hex.${locationDetail}`
     },

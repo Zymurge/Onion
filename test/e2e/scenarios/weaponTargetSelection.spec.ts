@@ -32,9 +32,11 @@ test('Defender selects the intended Onion weapon target and Onion sees the resul
 			defenderBattlefield.waitForAuthoritativePhase('Defender Combat'),
 			onionBattlefield.waitForAuthoritativePhase('Defender Combat'),
 		])
+		await defenderBattlefield.expectUnitCombatReady('puss-1', true)
+		await onionBattlefield.expectUnitCombatReady('puss-1', false)
 		await defenderBattlefield.selectCombatUnit('puss-1')
-		await defenderBattlefield.selectCombatTarget('weapon:main')
-		await defenderBattlefield.expectCombatTargetSelected('weapon:main')
+		await defenderBattlefield.selectCombatTarget('weapon:main-1')
+		await defenderBattlefield.expectCombatTargetSelected('weapon:main-1')
 
 		const toast = await defenderBattlefield.resolveCombat()
 		await expect(toast).toContainText('Combat resolved on Main Weapon')

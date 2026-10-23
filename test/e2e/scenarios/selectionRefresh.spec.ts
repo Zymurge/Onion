@@ -35,7 +35,7 @@ test('authoritative phase refresh clears grouped target and stack selections', a
 				defenderBattlefield.waitForAuthoritativePhase('Onion Combat'),
 			]))
 			await test.step('acknowledge Onion turn', () => onionBattlefield.beginTurn())
-			await test.step('select Onion weapon', () => onionBattlefield.selectCombatWeapon('main'))
+			await test.step('select Onion weapon', () => onionBattlefield.selectCombatWeapon('main-1'))
 			await test.step('select grouped target', () => onionBattlefield.selectCombatTargetByName('Little Pigs group 1'))
 			await test.step('observe grouped target selection', () => onionBattlefield.expectCombatTargetSelectedByName('Little Pigs group 1'))
 		})

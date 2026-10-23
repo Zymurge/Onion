@@ -40,7 +40,9 @@ loaded independently.
 - [Unit presentation](web-ui/unit-presentation-spec.md) owns sprite lookup,
   map-only sizing and offsets, Inspector sizing, and unit-state visual cues.
 - [Battlefield and combat](web-ui/battlefield-and-combat-spec.md) owns map and
-  combat interactions and consumes the unit-presentation contract;
+  combat interactions, the shared action-eligibility contract, and the
+  board-to-rail eligibility boundary. Its Selection and Eligibility section is
+  canonical for phase-specific action highlights;
   [turn and events](web-ui/turn-and-events-spec.md) owns turn handoff and event
   presentation around it.
 - [Errors and validation](web-ui/errors-and-validation-spec.md) applies to all

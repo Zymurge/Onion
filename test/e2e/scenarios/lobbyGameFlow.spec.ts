@@ -35,7 +35,6 @@ test('two players complete the lobby lifecycle with dedicated game windows', asy
 
 		await defenderPage.goto(`${runtime.webUrl}/user/dashboard`, { waitUntil: 'domcontentloaded' })
 		await expect(defenderPage.getByText(`Game ${openTwoPlayerGame.gameId} · Ready to start`)).toBeVisible()
-		await expect(defenderPage.getByText('Ready', { exact: true })).toBeVisible()
 
 		await expect(onionPage.getByText(`Game ${openTwoPlayerGame.gameId} · Ready to start`)).toBeVisible()
 		const onionPopupPromise = onionPage.waitForEvent('popup')

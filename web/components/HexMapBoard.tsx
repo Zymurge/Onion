@@ -1,10 +1,10 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { axialToPixel, boardPixelSize, DEFAULT_HEX_SIZE as HEX_SIZE, hexCorners, pointsToString } from '../lib/hexPixelLayout'
 import { resolveSelectionOwnerUnitId } from '../lib/selectionIds'
+import type { BattlefieldActionEligibility } from '../lib/actionEligibility/projection'
 import { HexMapCell } from './HexMapCell'
 import { hexKey } from '../../shared/axialHex'
 import { listReachableMoves } from '../../shared/movePlanner'
-import { getUnitMovementAllowance } from '../../shared/unitMovement'
 import { validateMove, type MoveValidationResult, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import type { StackRosterState, TurnPhase } from '../../shared/types/index'
@@ -26,6 +26,7 @@ import logger from '../lib/logger'
 import './HexMapBoard.css'
 
 type HexMapBoardProps = {
+  actionEligibility: BattlefieldActionEligibility
   scenarioMap: {
     width: number
     height: number
@@ -103,6 +104,7 @@ function buildMoveValidationState(
 
 /** Renders the battlefield map and coordinates its derived state and interactions. */
 export function HexMapBoard({
+  actionEligibility,
   scenarioMap,
   defenders,
   onions,
@@ -215,7 +217,7 @@ export function HexMapBoard({
         : null
     : null
   const selectedIsEligible = !!(
-    selectedOccupant && playerRole && isMovementPhase && selectedOccupant.state === 'operational' && selectedAllowance > 0
+    selectedOccupant && playerRole && isMovementPhase && actionEligibility.movementByUnitId[selectedOccupant.unitId]?.eligible === true
   )
   const reachableHexKeys = selectedIsEligible && selectedOccupant
     ? new Set(
@@ -353,21 +355,14 @@ export function HexMapBoard({
               ))
               const targetOccupant = resolveCanonicalOccupant(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)
               const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
-                if (!playerRole || !isMovementPhase || occupant.state !== 'operational') {
-                  return false
-                }
-
-                if (occupant.unitId === onion.unitId) {
-                  return onion.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance(onion.typeId, phase, onion.treads, onion.side) > 0)
-                }
-
-                return 'movesRemaining' in occupant && (occupant.movesRemaining > 0 || (phase !== null && getUnitMovementAllowance(occupant.typeId, phase, undefined, occupant.side) > 0))
+                return Boolean(playerRole && isMovementPhase && actionEligibility.movementByUnitId[occupant.unitId]?.eligible === true)
               })
 
               return (
                 <HexMapCell
                   key={`${coord.q}-${coord.r}`}
                   activeCombatRole={activeCombatRole}
+                  actionEligibility={actionEligibility}
                   center={center}
                   catalog={catalog}
                   cellOccupants={cellOccupants}

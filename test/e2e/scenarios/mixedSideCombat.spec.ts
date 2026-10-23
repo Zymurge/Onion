@@ -31,7 +31,11 @@ test('Onion resolves grouped-target fire and Defender sees the authoritative res
 			onionBattlefield.waitForAuthoritativePhase('Onion Combat'),
 			defenderBattlefield.waitForAuthoritativePhase('Onion Combat'),
 		])
-		await onionBattlefield.selectCombatWeapon('main')
+		await onionBattlefield.expectMapUnitCombatReady('onion-1', true)
+		await onionBattlefield.expectCombatWeaponReady('main-1', true)
+		await defenderBattlefield.expectMapUnitCombatReady('onion-1', false)
+		await defenderBattlefield.expectCombatWeaponReady('main-1', false)
+		await onionBattlefield.selectCombatWeapon('main-1')
 		await onionBattlefield.selectCombatTargetByName('Little Pigs group 1')
 		await onionBattlefield.expectCombatTargetSelectedByName('Little Pigs group 1')
 
@@ -39,12 +43,13 @@ test('Onion resolves grouped-target fire and Defender sees the authoritative res
 		await expect(toast).toContainText('Combat resolved on Little Pigs group 1')
 		await expect(toast).toContainText('Outcome')
 		await onionBattlefield.dismissCombatResolution()
-		await onionBattlefield.expectDestroyed('pigs-1')
+		await expect(onionPage.getByTestId('hex-unit-pigs-1')).toHaveClass(/tone-destroyed/)
 		await onionBattlefield.expectCombatSelectionCleared()
 		await defenderBattlefield.expectInactiveResult('Fire on LittlePigs:2,1: destroyed')
 		await defenderBattlefield.expectInactiveDetail('Target: LittlePigs:2,1')
-		await defenderBattlefield.expectInactiveDetail('Unit: Little Pigs group 1: operational → destroyed')
-		await defenderBattlefield.expectDestroyed('pigs-1')
+		await defenderBattlefield.expectInactiveDetail('Unit: Little Pigs 1: operational → destroyed')
+		await defenderBattlefield.expectInactiveDetail('Unit: Little Pigs 2: operational → destroyed')
+		await expect(defenderPage.getByTestId('hex-unit-pigs-1')).toHaveClass(/tone-destroyed/)
 	} finally {
 		await Promise.all([onionContext.close(), defenderContext.close()])
 	}

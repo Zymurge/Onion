@@ -25,6 +25,17 @@ export async function waitForAuthoritativeSnapshotAdvance(
 export class BattlefieldPage {
 	constructor(private readonly page: Page) {}
 
+	private async expectRailActionable(testId: string, expected: boolean): Promise<void> {
+		const control = this.page.getByTestId(testId)
+		await expect(control).toHaveCount(1)
+		if (expected) {
+			await expect(control).toHaveClass(/is-actionable/)
+			await expect(control).toHaveCSS('box-shadow', /inset/)
+		} else {
+			await expect(control).not.toHaveClass(/is-actionable/)
+		}
+	}
+
 	private get syncProbe(): Locator {
 		return this.page.getByTestId('session-sync-probe')
 	}
@@ -43,7 +54,7 @@ export class BattlefieldPage {
 	}
 
 	async beginTurn(): Promise<void> {
-		const button = this.page.getByRole('button', { name: 'Begin turn' })
+		const button = this.page.getByRole('button', { name: /^(Begin|Continue) Turn$/i })
 		await expect(button).toBeVisible({ timeout: 8_000 })
 		await button.click({ timeout: 8_000 })
 		await expect(this.page.getByRole('button', { name: 'Dismiss inactive event stream' })).toHaveCount(0, { timeout: 8_000 })
@@ -61,7 +72,7 @@ export class BattlefieldPage {
 	}
 
 	async expectDestroyed(unitId: string): Promise<void> {
-		await expect(this.page.getByTestId(`hex-unit-${unitId}`)).toHaveCount(0)
+		await expect(this.page.getByTestId(`hex-unit-${unitId}`)).toHaveClass(/tone-destroyed/)
 	}
 
 	async expectUnitMoveReady(unitId: string, expected: boolean): Promise<void> {
@@ -70,20 +81,38 @@ export class BattlefieldPage {
 		await expect(unit).toHaveAttribute('data-selected', 'false')
 		if (expected) {
 			await expect(unit).toHaveClass(/hex-unit-stack-move-ready/)
+			await expect(unit.locator('image')).toHaveCSS('filter', /saturate/)
 		} else {
 			await expect(unit).not.toHaveClass(/hex-unit-stack-move-ready/)
 		}
+		await this.expectRailActionable(`combat-unit-${unitId}`, expected)
 	}
 
 	async expectUnitCombatReady(unitId: string, expected: boolean): Promise<void> {
 		const marker = this.page.getByTestId(`hex-unit-${unitId}`)
 		await expect(marker).toHaveCount(1)
-		const rect = marker.locator('rect')
 		if (expected) {
-			await expect(rect).toHaveClass(/hex-unit-rect-combat-eligible/)
+			await expect(marker).toHaveClass(/hex-unit-stack-combat-ready/)
+			await expect(marker.locator('image')).toHaveCSS('filter', /drop-shadow/)
 		} else {
-			await expect(rect).toHaveClass(/hex-unit-rect-combat-ineligible/)
+			await expect(marker).not.toHaveClass(/hex-unit-stack-combat-ready/)
 		}
+		await this.expectRailActionable(`combat-unit-${unitId}`, expected)
+	}
+
+	async expectMapUnitCombatReady(unitId: string, expected: boolean): Promise<void> {
+		const marker = this.page.getByTestId(`hex-unit-${unitId}`)
+		await expect(marker).toHaveCount(1)
+		if (expected) {
+			await expect(marker).toHaveClass(/hex-unit-stack-combat-ready/)
+			await expect(marker.locator('image')).toHaveCSS('filter', /drop-shadow/)
+		} else {
+			await expect(marker).not.toHaveClass(/hex-unit-stack-combat-ready/)
+		}
+	}
+
+	async expectCombatWeaponReady(weaponId: string, expected: boolean): Promise<void> {
+		await this.expectRailActionable(`combat-weapon-${weaponId}`, expected)
 	}
 
 	async inspectUnit(unitId: string): Promise<void> {
@@ -178,7 +207,7 @@ export class BattlefieldPage {
 			const marker = this.page.getByTestId(`hex-unit-${unitId}`)
 			await expect(marker).toHaveCount(1)
 			return [unitId, {
-				text: await marker.textContent(),
+				text: (await marker.locator('text.hex-unit-marker tspan').allTextContents()).join(' '),
 				transform: await marker.getAttribute('transform'),
 			}]
 		})))

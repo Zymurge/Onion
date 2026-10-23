@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import { getGroupCombatReadyCount, isGroupCombatDisabled } from '../lib/stackReadiness'
+import type { BattlefieldActionEligibility } from '../lib/actionEligibility/projection'
 import {
   getStackOffset,
   getUnitMarkerText,
@@ -46,6 +46,7 @@ function wrapMarkerText(text: string, maximumLineLength = 12): string[] {
 }
 
 type HexMapUnitMarkerProps = {
+  actionEligibility: BattlefieldActionEligibility
   activeCombatRole: 'onion' | 'defender' | null
   center: { x: number; y: number }
   catalog?: SessionCatalog
@@ -73,6 +74,7 @@ type HexMapUnitMarkerProps = {
 
 /** Renders one occupant marker and routes its selection interaction. */
 export function HexMapUnitMarker({
+  actionEligibility,
   center,
   catalog,
   combatMembers,
@@ -96,10 +98,7 @@ export function HexMapUnitMarker({
   onDeselect,
   onSelectUnit,
 }: HexMapUnitMarkerProps) {
-  const isOccupantOnion = occupant.role === 'onion'
-  const occupantMovesRemaining = occupant.unitId === onion.unitId
-    ? onion.movesRemaining
-    : occupant.movesRemaining
+  const isOccupantOnion = occupant.role === 'onion' && occupant.unitId === onion.unitId
   const offset = getStackOffset(offsetIndex, renderedOccupantCount)
   const isSwamp = occupant.typeId === 'Swamp'
   const isDestroyed = occupant.state === 'destroyed'
@@ -124,20 +123,20 @@ export function HexMapUnitMarker({
     : phase === 'DEFENDER_MOVE' || phase === 'GEV_SECOND_MOVE'
       ? !isOccupantOnion
       : false
-  const combatHasReadyAttack = getGroupCombatReadyCount(combatMembers) > 0
-  const combatIsDisabled = isGroupCombatDisabled(combatMembers)
-  const moveHasRemaining = occupantMovesRemaining > 0
-  const movementEligibilityClass = !isMovementPhase
-    ? ''
-    : isSwamp
-      ? isDestroyed ? 'hex-unit-rect-swamp-destroyed' : 'hex-unit-rect-swamp'
-      : combatIsDisabled
-        ? 'hex-unit-rect-move-disabled'
-        : isMovementPhaseActiveSide
-          ? moveHasRemaining
-            ? 'hex-unit-rect-move-eligible'
-            : 'hex-unit-rect-move-ineligible'
-          : 'hex-unit-rect-move-inspectable'
+  const combatHasReadyAttack = combatMembers.some((member) => member.role === 'onion'
+    ? member.weapons.some((weapon) => actionEligibility.onionCombatByWeaponId[weapon.id]?.eligibility.eligible === true)
+    : actionEligibility.defenderCombatByUnitId[member.unitId]?.eligibility.eligible === true)
+  const combatReady = isCombatPhase && resolvedViewerActivity === 'active' && (
+    isOccupantOnion
+      ? resolvedViewerRole === 'onion' && combatHasReadyAttack
+      : resolvedViewerRole === 'defender' && combatHasReadyAttack
+  )
+  const movementEligible = combatMembers.some((member) => actionEligibility.movementByUnitId[member.unitId]?.eligible === true)
+  const movementReady = isMovementPhase
+    && !isSwamp
+    && !isDisabled
+    && isMovementPhaseActiveSide
+    && movementEligible
   const swampRectClass = isSwamp
     ? isDestroyed || isDisabled
       ? 'hex-unit-rect-swamp-destroyed'
@@ -170,12 +169,8 @@ export function HexMapUnitMarker({
       subjectKind: rosterGroup !== null ? 'stack' : 'unit',
       subjectCapability: {
         inspectable: true,
-        moveEligible: isMovementPhase && occupant.state === 'operational' && occupantMovesRemaining > 0,
-        attackerEligible: isCombatPhase && !combatIsDisabled && (
-          isOccupantOnion
-            ? resolvedViewerRole === 'onion' && combatHasReadyAttack
-            : resolvedViewerRole === 'defender' && combatHasReadyAttack
-        ),
+        moveEligible: isMovementPhase && movementEligible,
+        attackerEligible: combatReady,
         targetEligible: false,
       },
       interactionMode: rosterGroup !== null ? { groupExpansionTarget: true } : undefined,
@@ -202,7 +197,8 @@ export function HexMapUnitMarker({
         isOccupantOnion ? 'hex-unit-stack-onion' : 'hex-unit-stack-defender',
         isSwamp ? 'hex-unit-stack-swamp' : '',
         isOccupantSelected ? 'hex-unit-stack-selected' : '',
-        isMovementPhase && movementEligibilityClass === 'hex-unit-rect-move-eligible' ? 'hex-unit-stack-move-ready' : '',
+        combatReady ? 'hex-unit-stack-combat-ready' : '',
+        movementReady ? 'hex-unit-stack-move-ready' : '',
         isDisabled ? 'hex-unit-stack-disabled' : '',
         isSwamp
           ? (isDestroyed ? 'tone-destroyed' : 'tone-neutral')
