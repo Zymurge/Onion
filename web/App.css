@@ -1198,8 +1198,13 @@
 
 .onion-card-button.is-actionable,
 .defender-card-button.is-actionable {
-  border-color: rgba(121, 92, 32, 0.28);
-  box-shadow: inset 0 0 0 1px rgba(121, 92, 32, 0.12);
+  border-color: rgba(46, 125, 50, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(46, 125, 50, 0.2), 0 0 9px rgba(102, 187, 106, 0.42);
+}
+
+.onion-card-button.is-actionable:not(.is-selected),
+.defender-card-button.is-actionable:not(.is-selected) {
+  background-color: rgba(232, 245, 233, 0.88);
 }
 
 .defender-card-button.is-selected {
@@ -1594,7 +1599,16 @@
 
 .defender-row.is-actionable,
 .defender-card-button.is-actionable,
-.attacker-card-button.is-actionable,
+.attacker-card-button.is-actionable {
+  border-color: rgba(46, 125, 50, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(46, 125, 50, 0.2), 0 0 9px rgba(102, 187, 106, 0.42);
+}
+
+.defender-row.is-actionable:not(.is-selected),
+.attacker-card-button.is-actionable:not(.is-selected) {
+  background-color: rgba(232, 245, 233, 0.88);
+}
+
 .availability-row {
   border-color: rgba(121, 92, 32, 0.28);
   box-shadow: inset 0 0 0 1px rgba(121, 92, 32, 0.12);
