@@ -472,7 +472,9 @@ export function BattlefieldLeftRail({
       return
     }
 
-    onSelectUnit(unitId, additive || decision.intent === 'toggle-actor')
+    const additiveSelection = additive
+      && (request.phaseMode !== 'movement' || request.subjectCapability.moveEligible)
+    onSelectUnit(unitId, additiveSelection || decision.intent === 'toggle-actor')
   }
 
   const visibleRenderError = renderError !== null && renderError !== dismissedRenderError ? renderError : null
@@ -670,7 +672,7 @@ export function BattlefieldLeftRail({
                       subjectKind: 'unit',
                       subjectCapability: {
                         inspectable: true,
-                        moveEligible: activeTurnActive && viewerRole === 'onion',
+                        moveEligible: activeTurnActive && viewerRole === 'onion' && movementEligibility?.eligible === true,
                         attackerEligible: false,
                         targetEligible: false,
                       },

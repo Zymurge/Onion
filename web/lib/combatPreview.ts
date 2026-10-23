@@ -277,7 +277,7 @@ export function buildCombatTargetOptions({
 				selectedWeapons.every((weapon) =>
 					isTargetAllowedByRules(
 						{
-							unitType: 'TheOnion',
+							unitType: displayedOnion!.typeId,
 							weaponId: weapon.id,
 							targetRules: catalog === undefined ? undefined : getSessionWeaponType(catalog, weapon.typeId).targetRules,
 						},
@@ -309,7 +309,12 @@ export function buildCombatTargetOptions({
 				: 1
 			const unitPosition = getBattlefieldPosition(unit)
 			const terrainType = getTerrainValueAt(displayedScenarioMap, unitPosition.q, unitPosition.r)
-			const defense = getDisplayDefense(unit.typeId, stackSize, terrainType)
+			const defense = getDisplayDefense(
+				unit.typeId,
+				stackSize,
+				terrainType,
+				catalog === undefined ? undefined : getSessionUnitType(catalog, unit.typeId),
+			)
 			const targetId = rosterGroup?.groupId ?? unit.unitId
 			const result = combatCalculator.calculate(
 				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, { ...unit }, stackSize, displayedScenarioMap),

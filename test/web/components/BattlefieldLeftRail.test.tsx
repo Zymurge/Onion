@@ -1916,12 +1916,28 @@ describe('BattlefieldLeftRail', () => {
 
   it('routes Onion movement selection with additive gestures', () => {
     const onSelectUnit = vi.fn()
+    const displayedOnion = canonicalizeBattlefieldOnion(createOnion())
+    const actionEligibility = buildBattlefieldActionEligibility({
+      phase: 'ONION_MOVE',
+      viewerRole: 'onion',
+      defenders: [],
+      onion: {
+        unitId: displayedOnion.unitId,
+        role: 'onion',
+        state: displayedOnion.state,
+        movesRemaining: displayedOnion.movesRemaining,
+        weapons: displayedOnion.weapons,
+      },
+      targetOptionsByDefenderId: {},
+      targetOptionsByWeaponId: {},
+    })
 
     renderLeftRail({
       activeCombatRole: 'onion',
       activeRole: 'onion',
       isMovementPhase: true,
-      displayedOnion: canonicalizeBattlefieldOnion(createOnion()),
+      displayedOnion,
+      actionEligibility,
       onSelectUnit,
     })
 
@@ -1931,6 +1947,43 @@ describe('BattlefieldLeftRail', () => {
 
     expect(onSelectUnit).toHaveBeenNthCalledWith(1, 'onion-1', false)
     expect(onSelectUnit).toHaveBeenNthCalledWith(2, 'onion-1', true)
+  })
+
+  it.each([
+    { description: 'movement is spent', movesRemaining: 0, immobile: false },
+    { description: 'the Onion is immobile', movesRemaining: 1, immobile: true },
+  ])('does not forward additive selection when $description', ({ movesRemaining, immobile }) => {
+    const onSelectUnit = vi.fn()
+    const displayedOnion = canonicalizeBattlefieldOnion(createOnion({ movesRemaining }))
+    const actionEligibility = buildBattlefieldActionEligibility({
+      phase: 'ONION_MOVE',
+      viewerRole: 'onion',
+      defenders: [],
+      onion: {
+        unitId: displayedOnion.unitId,
+        role: 'onion',
+        state: displayedOnion.state,
+        movesRemaining,
+        immobile,
+        weapons: displayedOnion.weapons,
+      },
+      targetOptionsByDefenderId: {},
+      targetOptionsByWeaponId: {},
+    })
+
+    renderLeftRail({
+      activeCombatRole: 'onion',
+      activeRole: 'onion',
+      isMovementPhase: true,
+      displayedOnion,
+      actionEligibility,
+      onSelectUnit,
+    })
+
+    fireEvent.click(screen.getByTestId('combat-unit-onion-1'), { ctrlKey: true })
+
+    expect(onSelectUnit).toHaveBeenCalledWith('onion-1', false)
+    expect(onSelectUnit).not.toHaveBeenCalledWith('onion-1', true)
   })
 
   it('shows the Onion movement waiting state when no Onion is available', () => {

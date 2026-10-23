@@ -191,6 +191,47 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.readyWeaponDetails.find((weapon) => weapon.id === 'main-1')?.disabledReason).toBeUndefined()
 	})
 
+	it('removes range and targets when a selected Onion weapon runs out of ammo after refresh', () => {
+		function createOnionCombatSnapshot(ammo?: number): GameSnapshot {
+			const snapshot = createActionEligibilitySnapshot('ONION_COMBAT')
+			const onion = snapshot.authoritativeState!.onions['onion-live']
+			snapshot.authoritativeState!.onions = {
+				...snapshot.authoritativeState!.onions,
+				'onion-live': {
+					...onion,
+					weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main', ammo })],
+				},
+			}
+			return snapshot
+		}
+
+		const initialSnapshot = createOnionCombatSnapshot()
+		const { result, rerender } = renderHook(
+			({ snapshot }: { snapshot: GameSnapshot }) =>
+				useBattlefieldDisplayState({
+					combatBaseSnapshot: null,
+					interactionState: createInteractionState({ selectedUnitIds: ['weapon:main-1'] }),
+					sessionState: createSessionState(snapshot, null, 'onion'),
+					activeSessionBinding: null,
+				}),
+			{ initialProps: { snapshot: initialSnapshot } },
+		)
+
+		expect(result.current.actionEligibility.onionCombatByWeaponId['main-1']?.eligibility).toEqual({ eligible: true })
+		expect(result.current.combatRangeHexKeys.has('2,0')).toBe(true)
+		expect(result.current.combatTargetOptions.map((target) => target.id)).toEqual(['puss-in-range'])
+
+		const refreshedSnapshot = createOnionCombatSnapshot(0)
+		rerender({ snapshot: refreshedSnapshot })
+
+		expect(result.current.actionEligibility.onionCombatByWeaponId['main-1']?.eligibility).toEqual({
+			eligible: false,
+			reason: 'out-of-ammo',
+		})
+		expect(result.current.combatRangeHexKeys).toEqual(new Set())
+		expect(result.current.combatTargetOptions).toEqual([])
+	})
+
 	it('returns error if stacked defenders are present but stackRoster is missing', () => {
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
