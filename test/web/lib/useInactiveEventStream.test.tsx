@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { useInactiveEventStream } from '#web/lib/inactiveEvents/index'
+import { buildTimelineEvents, useInactiveEventStream } from '#web/lib/inactiveEvents/index'
 import type { EventEnvelope } from '#shared/types/index'
 
 function createEvent(event: EventEnvelope): EventEnvelope {
@@ -10,6 +10,20 @@ function createEvent(event: EventEnvelope): EventEnvelope {
 }
 
 describe('useInactiveEventStream', () => {
+	it('focuses the owning Onion for a standalone weapon-target combat event', () => {
+		const [entry] = buildTimelineEvents([
+			createEvent({
+				seq: 1,
+				type: 'FIRE_RESOLVED',
+				timestamp: 't1',
+				onionId: 'onion-1',
+				targetId: 'main-1',
+			}),
+		])
+
+		expect(entry?.focusUnitIds).toEqual(['onion-1'])
+	})
+
 	it('starts a new inactive window from the handoff seq when the turn ends', async () => {
 		const pollEvents = vi.fn().mockResolvedValue([
 			createEvent({ seq: 11, type: 'FIRE_RESOLVED', timestamp: 't11', turnNumber: 4, targetId: 'onion-1', outcome: 'NE' }),

@@ -31,6 +31,10 @@ function stringIds(value: unknown): string[] {
 	return Array.isArray(value) ? value.filter(isNonEmptyString) : []
 }
 
+function isOnionWeaponTargetId(targetId: string): boolean {
+	return /^(?:weapon:)?(?:main|secondary|ap|missile)(?:[-_]\d+)?$/.test(targetId)
+}
+
 function resolveFocusUnitIds(primaryEvent: InactiveEventPayload, events: ReadonlyArray<InactiveEventPayload>): string[] {
 	const weaponDestroyedEvent = events.find((event) => event.type === 'ONION_WEAPON_DESTROYED')
 	if (weaponDestroyedEvent !== undefined && isNonEmptyString(weaponDestroyedEvent.onionId)) {
@@ -39,7 +43,12 @@ function resolveFocusUnitIds(primaryEvent: InactiveEventPayload, events: Readonl
 
 	const fireEvent = events.find((event) => event.type === 'FIRE_RESOLVED')
 	if (fireEvent !== undefined && isNonEmptyString(fireEvent.targetId)) {
-		return [parseCombatTargetId(fireEvent.targetId)?.onionId ?? fireEvent.targetId]
+		const targetId = fireEvent.targetId
+		if (isOnionWeaponTargetId(targetId) && isNonEmptyString(fireEvent.onionId)) {
+			return [fireEvent.onionId]
+		}
+
+		return [parseCombatTargetId(targetId)?.onionId ?? targetId]
 	}
 
 	const moveResolution = events.find((event) => event.type === 'MOVE_RESOLVED')
