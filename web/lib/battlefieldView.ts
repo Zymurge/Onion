@@ -30,6 +30,7 @@ export type TimelineEvent = {
   type: string
   summary: string
   timestamp: string
+  focusUnitIds?: ReadonlyArray<string>
   tone?: 'normal' | 'alert'
   details?: ReadonlyArray<string>
   payload?: Readonly<Record<string, unknown>>

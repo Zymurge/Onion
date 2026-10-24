@@ -135,41 +135,71 @@ describe('useInactiveEventStream', () => {
 			createEvent({ seq: 1, type: 'PHASE_CHANGED', timestamp: 't1', turnNumber: 3, to: 'DEFENDER_MOVE' }),
 			createEvent({
 				seq: 2,
-				type: 'MOVE_RESOLVED',
+				type: 'UNIT_MOVED',
 				timestamp: 't2',
 				turnNumber: 3,
+				unitId: 'onion-1',
+				unitFriendlyName: 'The Onion 1',
+				to: { q: 1, r: 0 },
+			}),
+			createEvent({
+				seq: 3,
+				type: 'MOVE_RESOLVED',
+				timestamp: 't3',
+				turnNumber: 3,
+				unitId: 'onion-1',
+				rammedUnitIds: ['def-1'],
 				unitFriendlyName: 'The Onion 1',
 				rammedUnitFriendlyNames: ['Puss 1'],
 				destroyedUnitIds: ['def-1'],
 				treadDamage: 1,
 			}),
 			createEvent({
-				seq: 3,
+				seq: 4,
 				type: 'UNIT_STATUS_CHANGED',
-				timestamp: 't3',
+				timestamp: 't4',
 				turnNumber: 3,
 				unitFriendlyName: 'Puss 1',
 				from: 'operational',
 				to: 'destroyed',
 			}),
 			createEvent({
-				seq: 4,
+				seq: 5,
 				type: 'UNIT_SQUADS_LOST',
-				timestamp: 't4',
+				timestamp: 't5',
 				turnNumber: 3,
 				unitFriendlyName: 'Puss 1',
 				amount: 1,
 			}),
 			createEvent({
-				seq: 5,
+				seq: 6,
 				type: 'FIRE_RESOLVED',
-				timestamp: 't5',
+				timestamp: 't6',
 				turnNumber: 3,
+				attackers: ['wolf-1'],
 				targetId: 'onion-1',
 				targetFriendlyName: 'The Onion',
 				outcome: 'D',
 				odds: '2:1',
 				roll: 5,
+			}),
+			createEvent({
+				seq: 7,
+				type: 'FIRE_RESOLVED',
+				timestamp: 't7',
+				turnNumber: 3,
+				attackers: ['wolf-1'],
+				onionId: 'onion-1',
+				targetId: 'main-1',
+				summary: 'Wolf destroyed the Onion main gun.',
+			}),
+			createEvent({
+				seq: 8,
+				type: 'ONION_WEAPON_DESTROYED',
+				timestamp: 't8',
+				turnNumber: 3,
+				onionId: 'onion-1',
+				weaponId: 'main-1',
 			}),
 		])
 
@@ -184,16 +214,22 @@ describe('useInactiveEventStream', () => {
 
 		await waitFor(() => {
 			expect(pollEvents).toHaveBeenCalledWith(123, 0)
-			expect(result.current.entries).toHaveLength(2)
+			expect(result.current.entries).toHaveLength(3)
 		})
 
 		expect(result.current.entries[0]).toMatchObject({
 			summary: 'Ram on Puss 1: destroyed',
+			focusUnitIds: ['def-1'],
 			details: expect.arrayContaining(['Unit: The Onion 1', 'Target: Puss 1', 'Result: destroyed']),
 		})
 		expect(result.current.entries[1]).toMatchObject({
 			summary: 'Fire on The Onion: no effect',
+			focusUnitIds: ['onion-1'],
 			tone: 'normal',
+		})
+		expect(result.current.entries[2]).toMatchObject({
+			summary: 'Wolf destroyed the Onion main gun.',
+			focusUnitIds: ['onion-1'],
 		})
 
 		act(() => {
@@ -391,6 +427,34 @@ describe('useInactiveEventStream', () => {
 			'Unit: Little Pigs 2: operational → destroyed',
 			'Unit: Little Pigs 3: operational → destroyed',
 		]))
+	})
+
+	it('labels Defender fire against a hyphenated Onion weapon as no effect', async () => {
+		const pollEvents = vi.fn().mockResolvedValue([
+			createEvent({
+				seq: 1,
+				type: 'FIRE_RESOLVED',
+				timestamp: 't1',
+				turnNumber: 3,
+				phase: 'DEFENDER_COMBAT',
+				targetId: 'secondary-1',
+				targetFriendlyName: 'Secondary Weapon',
+				outcome: 'D',
+			}),
+		])
+
+		const { result } = renderHook(() =>
+			useInactiveEventStream({
+				activeGameId: 123,
+				activeTurnActive: false,
+				lastAppliedEventSeq: 10,
+				pollEvents,
+			}),
+		)
+
+		await waitFor(() => expect(result.current.entries).toHaveLength(1))
+		expect(result.current.entries[0].summary).toBe('Fire on Secondary Weapon: no effect')
+		expect(result.current.entries[0].details).toContain('Outcome: no effect')
 	})
 
 	it('formats standalone inactive events and structured detail values', async () => {

@@ -49,6 +49,11 @@ acknowledgement is a UI-shell concern.
   summaries and error overlays.
 - Summaries are concise and defensively derived from payloads; additional detail
   is available on hover or keyboard focus.
+- Hovering or focusing an event highlights its referenced battlefield hex with
+  a translucent white overlay while keeping terrain, unit sprites, and labels
+  visible. Combat events focus the target; a weapon-subsystem target focuses its
+  owning Onion. Ram events focus the victim; ordinary movement events focus the
+  mover. Focus clears when neither hover nor keyboard focus remains on an event.
 - The stream handles polling and WebSocket updates with reconnection handling.
 - Events are chronological and exclude events already surfaced in the main
   action area, showing only those relevant to the inactive player or phase.
@@ -61,8 +66,8 @@ acknowledgement is a UI-shell concern.
 ## Combat Event Display
 
 - The inactive stream renders resolved combat outcomes, not raw CRT letters.
-- Summaries and detail lines use target-specific semantic results from the
-  engine.
+- The active combat toast and inactive stream use the same target-specific
+  semantic outcome resolver, including combat phase and follow-up events.
 - Friendly unit and weapon names are preferred when event payloads provide
   them.
 - If a follow-up event changes the final state, the stream presents the final

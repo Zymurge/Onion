@@ -114,6 +114,22 @@ describe('buildCombatResolution', () => {
 		})
 	})
 
+	it('labels Defender fire against a hyphenated Onion weapon as No Effect', () => {
+		const resolution = buildCombatResolution([
+			{
+				type: 'FIRE_RESOLVED',
+				phase: 'DEFENDER_COMBAT',
+				targetId: 'secondary-1',
+				outcome: 'D',
+			},
+		])
+
+		expect(resolution).toMatchObject({
+			outcome: 'D',
+			outcomeLabel: 'No Effect',
+		})
+	})
+
 	it('keeps destruction details distinct for each stacked unit', () => {
 		const resolution = buildCombatResolution([
 			{

@@ -49,14 +49,13 @@ function renderRightRail(overrides: Partial<RightRailProps> = {}) {
       selectedStackSelectionCount: 0,
       selectedStackSelectionIds: [],
     },
-    victoryObjectives: [],
-    escapeHexes: [],
     inactiveEventStream: {
       entries: [],
       errorMessage: null,
       isLoading: false,
       clearErrorMessage: vi.fn(),
     },
+    onEventFocusChange: vi.fn(),
     combatTargetOptions: [],
     onConfirmCombat: vi.fn(),
     onAttemptRam: vi.fn(),
@@ -111,8 +110,6 @@ describe('BattlefieldRightRail', () => {
         selectedInspectorOnion={null}
         readyWeaponDetails={[]}
         rightRailStackPanel={{ isVisible: false, selectedStackMembers: [], selectedStackSelectionCount: 0, selectedStackSelectionIds: [] }}
-        victoryObjectives={[]}
-        escapeHexes={[]}
         inactiveEventStream={{ entries: [], errorMessage: null, isLoading: false, clearErrorMessage: vi.fn() }}
         combatTargetOptions={[]}
         onConfirmCombat={vi.fn()}
@@ -158,8 +155,6 @@ describe('BattlefieldRightRail', () => {
           selectedStackSelectionCount: 0,
           selectedStackSelectionIds: [],
         }}
-        victoryObjectives={[]}
-        escapeHexes={[]}
         inactiveEventStream={{
           entries: [],
           errorMessage: null,

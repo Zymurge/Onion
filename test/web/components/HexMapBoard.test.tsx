@@ -1,4 +1,4 @@
-	it('renders Little Pigs group info inside the LP marker', () => {
+	it('renders Little Pigs group info and focuses its map cell for a group event', () => {
 		const littlePigsStack: BattlefieldUnit[] = [
 			{
 				friendlyName: 'Little Pigs 1',
@@ -51,6 +51,7 @@
 				onions={[onion]}
 				stackNaming={stackNaming}
 				stackRoster={stackRoster}
+				eventFocusedUnitIds={['LittlePigs:2,2']}
 				phase="DEFENDER_COMBAT"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -60,6 +61,9 @@
 		)
 
 		expect(getMarkerLabel('pigs-1')).toBe('Little Pigs group')
+		expect(screen.getByTestId('hex-cell-2-2')).toHaveClass('hex-cell-event-focused')
+		expect(screen.getByTestId('hex-cell-2-2').querySelector('.hex-event-focus-overlay')).not.toBeNull()
+		expect(screen.getByTestId('hex-unit-pigs-1').querySelector('image')).not.toBeNull()
 		expect(screen.queryByTestId('hex-unit-pigs-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()

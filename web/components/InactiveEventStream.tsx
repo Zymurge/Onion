@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { TimelineEvent } from '../lib/battlefieldView'
 
 type InactiveEventStreamProps = {
@@ -5,11 +6,25 @@ type InactiveEventStreamProps = {
 	errorMessage: string | null
 	isLoading: boolean
 	onDismissError: () => void
+	onFocusChange: (unitIds: ReadonlyArray<string>) => void
 }
 
-export function InactiveEventStream({ entries, errorMessage, isLoading, onDismissError }: InactiveEventStreamProps) {
+const NO_FOCUS_UNIT_IDS: ReadonlyArray<string> = []
+
+export function InactiveEventStream({ entries, errorMessage, isLoading, onDismissError, onFocusChange }: InactiveEventStreamProps) {
+	const [hoveredEntrySeq, setHoveredEntrySeq] = useState<number | null>(null)
+	const [focusedEntrySeq, setFocusedEntrySeq] = useState<number | null>(null)
+	const activeEntrySeq = hoveredEntrySeq ?? focusedEntrySeq
+	const activeEntry = entries.find((entry) => entry.seq === activeEntrySeq)
+	const focusUnitIds = activeEntry?.focusUnitIds ?? NO_FOCUS_UNIT_IDS
 	const showLoading = isLoading && entries.length === 0
 	const showError = errorMessage !== null
+
+	useEffect(() => {
+		onFocusChange(focusUnitIds)
+	}, [focusUnitIds, onFocusChange])
+
+	useEffect(() => () => onFocusChange(NO_FOCUS_UNIT_IDS), [onFocusChange])
 
 	return (
 		<section className="panel panel-subtle inactive-event-stream" role="status" aria-live="polite" data-testid="inactive-event-stream">
@@ -40,6 +55,11 @@ export function InactiveEventStream({ entries, errorMessage, isLoading, onDismis
 							key={entry.seq}
 							className={`inactive-event-stream-entry tone-${entry.tone ?? 'normal'}`}
 							title={entry.details !== undefined && entry.details.length > 0 ? entry.details.join('\n') : undefined}
+							tabIndex={0}
+							onMouseEnter={() => setHoveredEntrySeq(entry.seq)}
+							onMouseLeave={() => setHoveredEntrySeq((current) => current === entry.seq ? null : current)}
+							onFocus={() => setFocusedEntrySeq(entry.seq)}
+							onBlur={() => setFocusedEntrySeq((current) => current === entry.seq ? null : current)}
 						>
 							<p className="summary-line">{entry.summary}</p>
 						</li>

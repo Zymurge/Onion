@@ -8,6 +8,7 @@ type BattlefieldStageProps = {
   activePhase: string | null
   activeTurnActive: boolean
   actionEligibility: BattlefieldActionEligibility
+  eventFocusedUnitIds?: ReadonlyArray<string>
   defenders: ReadonlyArray<BattlefieldDefenderView>
   onions: ReadonlyArray<BattlefieldOnionView>
   stackNaming?: import('../../shared/stackNaming').StackNamingSnapshot
@@ -39,6 +40,7 @@ export function BattlefieldStage({
   activePhase,
   activeTurnActive,
   actionEligibility,
+  eventFocusedUnitIds = [],
   defenders,
   onions,
   stackNaming,
@@ -73,6 +75,7 @@ export function BattlefieldStage({
             catalog={catalog}
             phase={activePhase}
             actionEligibility={actionEligibility}
+            eventFocusedUnitIds={eventFocusedUnitIds}
             viewerRole={viewerRole}
             selectedUnitIds={selectedUnitIds}
             selectedCombatTargetId={selectedCombatTargetId}

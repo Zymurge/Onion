@@ -1,5 +1,6 @@
 import type { TimelineEvent } from '../battlefieldView'
 import type { EventEnvelope } from '../../../shared/types/index.js'
+import { parseCombatTargetId } from '../../../shared/combatTarget.js'
 
 import { FOLLOW_UP_EVENT_TYPES, MOVE_EVENT_TYPES, RESOLVED_EVENT_TYPES } from './eventFamilies'
 import { buildEventDetails, buildPrimarySummary, getEventCauseId, isNoiseEvent } from './formatting'
@@ -15,6 +16,7 @@ function buildTimelineEntry(events: ReadonlyArray<InactiveEventPayload>): Timeli
 		type: primaryEvent.type,
 		summary,
 		timestamp: primaryEvent.timestamp,
+		focusUnitIds: resolveFocusUnitIds(primaryEvent, events),
 		tone: primaryEvent.type === 'UNIT_STATUS_CHANGED' || primaryEvent.type === 'GAME_OVER' ? 'alert' : 'normal',
 		details,
 		payload: primaryEvent,
@@ -23,6 +25,43 @@ function buildTimelineEntry(events: ReadonlyArray<InactiveEventPayload>): Timeli
 
 function isNonEmptyString(value: unknown): value is string {
 	return typeof value === 'string' && value.trim().length > 0
+}
+
+function stringIds(value: unknown): string[] {
+	return Array.isArray(value) ? value.filter(isNonEmptyString) : []
+}
+
+function resolveFocusUnitIds(primaryEvent: InactiveEventPayload, events: ReadonlyArray<InactiveEventPayload>): string[] {
+	const weaponDestroyedEvent = events.find((event) => event.type === 'ONION_WEAPON_DESTROYED')
+	if (weaponDestroyedEvent !== undefined && isNonEmptyString(weaponDestroyedEvent.onionId)) {
+		return [weaponDestroyedEvent.onionId]
+	}
+
+	const fireEvent = events.find((event) => event.type === 'FIRE_RESOLVED')
+	if (fireEvent !== undefined && isNonEmptyString(fireEvent.targetId)) {
+		return [parseCombatTargetId(fireEvent.targetId)?.onionId ?? fireEvent.targetId]
+	}
+
+	const moveResolution = events.find((event) => event.type === 'MOVE_RESOLVED')
+	if (moveResolution !== undefined) {
+		const victims = [...stringIds(moveResolution.rammedUnitIds), ...stringIds(moveResolution.destroyedUnitIds)]
+		if (victims.length > 0) {
+			return [...new Set(victims)]
+		}
+	}
+
+	const targetId = events.map((event) => event.targetId).find(isNonEmptyString)
+	if (targetId !== undefined) {
+		return [parseCombatTargetId(targetId)?.onionId ?? targetId]
+	}
+
+	const actorEvent = events.find((event) => isNonEmptyString(event.unitId) || isNonEmptyString(event.onionId)) ?? primaryEvent
+	const actorId = isNonEmptyString(actorEvent.unitId)
+		? actorEvent.unitId
+		: isNonEmptyString(actorEvent.onionId)
+			? actorEvent.onionId
+			: null
+	return actorId === null ? [] : [actorId]
 }
 
 function shouldAttachToPreviousGroup(eventType: string): boolean {

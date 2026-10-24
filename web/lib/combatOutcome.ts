@@ -1,6 +1,7 @@
 export type CombatOutcomeEvent = {
 	type?: unknown
 	outcome?: unknown
+	phase?: unknown
 	targetId?: unknown
 	to?: unknown
 	amount?: unknown
@@ -10,7 +11,12 @@ function isNonEmptyString(value: unknown): value is string {
 	return typeof value === 'string' && value.trim().length > 0
 }
 
-function isOnionTarget(targetId: unknown): boolean {
+function isOnionTarget(event: CombatOutcomeEvent): boolean {
+	if (event.phase === 'DEFENDER_COMBAT') {
+		return true
+	}
+
+	const targetId = event.targetId
 	if (!isNonEmptyString(targetId)) {
 		return false
 	}
@@ -48,7 +54,7 @@ export function resolveCombatOutcomeLabel(event: CombatOutcomeEvent, relatedEven
 				return 'destroyed'
 			}
 
-			if (isOnionTarget(event.targetId)) {
+			if (isOnionTarget(event)) {
 				return hasOnionTreadLoss(relatedEvents) ? 'missed' : 'no effect'
 			}
 

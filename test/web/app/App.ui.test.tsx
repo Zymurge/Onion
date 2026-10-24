@@ -426,6 +426,8 @@ describe('App UI', () => {
 					{
 						seq: 48,
 						type: 'FIRE_RESOLVED',
+						attackers: ['wolf-2'],
+						targetId: 'onion-1',
 						summary: 'Wolf-2 fired at the Onion and missed.',
 						timestamp: '2026-04-15T12:00:00.000Z',
 					},
@@ -436,8 +438,26 @@ describe('App UI', () => {
 				{
 					seq: 49,
 					type: 'MOVE_RESOLVED',
+					unitId: 'puss-1',
+					rammedUnitIds: ['onion-1'],
 					summary: 'Puss-1 rammed the Onion and retreated.',
 					timestamp: '2026-04-15T12:01:00.000Z',
+				},
+				{
+					seq: 50,
+					type: 'FIRE_RESOLVED',
+					attackers: ['wolf-2'],
+					onionId: 'onion-1',
+					targetId: 'main-1',
+					summary: 'Wolf-2 destroyed the Onion main gun.',
+					timestamp: '2026-04-15T12:02:00.000Z',
+				},
+				{
+					seq: 51,
+					type: 'ONION_WEAPON_DESTROYED',
+					onionId: 'onion-1',
+					weaponId: 'main-1',
+					timestamp: '2026-04-15T12:02:01.000Z',
 				},
 			]
 		})
@@ -455,6 +475,20 @@ describe('App UI', () => {
 		expect(pollEvents).toHaveBeenCalledWith(123, 0)
 		expect(screen.getByTestId('inactive-event-stream').closest('.rail-right')).not.toBeNull()
 
+		const eventEntry = screen.getByText(/Wolf-2 fired at the Onion and missed\./i).closest('li')
+		const onionCell = screen.getByTestId('hex-unit-onion-1').closest('.hex-cell')
+		const wolfCell = screen.getByTestId('hex-unit-wolf-2').closest('.hex-cell')
+		expect(eventEntry?.getAttribute('tabindex')).toBe('0')
+		fireEvent.mouseEnter(eventEntry!)
+		expect(onionCell?.classList.contains('hex-cell-event-focused')).toBe(true)
+		expect(wolfCell?.classList.contains('hex-cell-event-focused')).toBe(false)
+		fireEvent.mouseLeave(eventEntry!)
+		expect(onionCell?.classList.contains('hex-cell-event-focused')).toBe(false)
+		fireEvent.focus(eventEntry!)
+		expect(onionCell?.classList.contains('hex-cell-event-focused')).toBe(true)
+		fireEvent.blur(eventEntry!)
+		expect(onionCell?.classList.contains('hex-cell-event-focused')).toBe(false)
+
 		act(() => {
 			liveEventSource.emit({ kind: 'event', gameId: 123, eventSeq: 48, eventType: 'FIRE_RESOLVED' })
 		})
@@ -467,6 +501,21 @@ describe('App UI', () => {
 
 		expect(await screen.findByText(/Puss-1 rammed the Onion and retreated\./i)).not.toBeNull()
 		expect(screen.getByText(/Wolf-2 fired at the Onion and missed\./i)).not.toBeNull()
+
+		const ramEntry = screen.getByText(/Puss-1 rammed the Onion and retreated\./i).closest('li')
+		const ramVictimCell = screen.getByTestId('hex-unit-onion-1').closest('.hex-cell')
+		const pussCell = screen.getByTestId('hex-unit-puss-1').closest('.hex-cell')
+		fireEvent.mouseEnter(ramEntry!)
+		expect(ramVictimCell?.classList.contains('hex-cell-event-focused')).toBe(true)
+		expect(pussCell?.classList.contains('hex-cell-event-focused')).toBe(false)
+		fireEvent.mouseLeave(ramEntry!)
+		expect(ramVictimCell?.classList.contains('hex-cell-event-focused')).toBe(false)
+
+		const weaponDestroyedEntry = screen.getByText(/Wolf-2 destroyed the Onion main gun\./i).closest('li')
+		fireEvent.mouseEnter(weaponDestroyedEntry!)
+		expect(ramVictimCell?.classList.contains('hex-cell-event-focused')).toBe(true)
+		fireEvent.mouseLeave(weaponDestroyedEntry!)
+		expect(ramVictimCell?.classList.contains('hex-cell-event-focused')).toBe(false)
 	})
 
 	it('loads historical inactive events on initial defender login', async () => {
@@ -649,8 +698,8 @@ describe('App UI', () => {
 				? {
 					winner: 'onion' as const,
 					victoryObjectives: [
-						{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit' as const, required: true, completed: true },
-						{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map' as const, required: true, completed: true },
+						{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit' as const, victor: 'onion' as const, required: true, completed: true },
+						{ id: 'escape-off-map', label: 'Escape to the swamp edge hex', kind: 'escape-map' as const, victor: 'onion' as const, required: true, completed: true },
 					],
 				}
 				: {}),
@@ -696,7 +745,7 @@ describe('App UI', () => {
 			status: 'archived',
 			winner: 'onion',
 			victoryObjectives: [
-				{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', required: true, completed: true },
+				{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', victor: 'onion', required: true, completed: true },
 			],
 		})
 		const submitAction = vi.fn().mockResolvedValue(snapshot)

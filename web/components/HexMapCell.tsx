@@ -26,6 +26,7 @@ type HexMapCellProps = {
   escapePatternId: string
   hasSharedOccupancy: boolean
   isMoveReady: boolean
+  isEventFocused?: boolean
   isOnion: boolean
   isReachable: boolean
   isSelected: boolean
@@ -68,6 +69,7 @@ export function HexMapCell({
   escapePatternId,
   hasSharedOccupancy,
   isMoveReady,
+  isEventFocused = false,
   isOnion,
   isReachable,
   isSelected,
@@ -103,6 +105,7 @@ export function HexMapCell({
         'hex-cell',
         renderedTerrainType ? `hex-terrain-${renderedTerrainType}` : 'hex-terrain-default',
         isSelected ? 'hex-cell-selected' : '',
+        isEventFocused ? 'hex-cell-event-focused' : '',
         combatTargetSelected ? 'hex-cell-selected' : '',
         combatRange ? 'hex-cell-combat-range' : '',
         escapeHex ? 'hex-cell-escape' : '',
@@ -126,6 +129,9 @@ export function HexMapCell({
         preserveAspectRatio="xMidYMid slice"
       />
       <polygon className="hex-shape" points={polygonPoints} fill="none" />
+      {isEventFocused ? (
+        <polygon className="hex-event-focus-overlay" points={polygonPoints} />
+      ) : null}
       {escapeHex ? (
         <>
           <polygon

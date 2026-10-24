@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from 'react'
+import { useState, type ComponentProps, type ReactNode } from 'react'
 
 import { AppBattlefieldStage } from './AppBattlefieldStage'
 import { AppShellHeader } from './AppShellHeader'
@@ -28,6 +28,7 @@ export type AppShellLayoutProps = {
 }
 
 export function AppShellLayout({ commands, debug, display, gate, inactiveEventStream, interaction, session, overlays, onBackToHistory }: AppShellLayoutProps) {
+  const [focusedEventUnitIds, setFocusedEventUnitIds] = useState<ReadonlyArray<string>>([])
   const scenarioInfo = useScenarioInfo({
     snapshot: display.clientSnapshot,
     authSession: session.authSession,
@@ -138,6 +139,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           activePhase={display.activePhase}
           activeTurnActive={display.activeTurnActive}
           actionEligibility={display.actionEligibility}
+          eventFocusedUnitIds={gate.inactiveEventWindowVisible ? focusedEventUnitIds : []}
           defenders={display.displayedDefenders}
           lifecycleStatus={session.state.snapshot?.status}
           onions={display.displayedOnions}
@@ -184,6 +186,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           rightRailStackPanel={display.rightRailStackPanel}
           catalog={catalog}
           inactiveEventStream={inactiveEventStream}
+          onEventFocusChange={setFocusedEventUnitIds}
           combatTargetOptions={display.combatTargetOptions}
           onConfirmCombat={commands.confirmCombat}
           onAttemptRam={commands.attemptRam}

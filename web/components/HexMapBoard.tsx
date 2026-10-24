@@ -35,6 +35,7 @@ type HexMapBoardProps = {
   }
   defenders: ReadonlyArray<BattlefieldUnit>
   onions: ReadonlyArray<BattlefieldOnionView>
+  eventFocusedUnitIds?: ReadonlyArray<string>
   phase: string | null
   viewerRole?: 'onion' | 'defender' | null
   selectedUnitIds: ReadonlyArray<string>
@@ -108,6 +109,7 @@ export function HexMapBoard({
   scenarioMap,
   defenders,
   onions,
+  eventFocusedUnitIds = [],
   phase,
   viewerRole = null,
   selectedUnitIds,
@@ -141,6 +143,7 @@ export function HexMapBoard({
     zoomSliderRef,
   } = useHexMapZoom(bounds)
   const occupantMap = buildOccupantMap({ onions, defenders })
+  const eventFocusedUnitIdSet = new Set(eventFocusedUnitIds)
   const escapeHexSet = new Set((escapeHexes ?? []).map((hex) => hexKey(hex)))
   const battlefieldRosterProjection = useMemo(() => {
     if (stackRoster === undefined) {
@@ -353,6 +356,14 @@ export function HexMapBoard({
                 selectedCombatTargetId,
                 stackRosterIndex,
               ))
+              const eventFocused = cellOccupants.some((occupant) => {
+                if (eventFocusedUnitIdSet.has(occupant.unitId)) {
+                  return true
+                }
+
+                const groupId = stackRosterIndex?.getUnitGroup(occupant.unitId)?.groupId
+                return groupId !== undefined && eventFocusedUnitIdSet.has(groupId)
+              })
               const targetOccupant = resolveCanonicalOccupant(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)
               const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
                 return Boolean(playerRole && isMovementPhase && actionEligibility.movementByUnitId[occupant.unitId]?.eligible === true)
@@ -371,6 +382,7 @@ export function HexMapBoard({
                   coord={coord}
                   escapeHex={escapeHexSet.has(cellKey)}
                   escapePatternId={escapePatternId}
+                  isEventFocused={eventFocused}
                   hasSharedOccupancy={cellOccupants.length > 1}
                   isMoveReady={isMoveReady}
                   isOnion={cellOccupants.some((occupant) => occupant.unitId === onion.unitId)}

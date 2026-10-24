@@ -56,6 +56,7 @@ type BattlefieldRightRailProps = {
     isLoading: boolean
     clearErrorMessage: () => void
   }
+  onEventFocusChange: (unitIds: ReadonlyArray<string>) => void
   combatTargetOptions: ReadonlyArray<CombatTargetOption>
   onConfirmCombat: () => void
   onAttemptRam: () => void
@@ -90,6 +91,7 @@ export function BattlefieldRightRail({
   catalog,
   inactiveEventStream,
   combatTargetOptions,
+  onEventFocusChange,
   onConfirmCombat,
   onAttemptRam,
   onDeclineRam,
@@ -281,6 +283,7 @@ export function BattlefieldRightRail({
           errorMessage={inactiveEventStream.errorMessage}
           isLoading={inactiveEventStream.isLoading}
           onDismissError={inactiveEventStream.clearErrorMessage}
+          onFocusChange={onEventFocusChange}
         />
       ) : null}
       {!isGameOver && pendingRamPrompt !== null ? (
