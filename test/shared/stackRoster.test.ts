@@ -468,6 +468,50 @@ describe('stack roster', () => {
 		expect(retired.groupsById['g-c']).toBeUndefined()
 	})
 
+	it('preserves member identity through split and merge regardless of layout order', () => {
+		const initialRoster: StackRosterState = {
+			groupsById: {
+				'g-a': {
+					groupName: 'Little Pigs group A',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+				},
+				'g-b': {
+					groupName: 'Little Pigs group B',
+					unitType: 'LittlePigs',
+					position: { q: 9, r: 9 },
+					unitIds: ['pigs-4'],
+				},
+			},
+		}
+		const split = splitStackRosterGroup(initialRoster, {
+			groupId: 'g-a',
+			newGroupId: 'g-c',
+			newGroupName: 'Little Pigs group C',
+			movedUnitIds: ['pigs-3', 'pigs-1'],
+			newPosition: { q: 9, r: 9 },
+		})
+		const merged = mergeStackRosterGroups(split, 'g-c', ['g-b', 'g-a'])
+		const mergedUnitIds = merged.groupsById['g-c']?.unitIds ?? []
+
+		expect(mergedUnitIds).toHaveLength(4)
+		expect(new Set(mergedUnitIds)).toEqual(new Set(['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4']))
+		expect(merged.groupsById['g-a']).toBeUndefined()
+		expect(merged.groupsById['g-b']).toBeUndefined()
+
+		const rosterIndex = buildStackRosterIndex(merged, {
+			'layout-2': makeDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 9, r: 9 } }),
+			'layout-4': makeDefender({ unitId: 'pigs-4', typeId: 'LittlePigs', position: { q: 9, r: 9 } }),
+			'layout-1': makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 9, r: 9 } }),
+			'layout-3': makeDefender({ unitId: 'pigs-3', typeId: 'LittlePigs', position: { q: 9, r: 9 } }),
+		})
+
+		for (const unitId of mergedUnitIds) {
+			expect(rosterIndex.getUnitGroup(unitId)?.groupId).toBe('g-c')
+		}
+	})
+
 	it('moves a single selected member without inventing a new group name', () => {
 		const initialRoster: StackRosterState = {
 			groupsById: {

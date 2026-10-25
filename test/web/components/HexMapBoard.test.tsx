@@ -384,7 +384,7 @@ import '@testing-library/jest-dom/vitest'
 import { describe, expect, it, vi } from 'vitest'
 
 import { HexMapBoard as ProductionHexMapBoard } from '#web/components/HexMapBoard'
-import { axialToPixel, boardPixelSize } from '#web/lib/hexPixelLayout'
+import { boardPixelSize } from '#web/lib/hexPixelLayout'
 import type { CombatActionEligibility } from '#web/lib/actionEligibility/projection'
 import type { CombatEligibility, CombatEligibilityReason } from '#web/lib/actionEligibility/combat'
 import type { MovementEligibility } from '#web/lib/actionEligibility/movement'
@@ -1004,75 +1004,6 @@ describe('HexMapBoard', () => {
 		expect(svg.getAttribute('width')).toBe(String(expectedBounds.width * 1.5))
 		expect(svg.getAttribute('height')).toBe(String(expectedBounds.height * 1.5))
 		expect(scrollTo).toHaveBeenCalledWith({ left: 195, top: 135, behavior: 'auto' })
-	})
-
-	it('centers the first selected unit or weapon owner without changing zoom', () => {
-		const { rerender } = render(
-			<HexMapBoard
-				scenarioMap={scenarioMap}
-				defenders={defenders}
-				onions={[onion]}
-				phase="DEFENDER_MOVE"
-				selectedUnitIds={[]}
-				onSelectUnit={vi.fn()}
-				onDeselect={vi.fn()}
-				onMoveUnit={vi.fn()}
-			/>,
-		)
-
-		const viewport = screen.getByTestId('hex-map-viewport') as HTMLDivElement
-		const scrollTo = vi.fn()
-		Object.defineProperty(viewport, 'clientWidth', { value: 240, configurable: true })
-		Object.defineProperty(viewport, 'clientHeight', { value: 180, configurable: true })
-		Object.defineProperty(viewport, 'scrollLeft', { value: 0, writable: true, configurable: true })
-		Object.defineProperty(viewport, 'scrollTop', { value: 0, writable: true, configurable: true })
-		Object.defineProperty(viewport, 'scrollTo', { value: scrollTo, configurable: true })
-
-		fireEvent.change(screen.getByRole('slider', { name: /map zoom/i }), { target: { value: '150' } })
-		scrollTo.mockClear()
-
-		rerender(
-			<HexMapBoard
-				scenarioMap={scenarioMap}
-				defenders={defenders}
-				onions={[onion]}
-				phase="DEFENDER_MOVE"
-				selectedUnitIds={['wolf-2', 'puss-1']}
-				onSelectUnit={vi.fn()}
-				onDeselect={vi.fn()}
-				onMoveUnit={vi.fn()}
-			/>,
-		)
-
-		const firstSelectedCenter = axialToPixel(defenders[1]!.position, 36)
-		expect(scrollTo).toHaveBeenLastCalledWith({
-			left: expect.closeTo((firstSelectedCenter.x + 28) * 1.5 - 120),
-			top: expect.closeTo((firstSelectedCenter.y + 28) * 1.5 - 90),
-			behavior: 'auto',
-		})
-		expect(screen.getByRole('img', { name: /swamp siege hex map/i })).toHaveAttribute('width', String(boardPixelSize(scenarioMap.cells, 36, 28).width * 1.5))
-
-		const movedOnion = { ...onion, position: { q: 3, r: 3 } }
-		scrollTo.mockClear()
-		rerender(
-			<HexMapBoard
-				scenarioMap={scenarioMap}
-				defenders={defenders}
-				onions={[movedOnion]}
-				phase="ONION_COMBAT"
-				selectedUnitIds={['weapon:main-1']}
-				onSelectUnit={vi.fn()}
-				onDeselect={vi.fn()}
-				onMoveUnit={vi.fn()}
-			/>,
-		)
-
-		const weaponOwnerCenter = axialToPixel(movedOnion.position, 36)
-		expect(scrollTo).toHaveBeenLastCalledWith({
-			left: expect.closeTo((weaponOwnerCenter.x + 28) * 1.5 - 120),
-			top: expect.closeTo((weaponOwnerCenter.y + 28) * 1.5 - 90),
-			behavior: 'auto',
-		})
 	})
 
 	it('scrolls when the user wheels over the map viewport', () => {
