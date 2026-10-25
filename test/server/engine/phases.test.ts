@@ -202,6 +202,34 @@ describe('advancePhaseWithEvents', () => {
 
       expect(state.defenders['pigs-1']).toMatchObject({ unitId: 'pigs-1', state: 'destroyed' })
       expect(state.stackRoster.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-2'])
+      expect(state.stackRoster.groupsById['LittlePigs:1,1']).not.toHaveProperty('groupName')
+      expect(state.stackNaming.groupsInUse).toEqual([])
+      expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
+    })
+
+    it('preserves the group name when partial destruction leaves multiple members', () => {
+      const state = makeGameState({
+        defenders: {
+          'pigs-1': makeUnit({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 }, state: 'destroyed' }),
+          'pigs-2': makeUnit({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
+          'pigs-3': makeUnit({ unitId: 'pigs-3', typeId: 'LittlePigs', position: { q: 1, r: 1 } }),
+        },
+        stackRoster: makeStackRoster({
+          groupsById: {
+            'LittlePigs:1,1': makeStackGroup({ unitIds: ['pigs-1', 'pigs-2', 'pigs-3'] }),
+          },
+        }),
+      })
+
+      advanceState(state)
+
+      expect(state.stackRoster.groupsById['LittlePigs:1,1']).toMatchObject({
+        groupName: 'Little Pigs group 1',
+        unitIds: ['pigs-2', 'pigs-3'],
+      })
+      expect(state.stackNaming.groupsInUse).toEqual([
+        { groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      ])
     })
   })
 })

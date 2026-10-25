@@ -1,6 +1,6 @@
 import type { GameState, TurnPhase } from '#shared/types/index'
 import logger from '#server/logger'
-import { refreshStackRosterNamingSnapshot } from '#shared/stackRoster/index'
+import { expandStackRosterGroups, refreshStackRosterNamingSnapshot } from '#shared/stackRoster/index'
 
 type EngineGameState = GameState
 
@@ -37,27 +37,15 @@ export function phaseActor(phase: TurnPhase): PhaseActor {
 }
 
 export function pruneDestroyedDefendersFromStackRoster(state: EngineGameState): void {
-  const destroyedUnitIds = new Set<string>()
-  for (const [unitId, unit] of Object.entries(state.defenders)) {
-    if (unit.state === 'destroyed') {
-      destroyedUnitIds.add(unitId)
-      destroyedUnitIds.add(unit.unitId)
-    }
-  }
-
-  if (destroyedUnitIds.size === 0) {
+  if (!Object.values(state.defenders).some((unit) => unit.state === 'destroyed')) {
     return
   }
 
   if (state.stackRoster !== undefined) {
-    const groupsById = Object.fromEntries(
-      Object.entries(state.stackRoster.groupsById)
-        .flatMap(([groupId, group]) => {
-          const unitIds = group.unitIds.filter((unitId) => state.defenders[unitId] !== undefined && !destroyedUnitIds.has(unitId))
-          return unitIds.length > 0 ? [[groupId, { ...group, unitIds }] as const] : []
-        }),
+    const liveDefenders = Object.fromEntries(
+      Object.entries(state.defenders).filter(([, unit]) => unit.state !== 'destroyed'),
     )
-    state.stackRoster = { groupsById }
+    state.stackRoster = expandStackRosterGroups(state.stackRoster, liveDefenders)
     state.stackNaming = refreshStackRosterNamingSnapshot(state.stackRoster, state.stackNaming, state.defenders)
   }
 }
