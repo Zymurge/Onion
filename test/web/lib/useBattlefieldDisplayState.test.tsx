@@ -290,6 +290,39 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.selectedCombatAttackStrength).toBe(6)
 	})
 
+	it('labels a grouped attack once while reporting the selected member count', () => {
+		const snapshot = createSnapshot()
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.stackNaming = {
+			groupsInUse: [
+				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+			],
+			usedGroupNames: ['Little Pigs group 1'],
+		}
+		authoritativeState.stackRoster = {
+			groupsById: {
+				'LittlePigs:4,4': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds: ['pigs-1', 'pigs-2'] }),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.selectedCombatAttackCount).toBe(2)
+		expect(result.current.selectedCombatAttackMemberLabels).toEqual(['Little Pigs group 1'])
+	})
+
 	it('keeps the attack total populated during defender movement when defenders are selected', () => {
 		const snapshot = createSnapshot()
 		snapshot.phase = 'DEFENDER_MOVE'

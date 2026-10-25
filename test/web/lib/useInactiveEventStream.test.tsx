@@ -443,6 +443,36 @@ describe('useInactiveEventStream', () => {
 		]))
 	})
 
+	it('labels a grouped inactive attack once while retaining the selected-unit count', async () => {
+		const pollEvents = vi.fn().mockResolvedValue([
+			createEvent({
+				seq: 1,
+				type: 'FIRE_RESOLVED',
+				timestamp: 't1',
+				turnNumber: 3,
+				attackers: ['pigs-1', 'pigs-2'],
+				attackerFriendlyNames: ['Little Pigs group 1', 'Little Pigs group 1'],
+				targetFriendlyName: 'The Onion',
+				outcome: 'D',
+			}),
+		])
+
+		const { result } = renderHook(() =>
+			useInactiveEventStream({
+				activeGameId: 123,
+				activeTurnActive: false,
+				lastAppliedEventSeq: 10,
+				pollEvents,
+			}),
+		)
+
+		await waitFor(() => expect(result.current.entries).toHaveLength(1))
+		expect(result.current.entries[0].details).toEqual(expect.arrayContaining([
+			'Attackers (2): Little Pigs group 1',
+			'Target: The Onion',
+		]))
+	})
+
 	it('labels Defender fire against a hyphenated Onion weapon as no effect', async () => {
 		const pollEvents = vi.fn().mockResolvedValue([
 			createEvent({
@@ -512,7 +542,7 @@ describe('useInactiveEventStream', () => {
 		const combatEntry = result.current.entries.find((entry) => entry.summary === 'Fire on Enemy Unit: disabled')
 		expect(combatEntry?.details).toEqual(
 			expect.arrayContaining([
-				'Attackers: Alpha, name: Bravo',
+				'Attackers (2): Alpha, name: Bravo',
 				'Target: Enemy Unit',
 				'Roll: —',
 				'Outcome: disabled',

@@ -10,17 +10,28 @@ function resolveUnitFriendlyName(state: GameState, unitId: string): string {
     return state.onions[lookup.unitId]?.friendlyName ?? unitId
   }
 
+  const canonicalUnitId = lookup.unitId ?? unitId
+  const stackGroupEntry = Object.entries(state.stackRoster.groupsById).find(([groupId, group]) => {
+    return groupId === unitId || groupId === canonicalUnitId || group.unitIds.includes(unitId) || group.unitIds.includes(canonicalUnitId)
+  })
+  if (stackGroupEntry !== undefined) {
+    const [, stackGroup] = stackGroupEntry
+    if (stackGroup.unitIds.length > 1 && stackGroup.groupName !== undefined) {
+      return stackGroup.groupName
+    }
+
+    const memberId = stackGroup.unitIds.find((candidateId) => candidateId === canonicalUnitId) ?? stackGroup.unitIds[0]
+    const member = Object.values(state.defenders).find((defender) => defender.unitId === memberId)
+    if (member !== undefined) {
+      return member.friendlyName
+    }
+  }
+
   if (lookup.kind === 'defender' && lookup.unitId !== undefined) {
     const defender = state.defenders[lookup.unitId]
     if (defender === undefined) {
       return unitId
     }
-
-    const stackGroup = Object.values(state.stackRoster.groupsById).find((group) => group.unitIds.includes(lookup.unitId!))
-    if (stackGroup !== undefined && stackGroup.unitIds.length > 1 && stackGroup.groupName !== undefined) {
-      return stackGroup.groupName
-    }
-
     return defender.friendlyName
   }
 

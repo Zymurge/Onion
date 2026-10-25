@@ -290,6 +290,28 @@ describe('buildCombatEvents', () => {
     })
   })
 
+  it('uses the declared stack name when a combat event targets the group id', () => {
+    const events = buildCombatEvents(
+      55,
+      { type: 'FIRE', attackers: ['main'], targetId: 'LittlePigs:1,1', onionId: 'onion-1' },
+      {
+        success: true,
+        actionType: 'FIRE',
+        attackerIds: ['main'],
+        onionId: 'onion-1',
+        targetId: 'LittlePigs:1,1',
+        roll: { roll: 2, result: 'D', odds: '1:1' },
+      },
+      state,
+    )
+
+    expect(events[0]).toMatchObject({
+      type: 'FIRE_RESOLVED',
+      targetId: 'LittlePigs:1,1',
+      targetFriendlyName: 'Little Pigs group 1',
+    })
+  })
+
   it('uses each stacked Little Pig name for individual destruction events', () => {
     const stackFixture = makeStackFixture({
       groups: {

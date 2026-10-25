@@ -151,7 +151,7 @@ export function buildBattlefieldDisplayModel({
 		})()
 	const selectedCombatAttackMemberLabels = hasValidationError
 		? []
-		: activeCombatRole === 'onion'
+		: Array.from(new Set(activeCombatRole === 'onion'
 			? selectedCombatAttackerIds
 				.map((weaponId) => displayedOnion?.weapons.find((weapon) => weapon.id === weaponId) ?? null)
 				.filter((weapon): weapon is NonNullable<typeof weapon> => weapon !== null)
@@ -159,7 +159,7 @@ export function buildBattlefieldDisplayModel({
 			: selectedCombatAttackerIds
 				.map((unitId) => displayedDefenders.find((unit) => unit.unitId === unitId) ?? null)
 				.filter((unit): unit is NonNullable<typeof unit> => unit !== null)
-				.map((unit) => resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRoster, catalog ?? undefined))
+				.map((unit) => resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRoster, catalog ?? undefined))))
 	const selectedCombatAttackGroupCount = !isCombatPhase
 		? 0
 		: activeCombatRole === 'defender'

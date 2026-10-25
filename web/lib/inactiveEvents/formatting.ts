@@ -27,6 +27,18 @@ function formatValueList(value: unknown): string {
 	return value.map((item) => formatDetailValue(item)).filter((item) => item.length > 0).join(', ')
 }
 
+function formatAttackerDetails(event: InactiveEventPayload): string {
+	const rawAttackers = Array.isArray(event.attackers) ? event.attackers : []
+	const friendlyNames = Array.isArray(event.attackerFriendlyNames) ? event.attackerFriendlyNames : []
+	const attackerCount = rawAttackers.length > 0 ? rawAttackers.length : friendlyNames.length
+	const labels = friendlyNames.length > 0 ? friendlyNames : rawAttackers
+	const uniqueLabels = [...new Set(labels.map((label) => formatDetailValue(label)).filter((label) => label.length > 0))]
+
+	return attackerCount > 0 && uniqueLabels.length > 0
+		? `Attackers (${attackerCount}): ${uniqueLabels.join(', ')}`
+		: ''
+}
+
 function formatFriendlyName(value: unknown): string {
 	const raw = formatRawValue(value)
 	return raw.length > 0 ? raw : ''
@@ -183,10 +195,9 @@ export function buildEventDetails(event: InactiveEventPayload, relatedEvents: Re
 		}
 		case 'FIRE_RESOLVED': {
 			const details: string[] = []
-			if (Array.isArray(event.attackerFriendlyNames) && event.attackerFriendlyNames.length > 0) {
-				details.push(`Attackers: ${formatValueList(event.attackerFriendlyNames)}`)
-			} else if (Array.isArray(event.attackers) && event.attackers.length > 0) {
-				details.push(`Attackers: ${formatValueList(event.attackers)}`)
+			const attackerDetails = formatAttackerDetails(event)
+			if (attackerDetails.length > 0) {
+				details.push(attackerDetails)
 			}
 			const targetName = formatFriendlyName(event.targetFriendlyName) || formatRawValue(event.targetId)
 			if (targetName.length > 0) {

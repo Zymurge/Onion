@@ -976,7 +976,7 @@ describe('App UI', () => {
 		expect(entries[0].getAttribute('title')).toContain('Unit: wolf-2')
 		expect(entries[0].getAttribute('title')).toContain('Target: pigs-1')
 		expect(entries[0].getAttribute('title')).toContain('Tread loss: 1')
-		expect(entries[1].getAttribute('title')).toContain('Attackers: wolf-2')
+		expect(entries[1].getAttribute('title')).toContain('Attackers (1): wolf-2')
 		expect(entries[1].getAttribute('title')).toContain('Outcome: destroyed')
 		expect(entries[1].getAttribute('title')).toContain('Treads lost: 2')
 		expect(entries[1].getAttribute('title')).toContain('Unit: pigs-1: operational → destroyed')
