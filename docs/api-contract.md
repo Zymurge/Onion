@@ -394,7 +394,7 @@ Combat uses a single `FIRE` command shape for both Onion and defender attacks.
 
 `attackers` contains one or more attacker IDs. For Onion, each entry is a weapon id. For defenders, each entry is a unit id. The engine resolves whether the command is valid for the current phase and target.
 
-`FIRE` with multiple attackers is legal when attacking a weapon or unit target, but not when targeting Onion treads. In that case, each attacker must fire separately.
+`FIRE` with multiple attackers is legal when attacking a weapon or unit target. Against Onion treads, multiple attackers are legal only when every attacker belongs to the same canonical stack group; their weapon strengths are combined into one attack. Attackers from different groups or unstacked units must fire separately.
 
 #### Combat Target IDs
 

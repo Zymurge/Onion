@@ -60,7 +60,6 @@ function buildCombatCalculatorInput(
   target: CombatTarget,
   attackerIds: string[],
   onionId: string,
-  rules: RulesContext,
 ): CombatExchangeInput {
   const onion = requireOnion(state, onionId)
 
@@ -173,6 +172,12 @@ function getLiveStackMembers(state: GameState, unitIds: readonly string[]): Defe
   return unitIds
     .map((unitId) => state.defenders[unitId])
     .filter((member): member is DefenderUnit => member !== undefined && member.state !== 'destroyed')
+}
+
+function areAttackersInSameStack(state: GameState, attackerIds: readonly string[]): boolean {
+  const groups = Object.values(state.stackRoster?.groupsById ?? {})
+  const group = groups.find((candidate) => candidate.unitIds.includes(attackerIds[0]))
+  return group !== undefined && attackerIds.every((attackerId) => group.unitIds.includes(attackerId))
 }
 
 /**
@@ -349,7 +354,7 @@ export function validateCombatAction(
     }
 
     const combatResult = combatCalculator.calculate(
-      buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.unitId }, [...command.attackers], onion.unitId, rules),
+      buildCombatCalculatorInput(map, state, { kind: 'defender', id: target.unitId }, [...command.attackers], onion.unitId),
     )
 
     return {
@@ -372,7 +377,7 @@ export function validateCombatAction(
     return { ok: false, code: 'INVALID_TARGET', error: `Target '${command.targetId}' is not valid for the selected weapon(s)` }
   }
 
-  if (target.kind === 'treads' && command.attackers.length > 1) {
+  if (target.kind === 'treads' && command.attackers.length > 1 && !areAttackersInSameStack(state, command.attackers)) {
     return { ok: false, code: 'MULTI_ATTACK_TREAD_TARGET', error: 'Multiple attackers cannot target Onion treads in one attack' }
   }
 
@@ -402,7 +407,7 @@ export function validateCombatAction(
   }
 
   const combatResult = combatCalculator.calculate(
-    buildCombatCalculatorInput(map, state, target, [...command.attackers], onion.unitId, rules),
+    buildCombatCalculatorInput(map, state, target, [...command.attackers], onion.unitId),
   )
 
   const targetWeapon = target.kind === 'weapon'

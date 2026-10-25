@@ -538,7 +538,7 @@ describe('validateCombatAction', () => {
     expect(result.code).toBe('MULTI_ATTACK_TREAD_TARGET')
   })
 
-  it('rejects multi-attacker defender fire against Onion treads from the same stack', () => {
+  it('combines attacking strength for multi-attacker defender fire against Onion treads from the same stack', () => {
     const d1 = makeDefender({ unitId: 'd1', typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [makeWeapon({ typeId: 'LittlePigs.rifle' })] })
     const d2 = makeDefender({ unitId: 'd2', typeId: 'LittlePigs', position: { q: 1, r: 0 }, weapons: [makeWeapon({ typeId: 'LittlePigs.rifle' })] })
     const state = makeState({
@@ -561,11 +561,18 @@ describe('validateCombatAction', () => {
       onionId: 'onion-1',
     })
 
-    expect(result).toEqual({
-      ok: false,
-      code: 'MULTI_ATTACK_TREAD_TARGET',
-      error: 'Multiple attackers cannot target Onion treads in one attack',
+    expect(result).toMatchObject({
+      ok: true,
+      plan: {
+        attackStrength: 2,
+        defense: 2,
+      },
     })
+    if (!result.ok) return
+
+    const execution = executeCombatAction(state, result.plan, 5)
+    expect(execution.success).toBe(true)
+    expect(execution.treadsLost).toBe(2)
   })
 
   it('rejects the bare Onion ID when a defender submits a tread attack', () => {
