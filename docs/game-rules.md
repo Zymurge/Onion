@@ -124,7 +124,7 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
   - **Clear**: No effect on movement or combat.
   - **Craters**: Impassable to all units.
   - **Ridgelines**:
-    - **Movement**: Impassable to armored units (Puss, Pinocchio, Dragon, Witch, Big Bad Wolf). The Onion and Little Pigs can cross ridgelines, but it costs 1 extra movement point to enter the hex.
+    - **Movement**: Impassable to armored units (Puss, Pinocchio, Dragon, Witch, Big Bad Wolf). The Onion can cross ridgelines at a cost of 1 extra movement point; Little Pigs can enter adjacent ridgeline terrain as a normal 1-point move.
     - **Cover**: Little Pigs in a Ridgeline hex gain +1 to their Defense strength (e.g., a 3-squad stack in cover has Defense 4).
 - **Movement and terrain modeling note**:
   - The implementation should keep terrain effects as data, not hard-coded one-off checks. Unit descriptions should be able to declare per-terrain capabilities such as `canCrossRidgelines` or `canAccessRidgeCover`, and future terrain types should map to the same pattern.

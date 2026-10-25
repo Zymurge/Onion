@@ -90,7 +90,7 @@
       "movement": 1,
       "defense": 1,
       "cost": 1,
-      "abilities": { "maxStacks": 5, "ramProfile": { "treadLoss": 0, "destroyOnRollAtMost": 4 }, "terrainRules": { "ridgeline": { "canCross": true, "canAccessCover": true } } },
+      "abilities": { "maxStacks": 5, "ramProfile": { "treadLoss": 0, "destroyOnRollAtMost": 4 }, "terrainRules": { "ridgeline": { "canCross": true, "canAccessCover": true, "movementCost": 1 } } },
       "weaponQuantities": { "LittlePigs.rifle": 1 }
     },
     "Swamp": {

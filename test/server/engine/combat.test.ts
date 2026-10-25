@@ -429,6 +429,33 @@ describe('validateCombatAction', () => {
     expect(rollCombat(result.plan.attackStrength, result.plan.defense, 1).odds).toBe(fixture.expected.odds)
   })
 
+  it('applies the configured ridgeline defense bonus to a Little Pigs stack', () => {
+    const stack = makeStackFixture({
+      groups: {
+        'LittlePigs:1,1': makeStackGroup({
+          position: { q: 1, r: 1 },
+          unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+        }),
+      },
+    })
+    const state = makeState({ defenders: stack.defenders, stackRoster: stack.stackRoster })
+    const ridgeMap = createMap(5, 5, [{ q: 1, r: 1, t: 1 }])
+
+    const result = validateCombatAction(ridgeMap, state, {
+      type: 'FIRE',
+      attackers: ['main-1'],
+      targetId: 'LittlePigs:1,1',
+      onionId: 'onion-1',
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      plan: {
+        defense: 4,
+      },
+    })
+  })
+
   it('rejects FIRE when the Onion identity is missing or invalid', () => {
     const state = makeState()
 

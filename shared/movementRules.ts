@@ -46,7 +46,8 @@ export function getTerrainMoveCost(unitType: string, terrainType: TerrainType, r
 	}
 
 	if (terrainType === 'ridgeline') {
-			return canCrossRidgelineByTerrainRule(unitType, rules) ? 2 : null
+		const terrainRule = getUnitDefinition(unitType, rules)?.abilities.terrainRules?.ridgeline
+		return canCrossRidgelineByTerrainRule(unitType, rules) ? terrainRule?.movementCost ?? 2 : null
 	}
 
 	return 1

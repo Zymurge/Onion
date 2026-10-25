@@ -37,6 +37,44 @@ function makeState({ ramsRemaining = 2, ...overrides }: MovementStateOverrides =
 // ─── validateUnitMovement ────────────────────────────────────────────────────
 
 describe('validateUnitMovement', () => {
+  it('allows Little Pigs to move onto adjacent ridgeline terrain', () => {
+    const pigs = makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'pigs-1': pigs } })
+    const ridgeMap = createMap(5, 5, [{ q: 1, r: 0, t: 1 }])
+
+    const result = validateUnitMovement(ridgeMap, state, {
+      type: 'MOVE',
+      unitId: 'pigs-1',
+      to: { q: 1, r: 0 },
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      plan: {
+        to: { q: 1, r: 0 },
+        cost: 1,
+      },
+    })
+  })
+
+  it('reports impassable ridgeline terrain instead of a generic path failure', () => {
+    const tank = makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'puss-1': tank } })
+    const ridgeMap = createMap(5, 5, [{ q: 1, r: 0, t: 1 }])
+
+    const result = validateUnitMovement(ridgeMap, state, {
+      type: 'MOVE',
+      unitId: 'puss-1',
+      to: { q: 1, r: 0 },
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'NO_PATH',
+      error: 'Destination terrain is impassable for this unit',
+    })
+  })
+
   it('uses the resolved scenario catalog when a derived type joins a stack', () => {
     const initial = InitialStateSchema.parse({
       deployments: {

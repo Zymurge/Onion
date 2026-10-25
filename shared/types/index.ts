@@ -29,6 +29,7 @@ export interface UnitTerrainRule {
   canCross?: boolean
   canAccessCover?: boolean
   ignoresUnderlyingTerrain?: boolean
+  movementCost?: number
 }
 
 export interface RamProfile {
