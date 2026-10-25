@@ -32,7 +32,7 @@ export function refreshStackNamingSnapshotFromRoster(
 			continue
 		}
 
-		if (!(unitTypes?.[group.unitType]?.stackable === true || isUnitTypeStackable(group.unitType)) && unitIds.length <= 1) {
+		if (unitIds.length <= 1) {
 			continue
 		}
 
@@ -43,13 +43,14 @@ export function refreshStackNamingSnapshotFromRoster(
 
 		const groupKey = buildStackGroupKey(group.unitType, group.position)
 		activeGroupKeys.push(groupKey)
-		const persistedGroupName = group.groupName.trim()
-		const baseGroupName = persistedGroupName.length > 0 && !isLegacyCoordinateGroupName(persistedGroupName)
-			? group.groupName
+		const persistedGroupName = group.groupName?.trim() ?? ''
+		const hasPersistedGroupName = persistedGroupName.length > 0 && !isLegacyCoordinateGroupName(persistedGroupName)
+		const baseGroupName = hasPersistedGroupName
+			? persistedGroupName
 			: resolveStackLabel(group.unitType, firstUnit.unitId, firstUnit.friendlyName, unitIds.length)
-		const authoritativeGroupName = /\sgroup(?:\s+\d+)?$/i.test(baseGroupName) && !/\sgroup\s+\d+$/i.test(baseGroupName)
-			? createUniqueName(baseGroupName, allocatedUsedGroupNames)
-			: baseGroupName
+		const authoritativeGroupName = hasPersistedGroupName
+			? baseGroupName
+			: createUniqueName(baseGroupName, allocatedUsedGroupNames)
 		allocatedUsedGroupNames.add(authoritativeGroupName)
 		rosterGroupsInUse.push({ groupKey, groupName: authoritativeGroupName, unitType: group.unitType })
 		rosterUsedGroupNames.push(authoritativeGroupName)

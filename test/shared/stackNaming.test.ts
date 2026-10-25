@@ -110,7 +110,7 @@ describe('stack naming', () => {
 		expect(snapshot.groupsInUse.some((group) => group.groupKey === 'BigBadWolf:7,7')).toBe(false)
 	})
 
-	it('refreshes stack names from the authoritative roster and keeps stackable singleton groups', () => {
+	it('refreshes stack names from the authoritative roster without naming singleton groups', () => {
 		const fixture = makeStackFixture({
 			groups: {
 				'g-a': {
@@ -142,18 +142,33 @@ describe('stack naming', () => {
 			Object.values(fixture.defenders),
 		)
 
-		expect(snapshot.groupsInUse).toHaveLength(2)
+		expect(snapshot.groupsInUse).toHaveLength(1)
 		expect(snapshot.groupsInUse[0]).toMatchObject({
 			groupKey: 'LittlePigs:4,4',
 			groupName: 'Little Pigs group 1',
 			unitType: 'LittlePigs',
 		})
-		expect(snapshot.groupsInUse.find((group) => group.groupKey === 'LittlePigs:5,4')).toMatchObject({
-			groupKey: 'LittlePigs:5,4',
-			groupName: 'Little Pigs group 2',
-			unitType: 'LittlePigs',
-		})
-		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+		expect(snapshot.usedGroupNames).toEqual(['Little Pigs group 1'])
+	})
+
+	it('does not track a singleton as a named group', () => {
+		const snapshot = refreshStackNamingSnapshotFromRoster(
+			undefined,
+			{
+				groupsById: {
+					'LittlePigs:4,4': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 4 },
+						unitIds: ['pigs-1'],
+					},
+				},
+			},
+			[makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 4 } })],
+		)
+
+		expect(snapshot.groupsInUse).toEqual([])
+		expect(snapshot.usedGroupNames).toEqual([])
 	})
 
 	it('preserves duplicate source IDs in an explicit split edge case', () => {
@@ -190,7 +205,7 @@ describe('stack naming', () => {
 			],
 		)
 
-		expect(snapshot.groupsInUse).toHaveLength(3)
+		expect(snapshot.groupsInUse).toHaveLength(2)
 	})
 
 	it.each([
@@ -211,7 +226,6 @@ describe('stack naming', () => {
 				},
 			} }),
 			expected: [
-				{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs group 1' },
 				{ groupKey: 'LittlePigs:5,7', groupName: 'Little Pigs group 2' },
 			],
 		},

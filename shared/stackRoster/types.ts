@@ -47,7 +47,7 @@ export type StackRosterConsistencyIssue = {
 export type SplitStackRosterGroupInput = {
 	groupId: string
 	newGroupId: string
-	newGroupName: string
+	newGroupName?: string
 	movedUnitIds: string[]
 	newPosition?: HexPos
 }
@@ -56,7 +56,7 @@ export type SplitStackRosterGroupInput = {
 export type MoveStackRosterGroupInput = {
 	sourceGroupId: string
 	destinationGroupId: string
-	destinationGroupName: string
+	destinationGroupName?: string
 	movedUnitIds: string[]
 	destinationPosition: HexPos
 }
@@ -66,7 +66,7 @@ export type RelocateStackRosterUnitsInput = {
 	movedUnitIds: string[]
 	unitType: string
 	destinationPosition: HexPos
-	destinationGroupName: string
+	destinationGroupName?: string
 }
 
 /** Inputs needed to reconcile a move with roster and naming lifecycle state. */

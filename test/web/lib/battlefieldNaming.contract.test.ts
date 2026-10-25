@@ -101,14 +101,14 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     const label = resolveBattlefieldDisplayName(
-      makeTestUnit({ friendlyName: undefined }),
+      makeTestUnit({ friendlyName: undefined, stackSize: 2 }),
       stackNaming,
     )
 
     expect(label).toBe('Little Pigs group')
   })
 
-  it('resolves a group label for a stackable singleton roster group', () => {
+  it('resolves an individual label for a stackable singleton roster group', () => {
       const stackNaming = {
       groupsInUse: [
         { groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
@@ -134,7 +134,7 @@ describe('resolveBattlefieldDisplayName', () => {
       sessionCatalog,
     )
 
-    expect(label).toBe('Little Pigs group 1')
+    expect(label).toBe('Little Pigs 1')
   })
 
   it('falls back to the unit name for single units', () => {

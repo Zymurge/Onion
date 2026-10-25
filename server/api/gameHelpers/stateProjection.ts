@@ -66,7 +66,7 @@ function buildResponseStackRoster(matchState: MatchRecord['state'], rules: Rules
       }
 
       return [[groupId, {
-        groupName: group.groupName,
+        ...(group.groupName === undefined ? {} : { groupName: group.groupName }),
         unitType: group.unitType,
         position: group.position,
         unitIds,

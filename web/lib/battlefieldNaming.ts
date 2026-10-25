@@ -40,7 +40,7 @@ export function resolveBattlefieldStackLabel(
   groupKey?: string,
   stackNaming?: StackNamingSnapshot,
 ): string {
-  if (groupKey !== undefined) {
+  if (groupKey !== undefined && stackSize > 1) {
     if (stackNaming === undefined) {
       throw new Error(`Missing stackNaming for grouped unit ${unitId ?? unitType} at ${groupKey}`)
     }
@@ -58,7 +58,7 @@ export function resolveBattlefieldDisplayName(
 ): string {
   const position = unit.position
 
-  if (stackNaming !== undefined) {
+  if (stackNaming !== undefined && getBattlefieldStackSize(unit) > 1) {
     const groupKey = buildStackGroupKey(unit.typeId, position)
     const group = stackNaming.groupsInUse.find((entry) => entry.groupKey === groupKey)
     if (group !== undefined) {
@@ -105,12 +105,16 @@ export function resolveBattlefieldFriendlyName(
       return resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName)
     }
 
-    if (stackNaming === undefined) {
-      throw new Error(`Missing stackNaming for grouped unit ${unit.unitId}`)
-    }
-
     if (rosterGroup === null) {
       throw new Error(`Missing roster group for grouped unit ${unit.unitId} at ${groupKey}`)
+    }
+
+    if (rosterGroup.unitIds.length <= 1) {
+      return resolveBattlefieldUnitName(unit.typeId, unit.unitId, unit.friendlyName)
+    }
+
+    if (stackNaming === undefined) {
+      throw new Error(`Missing stackNaming for grouped unit ${unit.unitId}`)
     }
 
     if (namingGroup === null) {

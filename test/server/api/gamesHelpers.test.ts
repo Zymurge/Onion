@@ -177,6 +177,37 @@ describe('buildCombatEvents', () => {
     })
   })
 
+  it('uses the individual friendly name for a singleton move event', () => {
+    const singleton = makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 1, r: 1 }, friendlyName: 'Little Pigs 1' })
+    state = makeGameState({
+      defenders: { 'pigs-1': singleton },
+      stackRoster: {
+        groupsById: {
+          'LittlePigs:1,1': makeStackGroup({
+            groupName: 'Stale singleton group',
+            position: { q: 1, r: 1 },
+            unitIds: ['pigs-1'],
+          }),
+        },
+      },
+      stackNaming: { groupsInUse: [], usedGroupNames: ['Stale singleton group'] },
+    })
+
+    const events = buildMoveEvents(
+      41,
+      'pigs-1',
+      { type: 'MOVE', unitId: 'pigs-1', to: { q: 2, r: 2 } },
+      { success: true, rammedUnitIds: [], destroyedUnits: [], treadDamage: 0 },
+      state,
+    )
+
+    expect(events[0]).toMatchObject({
+      type: 'UNIT_MOVED',
+      unitFriendlyName: 'Little Pigs 1',
+      unitId: 'pigs-1',
+    })
+  })
+
   it('does not emit a destroyed status event for a survived ram outcome', () => {
     const events = buildMoveEvents(
       45,
@@ -925,7 +956,7 @@ describe('scenario-derived runtime contracts', () => {
     expect(response.state.stackRoster.groupsById[`${derivedTypeId}:1,1`]).toBeDefined()
   })
 
-  it('keeps naming metadata for a singleton scenario-derived stack group', () => {
+  it('omits naming metadata for a singleton scenario-derived stack group', () => {
     const derivedTypeId = 'projection-singleton-contract:ScenarioPigs'
     const groupId = `${derivedTypeId}:1,1`
     const match = {
@@ -960,8 +991,7 @@ describe('scenario-derived runtime contracts', () => {
     const response = buildGameStateResponse(match as unknown as MatchRecord, 'onion-user')
 
     expect(response.state.stackRoster.groupsById[groupId]).toBeDefined()
-    expect(response.state.stackNaming.groupsInUse).toEqual(expect.arrayContaining([
-      expect.objectContaining({ groupKey: groupId }),
-    ]))
+    expect(response.state.stackRoster.groupsById[groupId]).not.toHaveProperty('groupName')
+    expect(response.state.stackNaming.groupsInUse).toEqual([])
   })
 })

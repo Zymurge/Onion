@@ -1,5 +1,6 @@
 import {
 	buildStackGroupKey,
+	createStackNamingEngine,
 	refreshStackNamingSnapshotFromRoster,
 	type StackNamingSnapshot,
 	type StackNamingSourceUnit,
@@ -69,10 +70,14 @@ export function canonicalizeStackRoster(
 	const groupsById = Object.fromEntries(
 		Object.entries(stackRoster.groupsById).map(([groupId, group]) => {
 			const groupKey = buildStackGroupKey(group.unitType, group.position)
-			return [groupId, {
+			const canonicalGroup = {
 				...group,
 				groupName: groupNamesByKey.get(groupKey) ?? group.groupName,
-			}]
+			}
+			if (group.unitIds.length <= 1) {
+				delete canonicalGroup.groupName
+			}
+			return [groupId, canonicalGroup]
 		}),
 	)
 
@@ -81,7 +86,8 @@ export function canonicalizeStackRoster(
 
 type StackRosterGroupBuilder = {
 	groupId: string
-	groupName: string
+	firstUnitFriendlyName?: string
+	firstUnitId: string
 	unitType: string
 	position: HexPos
 	unitIds: string[]
@@ -100,7 +106,8 @@ function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>)
 		const nextUnitIds = existingGroup?.unitIds ?? []
 		groupedUnits.set(groupId, {
 			groupId,
-			groupName: existingGroup?.groupName ?? unit.friendlyName ?? unit.typeId,
+			firstUnitFriendlyName: existingGroup?.firstUnitFriendlyName ?? unit.friendlyName,
+			firstUnitId: existingGroup?.firstUnitId ?? unit.unitId,
 			unitType: unit.typeId,
 			position: unit.position,
 			unitIds: [...nextUnitIds, unit.unitId],
@@ -113,14 +120,24 @@ function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>)
 /** Build the persisted roster shape from live defender records. */
 export function buildStackRosterFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterState {
 	const groupsById: Record<string, StackRosterGroupState> = {}
+	const namingEngine = createStackNamingEngine()
 
 	for (const group of buildRosterGroupsFromUnits(units)) {
-		groupsById[group.groupId] = {
-			groupName: group.groupName,
+		const groupRecord: StackRosterGroupState = {
 			unitType: group.unitType,
 			position: group.position,
 			unitIds: group.unitIds,
 		}
+		if (group.unitIds.length > 1) {
+			groupRecord.groupName = namingEngine.resolveGroupName(
+				group.groupId,
+				group.unitType,
+				group.firstUnitId,
+				group.firstUnitFriendlyName,
+				group.unitIds.length,
+			)
+		}
+		groupsById[group.groupId] = groupRecord
 	}
 
 	return { groupsById }

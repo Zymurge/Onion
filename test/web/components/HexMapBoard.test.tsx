@@ -60,7 +60,7 @@
 			/>,
 		)
 
-		expect(getMarkerLabel('pigs-1')).toBe('Little Pigs group')
+		expect(getMarkerLabel('pigs-1')).toBe('Little Pigs 1')
 		expect(screen.getByTestId('hex-cell-2-2')).toHaveClass('hex-cell-event-focused')
 		expect(screen.getByTestId('hex-cell-2-2').querySelector('.hex-event-focus-overlay')).not.toBeNull()
 		expect(screen.getByTestId('hex-unit-pigs-1').querySelector('image')).not.toBeNull()

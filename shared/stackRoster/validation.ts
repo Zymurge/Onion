@@ -12,10 +12,6 @@ export function validateStackRoster(
 	const defenderLookup = buildDefenderLookup(defenders)
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
-		if (group.groupName.trim().length === 0) {
-			issues.push({ code: 'EMPTY_GROUP_NAME', message: `Group ${groupId} must have a non-empty groupName`, groupId })
-		}
-
 		if (group.unitType.trim().length === 0) {
 			issues.push({ code: 'EMPTY_UNIT_TYPE', message: `Group ${groupId} must have a non-empty unitType`, groupId })
 		}
@@ -28,6 +24,12 @@ export function validateStackRoster(
 		if (groupUnitIds.length === 0) {
 			issues.push({ code: 'EMPTY_GROUP', message: `Group ${groupId} must contain at least one unit`, groupId })
 			continue
+		}
+
+		if (group.groupName !== undefined && group.groupName.trim().length === 0) {
+			issues.push({ code: 'EMPTY_GROUP_NAME', message: `Group ${groupId} must have a non-empty groupName`, groupId })
+		} else if (groupUnitIds.length > 1 && group.groupName === undefined) {
+			issues.push({ code: 'EMPTY_GROUP_NAME', message: `Group ${groupId} must have a non-empty groupName`, groupId })
 		}
 
 		for (const unitId of groupUnitIds) {

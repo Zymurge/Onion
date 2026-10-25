@@ -462,20 +462,16 @@ describe('executeUnitMovement', () => {
     expect(result.success).toBe(true)
     expect(state.defenders.p1.position).toEqual({ q: 1, r: 0 })
     expect(state.stackRoster?.groupsById['LittlePigs:0,0']).toMatchObject({
-      groupName: 'Little Pigs group',
       unitIds: ['p2'],
     })
+    expect(state.stackRoster?.groupsById['LittlePigs:0,0']).not.toHaveProperty('groupName')
     expect(state.stackRoster?.groupsById['LittlePigs:1,0']).toMatchObject({
-      groupName: 'Little Pigs group 2',
       unitIds: ['p1'],
     })
-    expect((state as GameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.groupsInUse).toEqual([
-      { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-      { groupKey: 'LittlePigs:1,0', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
-    ])
+    expect(state.stackRoster?.groupsById['LittlePigs:1,0']).not.toHaveProperty('groupName')
+    expect((state as GameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.groupsInUse).toEqual([])
     expect((state as GameState & { stackNaming?: { groupsInUse: Array<{ groupKey: string; groupName: string; unitType: string }>; usedGroupNames: string[] } }).stackNaming?.usedGroupNames).toEqual([
-      'Little Pigs group 1',
-      'Little Pigs group 2',
+      'Little Pigs group',
     ])
   })
 
@@ -506,19 +502,19 @@ describe('executeUnitMovement', () => {
 
     expect(executeUnitMovement(state, makePlan({ unitId: 'p1', from: { q: 0, r: 0 }, to: { q: 5, r: 4 } })).success).toBe(true)
     expect(state.stackRoster?.groupsById['LittlePigs:5,4']).toMatchObject({
-      groupName: 'Little Pigs group 2',
       unitIds: ['p1'],
     })
+    expect(state.stackRoster?.groupsById['LittlePigs:5,4']).not.toHaveProperty('groupName')
 
     expect(executeUnitMovement(state, makePlan({ unitId: 'p2', from: { q: 0, r: 0 }, to: { q: 5, r: 4 } })).success).toBe(true)
     expect(state.stackRoster?.groupsById['LittlePigs:5,4']).toMatchObject({
-      groupName: 'Little Pigs group 2',
+      groupName: 'Little Pigs group 1',
       unitIds: ['p1', 'p2'],
     })
 
     expect(executeUnitMovement(state, makePlan({ unitId: 'p3', from: { q: 0, r: 0 }, to: { q: 5, r: 4 } })).success).toBe(true)
     expect(state.stackRoster?.groupsById['LittlePigs:5,4']).toMatchObject({
-      groupName: 'Little Pigs group 2',
+      groupName: 'Little Pigs group 1',
       unitIds: ['p1', 'p2', 'p3'],
     })
     expect(state.stackRoster?.groupsById['LittlePigs:0,0']).toBeUndefined()
@@ -546,7 +542,7 @@ describe('executeUnitMovement', () => {
     expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1'])
   })
 
-  it('keeps the older group name when two Little Pigs end on the same hex', () => {
+  it('creates a fresh group name when two unnamed Little Pigs end on the same hex', () => {
     const olderPig = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
     const newerPig = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 2, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1: olderPig, p2: newerPig } }) as GameState & {
@@ -583,9 +579,9 @@ describe('executeUnitMovement', () => {
     expect(result.success).toBe(true)
     expect(state.defenders.p2.position).toEqual({ q: 0, r: 0 })
     expect(state.stackNaming?.groupsInUse).toEqual([
-      { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      { groupKey: 'LittlePigs:0,0', groupName: 'Little Pigs group 3', unitType: 'LittlePigs' },
     ])
-    expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+    expect(state.stackNaming?.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'])
   })
 
   it('allocates a fresh group name when a move reforms a stack on top of a singleton placeholder with a stale ordinal', () => {
@@ -749,7 +745,7 @@ describe('executeUnitMovement', () => {
     expect(state.stackNaming?.usedGroupNames).toEqual(expect.arrayContaining(['Group A', 'Group B']))
   })
 
-  it('selects source group name when destination has no roster or persisted naming', () => {
+  it('keeps an empty destination singleton unnamed when the source group remains behind', () => {
     const p1 = makeDefender({ unitId: 'p1', typeId: 'LittlePigs', position: { q: 0, r: 0 }, friendlyName: 'Pig 1' })
     const p2 = makeDefender({ unitId: 'p2', typeId: 'LittlePigs', position: { q: 0, r: 0 }, friendlyName: 'Pig 2' })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { p1, p2 } }) as GameState & {
@@ -762,7 +758,6 @@ describe('executeUnitMovement', () => {
     // No persisted naming entry for the destination
     state.stackNaming = { groupsInUse: [], usedGroupNames: [] }
 
-    // Source group name should be used when destination has no roster entry
     state.stackRoster = makeStackRoster({
       groupsById: {
         'LittlePigs:0,0': makeStackGroup({
@@ -778,7 +773,8 @@ describe('executeUnitMovement', () => {
     expect(result.success).toBe(true)
     const destKey = 'LittlePigs:4,8'
     expect(state.stackRoster?.groupsById[destKey]).toBeDefined()
-    expect(state.stackRoster?.groupsById[destKey]).toMatchObject({ groupName: 'Pig group 1', unitIds: ['p1'] })
+    expect(state.stackRoster?.groupsById[destKey]).toMatchObject({ unitIds: ['p1'] })
+    expect(state.stackRoster?.groupsById[destKey]).not.toHaveProperty('groupName')
   })
 
   it('honors persisted stack naming when present for the destination group', () => {
@@ -808,7 +804,8 @@ describe('executeUnitMovement', () => {
 
     expect(result.success).toBe(true)
     expect(state.stackRoster?.groupsById[destKey]).toBeDefined()
-    expect(state.stackRoster?.groupsById[destKey]).toMatchObject({ groupName: 'Persisted Destination', unitIds: ['p1'] })
+    expect(state.stackRoster?.groupsById[destKey]).toMatchObject({ unitIds: ['p1'] })
+    expect(state.stackRoster?.groupsById[destKey]).not.toHaveProperty('groupName')
     expect(state.stackNaming?.usedGroupNames).toEqual(expect.arrayContaining(['Persisted Destination']))
   })
 })

@@ -216,7 +216,7 @@ export type StackRosterUnitState = {
 }
 
 export type StackRosterGroupState = {
-  groupName: string
+  groupName?: string
   unitType: string
   position: HexPos
   unitIds: ReadonlyArray<string>

@@ -48,7 +48,7 @@ export function isStackRosterGroupState(candidate: unknown): candidate is StackR
 	}
 
 	const group = candidate as StackRosterGroupState
-	return typeof group.groupName === 'string'
+	return (group.groupName === undefined || typeof group.groupName === 'string')
 		&& typeof group.unitType === 'string'
 		&& typeof group.position === 'object'
 		&& group.position !== null

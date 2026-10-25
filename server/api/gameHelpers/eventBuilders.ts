@@ -17,7 +17,7 @@ function resolveUnitFriendlyName(state: GameState, unitId: string): string {
     }
 
     const stackGroup = Object.values(state.stackRoster.groupsById).find((group) => group.unitIds.includes(lookup.unitId!))
-    if (stackGroup !== undefined) {
+    if (stackGroup !== undefined && stackGroup.unitIds.length > 1 && stackGroup.groupName !== undefined) {
       return stackGroup.groupName
     }
 

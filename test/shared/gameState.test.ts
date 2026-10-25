@@ -97,7 +97,6 @@ describe('GameState test helpers', () => {
     const fixture = makeStackFixture({
       groups: {
         'stack-2': {
-          groupName: 'Little Pigs group 2',
           unitType: 'LittlePigs',
           position: { q: 2, r: 2 },
           unitIds: ['pigs-3'],
@@ -111,7 +110,7 @@ describe('GameState test helpers', () => {
     expect(state.defenders['pigs-3']).toMatchObject({ position: { q: 2, r: 2 } })
     expect(state.stackRoster.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
     expect(state.stackRoster.groupsById['stack-2']?.unitIds).toEqual(['pigs-3'])
-    expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2'])
+    expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
     expect(state.currentPhase).toBe('DEFENDER_MOVE')
   })
 })

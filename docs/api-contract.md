@@ -617,7 +617,7 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from
   stackRoster: {
     groupsById: {
       [groupId: string]: {
-        groupName: string,
+        groupName?: string,
         unitType: string,
         position: HexPos,
         unitIds: string[]
@@ -628,6 +628,8 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from
 ```
 
 `stackRoster` is the canonical source of stack membership and group identity. `defenders` is a unit projection and must not be used to infer stack membership from co-location. Remaining movement is derived from each unit's authoritative `movementSpent` state and the current phase.
+
+`groupName` is omitted for singleton roster entries and required for groups with two or more units. Creating a multi-unit group from unnamed singleton units allocates a name; regrouping preserves an existing valid multi-unit name. Splitting or relocating a group down to one unit removes the group name while preserving the unit's individual `friendlyName`.
 
 ---
 

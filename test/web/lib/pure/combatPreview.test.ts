@@ -234,7 +234,7 @@ describe('buildCombatTargetOptions', () => {
 		expect(options).toHaveLength(1)
 		expect(options[0]).toMatchObject({
 			id: 'LittlePigs:3,2',
-			label: 'Little Pigs group 1',
+			label: 'Little Pigs 1',
 		})
 	})
 
@@ -271,7 +271,7 @@ describe('buildCombatTargetOptions', () => {
 		expect(options).toHaveLength(1)
 			expect(options[0]).toMatchObject({
 				id: 'LittlePigs:3,2',
-				label: 'Little Pigs group 1',
+				label: 'Little Pigs 1',
 				defense: 2,
 				modifiers: expect.arrayContaining(['Ridgeline cover: +1 defense']),
 			})

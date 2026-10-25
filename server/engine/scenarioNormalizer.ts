@@ -1,5 +1,5 @@
 import type { InitialState, Deployment, Scenario } from '#server/engine/scenarioSchema'
-import type { DefenderUnit, GameState, OnionUnit, UnitTypeBase, Weapon, WeaponType } from '#shared/types/index'
+import type { DefenderUnit, GameState, OnionUnit, StackRosterGroupState, UnitTypeBase, Weapon, WeaponType } from '#shared/types/index'
 import logger from '#server/logger'
 import { buildFriendlyName, getUnitTypeCatalog } from '#shared/unitDefinitions'
 import { buildStackGroupKey, createStackNamingEngine } from '#shared/stackNaming/index'
@@ -158,29 +158,45 @@ export function normalizeInitialStateToGameState(
     const groupKey = buildStackGroupKey(typeId, deployment.position)
     const existingGroup = stackRoster.groupsById[groupKey]
     if (existingGroup !== undefined) {
-      stackRoster.groupsById[groupKey] = {
+      const nextUnitIds = [...existingGroup.unitIds, ...unitIds]
+      const nextGroup = {
         ...existingGroup,
-        unitIds: [...existingGroup.unitIds, ...unitIds],
+        unitIds: nextUnitIds,
       }
+      if (nextUnitIds.length <= 1) {
+        delete nextGroup.groupName
+      } else if (nextGroup.groupName === undefined) {
+        const firstUnit = onions[unitIds[0]] ?? defenders[unitIds[0]]
+        nextGroup.groupName = stackNamingEngine.resolveGroupName(
+          groupKey,
+          typeId,
+          unitIds[0],
+          firstUnit?.friendlyName,
+          nextUnitIds.length,
+        )
+      }
+      stackRoster.groupsById[groupKey] = nextGroup
       continue
     }
 
     const firstUnit = onions[unitIds[0]] ?? defenders[unitIds[0]]
     const firstUnitFriendlyName = firstUnit?.friendlyName
-    const canonicalGroupName = stackNamingEngine.resolveGroupName(
-      groupKey,
-      typeId,
-      unitIds[0],
-      firstUnitFriendlyName,
-      unitIds.length,
-    )
-
-    stackRoster.groupsById[groupKey] = {
-      groupName: canonicalGroupName,
+    const groupRecord: StackRosterGroupState = {
       unitType: typeId,
       position: deployment.position,
       unitIds,
     }
+    if (unitIds.length > 1) {
+      groupRecord.groupName = stackNamingEngine.resolveGroupName(
+        groupKey,
+        typeId,
+        unitIds[0],
+        firstUnitFriendlyName,
+        unitIds.length,
+      )
+    }
+
+    stackRoster.groupsById[groupKey] = groupRecord
   }
 
   return {

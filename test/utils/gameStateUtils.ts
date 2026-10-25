@@ -286,6 +286,10 @@ function mergeStackNaming(
 	}
 
 	for (const group of Object.values(roster.groupsById)) {
+		if (group.unitIds.length <= 1 || group.groupName === undefined) {
+			continue
+		}
+
 		groupsByKey.set(buildStackGroupKey(group.unitType, group.position), {
 			groupKey: buildStackGroupKey(group.unitType, group.position),
 			groupName: group.groupName,
@@ -297,7 +301,10 @@ function mergeStackNaming(
 		groupsInUse: [...groupsByKey.values()],
 		usedGroupNames: [...new Set([
 			...(baseNaming?.usedGroupNames ?? []),
-			...Object.values(roster.groupsById).map((group) => group.groupName),
+			...Object.values(roster.groupsById)
+				.filter((group) => group.unitIds.length > 1 && group.groupName !== undefined)
+				.map((group) => group.groupName)
+				.filter((groupName): groupName is string => groupName !== undefined),
 		])],
 	}
 }
