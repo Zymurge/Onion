@@ -14,6 +14,9 @@ objective display, and visual state rules.
   geometry as the renderer.
 - Zoom supports mouse wheel and a floating lower-left slider overlay while
   preserving map center and scroll position.
+- Selecting a unit or weapon from the left rail centers its owning unit on the
+  map without changing zoom. Multi-unit selections remain centered on the first
+  selected unit.
 
 ## Swamp and Objectives
 

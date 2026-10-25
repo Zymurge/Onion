@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { axialToPixel, boardPixelSize, DEFAULT_HEX_SIZE as HEX_SIZE, hexCorners, pointsToString } from '../lib/hexPixelLayout'
 import { resolveSelectionOwnerUnitId } from '../lib/selectionIds'
 import type { BattlefieldActionEligibility } from '../lib/actionEligibility/projection'
@@ -139,6 +139,7 @@ export function HexMapBoard({
     scrollViewportRef,
     setZoomPercent,
     stepZoomPercent,
+    zoomLevel,
     zoomPercent,
     zoomSliderRef,
   } = useHexMapZoom(bounds)
@@ -187,8 +188,44 @@ export function HexMapBoard({
       return resolveSelectionOwnerUnitId(directSelection)
     }
 
-    return selectedUnitIds.some((selectionId) => selectionId.startsWith('weapon:')) ? onions[0]?.unitId ?? null : null
+    const selectedWeaponId = selectedUnitIds.find((selectionId) => selectionId.startsWith('weapon:'))?.replace(/^weapon:/, '')
+    return selectedWeaponId === undefined
+      ? null
+      : onions.find((unit) => unit.weapons.some((weapon) => weapon.id === selectedWeaponId))?.unitId ?? onions[0]?.unitId ?? null
   }, [onions, selectedUnitIds])
+  const centeredSelectionRef = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    if (selectedPrimaryUnitId === null) {
+      centeredSelectionRef.current = null
+      return
+    }
+
+    if (centeredSelectionRef.current === selectedPrimaryUnitId) {
+      return
+    }
+
+    const selectedUnit = onions.find((unit) => unit.unitId === selectedPrimaryUnitId)
+      ?? defenders.find((unit) => unit.unitId === selectedPrimaryUnitId)
+    const viewport = scrollViewportRef.current
+    if (selectedUnit === undefined || viewport === null) {
+      return
+    }
+
+    centeredSelectionRef.current = selectedPrimaryUnitId
+    const center = axialToPixel(getBattlefieldPosition(selectedUnit), HEX_SIZE)
+    const targetLeft = (MAP_PADDING + center.x) * zoomLevel - viewport.clientWidth / 2
+    const targetTop = (MAP_PADDING + center.y) * zoomLevel - viewport.clientHeight / 2
+    const left = Math.max(0, Math.min(targetLeft, scaledBounds.width - viewport.clientWidth))
+    const top = Math.max(0, Math.min(targetTop, scaledBounds.height - viewport.clientHeight))
+    const scrollPosition = { left, top, behavior: 'auto' as const }
+
+    if (typeof viewport.scrollTo === 'function') {
+      viewport.scrollTo(scrollPosition)
+    } else {
+      viewport.scrollLeft = left
+      viewport.scrollTop = top
+    }
+  }, [defenders, onions, scaledBounds.height, scaledBounds.width, scrollViewportRef, selectedPrimaryUnitId, zoomLevel])
   const onion = onions.find((unit) => unit.unitId === selectedPrimaryUnitId) ?? onions[0]
 
   const selectedOccupant = selectedPrimaryUnitId === null

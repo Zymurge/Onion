@@ -176,6 +176,41 @@ describe('scenario deployment normalization contract', () => {
     expect(Object.values(state.stackRoster.groupsById)[0]?.unitIds).toHaveLength(2)
   })
 
+  it('NORM-016 assigns unique IDs to every stack member and records each member once', () => {
+    const state = normalizeTargetState(makeInitialState({
+      'pigs-stack-1': {
+        kind: 'stack-group',
+        unitType: 'LittlePigs',
+        side: 'defender',
+        position: { q: 2, r: 2 },
+        count: 2,
+      },
+      'pigs-stack-2': {
+        kind: 'stack-group',
+        unitType: 'LittlePigs',
+        side: 'defender',
+        position: { q: 2, r: 2 },
+        count: 2,
+      },
+      'pigs-stack-3': {
+        kind: 'stack-group',
+        unitType: 'LittlePigs',
+        side: 'defender',
+        position: { q: 3, r: 2 },
+        count: 1,
+      },
+    }))
+
+    const memberIds = Object.values(state.defenders)
+      .filter((unit) => unit.typeId === 'LittlePigs')
+      .map((unit) => unit.unitId)
+    const rosterMemberIds = Object.values(state.stackRoster.groupsById).flatMap((group) => group.unitIds)
+
+    expect(new Set(memberIds).size).toBe(5)
+    expect(rosterMemberIds).toHaveLength(5)
+    expect(new Set(rosterMemberIds)).toEqual(new Set(memberIds))
+  })
+
   it('NORM-014 rejects a generated stack member ID collision', () => {
     expect(() => normalizeTargetState(makeInitialState({
       'pigs-1': { type: 'Puss', side: 'onion', position: { q: 1, r: 1 } },

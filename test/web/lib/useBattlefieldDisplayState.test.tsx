@@ -171,6 +171,21 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.combatUnitAvailabilityReasons['wolf-out-of-range']).toBe('Out of range')
 	})
 
+	it('preserves an inactive inspected defender selection for map centering', () => {
+		const snapshot = createActionEligibilitySnapshot('DEFENDER_COMBAT')
+		snapshot.authoritativeState!.defenders['wolf-out-of-range'].state = 'disabled'
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds: ['wolf-out-of-range'] }),
+				sessionState: createSessionState(snapshot, null, 'onion'),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.activeSelectedUnitIds).toEqual(['wolf-out-of-range'])
+	})
+
 	it('exposes Onion weapon eligibility and reuses projected target availability for weapon controls', () => {
 		const snapshot = createActionEligibilitySnapshot('ONION_COMBAT')
 		const { result } = renderHook(() =>

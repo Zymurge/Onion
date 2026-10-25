@@ -156,6 +156,15 @@ export function normalizeInitialStateToGameState(
     nextStackUnitOrdinalByBase.set(unitIdBase, nextOrdinal + deployment.count)
 
     const groupKey = buildStackGroupKey(typeId, deployment.position)
+    const existingGroup = stackRoster.groupsById[groupKey]
+    if (existingGroup !== undefined) {
+      stackRoster.groupsById[groupKey] = {
+        ...existingGroup,
+        unitIds: [...existingGroup.unitIds, ...unitIds],
+      }
+      continue
+    }
+
     const firstUnit = onions[unitIds[0]] ?? defenders[unitIds[0]]
     const firstUnitFriendlyName = firstUnit?.friendlyName
     const canonicalGroupName = stackNamingEngine.resolveGroupName(

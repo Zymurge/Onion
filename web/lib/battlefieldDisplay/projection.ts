@@ -126,7 +126,7 @@ export function buildBattlefieldDisplayModel({
 	)
 	const selectedCombatSelectionIds = hasValidationError || !isCombatPhase
 		? []
-		: activeCombatRole === 'defender'
+		: activeCombatRole === 'defender' && activeTurnActive
 			? Array.from(new Set(activeSelectedUnitIds.filter((selectionId) => readyDefenderUnitIds.has(resolveSelectionOwnerUnitId(selectionId)))))
 			: activeSelectedUnitIds
 	const stackRoster = hasValidationError || visibleStackSourceState?.stackRoster === undefined
