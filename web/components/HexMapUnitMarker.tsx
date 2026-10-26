@@ -146,7 +146,7 @@ export function HexMapUnitMarker({
   const unitRectY = isSwamp ? center.y - 24 : center.y - 11
   const unitRectWidth = isSwamp ? 48 : 32
   const unitRectHeight = isSwamp ? 48 : 22
-  const markerText = getUnitMarkerText(occupant, stackNaming)
+  const markerText = getUnitMarkerText(occupant, stackNaming, rosterGroup?.groupKey)
   const markerTextLines = markerText === null ? [] : wrapMarkerText(markerText)
   function handleClick(event: MouseEvent<SVGGElement>) {
     if (isSelectionLocked && !isInspectionOnly) {

@@ -475,7 +475,7 @@ describe('BattlefieldLeftRail', () => {
             resolvedViewerActivity="active"
             resolvedViewerRole="defender"
             routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
-            rosterGroup={{ groupId: 'LittlePigs:1,1', unitIds: ['pigs-1', 'pigs-2'] }}
+            rosterGroup={{ groupId: 'group-1', groupKey: 'LittlePigs:1,1', unitIds: ['pigs-1', 'pigs-2'] }}
             stackNaming={stackNaming}
             onDeselect={vi.fn()}
             onSelectUnit={vi.fn()}
@@ -1082,7 +1082,7 @@ describe('BattlefieldLeftRail', () => {
     )
 
     const alert = screen.getByRole('alert')
-    expect(alert.textContent).toContain('Missing stackNaming entry for grouped unit pigs-5')
+    expect(alert.textContent).toContain('Missing stack roster group for grouped unit pigs-5')
     expect(alert.textContent).toContain('selectedUnitId=pigs-5')
     expect(alert.textContent).toContain('stackRosterGroups=none')
 

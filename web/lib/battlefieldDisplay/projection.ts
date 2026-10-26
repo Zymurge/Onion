@@ -29,6 +29,7 @@ import { buildWeaponSelectionId, isWeaponSelectionId, resolveSelectionOwnerUnitI
 import { buildCombatRangeHexKeys } from '../combatRange'
 import { buildCombatTargetOptions } from '../combatPreview'
 import { buildRightRailStackSelectionViewModel } from '../rightRailSelection'
+import { buildBattlefieldRosterIndex } from '../battlefieldGroupProjection'
 
 
 import { buildCombatMoveHandoffSnapshot } from './snapshotHandoff'
@@ -132,6 +133,9 @@ export function buildBattlefieldDisplayModel({
 	const stackRoster = hasValidationError || visibleStackSourceState?.stackRoster === undefined
 		? undefined
 		: visibleStackSourceState.stackRoster as import('../../../shared/types/index').StackRosterState
+	const stackRosterIndex = stackRoster === undefined
+		? undefined
+		: buildBattlefieldRosterIndex(displayedDefenders, stackRoster)
 	const selectedAttackSelectionIds = isCombatPhase ? selectedCombatSelectionIds : activeSelectedUnitIds
 	const selectedCombatAttackerIds = !isCombatPhase
 		? []
@@ -159,7 +163,7 @@ export function buildBattlefieldDisplayModel({
 			: selectedCombatAttackerIds
 				.map((unitId) => displayedDefenders.find((unit) => unit.unitId === unitId) ?? null)
 				.filter((unit): unit is NonNullable<typeof unit> => unit !== null)
-				.map((unit) => resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRoster, catalog ?? undefined))))
+				.map((unit) => resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRosterIndex, catalog ?? undefined))))
 	const selectedCombatAttackGroupCount = !isCombatPhase
 		? 0
 		: activeCombatRole === 'defender'
@@ -203,9 +207,9 @@ export function buildBattlefieldDisplayModel({
 			? null
 			: defenderRoster.find((unit) => unit.unitId === selectedInspectorUnitId) ?? null
 	const selectedInspectorLabel = selectedInspectorOnion !== null
-		? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackRoster, catalog ?? undefined)
+		? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackRosterIndex, catalog ?? undefined)
 		: selectedInspectorDefender !== null
-			? resolveBattlefieldFriendlyName(selectedInspectorDefender, stackNaming ?? undefined, stackRoster, catalog ?? undefined)
+			? resolveBattlefieldFriendlyName(selectedInspectorDefender, stackNaming ?? undefined, stackRosterIndex, catalog ?? undefined)
 			: null
 	const combatRangeSources = !isCombatPhase || displayedScenarioMap === null
 		? []

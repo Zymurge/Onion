@@ -19,7 +19,7 @@ import { formatCombatTargetId } from '../../shared/combatTarget'
 import { buildStackRosterIndex, canonicalizeStackRoster } from '../../shared/stackRoster/index.js'
 import type { StackRosterState, TerrainType } from '../../shared/types/index'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
-import { getSessionUnitType, getSessionWeaponDefense, getSessionWeaponType, isSessionUnitTypeStackable, type SessionCatalog } from './sessionCatalog'
+import { getSessionUnitType, getSessionWeaponDefense, getSessionWeaponType, type SessionCatalog } from './sessionCatalog'
 
 type CombatRole = 'onion' | 'defender'
 
@@ -68,36 +68,6 @@ function getCombatCalculator(catalog?: SessionCatalog) {
 	const calculator = createCombatCalculator(createRulesContext(catalog).combatRules)
 	combatCalculatorsByCatalog.set(catalog, calculator)
 	return calculator
-}
-
-function isStackableUnitType(unitType: string, catalog?: SessionCatalog): boolean {
-	return catalog !== undefined && isSessionUnitTypeStackable(catalog, unitType)
-}
-
-function getStackedDefenderKeys(displayedDefenders: ReadonlyArray<BattlefieldUnit>, catalog?: SessionCatalog): Set<string> {
-	const stackedCountsByPosition = new Map<string, number>()
-	const stackedKeys = new Set<string>()
-
-	for (const unit of displayedDefenders) {
-		if (!isStackableUnitType(unit.typeId, catalog)) {
-			continue
-		}
-
-		const position = getBattlefieldPosition(unit)
-		const key = `${unit.typeId}:${position.q},${position.r}`
-		if ((unit.stackSize ?? 1) > 1) {
-			stackedKeys.add(key)
-			continue
-		}
-
-		const nextCount = (stackedCountsByPosition.get(key) ?? 0) + 1
-		stackedCountsByPosition.set(key, nextCount)
-		if (nextCount > 1) {
-			stackedKeys.add(key)
-		}
-	}
-
-	return stackedKeys
 }
 
 function terrainTypeFromHex(value: number | undefined): TerrainType {
@@ -258,9 +228,7 @@ export function buildCombatTargetOptions({
 			),
 		)
 	}
-	const stackedDefenderKeys = getStackedDefenderKeys(displayedDefenders, catalog)
-
-	if (stackRosterIndex === null && stackedDefenderKeys.size > 0) {
+	if (stackRosterIndex === null && displayedDefenders.some((unit) => (unit.stackSize ?? 1) > 1)) {
 		throw new Error('Missing stackRoster for grouped defenders')
 	}
 
@@ -292,10 +260,6 @@ export function buildCombatTargetOptions({
 		const groupedTargets = new Map<string, BattlefieldUnit>()
 		for (const unit of validDefenders) {
 			const rosterGroup = stackRosterIndex?.getUnitGroup(unit.unitId) ?? null
-			const unitPosition = getBattlefieldPosition(unit)
-			if (rosterGroup === null && stackedDefenderKeys.has(`${unit.typeId}:${unitPosition.q},${unitPosition.r}`)) {
-				throw new Error(`Missing stackRoster entry for grouped unit ${unit.unitId}`)
-			}
 			const groupId = rosterGroup?.groupId ?? unit.unitId
 			if (!groupedTargets.has(groupId)) {
 				groupedTargets.set(groupId, unit)
@@ -326,7 +290,7 @@ export function buildCombatTargetOptions({
 				q: unitPosition.q,
 				r: unitPosition.r,
 				status: unit.state,
-				label: resolveBattlefieldFriendlyName(unit, resolvedStackNaming ?? undefined, resolvedStackRoster ?? undefined, catalog),
+				label: resolveBattlefieldFriendlyName(unit, resolvedStackNaming ?? undefined, stackRosterIndex ?? undefined, catalog),
 				defense,
 				modifiers: buildTargetModifiers(
 					result.modifiers,

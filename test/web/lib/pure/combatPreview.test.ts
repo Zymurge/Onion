@@ -19,10 +19,11 @@ function buildCombatTargetOptions(input: Parameters<typeof buildCombatTargetOpti
 	return buildCombatTargetOptionsWithCatalog({ ...input, catalog: input.catalog ?? sessionCatalog })
 }
 
-function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRosterGroupState, 'position' | 'unitIds'>) {
+function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRosterGroupState, 'position' | 'unitIds'> & { groupId?: string }) {
+	const groupId = overrides.groupId ?? `${overrides.unitType ?? 'LittlePigs'}:${overrides.position.q},${overrides.position.r}`
 	const stack = makeStackFixture({
 		groups: {
-			[`${overrides.unitType ?? 'LittlePigs'}:${overrides.position.q},${overrides.position.r}`]: makeStackGroup(overrides),
+			[groupId]: makeStackGroup(overrides),
 		},
 	})
 
@@ -158,6 +159,7 @@ describe('buildCombatTargetOptions', () => {
 				unitType: 'LittlePigs',
 				position: { q: 1, r: 1 },
 				unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+				groupId: 'group-7',
 			}),
 			selectedUnitIds: ['weapon:main'],
 			selectedAttackStrength: fixture.expected.attackStrength,
@@ -170,7 +172,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options[0]).toMatchObject({
-			id: 'LittlePigs:1,1',
+			id: 'group-7',
 			defense: fixture.expected.defenseStrength,
 			modifiers: ['Ridgeline cover: +1 defense'],
 		})
@@ -389,10 +391,13 @@ describe('buildCombatTargetOptions', () => {
 			activeCombatRole: 'onion',
 			combatRangeHexKeys: new Set(['3,2']),
 			displayedDefenders: [
-				makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 3, r: 2 } }),
-				makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 3, r: 2 } }),
+				makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 3, r: 2 } }, { stackSize: 2 }),
+				makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 3, r: 2 } }, { stackSize: 2 }),
 			],
-			displayedOnion: makeBattlefieldOnion({ position: { q: 0, r: 1 }, weapons: [] }),
+			displayedOnion: makeBattlefieldOnion({
+				position: { q: 0, r: 1 },
+				weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' })],
+			}),
 			selectedUnitIds: ['weapon:main-1'],
 			selectedAttackStrength: 4,
 			selectedAttackGroupCount: 1,

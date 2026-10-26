@@ -79,12 +79,14 @@ This document is an architectural plan of record. It defines the implementation 
 ## 4. Architectural Boundaries and Non-Goals
 
 ### Boundaries to Preserve
+
 - **Backend Engine Authority:** The engine remains authoritative for movement legality, phase order, combat rolls, CRT resolution, ramming outcomes, and canonical state mutation.
 - **Client Preparation:** The web client prepares actions locally. Committed actions must round-trip through the API and engine; no optimistic mutations of canonical state.
 - **Stable Member Identity:** Individual units retain their unique `unitId` across splits, merges, moves, and combat.
 - **Roster vs. Naming Separation:** `stackRoster` owns group structure and identity. `stackNaming` owns friendly display strings and used-name history.
 
 ### Explicit Non-Goals
+
 - Do not create a polymorphic command endpoint combining MOVE and FIRE.
 - Do not treat ramming as an independent top-level action.
 - Do not build automated migration scripts or dual-read fallback compatibility layers for legacy snapshots.
@@ -95,7 +97,7 @@ This document is an architectural plan of record. It defines the implementation 
 
 ## 5. Implementation Task Dependency Graph
 
-```
+```text
            [Task 1: Contract & Specification Alignment]
                                 |
                                 v
@@ -124,6 +126,7 @@ This document is an architectural plan of record. It defines the implementation 
 ## 6. Detailed Task Specifications for Sub-Agents
 
 ### Task 1: Contract & Specification Alignment
+
 - **Goal:** Update all specification and contract documents to establish the new identity rules before code changes begin.
 - **Files to Update:**
   - `docs/api-contract.md`: Update `### FIRE` and `#### Combat Target IDs` to replace coordinate IDs (e.g., `LittlePigs:3,2`) with opaque group IDs (e.g., `group-1`). Clarify that singletons are targeted by `unitId`.
@@ -136,6 +139,7 @@ This document is an architectural plan of record. It defines the implementation 
 ---
 
 ### Task 2: Shared Identity, Roster Lifecycle & ActionSubject View
+
 - **Goal:** Update `shared/stackRoster` and `shared/types` to support monotonic group IDs, singleton pruning, and the derived `ActionSubject` resolver.
 - **Files to Inspect / Modify:**
   - `shared/types/index.ts`: Update `StackRosterState` to include `nextGroupOrdinal: number`. Update `StackRosterGroupState` ensuring `groupId` is recognized.
@@ -159,6 +163,7 @@ This document is an architectural plan of record. It defines the implementation 
 ---
 
 ### Task 3: Scenario Normalization & Naming Lifecycle
+
 - **Goal:** Update initial scenario deployment processing and stack naming to use the new group ID format and naming key.
 - **Files to Inspect / Modify:**
   - `server/engine/scenarioNormalizer.ts`:
@@ -181,6 +186,7 @@ This document is an architectural plan of record. It defines the implementation 
 ---
 
 ### Task 4: Server Engine Execution & API Protocol Handlers
+
 - **Goal:** Align server movement, combat validation, phase cleanups, event builders, and response projections with location-independent group IDs and singleton removal.
 - **Files to Inspect / Modify:**
   - `server/engine/movement.ts`:
@@ -205,6 +211,7 @@ This document is an architectural plan of record. It defines the implementation 
 ---
 
 ### Task 5: Web Projections, Selection & Command Builders
+
 - **Goal:** Update web client projections, battlefield naming, combat preview, and action commit builders to consume canonical group IDs.
 - **Files to Inspect / Modify:**
   - `web/lib/stackSelection.ts`:
@@ -229,6 +236,7 @@ This document is an architectural plan of record. It defines the implementation 
 ---
 
 ### Task 6: Cross-Layer Verification & Regression Suite
+
 - **Goal:** Execute integration tests, end-to-end scenarios, typechecking, and linting across the repository to ensure complete system consistency.
 - **Files to Inspect / Verify:**
   - `test/server/api/integration.integration.test.ts`
@@ -249,6 +257,7 @@ This document is an architectural plan of record. It defines the implementation 
 ---
 
 ### Task 7: Handler Boilerplate Consolidation (Optional / Deferred)
+
 - **Goal:** Evaluate extracting repetitive persistence, event logging, and response wrapping between `move.ts` and `fire.ts` into a shared helper `server/api/gameRoutes/actionHandlers/common.ts`.
 - **Files to Inspect / Modify:**
   - `server/api/gameRoutes/actionHandlers/move.ts`
@@ -258,4 +267,3 @@ This document is an architectural plan of record. It defines the implementation 
   - Shared wrapper handles match loading, event progression, and error response formatting without altering engine validation or execution logic.
   - Zero behavioral regressions.
 - **Non-Goals:** Do not merge MOVE and FIRE domain logic.
-
