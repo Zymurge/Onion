@@ -1,4 +1,3 @@
-import { buildStackGroupKey } from '../stackNaming/index.js'
 import type { DefenderMap, StackRosterState } from '../types/index.js'
 import {
 	buildDefenderLookup,
@@ -7,6 +6,20 @@ import {
 	resolveGroupUnitIds,
 } from './helpers.js'
 import type { StackRosterGroupView, StackRosterIndex, StackRosterUnitView } from './types.js'
+
+/** Resolve a persisted group ID for a member without requiring live defender records. */
+export function findStackRosterGroupId(
+	stackRoster: StackRosterState | undefined,
+	unitId: string,
+): string | null {
+	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
+		if (resolveGroupUnitIds(group).includes(unitId)) {
+			return groupId
+		}
+	}
+
+	return null
+}
 
 /** Build derived group and unit views without changing the persisted roster. */
 export function buildStackRosterIndex(
@@ -21,7 +34,6 @@ export function buildStackRosterIndex(
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		const normalizedGroup = normalizeStackRosterGroup(groupId, group)
 		const groupUnitIds = resolveGroupUnitIds(normalizedGroup)
-		const groupKey = buildStackGroupKey(normalizedGroup.unitType, normalizedGroup.position)
 		const units = groupUnitIds.map((unitId) => {
 			const unit = defenderLookup[unitId]
 			if (unit === undefined) {
@@ -44,7 +56,6 @@ export function buildStackRosterIndex(
 				weapons: unit.weapons,
 				squads: getStaticSquadCount(normalizedGroup.unitType),
 				groupId,
-				groupKey,
 				unitType: normalizedGroup.unitType,
 				position: normalizedGroup.position,
 			}
@@ -57,7 +68,6 @@ export function buildStackRosterIndex(
 		groupsById[groupId] = {
 			...normalizedGroup,
 			groupId,
-			groupKey,
 			unitIds: groupUnitIds,
 			units,
 		}

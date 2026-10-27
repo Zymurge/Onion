@@ -4,7 +4,6 @@ import type { UnitTypeBase, UnitTypeCatalog, WeaponType, WeaponTypeCatalog } fro
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 
 type ScenarioUnitTypes = NonNullable<Scenario['unitTypes']>
-type UnitTypeOverrides = ScenarioUnitTypes[string]['overrides']
 
 export type ResolvedScenarioDefinitions = {
   unitTypes: UnitTypeCatalog

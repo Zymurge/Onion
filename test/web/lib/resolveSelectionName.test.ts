@@ -5,11 +5,11 @@ describe('resolveSelectionName', () => {
   it('resolves group label from snapshot for group selections', () => {
     const stackNaming = {
       groupsInUse: [
-        { groupKey: 'G1', groupName: 'Bravo', unitType: 'Infantry' },
+        { groupId: 'G1', groupName: 'Bravo', unitType: 'Infantry' },
       ],
       usedGroupNames: ['Bravo'],
     }
-    const name = resolveSelectionName({ kind: 'group', groupKey: 'G1', stackNaming })
+    const name = resolveSelectionName({ kind: 'group', groupId: 'G1', stackNaming })
     expect(name).toBe('Bravo')
   })
 
@@ -19,7 +19,7 @@ describe('resolveSelectionName', () => {
       usedGroupNames: [],
     }
 
-    expect(() => resolveSelectionName({ kind: 'group', groupKey: 'G1', stackNaming })).toThrow('Missing stack label for group G1')
+    expect(() => resolveSelectionName({ kind: 'group', groupId: 'G1', stackNaming })).toThrow('Missing stack label for group G1')
   })
 
   it('returns friendlyName for unit selections', () => {

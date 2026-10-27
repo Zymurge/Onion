@@ -1,6 +1,6 @@
-/** Active group name tracked for a canonical type-and-position key. */
+/** Active group name tracked for a canonical group identity. */
 export type StackNamingGroupRecord = {
-	groupKey: string
+	groupId: string
 	groupName: string
 	unitType: string
 }

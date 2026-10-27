@@ -127,7 +127,7 @@ describe('bootstrapTwoPlayerGame', () => {
 
 	it('leaves the first user registered when the second user setup fails', async () => {
 		const registeredUsers: string[] = []
-		const registerUser = async (_session: SessionStore, username: string, password: string) => {
+		const registerUser = async (_session: SessionStore, username: string) => {
 			if (username === 'defender-player') {
 				return { ok: false as const, status: 409, body: {}, message: 'username already taken' }
 			}
@@ -177,7 +177,7 @@ describe('bootstrapTwoPlayerGame', () => {
 				defender: { username: 'defender-player', password: 'defender-pass' },
 				artifactRegistry,
 				sessionFactory: createSession,
-				registerUser: async (_session, username, password) => ({
+				registerUser: async (_session, username) => ({
 					ok: true as const,
 					status: 201,
 					data: { userId: `${username}-id`, token: `${username}-token` },
@@ -201,7 +201,7 @@ describe('bootstrapTwoPlayerGame', () => {
 			[PLAYWRIGHT_RUNTIME_ENV.artifactFile]: artifactFile,
 			[PLAYWRIGHT_RUNTIME_ENV.logDir]: directory,
 		})
-		const registerUser = async (_session: SessionStore, username: string, password: string) => ({
+		const registerUser = async (_session: SessionStore, username: string) => ({
 			ok: true as const,
 			status: 201,
 			data: { userId: `${username}-id`, token: `${username}-token` },

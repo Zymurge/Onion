@@ -2,6 +2,8 @@ import type { DefenderMap, StackRosterState } from '../types/index.js'
 import { buildDefenderLookup, isStackRosterUnitType, isValidPosition, resolveGroupUnitIds } from './helpers.js'
 import type { StackRosterConsistencyIssue, StackRosterValidationIssue } from './types.js'
 
+const GROUP_ID_PATTERN = /^group-([1-9]\d*)$/
+
 /** Validate the structural shape of a persisted stack roster. */
 export function validateStackRoster(
 	stackRoster: StackRosterState | undefined,
@@ -11,7 +13,38 @@ export function validateStackRoster(
 	const seenUnitIds = new Set<string>()
 	const defenderLookup = buildDefenderLookup(defenders)
 
-	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
+	if (stackRoster === undefined) {
+		return [{
+			code: 'MISSING_ROSTER',
+			message: 'Canonical stack roster is missing',
+			groupId: 'stackRoster',
+		}]
+	}
+
+	const nextGroupOrdinal = stackRoster.nextGroupOrdinal
+	const hasValidNextGroupOrdinal = Number.isSafeInteger(nextGroupOrdinal) && nextGroupOrdinal > 0
+	if (!hasValidNextGroupOrdinal) {
+		issues.push({
+			code: 'INVALID_NEXT_GROUP_ORDINAL',
+			message: 'Canonical stack roster nextGroupOrdinal must be a positive safe integer',
+			groupId: 'stackRoster',
+		})
+	}
+
+	let highestActiveGroupOrdinal = 0
+
+	for (const [groupId, group] of Object.entries(stackRoster.groupsById)) {
+		const groupIdMatch = GROUP_ID_PATTERN.exec(groupId)
+		if (groupIdMatch === null) {
+			issues.push({
+				code: 'INVALID_GROUP_ID',
+				message: `Group ${groupId} must use an opaque canonical group ID`,
+				groupId,
+			})
+		} else {
+			highestActiveGroupOrdinal = Math.max(highestActiveGroupOrdinal, Number(groupIdMatch[1]))
+		}
+
 		if (group.unitType.trim().length === 0) {
 			issues.push({ code: 'EMPTY_UNIT_TYPE', message: `Group ${groupId} must have a non-empty unitType`, groupId })
 		}
@@ -24,6 +57,10 @@ export function validateStackRoster(
 		if (groupUnitIds.length === 0) {
 			issues.push({ code: 'EMPTY_GROUP', message: `Group ${groupId} must contain at least one unit`, groupId })
 			continue
+		}
+
+		if (groupUnitIds.length === 1) {
+			issues.push({ code: 'SINGLETON_GROUP', message: `Group ${groupId} must contain at least two units`, groupId })
 		}
 
 		if (group.groupName !== undefined && group.groupName.trim().length === 0) {
@@ -49,6 +86,14 @@ export function validateStackRoster(
 		}
 	}
 
+	if (hasValidNextGroupOrdinal && nextGroupOrdinal <= highestActiveGroupOrdinal) {
+		issues.push({
+			code: 'INVALID_NEXT_GROUP_ORDINAL',
+			message: `Canonical stack roster nextGroupOrdinal must be greater than active group ordinal ${highestActiveGroupOrdinal}`,
+			groupId: 'stackRoster',
+		})
+	}
+
 	return issues
 }
 
@@ -61,6 +106,15 @@ export function validateStackRosterConsistency(
 	const issues: StackRosterConsistencyIssue[] = []
 	const seenMemberIds = new Map<string, string>()
 	const groupedUnitIds = new Set<string>()
+	const stackableDefenderCountsByPosition = new Map<string, number>()
+	for (const defender of Object.values(defenders ?? {})) {
+		if (defender.state === 'destroyed' || !isStackable(defender.typeId)) {
+			continue
+		}
+
+		const positionKey = `${defender.typeId}:${defender.position.q},${defender.position.r}`
+		stackableDefenderCountsByPosition.set(positionKey, (stackableDefenderCountsByPosition.get(positionKey) ?? 0) + 1)
+	}
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		if (!isStackable(group.unitType)) {
@@ -122,7 +176,12 @@ export function validateStackRosterConsistency(
 		}
 
 		const defenderId = defender.unitId ?? defenderKey
-		if (!isStackRosterUnitType(defender.typeId)) {
+		if (!isStackable(defender.typeId)) {
+			continue
+		}
+
+		const positionKey = `${defender.typeId}:${defender.position.q},${defender.position.r}`
+		if ((stackableDefenderCountsByPosition.get(positionKey) ?? 0) < 2) {
 			continue
 		}
 

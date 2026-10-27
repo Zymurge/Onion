@@ -34,7 +34,7 @@ describe('GameState test helpers', () => {
       onions: { 'onion-1': makeOnion({ treads: 12 }) },
       defenders: { 'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs' }) },
       stackNaming: makeStackNaming({ usedGroupNames: [rosterGroup.groupName] }),
-      stackRoster: makeStackRoster({ groupsById: { 'LittlePigs:4,4': rosterGroup } }),
+      stackRoster: makeStackRoster({ groupsById: { 'group-2': rosterGroup }, nextGroupOrdinal: 3 }),
       currentPhase: 'DEFENDER_MOVE',
       turn: 4,
     })
@@ -42,7 +42,7 @@ describe('GameState test helpers', () => {
     expect(state.onions['onion-1'].treads).toBe(12)
     expect(state.defenders['pigs-1'].typeId).toBe('LittlePigs')
     expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
-    expect(state.stackRoster.groupsById['LittlePigs:4,4'].unitIds).toEqual(['pigs-1', 'pigs-2'])
+    expect(state.stackRoster.groupsById['group-2'].unitIds).toEqual(['pigs-1', 'pigs-2'])
     expect(state.currentPhase).toBe('DEFENDER_MOVE')
     expect(state.turn).toBe(4)
   })
@@ -61,7 +61,7 @@ describe('GameState test helpers', () => {
   it('derives defenders, roster, and naming from stack groups', () => {
     const fixture = makeStackFixture({
       groups: {
-        'stack-1': {
+        'group-1': {
           groupName: 'Little Pigs group 4',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
@@ -85,9 +85,9 @@ describe('GameState test helpers', () => {
       typeId: 'LittlePigs',
       position: { q: 4, r: 4 },
     })
-    expect(fixture.stackRoster.groupsById['stack-1']?.unitIds).toEqual(['pigs-7', 'pigs-8'])
+    expect(fixture.stackRoster.groupsById['group-1']?.unitIds).toEqual(['pigs-7', 'pigs-8'])
     expect(fixture.stackNaming).toEqual({
-      groupsInUse: [{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 4', unitType: 'LittlePigs' }],
+      groupsInUse: [{ groupId: 'group-1', groupName: 'Little Pigs group 4', unitType: 'LittlePigs' }],
       usedGroupNames: ['Little Pigs group 4'],
     })
   })
@@ -96,10 +96,10 @@ describe('GameState test helpers', () => {
     const baseState = makeGameState()
     const fixture = makeStackFixture({
       groups: {
-        'stack-2': {
+        'group-2': {
           unitType: 'LittlePigs',
           position: { q: 2, r: 2 },
-          unitIds: ['pigs-3'],
+          unitIds: ['pigs-3', 'pigs-4'],
         },
       },
       base: baseState,
@@ -108,8 +108,8 @@ describe('GameState test helpers', () => {
 
     expect(state.defenders['pigs-1']).toBeDefined()
     expect(state.defenders['pigs-3']).toMatchObject({ position: { q: 2, r: 2 } })
-    expect(state.stackRoster.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
-    expect(state.stackRoster.groupsById['stack-2']?.unitIds).toEqual(['pigs-3'])
+    expect(state.stackRoster.groupsById['group-1']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
+    expect(state.stackRoster.groupsById['group-2']?.unitIds).toEqual(['pigs-3', 'pigs-4'])
     expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
     expect(state.currentPhase).toBe('DEFENDER_MOVE')
   })

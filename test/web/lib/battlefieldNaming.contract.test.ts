@@ -5,8 +5,9 @@ import {
 } from '../../../web/lib/battlefieldNaming'
 import { resolveBattlefieldStacksExpandable, shouldExpandBattlefieldStackGroup } from '../../../web/lib/stackSelection'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { buildStackRosterIndex } from '#shared/stackRoster/index'
 import { createSessionCatalog } from '../../../web/lib/sessionCatalog'
-import type { DefenderUnit } from '#shared/types/index'
+import type { DefenderUnit, StackRosterState } from '#shared/types/index'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
 
@@ -24,11 +25,19 @@ function makeTestUnit(overrides: Partial<DefenderUnit> = {}): DefenderUnit {
   }
 }
 
+function makeRosterIndex(stackRoster: StackRosterState, units: ReadonlyArray<DefenderUnit> = [
+  makeTestUnit(),
+  makeTestUnit({ unitId: 'pigs-2', friendlyName: 'Little Pigs 2' }),
+]): ReturnType<typeof buildStackRosterIndex> {
+  return buildStackRosterIndex(stackRoster, Object.fromEntries(units.map((unit) => [unit.unitId, unit])))
+}
+
 describe('resolveBattlefieldDisplayName', () => {
   it('throws when grouped unit metadata is incomplete', () => {
       const stackRoster = {
+      nextGroupOrdinal: 2,
       groupsById: {
-        'LittlePigs:2,2': {
+        'group-1': {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 2, r: 2 },
@@ -40,7 +49,7 @@ describe('resolveBattlefieldDisplayName', () => {
     expect(() => resolveBattlefieldFriendlyName(
       makeTestUnit(),
       undefined,
-      stackRoster,
+      makeRosterIndex(stackRoster),
       sessionCatalog,
     )).toThrow('Missing stackNaming for grouped unit pigs-1')
   })
@@ -48,14 +57,15 @@ describe('resolveBattlefieldDisplayName', () => {
   it('throws when grouped unit labels conflict between roster and naming', () => {
       const stackNaming = {
       groupsInUse: [
-        { groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
       ],
       usedGroupNames: ['Little Pigs group 2'],
     }
 
     const stackRoster = {
+      nextGroupOrdinal: 2,
       groupsById: {
-        'LittlePigs:2,2': {
+        'group-1': {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 2, r: 2 },
@@ -67,42 +77,46 @@ describe('resolveBattlefieldDisplayName', () => {
     expect(() => resolveBattlefieldFriendlyName(
       makeTestUnit(),
       stackNaming,
-      stackRoster,
+      makeRosterIndex(stackRoster),
       sessionCatalog,
     )).toThrow('Conflicting stacked-unit labels for pigs-1')
   })
 
-  it('throws when grouped unit roster membership is missing from the canonical roster', () => {
+  it('resolves an individual label when a stackable unit is absent from the canonical roster', () => {
     const stackNaming = {
       groupsInUse: [
-        { groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
       ],
       usedGroupNames: ['Little Pigs group 1'],
     }
 
     const stackRoster = {
+      nextGroupOrdinal: 1,
       groupsById: {},
     }
 
-    expect(() => resolveBattlefieldFriendlyName(
+    const label = resolveBattlefieldFriendlyName(
       makeTestUnit(),
       stackNaming,
-      stackRoster,
+      makeRosterIndex(stackRoster),
       sessionCatalog,
-    )).toThrow('Missing roster group for grouped unit pigs-1')
+    )
+
+    expect(label).toBe('Little Pigs 1')
   })
 
   it('resolves a group label from canonical stack naming for a grouped map occupant', () => {
     const stackNaming = {
       groupsInUse: [
-        { groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Little Pigs group', unitType: 'LittlePigs' },
       ],
       usedGroupNames: ['Little Pigs group'],
     }
 
     const label = resolveBattlefieldDisplayName(
-      makeTestUnit({ friendlyName: undefined, stackSize: 2 }),
+      { ...makeTestUnit({ friendlyName: undefined }), stackSize: 2 },
       stackNaming,
+      'group-1',
     )
 
     expect(label).toBe('Little Pigs group')
@@ -111,14 +125,15 @@ describe('resolveBattlefieldDisplayName', () => {
   it('resolves an individual label for a stackable singleton roster group', () => {
       const stackNaming = {
       groupsInUse: [
-        { groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
       ],
       usedGroupNames: ['Little Pigs group 1'],
     }
 
     const stackRoster = {
+      nextGroupOrdinal: 2,
       groupsById: {
-        'LittlePigs:2,2': {
+        'group-1': {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 2, r: 2 },
@@ -130,7 +145,7 @@ describe('resolveBattlefieldDisplayName', () => {
     const label = resolveBattlefieldFriendlyName(
       makeTestUnit(),
       stackNaming,
-      stackRoster,
+      makeRosterIndex(stackRoster, [makeTestUnit()]),
       sessionCatalog,
     )
 

@@ -105,6 +105,14 @@ function findGroupIdForUnit(state: WebStackSourceState, unitId: string | null): 
   ).getUnitGroup(unitId)?.groupId ?? null
 }
 
+/** Resolve a defender member target to the canonical group target when grouped. */
+export function resolveStackGroupTargetId(state: WebStackSourceState, targetId: string): string {
+  return buildStackRosterIndex(
+    state.stackRoster as StackRosterState | undefined,
+    state.defenders as DefenderMap | undefined,
+  ).getUnitGroup(targetId)?.groupId ?? targetId
+}
+
 function buildValidatedStackSelection(
   state: WebStackSourceState,
   anchorUnitId: string | null,
@@ -144,6 +152,17 @@ function buildValidatedStackSelection(
     }),
   )
   if (normalizedSelectedUnitIds.length === 0) {
+    if (availableUnitIds.length === 1) {
+      return {
+        ok: true,
+        selection: {
+          anchorUnitId,
+          availableUnitIds,
+          selectedUnitIds: availableUnitIds,
+        },
+      }
+    }
+
     return { ok: false, reason: 'empty-stack-selection' }
   }
 
@@ -292,12 +311,14 @@ export function buildRightRailCombatSubmissionAction(input: Omit<RightRailCombat
     return { ok: false, reason: 'missing-target' }
   }
 
+  const resolvedTargetId = resolveStackGroupTargetId(input.state, input.targetId)
+
   return {
     ok: true,
     action: {
       type: 'FIRE',
       attackers: selectionResult.selection.selectedUnitIds,
-      targetId: input.targetId,
+      targetId: resolvedTargetId,
       onionId: input.onionId,
     },
   }
@@ -327,12 +348,14 @@ export function buildRightRailStackSubmissionAction(input: RightRailStackSubmiss
     return { ok: false, reason: 'missing-target' }
   }
 
+  const resolvedTargetId = resolveStackGroupTargetId(input.state, input.targetId)
+
   return {
     ok: true,
     action: {
       type: 'FIRE',
       attackers: selectionResult.selection.selectedUnitIds,
-      targetId: input.targetId,
+      targetId: resolvedTargetId,
       onionId: input.onionId,
     },
   }

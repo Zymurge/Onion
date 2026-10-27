@@ -271,13 +271,14 @@ Current `GameState` stack roster shape:
 {
   "stackRoster": {
     "groupsById": {
-      "stack-1": {
+      "group-1": {
         "groupName": "Little Pigs group 1",
         "unitType": "LittlePigs",
         "position": { "q": 4, "r": 4 },
         "unitIds": ["pigs-1", "pigs-2"]
       }
-    }
+    },
+    "nextGroupOrdinal": 2
   }
 }
 ```
@@ -286,7 +287,7 @@ Notes:
 
 - `groupsById` is the canonical stack/group metadata map. The record key is the group id.
 - The roster wrapper is always present in game state, even when `groupsById` is empty.
-- `groupKey`, `unitIds`, and member ordinals are helper-derived and do not need to be persisted.
+- `groupId` is the canonical `groupsById` map key. `unitIds` are canonical membership; member ordinals are helper-derived and do not need to be persisted.
 - `group.units` is a convenience projection derived by shared helpers from the canonical unit maps when UI or messaging needs member detail.
 - `friendlyName` on a unit is stable and does not change when the unit changes groups.
 - `groupName` is the only stack-level display label used by rails, combat UI, and event text.
@@ -352,6 +353,11 @@ included so clients have a definite event fence even when `events` is
 empty, and so they do not need to traverse the array to find the latest
 sequence number.
 
+MOVE and FIRE keep separate validation, execution, event construction, and
+action-specific outcome assembly. They share only successful post-execution
+finalization: cause attachment, persistence, event and action logging,
+broadcast, and response construction. END_PHASE remains a separate handler.
+
 ### `GET /games/{id}/events?after={seq}`
 
 Fetch events that occurred after a given sequence number. Phase 1
@@ -403,10 +409,10 @@ target legality, but all clients and event consumers must use the same target
 identity:
 
 - Defender units, defender stacks, and individually targetable weapons use the
-  opaque IDs supplied by the game state, such as `wolf-1`, `LittlePigs:3,2`, or
+  opaque IDs supplied by the game state, such as `wolf-1`, `group-1`, or
   `main`.
 - A Little Pigs stack target must use its canonical group ID from
-  `stackRoster`, such as `LittlePigs:3,2`. An individual member ID is not a
+  `stackRoster`, such as `group-1`. An individual member ID is not a
   valid substitute; clients must resolve a selected member to its group ID
   before submitting `FIRE`.
 - Onion treads use the explicit structured form `{onionId}:treads`, such as
@@ -629,7 +635,7 @@ The mutable board snapshot stored in `game_state` JSONB. Derived from
 
 `stackRoster` is the canonical source of stack membership and group identity. `defenders` is a unit projection and must not be used to infer stack membership from co-location. Remaining movement is derived from each unit's authoritative `movementSpent` state and the current phase.
 
-`groupName` is omitted for singleton roster entries and required for groups with two or more units. Creating a multi-unit group from unnamed singleton units allocates a name; regrouping preserves an existing valid multi-unit name. Splitting or relocating a group down to one unit removes the group name while preserving the unit's individual `friendlyName`.
+`groupName` is required for groups with two or more units. Singleton defenders have no roster entry. Creating a multi-unit group from unnamed singleton units allocates a name; regrouping preserves an existing valid multi-unit name. Splitting or relocating a group down to one unit removes the group record while preserving the unit's individual `friendlyName`.
 
 ---
 

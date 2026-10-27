@@ -770,7 +770,7 @@ describe('combat', () => {
 		const snapshot = {
 			...baseOrchestrationSnapshot,
 			phase: 'DEFENDER_MOVE' as const,
-			authoritativeState: { ...baseOrchestrationSnapshot.authoritativeState, defenders, stackRoster: { groupsById: {} }, stackNaming },
+			authoritativeState: { ...baseOrchestrationSnapshot.authoritativeState, defenders, stackRoster: { groupsById: {}, nextGroupOrdinal: 1 }, stackNaming },
 		}
 		const session = { role: 'defender' as const }
 		const submitAction = vi.fn().mockResolvedValue(snapshot)
@@ -926,7 +926,6 @@ describe('combat', () => {
 		const user = userEvent.setup()
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
 			units: [{ id: 'near-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', pos: { q: 2, r: 2 } }],
-			groups: [{ groupName: 'Little Pigs group 1', memberIds: ['near-1'] }],
 		})
 		const snapshot = {
 			...baseOrchestrationSnapshot,
@@ -955,7 +954,7 @@ describe('combat', () => {
 
 		await screen.findByTestId('combat-weapon-main-1')
 		await user.click(screen.getByTestId('combat-weapon-main-1'))
-		await user.click(screen.getByTestId('combat-target-LittlePigs:2,2'))
+		await user.click(screen.getByTestId('combat-target-near-1'))
 
 		const confirmationView = await screen.findByTestId('combat-confirmation-view')
 		expect(confirmationView.textContent).toContain('Attackers (1):')
@@ -972,7 +971,7 @@ describe('combat', () => {
 			groups: [{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] }],
 		})
 		expect(defenders['pigs-1']).not.toHaveProperty('squads')
-		expect(stackRoster.groupsById['LittlePigs:1,1'].unitIds).toEqual(['pigs-1', 'pigs-2'])
+		expect(stackRoster.groupsById['group-1'].unitIds).toEqual(['pigs-1', 'pigs-2'])
 		const snapshot = {
 			...baseSnapshot,
 			phase: 'DEFENDER_COMBAT' as const,
@@ -1019,13 +1018,13 @@ describe('combat', () => {
 		await acknowledgeTurnIfAvailable()
 
 		await user.click(await screen.findByTestId('combat-weapon-main-1'))
-		await user.click(await screen.findByTestId('combat-target-LittlePigs:1,1'))
+		await user.click(await screen.findByTestId('combat-target-group-1'))
 		await user.click(await screen.findByRole('button', { name: /resolve combat/i }))
 
 		expect(submitAction).toHaveBeenCalledWith(123, {
 			type: 'FIRE',
 			attackers: ['main-1'],
-			targetId: 'LittlePigs:1,1',
+			targetId: 'group-1',
 			onionId: 'onion-1',
 		})
 	})
@@ -1155,7 +1154,7 @@ describe('combat', () => {
 		const snapshot = {
 			...baseOrchestrationSnapshot,
 			phase: 'DEFENDER_COMBAT' as const,
-			authoritativeState: { ...baseOrchestrationSnapshot.authoritativeState, defenders, stackRoster: { groupsById: {} }, stackNaming },
+			authoritativeState: { ...baseOrchestrationSnapshot.authoritativeState, defenders, stackRoster: { groupsById: {}, nextGroupOrdinal: 1 }, stackNaming },
 		}
 		const debugSpy = vi.spyOn(logger, 'debug')
 		const client = createTestClient(snapshot, { role: 'defender' as const })

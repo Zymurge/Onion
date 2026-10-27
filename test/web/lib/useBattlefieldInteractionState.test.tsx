@@ -98,7 +98,7 @@ function createGroupedDefenderSnapshot(options?: {
 		: options?.includeRosterEntryForSecondUnit === false
 			? {
 				groupsById: {
-					'LittlePigs:1,1': {
+					'group-1': {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
 						position: { q: 1, r: 1 },
@@ -776,12 +776,12 @@ describe('useBattlefieldInteractionState', () => {
 			}),
 		}
 		const stackRoster = authoritativeState.stackRoster!
-		const stackGroup = stackRoster.groupsById['LittlePigs:1,1']
+		 const stackGroup = stackRoster.groupsById['group-1']
 		const updatedStackRoster = {
 			...stackRoster,
 			groupsById: {
 				...stackRoster.groupsById,
-				'LittlePigs:1,1': {
+				'group-1': {
 					...stackGroup,
 					unitIds: [...stackGroup.unitIds, 'pigs-3'],
 				},

@@ -20,7 +20,7 @@ function createSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
 function createStackSnapshot(phase: 'DEFENDER_MOVE' | 'DEFENDER_COMBAT', turnNumber: number, lastEventSeq: number): TestScenarioSnapshot {
 	const stack = makeStackFixture({
 		groups: {
-			'LittlePigs:4,4': {
+			'group-1': {
 				groupName: 'Little Pigs 1',
 				unitType: 'LittlePigs',
 				position: { q: 4, r: 4 },
@@ -196,7 +196,7 @@ describe('createFakeGameBackend', () => {
 			expect(controller.getSnapshot().snapshot?.phase).toBe('DEFENDER_MOVE')
 
 			const moveState = controller.getSnapshot().snapshot as GameSnapshot & { authoritativeState?: { stackRoster?: { groupsById?: Record<string, { groupName: string; unitIds: string[] }> } } }
-			expect(moveState.authoritativeState?.stackRoster?.groupsById?.['LittlePigs:4,4']).toMatchObject({
+			expect(moveState.authoritativeState?.stackRoster?.groupsById?.['group-1']).toMatchObject({
 				groupName: 'Little Pigs 1',
 				unitIds: ['pigs-1', 'pigs-2'],
 			})
@@ -208,7 +208,7 @@ describe('createFakeGameBackend', () => {
 
 			expect(controller.getSnapshot().snapshot?.phase).toBe('DEFENDER_COMBAT')
 			const combatState = controller.getSnapshot().snapshot as GameSnapshot & { authoritativeState?: { stackRoster?: { groupsById?: Record<string, { groupName: string; unitIds: string[] }> } } }
-			expect(combatState.authoritativeState?.stackRoster?.groupsById?.['LittlePigs:4,4']).toMatchObject({
+			expect(combatState.authoritativeState?.stackRoster?.groupsById?.['group-1']).toMatchObject({
 				groupName: 'Little Pigs 1',
 				unitIds: ['pigs-1', 'pigs-2'],
 			})

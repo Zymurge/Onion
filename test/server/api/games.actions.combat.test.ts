@@ -344,7 +344,7 @@ describe('POST /games/:id/actions combat API contract', () => {
           onions: { 'onion-1': { unitId: 'onion-1', typeId: 'TheOnion', role: 'onion', side: 'onion', position: { q: 0, r: 10 }, state: 'operational', friendlyName: 'The Onion 1', treads: 45, ramsRemaining: 2, weapons: [] } },
           defenders: { 'wolf-1': { unitId: 'wolf-1', typeId: 'GEV', role: 'defender', side: 'defender', position: { q: 3, r: 10 }, state: 'operational', friendlyName: 'GEV 1', weapons: [] } },
           stackNaming: { groupsInUse: [], usedGroupNames: [] },
-          stackRoster: { groupsById: {} },
+          stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
           currentPhase: 'ONION_COMBAT',
           turn: 1,
         } satisfies GameState,

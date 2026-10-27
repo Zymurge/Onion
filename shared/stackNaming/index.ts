@@ -8,8 +8,7 @@ export type {
 } from './types.js'
 
 export {
-/** Stateless label and group-key helpers. */
-	buildStackGroupKey,
+	/** Stateless label helpers. */
 	resolveStackLabel,
 	resolveStackUnitName,
 } from './labels.js'
@@ -24,11 +23,11 @@ import type { StackNamingSnapshot } from './types.js'
 /** Resolve a stack label using a prior naming snapshot when one exists. */
 export function resolveStackLabelFromSnapshot(
 	seed: StackNamingSnapshot | undefined,
-	groupKey: string,
+	groupId: string,
 	unitType: string,
 	unitId?: string,
 	friendlyName?: string,
 	stackSize = 1,
 ): string {
-	return createStackNamingEngine(seed).resolveGroupName(groupKey, unitType, unitId, friendlyName, stackSize)
+	return createStackNamingEngine(seed).resolveGroupName(groupId, unitType, unitId, friendlyName, stackSize)
 }

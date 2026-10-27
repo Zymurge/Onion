@@ -32,12 +32,12 @@ describe('hexMapCombatTargeting', () => {
     const pig = { unitId: 'pigs-1', typeId: 'LittlePigs', role: 'defender' } as BattlefieldUnit
     const rosterIndex: OccupantRosterIndex = {
       getUnitGroup: (unitId) => unitId === pig.unitId
-        ? { groupId: 'LittlePigs:3,2', unitIds: ['pigs-1'] }
+        ? { groupId: 'group-7', unitIds: ['pigs-1'] }
         : null,
     }
 
-    expect(getCombatTargetIdForOccupant(pig, 'onion', onion, rosterIndex)).toBe('LittlePigs:3,2')
-    expect(isCombatTargetSelectable(pig, 'onion', onion, new Set(['LittlePigs:3,2']), rosterIndex)).toBe(true)
-    expect(isCombatTargetSelected(pig, 'onion', onion, 'LittlePigs:3,2', rosterIndex)).toBe(true)
+    expect(getCombatTargetIdForOccupant(pig, 'onion', onion, rosterIndex)).toBe('group-7')
+    expect(isCombatTargetSelectable(pig, 'onion', onion, new Set(['group-7']), rosterIndex)).toBe(true)
+    expect(isCombatTargetSelected(pig, 'onion', onion, 'group-7', rosterIndex)).toBe(true)
   })
 })

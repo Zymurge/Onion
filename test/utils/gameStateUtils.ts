@@ -1,4 +1,4 @@
-import { buildStackGroupKey, type StackNamingSnapshot } from '#shared/stackNaming/index'
+import { type StackNamingSnapshot } from '#shared/stackNaming/index'
 import type { VictoryObjectiveState } from '#shared/apiProtocol'
 import type {
 	DefenderMap,
@@ -234,10 +234,11 @@ export function canonicalizeBattlefieldOnion(view: BattlefieldOnionFixture): Bat
  */
 export function makeStackRoster(overrides: Partial<StackRosterState> = {}): StackRosterState {
 	return {
-			groupsById: {
-				'LittlePigs:1,1': makeStackGroup(),
-			},
-			...overrides,
+		groupsById: {
+			'group-1': makeStackGroup(),
+		},
+		...overrides,
+		nextGroupOrdinal: overrides.nextGroupOrdinal ?? 2,
 	}
 }
 
@@ -260,7 +261,7 @@ export function makeStackGroup(overrides: Partial<StackRosterGroupState> = {}): 
 export function makeStackNaming(overrides: Partial<StackNamingSnapshot> = {}): StackNamingSnapshot {
 	return {
 		groupsInUse: [
-			{ groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }
+			{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }
 		],
 		usedGroupNames: ['Little Pigs group 1'],
 		...overrides,
@@ -279,10 +280,10 @@ function mergeStackNaming(
 	baseNaming: StackNamingSnapshot | undefined,
 	roster: StackRosterState,
 ): StackNamingSnapshot {
-	const groupsByKey = new Map<string, StackNamingSnapshot['groupsInUse'][number]>()
+	const groupsById = new Map<string, StackNamingSnapshot['groupsInUse'][number]>()
 
 	for (const group of baseNaming?.groupsInUse ?? []) {
-		groupsByKey.set(group.groupKey, group)
+		groupsById.set(group.groupId, group)
 	}
 
 	for (const group of Object.values(roster.groupsById)) {
@@ -290,15 +291,19 @@ function mergeStackNaming(
 			continue
 		}
 
-		groupsByKey.set(buildStackGroupKey(group.unitType, group.position), {
-			groupKey: buildStackGroupKey(group.unitType, group.position),
+		const groupId = Object.entries(roster.groupsById).find(([, candidate]) => candidate === group)?.[0]
+		if (groupId === undefined) {
+			continue
+		}
+		groupsById.set(groupId, {
+			groupId,
 			groupName: group.groupName,
 			unitType: group.unitType,
 		})
 	}
 
 	return {
-		groupsInUse: [...groupsByKey.values()],
+		groupsInUse: [...groupsById.values()],
 		usedGroupNames: [...new Set([
 			...(baseNaming?.usedGroupNames ?? []),
 			...Object.values(roster.groupsById)
@@ -314,8 +319,13 @@ export function makeStackFixture({
 	unitOverrides = {},
 	base = {},
 }: StackFixtureOptions = {}): StackFixture {
+	const highestGroupOrdinal = Object.keys(groups).reduce((highestOrdinal, groupId) => {
+		const match = /^group-(\d+)$/.exec(groupId)
+		return match === null ? highestOrdinal : Math.max(highestOrdinal, Number(match[1]))
+	}, 0)
 	const stackRoster: StackRosterState = {
-		...(base.stackRoster ?? { groupsById: {} }),
+		...(base.stackRoster ?? { groupsById: {}, nextGroupOrdinal: 1 }),
+		nextGroupOrdinal: base.stackRoster?.nextGroupOrdinal ?? Math.max(1, highestGroupOrdinal + 1),
 		groupsById: {
 			...(base.stackRoster?.groupsById ?? {}),
 			...groups,

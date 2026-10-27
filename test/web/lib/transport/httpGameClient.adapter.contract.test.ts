@@ -106,14 +106,8 @@ describe('http game client adapter contract', () => {
 						},
 					},
 					stackRoster: {
-						groupsById: {
-							'BigBadWolf:3,6': {
-								groupName: 'Big Bad Wolf 2',
-								unitType: 'BigBadWolf',
-								position: { q: 3, r: 6 },
-								unitIds: ['wolf-2'],
-							},
-						},
+						groupsById: {},
+						nextGroupOrdinal: 1,
 					},
 				},
 				victoryObjectives: [],
@@ -152,14 +146,8 @@ describe('http game client adapter contract', () => {
 						},
 					},
 					stackRoster: {
-						groupsById: {
-							'BigBadWolf:3,6': {
-								groupName: 'Big Bad Wolf 2',
-								unitType: 'BigBadWolf',
-								position: { q: 3, r: 6 },
-								unitIds: ['wolf-2'],
-							},
-						},
+						groupsById: {},
+						nextGroupOrdinal: 1,
 					},
 				},
 				gameId: 123,
@@ -1108,7 +1096,7 @@ describe('http game client adapter contract', () => {
 				},
 				stackRoster: {
 					groupsById: {
-						'LittlePigs:4,4': {
+						'group-1': {
 							groupName: 'Little Pigs group 1',
 							unitType: 'LittlePigs',
 							position: { q: 4, r: 4 },
@@ -1155,14 +1143,8 @@ describe('http game client adapter contract', () => {
 					},
 				},
 				stackRoster: {
-					groupsById: {
-						'LittlePigs:4,4': {
-							groupName: 'Little Pigs group 1',
-							unitType: 'LittlePigs',
-							position: { q: 4, r: 4 },
-							unitIds: ['pigs-1'],
-						},
-					},
+					groupsById: {},
+					nextGroupOrdinal: 1,
 				},
 			},
 			scenarioMap: {
@@ -1183,12 +1165,8 @@ describe('http game client adapter contract', () => {
 			snapshot: {
 				authoritativeState: {
 					stackRoster: {
-						groupsById: {
-							'LittlePigs:4,4': {
-								groupName: 'Little Pigs group 1',
-								unitIds: ['pigs-1'],
-							},
-						},
+						groupsById: {},
+						nextGroupOrdinal: 1,
 					},
 				},
 			},

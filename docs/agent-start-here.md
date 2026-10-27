@@ -30,6 +30,7 @@ When introducing or renaming source files it is imperative to update this docume
 
 | Task | Load | Code |
 | --- | --- | --- |
+| Canonical stack identity, stack naming, ActionSubject, or cross-layer MOVE/FIRE action ownership | [persistence.md](persistence.md), [api-contract.md](api-contract.md), and [interaction-routing-spec.md](web-ui/interaction-routing-spec.md) | Load only the relevant contract section, then follow its named shared, server, and web owner modules |
 | Version scope or deferred work | [v1-v2-scope.md](work-items/v1-v2-scope.md) | Read this before selecting adjacent work. Do not implement V2 items unless the user explicitly expands scope. |
 | Unit or weapon numbers, ram profile, stack-size limit, or terrain flags | `shared/config/unitCatalog.json` | `shared/unitDefinitions.ts`. Do not take these numbers from [game-rules.md](game-rules.md) |
 | Unit definitions or scenario-derived types | [scenario-schema.md](scenario-schema.md) `## 4. Unit and Weapon Definitions` | `server/engine/scenarioSchema.ts`, `server/engine/scenarioDefinitions.ts`, and `server/engine/scenarioNormalizer.ts`; `shared/rulesContext.ts` is the authoritative per-match lookup boundary. |
@@ -53,6 +54,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Fetch one game | [api-contract.md](api-contract.md) `### GET /games/{id}` | `server/api/gameRoutes/stateRoutes.ts` |
 | Snapshot freshness and conditional refresh | [api-contract.md](api-contract.md) `### Snapshot refresh` and `### GET /games/{id}` | `server/api/gameRoutes/stateRoutes.ts`, `server/db/`, `shared/apiProtocol.ts`, `web/lib/httpGameClient.ts`; `eventSeq` remains the event cursor |
 | Submit an action | [api-contract.md](api-contract.md) `### POST /games/{id}/actions`, then one command heading | `server/api/gameRoutes/actionRoutes.ts`, then the matching `actionHandlers/` module |
+| Shared MOVE/FIRE post-execution finalization | [api-contract.md](api-contract.md) `### POST /games/{id}/actions` | `server/api/gameRoutes/actionHandlers/common.ts`; keep validation, execution, event construction, and action-specific outcomes in `move.ts` or `fire.ts` |
 | MOVE command | [api-contract.md](api-contract.md) `### MOVE` | `server/engine/movement.ts` |
 | FIRE command | [api-contract.md](api-contract.md) `### FIRE` and `#### Combat Target IDs` | `server/engine/combat/actions.ts` |
 | END_PHASE command | [api-contract.md](api-contract.md) `### END_PHASE` | `server/api/gameRoutes/actionHandlers/endPhase.ts` |
@@ -114,6 +116,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `shared/scenarioMap.ts` | Materializes an authored map and tests position membership. | |
 | `shared/unitState.ts` | Looks up live units and reports weapon availability. | `D+M`: weapon destruction mutates the unit. `DUP`: second-move, immobile, and defense helpers overlap the movement facade and combat calculator. |
 | `shared/unitWeapons.ts` | Mutates one weapon list for spend, recharge, and destroy. | `D+M` |
+| `shared/actionSubject.ts` | Resolves a unit or canonical group reference into a derived action subject view. | Never persisted; does not own roster membership. |
 | `shared/apiProtocol.ts` | Defines REST success, failure, and game-response types. | `UNCLEAR`: also contains a fetch client and debug traffic log. Production web calls use `web/lib/httpGameClient.ts`. |
 | `shared/protocolSchemas.ts` | Owns runtime Zod schemas for commands, game snapshots, action responses, and unchanged conditional-read envelopes. | |
 | `shared/websocketProtocol.ts` | Defines WebSocket message shapes. | |
@@ -139,8 +142,9 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `server/api/gameRoutes/stateRoutes.ts` | Owns authenticated current-game state projection and conditional snapshot freshness reads. | |
 | `server/api/gameRoutes/actionRoutes.ts` | Owns action authorization, lifecycle guards, command dispatch, and shared action error mapping. | |
 | `server/api/gameRoutes/actionHandlers/endPhase.ts` | Owns END_PHASE execution, persistence, event logging, and broadcast adaptation. | `D+M` |
-| `server/api/gameRoutes/actionHandlers/move.ts` | Owns MOVE validation, execution, persistence, event logging, and broadcast adaptation. | `D+M` |
-| `server/api/gameRoutes/actionHandlers/fire.ts` | Owns FIRE validation, execution, persistence, event logging, and broadcast adaptation. | `D+M` |
+| `server/api/gameRoutes/actionHandlers/move.ts` | Owns MOVE validation, execution, movement event construction, and MOVE-specific outcome assembly. | `D+M`: shared persistence, logging, broadcast, and response wrapping are delegated to `common.ts`. |
+| `server/api/gameRoutes/actionHandlers/fire.ts` | Owns FIRE validation, execution, combat event construction, and FIRE-specific outcome assembly. | `D+M`: shared persistence, logging, broadcast, and response wrapping are delegated to `common.ts`. |
+| `server/api/gameRoutes/actionHandlers/common.ts` | Owns successful MOVE/FIRE post-execution finalization: cause attachment, persistence, event/action logging, broadcast, and response construction. | Does not own loading, authorization, schema validation, error mapping, domain execution, event construction, or `END_PHASE`. |
 | `server/api/gameRoutes/actionHandlers/types.ts` | Defines the typed context and response boundary shared by action handlers. | |
 | `server/api/gameRoutes/websocketRoutes.ts` | Owns authenticated per-game WebSocket setup, session initialization, snapshots, presence, resume, and event delivery. | `D+M`: connection and presence lifecycle is coordinated here and in `context.ts`. |
 | `server/api/gameRoutes/diagnosticRoutes.ts` | Owns client snapshot diagnostic validation, logging, and terminal abort-event emission. | `D+M` |

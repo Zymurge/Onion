@@ -380,7 +380,7 @@ describe('GameState', () => {
       onions: { onion: makeOnion() },
       defenders: {},
       stackNaming: { groupsInUse: [], usedGroupNames: [] },
-      stackRoster: { groupsById: {} },
+      stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
       currentPhase: 'ONION_MOVE',
       turn: 1,
     }
@@ -392,7 +392,7 @@ describe('GameState', () => {
       onions: { onion: makeOnion() },
       defenders: {},
       stackNaming: { groupsInUse: [], usedGroupNames: [] },
-      stackRoster: { groupsById: {} },
+      stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
       currentPhase: 'ONION_MOVE',
       turn: 1,
     }

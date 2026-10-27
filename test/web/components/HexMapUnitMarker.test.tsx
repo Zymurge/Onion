@@ -551,7 +551,7 @@ describe('HexMapUnitMarker', () => {
           resolvedViewerActivity="active"
           resolvedViewerRole="onion"
           routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
-          rosterGroup={{ groupId: 'pigs', unitIds: ['pigs-1', 'pigs-2'] }}
+          rosterGroup={{ groupId: 'group-1', unitIds: ['pigs-1', 'pigs-2'] }}
           onDeselect={vi.fn()}
           onSelectUnit={vi.fn()}
         />
@@ -704,7 +704,7 @@ describe('HexMapUnitMarker', () => {
           resolvedViewerActivity="active"
           resolvedViewerRole="onion"
           routeMapInteraction={() => ({ intent: 'noop', reason: 'test' })}
-          rosterGroup={{ groupId: 'pigs', unitIds: ['pigs-1', 'pigs-2'] }}
+          rosterGroup={{ groupId: 'group-1', unitIds: ['pigs-1', 'pigs-2'] }}
           onDeselect={vi.fn()}
           onSelectUnit={vi.fn()}
         />

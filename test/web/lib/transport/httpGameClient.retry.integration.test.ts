@@ -16,7 +16,7 @@ function stateResponse(overrides: Record<string, unknown> = {}) {
 		winner: null,
 		aborted: false,
 		players: { onion: 'onion-user', defender: 'defender-user' },
-		state: { onions: {}, defenders: {}, stackRoster: { groupsById: {} } },
+		state: { onions: {}, defenders: {}, stackRoster: { groupsById: {}, nextGroupOrdinal: 1 } },
 		victoryObjectives: [],
 		scenarioMap: {
 			width: 1,
@@ -25,6 +25,7 @@ function stateResponse(overrides: Record<string, unknown> = {}) {
 			hexes: [{ q: 0, r: 0, t: 0 }],
 		},
 		eventSeq: 1,
+		snapshotRevision: 0,
 		...overrides,
 	}
 }

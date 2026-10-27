@@ -184,6 +184,7 @@ export function reconcileStackStateAfterMoves(state: EngineGameState, movedUnitI
   }
 
   const activeStackRoster = {
+    nextGroupOrdinal: state.stackRoster.nextGroupOrdinal,
     groupsById: Object.fromEntries(
       Object.entries(state.stackRoster.groupsById).flatMap(([groupId, group]) => {
         const unitIds = group.unitIds.filter((unitId) => state.defenders[unitId]?.state !== 'destroyed')
@@ -245,7 +246,7 @@ export function reconcileStackStateAfterMoves(state: EngineGameState, movedUnitI
     {
       movedUnitIds,
       destinationGroupId: reconciled.destinationGroupId,
-      refreshedGroupName: state.stackNaming.groupsInUse.find((entry) => entry.groupKey === reconciled.destinationGroupId)?.groupName ?? null,
+      refreshedGroupName: state.stackNaming.groupsInUse.find((entry) => entry.groupId === reconciled.destinationGroupId)?.groupName ?? null,
       refreshedGroupsInUse: state.stackNaming.groupsInUse,
       usedGroupNames: state.stackNaming.usedGroupNames,
     },
