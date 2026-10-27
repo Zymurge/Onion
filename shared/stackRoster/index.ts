@@ -15,7 +15,6 @@ export type {
 	StackRosterRules,
 } from './types.js'
 
-export { buildStackGroupKey } from '../stackNaming/index.js'
 /** Shared group-key construction used by roster and naming layers. */
 export {
 /** Roster construction and naming synchronization. */
@@ -25,7 +24,7 @@ export {
 	refreshStackRosterNamingSnapshot,
 } from './naming.js'
 /** Derived roster projections. */
-export { buildStackRosterIndex } from './indexing.js'
+export { buildStackRosterIndex, findStackRosterGroupId } from './indexing.js'
 /** Structural and live-defender consistency validation. */
 export { validateStackRoster, validateStackRosterConsistency } from './validation.js'
 /** Pure roster mutations and move lifecycle reconciliation. */

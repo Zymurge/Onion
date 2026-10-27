@@ -78,9 +78,9 @@ describe('action subjects', () => {
       },
     })
 
-    expect(resolveActionSubject(state, { kind: 'stack', id: 'group-42' })).toEqual({
+    expect(resolveActionSubject(state, { kind: 'group', id: 'group-42' })).toEqual({
       id: 'group-42',
-      kind: 'stack',
+      kind: 'group',
       typeId: 'LittlePigs',
       position: { q: 4, r: 2 },
       label: 'Little Pigs 1',
@@ -106,6 +106,6 @@ describe('action subjects', () => {
       stackRoster: { groupsById: {} },
     })
 
-    expect(() => resolveActionSubject(state, { kind: 'stack', id: 'group-42' })).toThrow("Action subject stack 'group-42' not found")
+    expect(() => resolveActionSubject(state, { kind: 'group', id: 'group-42' })).toThrow("Action subject group 'group-42' not found")
   })
 })

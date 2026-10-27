@@ -63,7 +63,7 @@ export function createMoveGameState(treads: number): GameState {
 			},
 		},
 		stackNaming: { groupsInUse: [], usedGroupNames: [] },
-		stackRoster: { groupsById: {} },
+		stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
 		currentPhase: 'ONION_MOVE',
 		turn: 1,
 	}

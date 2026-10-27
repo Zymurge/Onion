@@ -29,13 +29,13 @@
 		]
 		const stackNaming: StackNamingSnapshot = {
 			groupsInUse: [
-				{ groupKey: 'LittlePigs:2,2', groupName: 'Little Pigs group', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Little Pigs group', unitType: 'LittlePigs' },
 			],
 			usedGroupNames: ['Little Pigs group'],
 		}
 		const stackRoster: StackRosterState = {
 			groupsById: {
-				'LittlePigs:2,2': {
+				'group-1': {
 					groupName: 'Little Pigs group',
 					unitType: 'LittlePigs',
 					position: { q: 2, r: 2 },
@@ -51,7 +51,7 @@
 				onions={[onion]}
 				stackNaming={stackNaming}
 				stackRoster={stackRoster}
-				eventFocusedUnitIds={['LittlePigs:2,2']}
+				eventFocusedUnitIds={['group-1']}
 				phase="DEFENDER_COMBAT"
 				selectedUnitIds={[]}
 				onSelectUnit={vi.fn()}
@@ -236,7 +236,7 @@
 				phase="DEFENDER_COMBAT"
 				stackRoster={{
 					groupsById: {
-						'LittlePigs:2,2': {
+						'group-1': {
 							groupName: 'Little Pigs group',
 							unitType: 'LittlePigs',
 							position: { q: 2, r: 2 },
@@ -272,7 +272,7 @@
 				phase="DEFENDER_COMBAT"
 				stackRoster={{
 					groupsById: {
-						'LittlePigs:2,2': {
+						'group-1': {
 							groupName: 'Little Pigs group',
 							unitType: 'LittlePigs',
 							position: { q: 2, r: 2 },
@@ -633,7 +633,7 @@ describe('HexMapBoard', () => {
 		]
 		const stackRoster: StackRosterState = {
 			groupsById: {
-				'LittlePigs:2,2': {
+						'group-1': {
 					groupName: 'Little Pigs group',
 					unitType: 'LittlePigs',
 					position: { q: 2, r: 2 },
@@ -1223,7 +1223,7 @@ describe('HexMapBoard', () => {
 		]
 		const stackRoster: StackRosterState = {
 			groupsById: {
-				'LittlePigs:1,1': {
+					'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 1, r: 1 },
@@ -1240,7 +1240,7 @@ describe('HexMapBoard', () => {
 				phase="ONION_COMBAT"
 				viewerRole="onion"
 				selectedUnitIds={['weapon:main-1']}
-				combatTargetIds={new Set(['LittlePigs:1,1'])}
+				combatTargetIds={new Set(['group-1'])}
 				stackRoster={stackRoster}
 				onSelectUnit={vi.fn()}
 				onSelectCombatTarget={onSelectCombatTarget}
@@ -1250,7 +1250,7 @@ describe('HexMapBoard', () => {
 		)
 
 		fireEvent.contextMenu(screen.getByTestId('hex-unit-pigs-1'))
-		expect(onSelectCombatTarget).toHaveBeenCalledWith('LittlePigs:1,1')
+		expect(onSelectCombatTarget).toHaveBeenCalledWith('group-1')
 	})
 
 	it('selects the Onion treads from a right-click during defender combat', () => {

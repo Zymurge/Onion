@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { findMovePath, listReachableMoves } from '#shared/movePlanner'
+import { findMovePath } from '#shared/movePlanner'
 
 type MoveMapSnapshot = {
 	width: number

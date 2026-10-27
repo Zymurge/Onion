@@ -214,7 +214,7 @@ class FakeDescriptorStore implements DescriptorStore {
 		this.stored.delete(path)
 	}
 
-	async acquireLock(_path: string): Promise<{ release(): Promise<void> }> {
+	async acquireLock(): Promise<{ release(): Promise<void> }> {
 		return { release: async () => {} }
 	}
 }
@@ -226,7 +226,7 @@ class FakeHttpProbe implements HttpProbe {
 		this.failing.add(url)
 	}
 
-	async waitForStatus(url: string, _path: string, _timeoutMs: number, _expectedStatus?: number): Promise<void> {
+	async waitForStatus(url: string): Promise<void> {
 		if (this.failing.has(url)) {
 			throw new Error(`Health check failed for ${url}`)
 		}

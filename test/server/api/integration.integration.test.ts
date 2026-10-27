@@ -334,7 +334,7 @@ async function runDefenderAttackPhase(ctx: IntegrationContext) {
   ctx.tracking.defenderAttackUnitIds = [fireUnitId, ...combinedFireIds]
 
   if (combinedFireIds.length > 0) {
-    const combinedCmd = { type: 'FIRE' as const, attackers: combinedFireIds, targetId: 'main', onionId: ctx.onionId }
+    const combinedCmd = { type: 'FIRE' as const, attackers: combinedFireIds, targetId: 'main-1', onionId: ctx.onionId }
     const combinedRes = await ctx.app.inject({
       method: 'POST',
       url: `/games/${ctx.gameId}/actions`,
@@ -547,7 +547,7 @@ describe('Integration Phases (Modular)', () => {
     assertStateMatches(after.state, ctx.expectedState)
   })
 
-  it('keeps the split-off LittlePigs destination group in both the move response and persisted game snapshot', async () => {
+  it('omits a singleton split-off LittlePigs destination from the move response and persisted game snapshot', async () => {
     const ctx = await setupIntegrationGame('swamp-pigs-split-repro')
     await runOnionMovePhase(ctx)
     await runEndPhase(ctx, 'onion', 'ONION_MOVE', 'ONION_COMBAT')
@@ -576,14 +576,12 @@ describe('Integration Phases (Modular)', () => {
     const moveBody = moveRes.json()
     expect(moveBody.ok).toBe(true)
 
-    const moveStateGroup = moveBody.state?.stackRoster?.groupsById?.['LittlePigs:4,8']
-    expect(moveStateGroup).toBeTruthy()
-    expect(moveStateGroup?.unitIds).toEqual(['pigs-4'])
+    const moveStateGroup = moveBody.state?.stackRoster?.groupsById?.['group-2']
+    expect(moveStateGroup).toBeUndefined()
 
     const after = await fetchGame(ctx, 'defender')
     expect(after.phase).toBe('DEFENDER_MOVE')
-    expect(after.state.stackRoster?.groupsById?.['LittlePigs:4,8']).toBeTruthy()
-    expect(after.state.stackRoster?.groupsById?.['LittlePigs:4,8']?.unitIds).toEqual(['pigs-4'])
+    expect(after.state.stackRoster?.groupsById?.['group-2']).toBeUndefined()
   })
 
   it('DEFENDER_ATTACK phase test validates fire/combine behavior and expected state', async () => {

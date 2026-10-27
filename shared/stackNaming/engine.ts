@@ -6,14 +6,26 @@ import {
 } from './labels.js'
 import type { StackNamingSeed, StackNamingSnapshot } from './types.js'
 
+const CANONICAL_GROUP_ID_PATTERN = /^group-[1-9]\d*$/
+
+function assertCanonicalGroupId(groupId: string): void {
+	if (!CANONICAL_GROUP_ID_PATTERN.test(groupId)) {
+		throw new Error(`Group ${groupId} must use a canonical group ID`)
+	}
+}
+
 /** Stateful allocator that preserves active and retired stack group names. */
 export class StackNamingEngine {
 	private readonly usedGroupNames: Set<string>
-	private readonly groupsInUse: Map<string, { groupKey: string; groupName: string; unitType: string }>
+	private readonly groupsInUse: Map<string, { groupId: string; groupName: string; unitType: string }>
 
 	constructor(seed?: StackNamingSeed) {
+		for (const record of seed?.groupsInUse ?? []) {
+			assertCanonicalGroupId(record.groupId)
+		}
+
 		this.usedGroupNames = new Set(seed?.usedGroupNames ?? [])
-		this.groupsInUse = new Map((seed?.groupsInUse ?? []).map((record) => [record.groupKey, { ...record }]))
+		this.groupsInUse = new Map((seed?.groupsInUse ?? []).map((record) => [record.groupId, { ...record }]))
 	}
 
 	/** Resolve a unit display name using the catalog and optional friendly name. */
@@ -21,9 +33,10 @@ export class StackNamingEngine {
 		return resolveStackUnitName(unitType, unitId, friendlyName)
 	}
 
-	/** Resolve or allocate the stable display name for a group key. */
-	resolveGroupName(groupKey: string, unitType: string, unitId?: string, friendlyName?: string, stackSize = 1): string {
-		const existingRecord = this.groupsInUse.get(groupKey)
+	/** Resolve or allocate the stable display name for a group identity. */
+	resolveGroupName(groupId: string, unitType: string, unitId?: string, friendlyName?: string, stackSize = 1): string {
+		assertCanonicalGroupId(groupId)
+		const existingRecord = this.groupsInUse.get(groupId)
 		if (existingRecord !== undefined) {
 			if (/\sgroup(?:\s+\d+)?$/i.test(existingRecord.groupName)) {
 				const ordinalUsed = [...this.usedGroupNames].find((used) => /\sgroup\s+\d+$/.test(used) && stripOrdinalSuffix(used) === existingRecord.groupName)
@@ -40,21 +53,26 @@ export class StackNamingEngine {
 			? createUniqueName(baseName, this.usedGroupNames)
 			: baseName
 
-		this.groupsInUse.set(groupKey, { groupKey, groupName, unitType })
+		this.groupsInUse.set(groupId, { groupId, groupName, unitType })
 		return groupName
 	}
 
 	/** Stop tracking an active group while retaining its allocated name history. */
-	releaseGroup(groupKey: string): void {
-		this.groupsInUse.delete(groupKey)
+	releaseGroup(groupId: string): void {
+		assertCanonicalGroupId(groupId)
+		this.groupsInUse.delete(groupId)
 	}
 
 	/** Remove inactive groups from the active snapshot without recycling names. */
-	clearMissingGroups(activeGroupKeys: ReadonlyArray<string>): void {
-		const activeGroupKeySet = new Set(activeGroupKeys)
-		for (const groupKey of this.groupsInUse.keys()) {
-			if (!activeGroupKeySet.has(groupKey)) {
-				this.groupsInUse.delete(groupKey)
+	clearMissingGroups(activeGroupIds: ReadonlyArray<string>): void {
+		for (const groupId of activeGroupIds) {
+			assertCanonicalGroupId(groupId)
+		}
+
+		const activeGroupIdSet = new Set(activeGroupIds)
+		for (const groupId of this.groupsInUse.keys()) {
+			if (!activeGroupIdSet.has(groupId)) {
+				this.groupsInUse.delete(groupId)
 			}
 		}
 	}

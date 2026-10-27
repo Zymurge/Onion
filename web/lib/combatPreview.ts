@@ -197,6 +197,7 @@ export function buildCombatTargetOptions({
 	if (stackRoster !== undefined && stackRoster !== null) {
 		const displayedDefenderIds = new Set(displayedDefenders.map((unit) => unit.unitId))
 		const displayedStackRoster: StackRosterState = {
+			nextGroupOrdinal: stackRoster.nextGroupOrdinal,
 			groupsById: Object.fromEntries(
 				Object.entries(stackRoster.groupsById).flatMap(([groupId, group]) => {
 					const unitIds = group.unitIds.filter((unitId) => displayedDefenderIds.has(unitId))

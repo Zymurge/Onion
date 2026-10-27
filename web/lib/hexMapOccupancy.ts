@@ -8,7 +8,6 @@ export type HexOccupant = BattlefieldUnit | BattlefieldOnionView
 
 export type OccupantRosterGroup = {
   groupId: string
-  groupKey: string
   unitIds: ReadonlyArray<string>
 }
 
@@ -70,13 +69,13 @@ export function shouldRenderDefender(defender: BattlefieldUnit): boolean {
 export function getUnitMarkerText(
   occupant: HexOccupant,
   stackNaming?: Parameters<typeof resolveBattlefieldDisplayName>[1],
-  groupKey?: string,
+  groupId?: string,
 ): string | null {
   if (occupant.typeId === 'Swamp') {
     return null
   }
 
-  return resolveBattlefieldDisplayName(occupant, stackNaming, groupKey)
+  return resolveBattlefieldDisplayName(occupant, stackNaming, groupId)
 }
 
 /** Reports whether visible defenders require canonical roster grouping. */

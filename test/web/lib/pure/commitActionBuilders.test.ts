@@ -20,13 +20,14 @@ function createTestStackState() {
     },
     stackRoster: {
       groupsById: {
-        'stack-a': {
+        'group-1': {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],
         },
       },
+      nextGroupOrdinal: 2,
     },
   }
 }
@@ -49,14 +50,8 @@ function createSingletonStackState() {
       'wolf-1': { unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 6, r: 4 }, state: 'operational' },
     },
     stackRoster: {
-      groupsById: {
-        'LittlePigs:4,8': {
-          groupName: 'Little Pigs group 2',
-          unitType: 'LittlePigs',
-          position: { q: 4, r: 8 },
-          unitIds: ['pigs-5'],
-        },
-      },
+      groupsById: {},
+      nextGroupOrdinal: 1,
     },
   }
 }
@@ -77,7 +72,7 @@ describe('commitActionBuilders', () => {
 
       expect(buildMoveCommitAction({
         state,
-        unitId: 'Little Pigs:4,4',
+        unitId: 'pigs-1',
         selectedUnitIds: ['pigs-2', 'pigs-1'],
         to: { q: 5, r: 4 },
         attemptRam: true,
@@ -112,7 +107,6 @@ describe('commitActionBuilders', () => {
 
     it.each([
       ['multi-unit stack', createTestStackState(), 'pigs-1', { q: 5, r: 4 }],
-      ['singleton stack', createSingletonStackState(), 'pigs-5', { q: 5, r: 8 }],
     ])('rejects empty stack submissions for %s instead of defaulting back to a direct move', (_, state, unitId, to) => {
       expect(buildMoveCommitAction({
         state,
@@ -122,6 +116,22 @@ describe('commitActionBuilders', () => {
       })).toEqual({
         ok: false,
         reason: 'empty-stack-selection',
+      })
+    })
+
+    it('builds a direct move for a stackable singleton without a roster group', () => {
+      expect(buildMoveCommitAction({
+        state: createSingletonStackState(),
+        unitId: 'pigs-5',
+        selectedUnitIds: [],
+        to: { q: 5, r: 8 },
+      })).toEqual({
+        ok: true,
+        action: {
+          type: 'MOVE',
+          movers: ['pigs-5'],
+          to: { q: 5, r: 8 },
+        },
       })
     })
 
@@ -156,7 +166,7 @@ describe('commitActionBuilders', () => {
         action: {
           type: 'FIRE',
           attackers: ['main'],
-          targetId: 'stack-a',
+          targetId: 'group-1',
           onionId: 'onion-1',
         },
       })

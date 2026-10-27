@@ -17,13 +17,14 @@ describe('stackSelection grouping contract', () => {
       },
       stackRoster: {
         groupsById: {
-          'stack-a': {
+          'group-1': {
             groupName: 'Little Pigs group 1',
             unitType: 'LittlePigs',
             position: { q: 4, r: 4 },
             unitIds: ['pigs-1', 'pigs-2'],
           },
         },
+        nextGroupOrdinal: 2,
       },
     }
 
@@ -39,13 +40,14 @@ describe('stackSelection grouping contract', () => {
       },
       stackRoster: {
         groupsById: {
-          'stack-a': {
+          'group-1': {
             groupName: 'Little Pigs group 1',
             unitType: 'LittlePigs',
             position: { q: 4, r: 4 },
             unitIds: ['pigs-1', 'pigs-2'],
           },
         },
+        nextGroupOrdinal: 2,
       },
     }
 
@@ -61,13 +63,14 @@ describe('stackSelection grouping contract', () => {
       },
       stackRoster: {
         groupsById: {
-          'stack-a': {
+          'group-1': {
             groupName: 'Little Pigs group 1',
             unitType: 'LittlePigs',
             position: { q: 4, r: 4 },
             unitIds: ['pigs-1', 'pigs-2'],
           },
         },
+        nextGroupOrdinal: 2,
       },
     }
 
@@ -84,13 +87,14 @@ describe('stackSelection grouping contract', () => {
       },
       stackRoster: {
         groupsById: {
-          'stack-a': {
+          'group-1': {
             groupName: 'Little Pigs group 1',
             unitType: 'LittlePigs',
             position: { q: 4, r: 4 },
             unitIds: ['pigs-1', 'pigs-2'],
           },
         },
+        nextGroupOrdinal: 2,
       },
     }
 
@@ -117,13 +121,14 @@ describe('stackSelection grouping contract', () => {
         },
         stackRoster: {
           groupsById: {
-            'stack-a': {
+            'group-1': {
               groupName: 'Little Pigs group 1',
               unitType: 'LittlePigs',
               position: { q: 4, r: 4 },
               unitIds: ['pigs-1', 'pigs-2'],
             },
           },
+          nextGroupOrdinal: 2,
         },
       }
 

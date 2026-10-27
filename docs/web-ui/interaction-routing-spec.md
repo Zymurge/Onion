@@ -175,7 +175,7 @@ protocol value:
 - Defender units, defender stacks, and individually targetable Onion weapons
   use authoritative IDs.
 - A stack target uses its canonical group ID from `stackRoster` (for example,
-  `LittlePigs:3,2`), never an individual member ID. The server rejects an
+  `group-1`), never an individual member ID. The server rejects an
   individual stack-member ID as a combat target.
 - Onion tread selection emits `{onionId}:treads`, such as `onion-1:treads`.
 - A bare Onion ID is never emitted for tread selection.

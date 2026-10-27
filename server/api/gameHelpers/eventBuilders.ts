@@ -2,6 +2,7 @@ import type { CombatExecutionResult } from '#server/engine/combat/index'
 import type { MovementResult } from '#server/engine/movement'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
 import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, TurnPhase } from '#shared/types/index'
+import { findStackRosterGroupId } from '#shared/stackRoster/index'
 import { getOnionOrDefender } from '#shared/unitState'
 
 function resolveUnitFriendlyName(state: GameState, unitId: string): string {
@@ -11,11 +12,13 @@ function resolveUnitFriendlyName(state: GameState, unitId: string): string {
   }
 
   const canonicalUnitId = lookup.unitId ?? unitId
-  const stackGroupEntry = Object.entries(state.stackRoster.groupsById).find(([groupId, group]) => {
-    return groupId === unitId || groupId === canonicalUnitId || group.unitIds.includes(unitId) || group.unitIds.includes(canonicalUnitId)
-  })
-  if (stackGroupEntry !== undefined) {
-    const [, stackGroup] = stackGroupEntry
+  const groupId = state.stackRoster.groupsById[unitId] !== undefined
+    ? unitId
+    : state.stackRoster.groupsById[canonicalUnitId] !== undefined
+      ? canonicalUnitId
+      : findStackRosterGroupId(state.stackRoster, unitId) ?? findStackRosterGroupId(state.stackRoster, canonicalUnitId)
+  const stackGroup = groupId === null ? undefined : state.stackRoster.groupsById[groupId]
+  if (stackGroup !== null && stackGroup !== undefined) {
     if (stackGroup.unitIds.length > 1 && stackGroup.groupName !== undefined) {
       return stackGroup.groupName
     }

@@ -4,7 +4,7 @@
 
 Issue #60 asks how movement, combat, ramming, and stacks should interact; whether they should share a common action path; and where server and web code duplicate stack behavior. This document records the architectural assessment of the current implementation, resolves foundational contract decisions, and establishes an actionable, bounded sequence of implementation tasks for sub-agents.
 
-This document is an architectural plan of record. It defines the implementation boundaries and contracts for delegation but does not authorize changes outside its sequenced scope.
+This document is an architectural plan of record. Tasks 1 through 6 are implemented and verified; Task 7 remains optional and deferred. It defines the implementation boundaries and contracts for delegation but does not authorize changes outside its sequenced scope.
 
 ---
 
@@ -37,7 +37,7 @@ This document is an architectural plan of record. It defines the implementation 
 | **Group ID (`groupId`)** | Identifies an active formation of $\ge 2$ stackable units. Opaque string (e.g., `group-1`). | Location-independent. Never encodes `q, r` or unit type. Preserved when moving intact. Never reused after retirement. |
 | **Map Key (`rosterKey`)** | Key in `state.stackRoster.groupsById`. | Strictly equals the canonical `groupId`. |
 | **Derived Position Key (`hexKey`)** | Coordinate key (e.g., `4,4` or `${type}:${q},${r}`). | Used solely for spatial queries (occupancy, range, terrain). Must **never** be used as an identity key in `groupsById` or `targetId`. |
-| **Naming Key (`groupKey`)** | Lookup key in `stackNaming.groupsInUse`. | Updated to match the canonical `groupId`. |
+| **Naming Key (`groupId`)** | Lookup key in `stackNaming.groupsInUse`. | Must match the canonical `groupId`; coordinate-derived naming keys are invalid. |
 | **ActionSubject** | Pure derived view resolved from a `unitId` or `groupId`. | Exposes `id`, `kind: 'unit' \| 'group'`, `typeId`, `position`, `label`, `size`, and `memberUnitIds`. Transient; never persisted. |
 | **Combat Target ID (`targetId`)** | Protocol target wire identifier. | Valid values: individual unit ID (unstacked unit), canonical `groupId` (multi-unit stack target), weapon ID (`main`, `secondary-1`), or `{onionId}:treads`. |
 
@@ -129,8 +129,8 @@ This document is an architectural plan of record. It defines the implementation 
 
 - **Goal:** Update all specification and contract documents to establish the new identity rules before code changes begin.
 - **Files to Update:**
-  - `docs/api-contract.md`: Update `### FIRE` and `#### Combat Target IDs` to replace coordinate IDs (e.g., `LittlePigs:3,2`) with opaque group IDs (e.g., `group-1`). Clarify that singletons are targeted by `unitId`.
-  - `docs/snapshot-deprecation-policy.md`: Update schema requirements: `groupsById` contains only groups with $N \ge 2$; singleton stackables are not groups.
+  - `docs/api-contract.md`: Replace coordinate IDs (e.g., `LittlePigs:3,2`) with opaque group IDs (e.g., `group-1`) in `### FIRE` and `#### Combat Target IDs`. Singletons are targeted by `unitId`.
+  - `docs/snapshot-deprecation-policy.md`: Require `nextGroupOrdinal` and groups with $N \ge 2$; singleton stackables are not groups.
 - **Prerequisites:** None.
 - **Deliverables:** Updated documentation reflecting immutable `groupId`, removal of singleton roster entries, and updated example wire payloads.
 - **Validation:** Visual diff check; verify documentation accuracy with `docs/agent-start-here.md`.
@@ -143,7 +143,7 @@ This document is an architectural plan of record. It defines the implementation 
 - **Goal:** Update `shared/stackRoster` and `shared/types` to support monotonic group IDs, singleton pruning, and the derived `ActionSubject` resolver.
 - **Files to Inspect / Modify:**
   - `shared/types/index.ts`: Update `StackRosterState` to include `nextGroupOrdinal: number`. Update `StackRosterGroupState` ensuring `groupId` is recognized.
-  - `shared/stackRoster/types.ts`: Define `ActionSubject` interface and related resolution types.
+  - `shared/actionSubject.ts`: Define the derived `ActionSubject` interface and related resolution types.
   - `shared/stackRoster/indexing.ts`: Enhance `buildStackRosterIndex` to resolve `ActionSubject` for any unit or group ID. Remove coordinate-based `groupKey` lookups.
   - `shared/stackRoster/transitions.ts`:
     - Move intact groups by updating `position` while keeping `groupId`.
@@ -252,7 +252,7 @@ This document is an architectural plan of record. It defines the implementation 
 - **Acceptance Criteria:**
   - Full test suite passes without regressions.
   - Clean TypeScript compilation and web build.
-  - No references to coordinate-based group IDs (`${type}:${q},${r}`) remain in active codebase.
+  - No coordinate-derived value is used as a persisted group identity or combat target; spatial coordinate keys may remain in local occupancy and validation indexes.
 
 ---
 

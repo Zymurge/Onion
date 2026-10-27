@@ -176,7 +176,7 @@ describe('scenario deployment normalization contract', () => {
     expect(Object.values(state.stackRoster.groupsById)[0]?.unitIds).toHaveLength(2)
   })
 
-  it('NORM-016 assigns unique IDs to every stack member and records each member once', () => {
+  it('NORM-016 assigns unique IDs to every stack member and omits singleton roster records', () => {
     const state = normalizeTargetState(makeInitialState({
       'pigs-stack-1': {
         kind: 'stack-group',
@@ -207,8 +207,9 @@ describe('scenario deployment normalization contract', () => {
     const rosterMemberIds = Object.values(state.stackRoster.groupsById).flatMap((group) => group.unitIds)
 
     expect(new Set(memberIds).size).toBe(5)
-    expect(rosterMemberIds).toHaveLength(5)
-    expect(new Set(rosterMemberIds)).toEqual(new Set(memberIds))
+    expect(rosterMemberIds).toHaveLength(4)
+    expect(rosterMemberIds).not.toContain('pigs-5')
+    expect(new Set(rosterMemberIds)).toEqual(new Set(['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4']))
   })
 
   it('NORM-014 rejects a generated stack member ID collision', () => {

@@ -97,7 +97,7 @@ function buildMoveValidationState(
       }]),
     ),
     stackNaming: stackNaming ?? { groupsInUse: [], usedGroupNames: [] },
-    stackRoster: stackRoster ?? { groupsById: {} },
+    stackRoster: stackRoster ?? { groupsById: {}, nextGroupOrdinal: 1 },
     currentPhase: phase as TurnPhase,
     turn: 0,
   }

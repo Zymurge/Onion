@@ -3,7 +3,7 @@ import { getOnionOrDefender } from './unitState.js'
 
 export type ActionSubjectReference =
   | { kind: 'unit'; id: string }
-  | { kind: 'stack'; id: string }
+  | { kind: 'group'; id: string }
 
 export type ActionSubject = {
   id: string
@@ -39,30 +39,30 @@ function resolveUnitSubject(state: GameState, unitId: string): ActionSubject {
   }
 }
 
-function resolveStackSubject(state: GameState, groupId: string): ActionSubject {
+function resolveGroupSubject(state: GameState, groupId: string): ActionSubject {
   const group = state.stackRoster.groupsById[groupId]
   if (group === undefined) {
-    throw new Error(`Action subject stack '${groupId}' not found`)
+    throw new Error(`Action subject group '${groupId}' not found`)
   }
 
   if (group.unitIds.length < 2) {
-    throw new Error(`Action subject stack '${groupId}' must contain at least two members`)
+    throw new Error(`Action subject group '${groupId}' must contain at least two members`)
   }
 
   for (const unitId of group.unitIds) {
     if (state.defenders[unitId] === undefined) {
-      throw new Error(`Action subject stack '${groupId}' is missing member unit '${unitId}'`)
+      throw new Error(`Action subject group '${groupId}' is missing member unit '${unitId}'`)
     }
   }
 
   const label = group.groupName?.trim()
   if (label === undefined || label.length === 0) {
-    throw new Error(`Action subject stack '${groupId}' is missing a group name`)
+    throw new Error(`Action subject group '${groupId}' is missing a group name`)
   }
 
   return {
     id: groupId,
-    kind: 'stack',
+    kind: 'group',
     typeId: group.unitType,
     position: group.position,
     label,
@@ -75,5 +75,5 @@ function resolveStackSubject(state: GameState, groupId: string): ActionSubject {
 export function resolveActionSubject(state: GameState, reference: ActionSubjectReference): ActionSubject {
   return reference.kind === 'unit'
     ? resolveUnitSubject(state, reference.id)
-    : resolveStackSubject(state, reference.id)
+    : resolveGroupSubject(state, reference.id)
 }

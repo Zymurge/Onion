@@ -1,7 +1,7 @@
 import type { ServerGameSnapshot } from '../gameClient'
 import type { GameSessionViewState } from '../gameSessionTypes'
 import type { GameState, TurnPhase } from '../../../shared/types/index'
-import { validateStackRosterConsistency } from '../../../shared/stackRoster/index.js'
+import { validateStackRoster, validateStackRosterConsistency } from '../../../shared/stackRoster/index.js'
 import { isSessionUnitTypeStackable } from '../sessionCatalog'
 
 /** Human-readable labels for all supported turn phases. */
@@ -170,9 +170,9 @@ function hasImplicitStackedDefenders(authoritativeState: GameState, catalog: Gam
 			continue
 		}
 
-		const groupKey = `${defender.typeId}:${defender.position.q},${defender.position.r}`
-		const nextCount = (stackableUnitCountsByPosition.get(groupKey) ?? 0) + 1
-		stackableUnitCountsByPosition.set(groupKey, nextCount)
+		const groupPositionKey = `${defender.typeId}:${defender.position.q},${defender.position.r}`
+		const nextCount = (stackableUnitCountsByPosition.get(groupPositionKey) ?? 0) + 1
+		stackableUnitCountsByPosition.set(groupPositionKey, nextCount)
 		if (nextCount > 1) {
 			return true
 		}
@@ -187,10 +187,10 @@ export function assertCanonicalStackProjection(authoritativeState: GameState, ca
 	const stackableDefenderIds = Object.values(authoritativeState.defenders)
 		.filter((defender) => defender.state !== 'destroyed' && catalog !== null && catalog !== undefined && isSessionUnitTypeStackable(catalog, defender.typeId))
 		.map((defender) => defender.unitId)
-	const stackRosterGroupKeys = Object.keys(stackRoster?.groupsById ?? {})
-	if (hasImplicitStackedDefenders(authoritativeState, catalog) && stackRoster === undefined) {
+	const stackRosterGroupIds = Object.keys(stackRoster?.groupsById ?? {})
+	if (stackRoster === undefined) {
 		return {
-			error: `Loaded game snapshot is missing canonical stackRoster data for stacked defenders (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupKeys.join(', ') || 'none'})`,
+			error: `Loaded game snapshot is missing canonical stackRoster data${hasImplicitStackedDefenders(authoritativeState, catalog) ? ' for stacked defenders' : ''} (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupIds.join(', ') || 'none'})`,
 		}
 	}
 
@@ -209,12 +209,19 @@ export function assertCanonicalStackProjection(authoritativeState: GameState, ca
 		}
 	}
 
+	const structuralIssues = validateStackRoster(stackRoster, authoritativeState.defenders)
+	if (structuralIssues.length > 0) {
+		return {
+			error: `Loaded game snapshot has invalid stack roster: ${structuralIssues.map((issue) => issue.message).join('; ')} (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupIds.join(', ') || 'none'})`,
+		}
+	}
+
 	const consistencyIssues = catalog === null || catalog === undefined
 		? validateStackRosterConsistency(authoritativeState.defenders, stackRoster)
 		: validateStackRosterConsistency(authoritativeState.defenders, stackRoster, (unitType) => isSessionUnitTypeStackable(catalog, unitType))
 	if (consistencyIssues.length > 0) {
 		return {
-			error: `Loaded game snapshot has invalid stack roster: ${consistencyIssues.map((issue) => issue.message).join('; ')} (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupKeys.join(', ') || 'none'})`,
+			error: `Loaded game snapshot has invalid stack roster: ${consistencyIssues.map((issue) => issue.message).join('; ')} (stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupIds.join(', ') || 'none'})`,
 		}
 	}
 	return { error: null }

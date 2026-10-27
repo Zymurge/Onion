@@ -9,7 +9,7 @@ type UnitSelectionNameInput = {
 
 type GroupSelectionNameInput = {
   kind: 'group'
-  groupKey: string
+  groupId: string
   stackNaming: StackNamingSnapshot
 }
 
@@ -28,9 +28,9 @@ export type SelectionNameInput = UnitSelectionNameInput | GroupSelectionNameInpu
  */
 export function resolveSelectionName(input: SelectionNameInput): string {
   if (input.kind === 'group') {
-    const group = input.stackNaming.groupsInUse.find((candidate) => candidate.groupKey === input.groupKey)
+    const group = input.stackNaming.groupsInUse.find((candidate) => candidate.groupId === input.groupId)
     if (group === undefined) {
-      throw new Error(`Missing stack label for group ${input.groupKey}`)
+      throw new Error(`Missing stack label for group ${input.groupId}`)
     }
 
     return group.groupName

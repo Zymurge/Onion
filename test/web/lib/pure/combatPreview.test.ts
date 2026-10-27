@@ -20,11 +20,10 @@ function buildCombatTargetOptions(input: Parameters<typeof buildCombatTargetOpti
 }
 
 function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRosterGroupState, 'position' | 'unitIds'> & { groupId?: string }) {
-	const groupId = overrides.groupId ?? `${overrides.unitType ?? 'LittlePigs'}:${overrides.position.q},${overrides.position.r}`
 	const stack = makeStackFixture({
-		groups: {
-			[groupId]: makeStackGroup(overrides),
-		},
+		groups: overrides.unitIds.length <= 1 || overrides.groupId === undefined
+			? (overrides.unitIds.length <= 1 ? {} : { 'group-1': makeStackGroup(overrides) })
+			: { [overrides.groupId]: makeStackGroup(overrides) },
 	})
 
 	return {
@@ -235,7 +234,7 @@ describe('buildCombatTargetOptions', () => {
 
 		expect(options).toHaveLength(1)
 		expect(options[0]).toMatchObject({
-			id: 'LittlePigs:3,2',
+			id: 'near-1',
 			label: 'Little Pigs 1',
 		})
 	})
@@ -272,7 +271,7 @@ describe('buildCombatTargetOptions', () => {
 
 		expect(options).toHaveLength(1)
 			expect(options[0]).toMatchObject({
-				id: 'LittlePigs:3,2',
+				id: 'near-1',
 				label: 'Little Pigs 1',
 				defense: 2,
 				modifiers: expect.arrayContaining(['Ridgeline cover: +1 defense']),
@@ -309,7 +308,7 @@ describe('buildCombatTargetOptions', () => {
 
 		expect(options).toHaveLength(1)
 		expect(options[0]).toMatchObject({
-			id: 'LittlePigs:3,2',
+			id: 'group-1',
 			label: 'Little Pigs group 1',
 			defense: 2,
 		})
@@ -329,7 +328,7 @@ describe('buildCombatTargetOptions', () => {
 			}),
 			stackRoster: {
 				groupsById: {
-					'LittlePigs:3,2': {
+					'group-1': {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
 						position: { q: 3, r: 2 },
@@ -344,7 +343,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options).toHaveLength(1)
-		expect(options[0]).toMatchObject({ id: 'LittlePigs:3,2', label: 'Little Pigs group 1' })
+		expect(options[0]).toMatchObject({ id: 'group-1', label: 'Little Pigs group 1' })
 	})
 
 	it('uses the friendly group name when persisted naming has a coordinate label', () => {
@@ -362,7 +361,7 @@ describe('buildCombatTargetOptions', () => {
 			}),
 			stackRoster: {
 				groupsById: {
-					'LittlePigs:4,7': {
+					'group-1': {
 						groupName: 'Little Pigs :4,7',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 7 },
@@ -371,7 +370,7 @@ describe('buildCombatTargetOptions', () => {
 				},
 			},
 			stackNaming: {
-				groupsInUse: [{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs :4,7', unitType: 'LittlePigs' }],
+				groupsInUse: [{ groupId: 'group-1', groupName: 'Little Pigs :4,7', unitType: 'LittlePigs' }],
 				usedGroupNames: ['Little Pigs :4,7'],
 			},
 			selectedUnitIds: ['weapon:main-1'],
@@ -381,7 +380,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options[0]).toMatchObject({
-			id: 'LittlePigs:4,7',
+			id: 'group-1',
 			label: 'Little Pigs group 1',
 		})
 	})
@@ -431,7 +430,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 		})
 
-		expect(options.map((option) => option.id)).toEqual(['LittlePigs:1,1'])
+		expect(options.map((option) => option.id)).toEqual(['pigs-1'])
 	})
 
 	it('keeps Swamp targetable for non-AP Onion weapons', () => {

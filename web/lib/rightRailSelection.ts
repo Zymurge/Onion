@@ -144,6 +144,17 @@ function buildValidatedStackSelection(
     }),
   )
   if (normalizedSelectedUnitIds.length === 0) {
+    if (availableUnitIds.length === 1) {
+      return {
+        ok: true,
+        selection: {
+          anchorUnitId,
+          availableUnitIds,
+          selectedUnitIds: availableUnitIds,
+        },
+      }
+    }
+
     return { ok: false, reason: 'empty-stack-selection' }
   }
 

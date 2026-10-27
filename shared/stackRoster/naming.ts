@@ -1,5 +1,4 @@
 import {
-	buildStackGroupKey,
 	createStackNamingEngine,
 	refreshStackNamingSnapshotFromRoster,
 	type StackNamingSnapshot,
@@ -55,7 +54,7 @@ export function refreshStackRosterNamingSnapshot(
 	defenders: DefenderMap | undefined = undefined,
 	rules?: StackRosterRules,
 ): StackNamingSnapshot {
-	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster, defenders, rules), rules?.unitTypes)
+	return refreshStackNamingSnapshotFromRoster(seed, stackRoster, buildStackRosterNamingSourceUnits(stackRoster, defenders, rules))
 }
 
 /** Canonicalize persisted group names against the naming snapshot. */
@@ -66,13 +65,12 @@ export function canonicalizeStackRoster(
 	rules?: StackRosterRules,
 ): { stackRoster: StackRosterState; stackNaming: StackNamingSnapshot } {
 	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster, seed, defenders, rules)
-	const groupNamesByKey = new Map(stackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
+	const groupNamesById = new Map(stackNaming.groupsInUse.map((group) => [group.groupId, group.groupName]))
 	const groupsById = Object.fromEntries(
 		Object.entries(stackRoster.groupsById).map(([groupId, group]) => {
-			const groupKey = buildStackGroupKey(group.unitType, group.position)
 			const canonicalGroup = {
 				...group,
-				groupName: groupNamesByKey.get(groupKey) ?? group.groupName,
+				groupName: groupNamesById.get(groupId) ?? group.groupName,
 			}
 			if (group.unitIds.length <= 1) {
 				delete canonicalGroup.groupName
@@ -81,11 +79,10 @@ export function canonicalizeStackRoster(
 		}),
 	)
 
-	return { stackRoster: { groupsById }, stackNaming }
+	return { stackRoster: { groupsById, nextGroupOrdinal: stackRoster.nextGroupOrdinal }, stackNaming }
 }
 
 type StackRosterGroupBuilder = {
-	groupId: string
 	firstUnitFriendlyName?: string
 	firstUnitId: string
 	unitType: string
@@ -101,11 +98,10 @@ function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>)
 			continue
 		}
 
-		const groupId = buildStackGroupKey(unit.typeId, unit.position)
-		const existingGroup = groupedUnits.get(groupId)
+		const positionKey = `${unit.typeId}:${unit.position.q},${unit.position.r}`
+		const existingGroup = groupedUnits.get(positionKey)
 		const nextUnitIds = existingGroup?.unitIds ?? []
-		groupedUnits.set(groupId, {
-			groupId,
+		groupedUnits.set(positionKey, {
 			firstUnitFriendlyName: existingGroup?.firstUnitFriendlyName ?? unit.friendlyName,
 			firstUnitId: existingGroup?.firstUnitId ?? unit.unitId,
 			unitType: unit.typeId,
@@ -121,24 +117,29 @@ function buildRosterGroupsFromUnits(units: ReadonlyArray<StackRosterSourceUnit>)
 export function buildStackRosterFromUnits(units: ReadonlyArray<StackRosterSourceUnit>): StackRosterState {
 	const groupsById: Record<string, StackRosterGroupState> = {}
 	const namingEngine = createStackNamingEngine()
+	let nextGroupOrdinal = 1
 
 	for (const group of buildRosterGroupsFromUnits(units)) {
+		if (group.unitIds.length <= 1) {
+			continue
+		}
+
+		const groupId = `group-${nextGroupOrdinal}`
+		nextGroupOrdinal += 1
 		const groupRecord: StackRosterGroupState = {
 			unitType: group.unitType,
 			position: group.position,
 			unitIds: group.unitIds,
 		}
-		if (group.unitIds.length > 1) {
-			groupRecord.groupName = namingEngine.resolveGroupName(
-				group.groupId,
-				group.unitType,
-				group.firstUnitId,
-				group.firstUnitFriendlyName,
-				group.unitIds.length,
-			)
-		}
-		groupsById[group.groupId] = groupRecord
+		groupRecord.groupName = namingEngine.resolveGroupName(
+			groupId,
+			group.unitType,
+			group.firstUnitId,
+			group.firstUnitFriendlyName,
+			group.unitIds.length,
+		)
+		groupsById[groupId] = groupRecord
 	}
 
-	return { groupsById }
+	return { groupsById, nextGroupOrdinal }
 }

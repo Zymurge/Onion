@@ -225,6 +225,7 @@ export type StackRosterGroupState = {
 
 export type StackRosterState = {
   groupsById: Record<string, StackRosterGroupState>
+  nextGroupOrdinal: number
 }
 
 /**

@@ -32,7 +32,7 @@ describe('hexMapCombatTargeting', () => {
     const pig = { unitId: 'pigs-1', typeId: 'LittlePigs', role: 'defender' } as BattlefieldUnit
     const rosterIndex: OccupantRosterIndex = {
       getUnitGroup: (unitId) => unitId === pig.unitId
-        ? { groupId: 'group-7', groupKey: 'LittlePigs:3,2', unitIds: ['pigs-1'] }
+        ? { groupId: 'group-7', unitIds: ['pigs-1'] }
         : null,
     }
 

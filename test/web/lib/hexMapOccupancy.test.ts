@@ -60,7 +60,7 @@ describe('hexMapOccupancy', () => {
     const second = defender({ unitId: 'pigs-2' })
     const rosterIndex: OccupantRosterIndex = {
       getUnitGroup: (unitId: string) => unitId.startsWith('pigs-')
-        ? { groupId: 'stack-a', groupKey: 'LittlePigs:2,2', unitIds: ['pigs-2', 'pigs-1'] }
+        ? { groupId: 'group-1', unitIds: ['pigs-2', 'pigs-1'] }
         : null,
     }
 

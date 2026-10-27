@@ -45,7 +45,7 @@ function createStackSourceState(overrides: Partial<WebStackSourceState> = {}): W
     },
     stackRoster: {
       groupsById: {
-        'LittlePigs:1,1': {
+        'group-1': {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 1, r: 1 },
@@ -95,14 +95,14 @@ describe('stackSelection', () => {
     })
   })
 
-  it('reports canonical roster failures instead of inferring stack membership', () => {
+  it('requires the roster bundle and resolves an isolated stackable unit without a group entry', () => {
     const missingRoster = createStackSourceState({ stackRoster: undefined })
     const missingGroup = createStackSourceState({
       stackRoster: { groupsById: {} },
     })
 
     expect(() => resolveBattlefieldStackMemberIds(missingRoster, 'pigs-1')).toThrow('Missing stackRoster for grouped unit pigs-1')
-    expect(() => resolveBattlefieldStackMemberIds(missingGroup, 'pigs-1')).toThrow('Missing stackRoster entry for grouped unit pigs-1')
+    expect(resolveBattlefieldStackMemberIds(missingGroup, 'pigs-1')).toEqual(['pigs-1'])
   })
 
   it('does not return destroyed members as active stack selections', () => {

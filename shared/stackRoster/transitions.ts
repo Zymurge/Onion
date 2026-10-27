@@ -1,7 +1,5 @@
 import {
-	buildStackGroupKey,
 	createStackNamingEngine,
-	type StackNamingSnapshot,
 } from '../stackNaming/index.js'
 import type { DefenderMap, StackRosterGroupState, StackRosterState } from '../types/index.js'
 import { buildDefenderLookup, isStackRosterUnitType, resolveGroupUnitIds } from './helpers.js'
@@ -14,6 +12,56 @@ import type {
 	RelocateStackRosterUnitsInput,
 	SplitStackRosterGroupInput,
 } from './types.js'
+
+const GROUP_ID_PATTERN = /^group-(\d+)$/
+
+function getNextGroupOrdinal(stackRoster: StackRosterState | undefined): number {
+	const configuredOrdinal = stackRoster?.nextGroupOrdinal ?? 1
+	let highestActiveOrdinal = 0
+
+	for (const groupId of Object.keys(stackRoster?.groupsById ?? {})) {
+		const match = GROUP_ID_PATTERN.exec(groupId)
+		if (match !== null) {
+			highestActiveOrdinal = Math.max(highestActiveOrdinal, Number(match[1]))
+		}
+	}
+
+	return Math.max(
+		Number.isSafeInteger(configuredOrdinal) && configuredOrdinal > 0 ? configuredOrdinal : 1,
+		highestActiveOrdinal + 1,
+	)
+}
+
+function allocateGroupId(
+	groupsById: Record<string, StackRosterGroupState>,
+	nextGroupOrdinal: number,
+): { groupId: string; nextGroupOrdinal: number } {
+	let ordinal = nextGroupOrdinal
+	while (groupsById[`group-${ordinal}`] !== undefined) {
+		ordinal += 1
+	}
+
+	return {
+		groupId: `group-${ordinal}`,
+		nextGroupOrdinal: ordinal + 1,
+	}
+}
+
+function groupOrdinal(groupId: string): number {
+	const match = GROUP_ID_PATTERN.exec(groupId)
+	return match === null ? Number.MAX_SAFE_INTEGER : Number(match[1])
+}
+
+function lowestGroupId(groupIds: ReadonlyArray<string>): string {
+	return [...groupIds].sort((left, right) => groupOrdinal(left) - groupOrdinal(right) || left.localeCompare(right))[0]
+}
+
+function buildRosterState(
+	groupsById: Record<string, StackRosterGroupState>,
+	nextGroupOrdinal: number,
+): StackRosterState {
+	return { groupsById, nextGroupOrdinal }
+}
 
 function usableGroupName(groupName: string | undefined): string | undefined {
 	return groupName?.trim().length === 0 ? undefined : groupName
@@ -41,6 +89,18 @@ function applyGroupNameForSize(
 	return nextGroup
 }
 
+function setGroupIfValid(
+	groupsById: Record<string, StackRosterGroupState>,
+	groupId: string,
+	group: Omit<StackRosterGroupState, 'unitIds'>,
+	unitIds: ReadonlyArray<string>,
+	groupName?: string,
+): void {
+	if (unitIds.length > 1) {
+		groupsById[groupId] = applyGroupNameForSize(group, unitIds, groupName)
+	}
+}
+
 /** Remove missing defender members while preserving the persisted group shape. */
 export function expandStackRosterGroups(
 	stackRoster: StackRosterState | undefined,
@@ -48,24 +108,22 @@ export function expandStackRosterGroups(
 ): StackRosterState {
 	const defenderLookup = buildDefenderLookup(defenders)
 	const groupsById = Object.fromEntries(
-		Object.entries(stackRoster?.groupsById ?? {}).map(([groupId, group]) => {
+		Object.entries(stackRoster?.groupsById ?? {}).flatMap(([groupId, group]) => {
 			const unitIds = resolveGroupUnitIds(group).filter((unitId) => defenderLookup[unitId] !== undefined)
-
-			return [
-				groupId,
-				applyGroupNameForSize(group, unitIds),
-			]
+			return unitIds.length > 1
+				? [[groupId, applyGroupNameForSize(group, unitIds)] as const]
+				: []
 		}),
 	)
 
-	return { groupsById }
+	return buildRosterState(groupsById, getNextGroupOrdinal(stackRoster))
 }
 
 /** Retire one group without mutating the input roster. */
 export function retireStackRosterGroup(stackRoster: StackRosterState | undefined, groupId: string): StackRosterState {
 	const groupsById = { ...(stackRoster?.groupsById ?? {}) }
 	delete groupsById[groupId]
-	return { groupsById }
+	return buildRosterState(groupsById, getNextGroupOrdinal(stackRoster))
 }
 
 /** Merge source groups into an existing target group. */
@@ -80,11 +138,18 @@ export function mergeStackRosterGroups(
 		throw new Error(`Cannot merge into missing target group ${targetGroupId}`)
 	}
 
+	const mergeGroupIds = [targetGroupId, ...sourceGroupIds.filter((groupId) => groupId !== targetGroupId && groupsById[groupId] !== undefined)]
+	const survivorGroupId = lowestGroupId(mergeGroupIds)
+	const survivorGroup = groupsById[survivorGroupId]
+	if (survivorGroup === undefined) {
+		throw new Error(`Cannot merge missing group ${survivorGroupId}`)
+	}
+
 	const mergedUnitIds = [...resolveGroupUnitIds(targetGroup)]
 	const seenIds = new Set(mergedUnitIds)
 	const inputGroupNames = [targetGroup.groupName]
 
-	for (const sourceGroupId of sourceGroupIds) {
+	for (const sourceGroupId of mergeGroupIds.slice(1)) {
 		const sourceGroup = groupsById[sourceGroupId]
 		if (sourceGroup === undefined) {
 			continue
@@ -97,17 +162,21 @@ export function mergeStackRosterGroups(
 				mergedUnitIds.push(unitId)
 			}
 		}
-
-		delete groupsById[sourceGroupId]
 	}
 
-	groupsById[targetGroupId] = applyGroupNameForSize(
-		targetGroup,
+	for (const groupId of mergeGroupIds) {
+		delete groupsById[groupId]
+	}
+
+	setGroupIfValid(
+		groupsById,
+		survivorGroupId,
+		{ ...survivorGroup, position: targetGroup.position },
 		mergedUnitIds,
 		inputGroupNames.map(usableGroupName).find((groupName) => groupName !== undefined),
 	)
 
-	return { groupsById }
+	return buildRosterState(groupsById, getNextGroupOrdinal(stackRoster))
 }
 
 /** Split selected members into a new roster group. */
@@ -134,18 +203,31 @@ export function splitStackRosterGroup(
 	}
 
 	const remainingUnitIds = sourceUnitIds.filter((unitId) => !movedIdSet.has(unitId))
-	if (remainingUnitIds.length === 0) {
-		delete groupsById[input.groupId]
-	} else {
+	const nextGroupOrdinal = getNextGroupOrdinal(stackRoster)
+	delete groupsById[input.groupId]
+
+	if (remainingUnitIds.length > 1) {
 		groupsById[input.groupId] = applyGroupNameForSize(sourceGroup, remainingUnitIds)
 	}
 
-	groupsById[input.newGroupId] = applyGroupNameForSize({
+	if (remainingUnitIds.length === 0) {
+		setGroupIfValid(
+			groupsById,
+			input.groupId,
+			{ ...sourceGroup, position: input.newPosition ?? sourceGroup.position },
+			sourceUnitIds,
+			input.newGroupName ?? sourceGroup.groupName,
+		)
+		return buildRosterState(groupsById, nextGroupOrdinal)
+	}
+
+	const allocated = allocateGroupId(groupsById, nextGroupOrdinal)
+	setGroupIfValid(groupsById, allocated.groupId, {
 		unitType: sourceGroup.unitType,
 		position: input.newPosition ?? sourceGroup.position,
-	}, sourceUnitIds.filter((unitId) => movedIdSet.has(unitId)), input.newGroupName ?? (remainingUnitIds.length === 0 ? sourceGroup.groupName : undefined))
+	}, sourceUnitIds.filter((unitId) => movedIdSet.has(unitId)), input.newGroupName)
 
-	return { groupsById }
+	return buildRosterState(groupsById, allocated.nextGroupOrdinal)
 }
 
 /** Move selected members between canonical roster groups. */
@@ -171,29 +253,49 @@ export function moveStackRosterGroup(
 		}
 	}
 
+	const movedUnitIds = sourceUnitIds.filter((unitId) => movedIdSet.has(unitId))
 	const remainingUnitIds = sourceUnitIds.filter((unitId) => !movedIdSet.has(unitId))
-	if (remainingUnitIds.length > 0 && (remainingUnitIds.length > 1 || isStackRosterUnitType(sourceGroup.unitType))) {
-		groupsById[input.sourceGroupId] = applyGroupNameForSize(sourceGroup, remainingUnitIds)
-	} else {
-		delete groupsById[input.sourceGroupId]
+	const destinationGroup = groupsById[input.destinationGroupId]
+	const destinationUnitIds = [...new Set([...(input.destinationUnitIds ?? []), ...movedUnitIds])]
+	const nextGroupOrdinal = getNextGroupOrdinal(stackRoster)
+
+	if (remainingUnitIds.length === 0 && destinationGroup === undefined) {
+		groupsById[input.sourceGroupId] = applyGroupNameForSize({
+			...sourceGroup,
+			position: input.destinationPosition,
+		}, destinationUnitIds, input.destinationGroupName ?? sourceGroup.groupName)
+		return buildRosterState(groupsById, nextGroupOrdinal)
 	}
 
-	const destinationGroup = groupsById[input.destinationGroupId]
-	const movedUnitIds = [...movedIdSet]
+	delete groupsById[input.sourceGroupId]
+	if (remainingUnitIds.length > 1) {
+		groupsById[input.sourceGroupId] = applyGroupNameForSize(sourceGroup, remainingUnitIds)
+	}
+
 	if (destinationGroup !== undefined) {
 		const destinationUnitIds = [...new Set([...destinationGroup.unitIds, ...movedUnitIds])]
-		groupsById[input.destinationGroupId] = applyGroupNameForSize({
+		const mergedGroupIds = remainingUnitIds.length === 0
+			? [input.destinationGroupId, input.sourceGroupId]
+			: [input.destinationGroupId]
+		const survivorGroupId = lowestGroupId(mergedGroupIds)
+		delete groupsById[input.destinationGroupId]
+		if (remainingUnitIds.length === 0) {
+			delete groupsById[input.sourceGroupId]
+		}
+		setGroupIfValid(groupsById, survivorGroupId, {
 			...destinationGroup,
 			position: input.destinationPosition,
-		}, destinationUnitIds, input.destinationGroupName)
-	} else if (movedUnitIds.length > 1) {
-		groupsById[input.destinationGroupId] = applyGroupNameForSize({
-			unitType: sourceGroup.unitType,
-			position: input.destinationPosition,
-		}, movedUnitIds, input.destinationGroupName ?? (remainingUnitIds.length === 0 ? sourceGroup.groupName : undefined))
+		}, destinationUnitIds, input.destinationGroupName ?? (remainingUnitIds.length === 0 ? sourceGroup.groupName : undefined))
+		return buildRosterState(groupsById, nextGroupOrdinal)
 	}
 
-	return { groupsById }
+	const allocated = allocateGroupId(groupsById, nextGroupOrdinal)
+	setGroupIfValid(groupsById, allocated.groupId, {
+		unitType: sourceGroup.unitType,
+		position: input.destinationPosition,
+	}, destinationUnitIds, input.destinationGroupName ?? (remainingUnitIds.length === 0 ? sourceGroup.groupName : undefined))
+
+	return buildRosterState(groupsById, movedUnitIds.length > 1 ? allocated.nextGroupOrdinal : nextGroupOrdinal)
 }
 
 /** Relocate selected units, preserving singleton stackable groups. */
@@ -207,53 +309,58 @@ export function relocateStackRosterUnits(
 		throw new Error('Cannot relocate units without moved members')
 	}
 
-	const destinationGroupId = buildStackGroupKey(input.unitType, input.destinationPosition)
-	const destinationSourceOverlap = Object.values(groupsById).some((group) => {
-		return group.unitType === input.unitType
-			&& group.position.q === input.destinationPosition.q
-			&& group.position.r === input.destinationPosition.r
-			&& resolveGroupUnitIds(group).some((unitId) => movedIdSet.has(unitId))
-	})
+	const destinationEntry = Object.entries(groupsById).find(([groupId, group]) => groupId !== findSourceGroupId(groupsById, movedIdSet)
+		&& group.unitType === input.unitType
+		&& group.position.q === input.destinationPosition.q
+		&& group.position.r === input.destinationPosition.r)
+	const sourceGroupId = findSourceGroupId(groupsById, movedIdSet)
+	const destinationSourceOverlap = sourceGroupId !== null
+		&& groupsById[sourceGroupId]?.position.q === input.destinationPosition.q
+		&& groupsById[sourceGroupId]?.position.r === input.destinationPosition.r
 	if (destinationSourceOverlap) {
-		return { groupsById }
+		return buildRosterState(groupsById, getNextGroupOrdinal(stackRoster))
 	}
 
-	for (const [groupId, group] of Object.entries(groupsById)) {
-		const groupUnitIds = resolveGroupUnitIds(group)
-		if (groupUnitIds.every((unitId) => !movedIdSet.has(unitId))) {
-			continue
-		}
-
-		const remainingUnitIds = groupUnitIds.filter((unitId) => !movedIdSet.has(unitId))
-		if (remainingUnitIds.length > 0 && (remainingUnitIds.length > 1 || isStackRosterUnitType(group.unitType))) {
-			groupsById[groupId] = applyGroupNameForSize(group, remainingUnitIds)
-		} else {
-			delete groupsById[groupId]
-		}
+	if (sourceGroupId !== null && [...movedIdSet].every((unitId) => groupsById[sourceGroupId]?.unitIds.includes(unitId))) {
+		return moveStackRosterGroup(stackRoster, {
+			sourceGroupId,
+			destinationGroupId: destinationEntry?.[0] ?? 'unassigned-destination',
+			destinationPosition: input.destinationPosition,
+			destinationGroupName: input.destinationGroupName,
+			destinationUnitIds: input.destinationUnitIds,
+			movedUnitIds: [...movedIdSet],
+		})
 	}
 
-	const destinationGroup = groupsById[destinationGroupId]
-	const destinationUnitIds = [
-		...new Set([
-			...(destinationGroup ? resolveGroupUnitIds(destinationGroup) : []),
-			...input.movedUnitIds,
-		]),
-	]
-
-	if (destinationUnitIds.length > 1 || isStackRosterUnitType(input.unitType)) {
+	const destinationGroupId = destinationEntry?.[0]
+	if (destinationGroupId !== undefined) {
+		const destinationGroup = groupsById[destinationGroupId]
+		const destinationUnitIds = [...new Set([...resolveGroupUnitIds(destinationGroup), ...input.movedUnitIds])]
 		groupsById[destinationGroupId] = applyGroupNameForSize({
-			...(destinationGroup ?? {
-				unitType: input.unitType,
-				position: input.destinationPosition,
-			}),
-			unitType: input.unitType,
+			...destinationGroup,
 			position: input.destinationPosition,
 		}, destinationUnitIds, input.destinationGroupName)
-	} else {
-		delete groupsById[destinationGroupId]
+		return buildRosterState(groupsById, getNextGroupOrdinal(stackRoster))
 	}
 
-	return { groupsById }
+	const destinationUnitIds = [...new Set([...(input.destinationUnitIds ?? []), ...input.movedUnitIds])]
+	if (destinationUnitIds.length <= 1 || !isStackRosterUnitType(input.unitType)) {
+		return buildRosterState(groupsById, getNextGroupOrdinal(stackRoster))
+	}
+
+	const allocated = allocateGroupId(groupsById, getNextGroupOrdinal(stackRoster))
+	setGroupIfValid(groupsById, allocated.groupId, {
+		unitType: input.unitType,
+		position: input.destinationPosition,
+	}, destinationUnitIds, input.destinationGroupName)
+	return buildRosterState(groupsById, allocated.nextGroupOrdinal)
+}
+
+function findSourceGroupId(
+	groupsById: Record<string, StackRosterGroupState>,
+	movedIdSet: ReadonlySet<string>,
+): string | null {
+	return Object.entries(groupsById).find(([, group]) => resolveGroupUnitIds(group).some((unitId) => movedIdSet.has(unitId)))?.[0] ?? null
 }
 
 /** Reconcile a move with canonical roster membership and stack naming. */
@@ -262,18 +369,31 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 	const movedUnitIds = [...new Set(input.movedUnitIds ?? [input.movedUnitId])]
 	const movedUnitIdSet = new Set(movedUnitIds)
 	const sourceGroup = rosterIndex.getUnitGroup(input.movedUnitId)
-	const destinationGroupId = buildStackGroupKey(input.unitType, input.destinationPosition)
-	const destinationGroup = rosterIndex.groupsById[destinationGroupId] ?? null
+	const destinationSingletonUnitIds = Object.values(input.defenders ?? {})
+		.filter((unit) => unit.state !== 'destroyed'
+			&& unit.typeId === input.unitType
+			&& unit.position.q === input.destinationPosition.q
+			&& unit.position.r === input.destinationPosition.r
+			&& !movedUnitIdSet.has(unit.unitId)
+			&& rosterIndex.getUnitGroup(unit.unitId) === null)
+		.map((unit) => unit.unitId)
+	const destinationEntry = Object.entries(rosterIndex.groupsById).find(([groupId, group]) => groupId !== sourceGroup?.groupId
+		&& group.unitType === input.unitType
+		&& group.position.q === input.destinationPosition.q
+		&& group.position.r === input.destinationPosition.r)
+	const destinationGroup = destinationEntry?.[1] ?? null
 	const sourceGroupUnitCount = sourceGroup?.unitIds?.length ?? sourceGroup?.units?.length ?? 0
-	const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? 0
+	const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? destinationSingletonUnitIds.length
 	const destinationResultUnitCount = destinationGroupUnitCount + movedUnitIds.length
 	const isStackableDestination = isStackRosterUnitType(input.unitType)
 	const movesWholeSourceGroup = sourceGroup !== null
 		&& sourceGroup.unitIds.length > 0
 		&& sourceGroup.unitIds.every((unitId) => movedUnitIdSet.has(unitId))
+	const destinationGroupId = destinationEntry?.[0]
+		?? (movesWholeSourceGroup ? sourceGroup.groupId : `group-${getNextGroupOrdinal(input.stackRoster)}`)
 	const persistedDestinationName = destinationGroup === null || destinationGroupUnitCount <= 1
 		? undefined
-		: input.stackNaming?.groupsInUse.find((entry) => entry.groupKey === destinationGroupId)?.groupName
+		: input.stackNaming?.groupsInUse.find((entry) => entry.groupId === destinationGroupId)?.groupName
 	const destinationRosterName = destinationGroupUnitCount > 1 ? destinationGroup?.groupName : undefined
 	const sourceRosterName = movesWholeSourceGroup && sourceGroupUnitCount > 1 ? sourceGroup?.groupName : undefined
 
@@ -282,7 +402,7 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 		: {
 			...input.stackNaming,
 			groupsInUse: input.stackNaming.groupsInUse.filter((entry) => {
-				const group = rosterIndex.groupsById[entry.groupKey]
+				const group = rosterIndex.groupsById[entry.groupId]
 				return group !== undefined && group.unitIds.length > 1
 			}),
 		})
@@ -325,6 +445,7 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 		: input.movedUnitFriendlyName ?? input.unitType
 
 	const stackRoster = relocateStackRosterUnits(input.stackRoster, {
+		destinationUnitIds: destinationSingletonUnitIds,
 		movedUnitIds,
 		unitType: input.unitType,
 		destinationPosition: input.destinationPosition,
@@ -332,11 +453,14 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 	})
 
 	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster, input.stackNaming, input.defenders)
+	const resolvedDestinationGroupId = Object.entries(stackRoster.groupsById).find(([, group]) => {
+		return movedUnitIds.every((unitId) => group.unitIds.includes(unitId))
+	})?.[0] ?? destinationGroupId
 
 	return {
 		stackRoster,
 		stackNaming,
-		destinationGroupId,
+		destinationGroupId: resolvedDestinationGroupId,
 		destinationGroupName,
 		selectedNameSource,
 	}

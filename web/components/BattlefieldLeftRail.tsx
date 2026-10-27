@@ -112,14 +112,14 @@ function buildRenderErrorMessage(
   const detailMatch = /grouped unit ([^\s]+)/.exec(errorMessage)
   const selectedUnitId = detailMatch?.[1] ?? 'unknown'
   const displayedDefenderIds = context.displayedDefenders.map((unit) => unit.unitId).join(', ') || 'none'
-  const rosterGroupKeys = Object.keys(context.stackRoster?.groupsById ?? {}).join(', ') || 'none'
+  const rosterGroupIds = Object.keys(context.stackRoster?.groupsById ?? {}).join(', ') || 'none'
   const phase = context.isCombatPhase
     ? 'combat'
     : context.isMovementPhase
       ? 'movement'
       : 'locked'
 
-  return `${errorMessage} (selectedUnitId=${selectedUnitId}, phase=${phase}, activeRole=${context.activeCombatRole ?? 'none'}, mode=${context.activeMode}, selectedUnitIds=${context.activeSelectedUnitIds.join(', ') || 'none'}, displayedDefenders=${displayedDefenderIds}, stackRosterGroups=${rosterGroupKeys})`
+  return `${errorMessage} (selectedUnitId=${selectedUnitId}, phase=${phase}, activeRole=${context.activeCombatRole ?? 'none'}, mode=${context.activeMode}, selectedUnitIds=${context.activeSelectedUnitIds.join(', ') || 'none'}, displayedDefenders=${displayedDefenderIds}, stackRosterGroups=${rosterGroupIds})`
 }
 
 function buildDefenderGroupFromUnits(
@@ -132,14 +132,14 @@ function buildDefenderGroupFromUnits(
   catalog: SessionCatalog | undefined,
   combatUnitAvailabilityReasons: Readonly<Record<string, string | undefined>> | undefined,
   actionEligibility: BattlefieldActionEligibility | undefined,
-  groupKey?: string,
+  groupId?: string,
 ): DefenderStackGroup {
   const anchorUnit = units[0]
   const stackSize = units.length > 1 ? units.length : getBattlefieldStackSize(anchorUnit)
   const displayedUnits = resolveDisplayedStackUnits(units, activeSelectedUnitIds)
-  const resolvedGroupKey = units.length > 1 ? groupKey : undefined
-  const label = resolvedGroupKey !== undefined
-    ? resolveBattlefieldStackLabel(anchorUnit.typeId, anchorUnit.unitId, anchorUnit.friendlyName, stackSize, resolvedGroupKey, stackNaming)
+  const resolvedGroupId = units.length > 1 ? groupId : undefined
+  const label = resolvedGroupId !== undefined
+    ? resolveBattlefieldStackLabel(anchorUnit.typeId, anchorUnit.unitId, anchorUnit.friendlyName, stackSize, resolvedGroupId, stackNaming)
     : resolveBattlefieldDisplayName({ ...anchorUnit, stackSize }, stackNaming)
   const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.unitId, activeSelectedUnitIds)
   const attackReadyCount = getGroupAttackReadyCount(displayedUnits, catalog)
@@ -246,7 +246,7 @@ function buildDefenderGroups(
         consumedUnitIds.add(unit.unitId)
       }
 
-      selectionGroups.push(buildDefenderGroupFromUnits(units, groupMode, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog, combatUnitAvailabilityReasons, actionEligibility, rosterGroup.groupKey))
+      selectionGroups.push(buildDefenderGroupFromUnits(units, groupMode, activeMode, activeSelectedUnitIds, stackNaming, selectionState, catalog, combatUnitAvailabilityReasons, actionEligibility, rosterGroup.groupId))
     }
   }
 

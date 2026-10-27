@@ -1,6 +1,5 @@
 import type { DefenderMap, DefenderUnit, HexPos, OnionMap, StackRosterState, UnitState, Weapon } from '#shared/types/index'
 import type { StackNamingSnapshot } from '#shared/stackNaming/index'
-import { buildStackGroupKey } from '#shared/stackNaming/index'
 import { buildStackRosterFromUnits, refreshStackRosterNamingSnapshot } from '#shared/stackRoster/index'
 import { getAllUnitDefinitions, isUnitTypeStackable } from '#shared/unitDefinitions'
 import { makeDefender, makeOnion, makeScenarioSnapshot, makeWeapon, type TestScenarioSnapshot } from '#test/utils/gameStateUtils'
@@ -52,7 +51,7 @@ export function createAuthoritativeBattlefieldSnapshot(): TestScenarioSnapshot {
 					weapons: [makeWeapon({ id: 'cannon-1', typeId: 'Dragon.main', friendlyName: 'Dragon Cannon' })],
 				}),
 			},
-			stackRoster: { groupsById: {} },
+			stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
 			stackNaming: { groupsInUse: [], usedGroupNames: [] },
 		},
 		scenarioMap: {
@@ -108,7 +107,7 @@ export function createConnectedBattlefieldSnapshot(
 					weapons: [makeWeapon({ id: 'main', typeId: 'Puss.main', friendlyName: 'Main Gun' })],
 				}),
 			},
-			stackRoster: { groupsById: {} },
+			stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
 			stackNaming: { groupsInUse: [], usedGroupNames: [] },
 		},
 		scenarioMap: {
@@ -345,12 +344,18 @@ export function buildDefenderTree(opts: {
 			}
 		}
 
-		const groupKey = buildStackGroupKey(firstMember.typeId, firstMember.position)
-		stackRoster.groupsById[groupKey] = {
-			...(stackRoster.groupsById[groupKey] ?? {
+		if (group.memberIds.length <= 1) {
+			continue
+		}
+
+		const groupId = Object.entries(stackRoster.groupsById).find(([, candidate]) =>
+			group.memberIds.every((memberId) => candidate.unitIds.includes(memberId)))?.[0]
+			?? `group-${stackRoster.nextGroupOrdinal++}`
+		stackRoster.groupsById[groupId] = {
+			...(stackRoster.groupsById[groupId] ?? {
 				unitType: firstMember.typeId,
 				position: firstMember.position,
-				unitIds: [],
+				unitIds: group.memberIds,
 			}),
 			groupName: group.groupName,
 			unitType: firstMember.typeId,

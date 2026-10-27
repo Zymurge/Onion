@@ -21,7 +21,7 @@ let state: GameState = makeGameState()
 function makeGameStateWithUnits(): GameState {
   const stackFixture = makeStackFixture({
     groups: {
-      'LittlePigs:1,1': makeStackGroup({
+      'group-1': makeStackGroup({
         position: { q: 1, r: 1 },
         unitIds: ['pigs-1', 'pigs-2'],
       }),
@@ -182,8 +182,9 @@ describe('buildCombatEvents', () => {
     state = makeGameState({
       defenders: { 'pigs-1': singleton },
       stackRoster: {
+		nextGroupOrdinal: 1,
         groupsById: {
-          'LittlePigs:1,1': makeStackGroup({
+          'group-1': makeStackGroup({
             groupName: 'Stale singleton group',
             position: { q: 1, r: 1 },
             unitIds: ['pigs-1'],
@@ -293,13 +294,13 @@ describe('buildCombatEvents', () => {
   it('uses the declared stack name when a combat event targets the group id', () => {
     const events = buildCombatEvents(
       55,
-      { type: 'FIRE', attackers: ['main'], targetId: 'LittlePigs:1,1', onionId: 'onion-1' },
+      { type: 'FIRE', attackers: ['main'], targetId: 'group-1', onionId: 'onion-1' },
       {
         success: true,
         actionType: 'FIRE',
         attackerIds: ['main'],
         onionId: 'onion-1',
-        targetId: 'LittlePigs:1,1',
+        targetId: 'group-1',
         roll: { roll: 2, result: 'D', odds: '1:1' },
       },
       state,
@@ -307,7 +308,7 @@ describe('buildCombatEvents', () => {
 
     expect(events[0]).toMatchObject({
       type: 'FIRE_RESOLVED',
-      targetId: 'LittlePigs:1,1',
+      targetId: 'group-1',
       targetFriendlyName: 'Little Pigs group 1',
     })
   })
@@ -315,7 +316,7 @@ describe('buildCombatEvents', () => {
   it('uses each stacked Little Pig name for individual destruction events', () => {
     const stackFixture = makeStackFixture({
       groups: {
-        'LittlePigs:1,1': makeStackGroup({
+        'group-1': makeStackGroup({
           position: { q: 1, r: 1 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
         }),
@@ -332,13 +333,13 @@ describe('buildCombatEvents', () => {
 
     const events = buildCombatEvents(
       60,
-      { type: 'FIRE', attackers: ['main'], targetId: 'LittlePigs:1,1', onionId: 'onion-1' },
+      { type: 'FIRE', attackers: ['main'], targetId: 'group-1', onionId: 'onion-1' },
       {
         success: true,
         actionType: 'FIRE',
         attackerIds: ['main'],
         onionId: 'onion-1',
-        targetId: 'LittlePigs:1,1',
+        targetId: 'group-1',
         roll: { roll: 6, result: 'X', odds: '1:1' },
         statusChanges: [
           { unitId: 'pigs-1', from: 'operational', to: 'destroyed' },
@@ -620,7 +621,7 @@ describe('buildVictoryObjectiveStates', () => {
 
     expect(response.state.stackRoster).toMatchObject({
       groupsById: {
-        'LittlePigs:1,1': {
+        'group-1': {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 1, r: 1 },
@@ -629,7 +630,7 @@ describe('buildVictoryObjectiveStates', () => {
       },
     })
 
-    expect(response.state.stackRoster?.groupsById['LittlePigs:1,1']).toMatchObject({
+    expect(response.state.stackRoster?.groupsById['group-1']).toMatchObject({
       groupName: 'Little Pigs group 1',
       unitType: 'LittlePigs',
       position: { q: 1, r: 1 },
@@ -669,7 +670,7 @@ describe('buildVictoryObjectiveStates', () => {
       state: 'destroyed',
       position: { q: 1, r: 1 },
     })
-    expect(response.state.stackRoster?.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-2'])
+    expect(response.state.stackRoster?.groupsById['group-1']).toBeUndefined()
   })
 
   it('projects mixed-side deployments into the correct API collections', () => {
@@ -724,7 +725,7 @@ describe('buildVictoryObjectiveStates', () => {
       'defender-1',
     )
 
-    const group = response.state.stackRoster?.groupsById['LittlePigs:1,1'] as unknown as { unitIds?: string[] }
+    const group = response.state.stackRoster?.groupsById['group-1'] as unknown as { unitIds?: string[] }
     expect(group.unitIds).toEqual(['pigs-1', 'pigs-2'])
   })
 
@@ -746,7 +747,7 @@ describe('buildVictoryObjectiveStates', () => {
       'defender-1',
     )
 
-    expect(response.state.stackRoster?.groupsById['BigBadWolf:6,6']).toBeUndefined()
+    expect(response.state.stackRoster?.groupsById['group-2']).toBeUndefined()
   })
 
   it('does not derive stackRoster from defender co-location when canonical stackRoster is absent', () => {
@@ -766,6 +767,28 @@ describe('buildVictoryObjectiveStates', () => {
         events: [],
       } as unknown as MatchRecord,
       'defender-1',
+    )).toThrow('Invalid stack roster for response')
+  })
+
+  it('rejects a missing canonical stackRoster bundle even without stackable defenders', () => {
+    const invalidState = makeGameState({
+      defenders: {
+        'swamp-1': makeDefender({ unitId: 'swamp-1', typeId: 'Swamp', position: { q: 2, r: 2 }, weapons: [] }),
+      },
+      stackRoster: undefined as unknown as GameState['stackRoster'],
+    })
+
+    expect(() => buildGameStateResponse(
+      {
+        gameId: 8,
+        scenarioId: 'scenario-8',
+        scenarioSnapshot: { name: 'Scenario 8', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        players: { onion: 'onion-1', defender: 'defender-1' },
+        phase: 'DEFENDER_MOVE',
+        turnNumber: 1,
+        state: invalidState,
+      } as unknown as MatchRecord,
+      'onion-user',
     )).toThrow('Invalid stack roster for response')
   })
 
@@ -794,7 +817,7 @@ describe('buildVictoryObjectiveStates', () => {
     state.stackNaming = {
       groupsInUse: [
         {
-          groupKey: 'LittlePigs:1,1',
+          groupId: 'group-1',
           groupName: '--CONFLICTING NAME---',
           unitType: 'LittlePigs',
         },
@@ -814,7 +837,7 @@ describe('buildVictoryObjectiveStates', () => {
         events: [],
       } as unknown as MatchRecord,
       'onion-user',
-    )).toThrow('Conflicting persisted stack group name for LittlePigs:1,1')
+    )).toThrow('Conflicting persisted stack group name for group-1')
   })
 
   it('throws when a stackable defender is missing from all stack roster groups', () => {
@@ -865,7 +888,7 @@ describe('buildVictoryObjectiveStates', () => {
               role: "defender",
               unitId: 'pigs-5',
               typeId: 'LittlePigs',
-              position: { q: 4, r: 8 },
+              position: { q: 4, r: 4 },
               state: 'operational',
               squads: 2,
               friendlyName: 'Little Pigs 5',
@@ -874,7 +897,7 @@ describe('buildVictoryObjectiveStates', () => {
           },
           stackRoster: makeStackRoster({
             groupsById: {
-              'LittlePigs:4,4': makeStackGroup({
+              'group-1': makeStackGroup({
                 position: { q: 4, r: 4 },
                 unitIds: ['pigs-1', 'pigs-2'],
               }),
@@ -940,7 +963,7 @@ describe('scenario-derived runtime contracts', () => {
     expect(getUnitDefinition(derivedTypeId)).toBeUndefined()
     const stackRoster = makeStackRoster({
       groupsById: {
-        [`${derivedTypeId}:1,1`]: makeStackGroup({
+        'group-1': makeStackGroup({
           unitType: derivedTypeId,
           unitIds: ['pigs-1', 'pigs-2'],
         }),
@@ -975,12 +998,11 @@ describe('scenario-derived runtime contracts', () => {
 
     const response = buildGameStateResponse(match as unknown as MatchRecord, 'onion-user')
 
-    expect(response.state.stackRoster.groupsById[`${derivedTypeId}:1,1`]).toBeDefined()
+    expect(response.state.stackRoster.groupsById['group-1']).toBeDefined()
   })
 
-  it('omits naming metadata for a singleton scenario-derived stack group', () => {
+  it('omits singleton scenario-derived units from the stack roster and naming metadata', () => {
     const derivedTypeId = 'projection-singleton-contract:ScenarioPigs'
-    const groupId = `${derivedTypeId}:1,1`
     const match = {
       gameId: 2,
       scenarioId: 'projection-singleton-contract',
@@ -1001,19 +1023,14 @@ describe('scenario-derived runtime contracts', () => {
         defenders: {
           'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: derivedTypeId, position: { q: 1, r: 1 } }),
         },
-        stackRoster: makeStackRoster({
-          groupsById: {
-            [groupId]: makeStackGroup({ unitType: derivedTypeId, unitIds: ['pigs-1'] }),
-          },
-        }),
+        stackRoster: makeStackRoster({ groupsById: {} }),
       }),
       events: [],
     }
 
     const response = buildGameStateResponse(match as unknown as MatchRecord, 'onion-user')
 
-    expect(response.state.stackRoster.groupsById[groupId]).toBeDefined()
-    expect(response.state.stackRoster.groupsById[groupId]).not.toHaveProperty('groupName')
+    expect(response.state.stackRoster.groupsById).toEqual({})
     expect(response.state.stackNaming.groupsInUse).toEqual([])
   })
 })

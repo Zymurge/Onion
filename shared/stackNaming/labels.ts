@@ -16,11 +16,6 @@ export function isLegacyCoordinateGroupName(name: string): boolean {
 	return /\s:\s*-?\d+,-?\d+$/.test(name.trim())
 }
 
-/** Build the stable naming key shared by a unit type and board position. */
-export function buildStackGroupKey(unitType: string, position: { q: number; r: number }): string {
-	return `${unitType}:${position.q},${position.r}`
-}
-
 /** Allocate and record the next unused ordinal name for a base label. */
 export function createUniqueName(baseName: string, usedNames: Set<string>): string {
 	const trimmedBaseName = baseName.trim()

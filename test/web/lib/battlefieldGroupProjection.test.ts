@@ -11,7 +11,7 @@ describe('battlefieldGroupProjection', () => {
 		]
 		const stackRoster = {
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -24,7 +24,7 @@ describe('battlefieldGroupProjection', () => {
 
 		expect(projection.index.getUnitGroup('pigs-1')?.unitIds).toEqual(['pigs-1', 'pigs-2'])
 		expect(projection.index.getUnitGroup('wolf-1')).toBeNull()
-		expect(projection.index.groupsById['LittlePigs:4,4']?.units.map((unit) => unit.unitId)).toEqual(['pigs-1', 'pigs-2'])
+		expect(projection.index.groupsById['group-1']?.units.map((unit) => unit.unitId)).toEqual(['pigs-1', 'pigs-2'])
 		expect(projection.defendersById.get('pigs-2')).toBe(defenders[1])
 	})
 
@@ -35,7 +35,7 @@ describe('battlefieldGroupProjection', () => {
 		]
 		const stackRoster = {
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -48,6 +48,6 @@ describe('battlefieldGroupProjection', () => {
 
 		expect(projection.index.getUnitGroup('pigs-1')?.unitIds).toEqual(['pigs-1', 'pigs-2'])
 		expect(projection.index.getUnitGroup('pigs-4')).toBeNull()
-		expect(projection.index.groupsById['LittlePigs:4,4']?.units.map((unit) => unit.unitId)).toEqual(['pigs-1', 'pigs-2'])
+		expect(projection.index.groupsById['group-1']?.units.map((unit) => unit.unitId)).toEqual(['pigs-1', 'pigs-2'])
 	})
 })

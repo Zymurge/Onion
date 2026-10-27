@@ -3,6 +3,7 @@ import { renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { useBattlefieldDisplayState } from '#web/lib/battlefieldDisplay/index'
+import { assertCanonicalStackProjection } from '#web/lib/battlefieldDisplay/snapshotValidation'
 import type { GameSnapshot } from '#web/lib/gameClient'
 import type { GameSessionViewState } from '#web/lib/gameSessionTypes'
 import type { BattlefieldInteractionState } from '#web/lib/battlefieldInteraction/types'
@@ -45,7 +46,7 @@ function createSnapshot(): GameSnapshot {
 				}),
 			},
 			stackNaming: undefined,
-			stackRoster: undefined,
+			stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
 			currentPhase: 'DEFENDER_COMBAT',
 			turn: 8,
 		},
@@ -117,7 +118,7 @@ function createActionEligibilitySnapshot(phase: 'ONION_COMBAT' | 'DEFENDER_COMBA
 			},
 			defenders,
 			stackNaming: { groupsInUse: [], usedGroupNames: [] },
-			stackRoster: { groupsById: {} },
+			stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
 			currentPhase: phase,
 			turn: 8,
 		},
@@ -248,11 +249,13 @@ describe('useBattlefieldDisplayState', () => {
 	})
 
 	it('returns error if stacked defenders are present but stackRoster is missing', () => {
+		const snapshot = createSnapshot()
+		snapshot.authoritativeState!.stackRoster = undefined as never
 		const { result } = renderHook(() =>
 			useBattlefieldDisplayState({
 				combatBaseSnapshot: null,
 				interactionState: createInteractionState(),
-				sessionState: createSessionState(createSnapshot()),
+				sessionState: createSessionState(snapshot),
 				activeSessionBinding: null,
 			})
 		)
@@ -261,6 +264,16 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.error).toContain('stackRosterGroups=none')
 		// Game state should still be present
 		expect(result.current.clientSnapshot).toBeTruthy()
+	})
+
+	it('rejects a missing canonical stackRoster bundle without relying on co-location', () => {
+		const snapshot = createSnapshot()
+		snapshot.authoritativeState!.defenders = {}
+		snapshot.authoritativeState!.stackRoster = undefined as never
+
+		const result = assertCanonicalStackProjection(snapshot.authoritativeState!, sessionCatalog)
+
+		expect(result.error).toEqual(expect.stringMatching(/missing canonical stackRoster/))
 	})
 
 	it('counts only ready defender weapons in the selected attack strength', () => {
@@ -295,13 +308,14 @@ describe('useBattlefieldDisplayState', () => {
 		const authoritativeState = snapshot.authoritativeState!
 		authoritativeState.stackNaming = {
 			groupsInUse: [
-				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
 			],
 			usedGroupNames: ['Little Pigs group 1'],
 		}
 		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -330,13 +344,14 @@ describe('useBattlefieldDisplayState', () => {
 		authoritativeState.currentPhase = 'DEFENDER_MOVE'
 		authoritativeState.stackNaming = {
 			groupsInUse: [
-				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
 			],
 			usedGroupNames: ['Little Pigs group 1'],
 		}
 		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -373,13 +388,14 @@ describe('useBattlefieldDisplayState', () => {
 		}
 		authoritativeState.stackNaming = {
 			groupsInUse: [
-				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
 			],
 			usedGroupNames: ['Little Pigs group 1'],
 		}
 		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -405,8 +421,9 @@ describe('useBattlefieldDisplayState', () => {
 		const snapshot = createSnapshot()
 		const authoritativeState = snapshot.authoritativeState!
 		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:3,9': {
+				'group-2': {
 					groupName: 'LittlePigs',
 					unitType: 'LittlePigs',
 					position: { q: 3, r: 9 },
@@ -424,7 +441,7 @@ describe('useBattlefieldDisplayState', () => {
 		)
 		expect(String(result.current.error)).toMatch(/invalid stack roster/)
 		expect(String(result.current.error)).toContain('stackableDefenders=pigs-1, pigs-2')
-		expect(String(result.current.error)).toContain('stackRosterGroups=LittlePigs:3,9')
+		expect(String(result.current.error)).toContain('stackRosterGroups=group-2')
 		expect(result.current.clientSnapshot).toBeTruthy()
 	})
 
@@ -434,8 +451,9 @@ describe('useBattlefieldDisplayState', () => {
 		// Remove pigs-2 from defenders so the roster group references a unit that doesn't exist
 		delete (authoritativeState.defenders as Record<string, DefenderUnit>)['pigs-2']
 		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -454,7 +472,7 @@ describe('useBattlefieldDisplayState', () => {
 		)
 
 		expect(String(result.current.error)).toMatch(/missing.*pigs-2/i)
-		expect(String(result.current.error)).toContain('stackRosterGroups=LittlePigs:4,4')
+		expect(String(result.current.error)).toContain('stackRosterGroups=group-1')
 	})
 
 	it('returns error if a specific grouped unit is absent from defenders', () => {
@@ -462,8 +480,9 @@ describe('useBattlefieldDisplayState', () => {
 		const authoritativeState = snapshot.authoritativeState!
 		// Group roster includes pigs-3 which is not present in defenders
 		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -482,7 +501,7 @@ describe('useBattlefieldDisplayState', () => {
 		)
 
 		expect(String(result.current.error)).toMatch(/missing.*pigs-3/i)
-		expect(String(result.current.error)).toContain('stackRosterGroups=LittlePigs:4,4')
+		expect(String(result.current.error)).toContain('stackRosterGroups=group-1')
 	})
 
 	it('returns error if a stackable defender is missing from every roster group', () => {
@@ -496,13 +515,14 @@ describe('useBattlefieldDisplayState', () => {
 				unitId: 'pigs-5',
 				typeId: 'LittlePigs',
 				friendlyName: 'Little Pigs 5',
-				position: { q: 4, r: 8 },
+				position: { q: 4, r: 4 },
 				weapons: [makeWeapon({ id: 'pigs-5-main', typeId: 'LittlePigs.rifle' })],
 			}),
 		}
 		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -528,8 +548,9 @@ describe('useBattlefieldDisplayState', () => {
 		const snapshot = createSnapshot()
 		const authoritativeState = snapshot.authoritativeState!
 		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'LittlePigs',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -557,13 +578,14 @@ describe('useBattlefieldDisplayState', () => {
 		previousSnapshot.authoritativeState!.defenders['pigs-2'].state = 'destroyed'
 		previousSnapshot.authoritativeState!.stackNaming = {
 			groupsInUse: [
-				{ groupKey: 'LittlePigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
 			],
 			usedGroupNames: ['Little Pigs group 1'],
 		}
 		previousSnapshot.authoritativeState!.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -579,14 +601,8 @@ describe('useBattlefieldDisplayState', () => {
 		delete (currentSnapshot.authoritativeState!.defenders as Record<string, DefenderUnit>)['pigs-2']
 		currentSnapshot.authoritativeState!.stackNaming = previousSnapshot.authoritativeState!.stackNaming
 		currentSnapshot.authoritativeState!.stackRoster = {
-			groupsById: {
-				'LittlePigs:4,4': {
-					groupName: 'Little Pigs group 1',
-					unitType: 'LittlePigs',
-					position: { q: 4, r: 4 },
-					unitIds: ['pigs-1'],
-				},
-			},
+			nextGroupOrdinal: 2,
+			groupsById: {},
 		}
 
 		const { result, rerender } = renderHook(
@@ -681,8 +697,9 @@ describe('useBattlefieldDisplayState', () => {
 		const snapshot = createSnapshot()
 		expect(snapshot.authoritativeState).toBeDefined()
 		snapshot.authoritativeState!.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
@@ -719,8 +736,9 @@ describe('useBattlefieldDisplayState', () => {
 			} as unknown as DefenderUnit,
 		}
 		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
-				'LittlePigs:4,4': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },

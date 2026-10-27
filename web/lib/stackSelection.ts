@@ -34,6 +34,7 @@ export function filterStackRosterToUnitIds(
   }
 
   return {
+    nextGroupOrdinal: stackRoster.nextGroupOrdinal,
     groupsById: Object.fromEntries(
       Object.entries(stackRoster.groupsById).flatMap(([groupId, group]) => {
         const displayedUnitIds = group.unitIds.filter((unitId) => unitIds.has(unitId))
@@ -144,7 +145,7 @@ export function resolveBattlefieldStackMemberIds(state: WebStackSourceState | nu
   )
   const group = stackRosterIndex.getUnitGroup(unitId)
   if (group === null) {
-    throw new Error(`Missing stackRoster entry for grouped unit ${unitId}`)
+		return [unitId]
   }
 
   const activeMemberIds = group.units
@@ -187,15 +188,15 @@ export function countSelectedBattlefieldStackGroups(
     return 0
   }
 
-  const selectedGroupKeys = new Set<string>()
+  const selectedGroupSelectionKeys = new Set<string>()
 
   for (const selectedUnitId of selectedUnitIds) {
     const resolvedUnitId = resolveSelectionOwnerUnitId(selectedUnitId)
     const selectedGroupIds = resolveBattlefieldStackMemberIds(state, resolvedUnitId, catalog)
-    selectedGroupKeys.add(selectedGroupIds.join('|'))
+    selectedGroupSelectionKeys.add(selectedGroupIds.join('|'))
   }
 
-  return selectedGroupKeys.size
+  return selectedGroupSelectionKeys.size
 }
 
 /** Reports whether the current defender phase permits stack expansion. */

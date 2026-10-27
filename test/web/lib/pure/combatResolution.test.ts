@@ -135,7 +135,7 @@ describe('buildCombatResolution', () => {
 			{
 				type: 'FIRE_RESOLVED',
 				attackers: ['main'],
-				targetId: 'LittlePigs:1,1',
+				targetId: 'group-1',
 				targetFriendlyName: 'Little Pigs group 1',
 				outcome: 'X',
 			},
