@@ -1,14 +1,14 @@
 # Stack Action And Identity Refactor
 
+**Status:** Complete; archived 2026-10-27.
+
 ## Purpose
 
 Issue #60 asks how movement, combat, ramming, and stacks should interact; whether they should share a common action path; and where server and web code duplicate stack behavior. This document records the architectural assessment of the current implementation, resolves foundational contract decisions, and establishes an actionable, bounded sequence of implementation tasks for sub-agents.
 
-This document is an architectural plan of record. The active five-item implementation sequence below is the current status authority; the detailed tasks retain the architectural boundaries and acceptance criteria for delegation. It does not authorize changes outside its sequenced scope.
+This document is an architectural plan of record. The completed seven-item implementation sequence below is the final status authority; the detailed tasks retain the architectural boundaries and acceptance criteria for historical reference. It does not authorize changes outside its sequenced scope.
 
----
-
-## Active Five-Item Sequence
+## Completed Seven-Item Sequence
 
 The implementation sequence is intentionally narrower than the architectural task breakdown below:
 
@@ -29,15 +29,16 @@ The implementation sequence is intentionally narrower than the architectural tas
 
 Action execution rewrites, combined commands, and web command resolution were completed under item 5.
 
-### Current Status and Next Steps (2026-10-27)
+6. **[x] Cross-layer verification and regression suite**
+7. **[x] Handler boilerplate consolidation**
 
-- Active items 1 through 5 are complete. Canonical group identity, singleton pruning, naming lifecycle, server action handling, web projections, and direct right-rail FIRE target resolution are implemented and covered by focused regressions.
+### Completion Status (2026-10-27)
+
+- Items 1 through 7 are complete. Canonical group identity, singleton pruning, naming lifecycle, server action handling, web projections, and direct right-rail FIRE target resolution are implemented and covered by focused regressions.
 - Inactive-event naming is covered at the server event-builder, web formatting, and browser-rendered E2E layers. The grouped combat scenarios assert `Fire on Little Pigs group 1: destroyed`, `Attackers (1): Main Weapon`, `Attackers (2): Little Pigs group 1`, and friendly target labels including `Target: Little Pigs group 1` and `Target: The Onion 1 treads`; canonical `group-1` remains the wire/state identity and is not accepted as the viewer-facing name.
 - Verified gates: `pnpm test`, `pnpm exec tsc --noEmit`, `pnpm web:build`, `pnpm lint`, and `pnpm web:lint`. The web build reports a non-blocking large-chunk warning; root lint reports only three warnings in generated coverage files and no errors.
 - `pnpm test:integration` is verified against the external Compose PostgreSQL service with the host test environment configured: 4 test files and 39 tests passed. The `db` and `migrate` services are required; the `engine` container is not required because Vitest instantiates the app in the host process.
-- Next steps:
-  1. Treat the active identity/action plan and its Task 6 validation gates as complete.
-  2. Treat Task 7 as complete: MOVE and FIRE now share only their post-execution finalization boundary; their domain logic remains distinct.
+- No implementation steps remain. MOVE and FIRE share only their post-execution finalization boundary; their domain logic remains distinct.
 
 ## 1. Executive Decision Summary and Core Contract
 

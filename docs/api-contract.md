@@ -353,6 +353,11 @@ included so clients have a definite event fence even when `events` is
 empty, and so they do not need to traverse the array to find the latest
 sequence number.
 
+MOVE and FIRE keep separate validation, execution, event construction, and
+action-specific outcome assembly. They share only successful post-execution
+finalization: cause attachment, persistence, event and action logging,
+broadcast, and response construction. END_PHASE remains a separate handler.
+
 ### `GET /games/{id}/events?after={seq}`
 
 Fetch events that occurred after a given sequence number. Phase 1

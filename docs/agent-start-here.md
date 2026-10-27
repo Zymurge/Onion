@@ -30,7 +30,7 @@ When introducing or renaming source files it is imperative to update this docume
 
 | Task | Load | Code |
 | --- | --- | --- |
-| Canonical stack identity, stack naming, ActionSubject, or cross-layer MOVE/FIRE action ownership | [stack-action-and-identity-refactor.md](work-items/stack-action-and-identity-refactor.md) | Load only the relevant completed task or boundary, then follow its named shared, server, and web owner modules |
+| Canonical stack identity, stack naming, ActionSubject, or cross-layer MOVE/FIRE action ownership | [persistence.md](persistence.md), [api-contract.md](api-contract.md), and [interaction-routing-spec.md](web-ui/interaction-routing-spec.md) | Load only the relevant contract section, then follow its named shared, server, and web owner modules |
 | Version scope or deferred work | [v1-v2-scope.md](work-items/v1-v2-scope.md) | Read this before selecting adjacent work. Do not implement V2 items unless the user explicitly expands scope. |
 | Unit or weapon numbers, ram profile, stack-size limit, or terrain flags | `shared/config/unitCatalog.json` | `shared/unitDefinitions.ts`. Do not take these numbers from [game-rules.md](game-rules.md) |
 | Unit definitions or scenario-derived types | [scenario-schema.md](scenario-schema.md) `## 4. Unit and Weapon Definitions` | `server/engine/scenarioSchema.ts`, `server/engine/scenarioDefinitions.ts`, and `server/engine/scenarioNormalizer.ts`; `shared/rulesContext.ts` is the authoritative per-match lookup boundary. |
@@ -54,7 +54,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Fetch one game | [api-contract.md](api-contract.md) `### GET /games/{id}` | `server/api/gameRoutes/stateRoutes.ts` |
 | Snapshot freshness and conditional refresh | [api-contract.md](api-contract.md) `### Snapshot refresh` and `### GET /games/{id}` | `server/api/gameRoutes/stateRoutes.ts`, `server/db/`, `shared/apiProtocol.ts`, `web/lib/httpGameClient.ts`; `eventSeq` remains the event cursor |
 | Submit an action | [api-contract.md](api-contract.md) `### POST /games/{id}/actions`, then one command heading | `server/api/gameRoutes/actionRoutes.ts`, then the matching `actionHandlers/` module |
-| Shared MOVE/FIRE post-execution finalization | [stack-action-and-identity-refactor.md](work-items/stack-action-and-identity-refactor.md) Task 7, then [api-contract.md](api-contract.md) `### POST /games/{id}/actions` | `server/api/gameRoutes/actionHandlers/common.ts`; keep validation, execution, event construction, and action-specific outcomes in `move.ts` or `fire.ts` |
+| Shared MOVE/FIRE post-execution finalization | [api-contract.md](api-contract.md) `### POST /games/{id}/actions` | `server/api/gameRoutes/actionHandlers/common.ts`; keep validation, execution, event construction, and action-specific outcomes in `move.ts` or `fire.ts` |
 | MOVE command | [api-contract.md](api-contract.md) `### MOVE` | `server/engine/movement.ts` |
 | FIRE command | [api-contract.md](api-contract.md) `### FIRE` and `#### Combat Target IDs` | `server/engine/combat/actions.ts` |
 | END_PHASE command | [api-contract.md](api-contract.md) `### END_PHASE` | `server/api/gameRoutes/actionHandlers/endPhase.ts` |
