@@ -218,7 +218,12 @@ Errors:   401 unauthorized
 The match lifecycle is `waiting` while a player slot is open, `ready` once
 both roles are filled, `active` after the authenticated host starts the match,
 and `completed` after a winner is persisted. Gameplay actions are accepted
-only while the match is `active`.
+only while the match is `active`. A newly created match records its creator as
+host. Joining and open-game discovery are allowed only while the match is
+`waiting`; membership and role assignments are locked after the match starts.
+Readiness is derived from the two filled roles rather than submitted by a
+separate client mutation. The `STARTED` event marks the transition into
+`active` before gameplay actions are accepted.
 
 ### `GET /games/{id}`
 

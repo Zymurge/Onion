@@ -60,8 +60,10 @@ following deferred work is V2:
   user-controlled ready-up.
 - Removal of the legacy `ready` field after all clients use lifecycle status.
 
-The detailed multi-window contract lives in
-[multi-window-lobby-spec.md](multi-window-lobby-spec.md).
+The current V1 contract lives in
+[lobby-and-session-spec.md](../web-ui/lobby-and-session-spec.md). This V2 list
+is the canonical source for deferred lobby and multi-window expansion; no
+work-item checklist is required to interpret it.
 
 ### Debug Protocol Viewer
 

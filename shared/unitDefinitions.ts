@@ -1,4 +1,5 @@
 import catalogConfig from './config/unitCatalog.json' with { type: 'json' }
+import { assertSupportedUnitSpriteKey } from './unitSpriteManifest.js'
 import type {
   UnitType,
   UnitTypeBase,
@@ -43,6 +44,8 @@ function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig
     if (typeof unitType.name !== 'string' || typeof unitType.description !== 'string' || typeof unitType.movement !== 'number' || typeof unitType.defense !== 'number') {
       throw new Error(`Invalid unit catalog attributes for unit type: ${unitTypeId}`)
     }
+
+    assertSupportedUnitSpriteKey(unitType.spriteKey, unitTypeId)
 
     if ('hexMapScale' in unitType && (
       typeof unitType.hexMapScale !== 'number'

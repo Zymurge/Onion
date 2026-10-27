@@ -1,5 +1,7 @@
 # Multi-Window Lobby and Game Session Specification
 
+**Status:** Complete; archived 2026-10-27.
+
 ## Purpose
 
 Define the short-term and long-term path for keeping the lobby fresh while

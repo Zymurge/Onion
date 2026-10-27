@@ -5,6 +5,11 @@
 Define the authenticated lobby, game-summary views, and boundary between lobby
 coordination and a playable game window.
 
+The lobby coordinates authenticated users, game membership, scenario and role
+selection, lifecycle status, and entry into a match. It does not own turn
+rules, movement, combat, victory, or authoritative in-game state; those remain
+owned by the gameplay engine after the match starts.
+
 ## Endpoint Surface
 
 The lobby uses these authenticated endpoints, with runtime configuration loaded
@@ -37,6 +42,13 @@ The full payload contract is in [api-contract.md](../api-contract.md).
   state. Starting sends authenticated `POST /games/{id}/start`.
 - Open-game discovery contains only currently joinable waiting games. When a
   game leaves `waiting`, it is removed on the next authoritative refresh.
+- A newly created game is `waiting` and records its creator as host. A full
+  roster becomes `ready` automatically; users do not submit a separate
+  readiness mutation in the current contract.
+- Only the authenticated host may start a full `ready` game. Starting emits
+  the authoritative `STARTED` transition before gameplay actions are accepted.
+- Once a game is `active`, membership and role assignments are locked. A game
+  becomes `completed` only after a winner is persisted and is then read-only.
 
 ## Scenario Preview
 
@@ -71,6 +83,9 @@ The full payload contract is in [api-contract.md](../api-contract.md).
   user action, then hands the returned game ID to that window after the request
   succeeds. A joined game may still be `ready`, so its game window remains
   locked until the host starts it.
+- The handoff carries the game ID, assigned role, selected scenario context,
+  and connection information needed to load the existing gameplay experience;
+  the authoritative snapshot remains the source of truth after entry.
 - If popup blocking prevents a join or start window, the lobby stays in place,
   the request is not sent, and the client reports that popups must be allowed.
 - Active and completed `Open Game` actions retain the existing same-window
@@ -99,5 +114,5 @@ The full payload contract is in [api-contract.md](../api-contract.md).
 The permanent UI contract does not require a lobby WebSocket, socket
 multiplexer, duplicate-window suppression, focus-existing behavior,
 `BroadcastChannel`, `localStorage` coordination, automatic lobby navigation, or
-cross-window logout propagation. Those remain documented as future work in
-[the multi-window lobby work item](../work-items/multi-window-lobby-spec.md).
+cross-window logout propagation. Those remain V2 work in
+[v1-v2-scope.md](../work-items/v1-v2-scope.md).

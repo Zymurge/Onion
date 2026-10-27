@@ -211,6 +211,10 @@ describe('static unit and weapon catalogs', () => {
     expect(() => parseUnitCatalog({ unitTypes: { TestUnit: unit }, weaponTypes: {} })).toThrow(/TestUnit/)
   })
 
+  it('rejects an unknown sprite key through the pure catalog parser', () => {
+    expect(() => parseUnitCatalog(makeCatalogConfig({ spriteKey: 'missing' }))).toThrow(/spriteKey.*TestUnit|TestUnit.*spriteKey/)
+  })
+
   it.each([
     ['legacy role', { role: 'defender' }],
     ['arbitrary field', { misspelledField: true }],

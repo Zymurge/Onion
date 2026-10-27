@@ -21,7 +21,7 @@ objective display, and visual state rules.
 ## Swamp and Objectives
 
 - The Swamp (HQ) is selectable, attackable, and rammable, with a unique icon
-  and a placeholder fallback if the custom image is unavailable.
+  and the generic unit sprite fallback if the custom image is unavailable.
 - The Swamp renders above authored terrain without replacing that terrain.
 - A destroyed Swamp remains on the map, changes visual state, and remains
   selectable for inspection.

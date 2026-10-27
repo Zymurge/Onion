@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
+import { SUPPORTED_UNIT_SPRITE_KEYS } from '#shared/unitSpriteManifest'
 import { getUnitSpriteHref } from '#web/lib/unitSpriteRegistry'
+import { unitSpriteRegistry } from '#web/lib/unitSpriteRegistry'
 
 describe('unit sprite registry', () => {
+	it('registers every key in the shared sprite manifest', () => {
+		expect(Object.keys(unitSpriteRegistry)).toEqual(expect.arrayContaining(SUPPORTED_UNIT_SPRITE_KEYS as string[]))
+	})
+
 	it('resolves ordinary unit sprites from their sprite keys', () => {
 		for (const spriteKey of ['puss']) {
 			expect(getUnitSpriteHref(spriteKey, 'operational')).toContain('puss-sprite.png')
@@ -23,8 +29,9 @@ describe('unit sprite registry', () => {
 		expect(getUnitSpriteHref('swamp', 'destroyed')).toContain('The%20Swamp%20-%20destroyed.png')
 	})
 
-	it('returns no asset for an unknown sprite key', () => {
-		expect(getUnitSpriteHref('missing', 'operational')).toBeUndefined()
+	it('uses the generic asset for missing or unknown sprite keys', () => {
+		expect(getUnitSpriteHref(undefined, 'operational')).toContain('data:image/svg+xml')
+		expect(getUnitSpriteHref('missing', 'operational')).toContain('data:image/svg+xml')
 	})
 
 	it('resolves the Witch sprite asset', () => {

@@ -96,6 +96,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | --- | --- | --- |
 | `shared/config/unitCatalog.json` | Stores global unit and weapon definitions, including ram, stack-size, and terrain capabilities. | `DUP`: `treadsPerMove` is declared and not read by `shared/movementAllowance.ts`. |
 | `shared/unitDefinitions.ts` | Parses the global catalog and exposes global definition accessors. | Scenario-local definitions are resolved elsewhere. |
+| `shared/unitSpriteManifest.ts` | Defines supported authored sprite keys and validates catalog metadata against them. | The web registry owns image imports and state variants. |
 | `shared/types/index.ts` | Defines unit catalog metadata, including sprite keys and map-only sprite layout fields. | |
 | `shared/rulesContext.ts` | Provides the immutable per-match unit/weapon catalog and combat-rule lookup boundary. | `WRAP`: falls back to the global context only for callers without a scenario context. |
 | `shared/movementRules.ts` | Decides terrain access, move cost, and occupied-hex legality. | |
@@ -195,7 +196,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `web/lib/combatOdds.ts` | Formats preview odds through the shared CRT band. | `WRAP` |
 | `web/lib/combatPreview.ts` | Builds combat target options for display. | |
 | `web/lib/sessionCatalog.ts` | Reads the catalog payload supplied to the session. | Not a second numeric catalog. |
-| `web/lib/unitSpriteRegistry.ts` | Maps resolved sprite keys to bundled assets and state variants. | |
+| `web/lib/unitSpriteRegistry.ts` | Maps resolved sprite keys to bundled assets and state variants, with the generic asset fallback. | Uses the shared sprite-key manifest. |
 | `web/lib/hexMapSpriteLayout.ts` | Applies type-specific scale and offsets to map sprite boxes. | Inspector sizing is separate. |
 | `web/components/HexMapBoard.tsx` | Renders the board, map overlays, and state-pattern definitions. | |
 | `web/components/HexMapCell.tsx` | Renders occupants and whole-hex status overlays. | |

@@ -53,7 +53,7 @@ Names only. Numbers live in `shared/config/unitCatalog.json`.
 - **Defense:** 0 (Any "X" result destroys it)
 - **Ram Profile:** Rammable
 - **Selectable:** Yes (appears as a unit on the map, not just a background feature)
-- **Icon:** Custom swamp image preferred; fallback to placeholder if unavailable
+- **Icon:** Custom swamp image preferred; generic unit sprite fallback if unavailable
 
 ### Victory Conditions
 

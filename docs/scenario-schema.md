@@ -185,6 +185,15 @@ The global catalog remains the base definition source. A scenario may add
 scenario-local derived unit types, but the runtime must always consume one
 resolved `UnitTypeCatalog` and `WeaponTypeCatalog`.
 
+The scenario resolver produces that complete catalog before deployment. The
+engine, API, `SESSION_INIT`, replay path, and web client all consume the same
+resolved definitions; no runtime owner reads raw scenario overrides. Resolved
+scenario-local IDs are namespaced by scenario, and the catalog is immutable for
+the match. Global unit `spriteKey` values are checked against the shared sprite
+manifest during catalog loading, and the scenario validator resolves the same
+catalog before accepting an authored scenario. Replay storage must retain or
+version the scenario data needed to reconstruct the same catalog.
+
 ### Global weapon type shape
 
 Global weapon types are keyed by stable ids. A weapon type contains:

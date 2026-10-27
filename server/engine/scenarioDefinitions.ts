@@ -1,6 +1,7 @@
 import type { Scenario } from '#server/engine/scenarioSchema'
 import { createRulesContext, deepFreeze, type RulesContext } from '#shared/rulesContext'
 import type { UnitTypeBase, UnitTypeCatalog, WeaponType, WeaponTypeCatalog } from '#shared/types/index'
+import { assertSupportedUnitSpriteKey } from '#shared/unitSpriteManifest'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 
 type ScenarioUnitTypes = NonNullable<Scenario['unitTypes']>
@@ -111,6 +112,7 @@ export function resolveScenarioDefinitions(
 
   const resolvedWeaponTypes: Record<string, WeaponType> = structuredClone(globalWeaponTypes)
   for (const [resolvedTypeId, definition] of Object.entries(resolvedUnitTypes)) {
+    assertSupportedUnitSpriteKey(definition.spriteKey, resolvedTypeId)
     if (!resolvedTypeId.startsWith(`${scenarioId}:`)) {
       continue
     }

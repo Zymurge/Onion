@@ -15,6 +15,9 @@ how a future help or scenario-authoring surface must frame an image.
 
 - The resolved unit definition supplies `spriteKey`; the web client does not
   derive image paths from type names.
+- `shared/unitSpriteManifest.ts` defines the supported authored keys. The
+  shared catalog parser and scenario resolver reject unknown keys, while the
+  web registry is checked against the same manifest.
 - `unitSpriteRegistry` statically imports the bundled assets and maps each key
   to either one image or a set of explicit presentation variants. The server
   supplies catalog metadata, not image bytes.
@@ -33,11 +36,11 @@ requested damaged state uses the optional `damaged` image, falling back to the
 operational image. Disabled and recovering states use the operational image
 unless the registry is extended with a specific variant.
 
-`spriteKey` is optional and its match against the registry is not validated by
-the shared catalog parser. An absent or unrecognized key currently resolves to
-no image; there is no fallback sprite. Keep shipped keys registered and decide
-on validation or fallback behavior before allowing tools to author new asset
-keys.
+`spriteKey` is optional for intentionally non-specific unit types. An absent
+key resolves to the explicit generic unit asset. Unknown authored keys fail
+catalog and scenario-definition validation; the web resolver also uses the
+generic asset defensively if an invalid session payload reaches the client.
+The generic asset is a presentation fallback, not an authored sprite key.
 
 ## Map Sizing and Positioning
 
@@ -111,9 +114,10 @@ group ID rather than an individual Little Pigs member ID. See the
 
 | Responsibility | Code and focused tests |
 | --- | --- |
-| Catalog fields and validation | [unitCatalog.json](../../shared/config/unitCatalog.json), [types/index.ts](../../shared/types/index.ts), [unitDefinitions.ts](../../shared/unitDefinitions.ts), [scenarioDefinitions.ts](../../server/engine/scenarioDefinitions.ts) |
-| Session catalog and asset lookup | [sessionCatalog.ts](../../web/lib/sessionCatalog.ts), [unitSpriteRegistry.ts](../../web/lib/unitSpriteRegistry.ts) |
+| Catalog fields and validation | [unitCatalog.json](../../shared/config/unitCatalog.json), [types/index.ts](../../shared/types/index.ts), [unitDefinitions.ts](../../shared/unitDefinitions.ts), [unitSpriteManifest.ts](../../shared/unitSpriteManifest.ts), [scenarioDefinitions.ts](../../server/engine/scenarioDefinitions.ts) |
+| Scenario authoring validation | [validate-scenario.ts](../../scripts/validate-scenario.ts) |
+| Session catalog and asset lookup | [sessionCatalog.ts](../../web/lib/sessionCatalog.ts), [unitSpriteRegistry.ts](../../web/lib/unitSpriteRegistry.ts), [generic-unit-sprite.svg](../../web/assets/unit-sprites/generic-unit-sprite.svg) |
 | Map layout and marker | [hexMapSpriteLayout.ts](../../web/lib/hexMapSpriteLayout.ts), [HexMapBoard.tsx](../../web/components/HexMapBoard.tsx), [HexMapCell.tsx](../../web/components/HexMapCell.tsx), [HexMapUnitMarker.tsx](../../web/components/HexMapUnitMarker.tsx) |
 | Inspector and rail styling | [BattlefieldInspectorPanel.tsx](../../web/components/BattlefieldInspectorPanel.tsx), [App.css](../../web/App.css) |
 | Roster and map projections | [battlefieldViewBuilders.ts](../../web/lib/battlefieldViewBuilders.ts), [projection.ts](../../web/lib/battlefieldDisplay/projection.ts), [phases.ts](../../server/engine/phases.ts), [game.ts](../../server/engine/game.ts), [stateProjection.ts](../../server/api/gameHelpers/stateProjection.ts) |
-| Focused rendering and layout tests | [hexMapSpriteLayout.test.ts](../../test/web/lib/hexMapSpriteLayout.test.ts), [HexMapUnitMarker.test.tsx](../../test/web/components/HexMapUnitMarker.test.tsx), [HexMapCell.test.tsx](../../test/web/components/HexMapCell.test.tsx), [BattlefieldInspectorPanel.test.tsx](../../test/web/components/BattlefieldInspectorPanel.test.tsx) |
+| Focused rendering and layout tests | [unitCatalog.test.ts](../../test/shared/unitCatalog.test.ts), [unitSpriteRegistry.test.ts](../../test/web/lib/unitSpriteRegistry.test.ts), [hexMapSpriteLayout.test.ts](../../test/web/lib/hexMapSpriteLayout.test.ts), [HexMapUnitMarker.test.tsx](../../test/web/components/HexMapUnitMarker.test.tsx), [HexMapCell.test.tsx](../../test/web/components/HexMapCell.test.tsx), [BattlefieldInspectorPanel.test.tsx](../../test/web/components/BattlefieldInspectorPanel.test.tsx) |

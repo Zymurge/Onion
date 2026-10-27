@@ -9,10 +9,12 @@ import pinocchioSprite from '../assets/unit-sprites/pinocchio-sprite.png'
 import witchSprite from '../assets/unit-sprites/witch-sprite.png'
 import swampDestroyedSprite from '../assets/unit-sprites/The Swamp - destroyed.png'
 import swampIntactSprite from '../assets/unit-sprites/The Swamp - intact.png'
+import genericUnitSprite from '../assets/unit-sprites/generic-unit-sprite.svg'
+import { isSupportedUnitSpriteKey, type UnitSpriteKey } from '#shared/unitSpriteManifest'
 
 export type UnitSprite = string | { operational: string; damaged?: string; destroyed: string }
 
-export const unitSpriteRegistry: Readonly<Record<string, UnitSprite>> = {
+export const unitSpriteRegistry: Readonly<Record<UnitSpriteKey, UnitSprite>> = {
 	'puss': pussSprite,
 	'big-bad-wolf': bigBadWolfSprite,
 	'witch': witchSprite,
@@ -30,13 +32,9 @@ export function getUnitSpriteHref(
 	state: 'operational' | 'disabled' | 'recovering' | 'destroyed',
 	isDamaged = false,
 ): string | undefined {
-	if (spriteKey === undefined) {
-		return undefined
-	}
-
-	const sprite = unitSpriteRegistry[spriteKey]
+	const sprite = isSupportedUnitSpriteKey(spriteKey) ? unitSpriteRegistry[spriteKey] : undefined
 	if (sprite === undefined) {
-		return undefined
+		return genericUnitSprite
 	}
 
 	if (typeof sprite === 'string') {

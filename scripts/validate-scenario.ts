@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { ZodError } from 'zod'
 
 import { parseScenarioSnapshot, ScenarioValidationError } from '#server/api/gameHelpers/scenario'
+import { resolveScenarioDefinitions } from '#server/engine/scenarioDefinitions'
 
 function formatError(error: unknown): string {
   if (error instanceof ScenarioValidationError && error.cause instanceof ZodError) {
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
   try {
     const raw = JSON.parse(await readFile(scenarioPath, 'utf8')) as unknown
     const scenario = parseScenarioSnapshot(raw)
+    resolveScenarioDefinitions(scenario.id, scenario.unitTypes)
     console.log(`Valid scenario: ${scenario.displayName ?? scenario.name} (${scenario.id})`)
   } catch (error) {
     console.error(`Invalid scenario "${scenarioPath}": ${formatError(error)}`)
