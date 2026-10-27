@@ -1,12 +1,43 @@
-# Stack Action Identity Review
+# Stack Action And Identity Refactor
 
 ## Purpose
 
 Issue #60 asks how movement, combat, ramming, and stacks should interact; whether they should share a common action path; and where server and web code duplicate stack behavior. This document records the architectural assessment of the current implementation, resolves foundational contract decisions, and establishes an actionable, bounded sequence of implementation tasks for sub-agents.
 
-This document is an architectural plan of record. It defines the implementation boundaries and contracts for delegation but does not authorize changes outside its sequenced scope.
+This document is an architectural plan of record. The active five-item implementation sequence below is the current status authority; the detailed tasks retain the architectural boundaries and acceptance criteria for delegation. It does not authorize changes outside its sequenced scope.
 
 ---
+
+## Active Five-Item Sequence
+
+The implementation sequence is intentionally narrower than the architectural task breakdown below:
+
+1. **[x] Define common action subject**
+2. **[x] Unify canonical group lookups**
+3. **[x] Enforce immutable group IDs**
+    - Persist canonical opaque `group-N` IDs in `stackRoster.groupsById`.
+    - Keep group-ID allocation in `stackRoster` and remove caller-controlled split IDs.
+    - Align action and UI contracts with canonical `groupId` values.
+    - Remove coordinate-derived targets, naming keys, and stale coordinate-shaped fixtures.
+    - Complete the focused integration, typecheck, and lint audit for the changed surfaces.
+4. **[x] Align naming lifecycle IDs**
+    - Allocate initial group IDs from the roster ordinal and omit singleton roster entries.
+    - Key active naming records and retirement history by canonical `groupId`.
+    - Preserve names across intact moves, splits, and merges without recycling retired names.
+    - Keep roster canonicalization and naming refresh synchronized, including singleton pruning.
+5. **[x] Align action-specific resolution**
+
+Action execution rewrites, combined commands, and web command resolution were completed under item 5.
+
+### Current Status and Next Steps (2026-10-27)
+
+- Active items 1 through 5 are complete. Canonical group identity, singleton pruning, naming lifecycle, server action handling, web projections, and direct right-rail FIRE target resolution are implemented and covered by focused regressions.
+- Inactive-event naming is covered at the server event-builder, web formatting, and browser-rendered E2E layers. The grouped combat scenarios assert `Fire on Little Pigs group 1: destroyed`, `Attackers (1): Main Weapon`, `Attackers (2): Little Pigs group 1`, and friendly target labels including `Target: Little Pigs group 1` and `Target: The Onion 1 treads`; canonical `group-1` remains the wire/state identity and is not accepted as the viewer-facing name.
+- Verified gates: `pnpm test`, `pnpm exec tsc --noEmit`, `pnpm web:build`, `pnpm lint`, and `pnpm web:lint`. The web build reports a non-blocking large-chunk warning; root lint reports only three warnings in generated coverage files and no errors.
+- `pnpm test:integration` is verified against the external Compose PostgreSQL service with the host test environment configured: 4 test files and 39 tests passed. The `db` and `migrate` services are required; the `engine` container is not required because Vitest instantiates the app in the host process.
+- Next steps:
+  1. Treat the active identity/action plan and its Task 6 validation gates as complete.
+  2. Treat Task 7 as complete: MOVE and FIRE now share only their post-execution finalization boundary; their domain logic remains distinct.
 
 ## 1. Executive Decision Summary and Core Contract
 
@@ -37,7 +68,7 @@ This document is an architectural plan of record. It defines the implementation 
 | **Group ID (`groupId`)** | Identifies an active formation of $\ge 2$ stackable units. Opaque string (e.g., `group-1`). | Location-independent. Never encodes `q, r` or unit type. Preserved when moving intact. Never reused after retirement. |
 | **Map Key (`rosterKey`)** | Key in `state.stackRoster.groupsById`. | Strictly equals the canonical `groupId`. |
 | **Derived Position Key (`hexKey`)** | Coordinate key (e.g., `4,4` or `${type}:${q},${r}`). | Used solely for spatial queries (occupancy, range, terrain). Must **never** be used as an identity key in `groupsById` or `targetId`. |
-| **Naming Key (`groupKey`)** | Lookup key in `stackNaming.groupsInUse`. | Updated to match the canonical `groupId`. |
+| **Naming Key (`groupId`)** | Lookup key in `stackNaming.groupsInUse`. | Must match the canonical `groupId`; coordinate-derived naming keys are invalid. |
 | **ActionSubject** | Pure derived view resolved from a `unitId` or `groupId`. | Exposes `id`, `kind: 'unit' \| 'group'`, `typeId`, `position`, `label`, `size`, and `memberUnitIds`. Transient; never persisted. |
 | **Combat Target ID (`targetId`)** | Protocol target wire identifier. | Valid values: individual unit ID (unstacked unit), canonical `groupId` (multi-unit stack target), weapon ID (`main`, `secondary-1`), or `{onionId}:treads`. |
 
@@ -118,7 +149,7 @@ This document is an architectural plan of record. It defines the implementation 
            [Task 6: Cross-Layer Verification & Regressions]
                                 |
                                 v
-           [Task 7: Optional Handler Cleanup (Deferred)]
+           [Task 7: Handler Cleanup (Completed)]
 ```
 
 ---
@@ -143,7 +174,8 @@ This document is an architectural plan of record. It defines the implementation 
 - **Goal:** Update `shared/stackRoster` and `shared/types` to support monotonic group IDs, singleton pruning, and the derived `ActionSubject` resolver.
 - **Files to Inspect / Modify:**
   - `shared/types/index.ts`: Update `StackRosterState` to include `nextGroupOrdinal: number`. Update `StackRosterGroupState` ensuring `groupId` is recognized.
-  - `shared/stackRoster/types.ts`: Define `ActionSubject` interface and related resolution types.
+  - `shared/actionSubject.ts`: Define the derived `ActionSubject` interface and related resolution types.
+  - `shared/stackRoster/types.ts`: Maintain the related roster view and lookup contracts.
   - `shared/stackRoster/indexing.ts`: Enhance `buildStackRosterIndex` to resolve `ActionSubject` for any unit or group ID. Remove coordinate-based `groupKey` lookups.
   - `shared/stackRoster/transitions.ts`:
     - Move intact groups by updating `position` while keeping `groupId`.
@@ -157,6 +189,7 @@ This document is an architectural plan of record. It defines the implementation 
   - Monotonic group IDs are preserved across whole-group movement.
   - Groups with $< 2$ members are automatically retired from `groupsById`.
   - `buildStackRosterIndex` correctly returns `ActionSubject` views.
+  - Canonical roster projection preserves `nextGroupOrdinal` and retired-name history while pruning singleton groups.
   - Focused suite passes: `pnpm test test/shared/stackRoster.test.ts`.
 - **Non-Goals:** Do not modify server scenario normalizer or web client in this task.
 
@@ -224,7 +257,7 @@ This document is an architectural plan of record. It defines the implementation 
     - Resolve group labels using `groupId` and roster records instead of reconstructing `${type}:${q},${r}`.
   - `web/lib/combatPreview.ts`:
     - Build defender target options using canonical `groupId`. Remove coordinate-based tripwires.
-  - `test/web/lib/stackSelection.test.ts`, `test/web/lib/pure/rightRailSelection.test.ts`, `test/web/lib/pure/commitActionBuilders.test.ts`, `test/web/lib/pure/combatPreview.test.ts`, `test/web/lib/battlefieldNaming.contract.test.ts`.
+  - `test/web/lib/stackSelection.test.ts`, `test/web/lib/rightRailSelection.test.ts`, `test/web/lib/pure/commitActionBuilders.test.ts`, `test/web/lib/pure/combatPreview.test.ts`, `test/web/lib/battlefieldNaming.contract.test.ts`.
 - **Prerequisites:** Task 4.
 - **Acceptance Criteria:**
   - Combat preview targets display defense values with canonical `groupId` targets.
@@ -252,18 +285,22 @@ This document is an architectural plan of record. It defines the implementation 
 - **Acceptance Criteria:**
   - Full test suite passes without regressions.
   - Clean TypeScript compilation and web build.
-  - No references to coordinate-based group IDs (`${type}:${q},${r}`) remain in active codebase.
+  - No coordinate-derived value is used as a persisted group identity or combat target; spatial coordinate keys may remain in local occupancy and validation indexes.
 
 ---
 
-### Task 7: Handler Boilerplate Consolidation (Optional / Deferred)
+### Task 7: Handler Boilerplate Consolidation (Completed)
 
-- **Goal:** Evaluate extracting repetitive persistence, event logging, and response wrapping between `move.ts` and `fire.ts` into a shared helper `server/api/gameRoutes/actionHandlers/common.ts`.
+- **Goal:** Extract repetitive post-execution finalization between `move.ts` and `fire.ts` into a shared helper `server/api/gameRoutes/actionHandlers/common.ts`.
 - **Files to Inspect / Modify:**
+  - `server/api/gameRoutes/actionHandlers/common.ts`
   - `server/api/gameRoutes/actionHandlers/move.ts`
   - `server/api/gameRoutes/actionHandlers/fire.ts`
+  - `test/server/api/gameRoutes/actionHandlers/common.test.ts`
 - **Prerequisites:** Task 6 completed and green.
 - **Acceptance Criteria:**
-  - Shared wrapper handles match loading, event progression, and error response formatting without altering engine validation or execution logic.
-  - Zero behavioral regressions.
-- **Non-Goals:** Do not merge MOVE and FIRE domain logic.
+  - Shared finalization handles cause attachment, persistence, event/action logging, broadcasting, and successful action response construction after MOVE or FIRE execution succeeds.
+  - Event sequence fallback uses the latest persisted match event when an action emits no events.
+  - Persistence failures propagate unchanged so the route can preserve stale-state handling.
+  - Focused helper tests and the existing action-handler/API tests pass with zero behavioral regressions.
+- **Non-Goals:** Do not centralize match loading, authorization, schema validation, error mapping, MOVE/FIRE validation or execution, event construction, action-specific outcome assembly, or END_PHASE handling. Do not merge MOVE and FIRE domain logic.
