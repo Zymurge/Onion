@@ -20,14 +20,14 @@ The implementation sequence is intentionally narrower than the architectural tas
 - Remove coordinate-derived targets, naming keys, and stale coordinate-shaped fixtures.
 - Complete the focused integration, typecheck, and lint audit for the changed surfaces.
 
-4. **[-] Align naming lifecycle IDs**
+4. **[x] Align naming lifecycle IDs**
 
 - Allocate initial group IDs from the roster ordinal and omit singleton roster entries.
 - Key active naming records and retirement history by canonical `groupId`.
 - Preserve names across intact moves, splits, and merges without recycling retired names.
 - Keep roster canonicalization and naming refresh synchronized, including singleton pruning.
 
-5. **[ ] Align action-specific resolution**
+5. **[x] Align action-specific resolution**
 
 Action execution rewrites, combined commands, and web command resolution remain outside item 4 and belong to item 5.
 

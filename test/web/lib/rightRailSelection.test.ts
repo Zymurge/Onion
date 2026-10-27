@@ -235,6 +235,26 @@ describe('rightRailSelection', () => {
       })
     })
 
+    it('normalizes an individual stacked target to its canonical group ID', () => {
+      const state = createTestStackState()
+
+      expect(buildRightRailCombatAction({
+        state,
+        anchorUnitId: 'pigs-1',
+        selectedUnitIds: ['pigs-2'],
+        targetId: 'pigs-1',
+        onionId: 'onion-1',
+      })).toEqual({
+        ok: true,
+        action: {
+          type: 'FIRE',
+          attackers: ['pigs-2'],
+          targetId: 'group-1',
+          onionId: 'onion-1',
+        },
+      })
+    })
+
     it('rejects combat submission when the target is missing', () => {
       const state = createTestStackState()
 

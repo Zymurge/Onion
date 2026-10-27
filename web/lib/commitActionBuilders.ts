@@ -5,10 +5,12 @@ import {
   resolveSelectionOwnerUnitId,
 } from './selectionIds'
 import type { WebStackSourceState } from './stackSelection'
-import { buildRightRailCombatSubmissionAction, buildRightRailMoveSubmissionAction } from './rightRailSelection'
+import {
+  buildRightRailCombatSubmissionAction,
+  buildRightRailMoveSubmissionAction,
+  resolveStackGroupTargetId,
+} from './rightRailSelection'
 import { isSessionUnitTypeStackable } from './sessionCatalog'
-import { buildStackRosterIndex } from '../../shared/stackRoster/index.js'
-import type { DefenderMap, StackRosterState } from '../../shared/types/index.js'
 
 type CommitActionFailureReason = 'empty-stack-selection' | 'missing-target' | 'missing-onion' | 'snapshot-missing-stack-selection'
 
@@ -49,13 +51,6 @@ function resolveUnitType(state: WebStackSourceState, unitId: string | null): str
 
 function isStackableUnitType(state: WebStackSourceState, unitType: string | null): boolean {
   return unitType !== null && state.catalog !== undefined && isSessionUnitTypeStackable(state.catalog, unitType)
-}
-
-function resolveStackGroupTargetId(state: WebStackSourceState, targetId: string): string {
-  return buildStackRosterIndex(
-    state.stackRoster as StackRosterState | undefined,
-    state.defenders as DefenderMap | undefined,
-  ).getUnitGroup(targetId)?.groupId ?? targetId
 }
 
 function buildMovePayload(
