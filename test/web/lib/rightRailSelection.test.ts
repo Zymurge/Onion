@@ -32,13 +32,14 @@ function createTestStackState(): WebStackSourceState {
     defenders: createTestDefendersMap(),
     stackRoster: {
       groupsById: {
-        'stack-a': {
+        'group-1': {
           groupName: 'Little Pigs group 1',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
         },
       },
+      nextGroupOrdinal: 2,
     },
   }
 }
@@ -53,14 +54,8 @@ function createSingletonStackState(): WebStackSourceState {
     catalog: sessionCatalog,
     defenders,
     stackRoster: {
-      groupsById: {
-        'LittlePigs:4,8': {
-          groupName: 'Little Pigs group 2',
-          unitType: 'LittlePigs',
-          position: { q: 4, r: 8 },
-          unitIds: ['pigs-5'],
-        },
-      },
+      groupsById: {},
+      nextGroupOrdinal: 1,
     },
   }
 }
@@ -77,7 +72,7 @@ describe('rightRailSelection', () => {
         activeSelectedUnitIds: ['pigs-2'],
       })).toEqual({
         anchorUnitId: 'pigs-2',
-        groupId: 'stack-a',
+        groupId: 'group-1',
         memberUnitIds: ['pigs-2', 'pigs-1'],
         selectedUnitIds: ['pigs-2'],
         selectedCount: 1,
@@ -94,7 +89,7 @@ describe('rightRailSelection', () => {
         activeSelectedUnitIds: ['pigs-1', 'pigs-2', 'wolf-1'],
       })).toEqual({
         anchorUnitId: 'pigs-1',
-        groupId: 'stack-a',
+        groupId: 'group-1',
         memberUnitIds: ['pigs-1', 'pigs-2'],
         selectedUnitIds: ['pigs-1', 'pigs-2'],
         selectedCount: 2,
@@ -136,7 +131,7 @@ describe('rightRailSelection', () => {
         displayedOnion: null,
       })).toEqual({
         anchorUnitId: 'pigs-1',
-        groupId: 'stack-a',
+        groupId: 'group-1',
         memberUnitIds: ['pigs-1', 'pigs-2'],
         selectedUnitIds: ['pigs-1', 'pigs-2'],
         selectedCount: 2,
@@ -182,7 +177,7 @@ describe('rightRailSelection', () => {
       })
     })
 
-    it('rejects a stackable singleton group when no member is selected', () => {
+    it('moves a stackable singleton directly when no member is selected', () => {
       const state = createSingletonStackState()
 
       expect(buildRightRailMoveAction({
@@ -191,8 +186,12 @@ describe('rightRailSelection', () => {
         selectedUnitIds: [],
         to: { q: 5, r: 8 },
       })).toEqual({
-        ok: false,
-        reason: 'empty-stack-selection',
+        ok: true,
+        action: {
+          type: 'MOVE',
+          movers: ['pigs-5'],
+          to: { q: 5, r: 8 },
+        },
       })
     })
 
@@ -231,6 +230,26 @@ describe('rightRailSelection', () => {
           type: 'FIRE',
           attackers: ['pigs-2'],
           targetId: 'onion-1',
+          onionId: 'onion-1',
+        },
+      })
+    })
+
+    it('normalizes an individual stacked target to its canonical group ID', () => {
+      const state = createTestStackState()
+
+      expect(buildRightRailCombatAction({
+        state,
+        anchorUnitId: 'pigs-1',
+        selectedUnitIds: ['pigs-2'],
+        targetId: 'pigs-1',
+        onionId: 'onion-1',
+      })).toEqual({
+        ok: true,
+        action: {
+          type: 'FIRE',
+          attackers: ['pigs-2'],
+          targetId: 'group-1',
           onionId: 'onion-1',
         },
       })

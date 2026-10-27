@@ -6,14 +6,14 @@ Any snapshot that does not adhere to the canonical `stackRoster` bundle contract
 
 ## What is deprecated
 
-- Any snapshot lacking the canonical `stackRoster` bundle (`groupsById`) or the associated naming snapshot.
-- Any snapshot with malformed `groupsById` (missing `unitType`, valid `position`, or `unitIds` array; a multi-unit group must also have a non-empty `groupName`). Singleton groups may omit `groupName`.
+- Any snapshot lacking the canonical `stackRoster` bundle (`groupsById`, `nextGroupOrdinal`) or the associated naming snapshot.
+- Any snapshot with malformed `groupsById` (missing `unitType`, valid `position`, or `unitIds` array; every group must contain at least two members and a multi-unit group must also have a non-empty `groupName`). Singleton defenders are represented only by their unit records and must not have roster entries.
 - Any snapshot where `defenders` is relied upon as the canonical source of stack membership.
 
 ## Policy
 
 - Servers and clients MUST treat such snapshots as invalid.
-- Group-name lifecycle is size-based: singleton groups are unnamed, combining two or more unnamed units allocates a name, and regrouping preserves an existing valid multi-unit name. A split or relocation that leaves one unit removes the group name while retaining the unit's individual `friendlyName`.
+- Group-name lifecycle is size-based: singleton defenders have no group record, combining two or more unnamed units allocates a name, and regrouping preserves an existing valid multi-unit name. A split or relocation that leaves one unit removes the group record while retaining the unit's individual `friendlyName`.
 - There is no automatic migration or compatibility shim provided by the platform.
 - Loading an out-of-date snapshot should fail loudly (error response, reject on load, or show a clear terminal aborted-session UI).
 

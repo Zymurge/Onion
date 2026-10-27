@@ -14,14 +14,14 @@ export const combatParityFixtures: ReadonlyArray<CombatParityFixture> = [
 		name: 'Onion main weapon against a ridgeline Little Pigs stack',
 		input: {
 			attackerGroupIds: ['main'],
-			targetId: 'LittlePigs:1,1',
+			targetId: 'group-1',
 			combatState: {
 				units: {
 					main: {
 						typeId: 'TheOnion',
 						weaponIds: ['main'],
 					},
-					'LittlePigs:1,1': {
+					'group-1': {
 						typeId: 'LittlePigs',
 						stackSize: 3,
 						terrainType: 'ridgeline',
@@ -39,7 +39,7 @@ export const combatParityFixtures: ReadonlyArray<CombatParityFixture> = [
 					scope: 'defense',
 					label: 'Ridgeline cover: +1 defense',
 					value: 1,
-					appliesTo: 'LittlePigs:1,1',
+					appliesTo: 'group-1',
 				},
 			],
 		},

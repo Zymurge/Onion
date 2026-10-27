@@ -66,12 +66,16 @@ export function shouldRenderDefender(defender: BattlefieldUnit): boolean {
 }
 
 /** Resolves the display label for a non-Swamp occupant marker. */
-export function getUnitMarkerText(occupant: HexOccupant, stackNaming?: Parameters<typeof resolveBattlefieldDisplayName>[1]): string | null {
+export function getUnitMarkerText(
+  occupant: HexOccupant,
+  stackNaming?: Parameters<typeof resolveBattlefieldDisplayName>[1],
+  groupId?: string,
+): string | null {
   if (occupant.typeId === 'Swamp') {
     return null
   }
 
-  return resolveBattlefieldDisplayName(occupant, stackNaming)
+  return resolveBattlefieldDisplayName(occupant, stackNaming, groupId)
 }
 
 /** Reports whether visible defenders require canonical roster grouping. */

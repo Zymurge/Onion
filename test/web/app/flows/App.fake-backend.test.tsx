@@ -198,7 +198,7 @@ describe('App fake backend vertical slice', () => {
 		const session: GameSessionContext = { role: 'defender' }
 		const stack = makeStackFixture({
 			groups: {
-				'LittlePigs:1,1': {
+				'group-1': {
 					groupName: 'Little Pigs group 1',
 					unitType: 'LittlePigs',
 					position: { q: 1, r: 1 },
@@ -237,14 +237,7 @@ describe('App fake backend vertical slice', () => {
 		expect(await screen.findByTestId('combat-stack-member-pigs-2')).toHaveAttribute('data-selected', 'true')
 
 		const refreshedStack = makeStackFixture({
-			groups: {
-				'LittlePigs:1,1': {
-					groupName: 'Little Pigs group 1',
-					unitType: 'LittlePigs',
-					position: { q: 1, r: 1 },
-					unitIds: ['pigs-1'],
-				},
-			},
+			groups: {},
 		})
 		const remainingDefenders = Object.fromEntries(
 			Object.entries(initialSnapshot.authoritativeState.defenders).filter(([unitId]) => unitId !== 'pigs-2'),

@@ -401,7 +401,7 @@ describe('validateCombatAction', () => {
 
     const stack = makeStackFixture({
       groups: {
-        'LittlePigs:1,1': makeStackGroup({
+        'group-1': makeStackGroup({
           position: { q: 1, r: 1 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
         }),
@@ -416,7 +416,7 @@ describe('validateCombatAction', () => {
     const result = validateCombatAction(map, state, {
       type: 'FIRE',
       attackers: ['main-1'],
-      targetId: 'LittlePigs:1,1',
+      targetId: 'group-1',
       onionId: 'onion-1',
     })
 
@@ -432,7 +432,7 @@ describe('validateCombatAction', () => {
   it('applies the configured ridgeline defense bonus to a Little Pigs stack', () => {
     const stack = makeStackFixture({
       groups: {
-        'LittlePigs:1,1': makeStackGroup({
+        'group-1': makeStackGroup({
           position: { q: 1, r: 1 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
         }),
@@ -444,7 +444,7 @@ describe('validateCombatAction', () => {
     const result = validateCombatAction(ridgeMap, state, {
       type: 'FIRE',
       attackers: ['main-1'],
-      targetId: 'LittlePigs:1,1',
+      targetId: 'group-1',
       onionId: 'onion-1',
     })
 
@@ -479,6 +479,27 @@ describe('validateCombatAction', () => {
       code: 'ONION_NOT_FOUND',
       error: expect.stringContaining("Onion 'missing-onion'"),
     })
+  })
+
+  it('rejects a coordinate-shaped stack target instead of inferring a group', () => {
+    const stack = makeStackFixture({
+      groups: {
+        'group-1': makeStackGroup({
+          position: { q: 1, r: 1 },
+          unitIds: ['pigs-1', 'pigs-2'],
+        }),
+      },
+    })
+    const state = makeState({ defenders: stack.defenders, stackRoster: stack.stackRoster })
+
+    const result = validateCombatAction(CLEAR_MAP, state, {
+      type: 'FIRE',
+      attackers: ['main-1'],
+      targetId: 'LittlePigs:1,1',
+      onionId: 'onion-1',
+    })
+
+    expect(result).toEqual({ ok: false, code: 'NO_TARGET', error: 'Target not found' })
   })
 
   it('resolves an Onion weapon fire command into a combat plan and logs info', () => {
@@ -573,7 +594,7 @@ describe('validateCombatAction', () => {
       defenders: { d1, d2 },
       stackRoster: makeStackRoster({
         groupsById: {
-          'LittlePigs:1,0': makeStackGroup({
+          'group-1': makeStackGroup({
             position: { q: 1, r: 0 },
             unitIds: ['d1', 'd2'],
           }),
@@ -697,7 +718,7 @@ describe('executeCombatAction', () => {
   it('removes one live Little Pigs member for a D result against a stack', () => {
     const stack = makeStackFixture({
       groups: {
-        'LittlePigs:1,1': makeStackGroup({
+        'group-1': makeStackGroup({
           position: { q: 1, r: 1 },
           unitIds: ['pigs-1', 'pigs-2'],
         }),
@@ -707,7 +728,7 @@ describe('executeCombatAction', () => {
     const validation = validateCombatAction(CLEAR_MAP, state, {
       type: 'FIRE',
       attackers: ['main-1'],
-      targetId: 'LittlePigs:1,1',
+      targetId: 'group-1',
       onionId: 'onion-1',
     })
 
@@ -723,7 +744,7 @@ describe('executeCombatAction', () => {
     const second = validateCombatAction(CLEAR_MAP, state, {
       type: 'FIRE',
       attackers: ['secondary-1'],
-      targetId: 'LittlePigs:1,1',
+      targetId: 'group-1',
       onionId: 'onion-1',
     })
 
@@ -735,7 +756,7 @@ describe('executeCombatAction', () => {
   it('destroys every live Little Pigs member for an X result against a stack', () => {
     const stack = makeStackFixture({
       groups: {
-        'LittlePigs:1,1': makeStackGroup({
+        'group-1': makeStackGroup({
           position: { q: 1, r: 1 },
           unitIds: ['pigs-1', 'pigs-2'],
         }),
@@ -745,7 +766,7 @@ describe('executeCombatAction', () => {
     const validation = validateCombatAction(CLEAR_MAP, state, {
       type: 'FIRE',
       attackers: ['main-1'],
-      targetId: 'LittlePigs:1,1',
+      targetId: 'group-1',
       onionId: 'onion-1',
     })
 
@@ -895,7 +916,7 @@ describe('executeCombatAction', () => {
       defenders: { d1, d2 },
       stackRoster: makeStackRoster({
         groupsById: {
-          'LittlePigs:1,0': makeStackGroup({
+          'group-1': makeStackGroup({
             position: { q: 1, r: 0 },
             unitIds: ['d1', 'd2'],
           }),
@@ -906,7 +927,7 @@ describe('executeCombatAction', () => {
     const validation = validateCombatAction(CLEAR_MAP, state, {
       type: 'FIRE',
       attackers: ['main-1'],
-      targetId: 'LittlePigs:1,0',
+      targetId: 'group-1',
       onionId: 'onion-1',
     })
 
@@ -915,7 +936,7 @@ describe('executeCombatAction', () => {
 
     const result = executeCombatAction(state, validation.plan, 6)
     expect(result.success).toBe(true)
-    expect(result.targetId).toBe('LittlePigs:1,0')
+    expect(result.targetId).toBe('group-1')
     expect(state.defenders.d1.state).toBe('destroyed')
     expect(state.defenders.d2.state).toBe('destroyed')
   })

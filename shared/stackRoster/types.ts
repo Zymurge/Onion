@@ -18,7 +18,11 @@ export type StackRosterSourceUnit = {
 /** Structural validation finding for a persisted roster. */
 export type StackRosterValidationIssue = {
 	code:
+		| 'MISSING_ROSTER'
+		| 'INVALID_GROUP_ID'
+		| 'INVALID_NEXT_GROUP_ORDINAL'
 		| 'EMPTY_GROUP'
+		| 'SINGLETON_GROUP'
 		| 'EMPTY_UNIT_ID'
 		| 'EMPTY_GROUP_NAME'
 		| 'EMPTY_UNIT_TYPE'
@@ -46,7 +50,6 @@ export type StackRosterConsistencyIssue = {
 /** Input for splitting selected members into a new roster group. */
 export type SplitStackRosterGroupInput = {
 	groupId: string
-	newGroupId: string
 	newGroupName?: string
 	movedUnitIds: string[]
 	newPosition?: HexPos
@@ -57,12 +60,14 @@ export type MoveStackRosterGroupInput = {
 	sourceGroupId: string
 	destinationGroupId: string
 	destinationGroupName?: string
+	destinationUnitIds?: ReadonlyArray<string>
 	movedUnitIds: string[]
 	destinationPosition: HexPos
 }
 
 /** Input for relocating selected units to a canonical destination group. */
 export type RelocateStackRosterUnitsInput = {
+	destinationUnitIds?: ReadonlyArray<string>
 	movedUnitIds: string[]
 	unitType: string
 	destinationPosition: HexPos
@@ -99,7 +104,6 @@ export type ReconcileStackRosterMoveLifecycleResult = {
 /** Derived unit view enriched with its canonical group context. */
 export type StackRosterUnitView = StackRosterUnitState & {
 	groupId: string
-	groupKey: string
 	unitType: string
 	position: HexPos
 }
@@ -107,7 +111,6 @@ export type StackRosterUnitView = StackRosterUnitState & {
 /** Derived group view containing resolved unit records. */
 export type StackRosterGroupView = StackRosterGroupState & {
 	groupId: string
-	groupKey: string
 	unitIds: string[]
 	units: StackRosterUnitView[]
 }

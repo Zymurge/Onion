@@ -32,9 +32,9 @@ function summarizeStackState(
 	const stackableDefenderIds = Object.values(state.defenders)
 		.filter((defender) => catalog !== undefined && isSessionUnitTypeStackable(catalog, defender.typeId))
 		.map((defender) => defender.unitId)
-	const stackRosterGroupKeys = Object.keys(state.stackRoster?.groupsById ?? {})
+	const stackRosterGroupIds = Object.keys(state.stackRoster?.groupsById ?? {})
 
-	return `unitId=${unitId}, phase=${phase ?? 'unknown'}, stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupKeys.join(', ') || 'none'}`
+	return `unitId=${unitId}, phase=${phase ?? 'unknown'}, stackableDefenders=${stackableDefenderIds.join(', ') || 'none'}, stackRosterGroups=${stackRosterGroupIds.join(', ') || 'none'}`
 }
 
 /** Owns client-local battlefield selection, prompts, and action submission. */

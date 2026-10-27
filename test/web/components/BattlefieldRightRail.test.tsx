@@ -161,7 +161,7 @@ describe('BattlefieldRightRail', () => {
           isLoading: false,
           clearErrorMessage: vi.fn(),
         }}
-        combatTargetOptions={[{ id: 'LittlePigs:1,1', kind: 'defender', q: 1, r: 1, status: 'operational', label: 'Little Pigs group 1', detail: 'Defense: 2', defense: 2, modifiers: [] }]}
+        combatTargetOptions={[{ id: 'group-1', kind: 'defender', q: 1, r: 1, status: 'operational', label: 'Little Pigs group 1', detail: 'Defense: 2', defense: 2, modifiers: [] }]}
         onConfirmCombat={vi.fn()}
         onAttemptRam={vi.fn()}
         onDeclineRam={vi.fn()}
@@ -183,8 +183,8 @@ describe('BattlefieldRightRail', () => {
     expect(screen.queryByTestId('battlefield-inspector')).toBeNull()
     expect(screen.getByRole('button', { name: /resolve combat/i }).getAttribute('disabled')).not.toBeNull()
 
-	fireEvent.click(screen.getByTestId('combat-target-LittlePigs:1,1'))
-	expect(onSelectCombatTarget).toHaveBeenCalledWith('LittlePigs:1,1')
+  fireEvent.click(screen.getByTestId('combat-target-group-1'))
+  expect(onSelectCombatTarget).toHaveBeenCalledWith('group-1')
   })
 
   it('shows the Inspector instead of attack planning for a defender selected during Onion combat', () => {
@@ -241,7 +241,7 @@ describe('BattlefieldRightRail', () => {
   it('confirms a ready combat attack after a target is selected', () => {
     const onConfirmCombat = vi.fn()
     const target = {
-      id: 'LittlePigs:1,1',
+      id: 'group-1',
       kind: 'defender' as const,
       q: 1,
       r: 1,

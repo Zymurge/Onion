@@ -1,7 +1,5 @@
 import type { StackRosterState } from '../types/index.js'
-import { isUnitTypeStackable } from '../unitDefinitions.js'
 import {
-	buildStackGroupKey,
 	createUniqueName,
 	isLegacyCoordinateGroupName,
 	resolveStackLabel,
@@ -18,15 +16,14 @@ export function refreshStackNamingSnapshotFromRoster(
 	seed: StackNamingSnapshot | undefined,
 	stackRoster: StackRosterState | undefined,
 	sourceUnits: ReadonlyArray<StackNamingSourceUnit>,
-	unitTypes?: Readonly<Record<string, { stackable?: boolean }>>,
 ): StackNamingSnapshot {
 	const sourceUnitById = new Map(sourceUnits.map((unit) => [unit.unitId, unit]))
-	const activeGroupKeys: string[] = []
+	const activeGroupIds: string[] = []
 	const rosterGroupsInUse: StackNamingGroupRecord[] = []
 	const rosterUsedGroupNames: string[] = []
 	const allocatedUsedGroupNames = new Set(seed?.usedGroupNames ?? [])
 
-	for (const group of Object.values(stackRoster?.groupsById ?? {})) {
+	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		const unitIds = [...group.unitIds]
 		if (unitIds.length === 0) {
 			continue
@@ -41,8 +38,7 @@ export function refreshStackNamingSnapshotFromRoster(
 			continue
 		}
 
-		const groupKey = buildStackGroupKey(group.unitType, group.position)
-		activeGroupKeys.push(groupKey)
+		activeGroupIds.push(groupId)
 		const persistedGroupName = group.groupName?.trim() ?? ''
 		const hasPersistedGroupName = persistedGroupName.length > 0 && !isLegacyCoordinateGroupName(persistedGroupName)
 		const baseGroupName = hasPersistedGroupName
@@ -52,7 +48,7 @@ export function refreshStackNamingSnapshotFromRoster(
 			? baseGroupName
 			: createUniqueName(baseGroupName, allocatedUsedGroupNames)
 		allocatedUsedGroupNames.add(authoritativeGroupName)
-		rosterGroupsInUse.push({ groupKey, groupName: authoritativeGroupName, unitType: group.unitType })
+		rosterGroupsInUse.push({ groupId, groupName: authoritativeGroupName, unitType: group.unitType })
 		rosterUsedGroupNames.push(authoritativeGroupName)
 	}
 
@@ -67,6 +63,6 @@ export function refreshStackNamingSnapshotFromRoster(
 			...rosterUsedGroupNames,
 		],
 	})
-	engine.clearMissingGroups(activeGroupKeys)
+	engine.clearMissingGroups(activeGroupIds)
 	return engine.snapshot()
 }

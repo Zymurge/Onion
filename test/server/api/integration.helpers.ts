@@ -288,18 +288,10 @@ export function applyActionToExpectedState(expected: ExpectedState, action: Expe
   }
 
   if (result.events.some((event) => event.type === 'PHASE_CHANGED' && event.to === 'DEFENDER_MOVE')) {
-    const destroyedUnitIds = new Set(
-      Object.values(expected.defenders)
-        .filter((defender) => defender.state === 'destroyed')
-        .map((defender) => defender.unitId),
-    )
-    for (const unitId of destroyedUnitIds) {
-      delete expected.defenders[unitId]
-    }
     if (expected.stackRoster !== undefined) {
       for (const [groupId, group] of Object.entries(expected.stackRoster.groupsById)) {
         group.unitIds = group.unitIds.filter((unitId) => expected.defenders[unitId] !== undefined)
-        if (group.unitIds.length === 0) {
+        if (group.unitIds.length < 2) {
           delete expected.stackRoster.groupsById[groupId]
         }
       }

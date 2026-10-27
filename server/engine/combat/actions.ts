@@ -9,6 +9,7 @@ import {
 import { getRulesContext, type RulesContext } from '#shared/rulesContext'
 import { isTargetAllowedByRules } from '#shared/targetRules'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
+import { findStackRosterGroupId } from '#shared/stackRoster/index'
 import { destroyWeapon, getAvailableWeapons, getOnion } from '#shared/unitState'
 import { UnitWeapons } from '#shared/unitWeapons'
 import { applyDamage } from './outcomes.js'
@@ -175,8 +176,12 @@ function getLiveStackMembers(state: GameState, unitIds: readonly string[]): Defe
 }
 
 function areAttackersInSameStack(state: GameState, attackerIds: readonly string[]): boolean {
-  const groups = Object.values(state.stackRoster?.groupsById ?? {})
-  const group = groups.find((candidate) => candidate.unitIds.includes(attackerIds[0]))
+  const groupId = findStackRosterGroupId(state.stackRoster, attackerIds[0])
+  if (groupId === null) {
+    return false
+  }
+
+  const group = state.stackRoster?.groupsById[groupId]
   return group !== undefined && attackerIds.every((attackerId) => group.unitIds.includes(attackerId))
 }
 
@@ -241,7 +246,7 @@ export function validateCombatAction(
 
   if (state.currentPhase === 'ONION_COMBAT') {
     const explicitTarget = state.defenders[command.targetId]
-    const targetBelongsToStack = Object.values(state.stackRoster?.groupsById ?? {}).some((group) => group.unitIds.includes(command.targetId))
+    const targetBelongsToStack = findStackRosterGroupId(state.stackRoster, command.targetId) !== null
 
     if (explicitTarget && targetBelongsToStack) {
       return { ok: false, code: 'INVALID_TARGET', error: 'Individual stack members cannot be targeted; target the stack group instead' }

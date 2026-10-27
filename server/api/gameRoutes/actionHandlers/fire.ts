@@ -2,11 +2,10 @@ import logger from '#server/logger'
 import { createMap } from '#server/engine/map'
 import { executeCombatAction, validateCombatAction } from '#server/engine/index'
 import { buildEngineState } from '#server/api/gameHelpers/stateProjection'
-import { buildActionResponse } from '#server/api/gameHelpers/actionResponses'
 import { buildCombatEvents } from '#server/api/gameHelpers/eventBuilders'
 import { computeWinnerUserId } from '#server/api/gameHelpers/victory'
 import { getScenarioMapSnapshot, getScenarioRulesContext, type ScenarioSnapshot } from '#server/api/gameHelpers/scenario'
-import { logActionOutcome, logSentEvents } from '#server/api/gameHelpers/logging'
+import { finalizeAction } from './common.js'
 import type { ActionHandlerContext, ActionHandlerResponse } from './types.js'
 
 type FireCommand = Extract<import('#shared/types/index').Command, { type: 'FIRE' }>
@@ -20,7 +19,7 @@ type FireCommand = Extract<import('#shared/types/index').Command, { type: 'FIRE'
  * @throws Errors from engine execution or persistence for the dispatcher to classify.
  */
 export async function handleFire(context: ActionHandlerContext, command: FireCommand): Promise<ActionHandlerResponse> {
-  const { db, match, causeId, expectedLastEventSeq, attachCauseId, broadcastGameEvents, combatRollsForGame } = context
+  const { match, combatRollsForGame } = context
   logger.info({ gameId: match.gameId, type: command.type }, 'Processing combat command')
   if (typeof command.onionId !== 'string' || command.onionId.trim().length === 0) {
     return {
@@ -61,40 +60,31 @@ export async function handleFire(context: ActionHandlerContext, command: FireCom
   }
 
   const seq = (match.events.at(-1)?.seq ?? 0) + 1
-  const newEvents = attachCauseId(buildCombatEvents(seq, command, result, state, match.phase), causeId)
+  const events = buildCombatEvents(seq, command, result, state, match.phase)
   const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
   const status = winner !== null ? 'completed' : match.status
-  await db.persistMatchProgress({
-    gameId: match.gameId,
-    expectedLastEventSeq,
+  const response = await finalizeAction(context, {
+    actionType: 'FIRE',
+    state,
     phase: match.phase,
     turnNumber: match.turnNumber,
-    winner,
+    events,
     status,
-    state,
-    events: newEvents,
+    winner,
+    outcome: {
+      attackers: command.attackers,
+      onionId: command.onionId,
+      targetId: result.targetId,
+      roll: result.roll?.roll ?? null,
+      outcome: result.roll?.result ?? null,
+      odds: result.roll?.odds ?? null,
+      treadsLost: result.treadsLost ?? null,
+      destroyedWeaponId: result.destroyedWeaponId ?? null,
+      squadsLost: result.squadsLost ?? null,
+      statusChanges: result.statusChanges ?? [],
+    },
   })
-
-  const turnNumber = match.turnNumber
-  const eventSeq = newEvents.at(-1)?.seq ?? seq
-  logSentEvents(match.gameId, command.type, newEvents)
-  logActionOutcome(match.gameId, 'FIRE', {
-    attackers: command.attackers,
-    onionId: command.onionId,
-    targetId: result.targetId,
-    roll: result.roll?.roll ?? null,
-    outcome: result.roll?.result ?? null,
-    odds: result.roll?.odds ?? null,
-    treadsLost: result.treadsLost ?? null,
-    destroyedWeaponId: result.destroyedWeaponId ?? null,
-    squadsLost: result.squadsLost ?? null,
-    statusChanges: result.statusChanges ?? [],
-  }, newEvents)
-  broadcastGameEvents(match.gameId, newEvents)
   logger.debug({ gameId: match.gameId, type: command.type }, 'Combat executed')
 
-  return {
-    statusCode: 200,
-    payload: buildActionResponse(match, state, match.phase, turnNumber, eventSeq, newEvents, status, winner),
-  }
+  return response
 }

@@ -79,6 +79,8 @@ describe('POST /games/:id/actions MOVE', () => {
 						},
 					},
 					defenders: {},
+					stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
+					stackNaming: { groupsInUse: [], usedGroupNames: [] },
 				},
 				events: [],
 			}),

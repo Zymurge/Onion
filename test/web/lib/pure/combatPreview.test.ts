@@ -19,11 +19,11 @@ function buildCombatTargetOptions(input: Parameters<typeof buildCombatTargetOpti
 	return buildCombatTargetOptionsWithCatalog({ ...input, catalog: input.catalog ?? sessionCatalog })
 }
 
-function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRosterGroupState, 'position' | 'unitIds'>) {
+function makeStackView(overrides: Partial<StackRosterGroupState> & Pick<StackRosterGroupState, 'position' | 'unitIds'> & { groupId?: string }) {
 	const stack = makeStackFixture({
-		groups: {
-			[`${overrides.unitType ?? 'LittlePigs'}:${overrides.position.q},${overrides.position.r}`]: makeStackGroup(overrides),
-		},
+		groups: overrides.unitIds.length <= 1 || overrides.groupId === undefined
+			? (overrides.unitIds.length <= 1 ? {} : { 'group-1': makeStackGroup(overrides) })
+			: { [overrides.groupId]: makeStackGroup(overrides) },
 	})
 
 	return {
@@ -158,6 +158,7 @@ describe('buildCombatTargetOptions', () => {
 				unitType: 'LittlePigs',
 				position: { q: 1, r: 1 },
 				unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
+				groupId: 'group-7',
 			}),
 			selectedUnitIds: ['weapon:main'],
 			selectedAttackStrength: fixture.expected.attackStrength,
@@ -170,7 +171,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options[0]).toMatchObject({
-			id: 'LittlePigs:1,1',
+			id: 'group-7',
 			defense: fixture.expected.defenseStrength,
 			modifiers: ['Ridgeline cover: +1 defense'],
 		})
@@ -233,7 +234,7 @@ describe('buildCombatTargetOptions', () => {
 
 		expect(options).toHaveLength(1)
 		expect(options[0]).toMatchObject({
-			id: 'LittlePigs:3,2',
+			id: 'near-1',
 			label: 'Little Pigs 1',
 		})
 	})
@@ -270,7 +271,7 @@ describe('buildCombatTargetOptions', () => {
 
 		expect(options).toHaveLength(1)
 			expect(options[0]).toMatchObject({
-				id: 'LittlePigs:3,2',
+				id: 'near-1',
 				label: 'Little Pigs 1',
 				defense: 2,
 				modifiers: expect.arrayContaining(['Ridgeline cover: +1 defense']),
@@ -307,7 +308,7 @@ describe('buildCombatTargetOptions', () => {
 
 		expect(options).toHaveLength(1)
 		expect(options[0]).toMatchObject({
-			id: 'LittlePigs:3,2',
+			id: 'group-1',
 			label: 'Little Pigs group 1',
 			defense: 2,
 		})
@@ -326,8 +327,9 @@ describe('buildCombatTargetOptions', () => {
 				weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' })],
 			}),
 			stackRoster: {
+				nextGroupOrdinal: 2,
 				groupsById: {
-					'LittlePigs:3,2': {
+					'group-1': {
 						groupName: 'Little Pigs group 1',
 						unitType: 'LittlePigs',
 						position: { q: 3, r: 2 },
@@ -342,7 +344,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options).toHaveLength(1)
-		expect(options[0]).toMatchObject({ id: 'LittlePigs:3,2', label: 'Little Pigs group 1' })
+		expect(options[0]).toMatchObject({ id: 'group-1', label: 'Little Pigs group 1' })
 	})
 
 	it('uses the friendly group name when persisted naming has a coordinate label', () => {
@@ -359,8 +361,9 @@ describe('buildCombatTargetOptions', () => {
 				weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' })],
 			}),
 			stackRoster: {
+				nextGroupOrdinal: 2,
 				groupsById: {
-					'LittlePigs:4,7': {
+					'group-1': {
 						groupName: 'Little Pigs :4,7',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 7 },
@@ -369,7 +372,7 @@ describe('buildCombatTargetOptions', () => {
 				},
 			},
 			stackNaming: {
-				groupsInUse: [{ groupKey: 'LittlePigs:4,7', groupName: 'Little Pigs :4,7', unitType: 'LittlePigs' }],
+				groupsInUse: [{ groupId: 'group-1', groupName: 'Little Pigs :4,7', unitType: 'LittlePigs' }],
 				usedGroupNames: ['Little Pigs :4,7'],
 			},
 			selectedUnitIds: ['weapon:main-1'],
@@ -379,7 +382,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options[0]).toMatchObject({
-			id: 'LittlePigs:4,7',
+			id: 'group-1',
 			label: 'Little Pigs group 1',
 		})
 	})
@@ -389,10 +392,13 @@ describe('buildCombatTargetOptions', () => {
 			activeCombatRole: 'onion',
 			combatRangeHexKeys: new Set(['3,2']),
 			displayedDefenders: [
-				makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 3, r: 2 } }),
-				makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 3, r: 2 } }),
+				makeBattlefieldDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 3, r: 2 } }, { stackSize: 2 }),
+				makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 3, r: 2 } }, { stackSize: 2 }),
 			],
-			displayedOnion: makeBattlefieldOnion({ position: { q: 0, r: 1 }, weapons: [] }),
+			displayedOnion: makeBattlefieldOnion({
+				position: { q: 0, r: 1 },
+				weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' })],
+			}),
 			selectedUnitIds: ['weapon:main-1'],
 			selectedAttackStrength: 4,
 			selectedAttackGroupCount: 1,
@@ -426,7 +432,7 @@ describe('buildCombatTargetOptions', () => {
 			},
 		})
 
-		expect(options.map((option) => option.id)).toEqual(['LittlePigs:1,1'])
+		expect(options.map((option) => option.id)).toEqual(['pigs-1'])
 	})
 
 	it('keeps Swamp targetable for non-AP Onion weapons', () => {

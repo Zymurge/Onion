@@ -194,15 +194,14 @@ describe('advancePhaseWithEvents', () => {
       })
       state.stackRoster = makeStackRoster({
         groupsById: {
-          'LittlePigs:1,1': makeStackGroup({ unitIds: ['pigs-1', 'pigs-2'] }),
+          'group-1': makeStackGroup({ unitIds: ['pigs-1', 'pigs-2'] }),
         },
       })
 
       advanceState(state)
 
       expect(state.defenders['pigs-1']).toMatchObject({ unitId: 'pigs-1', state: 'destroyed' })
-      expect(state.stackRoster.groupsById['LittlePigs:1,1']?.unitIds).toEqual(['pigs-2'])
-      expect(state.stackRoster.groupsById['LittlePigs:1,1']).not.toHaveProperty('groupName')
+      expect(state.stackRoster.groupsById['group-1']).toBeUndefined()
       expect(state.stackNaming.groupsInUse).toEqual([])
       expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
     })
@@ -216,19 +215,19 @@ describe('advancePhaseWithEvents', () => {
         },
         stackRoster: makeStackRoster({
           groupsById: {
-            'LittlePigs:1,1': makeStackGroup({ unitIds: ['pigs-1', 'pigs-2', 'pigs-3'] }),
+            'group-1': makeStackGroup({ unitIds: ['pigs-1', 'pigs-2', 'pigs-3'] }),
           },
         }),
       })
 
       advanceState(state)
 
-      expect(state.stackRoster.groupsById['LittlePigs:1,1']).toMatchObject({
+      expect(state.stackRoster.groupsById['group-1']).toMatchObject({
         groupName: 'Little Pigs group 1',
         unitIds: ['pigs-2', 'pigs-3'],
       })
       expect(state.stackNaming.groupsInUse).toEqual([
-        { groupKey: 'LittlePigs:1,1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
       ])
     })
   })

@@ -3,57 +3,62 @@ import type { MatchRecord } from '#server/db/adapter'
 import type { GameStateResponse } from '#shared/apiProtocol'
 import type { GameState, StackRosterState } from '#shared/types/index'
 import type { RulesContext } from '#shared/rulesContext'
-import { canonicalizeStackRoster, refreshStackRosterNamingSnapshot, validateStackRosterConsistency } from '#shared/stackRoster/index'
+import { canonicalizeStackRoster, refreshStackRosterNamingSnapshot, validateStackRoster, validateStackRosterConsistency } from '#shared/stackRoster/index'
 import { buildVictoryObjectiveStates } from './victory.js'
 import { getScenarioEscapeHexes, getScenarioMapSnapshot, getScenarioRulesContext, type ScenarioSnapshot } from './scenario.js'
 
-function assertCanonicalStackGroupNames(matchState: MatchRecord['state'], rules?: RulesContext): void {
+function assertCanonicalStackGroupNames(matchState: MatchRecord['state'], context: 'engine state' | 'response'): void {
   const stackRoster = matchState.stackRoster
-  const canonicalStackState = canonicalizeStackRoster(stackRoster ?? { groupsById: {} }, undefined, matchState.defenders, rules)
+  const rosterIssues = validateStackRoster(stackRoster, matchState.defenders)
+  if (rosterIssues.length > 0) {
+    throw new Error(`Invalid stack roster for ${context}: ${rosterIssues.map((issue) => issue.message).join('; ')}`)
+  }
+
+  const canonicalStackState = canonicalizeStackRoster(stackRoster, undefined, matchState.defenders)
   const rosterGroups = Object.entries(canonicalStackState.stackRoster.groupsById)
   if (rosterGroups.length === 0) {
     return
   }
 
   const canonicalStackNaming = canonicalStackState.stackNaming
-  const canonicalGroupNames = new Map(canonicalStackNaming.groupsInUse.map((group) => [group.groupKey, group.groupName]))
-  const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupKey, group.groupName]))
+  const canonicalGroupNames = new Map(canonicalStackNaming.groupsInUse.map((group) => [group.groupId, group.groupName]))
+  const persistedGroupNames = new Map((matchState.stackNaming?.groupsInUse ?? []).map((group) => [group.groupId, group.groupName]))
 
-  for (const [groupKey, group] of rosterGroups) {
+    for (const [groupId, group] of rosterGroups) {
     const unitIds = group.unitIds
     if (unitIds.length <= 1) {
       continue
     }
 
-    const canonicalGroupName = canonicalGroupNames.get(groupKey)
+      const canonicalGroupName = canonicalGroupNames.get(groupId)
     if (canonicalGroupName === undefined) {
-      logger.debug({ groupKey, groupName: group.groupName, unitIds, stackNaming: matchState.stackNaming }, 'Missing canonical stack group name during validation')
-      throw new Error(`Missing canonical stack group name for ${groupKey}`)
+      logger.debug({ groupId, groupName: group.groupName, unitIds, stackNaming: matchState.stackNaming }, 'Missing canonical stack group name during validation')
+        throw new Error(`Missing canonical stack group name for ${groupId}`)
     }
 
     if (group.groupName !== canonicalGroupName) {
-      logger.debug({ groupKey, rosterGroupName: group.groupName, canonicalGroupName, unitIds, canonicalStackNaming: canonicalStackNaming.groupsInUse, persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [] }, 'Conflicting stack group name detected during validation')
-      throw new Error(`Conflicting stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${group.groupName}`)
+      logger.debug({ groupId, rosterGroupName: group.groupName, canonicalGroupName, unitIds, canonicalStackNaming: canonicalStackNaming.groupsInUse, persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [] }, 'Conflicting stack group name detected during validation')
+        throw new Error(`Conflicting stack group name for ${groupId}: expected ${canonicalGroupName}, received ${group.groupName}`)
     }
 
-    const persistedGroupName = persistedGroupNames.get(groupKey)
+      const persistedGroupName = persistedGroupNames.get(groupId)
     if (persistedGroupName !== undefined && persistedGroupName !== canonicalGroupName) {
-      logger.debug({ groupKey, canonicalGroupName, persistedGroupName, unitIds, canonicalStackNaming: canonicalStackNaming.groupsInUse, persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [] }, 'Persisted stack group name conflicts with canonical validation result')
-      throw new Error(`Conflicting persisted stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${persistedGroupName}`)
+      logger.debug({ groupId, canonicalGroupName, persistedGroupName, unitIds, canonicalStackNaming: canonicalStackNaming.groupsInUse, persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [] }, 'Persisted stack group name conflicts with canonical validation result')
+        throw new Error(`Conflicting persisted stack group name for ${groupId}: expected ${canonicalGroupName}, received ${persistedGroupName}`)
     }
   }
 
-  for (const [groupKey, persistedGroupName] of persistedGroupNames) {
-    const canonicalGroupName = canonicalGroupNames.get(groupKey)
+    for (const [groupId, persistedGroupName] of persistedGroupNames) {
+      const canonicalGroupName = canonicalGroupNames.get(groupId)
     if (canonicalGroupName !== undefined && canonicalGroupName !== persistedGroupName) {
-      logger.debug({ groupKey, canonicalGroupName, persistedGroupName, canonicalStackNaming: canonicalStackNaming.groupsInUse, persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [] }, 'Persisted stack group name conflicts after canonical lookup')
-      throw new Error(`Conflicting persisted stack group name for ${groupKey}: expected ${canonicalGroupName}, received ${persistedGroupName}`)
+      logger.debug({ groupId, canonicalGroupName, persistedGroupName, canonicalStackNaming: canonicalStackNaming.groupsInUse, persistedStackNaming: matchState.stackNaming?.groupsInUse ?? [] }, 'Persisted stack group name conflicts after canonical lookup')
+        throw new Error(`Conflicting persisted stack group name for ${groupId}: expected ${canonicalGroupName}, received ${persistedGroupName}`)
     }
   }
 }
 
 function buildResponseStackRoster(matchState: MatchRecord['state'], rules: RulesContext): StackRosterState {
-  const canonicalStackRoster = canonicalizeStackRoster(matchState.stackRoster ?? { groupsById: {} }, matchState.stackNaming, matchState.defenders, rules).stackRoster
+  const canonicalStackRoster = canonicalizeStackRoster(matchState.stackRoster, matchState.stackNaming, matchState.defenders, rules).stackRoster
   const groupsById = Object.fromEntries(
     Object.entries(canonicalStackRoster.groupsById).flatMap(([groupId, group]) => {
       if (rules.unitTypes[group.unitType]?.stackable !== true) {
@@ -74,7 +79,7 @@ function buildResponseStackRoster(matchState: MatchRecord['state'], rules: Rules
     }),
   )
 
-  return { groupsById }
+  return { groupsById, nextGroupOrdinal: canonicalStackRoster.nextGroupOrdinal }
 }
 
 function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state'], rules: RulesContext): void {
@@ -103,8 +108,8 @@ function assertCanonicalStackRosterConsistency(matchState: MatchRecord['state'],
  * @throws Error when persisted stack naming conflicts with canonical roster naming.
  */
 export function buildEngineState(match: MatchRecord, rules?: RulesContext): GameState {
-  assertCanonicalStackGroupNames(match.state, rules)
-  const canonicalStackState = canonicalizeStackRoster(match.state.stackRoster ?? { groupsById: {} }, match.state.stackNaming, match.state.defenders, rules)
+  assertCanonicalStackGroupNames(match.state, 'engine state')
+  const canonicalStackState = canonicalizeStackRoster(match.state.stackRoster, match.state.stackNaming, match.state.defenders, rules)
   return {
     ...structuredClone(match.state),
     stackRoster: canonicalStackState.stackRoster,
@@ -125,7 +130,7 @@ export function buildEngineState(match: MatchRecord, rules?: RulesContext): Game
 export function buildGameStateResponse(match: MatchRecord, userId: string): GameStateResponse {
   const scenarioSnapshot = match.scenarioSnapshot as ScenarioSnapshot
   const rules = getScenarioRulesContext(match.scenarioId, scenarioSnapshot)
-  assertCanonicalStackGroupNames(match.state, rules)
+  assertCanonicalStackGroupNames(match.state, 'response')
   assertCanonicalStackRosterConsistency(match.state, rules)
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
