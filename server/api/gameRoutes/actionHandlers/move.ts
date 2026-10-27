@@ -3,11 +3,10 @@ import { createMap } from '#server/engine/map'
 import { executeUnitMovement, reconcileStackStateAfterMoves, validateUnitMovement } from '#server/engine/index'
 import type { EventEnvelope, SingleUnitMoveCommand } from '#shared/types/index'
 import { buildEngineState } from '#server/api/gameHelpers/stateProjection'
-import { buildActionResponse } from '#server/api/gameHelpers/actionResponses'
 import { buildMoveEvents } from '#server/api/gameHelpers/eventBuilders'
 import { computeWinnerUserId } from '#server/api/gameHelpers/victory'
 import { getScenarioMapSnapshot, getScenarioRulesContext, type ScenarioSnapshot } from '#server/api/gameHelpers/scenario'
-import { logActionOutcome, logSentEvents } from '#server/api/gameHelpers/logging'
+import { finalizeAction } from './common.js'
 import type { ActionHandlerContext, ActionHandlerResponse } from './types.js'
 
 type MoveCommand = Extract<import('#shared/types/index').Command, { type: 'MOVE' }>
@@ -21,7 +20,7 @@ type MoveCommand = Extract<import('#shared/types/index').Command, { type: 'MOVE'
  * @throws Errors from engine execution or persistence for the dispatcher to classify.
  */
 export async function handleMove(context: ActionHandlerContext, command: MoveCommand): Promise<ActionHandlerResponse> {
-  const { db, match, causeId, expectedLastEventSeq, attachCauseId, broadcastGameEvents, ramRollsForGame } = context
+  const { match, ramRollsForGame } = context
   const moveUnitIds = [...new Set(command.movers)]
   if (moveUnitIds.length === 0) {
     logger.info({ gameId: match.gameId }, 'Move selection missing unit id')
@@ -96,37 +95,27 @@ export async function handleMove(context: ActionHandlerContext, command: MoveCom
 
   reconcileStackStateAfterMoves(state, moveUnitIds)
 
-  const newEvents = attachCauseId(moveEvents, causeId)
   const winner = computeWinnerUserId(match, state, match.phase, match.turnNumber) ?? match.winner
   const status = winner !== null ? 'completed' : match.status
-  await db.persistMatchProgress({
-    gameId: match.gameId,
-    expectedLastEventSeq,
+  const response = await finalizeAction(context, {
+    actionType: 'MOVE',
+    state,
     phase: match.phase,
     turnNumber: match.turnNumber,
-    winner,
+    events: moveEvents,
     status,
-    state,
-    events: newEvents,
+    winner,
+    outcome: {
+      unitIds: moveUnitIds,
+      from: firstMovePlan?.from,
+      to: firstMovePlan?.to,
+      cost: firstMovePlan?.cost,
+      rammedUnitIds: lastMoveResult?.rammedUnitIds ?? [],
+      destroyedUnitIds: lastMoveResult?.destroyedUnits ?? [],
+      treadDamage: lastMoveResult?.treadDamage ?? 0,
+    },
   })
-
-  const turnNumber = match.turnNumber
-  const eventSeq = newEvents.at(-1)?.seq ?? nextSeq - 1
-  logSentEvents(match.gameId, 'MOVE', newEvents)
-  logActionOutcome(match.gameId, 'MOVE', {
-    unitIds: moveUnitIds,
-    from: firstMovePlan?.from,
-    to: firstMovePlan?.to,
-    cost: firstMovePlan?.cost,
-    rammedUnitIds: lastMoveResult?.rammedUnitIds ?? [],
-    destroyedUnitIds: lastMoveResult?.destroyedUnits ?? [],
-    treadDamage: lastMoveResult?.treadDamage ?? 0,
-  }, newEvents)
-  broadcastGameEvents(match.gameId, newEvents)
   logger.debug({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Move executed')
 
-  return {
-    statusCode: 200,
-    payload: buildActionResponse(match, state, match.phase, turnNumber, eventSeq, newEvents, status, winner),
-  }
+  return response
 }

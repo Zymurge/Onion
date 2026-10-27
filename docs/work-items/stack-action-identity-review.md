@@ -13,23 +13,29 @@ The implementation sequence is intentionally narrower than the architectural tas
 1. **[x] Define common action subject**
 2. **[x] Unify canonical group lookups**
 3. **[x] Enforce immutable group IDs**
-
-- Persist canonical opaque `group-N` IDs in `stackRoster.groupsById`.
-- Keep group-ID allocation in `stackRoster` and remove caller-controlled split IDs.
-- Align action and UI contracts with canonical `groupId` values.
-- Remove coordinate-derived targets, naming keys, and stale coordinate-shaped fixtures.
-- Complete the focused integration, typecheck, and lint audit for the changed surfaces.
-
+    - Persist canonical opaque `group-N` IDs in `stackRoster.groupsById`.
+    - Keep group-ID allocation in `stackRoster` and remove caller-controlled split IDs.
+    - Align action and UI contracts with canonical `groupId` values.
+    - Remove coordinate-derived targets, naming keys, and stale coordinate-shaped fixtures.
+    - Complete the focused integration, typecheck, and lint audit for the changed surfaces.
 4. **[x] Align naming lifecycle IDs**
-
-- Allocate initial group IDs from the roster ordinal and omit singleton roster entries.
-- Key active naming records and retirement history by canonical `groupId`.
-- Preserve names across intact moves, splits, and merges without recycling retired names.
-- Keep roster canonicalization and naming refresh synchronized, including singleton pruning.
-
+    - Allocate initial group IDs from the roster ordinal and omit singleton roster entries.
+    - Key active naming records and retirement history by canonical `groupId`.
+    - Preserve names across intact moves, splits, and merges without recycling retired names.
+    - Keep roster canonicalization and naming refresh synchronized, including singleton pruning.
 5. **[x] Align action-specific resolution**
 
-Action execution rewrites, combined commands, and web command resolution remain outside item 4 and belong to item 5.
+Action execution rewrites, combined commands, and web command resolution were completed under item 5.
+
+### Current Status and Next Steps (2026-10-27)
+
+- Active items 1 through 5 are complete. Canonical group identity, singleton pruning, naming lifecycle, server action handling, web projections, and direct right-rail FIRE target resolution are implemented and covered by focused regressions.
+- Inactive-event naming is covered at the server event-builder, web formatting, and browser-rendered E2E layers. The grouped combat scenarios assert `Fire on Little Pigs group 1: destroyed`, `Attackers (1): Main Weapon`, `Attackers (2): Little Pigs group 1`, and friendly target labels including `Target: Little Pigs group 1` and `Target: The Onion 1 treads`; canonical `group-1` remains the wire/state identity and is not accepted as the viewer-facing name.
+- Verified gates: `pnpm test`, `pnpm exec tsc --noEmit`, `pnpm web:build`, `pnpm lint`, and `pnpm web:lint`. The web build reports a non-blocking large-chunk warning; root lint reports only three warnings in generated coverage files and no errors.
+- `pnpm test:integration` is verified against the external Compose PostgreSQL service with the host test environment configured: 4 test files and 39 tests passed. The `db` and `migrate` services are required; the `engine` container is not required because Vitest instantiates the app in the host process.
+- Next steps:
+  1. Treat the active identity/action plan and its Task 6 validation gates as complete.
+  2. Treat Task 7 as complete: MOVE and FIRE now share only their post-execution finalization boundary; their domain logic remains distinct.
 
 ---
 
@@ -250,7 +256,7 @@ Action execution rewrites, combined commands, and web command resolution remain 
     - Resolve group labels using `groupId` and roster records instead of reconstructing `${type}:${q},${r}`.
   - `web/lib/combatPreview.ts`:
     - Build defender target options using canonical `groupId`. Remove coordinate-based tripwires.
-  - `test/web/lib/stackSelection.test.ts`, `test/web/lib/pure/rightRailSelection.test.ts`, `test/web/lib/pure/commitActionBuilders.test.ts`, `test/web/lib/pure/combatPreview.test.ts`, `test/web/lib/battlefieldNaming.contract.test.ts`.
+  - `test/web/lib/stackSelection.test.ts`, `test/web/lib/rightRailSelection.test.ts`, `test/web/lib/pure/commitActionBuilders.test.ts`, `test/web/lib/pure/combatPreview.test.ts`, `test/web/lib/battlefieldNaming.contract.test.ts`.
 - **Prerequisites:** Task 4.
 - **Acceptance Criteria:**
   - Combat preview targets display defense values with canonical `groupId` targets.
@@ -282,14 +288,18 @@ Action execution rewrites, combined commands, and web command resolution remain 
 
 ---
 
-### Task 7: Handler Boilerplate Consolidation (Optional / Deferred)
+### Task 7: Handler Boilerplate Consolidation (Completed)
 
-- **Goal:** Evaluate extracting repetitive persistence, event logging, and response wrapping between `move.ts` and `fire.ts` into a shared helper `server/api/gameRoutes/actionHandlers/common.ts`.
+- **Goal:** Extract repetitive post-execution finalization between `move.ts` and `fire.ts` into a shared helper `server/api/gameRoutes/actionHandlers/common.ts`.
 - **Files to Inspect / Modify:**
+  - `server/api/gameRoutes/actionHandlers/common.ts`
   - `server/api/gameRoutes/actionHandlers/move.ts`
   - `server/api/gameRoutes/actionHandlers/fire.ts`
+  - `test/server/api/gameRoutes/actionHandlers/common.test.ts`
 - **Prerequisites:** Task 6 completed and green.
 - **Acceptance Criteria:**
-  - Shared wrapper handles match loading, event progression, and error response formatting without altering engine validation or execution logic.
-  - Zero behavioral regressions.
-- **Non-Goals:** Do not merge MOVE and FIRE domain logic.
+  - Shared finalization handles cause attachment, persistence, event/action logging, broadcasting, and successful action response construction after MOVE or FIRE execution succeeds.
+  - Event sequence fallback uses the latest persisted match event when an action emits no events.
+  - Persistence failures propagate unchanged so the route can preserve stale-state handling.
+  - Focused helper tests and the existing action-handler/API tests pass with zero behavioral regressions.
+- **Non-Goals:** Do not centralize match loading, authorization, schema validation, error mapping, MOVE/FIRE validation or execution, event construction, action-specific outcome assembly, or END_PHASE handling. Do not merge MOVE and FIRE domain logic.
