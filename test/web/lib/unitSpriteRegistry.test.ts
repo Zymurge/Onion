@@ -6,7 +6,7 @@ import { unitSpriteRegistry } from '#web/lib/unitSpriteRegistry'
 
 describe('unit sprite registry', () => {
 	it('registers every key in the shared sprite manifest', () => {
-		expect(Object.keys(unitSpriteRegistry)).toEqual(expect.arrayContaining(SUPPORTED_UNIT_SPRITE_KEYS as string[]))
+		expect(Object.keys(unitSpriteRegistry)).toEqual(expect.arrayContaining([...SUPPORTED_UNIT_SPRITE_KEYS]))
 	})
 
 	it('resolves ordinary unit sprites from their sprite keys', () => {
