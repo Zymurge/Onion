@@ -20,7 +20,7 @@ describe('action subjects', () => {
           position: { q: 2, r: 0 },
         }),
       },
-      stackRoster: { groupsById: {} },
+      stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
     })
 
     const references: ActionSubjectReference[] = [
@@ -67,6 +67,7 @@ describe('action subjects', () => {
         }),
       },
       stackRoster: {
+        nextGroupOrdinal: 43,
         groupsById: {
           'group-42': {
             groupName: 'Little Pigs 1',
@@ -103,7 +104,7 @@ describe('action subjects', () => {
         'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 4, r: 2 } }),
         'pigs-2': makeDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 2 } }),
       },
-      stackRoster: { groupsById: {} },
+      stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
     })
 
     expect(() => resolveActionSubject(state, { kind: 'group', id: 'group-42' })).toThrow("Action subject group 'group-42' not found")

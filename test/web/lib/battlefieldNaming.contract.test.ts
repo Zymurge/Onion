@@ -35,6 +35,7 @@ function makeRosterIndex(stackRoster: StackRosterState, units: ReadonlyArray<Def
 describe('resolveBattlefieldDisplayName', () => {
   it('throws when grouped unit metadata is incomplete', () => {
       const stackRoster = {
+      nextGroupOrdinal: 2,
       groupsById: {
         'group-1': {
           groupName: 'Little Pigs group 1',
@@ -62,6 +63,7 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     const stackRoster = {
+      nextGroupOrdinal: 2,
       groupsById: {
         'group-1': {
           groupName: 'Little Pigs group 1',
@@ -89,6 +91,7 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     const stackRoster = {
+      nextGroupOrdinal: 1,
       groupsById: {},
     }
 
@@ -111,7 +114,7 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     const label = resolveBattlefieldDisplayName(
-      makeTestUnit({ friendlyName: undefined, stackSize: 2 }),
+      { ...makeTestUnit({ friendlyName: undefined }), stackSize: 2 },
       stackNaming,
       'group-1',
     )
@@ -128,6 +131,7 @@ describe('resolveBattlefieldDisplayName', () => {
     }
 
     const stackRoster = {
+      nextGroupOrdinal: 2,
       groupsById: {
         'group-1': {
           groupName: 'Little Pigs group 1',

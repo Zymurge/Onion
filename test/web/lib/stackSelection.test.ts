@@ -44,6 +44,7 @@ function createStackSourceState(overrides: Partial<WebStackSourceState> = {}): W
       },
     },
     stackRoster: {
+      nextGroupOrdinal: 2,
       groupsById: {
         'group-1': {
           groupName: 'Little Pigs group 1',
@@ -98,7 +99,7 @@ describe('stackSelection', () => {
   it('requires the roster bundle and resolves an isolated stackable unit without a group entry', () => {
     const missingRoster = createStackSourceState({ stackRoster: undefined })
     const missingGroup = createStackSourceState({
-      stackRoster: { groupsById: {} },
+      stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
     })
 
     expect(() => resolveBattlefieldStackMemberIds(missingRoster, 'pigs-1')).toThrow('Missing stackRoster for grouped unit pigs-1')
@@ -110,7 +111,9 @@ describe('stackSelection', () => {
       defenders: {
         ...createStackSourceState().defenders,
         'pigs-2': {
-          ...createStackSourceState().defenders?.['pigs-2'],
+          unitId: 'pigs-2',
+          typeId: 'LittlePigs',
+          position: { q: 1, r: 1 },
           state: 'destroyed',
         },
       },
@@ -147,7 +150,7 @@ describe('stackSelection', () => {
       onions: {},
       defenders: {},
       stackNaming: undefined as never,
-      stackRoster: { groupsById: {} },
+      stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
       currentPhase: 'DEFENDER_MOVE',
       turn: 1,
     }, catalog)

@@ -108,7 +108,7 @@ export async function handleMove(context: ActionHandlerContext, command: MoveCom
     outcome: {
       unitIds: moveUnitIds,
       from: firstMovePlan?.from,
-      to: firstMovePlan?.to,
+      to: firstMovePlan?.to ?? command.to,
       cost: firstMovePlan?.cost,
       rammedUnitIds: lastMoveResult?.rammedUnitIds ?? [],
       destroyedUnitIds: lastMoveResult?.destroyedUnits ?? [],

@@ -10,6 +10,7 @@ describe('battlefieldGroupProjection', () => {
 			makeBattlefieldDefender({ unitId: 'wolf-1', typeId: 'BigBadWolf', position: { q: 5, r: 4 } }),
 		]
 		const stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
 					groupName: 'Little Pigs group 1',
@@ -34,6 +35,7 @@ describe('battlefieldGroupProjection', () => {
 			makeBattlefieldDefender({ unitId: 'pigs-2', typeId: 'LittlePigs', position: { q: 4, r: 4 } }),
 		]
 		const stackRoster = {
+			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
 					groupName: 'Little Pigs group 1',

@@ -295,7 +295,10 @@ export function moveStackRosterGroup(
 		position: input.destinationPosition,
 	}, destinationUnitIds, input.destinationGroupName ?? (remainingUnitIds.length === 0 ? sourceGroup.groupName : undefined))
 
-	return buildRosterState(groupsById, movedUnitIds.length > 1 ? allocated.nextGroupOrdinal : nextGroupOrdinal)
+	return buildRosterState(
+		groupsById,
+		groupsById[allocated.groupId] !== undefined ? allocated.nextGroupOrdinal : nextGroupOrdinal,
+	)
 }
 
 /** Relocate selected units, preserving singleton stackable groups. */

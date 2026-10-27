@@ -22,6 +22,7 @@ describe('stack roster', () => {
 	it('flags structural contract violations', () => {
 		const defenders: DefenderMap = {}
 		const roster: StackRosterState = {
+			nextGroupOrdinal: 1,
 			groupsById: {
 				'bad-1': {
 					groupName: ' ',
@@ -105,7 +106,7 @@ describe('stack roster', () => {
 				groupsInUse: [{ groupId: 'little-pigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
 				usedGroupNames: ['Little Pigs group 1'],
 			},
-			Object.values(fixture.defenders),
+			fixture.defenders,
 		)).toThrow('canonical group ID')
 	})
 
@@ -151,6 +152,7 @@ describe('stack roster', () => {
 	it('resolves grouped defenders by canonical unitId when map keys differ', () => {
 		const rosterIndex = buildStackRosterIndex(
 			{
+				nextGroupOrdinal: 1,
 				groupsById: {
 					'group-2': {
 						groupName: 'Little Pigs group 1',
@@ -168,6 +170,7 @@ describe('stack roster', () => {
 
 	it('round-trips through JSON serialization without losing the roster shape', () => {
 		const roster: StackRosterState = {
+			nextGroupOrdinal: 1,
 			groupsById: {
 				'group-1': {
 					groupName: 'Little Pigs group 1',
@@ -249,6 +252,7 @@ describe('stack roster', () => {
 
 	it('throws when a roster group has the wrong json shape', () => {
 		expect(() => buildStackRosterIndex({
+			nextGroupOrdinal: 1,
 			groupsById: {
 				bad: {
 					groupName: 'Little Pigs group 1',
@@ -263,6 +267,7 @@ describe('stack roster', () => {
 	it('throws when a defender unit entry has the wrong shape for a grouped unit', () => {
 		expect(() => buildStackRosterIndex(
 			{
+				nextGroupOrdinal: 1,
 				groupsById: {
 					bad: {
 						groupName: 'Little Pigs group 1',
@@ -282,6 +287,7 @@ describe('stack roster', () => {
 	it('throws when a grouped unit is missing from defenders', () => {
 		expect(() => buildStackRosterIndex(
 			{
+				nextGroupOrdinal: 1,
 				groupsById: {
 					bad: {
 						groupName: 'Little Pigs group 1',
@@ -317,6 +323,7 @@ describe('stack roster', () => {
 
 	it('parses canonical group membership from unitIds-only records', () => {
 		const roster: StackRosterState = {
+			nextGroupOrdinal: 1,
 			groupsById: {
 				'group-2': {
 					groupName: 'Little Pigs group 1',
@@ -394,6 +401,7 @@ describe('stack roster', () => {
 	it('fails refresh when a grouped unit is missing from defenders', () => {
 		expect(() => refreshStackRosterNamingSnapshot(
 			{
+				nextGroupOrdinal: 1,
 				groupsById: {
 					'group-1': {
 						groupName: 'Little Pigs group 1',
@@ -415,6 +423,7 @@ describe('stack roster', () => {
 				'wolf-1': { typeId: 'BigBadWolf', position: { q: 4, r: 5 } },
 			}),
 			{
+				nextGroupOrdinal: 1,
 				groupsById: {
 					'a': {
 						groupName: 'Little Pigs group 1',
@@ -450,6 +459,7 @@ describe('stack roster', () => {
 				'pigs-5': { typeId: 'LittlePigs', position: { q: 4, r: 4 } },
 			}),
 			{
+				nextGroupOrdinal: 1,
 				groupsById: {
 					'a': {
 						groupName: 'Little Pigs group 1',
@@ -471,6 +481,7 @@ describe('stack roster', () => {
 	it('filters group membership to only units present in defenders', () => {
 		const projected = expandStackRosterGroups(
 			{
+				nextGroupOrdinal: 1,
 				groupsById: {
 					'g-1': {
 						groupName: 'Little Pigs group 1',
@@ -660,6 +671,7 @@ describe('stack roster', () => {
 
 	it('moves a single selected member without inventing a new group name', () => {
 		const initialRoster: StackRosterState = {
+			nextGroupOrdinal: 1,
 			groupsById: {
 				'g-a': {
 					groupName: 'Little Pigs group A',
@@ -739,6 +751,36 @@ describe('stack roster', () => {
 		})
 
 		expect(moved.groupsById).toEqual({})
+	})
+
+	it('advances the group ordinal when a singleton joins an ungrouped destination singleton', () => {
+		const initialRoster: StackRosterState = {
+			nextGroupOrdinal: 2,
+			groupsById: {
+				'group-1': {
+					groupName: 'Little Pigs group A',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
+		const moved = relocateStackRosterUnits(initialRoster, {
+			movedUnitIds: ['pigs-1'],
+			unitType: 'LittlePigs',
+			destinationPosition: { q: 5, r: 4 },
+			destinationGroupName: 'Little Pigs group B',
+			destinationUnitIds: ['pigs-3'],
+		})
+		const validationIssues = validateStackRoster(moved, makeDefenderMap({
+			'pigs-1': { typeId: 'LittlePigs', position: { q: 5, r: 4 } },
+			'pigs-2': { typeId: 'LittlePigs', position: { q: 4, r: 4 } },
+			'pigs-3': { typeId: 'LittlePigs', position: { q: 5, r: 4 } },
+		}))
+
+		expect(moved.nextGroupOrdinal).toBe(3)
+		expect(moved.groupsById['group-2']?.unitIds).toEqual(['pigs-3', 'pigs-1'])
+		expect(validationIssues).toEqual([])
 	})
 
 	it('merges an ungrouped moved unit into an existing destination stack', () => {

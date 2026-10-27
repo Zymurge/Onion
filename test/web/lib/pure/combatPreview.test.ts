@@ -327,6 +327,7 @@ describe('buildCombatTargetOptions', () => {
 				weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' })],
 			}),
 			stackRoster: {
+				nextGroupOrdinal: 2,
 				groupsById: {
 					'group-1': {
 						groupName: 'Little Pigs group 1',
@@ -360,6 +361,7 @@ describe('buildCombatTargetOptions', () => {
 				weapons: [makeWeapon({ id: 'main-1', typeId: 'TheOnion.main' })],
 			}),
 			stackRoster: {
+				nextGroupOrdinal: 2,
 				groupsById: {
 					'group-1': {
 						groupName: 'Little Pigs :4,7',
