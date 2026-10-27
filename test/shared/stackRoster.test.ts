@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
 	buildStackRosterFromUnits,
 	buildStackRosterIndex,
+	canonicalizeStackRoster,
 	refreshStackRosterNamingSnapshot,
 	expandStackRosterGroups,
 	mergeStackRosterGroups,
@@ -359,6 +360,35 @@ describe('stack roster', () => {
 			],
 			usedGroupNames: ['Little Pigs group 1'],
 		})
+	})
+
+	it('prunes singleton groups when canonicalizing roster and naming state', () => {
+		const fixture = makeStackFixture({
+			groups: {
+				'group-1': {
+					groupName: 'Little Pigs group 1',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+				'group-2': {
+					groupName: 'Little Pigs group 2',
+					unitType: 'LittlePigs',
+					position: { q: 5, r: 4 },
+					unitIds: ['pigs-3'],
+				},
+			},
+		})
+
+		const canonical = canonicalizeStackRoster(fixture.stackRoster, undefined, fixture.defenders)
+
+		expect(canonical.stackRoster.groupsById).toEqual({
+			'group-1': fixture.stackRoster.groupsById['group-1'],
+		})
+		expect(canonical.stackNaming.groupsInUse).toEqual([
+			{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+		])
+		expect(canonical.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
 	})
 
 	it('fails refresh when a grouped unit is missing from defenders', () => {

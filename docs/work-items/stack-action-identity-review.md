@@ -4,7 +4,32 @@
 
 Issue #60 asks how movement, combat, ramming, and stacks should interact; whether they should share a common action path; and where server and web code duplicate stack behavior. This document records the architectural assessment of the current implementation, resolves foundational contract decisions, and establishes an actionable, bounded sequence of implementation tasks for sub-agents.
 
-This document is an architectural plan of record. Tasks 1 through 6 are implemented and verified; Task 7 remains optional and deferred. It defines the implementation boundaries and contracts for delegation but does not authorize changes outside its sequenced scope.
+This document is an architectural plan of record. The active five-item implementation sequence below is the current status authority; the detailed tasks retain the architectural boundaries and acceptance criteria for delegation. It does not authorize changes outside its sequenced scope.
+
+## Active Five-Item Sequence
+
+The implementation sequence is intentionally narrower than the architectural task breakdown below:
+
+1. **[x] Define common action subject**
+2. **[x] Unify canonical group lookups**
+3. **[x] Enforce immutable group IDs**
+
+- Persist canonical opaque `group-N` IDs in `stackRoster.groupsById`.
+- Keep group-ID allocation in `stackRoster` and remove caller-controlled split IDs.
+- Align action and UI contracts with canonical `groupId` values.
+- Remove coordinate-derived targets, naming keys, and stale coordinate-shaped fixtures.
+- Complete the focused integration, typecheck, and lint audit for the changed surfaces.
+
+4. **[-] Align naming lifecycle IDs**
+
+- Allocate initial group IDs from the roster ordinal and omit singleton roster entries.
+- Key active naming records and retirement history by canonical `groupId`.
+- Preserve names across intact moves, splits, and merges without recycling retired names.
+- Keep roster canonicalization and naming refresh synchronized, including singleton pruning.
+
+5. **[ ] Align action-specific resolution**
+
+Action execution rewrites, combined commands, and web command resolution remain outside item 4 and belong to item 5.
 
 ---
 
@@ -180,6 +205,7 @@ This document is an architectural plan of record. Tasks 1 through 6 are implemen
   - Normalized initial state contains valid `group-1`, `group-2` IDs for multi-unit deployments.
   - Singletons have no group in `groupsById`.
   - Naming snapshot tracks groups by `groupId`.
+  - Canonical roster projection prunes singleton entries while preserving `nextGroupOrdinal` and retired-name history.
   - Focused tests pass: `pnpm test test/server/engine/scenarioNormalizer.test.ts test/shared/stackNaming.test.ts`.
 - **Non-Goals:** Do not edit game action execution or web components.
 

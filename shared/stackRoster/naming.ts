@@ -67,15 +67,16 @@ export function canonicalizeStackRoster(
 	const stackNaming = refreshStackRosterNamingSnapshot(stackRoster, seed, defenders, rules)
 	const groupNamesById = new Map(stackNaming.groupsInUse.map((group) => [group.groupId, group.groupName]))
 	const groupsById = Object.fromEntries(
-		Object.entries(stackRoster.groupsById).map(([groupId, group]) => {
+		Object.entries(stackRoster.groupsById).flatMap(([groupId, group]) => {
+			if (group.unitIds.length <= 1) {
+				return []
+			}
+
 			const canonicalGroup = {
 				...group,
 				groupName: groupNamesById.get(groupId) ?? group.groupName,
 			}
-			if (group.unitIds.length <= 1) {
-				delete canonicalGroup.groupName
-			}
-			return [groupId, canonicalGroup]
+			return [[groupId, canonicalGroup] as const]
 		}),
 	)
 

@@ -356,5 +356,11 @@ describe('normalizeInitialStateToGameState', () => {
     expect(gameState.defenders['pigs-3'].friendlyName).toBe('Little Pigs 3')
     expect(gameState.defenders['pigs-4'].friendlyName).toBe('Little Pigs 4')
     expect(gameState.defenders['pigs-5'].friendlyName).toBe('Little Pigs 5')
+    expect(Object.keys(gameState.stackRoster.groupsById)).toEqual(['group-1', 'group-2'])
+    expect(gameState.stackRoster.nextGroupOrdinal).toBe(3)
+    expect(gameState.stackNaming.groupsInUse).toEqual([
+      { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      { groupId: 'group-2', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+    ])
   })
 })
