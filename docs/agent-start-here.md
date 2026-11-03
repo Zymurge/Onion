@@ -30,6 +30,7 @@ When introducing or renaming source files it is imperative to update this docume
 
 | Task | Load | Code |
 | --- | --- | --- |
+| AI opponent strategy, simulation design, or policy evaluation | [ai-opponent-strategy.md](ai-opponent-strategy.md) | Proposed design only; reuse the named shared rules and backend execution owners. No AI runtime or simulator is implemented yet. |
 | Canonical stack identity, stack naming, ActionSubject, or cross-layer MOVE/FIRE action ownership | [persistence.md](persistence.md), [api-contract.md](api-contract.md), and [interaction-routing-spec.md](web-ui/interaction-routing-spec.md) | Load only the relevant contract section, then follow its named shared, server, and web owner modules |
 | Version scope or deferred work | [v1-v2-scope.md](work-items/v1-v2-scope.md) | Read this before selecting adjacent work. Do not implement V2 items unless the user explicitly expands scope. |
 | Unit or weapon numbers, ram profile, stack-size limit, or terrain flags | `shared/config/unitCatalog.json` | `shared/unitDefinitions.ts`. Do not take these numbers from [game-rules.md](game-rules.md) |
