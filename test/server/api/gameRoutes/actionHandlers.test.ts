@@ -5,6 +5,7 @@ import type { ActionHandlerContext } from '#server/api/gameRoutes/actionHandlers
 import { handleEndPhase } from '#server/api/gameRoutes/actionHandlers/endPhase'
 import { handleFire } from '#server/api/gameRoutes/actionHandlers/fire'
 import { handleMove } from '#server/api/gameRoutes/actionHandlers/move'
+import { makeGameState } from '#test/utils/gameStateUtils'
 
 vi.mock('#server/engine/game', () => ({
   advancePhaseWithEvents: vi.fn(() => ({
@@ -39,7 +40,7 @@ function makeMatch(): MatchRecord {
     phase: 'ONION_MOVE',
     turnNumber: 1,
     winner: null,
-    state: {} as MatchRecord['state'],
+    state: makeGameState(),
     events: [],
   }
 }

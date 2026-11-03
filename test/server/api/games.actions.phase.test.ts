@@ -40,6 +40,73 @@ describe('POST /games/:id/actions END_PHASE', () => {
     expect(typeof body.snapshotRevision).toBe('number')
   })
 
+  it('repairs missing persisted stack names before returning a phase transition', async () => {
+    const state = makeGameState({
+      currentPhase: 'ONION_MOVE',
+      stackRoster: {
+        groupsById: {
+          'group-4': {
+            groupName: 'Little Pigs group 4',
+            unitType: 'LittlePigs',
+            position: { q: 1, r: 1 },
+            unitIds: ['pigs-1', 'pigs-2'],
+          },
+        },
+        nextGroupOrdinal: 5,
+      },
+      stackNaming: { groupsInUse: [], usedGroupNames: [] },
+    })
+    let match: {
+      gameId: number
+      scenarioId: string
+      scenarioSnapshot: {
+        map: { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: never[] }
+        victoryConditions: { objectives: never[] }
+      }
+      players: { onion: string; defender: string }
+      hostUserId: string
+      status: 'active'
+      phase: 'ONION_MOVE'
+      turnNumber: number
+      winner: null
+      state: typeof state
+      events: never[]
+    }
+    const app = buildApp({
+      findMatch: async () => match,
+      persistMatchProgress: async () => {},
+    })
+    const onion = await register(app, 'phase-stack-onion')
+    match = {
+      gameId: 1,
+      scenarioId: 'phase-stack-name-repair',
+      scenarioSnapshot: {
+        map: { width: 3, height: 3, cells: [{ q: 0, r: 0 }], hexes: [] },
+        victoryConditions: { objectives: [] },
+      },
+      players: { onion: onion.userId, defender: 'defender-user' },
+      hostUserId: onion.userId,
+      status: 'active' as const,
+      phase: 'ONION_MOVE' as const,
+      turnNumber: 1,
+      winner: null,
+      state,
+      events: [],
+    }
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/games/1/actions',
+      headers: { authorization: `Bearer ${onion.token}` },
+      payload: { type: 'END_PHASE' },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().state.stackNaming.groupsInUse).toEqual([
+      { groupId: 'group-4', groupName: 'Little Pigs group 4', unitType: 'LittlePigs' },
+    ])
+  })
+
   it('advances phase from ONION_MOVE to ONION_COMBAT', async () => {
     const app = buildApp()
     const shrek = await register(app, 'shrek')
@@ -314,6 +381,8 @@ describe('POST /games/:id/actions END_PHASE', () => {
         state: makeGameState({
           onions: { onion: makeOnion({ unitId: 'onion', position: { q: 0, r: 10 } }) },
           defenders: {},
+          stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
+          stackNaming: { groupsInUse: [], usedGroupNames: [] },
           currentPhase: 'ONION_MOVE',
           turn: 1,
         }),

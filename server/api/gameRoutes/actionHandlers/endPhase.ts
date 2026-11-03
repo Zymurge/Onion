@@ -1,6 +1,7 @@
 import logger from '#server/logger'
 import { advancePhaseWithEvents } from '#server/engine/game'
 import { buildActionResponse } from '#server/api/gameHelpers/actionResponses'
+import { buildEngineState } from '#server/api/gameHelpers/stateProjection'
 import { computeWinnerUserId } from '#server/api/gameHelpers/victory'
 import { logSentEvents } from '#server/api/gameHelpers/logging'
 import { getScenarioRulesContext } from '#server/api/gameHelpers/scenario'
@@ -17,7 +18,9 @@ import type { ActionHandlerContext, ActionHandlerResponse } from './types.js'
 export async function handleEndPhase(context: ActionHandlerContext): Promise<ActionHandlerResponse> {
   const { db, match, causeId, expectedLastEventSeq, attachCauseId, broadcastGameEvents } = context
   logger.info({ gameId: match.gameId, phase: match.phase }, 'Advancing phase')
-  const result = advancePhaseWithEvents(match, getScenarioRulesContext(match.scenarioId, match.scenarioSnapshot as ScenarioSnapshot))
+  const rules = getScenarioRulesContext(match.scenarioId, match.scenarioSnapshot as ScenarioSnapshot)
+  const state = buildEngineState(match, rules)
+  const result = advancePhaseWithEvents({ ...match, state }, rules)
   const newEvents = attachCauseId(result.newEvents, causeId)
   const winner = computeWinnerUserId(match, result.state, result.phase, result.turnNumber) ?? match.winner
   const status = winner !== null ? 'completed' : match.status

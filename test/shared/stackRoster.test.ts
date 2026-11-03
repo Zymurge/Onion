@@ -972,4 +972,58 @@ describe('stack roster', () => {
 		})
 		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'])
 	})
+
+	it('uses live destination membership when a destination group position is stale', () => {
+		const destinationPosition = { q: 1, r: 0 }
+		const reconciled = reconcileStackRosterMoveLifecycle({
+			stackRoster: {
+				nextGroupOrdinal: 3,
+				groupsById: {
+					'group-1': {
+						groupName: 'Little Pigs group 1',
+						unitType: 'LittlePigs',
+						position: { q: 0, r: 0 },
+						unitIds: ['p1', 'p2'],
+					},
+					'group-2': {
+						groupName: 'Little Pigs group 2',
+						unitType: 'LittlePigs',
+						position: { q: 4, r: 0 },
+						unitIds: ['p3', 'p4'],
+					},
+				},
+			},
+			stackNaming: {
+				groupsInUse: [
+					{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+					{ groupId: 'group-2', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+				],
+				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+			},
+			defenders: makeDefenderMap({
+				p1: { typeId: 'LittlePigs', position: destinationPosition },
+				p2: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+				p3: { typeId: 'LittlePigs', position: destinationPosition },
+				p4: { typeId: 'LittlePigs', position: destinationPosition },
+			}),
+			movedUnitId: 'p1',
+			unitType: 'LittlePigs',
+			destinationPosition,
+			movedUnitFriendlyName: 'Little Pigs 1',
+		})
+
+		expect(reconciled.stackRoster.groupsById['group-2']).toMatchObject({
+			position: destinationPosition,
+			unitIds: ['p3', 'p4', 'p1'],
+		})
+		expect(validateStackRosterConsistency(
+			makeDefenderMap({
+				p1: { typeId: 'LittlePigs', position: destinationPosition },
+				p2: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
+				p3: { typeId: 'LittlePigs', position: destinationPosition },
+				p4: { typeId: 'LittlePigs', position: destinationPosition },
+			}),
+			reconciled.stackRoster,
+		)).toEqual([])
+	})
 })

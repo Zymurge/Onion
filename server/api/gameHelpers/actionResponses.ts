@@ -1,6 +1,7 @@
 import type { MatchRecord } from '#server/db/adapter'
 import type { ActionOkResponse, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
 import type { VictoryEscapeHex, VictoryObjectiveState } from '#shared/apiProtocol'
+import { canonicalizeStackRoster } from '#shared/stackRoster/index'
 import { buildVictoryObjectiveStates } from './victory.js'
 import { getScenarioEscapeHexes, getScenarioMapSnapshot, getScenarioRulesContext, type ScenarioMapSnapshot, type ScenarioSnapshot } from './scenario.js'
 
@@ -45,6 +46,12 @@ export function buildActionResponse(
   const scenarioMap = getScenarioMapSnapshot(scenarioSnapshot)
   const scenarioName = scenarioSnapshot.displayName ?? scenarioSnapshot.name ?? match.scenarioId
   const escapeHexes = getScenarioEscapeHexes(scenarioSnapshot)
+  const canonicalStackState = canonicalizeStackRoster(state.stackRoster, state.stackNaming, state.defenders, rules)
+  const responseState: GameState = {
+    ...state,
+    stackRoster: canonicalStackState.stackRoster,
+    stackNaming: canonicalStackState.stackNaming,
+  }
   const historicalEvents = Array.isArray(match.events) ? match.events : []
   const phaseStartEventSeq = [...historicalEvents, ...events].reverse().find((event) =>
     event.type === 'PHASE_CHANGED' && event.to === phase && event.turnNumber === turnNumber,
@@ -54,7 +61,7 @@ export function buildActionResponse(
     ok: true,
     seq: eventSeq,
     events,
-    state,
+    state: responseState,
     status,
     hostUserId: match.hostUserId,
     winner: winnerUserId === null
@@ -70,7 +77,7 @@ export function buildActionResponse(
     snapshotRevision,
     scenarioName,
     scenarioMap,
-    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, state, turnNumber, [...historicalEvents, ...events], rules, match.scenarioId),
+    victoryObjectives: buildVictoryObjectiveStates(scenarioSnapshot, scenarioMap, responseState, turnNumber, [...historicalEvents, ...events], rules, match.scenarioId),
     escapeHexes,
     phaseStartEventSeq,
   }

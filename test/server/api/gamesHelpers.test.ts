@@ -562,7 +562,9 @@ describe('buildVictoryObjectiveStates', () => {
     const terminalState = makeGameStateWithUnits()
     terminalState.onions['onion-1'].position = { q: 0, r: 0 }
     terminalState.turn = 2
-    terminalState.defenders = {}
+    for (const defender of Object.values(terminalState.defenders)) {
+      defender.state = 'destroyed'
+    }
     const match = {
       gameId: 42,
       scenarioId: 'terminal-scenario',
@@ -636,6 +638,41 @@ describe('buildVictoryObjectiveStates', () => {
       position: { q: 1, r: 1 },
       unitIds: ['pigs-1', 'pigs-2'],
     })
+  })
+
+  it('repairs missing grouped stack names in action responses', () => {
+    const stateWithMissingNaming = makeGameStateWithUnits()
+    stateWithMissingNaming.stackNaming = { groupsInUse: [], usedGroupNames: [] }
+
+    const response = buildActionResponse(
+      {
+        gameId: 1,
+        scenarioId: 'scenario-1',
+        scenarioSnapshot: {
+          name: 'Scenario 1',
+          map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] },
+        },
+        players: { onion: 'onion-1', defender: 'defender-1' },
+        hostUserId: 'onion-1',
+        status: 'active',
+        phase: 'ONION_COMBAT',
+        turnNumber: 1,
+        winner: null,
+        state: stateWithMissingNaming,
+        events: [],
+      } as MatchRecord,
+      stateWithMissingNaming,
+      'ONION_COMBAT',
+      1,
+      1,
+      [],
+      'active',
+      null,
+    )
+
+    expect(response.state.stackNaming.groupsInUse).toEqual([
+      { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+    ])
   })
 
   it('includes destroyed Defender records in snapshots after removing them from active stack groups', () => {
@@ -937,6 +974,8 @@ describe('scenario-derived runtime contracts', () => {
     }
     const state = makeGameState({
       defenders: { 'puss-1': derivedDefender },
+      stackRoster: { groupsById: {}, nextGroupOrdinal: 1 },
+      stackNaming: { groupsInUse: [], usedGroupNames: [] },
     })
 
     expect(computeWinnerUserId(match as unknown as MatchRecord, state, 'ONION_MOVE', 1)).toBe('onion-user')

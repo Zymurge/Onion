@@ -312,11 +312,15 @@ export function relocateStackRosterUnits(
 		throw new Error('Cannot relocate units without moved members')
 	}
 
-	const destinationEntry = Object.entries(groupsById).find(([groupId, group]) => groupId !== findSourceGroupId(groupsById, movedIdSet)
-		&& group.unitType === input.unitType
-		&& group.position.q === input.destinationPosition.q
-		&& group.position.r === input.destinationPosition.r)
 	const sourceGroupId = findSourceGroupId(groupsById, movedIdSet)
+	const destinationEntry = input.destinationGroupId === undefined
+		? Object.entries(groupsById).find(([groupId, group]) => groupId !== sourceGroupId
+			&& group.unitType === input.unitType
+			&& group.position.q === input.destinationPosition.q
+			&& group.position.r === input.destinationPosition.r)
+		: groupsById[input.destinationGroupId] === undefined || input.destinationGroupId === sourceGroupId
+			? undefined
+			: [input.destinationGroupId, groupsById[input.destinationGroupId]] as const
 	const destinationSourceOverlap = sourceGroupId !== null
 		&& groupsById[sourceGroupId]?.position.q === input.destinationPosition.q
 		&& groupsById[sourceGroupId]?.position.r === input.destinationPosition.r
@@ -366,6 +370,20 @@ function findSourceGroupId(
 	return Object.entries(groupsById).find(([, group]) => resolveGroupUnitIds(group).some((unitId) => movedIdSet.has(unitId)))?.[0] ?? null
 }
 
+function isLiveGroupAtPosition(
+	group: StackRosterGroupState,
+	defenders: DefenderMap | undefined,
+	position: { q: number; r: number },
+): boolean {
+	const liveMembers = resolveGroupUnitIds(group)
+		.map((unitId) => defenders?.[unitId])
+	return liveMembers.length > 0 && liveMembers.every((defender) =>
+		defender !== undefined
+		&& defender.state !== 'destroyed'
+		&& defender.position.q === position.q
+		&& defender.position.r === position.r)
+}
+
 /** Reconcile a move with canonical roster membership and stack naming. */
 export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMoveLifecycleInput): ReconcileStackRosterMoveLifecycleResult {
 	const rosterIndex = buildStackRosterIndex(input.stackRoster, input.defenders)
@@ -382,8 +400,9 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 		.map((unit) => unit.unitId)
 	const destinationEntry = Object.entries(rosterIndex.groupsById).find(([groupId, group]) => groupId !== sourceGroup?.groupId
 		&& group.unitType === input.unitType
-		&& group.position.q === input.destinationPosition.q
-		&& group.position.r === input.destinationPosition.r)
+		&& (group.position.q === input.destinationPosition.q
+			&& group.position.r === input.destinationPosition.r
+			|| isLiveGroupAtPosition(group, input.defenders, input.destinationPosition)))
 	const destinationGroup = destinationEntry?.[1] ?? null
 	const sourceGroupUnitCount = sourceGroup?.unitIds?.length ?? sourceGroup?.units?.length ?? 0
 	const destinationGroupUnitCount = destinationGroup?.unitIds?.length ?? destinationGroup?.units?.length ?? destinationSingletonUnitIds.length
@@ -449,6 +468,7 @@ export function reconcileStackRosterMoveLifecycle(input: ReconcileStackRosterMov
 
 	const stackRoster = relocateStackRosterUnits(input.stackRoster, {
 		destinationUnitIds: destinationSingletonUnitIds,
+		destinationGroupId,
 		movedUnitIds,
 		unitType: input.unitType,
 		destinationPosition: input.destinationPosition,

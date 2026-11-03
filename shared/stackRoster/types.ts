@@ -68,6 +68,7 @@ export type MoveStackRosterGroupInput = {
 /** Input for relocating selected units to a canonical destination group. */
 export type RelocateStackRosterUnitsInput = {
 	destinationUnitIds?: ReadonlyArray<string>
+	destinationGroupId?: string
 	movedUnitIds: string[]
 	unitType: string
 	destinationPosition: HexPos
