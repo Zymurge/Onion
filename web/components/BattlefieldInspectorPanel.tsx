@@ -55,6 +55,14 @@ export function BattlefieldInspectorPanel({
       ),
     )
     : undefined
+  const terrainModifierStat = selectedInspectorTerrainModifier === null
+    ? null
+    : (
+      <div>
+        <dt>Terrain</dt>
+        <dd>{selectedInspectorTerrainModifier}</dd>
+      </div>
+    )
 
   if (selectedInspectorOnion !== null) {
     return renderInspectorPanel({
@@ -75,12 +83,7 @@ export function BattlefieldInspectorPanel({
             <dt>Stack</dt>
             <dd>1</dd>
           </div>
-          {selectedInspectorTerrainModifier !== null ? (
-            <div>
-              <dt>Terrain</dt>
-              <dd>{selectedInspectorTerrainModifier}</dd>
-            </div>
-          ) : null}
+          {terrainModifierStat}
           <div>
             <dt>Treads</dt>
             <dd>{selectedInspectorOnion.treads}</dd>
@@ -125,12 +128,7 @@ export function BattlefieldInspectorPanel({
               <dt>Stack</dt>
               <dd>{stackCount}</dd>
             </div>
-            {selectedInspectorTerrainModifier !== null ? (
-              <div>
-                <dt>Terrain</dt>
-                <dd>{selectedInspectorTerrainModifier}</dd>
-              </div>
-            ) : null}
+            {terrainModifierStat}
             <div>
               <dt>Status</dt>
               <dd>{selectedInspectorDefender.state}</dd>

@@ -967,6 +967,58 @@ describe('BattlefieldLeftRail', () => {
     expect(groupCard.textContent).not.toContain('Little Pigs 4')
   })
 
+  it('reports a noncanonical group ID from roster metadata', () => {
+    const groupName = 'Group 1 - [Little Pigs]'
+    const displayedDefenders = canonicalizeBattlefieldDefenders([
+      {
+        id: 'pigs-1',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 1',
+        status: 'operational',
+        position: { q: 4, r: 4 },
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: [],
+      },
+      {
+        id: 'pigs-2',
+        type: 'LittlePigs',
+        friendlyName: 'Little Pigs 2',
+        status: 'operational',
+        position: { q: 4, r: 4 },
+        move: 3,
+        weapons: 'main: ready',
+        attack: '1 / rng 1',
+        actionableModes: [],
+      },
+    ])
+
+    renderLeftRail({
+      activeCombatRole: 'defender',
+      activeRole: 'defender',
+      isMovementPhase: true,
+      displayedDefenders,
+      stackNaming: {
+        groupsInUse: [{ groupId: 'legacy-group', groupName, unitType: 'LittlePigs' }],
+        usedGroupNames: [groupName],
+      },
+      stackRoster: {
+        nextGroupOrdinal: 2,
+        groupsById: {
+          'legacy-group': {
+            groupName,
+            unitType: 'LittlePigs',
+            position: { q: 4, r: 4 },
+            unitIds: ['pigs-1', 'pigs-2'],
+          },
+        },
+      } as StackRosterState,
+    })
+
+    expect(screen.getByText(/Invalid canonical stack group ID: legacy-group/)).toBeInTheDocument()
+  })
+
   it('renders singleton stack-roster placeholders with the unit label instead of a group fallback', () => {
     const displayedDefenders: BattlefieldDefenderFixture[] = [
       {

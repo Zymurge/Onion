@@ -343,6 +343,7 @@ describe('useBattlefieldDisplayState', () => {
 	it.each([
 		['LittlePigs', 1, 'Ridgeline cover: +1 defense'],
 		['LittlePigs', 0, null],
+		['LittlePigs', 2, null],
 		['Puss', 1, null],
 	] as const)('projects applicable terrain modifiers for %s on terrain %i', (typeId, terrainValue, expectedModifier) => {
 		const snapshot = createSnapshot()
@@ -367,6 +368,72 @@ describe('useBattlefieldDisplayState', () => {
 		)
 
 		expect(result.current.selectedInspectorTerrainModifier).toBe(expectedModifier)
+	})
+
+	it('uses the session catalog for terrain modifiers on scenario-derived unit types', () => {
+		const snapshot = createSnapshot()
+		const scenarioTypeId = 'scenario:LittlePigs'
+		const scenarioCatalog = createSessionCatalog({
+			...sessionCatalog.unitTypes,
+			[scenarioTypeId]: { ...sessionCatalog.unitTypes.LittlePigs!, typeId: scenarioTypeId },
+		}, sessionCatalog.weaponTypes)
+		snapshot.authoritativeState!.defenders = {
+			'scenario-pigs-1': makeDefender({
+				unitId: 'scenario-pigs-1',
+				typeId: scenarioTypeId,
+				position: { q: 4, r: 4 },
+				friendlyName: 'Scenario Little Pigs 1',
+				weapons: [],
+			}),
+		}
+		snapshot.scenarioMap!.hexes = [{ q: 4, r: 4, t: 1 }]
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds: ['scenario-pigs-1'] }),
+				sessionState: { ...createSessionState(snapshot), catalog: scenarioCatalog },
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.selectedInspectorTerrainModifier).toBe('Ridgeline cover: +1 defense')
+	})
+
+	it('does not project a terrain modifier when no unit is selected', () => {
+		const snapshot = createSnapshot()
+		snapshot.scenarioMap!.hexes = [{ q: 4, r: 4, t: 1 }]
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState(),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.selectedInspectorUnitId).toBeNull()
+		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
+	})
+
+	it('does not project a defender terrain bonus for the selected Onion', () => {
+		const snapshot = createSnapshot()
+		snapshot.authoritativeState!.defenders = {}
+		snapshot.scenarioMap!.hexes = [{ q: 1, r: 1, t: 1 }]
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds: ['onion-live'] }),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.error).toBeNull()
+		expect(result.current.selectedInspectorOnion?.unitId).toBe('onion-live')
+		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
 	})
 
 	it('keeps the attack total populated during defender movement when defenders are selected', () => {

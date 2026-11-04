@@ -53,6 +53,23 @@ describe('BattlefieldInspectorPanel', () => {
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
   })
 
+  it('renders the empty inspector without a terrain bonus', () => {
+    render(
+      <BattlefieldInspectorPanel
+        selectedInspectorLabel={null}
+        selectedInspectorTerrainModifier={null}
+        selectedInspectorDefender={null}
+        selectedInspectorOnion={null}
+        selectedStackMemberCount={0}
+        activeSelectedUnitCount={0}
+      />,
+    )
+
+    const inspector = screen.getByTestId('battlefield-inspector')
+    expect(within(inspector).getByText(/select a unit on the map or in the rail/i)).toBeInTheDocument()
+    expect(within(inspector).queryByText('Terrain')).toBeNull()
+  })
+
   it('keeps victory conditions out of the swamp inspector', () => {
     const swamp: BattlefieldUnit = {
       unitId: 'swamp-1',
