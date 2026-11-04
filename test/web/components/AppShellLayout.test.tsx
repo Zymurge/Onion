@@ -46,6 +46,7 @@ function createProps(overrides: Partial<AppShellLayoutProps> = {}): AppShellLayo
 			selectedCombatAttackerIds: [],
 			selectedCombatTarget: null,
 			selectedInspectorDefender: null,
+			selectedInspectorGroupHeading: null,
 			selectedInspectorLabel: null,
 			selectedInspectorOnion: null,
 			selectedInspectorUnitId: null,

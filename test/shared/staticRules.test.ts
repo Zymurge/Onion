@@ -5,7 +5,7 @@ import { ONION_STATIC_RULES } from '#shared/staticRules'
 describe('staticRules bundle', () => {
 	it('exposes the canonical unit and terrain rules bundle', () => {
 		expect(ONION_STATIC_RULES.unitTypes.Puss.typeId).toBe('Puss')
-		expect(ONION_STATIC_RULES.terrainRules.ridgeline.defenseBonus).toBe(1)
+		expect(ONION_STATIC_RULES.terrainRules.ridgeline.defenseMultiplier).toBe(2)
 		expect(ONION_STATIC_RULES.terrainRules.crater.terrainType).toBe('crater')
 	})
 

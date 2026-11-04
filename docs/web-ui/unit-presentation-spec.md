@@ -116,19 +116,32 @@ group ID rather than an individual Little Pigs member ID. See the
   label and the resolved unit type name as a muted subtitle. The ordinal comes
   from the roster's canonical `group-N` ID, and membership comes from
   `stackRoster` rather than map co-location.
-- The Inspector identifies a selected member by its individual friendly name
-  and shows its canonical group label separately. Group context does not replace
-  member identity.
+- When multiple members of a roster group are selected, the Inspector uses the
+  canonical group identity in a three-line heading: the group ordinal uses the
+  heading font, the resolved unit type uses the subheading font without
+  brackets, and the selected count uses normal body text. The count always
+  includes selected and total members, such as `2 of 2 selected` or
+  `4 of 5 selected`.
+- When only one member of a stack is selected, the Inspector uses that member's
+  individual friendly name and shows the canonical group label separately.
 
 ## Terrain Modifiers
 
-- The Inspector reports a terrain combat modifier only when it applies to the
-  selected unit at its current scenario-map position. The terrain type comes
-  from the active scenario map, and the modifier comes from the same shared
-  combat calculator and static rules used by combat previews.
+- Defender Inspector stats are arranged as `Status / Move`, `Attack / Range`,
+  and `Defense / Terrain`. Do not show `Stack` or `Selected` fields.
+- Defender `Move` is shown as remaining allowance over the unit type's maximum
+  movement, such as `2/2` before moving and `0/2` after it is spent or outside
+  that unit's movement phase. The maximum comes from the resolved session
+  catalog when available.
+- Terrain always reports the selected unit's current terrain type from the
+  active scenario map, including terrain types with no combat modifier.
+- Defense uses the resolved unit defense, or canonical roster size for a
+  stackable defender, and the shared combat calculator's terrain modifier. Show
+  an applicable adjustment parenthetically in the defense value, such as
+  `2 (+1)`; do not render a separate terrain bonus description.
 - Unit terrain abilities are resolved from the active session catalog so
   scenario-derived unit types receive the correct eligibility rules. When no
-  modifier applies, the Inspector does not show a terrain bonus row.
+  modifier applies, show the base defense without an adjustment.
 
 ## Implementation and Test Map
 

@@ -10,7 +10,6 @@ import {
   buildLiveOnion,
   buildLiveOnions,
   buildScenarioMap,
-  getDisplayDefense,
   getPhaseAdvanceLabel,
   getPhaseOwner,
   getTerrainValueAt,
@@ -125,7 +124,7 @@ describe('battlefieldViewBuilders', () => {
     const views = buildLiveDefenders(createLiveSnapshot(), 'DEFENDER_MOVE', true)
 
     expect(views.map((unit) => unit.unitId)).toEqual(['pigs-1', 'wolf-1'])
-    expect(views.find((unit) => unit.unitId === 'pigs-1')).toMatchObject({ stackSize: 1, movesRemaining: 1 })
+    expect(views.find((unit) => unit.unitId === 'pigs-1')).toMatchObject({ stackSize: 1, movesRemaining: 2 })
     expect(views.find((unit) => unit.unitId === 'wolf-1')).toMatchObject({ stackSize: 1, movesRemaining: 0 })
     expect(buildLiveDefenders(createLiveSnapshot({ authoritativeState: undefined }), 'DEFENDER_MOVE', true)).toEqual([])
   })
@@ -200,13 +199,6 @@ describe('battlefieldViewBuilders', () => {
     expect(getTerrainValueAt(snapshot.scenarioMap, 9, 9)).toBeUndefined()
     expect(() => buildScenarioMap(createLiveSnapshot({ scenarioMap: undefined }))).toThrow('missing scenario map data')
     expect(() => buildScenarioMap(createLiveSnapshot({ scenarioMap: { ...snapshot.scenarioMap!, cells: undefined as never } }))).toThrow('missing scenario map cells')
-  })
-
-  it('computes display defense from unit type, squads, and terrain', () => {
-    expect(getDisplayDefense('LittlePigs', 3, 1)).toBe(4)
-    expect(getDisplayDefense('LittlePigs', undefined, 0)).toBe(1)
-    expect(getDisplayDefense('BigBadWolf', undefined, undefined)).toBe(4)
-    expect(getDisplayDefense('unknown', undefined, undefined)).toBe(0)
   })
 
   it('builds combat ranges only from selected ready weapons and live defenders', () => {

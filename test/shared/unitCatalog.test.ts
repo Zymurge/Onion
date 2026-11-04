@@ -172,7 +172,7 @@ describe('static unit and weapon catalogs', () => {
       ramsPerTurn: 2,
     })
     expect(catalog.LittlePigs).toMatchObject({
-      movement: 1,
+      movement: 2,
       defense: 1,
       stackable: true,
       abilities: expect.objectContaining({ maxStacks: 5 }),

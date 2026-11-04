@@ -1,6 +1,5 @@
 import {
 	createCombatCalculator,
-	type CombatModifier,
 	type CombatExchangeInput,
 	type CombatAttackerContribution,
 	} from '../../shared/combatCalculator.js'
@@ -14,7 +13,7 @@ import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit
 import type { Weapon } from '../../shared/types/index'
 import { resolveBattlefieldFriendlyName } from './battlefieldNaming'
 import { isBattlefieldWeaponReady, resolveBattlefieldWeaponName } from './weaponStats'
-import { getDisplayDefense, getTerrainValueAt } from './battlefieldViewBuilders'
+import { getTerrainValueAt } from './battlefieldViewBuilders'
 import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './selectionIds'
 import { formatCombatTargetId } from '../../shared/combatTarget'
 import { buildStackRosterIndex, canonicalizeStackRoster } from '../../shared/stackRoster/index.js'
@@ -87,22 +86,34 @@ function terrainTypeAt(scenarioMap: CombatPreviewInput['displayedScenarioMap'], 
 	return terrainTypeFromHex(scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t)
 }
 
-export function getBattlefieldTerrainModifier(
+export type BattlefieldDefenderInspectionStats = {
+	defense: number
+	terrainModifier: number | null
+	terrainType: TerrainType
+}
+
+export function getBattlefieldDefenderInspectionStats(
 	unit: Pick<BattlefieldUnit, 'unitId' | 'typeId' | 'position'>,
+	stackSize: number,
 	scenarioMap: CombatPreviewInput['displayedScenarioMap'],
 	catalog?: SessionCatalog,
-): CombatModifier | null {
-	const modifier = getCombatCalculator(catalog).calculate({
+	): BattlefieldDefenderInspectionStats {
+	const terrainType = terrainTypeAt(scenarioMap, unit.position.q, unit.position.r)
+	const unitDefinition = catalog?.unitTypes[unit.typeId] ?? ONION_STATIC_RULES.unitTypes[unit.typeId]
+	const target: CombatExchangeInput['target'] = (unitDefinition?.abilities.maxStacks ?? 1) > 1
+		? { kind: 'stack', id: unit.unitId, typeId: unit.typeId, size: stackSize, terrainType }
+		: { kind: 'unit', id: unit.unitId, typeId: unit.typeId, terrainType }
+	const result = getCombatCalculator(catalog).calculate({
 		attackers: [],
-		target: {
-			kind: 'unit',
-			id: unit.unitId,
-			typeId: unit.typeId,
-			terrainType: terrainTypeAt(scenarioMap, unit.position.q, unit.position.r),
-		},
-	}).modifiers.find((candidate) => candidate.kind === 'terrain' && candidate.scope === 'defense')
+		target,
+	})
+	const terrainModifier = result.modifiers.find((candidate) => candidate.kind === 'terrain' && candidate.scope === 'defense')
 
-	return modifier ?? null
+	return {
+		defense: result.defenseStrength - (terrainModifier?.value ?? 0),
+		terrainModifier: terrainModifier?.value ?? null,
+		terrainType,
+	}
 }
 
 function getSelectedAttackerIds(activeCombatRole: CombatRole, selectedUnitIds: ReadonlyArray<string>): ReadonlyArray<string> {
@@ -292,13 +303,6 @@ export function buildCombatTargetOptions({
 				? resolveGroupedDefenderStackSize(rosterGroup.unitIds, validDefenders)
 				: 1
 			const unitPosition = getBattlefieldPosition(unit)
-			const terrainType = getTerrainValueAt(displayedScenarioMap, unitPosition.q, unitPosition.r)
-			const defense = getDisplayDefense(
-				unit.typeId,
-				stackSize,
-				terrainType,
-				catalog === undefined ? undefined : getSessionUnitType(catalog, unit.typeId),
-			)
 			const targetId = rosterGroup?.groupId ?? unit.unitId
 			const result = combatCalculator.calculate(
 				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, { ...unit }, stackSize, displayedScenarioMap),
@@ -311,12 +315,12 @@ export function buildCombatTargetOptions({
 				r: unitPosition.r,
 				status: unit.state,
 				label: resolveBattlefieldFriendlyName(unit, resolvedStackNaming ?? undefined, stackRosterIndex ?? undefined, catalog),
-				defense,
+				defense: result.defenseStrength,
 				modifiers: buildTargetModifiers(
 					result.modifiers,
 					selectedAttackerIds.length > 1 ? [`Attackers: ${selectedAttackerIds.length}`] : [],
 				),
-				detail: `Defense: ${defense}`,
+				detail: `Defense: ${result.defenseStrength}`,
 			}
 		})
 	}

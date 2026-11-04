@@ -17,7 +17,7 @@ describe('BattlefieldInspectorPanel', () => {
     return valueElement.textContent ?? ''
   }
 
-  it('uses canonical stack counts for grouped defenders', () => {
+  it('shows paired defender stats with defense modifier and terrain type', () => {
     const defender: BattlefieldUnit = {
       unitId: 'pigs-1',
       typeId: 'LittlePigs',
@@ -26,16 +26,23 @@ describe('BattlefieldInspectorPanel', () => {
       state: 'operational',
       position: { q: 4, r: 4 },
       weapons: [],
-      movesRemaining: 3,
+      movesRemaining: 1,
       stackSize: 1,
       actionableModes: ['fire', 'combined'],
     }
 
     render(
       <BattlefieldInspectorPanel
-        selectedInspectorLabel={defender.friendlyName}
-        selectedInspectorGroupLabel="Group 1 - [Little Pigs]"
-        selectedInspectorTerrainModifier="Ridgeline cover: +1 defense"
+        selectedInspectorLabel={null}
+        selectedInspectorGroupHeading={{
+          title: 'Group 1',
+          subtitle: 'Little Pigs',
+          selectionLabel: '2 of 2 selected',
+        }}
+        selectedInspectorGroupLabel={null}
+        selectedInspectorDefense={2}
+        selectedInspectorTerrainModifier={2}
+        selectedInspectorTerrainType="ridgeline"
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={2}
@@ -44,20 +51,62 @@ describe('BattlefieldInspectorPanel', () => {
     )
 
     const inspector = screen.getByTestId('battlefield-inspector')
-    expect(within(inspector).getByTestId('battlefield-inspector-subject-pigs-1').textContent).toBe('Little Pigs 1')
-    expect(within(inspector).getByTestId('battlefield-inspector-group')).toHaveTextContent('Member of Group 1 - [Little Pigs]')
-    expect(getLabeledValue('Terrain')).toBe('Ridgeline cover: +1 defense')
-    expect(within(inspector).getByRole('img', { name: 'Little Pigs 1 sprite' })).toBeInTheDocument()
+    expect(within(inspector).getByTestId('battlefield-inspector-subject-pigs-1').textContent).toBe('Group 1')
+    expect(within(inspector).getByText('Little Pigs')).toBeInTheDocument()
+    expect(within(inspector).getByText('2 of 2 selected')).toBeInTheDocument()
+    expect(within(inspector).queryByTestId('battlefield-inspector-group')).toBeNull()
+    expect(getLabeledValue('Defense')).toBe('2 (+2)')
+    expect(getLabeledValue('Terrain')).toBe('Ridgeline')
+    expect(within(inspector).getByRole('img', { name: 'Group 1 Little Pigs sprite' })).toBeInTheDocument()
     expect(within(inspector).getByText(/stackable rifle squad/i)).toBeInTheDocument()
-    expect(getLabeledValue('Stack')).toBe('2')
+    expect(Array.from(inspector.querySelectorAll('dl > div')).map((pair) => Array.from(pair.children).map((field) => field.textContent))).toEqual([
+      ['Status', 'operational'],
+      ['Move', '1/2'],
+      ['Attack', '0'],
+      ['Range', '0'],
+      ['Defense', '2 (+2)'],
+      ['Terrain', 'Ridgeline'],
+    ])
+    expect(within(inspector).queryByText('Selected')).toBeNull()
+    expect(within(inspector).queryByText('Stack')).toBeNull()
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
+  })
+
+  it('shows zero remaining movement alongside the unit maximum outside its movement phase', () => {
+    const defender: BattlefieldUnit = {
+      unitId: 'pigs-1',
+      typeId: 'LittlePigs',
+      role: 'defender',
+      friendlyName: 'Little Pigs 1',
+      state: 'operational',
+      position: { q: 4, r: 4 },
+      weapons: [],
+      movesRemaining: 0,
+      stackSize: 1,
+      actionableModes: ['fire', 'combined'],
+    }
+
+    render(
+      <BattlefieldInspectorPanel
+        selectedInspectorLabel={defender.friendlyName}
+        selectedInspectorDefense={1}
+        selectedInspectorTerrainType="clear"
+        selectedInspectorDefender={defender}
+        selectedInspectorOnion={null}
+        activeSelectedUnitCount={1}
+      />,
+    )
+
+    expect(getLabeledValue('Move')).toBe('0/2')
   })
 
   it('renders the empty inspector without a terrain bonus', () => {
     render(
       <BattlefieldInspectorPanel
         selectedInspectorLabel={null}
+        selectedInspectorDefense={null}
         selectedInspectorTerrainModifier={null}
+        selectedInspectorTerrainType={null}
         selectedInspectorDefender={null}
         selectedInspectorOnion={null}
         selectedStackMemberCount={0}
@@ -87,6 +136,9 @@ describe('BattlefieldInspectorPanel', () => {
     render(
       <BattlefieldInspectorPanel
         selectedInspectorLabel={swamp.friendlyName}
+        selectedInspectorDefense={0}
+        selectedInspectorTerrainModifier={null}
+        selectedInspectorTerrainType="clear"
         selectedInspectorDefender={swamp}
         selectedInspectorOnion={null}
         selectedStackMemberCount={1}
@@ -97,7 +149,7 @@ describe('BattlefieldInspectorPanel', () => {
     const inspector = screen.getByTestId('battlefield-inspector')
     expect(within(inspector).queryByText(/victory conditions/i)).toBeNull()
     expect(within(inspector).queryByText(/escape hexes/i)).toBeNull()
-    expect(within(inspector).queryByText('Terrain')).toBeNull()
+    expect(getLabeledValue('Terrain')).toBe('Clear')
   })
 
   it('shows destroyed status for an inspected defender', () => {
@@ -117,6 +169,9 @@ describe('BattlefieldInspectorPanel', () => {
     render(
       <BattlefieldInspectorPanel
         selectedInspectorLabel={destroyedDefender.friendlyName}
+        selectedInspectorDefense={1}
+        selectedInspectorTerrainModifier={null}
+        selectedInspectorTerrainType="crater"
         selectedInspectorDefender={destroyedDefender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={0}
@@ -192,32 +247,4 @@ describe('BattlefieldInspectorPanel', () => {
     }).toThrow('Missing inspector label for selected unit pigs-1')
   })
 
-  it('throws when a grouped defender is missing a selected stack member count', () => {
-    const defender: BattlefieldUnit = {
-      unitId: 'pigs-1',
-      typeId: 'LittlePigs',
-      role: 'defender',
-      friendlyName: 'Little Pigs 1',
-      state: 'operational',
-      position: { q: 4, r: 4 },
-      weapons: [],
-      movesRemaining: 3,
-      stackSize: 1,
-      actionableModes: ['fire', 'combined'],
-    }
-
-    expect(() => {
-      render(
-        <BattlefieldInspectorPanel
-          selectedInspectorLabel={defender.friendlyName}
-          selectedInspectorDefender={defender}
-          selectedInspectorOnion={null}
-          selectedStackMemberCount={0}
-          activeSelectedUnitCount={0}
-          victoryObjectives={[]}
-          escapeHexes={[]}
-        />,
-      )
-    }).toThrow('Missing stack member count for grouped unit pigs-1')
-  })
 })

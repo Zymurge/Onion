@@ -174,7 +174,7 @@ describe('buildCombatTargetOptions', () => {
 		expect(options[0]).toMatchObject({
 			id: 'group-7',
 			defense: fixture.expected.defenseStrength,
-			modifiers: ['Ridgeline cover: +1 defense'],
+			modifiers: ['Ridgeline cover: +3 defense'],
 		})
 	})
 

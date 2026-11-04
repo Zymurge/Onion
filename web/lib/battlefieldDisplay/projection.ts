@@ -27,14 +27,15 @@ import { buildBattlefieldActionEligibility } from '../actionEligibility/projecti
 import { formatEligibilityReason } from '../actionEligibility/reasons'
 import { buildWeaponSelectionId, isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from '../selectionIds'
 import { buildCombatRangeHexKeys } from '../combatRange'
-import { buildCombatTargetOptions, getBattlefieldTerrainModifier } from '../combatPreview'
+import { buildCombatTargetOptions, getBattlefieldDefenderInspectionStats } from '../combatPreview'
 import { buildRightRailStackSelectionViewModel } from '../rightRailSelection'
 import { buildBattlefieldRosterIndex } from '../battlefieldGroupProjection'
+import { getUnitDefinition } from '../../../shared/unitDefinitions.js'
 
 
 import { buildCombatMoveHandoffSnapshot } from './snapshotHandoff'
 import { assertCanonicalStackProjection, turnPhaseLabels, validateBattlefieldSnapshot } from './snapshotValidation'
-import type { RightRailStackPanelViewModel, UseBattlefieldDisplayStateOptions } from './types'
+import type { BattlefieldInspectorGroupHeading, RightRailStackPanelViewModel, UseBattlefieldDisplayStateOptions } from './types'
 
 /** Builds the complete pure battlefield display model from session and interaction state. */
 export function buildBattlefieldDisplayModel({
@@ -209,7 +210,7 @@ export function buildBattlefieldDisplayModel({
 	const selectedInspectorRosterGroup = selectedInspectorDefender === null
 		? null
 		: stackRosterIndex?.getUnitGroup(selectedInspectorDefender.unitId) ?? null
-	const selectedInspectorGroupLabel = selectedInspectorDefender !== null
+	const selectedInspectorRosterGroupLabel = selectedInspectorDefender !== null
 		&& selectedInspectorRosterGroup !== null
 		&& selectedInspectorRosterGroup.unitIds.length > 1
 		? resolveBattlefieldDisplayName(
@@ -218,15 +219,46 @@ export function buildBattlefieldDisplayModel({
 			selectedInspectorRosterGroup.groupId,
 		)
 		: null
+	const selectedInspectorGroupSelectedCount = selectedInspectorRosterGroup?.unitIds.filter((memberUnitId) =>
+		activeSelectedUnitIds.some((selectionId) =>
+			!isWeaponSelectionId(selectionId) && resolveSelectionOwnerUnitId(selectionId) === memberUnitId),
+	).length ?? 0
+	const selectedInspectorGroupHeading: BattlefieldInspectorGroupHeading | null = selectedInspectorRosterGroup !== null
+		&& selectedInspectorRosterGroup.unitIds.length > 1
+		&& selectedInspectorGroupSelectedCount > 1
+		? (() => {
+			const groupOrdinal = selectedInspectorRosterGroup.groupId.match(/^group-([1-9]\d*)$/)?.[1]
+			if (groupOrdinal === undefined) {
+				throw new Error(`Invalid canonical stack group ID: ${selectedInspectorRosterGroup.groupId}`)
+			}
+
+			return {
+				title: `Group ${groupOrdinal}`,
+				subtitle: catalog?.unitTypes[selectedInspectorRosterGroup.unitType]?.name
+					?? getUnitDefinition(selectedInspectorRosterGroup.unitType)?.name
+					?? selectedInspectorRosterGroup.unitType,
+				selectionLabel: `${selectedInspectorGroupSelectedCount} of ${selectedInspectorRosterGroup.unitIds.length} selected`,
+			}
+		})()
+		: null
+	const selectedInspectorGroupLabel = selectedInspectorGroupHeading === null
+		? selectedInspectorRosterGroupLabel
+		: null
 	const selectedInspectorLabel = selectedInspectorOnion !== null
 		? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackRosterIndex, catalog ?? undefined)
 		: selectedInspectorDefender !== null
-			? resolveBattlefieldUnitName(selectedInspectorDefender.typeId, selectedInspectorDefender.unitId, selectedInspectorDefender.friendlyName)
+			? selectedInspectorGroupHeading === null
+				? resolveBattlefieldUnitName(selectedInspectorDefender.typeId, selectedInspectorDefender.unitId, selectedInspectorDefender.friendlyName)
+				: null
 			: null
-	const selectedInspectorUnit = selectedInspectorOnion ?? selectedInspectorDefender
-	const selectedInspectorTerrainModifier = selectedInspectorUnit === null
+	const selectedInspectorDefenderStats = selectedInspectorDefender === null
 		? null
-		: getBattlefieldTerrainModifier(selectedInspectorUnit, displayedScenarioMap, catalog ?? undefined)?.label ?? null
+		: getBattlefieldDefenderInspectionStats(
+			selectedInspectorDefender,
+			selectedInspectorRosterGroup?.unitIds.length ?? selectedInspectorDefender.stackSize ?? 1,
+			displayedScenarioMap,
+			catalog ?? undefined,
+		)
 	const combatRangeSources = !isCombatPhase || displayedScenarioMap === null
 		? []
 		: buildCombatRangeSources(activePhase, activeCombatRole, activeCombatRole === 'defender' ? selectedCombatSelectionIds : activeSelectedUnitIds, displayedDefenders, displayedOnion, catalog ?? undefined)
@@ -372,10 +404,13 @@ export function buildBattlefieldDisplayModel({
 		selectedCombatTarget,
 		selectedCombatTargetIdForRender,
 		selectedInspectorDefender,
+		selectedInspectorDefense: selectedInspectorDefenderStats?.defense ?? null,
+		selectedInspectorGroupHeading,
 		selectedInspectorGroupLabel,
 		selectedInspectorOnion,
 		selectedInspectorLabel,
-		selectedInspectorTerrainModifier,
+		selectedInspectorTerrainModifier: selectedInspectorDefenderStats?.terrainModifier ?? null,
+		selectedInspectorTerrainType: selectedInspectorDefenderStats?.terrainType ?? null,
 		selectedInspectorUnitId,
 		rightRailStackPanel,
 		selectedStackUnitIds,

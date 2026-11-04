@@ -9,13 +9,14 @@ import { buildRightRailCombatPanelViewModel } from '../lib/rightRailCombatPanel'
 import type { BattlefieldDefenderView, BattlefieldOnionView } from '../lib/battlefieldView'
 import type { TimelineEvent } from '../lib/battlefieldView'
 import type { CombatTargetOption } from '../lib/combatPreview'
-import type { Weapon } from '../../shared/types/index'
+import type { TerrainType, Weapon } from '../../shared/types/index'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { routeRightRailControl, type RightRailControlRequest } from '../lib/rightRailControlRouting'
 import logger from '../lib/logger'
 import { parseCombatTargetId } from '../../shared/combatTarget'
 import type { SessionCatalog } from '../lib/sessionCatalog'
 import { GameOverSummary, type GameOverSummaryProps } from './GameOverSummary'
+import type { BattlefieldInspectorGroupHeading } from '../lib/battlefieldDisplay/types'
 
 type RamPrompt = {
   unitId: string
@@ -39,8 +40,11 @@ type BattlefieldRightRailProps = {
   selectedCombatTarget: CombatTargetOption | null
   selectedCombatTargetId: string | null
   selectedInspectorLabel: string | null
+  selectedInspectorGroupHeading?: BattlefieldInspectorGroupHeading | null
   selectedInspectorGroupLabel?: string | null
-  selectedInspectorTerrainModifier?: string | null
+  selectedInspectorDefense?: number | null
+  selectedInspectorTerrainModifier?: number | null
+  selectedInspectorTerrainType?: TerrainType | null
   selectedInspectorDefender: BattlefieldDefenderView | null
   selectedInspectorOnion: BattlefieldOnionView | null
   readyWeaponDetails: ReadonlyArray<Weapon>
@@ -85,8 +89,11 @@ export function BattlefieldRightRail({
   selectedCombatTarget,
   selectedCombatTargetId,
   selectedInspectorLabel,
+  selectedInspectorGroupHeading = null,
   selectedInspectorGroupLabel = null,
+  selectedInspectorDefense = null,
   selectedInspectorTerrainModifier = null,
+  selectedInspectorTerrainType = null,
   selectedInspectorDefender,
   selectedInspectorOnion,
   readyWeaponDetails,
@@ -266,11 +273,13 @@ export function BattlefieldRightRail({
   const inspectorPanel = shouldShowInspectorPanel ? (
     <BattlefieldInspectorPanel
       selectedInspectorLabel={selectedInspectorLabel}
+        selectedInspectorGroupHeading={selectedInspectorGroupHeading}
       selectedInspectorGroupLabel={selectedInspectorGroupLabel}
+      selectedInspectorDefense={selectedInspectorDefense}
       selectedInspectorTerrainModifier={selectedInspectorTerrainModifier}
+      selectedInspectorTerrainType={selectedInspectorTerrainType}
       selectedInspectorDefender={selectedInspectorDefender}
       selectedInspectorOnion={selectedInspectorOnion}
-      selectedStackMemberCount={rightRailStackPanel.selectedStackMembers.length}
       activeSelectedUnitCount={activeSelectedUnitCount}
       catalog={catalog}
     />

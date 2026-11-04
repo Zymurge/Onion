@@ -225,8 +225,8 @@ describe('getUnitDefinition', () => {
         expect(getUnitDefinition('LittlePigs').abilities.maxStacks).toBe(5)
     })
 
-    it('has movement 1', () => {
-      expect(getUnitDefinition('LittlePigs').movement).toBe(1)
+    it('has movement 2', () => {
+      expect(getUnitDefinition('LittlePigs').movement).toBe(2)
     })
 
     it('has one weapon: attack 1, range 1', () => {

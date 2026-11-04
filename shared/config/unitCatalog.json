@@ -87,7 +87,7 @@
       "hexMapScale": 0.58,
       "hexMapOffsetX": -5,
       "hexMapOffsetY": 6,
-      "movement": 1,
+      "movement": 2,
       "defense": 1,
       "cost": 1,
       "abilities": { "maxStacks": 5, "ramProfile": { "treadLoss": 0, "destroyOnRollAtMost": 4 }, "terrainRules": { "ridgeline": { "canCross": true, "canAccessCover": true, "movementCost": 1 } } },

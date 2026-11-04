@@ -336,16 +336,107 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.selectedCombatAttackCount).toBe(2)
 		expect(result.current.selectedCombatAttackMemberLabels).toEqual(['Group 1 - [Little Pigs]'])
 		expect(result.current.selectedInspectorDefender?.unitId).toBe('pigs-1')
+		expect(result.current.selectedInspectorLabel).toBeNull()
+		expect(result.current.selectedInspectorGroupHeading).toEqual({
+		title: 'Group 1',
+		subtitle: 'Little Pigs',
+		selectionLabel: '2 of 2 selected',
+	})
+		expect(result.current.selectedInspectorGroupLabel).toBeNull()
+		expect(result.current.selectedInspectorDefense).toBe(2)
+		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
+		expect(result.current.selectedInspectorTerrainType).toBe('clear')
+	})
+
+	it('keeps an individually selected stack member distinct in the Inspector', () => {
+		const snapshot = createSnapshot()
+		const authoritativeState = snapshot.authoritativeState!
+		authoritativeState.stackNaming = {
+			groupsInUse: [
+				{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
+			],
+			usedGroupNames: ['Group 1 - [Little Pigs]'],
+		}
+		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
+			groupsById: {
+				'group-1': {
+					groupName: 'Group 1 - [Little Pigs]',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds: ['pigs-1', 'pigs-2'],
+				},
+			},
+		}
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds: ['pigs-1'] }),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			}),
+		)
+
 		expect(result.current.selectedInspectorLabel).toBe('Little Pigs 1')
+		expect(result.current.selectedInspectorGroupHeading).toBeNull()
 		expect(result.current.selectedInspectorGroupLabel).toBe('Group 1 - [Little Pigs]')
 	})
 
+	it('retains the group Inspector title when part of the stack is selected', () => {
+		const snapshot = createSnapshot()
+		const authoritativeState = snapshot.authoritativeState!
+		const unitIds = ['pigs-1', 'pigs-2', 'pigs-3', 'pigs-4', 'pigs-5']
+		const selectedUnitIds = unitIds.slice(1)
+		authoritativeState.defenders = Object.fromEntries(unitIds.map((unitId, index) => [unitId, makeDefender({
+			unitId,
+			typeId: 'LittlePigs',
+			position: { q: 4, r: 4 },
+			friendlyName: `Little Pigs ${index + 1}`,
+			weapons: [],
+		})]))
+		authoritativeState.stackNaming = {
+			groupsInUse: [
+				{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
+			],
+			usedGroupNames: ['Group 1 - [Little Pigs]'],
+		}
+		authoritativeState.stackRoster = {
+			nextGroupOrdinal: 2,
+			groupsById: {
+				'group-1': {
+					groupName: 'Group 1 - [Little Pigs]',
+					unitType: 'LittlePigs',
+					position: { q: 4, r: 4 },
+					unitIds,
+				},
+			},
+		}
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds }),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.selectedInspectorLabel).toBeNull()
+		expect(result.current.selectedInspectorGroupHeading).toEqual({
+		title: 'Group 1',
+		subtitle: 'Little Pigs',
+		selectionLabel: '4 of 5 selected',
+	})
+		expect(result.current.selectedInspectorGroupLabel).toBeNull()
+	})
+
 	it.each([
-		['LittlePigs', 1, 'Ridgeline cover: +1 defense'],
-		['LittlePigs', 0, null],
-		['LittlePigs', 2, null],
-		['Puss', 1, null],
-	] as const)('projects applicable terrain modifiers for %s on terrain %i', (typeId, terrainValue, expectedModifier) => {
+		['LittlePigs', 1, 'ridgeline', 1, 1],
+		['LittlePigs', 0, 'clear', 1, null],
+		['LittlePigs', 2, 'crater', 1, null],
+		['Puss', 1, 'ridgeline', 3, null],
+	] as const)('projects defense and terrain for %s on terrain %i', (typeId, terrainValue, expectedTerrain, expectedDefense, expectedModifier) => {
 		const snapshot = createSnapshot()
 		snapshot.authoritativeState!.defenders = {
 			'pigs-1': makeDefender({
@@ -367,6 +458,8 @@ describe('useBattlefieldDisplayState', () => {
 			}),
 		)
 
+		expect(result.current.selectedInspectorTerrainType).toBe(expectedTerrain)
+		expect(result.current.selectedInspectorDefense).toBe(expectedDefense)
 		expect(result.current.selectedInspectorTerrainModifier).toBe(expectedModifier)
 	})
 
@@ -397,7 +490,9 @@ describe('useBattlefieldDisplayState', () => {
 			}),
 		)
 
-		expect(result.current.selectedInspectorTerrainModifier).toBe('Ridgeline cover: +1 defense')
+		expect(result.current.selectedInspectorTerrainType).toBe('ridgeline')
+		expect(result.current.selectedInspectorDefense).toBe(1)
+		expect(result.current.selectedInspectorTerrainModifier).toBe(1)
 	})
 
 	it('does not project a terrain modifier when no unit is selected', () => {
@@ -414,7 +509,9 @@ describe('useBattlefieldDisplayState', () => {
 		)
 
 		expect(result.current.selectedInspectorUnitId).toBeNull()
+		expect(result.current.selectedInspectorDefense).toBeNull()
 		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
+		expect(result.current.selectedInspectorTerrainType).toBeNull()
 	})
 
 	it('does not project a defender terrain bonus for the selected Onion', () => {
@@ -433,7 +530,9 @@ describe('useBattlefieldDisplayState', () => {
 
 		expect(result.current.error).toBeNull()
 		expect(result.current.selectedInspectorOnion?.unitId).toBe('onion-live')
+		expect(result.current.selectedInspectorDefense).toBeNull()
 		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
+		expect(result.current.selectedInspectorTerrainType).toBeNull()
 	})
 
 	it('keeps the attack total populated during defender movement when defenders are selected', () => {

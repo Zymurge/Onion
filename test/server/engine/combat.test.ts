@@ -451,7 +451,7 @@ describe('validateCombatAction', () => {
     expect(result).toMatchObject({
       ok: true,
       plan: {
-        defense: 4,
+        defense: 6,
       },
     })
   })

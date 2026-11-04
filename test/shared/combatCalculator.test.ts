@@ -13,7 +13,7 @@ const staticRules = {
 	unitTypes: getUnitTypeCatalog(),
 	terrainRules: {
 		clear: { terrainType: 'clear' as TerrainType },
-		ridgeline: { terrainType: 'ridgeline' as TerrainType, defenseBonus: 1 },
+		ridgeline: { terrainType: 'ridgeline' as TerrainType, defenseMultiplier: 2 },
 		crater: { terrainType: 'crater' as TerrainType },
 	},
 } satisfies CombatStaticRules
@@ -93,7 +93,7 @@ describe('combatCalculator', () => {
 		const result = calculator.calculateResult(input)
 
 		expect(result.attackStrength).toBe(8)
-		expect(result.defenseStrength).toBe(3)
+		expect(result.defenseStrength).toBe(4)
 		expect(result.odds).toBe('2:1')
 	})
 
@@ -133,12 +133,39 @@ describe('combatCalculator', () => {
 			{
 				kind: 'terrain',
 				scope: 'defense',
-				label: 'Ridgeline cover: +1 defense',
-				value: 1,
+				label: 'Ridgeline cover: +3 defense',
+				value: 3,
 				appliesTo: 'target-1',
 			},
 		])
+		expect(calculator.calculateResult(input).defenseStrength).toBe(6)
 		expect(input.combatState.units['target-1'].friendlyName).toBe('Little Pigs 1')
+	})
+
+	it('grants the ridgeline bonus to other infantry types with cover access', () => {
+		const unitTypes = getUnitTypeCatalog()
+		const infantryCalculator = createCombatCalculator({
+			unitTypes: {
+				...unitTypes,
+				OtherInfantry: { ...unitTypes.LittlePigs, typeId: 'OtherInfantry', defense: 2 },
+			},
+			terrainRules: staticRules.terrainRules,
+		})
+		const input: CombatCalculatorInput = {
+			attackerGroupIds: ['attack-1'],
+			targetId: 'target-1',
+			combatState: {
+				units: {
+					'attack-1': { typeId: 'Puss' },
+					'target-1': { typeId: 'OtherInfantry', stackSize: 2, terrainType: 'ridgeline' },
+				},
+			},
+		}
+
+		expect(infantryCalculator.calculateModifiers(input)).toMatchObject([
+			{ label: 'Ridgeline cover: +4 defense', value: 4 },
+		])
+		expect(infantryCalculator.calculateResult(input).defenseStrength).toBe(8)
 	})
 
 	it('does not grant ridgeline cover to units without the terrain ability', () => {

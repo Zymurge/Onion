@@ -31,6 +31,7 @@ This schema is designed for authoring flexibility and robust normalization. The 
 - **IDs:**
   - The keys in `initialState.deployments` are authored deployment IDs for individual units or stack groups. Stack-group keys are used as the source for deterministic member ID bases; the engine expands each group into unique member IDs.
   - Generated member IDs are unique across all deployments and stack groups in the normalized snapshot. A generated ID that collides with another deployment ID is rejected during normalization; co-located deployments of the same type are recorded together in their canonical roster group.
+  - Stack member ordinals and their friendly-name numbers use one continuous sequence per resolved unit type across all stack-group deployments, regardless of deployment-key prefix. Four five-member Little Pigs groups receive numbers 1-5, 6-10, 11-15, and 16-20. This allocation happens during initial normalization; existing unit IDs and names remain stable during play.
 - **Victory Conditions:**
   - Scenario JSON specifies victory conditions, but the engine enforces and tracks win/loss state.
 

@@ -31,14 +31,14 @@ export const combatParityFixtures: ReadonlyArray<CombatParityFixture> = [
 		},
 		expected: {
 			attackStrength: 4,
-			defenseStrength: 4,
-			odds: '1:1',
+			defenseStrength: 6,
+			odds: '1:2',
 			modifiers: [
 				{
 					kind: 'terrain',
 					scope: 'defense',
-					label: 'Ridgeline cover: +1 defense',
-					value: 1,
+					label: 'Ridgeline cover: +3 defense',
+					value: 3,
 					appliesTo: 'group-1',
 				},
 			],

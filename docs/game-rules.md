@@ -84,7 +84,7 @@ The UI presents objective completion separately from overall match victory.
 ### Unit Special Abilities
 
 - **Big Bad Wolf (GEV)**: Can move 4 hexes, fire, and then move an additional 3 hexes (Second Move Phase).
-- **Little Pigs (Infantry)**: Can stack up to 5 squads per hex. Their defense is the sum of squads. They are the only units that can benefit from certain terrain cover. Attacks of "D" on a stack reduce it by 1 squad; "X" destroys the entire stack.
+- **Little Pigs (Infantry)**: Have a base Movement Allowance of 2 and can stack up to 5 squads per hex. Their base defense is the sum of their squads' defense. Infantry units eligible for terrain cover receive doubled defense on ridgelines. Attacks of "D" on a stack reduce it by 1 squad; "X" destroys the entire stack.
 - **Farquaad (Howitzer)**: Immobile once placed.
 - **Dragon (Superheavy)**: A powerful conventional unit with two 6-strength attacks.
 - **The Swamp (Command Post)**: A scenario-defined objective unit. Defense 0;
@@ -125,7 +125,7 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
   - **Craters**: Impassable to all units.
   - **Ridgelines**:
     - **Movement**: Impassable to armored units (Puss, Pinocchio, Dragon, Witch, Big Bad Wolf). The Onion can cross ridgelines at a cost of 1 extra movement point; Little Pigs can enter adjacent ridgeline terrain as a normal 1-point move.
-    - **Cover**: Little Pigs in a Ridgeline hex gain +1 to their Defense strength (e.g., a 3-squad stack in cover has Defense 4).
+    - **Cover**: Infantry units eligible for terrain cover in a Ridgeline hex have their base Defense doubled. The additional bonus equals their base Defense and accumulates across stacks (e.g., a 3-squad Little Pigs stack goes from Defense 3 to Defense 6).
 - **Movement and terrain modeling note**:
   - The implementation should keep terrain effects as data, not hard-coded one-off checks. Unit descriptions should be able to declare per-terrain capabilities such as `canCrossRidgelines` or `canAccessRidgeCover`, and future terrain types should map to the same pattern.
   - Road and bridge behavior should be modeled separately from hex terrain where needed, since some effects depend on the path of movement rather than the destination hex alone.

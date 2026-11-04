@@ -55,6 +55,14 @@ describe('normalizeInitialStateToGameState', () => {
       'Group 3 - [Little Pigs]',
       'Group 4 - [Little Pigs]',
     ])
+    for (const [groupIndex, group] of Object.values(gameState.stackRoster.groupsById).entries()) {
+      expect(group.unitIds).toEqual(Array.from({ length: 5 }, (_unused, memberIndex) =>
+        `infantry-forward-${groupIndex + 1}-${groupIndex * 5 + memberIndex + 1}`,
+      ))
+      expect(group.unitIds.map((unitId) => gameState.defenders[unitId].friendlyName)).toEqual(
+        Array.from({ length: 5 }, (_unused, memberIndex) => `Little Pigs ${groupIndex * 5 + memberIndex + 1}`),
+      )
+    }
   })
 
   it('rejects legacy stack squads entries', () => {

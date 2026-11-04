@@ -76,6 +76,7 @@ export type CombatLiveState = {
 export type CombatTerrainRule = {
 	terrainType: TerrainType
 	defenseBonus?: number
+	defenseMultiplier?: number
 	appliesToTypes?: ReadonlyArray<string>
 	[key: string]: unknown
 }
@@ -243,14 +244,17 @@ function resolveExplicitTerrainModifier(
 	if (!canUseTerrainCover(definition, target.terrainType)) return undefined
 
 	const terrainRule = getTerrainRule(staticRules, target.terrainType)
-	if (terrainRule?.defenseBonus === undefined) return undefined
+	if (terrainRule?.defenseBonus === undefined && terrainRule?.defenseMultiplier === undefined) return undefined
 	if (terrainRule.appliesToTypes !== undefined && !terrainRule.appliesToTypes.includes(target.typeId)) return undefined
+	const baseDefense = target.kind === 'stack' ? target.size * definition.defense : definition.defense
+	const value = (terrainRule.defenseBonus ?? 0)
+		+ baseDefense * ((terrainRule.defenseMultiplier ?? 1) - 1)
 
 	return {
 		kind: 'terrain',
 		scope: 'defense',
-		label: 'Ridgeline cover: +1 defense',
-		value: terrainRule.defenseBonus,
+		label: `Ridgeline cover: ${value > 0 ? '+' : ''}${value} defense`,
+		value,
 		appliesTo: target.id,
 	}
 }
@@ -274,7 +278,7 @@ function resolveExplicitDefenseStrength(
 			return weapon.defense ?? definition.defense
 		}
 		case 'stack':
-			return target.size + (resolveExplicitTerrainModifier(staticRules, target)?.value ?? 0)
+			return target.size * definition.defense + (resolveExplicitTerrainModifier(staticRules, target)?.value ?? 0)
 		case 'unit':
 			return definition.defense + (resolveExplicitTerrainModifier(staticRules, target)?.value ?? 0)
 	}

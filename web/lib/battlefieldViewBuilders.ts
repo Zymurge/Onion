@@ -101,47 +101,6 @@ export function getTerrainValueAt(scenarioMap: { width: number; height: number; 
   return scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t
 }
 
-/** Resolves display defense from unit type, stack size, and terrain. */
-export function getDisplayDefense(
-  type: string,
-  squads: number | undefined,
-  terrainType: number | undefined,
-  unitDefinition?: { defense: number; stackable: boolean },
-): number {
-  if (unitDefinition !== undefined) {
-    if (unitDefinition.stackable) {
-      const stackSize = squads ?? 1
-      return stackSize + (terrainType === 1 ? 1 : 0)
-    }
-
-    return unitDefinition.defense
-  }
-
-  if (type === 'LittlePigs') {
-    const stackSize = squads ?? 1
-    return stackSize + (terrainType === 1 ? 1 : 0)
-  }
-
-  switch (type) {
-    case 'BigBadWolf':
-      return 4
-    case 'Puss':
-      return 3
-    case 'Witch':
-      return 2
-    case 'Farquaad':
-      return 0
-    case 'Pinocchio':
-      return 3
-    case 'Dragon':
-      return 3
-    case 'Swamp':
-      return 0
-    default:
-      return 0
-  }
-}
-
 /** Builds the display model for one defender. */
 export function buildBattlefieldDefenderView(
   defender: DefenderUnit,

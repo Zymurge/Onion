@@ -124,7 +124,7 @@ export function normalizeInitialStateToGameState(
   const defenders: Record<string, DefenderUnit> = {}
   const stackRoster: StackRosterState = { groupsById: {}, nextGroupOrdinal: 1 }
   const stackNamingEngine = createStackNamingEngine()
-  const nextStackUnitOrdinalByBase = new Map<string, number>()
+  const nextStackUnitOrdinalByType = new Map<string, number>()
   const groupedDeployments = new Map<string, { unitType: string; position: Deployment['position']; unitIds: string[] }>()
 
   for (const [key, deployment] of Object.entries(initial.deployments)) {
@@ -148,13 +148,13 @@ export function normalizeInitialStateToGameState(
 
     const unitIds: string[] = []
     const unitIdBase = buildStackUnitIdBase(key)
-    const nextOrdinal = nextStackUnitOrdinalByBase.get(unitIdBase) ?? 0
+    const nextOrdinal = nextStackUnitOrdinalByType.get(typeId) ?? 0
     for (let index = 0; index < deployment.count; index += 1) {
       const unitId = `${unitIdBase}-${nextOrdinal + index + 1}`
       addRuntimeUnit(unitId, deployment, definition, onions, defenders)
       unitIds.push(unitId)
     }
-    nextStackUnitOrdinalByBase.set(unitIdBase, nextOrdinal + deployment.count)
+    nextStackUnitOrdinalByType.set(typeId, nextOrdinal + deployment.count)
 
     const deploymentPositionKey = `${typeId}:${deployment.position.q},${deployment.position.r}`
     const existingGroup = groupedDeployments.get(deploymentPositionKey)

@@ -6,6 +6,12 @@ import type { SessionBinding } from '../sessionBinding'
 import type { BattlefieldInteractionState } from '../battlefieldInteraction/types'
 import type { buildRightRailStackSelectionViewModel } from '../rightRailSelection'
 
+export type BattlefieldInspectorGroupHeading = {
+	title: string
+	subtitle: string
+	selectionLabel: string
+}
+
 /** Inputs used to derive the battlefield display state. */
 export type UseBattlefieldDisplayStateOptions = {
 	combatBaseSnapshot: ServerGameSnapshot | null
