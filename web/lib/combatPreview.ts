@@ -1,5 +1,6 @@
 import {
 	createCombatCalculator,
+	type CombatModifier,
 	type CombatExchangeInput,
 	type CombatAttackerContribution,
 	} from '../../shared/combatCalculator.js'
@@ -84,6 +85,24 @@ function terrainTypeFromHex(value: number | undefined): TerrainType {
 
 function terrainTypeAt(scenarioMap: CombatPreviewInput['displayedScenarioMap'], q: number, r: number): TerrainType {
 	return terrainTypeFromHex(scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t)
+}
+
+export function getBattlefieldTerrainModifier(
+	unit: Pick<BattlefieldUnit, 'unitId' | 'typeId' | 'position'>,
+	scenarioMap: CombatPreviewInput['displayedScenarioMap'],
+	catalog?: SessionCatalog,
+): CombatModifier | null {
+	const modifier = getCombatCalculator(catalog).calculate({
+		attackers: [],
+		target: {
+			kind: 'unit',
+			id: unit.unitId,
+			typeId: unit.typeId,
+			terrainType: terrainTypeAt(scenarioMap, unit.position.q, unit.position.r),
+		},
+	}).modifiers.find((candidate) => candidate.kind === 'terrain' && candidate.scope === 'defense')
+
+	return modifier ?? null
 }
 
 function getSelectedAttackerIds(activeCombatRole: CombatRole, selectedUnitIds: ReadonlyArray<string>): ReadonlyArray<string> {

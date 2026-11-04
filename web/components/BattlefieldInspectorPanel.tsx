@@ -9,6 +9,7 @@ import { getUnitSpriteHref } from '../lib/unitSpriteRegistry'
 type BattlefieldInspectorPanelProps = {
   selectedInspectorLabel: string | null
   selectedInspectorGroupLabel?: string | null
+  selectedInspectorTerrainModifier?: string | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
   selectedStackMemberCount: number
@@ -20,6 +21,7 @@ type BattlefieldInspectorPanelProps = {
 export function BattlefieldInspectorPanel({
   selectedInspectorLabel,
   selectedInspectorGroupLabel = null,
+  selectedInspectorTerrainModifier = null,
   selectedInspectorDefender,
   selectedInspectorOnion,
   selectedStackMemberCount,
@@ -73,6 +75,12 @@ export function BattlefieldInspectorPanel({
             <dt>Stack</dt>
             <dd>1</dd>
           </div>
+          {selectedInspectorTerrainModifier !== null ? (
+            <div>
+              <dt>Terrain</dt>
+              <dd>{selectedInspectorTerrainModifier}</dd>
+            </div>
+          ) : null}
           <div>
             <dt>Treads</dt>
             <dd>{selectedInspectorOnion.treads}</dd>
@@ -117,6 +125,12 @@ export function BattlefieldInspectorPanel({
               <dt>Stack</dt>
               <dd>{stackCount}</dd>
             </div>
+            {selectedInspectorTerrainModifier !== null ? (
+              <div>
+                <dt>Terrain</dt>
+                <dd>{selectedInspectorTerrainModifier}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Status</dt>
               <dd>{selectedInspectorDefender.state}</dd>

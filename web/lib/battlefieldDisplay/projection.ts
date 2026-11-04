@@ -27,7 +27,7 @@ import { buildBattlefieldActionEligibility } from '../actionEligibility/projecti
 import { formatEligibilityReason } from '../actionEligibility/reasons'
 import { buildWeaponSelectionId, isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from '../selectionIds'
 import { buildCombatRangeHexKeys } from '../combatRange'
-import { buildCombatTargetOptions } from '../combatPreview'
+import { buildCombatTargetOptions, getBattlefieldTerrainModifier } from '../combatPreview'
 import { buildRightRailStackSelectionViewModel } from '../rightRailSelection'
 import { buildBattlefieldRosterIndex } from '../battlefieldGroupProjection'
 
@@ -223,6 +223,10 @@ export function buildBattlefieldDisplayModel({
 		: selectedInspectorDefender !== null
 			? resolveBattlefieldUnitName(selectedInspectorDefender.typeId, selectedInspectorDefender.unitId, selectedInspectorDefender.friendlyName)
 			: null
+	const selectedInspectorUnit = selectedInspectorOnion ?? selectedInspectorDefender
+	const selectedInspectorTerrainModifier = selectedInspectorUnit === null
+		? null
+		: getBattlefieldTerrainModifier(selectedInspectorUnit, displayedScenarioMap, catalog ?? undefined)?.label ?? null
 	const combatRangeSources = !isCombatPhase || displayedScenarioMap === null
 		? []
 		: buildCombatRangeSources(activePhase, activeCombatRole, activeCombatRole === 'defender' ? selectedCombatSelectionIds : activeSelectedUnitIds, displayedDefenders, displayedOnion, catalog ?? undefined)
@@ -371,6 +375,7 @@ export function buildBattlefieldDisplayModel({
 		selectedInspectorGroupLabel,
 		selectedInspectorOnion,
 		selectedInspectorLabel,
+		selectedInspectorTerrainModifier,
 		selectedInspectorUnitId,
 		rightRailStackPanel,
 		selectedStackUnitIds,

@@ -35,6 +35,7 @@ describe('BattlefieldInspectorPanel', () => {
       <BattlefieldInspectorPanel
         selectedInspectorLabel={defender.friendlyName}
         selectedInspectorGroupLabel="Group 1 - [Little Pigs]"
+        selectedInspectorTerrainModifier="Ridgeline cover: +1 defense"
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={2}
@@ -45,6 +46,7 @@ describe('BattlefieldInspectorPanel', () => {
     const inspector = screen.getByTestId('battlefield-inspector')
     expect(within(inspector).getByTestId('battlefield-inspector-subject-pigs-1').textContent).toBe('Little Pigs 1')
     expect(within(inspector).getByTestId('battlefield-inspector-group')).toHaveTextContent('Member of Group 1 - [Little Pigs]')
+    expect(getLabeledValue('Terrain')).toBe('Ridgeline cover: +1 defense')
     expect(within(inspector).getByRole('img', { name: 'Little Pigs 1 sprite' })).toBeInTheDocument()
     expect(within(inspector).getByText(/stackable rifle squad/i)).toBeInTheDocument()
     expect(getLabeledValue('Stack')).toBe('2')
@@ -78,6 +80,7 @@ describe('BattlefieldInspectorPanel', () => {
     const inspector = screen.getByTestId('battlefield-inspector')
     expect(within(inspector).queryByText(/victory conditions/i)).toBeNull()
     expect(within(inspector).queryByText(/escape hexes/i)).toBeNull()
+    expect(within(inspector).queryByText('Terrain')).toBeNull()
   })
 
   it('shows destroyed status for an inspected defender', () => {

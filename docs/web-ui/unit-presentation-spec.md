@@ -120,6 +120,16 @@ group ID rather than an individual Little Pigs member ID. See the
   and shows its canonical group label separately. Group context does not replace
   member identity.
 
+## Terrain Modifiers
+
+- The Inspector reports a terrain combat modifier only when it applies to the
+  selected unit at its current scenario-map position. The terrain type comes
+  from the active scenario map, and the modifier comes from the same shared
+  combat calculator and static rules used by combat previews.
+- Unit terrain abilities are resolved from the active session catalog so
+  scenario-derived unit types receive the correct eligibility rules. When no
+  modifier applies, the Inspector does not show a terrain bonus row.
+
 ## Implementation and Test Map
 
 | Responsibility | Code and focused tests |

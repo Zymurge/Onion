@@ -340,6 +340,35 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.selectedInspectorGroupLabel).toBe('Group 1 - [Little Pigs]')
 	})
 
+	it.each([
+		['LittlePigs', 1, 'Ridgeline cover: +1 defense'],
+		['LittlePigs', 0, null],
+		['Puss', 1, null],
+	] as const)('projects applicable terrain modifiers for %s on terrain %i', (typeId, terrainValue, expectedModifier) => {
+		const snapshot = createSnapshot()
+		snapshot.authoritativeState!.defenders = {
+			'pigs-1': makeDefender({
+				unitId: 'pigs-1',
+				typeId,
+				position: { q: 4, r: 4 },
+				friendlyName: `${typeId} 1`,
+				weapons: [],
+			}),
+		}
+		snapshot.scenarioMap!.hexes = [{ q: 4, r: 4, t: terrainValue }]
+
+		const { result } = renderHook(() =>
+			useBattlefieldDisplayState({
+				combatBaseSnapshot: null,
+				interactionState: createInteractionState({ selectedUnitIds: ['pigs-1'] }),
+				sessionState: createSessionState(snapshot),
+				activeSessionBinding: null,
+			}),
+		)
+
+		expect(result.current.selectedInspectorTerrainModifier).toBe(expectedModifier)
+	})
+
 	it('keeps the attack total populated during defender movement when defenders are selected', () => {
 		const snapshot = createSnapshot()
 		snapshot.phase = 'DEFENDER_MOVE'
