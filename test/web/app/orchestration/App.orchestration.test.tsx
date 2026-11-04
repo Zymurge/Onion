@@ -968,7 +968,7 @@ describe('combat', () => {
 				{ id: 'pigs-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', pos: { q: 1, r: 1 } },
 				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
 			],
-			groups: [{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] }],
+			groups: [{ groupName: 'Group 1 - [Little Pigs]', memberIds: ['pigs-1', 'pigs-2'] }],
 		})
 		expect(defenders['pigs-1']).not.toHaveProperty('squads')
 		expect(stackRoster.groupsById['group-1'].unitIds).toEqual(['pigs-1', 'pigs-2'])
@@ -999,7 +999,7 @@ describe('combat', () => {
 				{ id: 'pigs-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', pos: { q: 1, r: 1 } },
 				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
 			],
-			groups: [{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] }],
+			groups: [{ groupName: 'Group 1 - [Little Pigs]', memberIds: ['pigs-1', 'pigs-2'] }],
 		})
 		const snapshot = {
 			...baseSnapshot,
@@ -1121,7 +1121,7 @@ describe('combat', () => {
 				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
 			],
 			groups: [
-				{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] },
+				{ groupName: 'Group 1 - [Little Pigs]', memberIds: ['pigs-1', 'pigs-2'] },
 			],
 		})
 		const snapshot = {
@@ -1184,7 +1184,7 @@ describe('combat', () => {
 				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
 			],
 			groups: [
-				{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] },
+				{ groupName: 'Group 1 - [Little Pigs]', memberIds: ['pigs-1', 'pigs-2'] },
 			],
 		})
 		const snapshot = {
@@ -1227,7 +1227,7 @@ describe('combat', () => {
 				{ id: 'pigs-2', type: 'LittlePigs', friendlyName: 'Little Pigs 2', pos: { q: 1, r: 1 } },
 			],
 			groups: [
-				{ groupName: 'Little Pigs group 1', memberIds: ['pigs-1', 'pigs-2'] },
+				{ groupName: 'Group 1 - [Little Pigs]', memberIds: ['pigs-1', 'pigs-2'] },
 			],
 		})
 		const snapshot = {

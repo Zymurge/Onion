@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ComponentProps } from 'react'
 
@@ -131,13 +131,13 @@ describe('BattlefieldLeftRail', () => {
       stacksExpandable: true,
       displayedDefenders,
       stackNaming: {
-        groupsInUse: [{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
-        usedGroupNames: ['Little Pigs group 1'],
+        groupsInUse: [{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' }],
+        usedGroupNames: ['Group 1 - [Little Pigs]'],
       },
       stackRoster: {
         groupsById: {
           'group-1': {
-            groupName: 'Little Pigs group 1',
+            groupName: 'Group 1 - [Little Pigs]',
             unitType: 'LittlePigs',
             position: { q: 1, r: 1 },
             unitIds: ['pigs-1', 'pigs-2'],
@@ -417,7 +417,7 @@ describe('BattlefieldLeftRail', () => {
     const stackRoster = {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 1, r: 1 },
           unitIds: ['pigs-1', 'pigs-2'],
@@ -425,8 +425,8 @@ describe('BattlefieldLeftRail', () => {
       },
     }
     const stackNaming = {
-      groupsInUse: [{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
-      usedGroupNames: ['Little Pigs group 1'],
+      groupsInUse: [{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' }],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
     const actionEligibility = buildBattlefieldActionEligibility({
       phase: 'DEFENDER_COMBAT',
@@ -694,14 +694,14 @@ describe('BattlefieldLeftRail', () => {
     ]
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
     const stackRoster = {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],
@@ -744,7 +744,8 @@ describe('BattlefieldLeftRail', () => {
       />,
     )
 
-    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs group 1')
+    expect(within(screen.getByTestId('combat-unit-pigs-1')).getByText('Group 1')).toBeInTheDocument()
+    expect(within(screen.getByTestId('combat-unit-pigs-1')).getByText('Little Pigs')).toBeInTheDocument()
     expect(screen.getByTestId('battlefield-left-rail-combat-groups')).not.toBeNull()
     expect(screen.getByTestId('combat-stack-group-pigs-1').dataset.expanded).toBe('false')
     expect(screen.queryByTestId('combat-stack-member-pigs-1')).toBeNull()
@@ -777,7 +778,7 @@ describe('BattlefieldLeftRail', () => {
     const stackRoster = {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],
@@ -786,9 +787,9 @@ describe('BattlefieldLeftRail', () => {
     }
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
 
     renderLeftRail({
@@ -827,13 +828,13 @@ describe('BattlefieldLeftRail', () => {
       stacksExpandable: true,
       displayedDefenders: canonicalizeBattlefieldDefenders(displayedDefenders),
       stackNaming: {
-        groupsInUse: [{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
-        usedGroupNames: ['Little Pigs group 1'],
+        groupsInUse: [{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' }],
+        usedGroupNames: ['Group 1 - [Little Pigs]'],
       },
       stackRoster: {
         groupsById: {
           'group-1': {
-            groupName: 'Little Pigs group 1',
+            groupName: 'Group 1 - [Little Pigs]',
             unitType: 'LittlePigs',
             position: { q: 4, r: 4 },
             unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
@@ -882,7 +883,7 @@ describe('BattlefieldLeftRail', () => {
     expect(screen.getByTestId('combat-unit-swamp-1')).toHaveClass('tone-dim')
   })
 
-  it('shows the canonical stack name instead of the first member friendly name', () => {
+  it('shows the group ordinal and unit type instead of a member name', () => {
     const displayedDefenders: BattlefieldDefenderFixture[] = [
       {
         id: 'pigs-4',
@@ -909,14 +910,14 @@ describe('BattlefieldLeftRail', () => {
     ]
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 5', unitType: 'LittlePigs' },
+        { groupId: 'group-5', groupName: 'Group 5 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 5'],
+      usedGroupNames: ['Group 5 - [Little Pigs]'],
     }
     const stackRoster = {
       groupsById: {
-        'group-1': {
-          groupName: 'Little Pigs 4',
+        'group-5': {
+          groupName: 'Group 5 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 5, r: 5 },
           unitIds: ['pigs-4', 'pigs-5'],
@@ -959,8 +960,11 @@ describe('BattlefieldLeftRail', () => {
       />,
     )
 
-    expect(screen.getByTestId('combat-unit-pigs-4').textContent).toContain('Little Pigs group 5')
-    expect(screen.getByTestId('combat-unit-pigs-4').textContent).not.toContain('Little Pigs 4')
+    const groupCard = screen.getByTestId('combat-unit-pigs-4')
+    expect(within(groupCard).getByText('Group 5')).toBeInTheDocument()
+    expect(within(groupCard).getByText('Little Pigs')).toBeInTheDocument()
+    expect(groupCard.textContent).not.toContain('Group 5 - [Little Pigs]')
+    expect(groupCard.textContent).not.toContain('Little Pigs 4')
   })
 
   it('renders singleton stack-roster placeholders with the unit label instead of a group fallback', () => {
@@ -1008,7 +1012,7 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={{
           groupsInUse: [],
-          usedGroupNames: ['Little Pigs group 1'],
+          usedGroupNames: ['Group 1 - [Little Pigs]'],
         } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {},
@@ -1021,7 +1025,7 @@ describe('BattlefieldLeftRail', () => {
 
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs 1')
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).not.toContain('group-1')
-    expect(screen.getByTestId('combat-unit-pigs-1').textContent).not.toContain('Little Pigs group 1')
+    expect(screen.getByTestId('combat-unit-pigs-1').textContent).not.toContain('Group 1 - [Little Pigs]')
   })
 
   it('shows a diagnostic error overlay instead of crashing when grouped move data is missing', () => {
@@ -1123,14 +1127,14 @@ describe('BattlefieldLeftRail', () => {
     ]
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
     const stackRoster = {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
@@ -1174,7 +1178,8 @@ describe('BattlefieldLeftRail', () => {
       />,
     )
 
-    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs group 1')
+    expect(within(screen.getByTestId('combat-unit-pigs-1')).getByText('Group 1')).toBeInTheDocument()
+    expect(within(screen.getByTestId('combat-unit-pigs-1')).getByText('Little Pigs')).toBeInTheDocument()
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('3/3')
     expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Move: 3')
     expect(screen.getByTestId('battlefield-left-rail-move-groups')).not.toBeNull()
@@ -1226,21 +1231,21 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={{
           groupsInUse: [
-            { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-            { groupId: 'group-2', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+            { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
+            { groupId: 'group-2', groupName: 'Group 2 - [Little Pigs]', unitType: 'LittlePigs' },
           ],
-          usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+          usedGroupNames: ['Group 1 - [Little Pigs]', 'Group 2 - [Little Pigs]'],
         } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {
             'group-1': {
-              groupName: 'Little Pigs group 1',
+              groupName: 'Group 1 - [Little Pigs]',
               unitType: 'LittlePigs',
               position: { q: 4, r: 7 },
               unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
             },
             'group-2': {
-              groupName: 'Little Pigs group 2',
+              groupName: 'Group 2 - [Little Pigs]',
               unitType: 'LittlePigs',
               position: { q: 5, r: 7 },
               unitIds: ['pigs-4', 'pigs-5'],
@@ -1253,8 +1258,10 @@ describe('BattlefieldLeftRail', () => {
     )
 
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(screen.getByTestId('combat-unit-pigs-1').textContent).toContain('Little Pigs group 1')
-    expect(screen.getByTestId('combat-unit-pigs-4').textContent).toContain('Little Pigs group 2')
+    expect(within(screen.getByTestId('combat-unit-pigs-1')).getByText('Group 1')).toBeInTheDocument()
+    expect(within(screen.getByTestId('combat-unit-pigs-1')).getByText('Little Pigs')).toBeInTheDocument()
+    expect(within(screen.getByTestId('combat-unit-pigs-4')).getByText('Group 2')).toBeInTheDocument()
+    expect(within(screen.getByTestId('combat-unit-pigs-4')).getByText('Little Pigs')).toBeInTheDocument()
   })
 
   it('shows the movement badge for an Onion viewer during defender movement', () => {
@@ -1313,14 +1320,14 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={{
           groupsInUse: [
-            { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+            { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
           ],
-          usedGroupNames: ['Little Pigs group 1'],
+          usedGroupNames: ['Group 1 - [Little Pigs]'],
         } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {
             'group-1': {
-              groupName: 'Little Pigs group 1',
+              groupName: 'Group 1 - [Little Pigs]',
               unitType: 'LittlePigs',
               position: { q: 4, r: 4 },
               unitIds: ['pigs-1', 'pigs-2'],
@@ -1374,14 +1381,14 @@ describe('BattlefieldLeftRail', () => {
     ]
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
     const stackRoster = {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
@@ -1472,14 +1479,14 @@ describe('BattlefieldLeftRail', () => {
     ]
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
     const stackRoster = {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
@@ -1557,14 +1564,14 @@ describe('BattlefieldLeftRail', () => {
     ]
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
     const stackRoster = {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],
@@ -1638,14 +1645,14 @@ describe('BattlefieldLeftRail', () => {
     ]
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
     const stackRoster = {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],
@@ -1748,14 +1755,14 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 2"
         stackNaming={{
           groupsInUse: [
-            { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+            { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
           ],
-          usedGroupNames: ['Little Pigs group 1'],
+          usedGroupNames: ['Group 1 - [Little Pigs]'],
         } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {
             'group-1': {
-              groupName: 'Little Pigs group 1',
+              groupName: 'Group 1 - [Little Pigs]',
               unitType: 'LittlePigs',
               position: { q: 4, r: 4 },
               unitIds: ['pigs-1', 'pigs-2'],
@@ -1829,14 +1836,14 @@ describe('BattlefieldLeftRail', () => {
         selectedCombatAttackLabel="Attack 0"
         stackNaming={{
           groupsInUse: [
-            { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+            { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
           ],
-          usedGroupNames: ['Little Pigs group 1'],
+          usedGroupNames: ['Group 1 - [Little Pigs]'],
         } as StackNamingSnapshot}
         stackRoster={{
           groupsById: {
             'group-1': {
-              groupName: 'Little Pigs group 1',
+              groupName: 'Group 1 - [Little Pigs]',
               unitType: 'LittlePigs',
               position: { q: 4, r: 4 },
               unitIds: ['pigs-1', 'pigs-2'],
@@ -2054,14 +2061,14 @@ describe('BattlefieldLeftRail', () => {
     ])
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     } as StackNamingSnapshot
     const stackRoster = {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],
@@ -2140,14 +2147,14 @@ describe('BattlefieldLeftRail', () => {
       displayedDefenders,
       stackNaming: {
         groupsInUse: [
-          { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+          { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
         ],
-        usedGroupNames: ['Little Pigs group 1'],
+        usedGroupNames: ['Group 1 - [Little Pigs]'],
       } as StackNamingSnapshot,
       stackRoster: {
         groupsById: {
           'group-1': {
-            groupName: 'Little Pigs group 1',
+            groupName: 'Group 1 - [Little Pigs]',
             unitType: 'LittlePigs',
             position: { q: 4, r: 4 },
             unitIds: ['pigs-1', 'pigs-2'],
@@ -2203,14 +2210,14 @@ describe('BattlefieldLeftRail', () => {
       displayedDefenders,
       stackNaming: {
         groupsInUse: [
-          { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+          { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
         ],
-        usedGroupNames: ['Little Pigs group 1'],
+        usedGroupNames: ['Group 1 - [Little Pigs]'],
       } as StackNamingSnapshot,
       stackRoster: {
         groupsById: {
           'group-1': {
-            groupName: 'Little Pigs group 1',
+            groupName: 'Group 1 - [Little Pigs]',
             unitType: 'LittlePigs',
             position: { q: 4, r: 4 },
             unitIds: ['pigs-1', 'pigs-2'],

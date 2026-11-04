@@ -308,15 +308,15 @@ describe('useBattlefieldDisplayState', () => {
 		const authoritativeState = snapshot.authoritativeState!
 		authoritativeState.stackNaming = {
 			groupsInUse: [
-				{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
 			],
-			usedGroupNames: ['Little Pigs group 1'],
+			usedGroupNames: ['Group 1 - [Little Pigs]'],
 		}
 		authoritativeState.stackRoster = {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -334,7 +334,10 @@ describe('useBattlefieldDisplayState', () => {
 		)
 
 		expect(result.current.selectedCombatAttackCount).toBe(2)
-		expect(result.current.selectedCombatAttackMemberLabels).toEqual(['Little Pigs group 1'])
+		expect(result.current.selectedCombatAttackMemberLabels).toEqual(['Group 1 - [Little Pigs]'])
+		expect(result.current.selectedInspectorDefender?.unitId).toBe('pigs-1')
+		expect(result.current.selectedInspectorLabel).toBe('Little Pigs 1')
+		expect(result.current.selectedInspectorGroupLabel).toBe('Group 1 - [Little Pigs]')
 	})
 
 	it('keeps the attack total populated during defender movement when defenders are selected', () => {
@@ -344,15 +347,15 @@ describe('useBattlefieldDisplayState', () => {
 		authoritativeState.currentPhase = 'DEFENDER_MOVE'
 		authoritativeState.stackNaming = {
 			groupsInUse: [
-				{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
 			],
-			usedGroupNames: ['Little Pigs group 1'],
+			usedGroupNames: ['Group 1 - [Little Pigs]'],
 		}
 		authoritativeState.stackRoster = {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -388,15 +391,15 @@ describe('useBattlefieldDisplayState', () => {
 		}
 		authoritativeState.stackNaming = {
 			groupsInUse: [
-				{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
 			],
-			usedGroupNames: ['Little Pigs group 1'],
+			usedGroupNames: ['Group 1 - [Little Pigs]'],
 		}
 		authoritativeState.stackRoster = {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
@@ -454,7 +457,7 @@ describe('useBattlefieldDisplayState', () => {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -483,7 +486,7 @@ describe('useBattlefieldDisplayState', () => {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
@@ -523,7 +526,7 @@ describe('useBattlefieldDisplayState', () => {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -578,15 +581,15 @@ describe('useBattlefieldDisplayState', () => {
 		previousSnapshot.authoritativeState!.defenders['pigs-2'].state = 'destroyed'
 		previousSnapshot.authoritativeState!.stackNaming = {
 			groupsInUse: [
-				{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
 			],
-			usedGroupNames: ['Little Pigs group 1'],
+			usedGroupNames: ['Group 1 - [Little Pigs]'],
 		}
 		previousSnapshot.authoritativeState!.stackRoster = {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -700,7 +703,7 @@ describe('useBattlefieldDisplayState', () => {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -739,7 +742,7 @@ describe('useBattlefieldDisplayState', () => {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],

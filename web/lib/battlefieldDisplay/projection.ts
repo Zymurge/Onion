@@ -14,7 +14,7 @@ import {
 	resolveBattlefieldStackMemberIds,
 	resolveBattlefieldStacksExpandable,
 } from '../stackSelection'
-import { resolveBattlefieldFriendlyName } from '../battlefieldNaming'
+import { resolveBattlefieldDisplayName, resolveBattlefieldFriendlyName, resolveBattlefieldUnitName } from '../battlefieldNaming'
 import {
 	getBattlefieldWeaponAttack,
 	isBattlefieldUnitCombatReady,
@@ -206,10 +206,22 @@ export function buildBattlefieldDisplayModel({
 		selectedInspectorUnitId === null
 			? null
 			: defenderRoster.find((unit) => unit.unitId === selectedInspectorUnitId) ?? null
+	const selectedInspectorRosterGroup = selectedInspectorDefender === null
+		? null
+		: stackRosterIndex?.getUnitGroup(selectedInspectorDefender.unitId) ?? null
+	const selectedInspectorGroupLabel = selectedInspectorDefender !== null
+		&& selectedInspectorRosterGroup !== null
+		&& selectedInspectorRosterGroup.unitIds.length > 1
+		? resolveBattlefieldDisplayName(
+			{ ...selectedInspectorDefender, stackSize: selectedInspectorRosterGroup.unitIds.length },
+			stackNaming ?? undefined,
+			selectedInspectorRosterGroup.groupId,
+		)
+		: null
 	const selectedInspectorLabel = selectedInspectorOnion !== null
 		? resolveBattlefieldFriendlyName(selectedInspectorOnion, stackNaming ?? undefined, stackRosterIndex, catalog ?? undefined)
 		: selectedInspectorDefender !== null
-			? resolveBattlefieldFriendlyName(selectedInspectorDefender, stackNaming ?? undefined, stackRosterIndex, catalog ?? undefined)
+			? resolveBattlefieldUnitName(selectedInspectorDefender.typeId, selectedInspectorDefender.unitId, selectedInspectorDefender.friendlyName)
 			: null
 	const combatRangeSources = !isCombatPhase || displayedScenarioMap === null
 		? []
@@ -356,6 +368,7 @@ export function buildBattlefieldDisplayModel({
 		selectedCombatTarget,
 		selectedCombatTargetIdForRender,
 		selectedInspectorDefender,
+		selectedInspectorGroupLabel,
 		selectedInspectorOnion,
 		selectedInspectorLabel,
 		selectedInspectorUnitId,

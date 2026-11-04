@@ -45,6 +45,23 @@ export function resolveStackUnitName(unitType: string, unitId: string | undefine
 	return unitId ?? unitType
 }
 
+/** Format a group label from its canonical ordinal and unit type. */
+export function formatStackGroupName(
+	ordinal: string,
+	unitType: string,
+	unitId?: string,
+	friendlyName?: string,
+	previousGroupName?: string,
+): string {
+	const catalogName = UNIT_TYPE_CATALOG[unitType as keyof typeof UNIT_TYPE_CATALOG]?.name
+	const formattedName = previousGroupName?.match(/^Group \d+ - \[(.+)\]$/)?.[1]
+	const resolvedName = catalogName
+		?? formattedName
+		?? stripOrdinalSuffix(resolveStackUnitName(unitType, unitId, friendlyName))
+
+	return `Group ${ordinal} - [${resolvedName}]`
+}
+
 /** Resolve the display label for a unit or multi-unit stack. */
 export function resolveStackLabel(
 	unitType: string,

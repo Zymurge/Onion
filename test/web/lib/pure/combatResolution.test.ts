@@ -136,7 +136,7 @@ describe('buildCombatResolution', () => {
 				type: 'FIRE_RESOLVED',
 				attackers: ['main'],
 				targetId: 'group-1',
-				targetFriendlyName: 'Little Pigs group 1',
+				targetFriendlyName: 'Group 1 - [Little Pigs]',
 				outcome: 'X',
 			},
 			{ type: 'UNIT_STATUS_CHANGED', unitId: 'pigs-1', unitFriendlyName: 'Little Pigs 1', from: 'operational', to: 'destroyed' },

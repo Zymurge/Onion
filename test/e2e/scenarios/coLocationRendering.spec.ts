@@ -63,7 +63,7 @@ test('co-located stack and adjacent units render consistently for active and ina
 		expect(onionState.cells['3-2']).toContain('hex-cell-shared-occupancy')
 		expect(onionState.cells['4-2']).toContain('hex-cell-occupied')
 		expect(onionState.cells['2-3']).toContain('hex-cell-occupied')
-		expect(onionState.markers['pigs-1']?.text).toContain('Little Pigs group 1')
+		expect(onionState.markers['pigs-1']?.text).toContain('Group 1 - [Little Pigs]')
 		expect(onionState.stack.memberMarkerCounts).toEqual({ 'pigs-1': 1, 'pigs-2': 0, 'pigs-3': 0 })
 		expect(onionState.stack.expanded).toBe('false')
 		expect(onionState.stack.selected).toBe('false')

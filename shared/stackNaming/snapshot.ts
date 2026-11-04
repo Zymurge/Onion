@@ -1,11 +1,6 @@
 import type { StackRosterState } from '../types/index.js'
-import {
-	createUniqueName,
-	isLegacyCoordinateGroupName,
-	resolveStackLabel,
-} from './labels.js'
 import { createStackNamingEngine } from './engine.js'
-import type { StackNamingGroupRecord, StackNamingSnapshot, StackNamingSourceUnit } from './types.js'
+import type { StackNamingSnapshot, StackNamingSourceUnit } from './types.js'
 
 /**
  * Refresh naming from the authoritative roster and flat source-unit records.
@@ -19,9 +14,7 @@ export function refreshStackNamingSnapshotFromRoster(
 ): StackNamingSnapshot {
 	const sourceUnitById = new Map(sourceUnits.map((unit) => [unit.unitId, unit]))
 	const activeGroupIds: string[] = []
-	const rosterGroupsInUse: StackNamingGroupRecord[] = []
-	const rosterUsedGroupNames: string[] = []
-	const allocatedUsedGroupNames = new Set(seed?.usedGroupNames ?? [])
+	const engine = createStackNamingEngine(seed)
 
 	for (const [groupId, group] of Object.entries(stackRoster?.groupsById ?? {})) {
 		const unitIds = [...group.unitIds]
@@ -39,30 +32,9 @@ export function refreshStackNamingSnapshotFromRoster(
 		}
 
 		activeGroupIds.push(groupId)
-		const persistedGroupName = group.groupName?.trim() ?? ''
-		const hasPersistedGroupName = persistedGroupName.length > 0 && !isLegacyCoordinateGroupName(persistedGroupName)
-		const baseGroupName = hasPersistedGroupName
-			? persistedGroupName
-			: resolveStackLabel(group.unitType, firstUnit.unitId, firstUnit.friendlyName, unitIds.length)
-		const authoritativeGroupName = hasPersistedGroupName
-			? baseGroupName
-			: createUniqueName(baseGroupName, allocatedUsedGroupNames)
-		allocatedUsedGroupNames.add(authoritativeGroupName)
-		rosterGroupsInUse.push({ groupId, groupName: authoritativeGroupName, unitType: group.unitType })
-		rosterUsedGroupNames.push(authoritativeGroupName)
+		engine.resolveGroupName(groupId, group.unitType, firstUnit.unitId, firstUnit.friendlyName, unitIds.length)
 	}
 
-	const engine = createStackNamingEngine({
-		...seed,
-		groupsInUse: [
-			...(seed?.groupsInUse ?? []),
-			...rosterGroupsInUse,
-		],
-		usedGroupNames: [
-			...(seed?.usedGroupNames ?? []),
-			...rosterUsedGroupNames,
-		],
-	})
 	engine.clearMissingGroups(activeGroupIds)
 	return engine.snapshot()
 }

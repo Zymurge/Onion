@@ -1000,7 +1000,7 @@ describe('http game client adapter contract', () => {
 					stackRoster: {
 						groupsById: {
 							bad: {
-								groupName: 'Little Pigs group 1',
+								groupName: 'Group 1 - [Little Pigs]',
 								unitType: 'LittlePigs',
 								position: { q: 4, r: 4 },
 								unitIds: ['pigs-1'],
@@ -1036,7 +1036,7 @@ describe('http game client adapter contract', () => {
 					stackRoster: {
 						groupsById: {
 							bad: {
-								groupName: 'Little Pigs group 1',
+								groupName: 'Group 1 - [Little Pigs]',
 								unitType: 'LittlePigs',
 								position: { q: 4, r: 4 },
 								unitIds: null,
@@ -1064,7 +1064,7 @@ describe('http game client adapter contract', () => {
 					stackRoster: {
 						groupsById: {
 							bad: {
-								groupName: 'Little Pigs group 1',
+								groupName: 'Group 1 - [Little Pigs]',
 							},
 						},
 					},
@@ -1097,7 +1097,7 @@ describe('http game client adapter contract', () => {
 				stackRoster: {
 					groupsById: {
 						'group-1': {
-							groupName: 'Little Pigs group 1',
+							groupName: 'Group 1 - [Little Pigs]',
 							unitType: 'LittlePigs',
 							position: { q: 4, r: 4 },
 							unitIds: ['pigs-1', 'pigs-2'],

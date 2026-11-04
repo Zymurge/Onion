@@ -10,6 +10,7 @@ import { getBattlefieldStackSize, resolveBattlefieldDisplayName, resolveBattlefi
 import { getBattlefieldWeaponAttack, getReadyWeaponRange, parseWeaponStats, resolveBattlefieldWeaponName } from '../lib/weaponStats'
 import { getGroupAttackReadyCount, getUnitAttackStrength } from '../lib/stackReadiness'
 import type { CombatWeaponDetail } from '../lib/actionEligibility/reasons'
+import { getUnitDefinition } from '../../shared/unitDefinitions'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import type { StackRosterState } from '../../shared/types/index'
 import { getSessionWeaponType, type SessionCatalog } from '../lib/sessionCatalog'
@@ -66,6 +67,8 @@ type DefenderStackGroup = {
   isPartiallyDestroyed: boolean
   hasDisabledUnit: boolean
   label: string
+  primaryLabel: string
+  typeLabel?: string
   members: DefenderStackGroupMember[]
   range: number
   moveAllowance: number
@@ -141,6 +144,19 @@ function buildDefenderGroupFromUnits(
   const label = resolvedGroupId !== undefined
     ? resolveBattlefieldStackLabel(anchorUnit.typeId, anchorUnit.unitId, anchorUnit.friendlyName, stackSize, resolvedGroupId, stackNaming)
     : resolveBattlefieldDisplayName({ ...anchorUnit, stackSize }, stackNaming)
+  const groupOrdinalMatch = resolvedGroupId?.match(/^group-([1-9]\d*)$/)
+  if (resolvedGroupId !== undefined && groupOrdinalMatch === null) {
+    throw new Error(`Invalid canonical stack group ID: ${resolvedGroupId}`)
+  }
+  const primaryLabel = groupOrdinalMatch === null || groupOrdinalMatch === undefined
+    ? label
+    : `Group ${groupOrdinalMatch[1]}`
+  const groupUnitType = resolvedGroupId === undefined
+    ? undefined
+    : selectionState.stackRoster?.groupsById[resolvedGroupId]?.unitType ?? anchorUnit.typeId
+  const typeLabel = groupUnitType === undefined
+    ? undefined
+    : catalog?.unitTypes[groupUnitType]?.name ?? getUnitDefinition(groupUnitType)?.name ?? groupUnitType
   const selectedCount = countSelectedBattlefieldStackMembers(selectionState, anchorUnit.unitId, activeSelectedUnitIds)
   const attackReadyCount = getGroupAttackReadyCount(displayedUnits, catalog)
   const projectedEligibilityForUnit = (unit: BattlefieldUnit): MovementEligibility | CombatEligibility | undefined => groupMode === 'move'
@@ -200,6 +216,8 @@ function buildDefenderGroupFromUnits(
       && units.some((unit) => unit.state !== 'destroyed'),
     hasDisabledUnit: units.some((unit) => unit.state === 'disabled'),
     label,
+    primaryLabel,
+    ...(typeLabel === undefined ? {} : { typeLabel }),
     members,
     availabilityReason: groupMode === 'combat' && unavailableCombatUnits.length === units.length
       ? availabilityReasonForUnit(anchorUnit) ?? 'Unavailable'
@@ -348,7 +366,10 @@ function BattlefieldStackGroup({
         }}
       >
         <div className="combat-stack-card-head">
-          <div className="weapon-card-name">{group.label}</div>
+          <div className="combat-stack-identity">
+            <div className="weapon-card-name">{group.primaryLabel}</div>
+            {group.typeLabel !== undefined ? <div className="combat-stack-type">{group.typeLabel}</div> : null}
+          </div>
           {group.members.length > 1 && !group.isDestroyed ? <span className="mini-tag">{group.attackReadyCount}/{group.members.length}</span> : null}
         </div>
         {group.isDestroyed ? (

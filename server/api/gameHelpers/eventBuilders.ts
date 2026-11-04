@@ -235,7 +235,7 @@ export function buildMoveEvents(
   const movedUnit = getOnionOrDefender(canonicalMoveUnitId, state)
   const isOnionMove = movedUnit.kind === 'onion'
   const onion = isOnionMove ? state.onions[canonicalMoveUnitId] : undefined
-  const moveUnitFriendlyName = resolveUnitFriendlyName(state, canonicalMoveUnitId)
+  const moveUnitFriendlyName = resolveIndividualUnitFriendlyName(state, canonicalMoveUnitId)
   const events: EventEnvelope[] = [{
     seq: seq++,
     type: isOnionMove ? 'ONION_MOVED' : 'UNIT_MOVED',

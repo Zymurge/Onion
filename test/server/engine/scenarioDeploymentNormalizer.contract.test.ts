@@ -288,11 +288,11 @@ describe('scenario deployment normalization contract', () => {
     ])
     expect(Object.values(state.stackRoster.groupsById)).toEqual([
       expect.objectContaining({
-        groupName: 'Little Pigs group 1',
+        groupName: 'Group 1 - [Little Pigs]',
         unitIds: ['pigs-1', 'pigs-2'],
       }),
       expect.objectContaining({
-        groupName: 'Little Pigs group 2',
+        groupName: 'Group 2 - [Little Pigs]',
         unitIds: ['pigs-3', 'pigs-4'],
       }),
     ])

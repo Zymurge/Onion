@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   resolveBattlefieldDisplayName,
   resolveBattlefieldFriendlyName,
+  resolveBattlefieldUnitName,
 } from '../../../web/lib/battlefieldNaming'
 import { resolveBattlefieldStacksExpandable, shouldExpandBattlefieldStackGroup } from '../../../web/lib/stackSelection'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
@@ -38,7 +39,7 @@ describe('resolveBattlefieldDisplayName', () => {
       nextGroupOrdinal: 2,
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 2, r: 2 },
           unitIds: ['pigs-1', 'pigs-2'],
@@ -57,16 +58,16 @@ describe('resolveBattlefieldDisplayName', () => {
   it('throws when grouped unit labels conflict between roster and naming', () => {
       const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 2 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 2'],
+      usedGroupNames: ['Group 2 - [Little Pigs]'],
     }
 
     const stackRoster = {
       nextGroupOrdinal: 2,
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 2, r: 2 },
           unitIds: ['pigs-1', 'pigs-2'],
@@ -85,9 +86,9 @@ describe('resolveBattlefieldDisplayName', () => {
   it('resolves an individual label when a stackable unit is absent from the canonical roster', () => {
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
 
     const stackRoster = {
@@ -108,9 +109,9 @@ describe('resolveBattlefieldDisplayName', () => {
   it('resolves a group label from canonical stack naming for a grouped map occupant', () => {
     const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
 
     const label = resolveBattlefieldDisplayName(
@@ -119,22 +120,35 @@ describe('resolveBattlefieldDisplayName', () => {
       'group-1',
     )
 
-    expect(label).toBe('Little Pigs group')
+    expect(label).toBe('Group 1 - [Little Pigs]')
+  })
+
+  it('keeps a grouped member name distinct from its canonical group label', () => {
+    const stackNaming = {
+      groupsInUse: [
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
+      ],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
+    }
+    const member = makeTestUnit()
+
+    expect(resolveBattlefieldUnitName(member.typeId, member.unitId, member.friendlyName)).toBe('Little Pigs 1')
+    expect(resolveBattlefieldDisplayName({ ...member, stackSize: 2 }, stackNaming, 'group-1')).toBe('Group 1 - [Little Pigs]')
   })
 
   it('resolves an individual label for a stackable singleton roster group', () => {
       const stackNaming = {
       groupsInUse: [
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ],
-      usedGroupNames: ['Little Pigs group 1'],
+      usedGroupNames: ['Group 1 - [Little Pigs]'],
     }
 
     const stackRoster = {
       nextGroupOrdinal: 2,
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 2, r: 2 },
           unitIds: ['pigs-1'],

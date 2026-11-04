@@ -46,7 +46,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
       stackRoster: {
         groupsById: {
           'group-4': {
-            groupName: 'Little Pigs group 4',
+            groupName: 'Group 4 - [Little Pigs]',
             unitType: 'LittlePigs',
             position: { q: 1, r: 1 },
             unitIds: ['pigs-1', 'pigs-2'],
@@ -103,7 +103,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json().state.stackNaming.groupsInUse).toEqual([
-      { groupId: 'group-4', groupName: 'Little Pigs group 4', unitType: 'LittlePigs' },
+      { groupId: 'group-4', groupName: 'Group 4 - [Little Pigs]', unitType: 'LittlePigs' },
     ])
   })
 

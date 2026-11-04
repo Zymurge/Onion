@@ -277,7 +277,7 @@ Current `GameState` stack roster shape:
   "stackRoster": {
     "groupsById": {
       "group-1": {
-        "groupName": "Little Pigs group 1",
+        "groupName": "Group 1 - [Little Pigs]",
         "unitType": "LittlePigs",
         "position": { "q": 4, "r": 4 },
         "unitIds": ["pigs-1", "pigs-2"]
@@ -293,6 +293,7 @@ Notes:
 - `groupsById` is the canonical stack/group metadata map. The record key is the group id.
 - The roster wrapper is always present in game state, even when `groupsById` is empty.
 - `groupId` is the canonical `groupsById` map key. `unitIds` are canonical membership; member ordinals are helper-derived and do not need to be persisted.
+- Group display names use the globally allocated ordinal from the canonical `group-N` ID and the format `Group <ordinal> - [<unit type>]`.
 - `group.units` is a convenience projection derived by shared helpers from the canonical unit maps when UI or messaging needs member detail.
 - `friendlyName` on a unit is stable and does not change when the unit changes groups.
 - `groupName` is the only stack-level display label used by rails, combat UI, and event text.
@@ -510,9 +511,18 @@ All events share a base envelope:
 ### Movement Events
 
 ```text
-ONION_MOVED       { from: HexPos, to: HexPos }
-UNIT_MOVED        { unitId: string, from: HexPos, to: HexPos }
+ONION_MOVED       { onionId: string, unitFriendlyName: string, to: HexPos }
+UNIT_MOVED        { unitId: string, unitFriendlyName: string, to: HexPos }
+MOVE_RESOLVED     { unitId: string, unitFriendlyName: string,
+                    rammedUnitIds: string[], rammedUnitFriendlyNames: string[],
+                    destroyedUnitIds: string[], destroyedUnitFriendlyNames: string[],
+                    treadDamage: number }
 ```
+
+A multi-unit `MOVE` emits one `UNIT_MOVED` event per member. Each event identifies
+that member by its canonical `unitId` and individual `unitFriendlyName`; the
+corresponding `MOVE_RESOLVED` event uses the same mover identity. Grouped ram
+targets may retain the group's friendly label.
 
 ### Combat Events
 

@@ -21,7 +21,7 @@ function createTestStackState() {
     stackRoster: {
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-1', 'pigs-2'],

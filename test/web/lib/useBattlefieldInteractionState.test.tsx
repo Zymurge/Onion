@@ -99,7 +99,7 @@ function createGroupedDefenderSnapshot(options?: {
 			? {
 				groupsById: {
 					'group-1': {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 1, r: 1 },
 						unitIds: ['pigs-1'],

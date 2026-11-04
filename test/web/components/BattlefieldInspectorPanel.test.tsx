@@ -34,6 +34,7 @@ describe('BattlefieldInspectorPanel', () => {
     render(
       <BattlefieldInspectorPanel
         selectedInspectorLabel={defender.friendlyName}
+        selectedInspectorGroupLabel="Group 1 - [Little Pigs]"
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={2}
@@ -43,6 +44,7 @@ describe('BattlefieldInspectorPanel', () => {
 
     const inspector = screen.getByTestId('battlefield-inspector')
     expect(within(inspector).getByTestId('battlefield-inspector-subject-pigs-1').textContent).toBe('Little Pigs 1')
+    expect(within(inspector).getByTestId('battlefield-inspector-group')).toHaveTextContent('Member of Group 1 - [Little Pigs]')
     expect(within(inspector).getByRole('img', { name: 'Little Pigs 1 sprite' })).toBeInTheDocument()
     expect(within(inspector).getByText(/stackable rifle squad/i)).toBeInTheDocument()
     expect(getLabeledValue('Stack')).toBe('2')

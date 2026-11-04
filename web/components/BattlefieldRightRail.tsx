@@ -39,6 +39,7 @@ type BattlefieldRightRailProps = {
   selectedCombatTarget: CombatTargetOption | null
   selectedCombatTargetId: string | null
   selectedInspectorLabel: string | null
+  selectedInspectorGroupLabel?: string | null
   selectedInspectorDefender: BattlefieldDefenderView | null
   selectedInspectorOnion: BattlefieldOnionView | null
   readyWeaponDetails: ReadonlyArray<Weapon>
@@ -83,6 +84,7 @@ export function BattlefieldRightRail({
   selectedCombatTarget,
   selectedCombatTargetId,
   selectedInspectorLabel,
+  selectedInspectorGroupLabel = null,
   selectedInspectorDefender,
   selectedInspectorOnion,
   readyWeaponDetails,
@@ -262,6 +264,7 @@ export function BattlefieldRightRail({
   const inspectorPanel = shouldShowInspectorPanel ? (
     <BattlefieldInspectorPanel
       selectedInspectorLabel={selectedInspectorLabel}
+      selectedInspectorGroupLabel={selectedInspectorGroupLabel}
       selectedInspectorDefender={selectedInspectorDefender}
       selectedInspectorOnion={selectedInspectorOnion}
       selectedStackMemberCount={rightRailStackPanel.selectedStackMembers.length}

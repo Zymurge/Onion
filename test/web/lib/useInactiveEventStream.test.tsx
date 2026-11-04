@@ -10,6 +10,58 @@ function createEvent(event: EventEnvelope): EventEnvelope {
 }
 
 describe('useInactiveEventStream', () => {
+	it('keeps grouped mover details member-specific and the ram target group-level', () => {
+		const entries = buildTimelineEvents([
+			createEvent({
+				seq: 1,
+				type: 'UNIT_MOVED',
+				timestamp: 't1',
+				unitId: 'pigs-1',
+				unitFriendlyName: 'Little Pigs 1',
+				to: { q: 2, r: 2 },
+			}),
+			createEvent({
+				seq: 2,
+				type: 'MOVE_RESOLVED',
+				timestamp: 't2',
+				unitId: 'pigs-1',
+				unitFriendlyName: 'Little Pigs 1',
+				rammedUnitIds: ['pigs-2'],
+				rammedUnitFriendlyNames: ['Group 1 - [Little Pigs]'],
+				destroyedUnitIds: [],
+				treadDamage: 0,
+			}),
+			createEvent({
+				seq: 3,
+				type: 'UNIT_MOVED',
+				timestamp: 't3',
+				unitId: 'pigs-2',
+				unitFriendlyName: 'Little Pigs 2',
+				to: { q: 2, r: 2 },
+			}),
+		])
+
+		expect(entries).toMatchObject([
+			{
+				seq: 1,
+				summary: 'Ram on Group 1 - [Little Pigs]: survived',
+				details: [
+					'Little Pigs 1 moved to (2, 2)',
+					'Unit: Little Pigs 1',
+					'Target: Group 1 - [Little Pigs]',
+					'Result: survived',
+				],
+				payload: { unitId: 'pigs-1' },
+			},
+			{
+				seq: 3,
+				summary: 'Move by Little Pigs 2',
+				details: ['Little Pigs 2 moved to (2, 2)'],
+				payload: { unitId: 'pigs-2' },
+			},
+		])
+	})
+
 	it('focuses the owning Onion for a standalone weapon-target combat event', () => {
 		const [entry] = buildTimelineEvents([
 			createEvent({
@@ -420,7 +472,7 @@ describe('useInactiveEventStream', () => {
 
 	it('renders each destroyed member of a combat stack by its individual name', async () => {
 		const pollEvents = vi.fn().mockResolvedValue([
-			createEvent({ seq: 1, type: 'FIRE_RESOLVED', timestamp: 't1', turnNumber: 3, causeId: 'combat-1', targetFriendlyName: 'Little Pigs group 1', outcome: 'X' }),
+			createEvent({ seq: 1, type: 'FIRE_RESOLVED', timestamp: 't1', turnNumber: 3, causeId: 'combat-1', targetFriendlyName: 'Group 1 - [Little Pigs]', outcome: 'X' }),
 			createEvent({ seq: 2, type: 'UNIT_STATUS_CHANGED', timestamp: 't2', turnNumber: 3, causeId: 'combat-1', unitId: 'pigs-1', unitFriendlyName: 'Little Pigs 1', from: 'operational', to: 'destroyed' }),
 			createEvent({ seq: 3, type: 'UNIT_STATUS_CHANGED', timestamp: 't3', turnNumber: 3, causeId: 'combat-1', unitId: 'pigs-2', unitFriendlyName: 'Little Pigs 2', from: 'operational', to: 'destroyed' }),
 			createEvent({ seq: 4, type: 'UNIT_STATUS_CHANGED', timestamp: 't4', turnNumber: 3, causeId: 'combat-1', unitId: 'pigs-3', unitFriendlyName: 'Little Pigs 3', from: 'operational', to: 'destroyed' }),
@@ -451,7 +503,7 @@ describe('useInactiveEventStream', () => {
 				timestamp: 't1',
 				turnNumber: 3,
 				attackers: ['pigs-1', 'pigs-2'],
-				attackerFriendlyNames: ['Little Pigs group 1', 'Little Pigs group 1'],
+				attackerFriendlyNames: ['Group 1 - [Little Pigs]', 'Group 1 - [Little Pigs]'],
 				targetFriendlyName: 'The Onion',
 				outcome: 'D',
 			}),
@@ -468,7 +520,7 @@ describe('useInactiveEventStream', () => {
 
 		await waitFor(() => expect(result.current.entries).toHaveLength(1))
 		expect(result.current.entries[0].details).toEqual(expect.arrayContaining([
-			'Attackers (2): Little Pigs group 1',
+			'Attackers (2): Group 1 - [Little Pigs]',
 			'Target: The Onion',
 		]))
 	})

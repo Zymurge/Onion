@@ -244,7 +244,7 @@ export function makeStackRoster(overrides: Partial<StackRosterState> = {}): Stac
 
 export function makeStackGroup(overrides: Partial<StackRosterGroupState> = {}): StackRosterGroupState {
 	return {
-		groupName: 'Little Pigs group 1',
+		groupName: 'Group 1 - [Little Pigs]',
 		unitType: 'LittlePigs',
 		position: { q: 1, r: 1 },
 		unitIds: ['pigs-1', 'pigs-2'],
@@ -261,9 +261,9 @@ export function makeStackGroup(overrides: Partial<StackRosterGroupState> = {}): 
 export function makeStackNaming(overrides: Partial<StackNamingSnapshot> = {}): StackNamingSnapshot {
 	return {
 		groupsInUse: [
-			{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }
+			{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' }
 		],
-		usedGroupNames: ['Little Pigs group 1'],
+		usedGroupNames: ['Group 1 - [Little Pigs]'],
 		...overrides,
 	}
 }

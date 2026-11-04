@@ -110,6 +110,16 @@ group ID rather than an individual Little Pigs member ID. See the
 [interaction-routing specification](interaction-routing-spec.md) and
 [API contract](../api-contract.md).
 
+## Group and Member Labels
+
+- Grouped Defender rail rows show the canonical group ordinal as the primary
+  label and the resolved unit type name as a muted subtitle. The ordinal comes
+  from the roster's canonical `group-N` ID, and membership comes from
+  `stackRoster` rather than map co-location.
+- The Inspector identifies a selected member by its individual friendly name
+  and shows its canonical group label separately. Group context does not replace
+  member identity.
+
 ## Implementation and Test Map
 
 | Responsibility | Code and focused tests |

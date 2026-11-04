@@ -8,6 +8,7 @@ import { getUnitSpriteHref } from '../lib/unitSpriteRegistry'
 
 type BattlefieldInspectorPanelProps = {
   selectedInspectorLabel: string | null
+  selectedInspectorGroupLabel?: string | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
   selectedStackMemberCount: number
@@ -18,6 +19,7 @@ type BattlefieldInspectorPanelProps = {
 
 export function BattlefieldInspectorPanel({
   selectedInspectorLabel,
+  selectedInspectorGroupLabel = null,
   selectedInspectorDefender,
   selectedInspectorOnion,
   selectedStackMemberCount,
@@ -57,6 +59,7 @@ export function BattlefieldInspectorPanel({
       dataTestId,
       subjectDataTestId,
       label: selectedLabel,
+      groupLabel: null,
       headerMeta: null,
       spriteHref: selectedUnitSpriteHref,
       description: selectedUnitDescription,
@@ -103,6 +106,7 @@ export function BattlefieldInspectorPanel({
       dataTestId,
       subjectDataTestId,
       label: selectedLabel,
+      groupLabel: selectedInspectorGroupLabel,
       headerMeta: null,
       spriteHref: selectedUnitSpriteHref,
       description: selectedUnitDescription,
@@ -143,6 +147,7 @@ export function BattlefieldInspectorPanel({
     dataTestId,
     subjectDataTestId: undefined,
     label: null,
+    groupLabel: null,
     headerMeta: null,
     spriteHref: undefined,
     description: undefined,
@@ -154,13 +159,14 @@ type InspectorPanelShellProps = {
   dataTestId: string
   subjectDataTestId: string | undefined
   label: string | null
+  groupLabel: string | null
   headerMeta: ReactNode
   spriteHref: string | undefined
   description: string | undefined
   body: ReactNode
 }
 
-function renderInspectorPanel({ dataTestId, subjectDataTestId, label, headerMeta, spriteHref, description, body }: InspectorPanelShellProps) {
+function renderInspectorPanel({ dataTestId, subjectDataTestId, label, groupLabel, headerMeta, spriteHref, description, body }: InspectorPanelShellProps) {
   return (
     <section className="selection-panel panel-subtle" data-testid={dataTestId} role="region" aria-label="Inspector">
       <div className="selection-panel-header">
@@ -170,6 +176,7 @@ function renderInspectorPanel({ dataTestId, subjectDataTestId, label, headerMeta
         </div>
         {headerMeta}
       </div>
+      {groupLabel !== null ? <p className="inspector-group-label" data-testid="battlefield-inspector-group">Member of {groupLabel}</p> : null}
       {spriteHref !== undefined && label !== null ? (
         <div className="inspector-sprite-frame">
           <img className="inspector-sprite" src={spriteHref} alt={`${label} sprite`} />

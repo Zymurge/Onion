@@ -31,19 +31,19 @@ describe('stack roster', () => {
 					unitIds: [''],
 				},
 				'bad-2': {
-					groupName: 'Little Pigs group 9',
+					groupName: 'Group 9 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['shared-id'],
 				},
 				'bad-3': {
-					groupName: 'Little Pigs group 10',
+					groupName: 'Group 10 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 5, r: 5 },
 					unitIds: ['shared-id'],
 				},
 				'bad-4': {
-					groupName: 'Little Pigs group 11',
+					groupName: 'Group 11 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 6, r: 6 },
 					unitIds: [],
@@ -92,7 +92,7 @@ describe('stack roster', () => {
 		const fixture = makeStackFixture({
 			groups: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -103,8 +103,8 @@ describe('stack roster', () => {
 		expect(() => refreshStackRosterNamingSnapshot(
 			fixture.stackRoster,
 			{
-				groupsInUse: [{ groupId: 'little-pigs:4,4', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' }],
-				usedGroupNames: ['Little Pigs group 1'],
+				groupsInUse: [{ groupId: 'little-pigs:4,4', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' }],
+				usedGroupNames: ['Group 1 - [Little Pigs]'],
 			},
 			fixture.defenders,
 		)).toThrow('canonical group ID')
@@ -114,7 +114,7 @@ describe('stack roster', () => {
 		const fixture = makeStackFixture({
 			groups: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -127,13 +127,13 @@ describe('stack roster', () => {
 
 		expect(rosterIndex.groupsById['group-1']).toMatchObject({
 			groupId: 'group-1',
-			groupName: 'Little Pigs group 1',
+			groupName: 'Group 1 - [Little Pigs]',
 			unitIds: ['pigs-1', 'pigs-2'],
 		})
 		expect(rosterIndex.getGroupUnits('group-1')).toHaveLength(2)
 		expect(rosterIndex.getUnitGroup('pigs-2')).toMatchObject({
 			groupId: 'group-1',
-			groupName: 'Little Pigs group 1',
+			groupName: 'Group 1 - [Little Pigs]',
 			unitType: 'LittlePigs',
 			position: { q: 4, r: 4 },
 		})
@@ -155,7 +155,7 @@ describe('stack roster', () => {
 				nextGroupOrdinal: 1,
 				groupsById: {
 					'group-2': {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 4 },
 						unitIds: ['pigs-4'],
@@ -173,7 +173,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 1,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1'],
@@ -188,7 +188,7 @@ describe('stack roster', () => {
 		})
 
 		expect(restored).toEqual(roster)
-		expect(buildStackRosterIndex(restored, defenders).groupsById['group-1']?.groupName).toBe('Little Pigs group 1')
+		expect(buildStackRosterIndex(restored, defenders).groupsById['group-1']?.groupName).toBe('Group 1 - [Little Pigs]')
 	})
 
 	it('returns empty derived views for an empty roster', () => {
@@ -209,7 +209,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -240,7 +240,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -255,7 +255,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 1,
 			groupsById: {
 				bad: {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: null as unknown as never,
@@ -270,7 +270,7 @@ describe('stack roster', () => {
 				nextGroupOrdinal: 1,
 				groupsById: {
 					bad: {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 4 },
 						unitIds: ['pigs-1', 'pigs-2'],
@@ -290,7 +290,7 @@ describe('stack roster', () => {
 				nextGroupOrdinal: 1,
 				groupsById: {
 					bad: {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 4 },
 						unitIds: ['pigs-1'],
@@ -312,7 +312,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -326,7 +326,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 1,
 			groupsById: {
 				'group-2': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -346,13 +346,13 @@ describe('stack roster', () => {
 		const fixture = makeStackFixture({
 			groups: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 				'group-2': {
-					groupName: 'Little Pigs group 2',
+					groupName: 'Group 2 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 5, r: 4 },
 					unitIds: ['pigs-3'],
@@ -363,9 +363,9 @@ describe('stack roster', () => {
 
 		expect(refreshStackRosterNamingSnapshot(roster, undefined, defenders)).toMatchObject({
 			groupsInUse: [
-				{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
 			],
-			usedGroupNames: ['Little Pigs group 1'],
+			usedGroupNames: ['Group 1 - [Little Pigs]'],
 		})
 	})
 
@@ -373,13 +373,13 @@ describe('stack roster', () => {
 		const fixture = makeStackFixture({
 			groups: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 				'group-2': {
-					groupName: 'Little Pigs group 2',
+					groupName: 'Group 2 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 5, r: 4 },
 					unitIds: ['pigs-3'],
@@ -393,9 +393,9 @@ describe('stack roster', () => {
 			'group-1': fixture.stackRoster.groupsById['group-1'],
 		})
 		expect(canonical.stackNaming.groupsInUse).toEqual([
-			{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+			{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
 		])
-		expect(canonical.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
+		expect(canonical.stackNaming.usedGroupNames).toEqual(['Group 1 - [Little Pigs]'])
 	})
 
 	it('fails refresh when a grouped unit is missing from defenders', () => {
@@ -404,7 +404,7 @@ describe('stack roster', () => {
 				nextGroupOrdinal: 1,
 				groupsById: {
 					'group-1': {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 4 },
 						unitIds: ['pigs-1', 'pigs-2'],
@@ -426,7 +426,7 @@ describe('stack roster', () => {
 				nextGroupOrdinal: 1,
 				groupsById: {
 					'a': {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 4 },
 						unitIds: ['pigs-1', 'missing-1', 'wolf-1'],
@@ -462,7 +462,7 @@ describe('stack roster', () => {
 				nextGroupOrdinal: 1,
 				groupsById: {
 					'a': {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 4 },
 						unitIds: ['pigs-1'],
@@ -484,7 +484,7 @@ describe('stack roster', () => {
 				nextGroupOrdinal: 1,
 				groupsById: {
 					'g-1': {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 4 },
 						unitIds: ['pigs-2', 'missing-1', 'pigs-1'],
@@ -498,7 +498,7 @@ describe('stack roster', () => {
 		)
 
 		expect(projected.groupsById['g-1']).toEqual({
-			groupName: 'Little Pigs group 1',
+			groupName: 'Group 1 - [Little Pigs]',
 			unitType: 'LittlePigs',
 			position: { q: 4, r: 4 },
 			unitIds: ['pigs-2', 'pigs-1'],
@@ -546,7 +546,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 3,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -574,7 +574,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 3,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
@@ -602,13 +602,13 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 3,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
 				},
 				'group-2': {
-					groupName: 'Little Pigs group 2',
+					groupName: 'Group 2 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-3', 'pigs-4'],
@@ -715,7 +715,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 1,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 4 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -723,7 +723,7 @@ describe('stack roster', () => {
 			},
 		}, {
 			groupId: 'group-1',
-			newGroupName: 'Little Pigs group 2',
+			newGroupName: 'Group 2 - [Little Pigs]',
 			movedUnitIds: ['pigs-1'],
 		})
 
@@ -858,7 +858,7 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 2,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 0, r: 0 },
 					unitIds: ['p1', 'p2'],
@@ -869,8 +869,8 @@ describe('stack roster', () => {
 		const reconciled = reconcileStackRosterMoveLifecycle({
 			stackRoster: roster,
 			stackNaming: {
-				groupsInUse: [{ groupId: 'group-1', groupName: 'Little Pigs group', unitType: 'LittlePigs' }],
-				usedGroupNames: ['Little Pigs group'],
+				groupsInUse: [{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' }],
+				usedGroupNames: ['Group 1 - [Little Pigs]'],
 			},
 			defenders: makeDefenderMap({
 				p1: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
@@ -885,7 +885,7 @@ describe('stack roster', () => {
 		expect(reconciled.stackRoster.groupsById).toEqual({})
 		expect(reconciled.destinationGroupId).toBe('group-2')
 		expect(reconciled.stackNaming.groupsInUse).toEqual([])
-		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group'])
+		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Group 1 - [Little Pigs]'])
 	})
 
 	it('reconciles move lifecycle by preserving the named multi-unit source', () => {
@@ -893,13 +893,13 @@ describe('stack roster', () => {
 			nextGroupOrdinal: 3,
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 0, r: 0 },
 					unitIds: ['p1', 'p2'],
 				},
 				'group-2': {
-					groupName: 'Little Pigs group 2',
+					groupName: 'Group 2 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 4, r: 0 },
 					unitIds: ['p5'],
@@ -911,10 +911,10 @@ describe('stack roster', () => {
 			stackRoster: roster,
 			stackNaming: {
 				groupsInUse: [
-					{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-					{ groupId: 'group-2', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+					{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
+					{ groupId: 'group-2', groupName: 'Group 2 - [Little Pigs]', unitType: 'LittlePigs' },
 				],
-				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+				usedGroupNames: ['Group 1 - [Little Pigs]', 'Group 2 - [Little Pigs]'],
 			},
 			defenders: makeDefenderMap({
 				p1: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
@@ -928,15 +928,15 @@ describe('stack roster', () => {
 		})
 
 		expect(reconciled.stackRoster.groupsById['group-2']).toMatchObject({
-			groupName: 'Little Pigs group 3',
+			groupName: 'Group 2 - [Little Pigs]',
 			unitIds: ['p5', 'p1'],
 		})
 		expect(reconciled.stackNaming.groupsInUse).toEqual(
 			expect.arrayContaining([
-				{ groupId: 'group-2', groupName: 'Little Pigs group 3', unitType: 'LittlePigs' },
+				{ groupId: 'group-2', groupName: 'Group 2 - [Little Pigs]', unitType: 'LittlePigs' },
 			]),
 		)
-		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'])
+		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Group 1 - [Little Pigs]', 'Group 2 - [Little Pigs]'])
 	})
 
 	it('preserves the group name when the whole group moves together', () => {
@@ -945,7 +945,7 @@ describe('stack roster', () => {
 				nextGroupOrdinal: 4,
 				groupsById: {
 					'group-3': {
-						groupName: 'Little Pigs group 3',
+						groupName: 'Group 3 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 0, r: 0 },
 						unitIds: ['p1', 'p2'],
@@ -953,8 +953,8 @@ describe('stack roster', () => {
 				},
 			},
 			stackNaming: {
-				groupsInUse: [{ groupId: 'group-3', groupName: 'Little Pigs group 3', unitType: 'LittlePigs' }],
-				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'],
+				groupsInUse: [{ groupId: 'group-3', groupName: 'Group 3 - [Little Pigs]', unitType: 'LittlePigs' }],
+				usedGroupNames: ['Group 1 - [Little Pigs]', 'Group 2 - [Little Pigs]', 'Group 3 - [Little Pigs]'],
 			},
 			defenders: makeDefenderMap({
 				p1: { typeId: 'LittlePigs', position: { q: 0, r: 0 } },
@@ -967,10 +967,10 @@ describe('stack roster', () => {
 		})
 
 		expect(reconciled.stackRoster.groupsById['group-3']).toMatchObject({
-			groupName: 'Little Pigs group 3',
+			groupName: 'Group 3 - [Little Pigs]',
 			unitIds: ['p1', 'p2'],
 		})
-		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1', 'Little Pigs group 2', 'Little Pigs group 3'])
+		expect(reconciled.stackNaming.usedGroupNames).toEqual(['Group 1 - [Little Pigs]', 'Group 2 - [Little Pigs]', 'Group 3 - [Little Pigs]'])
 	})
 
 	it('uses live destination membership when a destination group position is stale', () => {
@@ -980,13 +980,13 @@ describe('stack roster', () => {
 				nextGroupOrdinal: 3,
 				groupsById: {
 					'group-1': {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 0, r: 0 },
 						unitIds: ['p1', 'p2'],
 					},
 					'group-2': {
-						groupName: 'Little Pigs group 2',
+						groupName: 'Group 2 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 4, r: 0 },
 						unitIds: ['p3', 'p4'],
@@ -995,10 +995,10 @@ describe('stack roster', () => {
 			},
 			stackNaming: {
 				groupsInUse: [
-					{ groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-					{ groupId: 'group-2', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+					{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
+					{ groupId: 'group-2', groupName: 'Group 2 - [Little Pigs]', unitType: 'LittlePigs' },
 				],
-				usedGroupNames: ['Little Pigs group 1', 'Little Pigs group 2'],
+				usedGroupNames: ['Group 1 - [Little Pigs]', 'Group 2 - [Little Pigs]'],
 			},
 			defenders: makeDefenderMap({
 				p1: { typeId: 'LittlePigs', position: destinationPosition },

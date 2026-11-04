@@ -50,10 +50,10 @@ describe('normalizeInitialStateToGameState', () => {
     const gameState = normalizeInitialStateToGameState(initialState, scenario.id, scenario.unitTypes)
 
     expect(Object.values(gameState.stackRoster.groupsById).map((group) => group.groupName)).toEqual([
-      'Little Pigs group 1',
-      'Little Pigs group 2',
-      'Little Pigs group 3',
-      'Little Pigs group 4',
+      'Group 1 - [Little Pigs]',
+      'Group 2 - [Little Pigs]',
+      'Group 3 - [Little Pigs]',
+      'Group 4 - [Little Pigs]',
     ])
   })
 
@@ -359,8 +359,8 @@ describe('normalizeInitialStateToGameState', () => {
     expect(Object.keys(gameState.stackRoster.groupsById)).toEqual(['group-1', 'group-2'])
     expect(gameState.stackRoster.nextGroupOrdinal).toBe(3)
     expect(gameState.stackNaming.groupsInUse).toEqual([
-      { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
-      { groupId: 'group-2', groupName: 'Little Pigs group 2', unitType: 'LittlePigs' },
+      { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
+      { groupId: 'group-2', groupName: 'Group 2 - [Little Pigs]', unitType: 'LittlePigs' },
     ])
   })
 })

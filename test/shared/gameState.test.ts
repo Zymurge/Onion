@@ -24,7 +24,7 @@ describe('GameState test helpers', () => {
 
   it('allows concise overrides at each setup level', () => {
     const rosterGroup = {
-      groupName: 'Little Pigs group 1',
+      groupName: 'Group 1 - [Little Pigs]',
       unitType: 'LittlePigs',
       position: { q: 4, r: 4 },
       unitIds: ['pigs-1', 'pigs-2'],
@@ -41,7 +41,7 @@ describe('GameState test helpers', () => {
 
     expect(state.onions['onion-1'].treads).toBe(12)
     expect(state.defenders['pigs-1'].typeId).toBe('LittlePigs')
-    expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
+    expect(state.stackNaming.usedGroupNames).toEqual(['Group 1 - [Little Pigs]'])
     expect(state.stackRoster.groupsById['group-2'].unitIds).toEqual(['pigs-1', 'pigs-2'])
     expect(state.currentPhase).toBe('DEFENDER_MOVE')
     expect(state.turn).toBe(4)
@@ -62,7 +62,7 @@ describe('GameState test helpers', () => {
     const fixture = makeStackFixture({
       groups: {
         'group-1': {
-          groupName: 'Little Pigs group 4',
+          groupName: 'Group 4 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 4, r: 4 },
           unitIds: ['pigs-7', 'pigs-8'],
@@ -87,8 +87,8 @@ describe('GameState test helpers', () => {
     })
     expect(fixture.stackRoster.groupsById['group-1']?.unitIds).toEqual(['pigs-7', 'pigs-8'])
     expect(fixture.stackNaming).toEqual({
-      groupsInUse: [{ groupId: 'group-1', groupName: 'Little Pigs group 4', unitType: 'LittlePigs' }],
-      usedGroupNames: ['Little Pigs group 4'],
+      groupsInUse: [{ groupId: 'group-1', groupName: 'Group 4 - [Little Pigs]', unitType: 'LittlePigs' }],
+      usedGroupNames: ['Group 4 - [Little Pigs]'],
     })
   })
 
@@ -110,7 +110,7 @@ describe('GameState test helpers', () => {
     expect(state.defenders['pigs-3']).toMatchObject({ position: { q: 2, r: 2 } })
     expect(state.stackRoster.groupsById['group-1']?.unitIds).toEqual(['pigs-1', 'pigs-2'])
     expect(state.stackRoster.groupsById['group-2']?.unitIds).toEqual(['pigs-3', 'pigs-4'])
-    expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
+    expect(state.stackNaming.usedGroupNames).toEqual(['Group 1 - [Little Pigs]'])
     expect(state.currentPhase).toBe('DEFENDER_MOVE')
   })
 })

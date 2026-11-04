@@ -159,6 +159,7 @@ describe('buildCombatTargetOptions', () => {
 				position: { q: 1, r: 1 },
 				unitIds: ['pigs-1', 'pigs-2', 'pigs-3'],
 				groupId: 'group-7',
+				groupName: 'Group 7 - [Little Pigs]',
 			}),
 			selectedUnitIds: ['weapon:main'],
 			selectedAttackStrength: fixture.expected.attackStrength,
@@ -309,7 +310,7 @@ describe('buildCombatTargetOptions', () => {
 		expect(options).toHaveLength(1)
 		expect(options[0]).toMatchObject({
 			id: 'group-1',
-			label: 'Little Pigs group 1',
+			label: 'Group 1 - [Little Pigs]',
 			defense: 2,
 		})
 	})
@@ -330,7 +331,7 @@ describe('buildCombatTargetOptions', () => {
 				nextGroupOrdinal: 2,
 				groupsById: {
 					'group-1': {
-						groupName: 'Little Pigs group 1',
+						groupName: 'Group 1 - [Little Pigs]',
 						unitType: 'LittlePigs',
 						position: { q: 3, r: 2 },
 						unitIds: ['pigs-1', 'pigs-2', 'pigs-4'],
@@ -344,11 +345,11 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options).toHaveLength(1)
-		expect(options[0]).toMatchObject({ id: 'group-1', label: 'Little Pigs group 1' })
+		expect(options[0]).toMatchObject({ id: 'group-1', label: 'Group 1 - [Little Pigs]' })
 	})
 
-	it('uses the friendly group name when persisted naming has a coordinate label', () => {
-		const options = buildCombatTargetOptions({
+	it('rejects coordinate labels in persisted naming', () => {
+		expect(() => buildCombatTargetOptions({
 			activeCombatRole: 'onion',
 			combatRangeHexKeys: new Set(['4,7']),
 			displayedDefenders: [
@@ -379,12 +380,7 @@ describe('buildCombatTargetOptions', () => {
 			selectedAttackStrength: 4,
 			selectedAttackGroupCount: 1,
 			displayedScenarioMap: { width: 8, height: 8, hexes: [] },
-		})
-
-		expect(options[0]).toMatchObject({
-			id: 'group-1',
-			label: 'Little Pigs group 1',
-		})
+		})).toThrow('Used group name Little Pigs :4,7 must be canonical')
 	})
 
 	it('throws when stacked defenders are missing canonical roster data', () => {

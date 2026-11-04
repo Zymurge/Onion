@@ -179,6 +179,7 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           selectedCombatTarget={display.selectedCombatTarget}
           selectedCombatTargetId={display.selectedCombatTargetIdForRender}
           selectedInspectorLabel={display.selectedInspectorLabel}
+          selectedInspectorGroupLabel={display.selectedInspectorGroupLabel}
           selectedInspectorDefender={display.selectedInspectorDefender}
           selectedInspectorOnion={display.selectedInspectorOnion}
           readyWeaponDetails={display.readyWeaponDetails}

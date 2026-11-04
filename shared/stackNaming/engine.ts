@@ -1,12 +1,12 @@
 import {
-	createUniqueName,
+	formatStackGroupName,
 	resolveStackLabel,
 	resolveStackUnitName,
-	stripOrdinalSuffix,
 } from './labels.js'
 import type { StackNamingSeed, StackNamingSnapshot } from './types.js'
 
 const CANONICAL_GROUP_ID_PATTERN = /^group-[1-9]\d*$/
+const CANONICAL_GROUP_NAME_PATTERN = /^Group ([1-9]\d*) - \[(.+)\]$/
 
 function assertCanonicalGroupId(groupId: string): void {
 	if (!CANONICAL_GROUP_ID_PATTERN.test(groupId)) {
@@ -20,12 +20,27 @@ export class StackNamingEngine {
 	private readonly groupsInUse: Map<string, { groupId: string; groupName: string; unitType: string }>
 
 	constructor(seed?: StackNamingSeed) {
-		for (const record of seed?.groupsInUse ?? []) {
-			assertCanonicalGroupId(record.groupId)
+		const usedGroupNames = seed?.usedGroupNames ?? []
+		for (const groupName of usedGroupNames) {
+			if (!CANONICAL_GROUP_NAME_PATTERN.test(groupName)) {
+				throw new Error(`Used group name ${groupName} must be canonical`)
+			}
 		}
 
-		this.usedGroupNames = new Set(seed?.usedGroupNames ?? [])
+		for (const record of seed?.groupsInUse ?? []) {
+			assertCanonicalGroupId(record.groupId)
+			const ordinal = record.groupId.slice('group-'.length)
+			const canonicalGroupName = formatStackGroupName(ordinal, record.unitType, undefined, undefined, record.groupName)
+			if (record.groupName !== canonicalGroupName) {
+				throw new Error(`Group ${record.groupId} must use a canonical group name`)
+			}
+		}
+
+		this.usedGroupNames = new Set(usedGroupNames)
 		this.groupsInUse = new Map((seed?.groupsInUse ?? []).map((record) => [record.groupId, { ...record }]))
+		for (const record of this.groupsInUse.values()) {
+			this.usedGroupNames.add(record.groupName)
+		}
 	}
 
 	/** Resolve a unit display name using the catalog and optional friendly name. */
@@ -37,22 +52,15 @@ export class StackNamingEngine {
 	resolveGroupName(groupId: string, unitType: string, unitId?: string, friendlyName?: string, stackSize = 1): string {
 		assertCanonicalGroupId(groupId)
 		const existingRecord = this.groupsInUse.get(groupId)
-		if (existingRecord !== undefined) {
-			if (/\sgroup(?:\s+\d+)?$/i.test(existingRecord.groupName)) {
-				const ordinalUsed = [...this.usedGroupNames].find((used) => /\sgroup\s+\d+$/.test(used) && stripOrdinalSuffix(used) === existingRecord.groupName)
-				if (ordinalUsed !== undefined) {
-					return ordinalUsed
-				}
-			}
-
-			return existingRecord.groupName
-		}
-
 		const baseName = resolveStackLabel(unitType, unitId, friendlyName, stackSize)
-		const groupName = stackSize > 1 || /\sgroup(?:\s+\d+)?$/i.test(baseName)
-			? createUniqueName(baseName, this.usedGroupNames)
+		const isGroup = existingRecord !== undefined || stackSize > 1 || /\sgroup(?:\s+\d+)?$/i.test(baseName)
+		const groupName = isGroup
+			? formatStackGroupName(groupId.slice('group-'.length), unitType, unitId, friendlyName, existingRecord?.groupName)
 			: baseName
 
+		if (isGroup) {
+			this.usedGroupNames.add(groupName)
+		}
 		this.groupsInUse.set(groupId, { groupId, groupName, unitType })
 		return groupName
 	}

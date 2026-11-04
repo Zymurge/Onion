@@ -99,7 +99,7 @@ describe('BattlefieldRightRail', () => {
         isCombatPhase={false}
         showInactiveEventStream={false}
         isInteractionLocked={false}
-        pendingRamPrompt={{ unitId: 'onion-1', targetLabel: 'Little Pigs group 1', to: { q: 2, r: 3 } }}
+        pendingRamPrompt={{ unitId: 'onion-1', targetLabel: 'Group 1 - [Little Pigs]', to: { q: 2, r: 3 } }}
         selectedCombatAttackStrength={0}
         selectedCombatAttackerIds={[]}
         selectedCombatAttackMemberLabels={[]}
@@ -123,7 +123,7 @@ describe('BattlefieldRightRail', () => {
     )
 
     const confirmation = screen.getByTestId('ram-confirmation-view')
-    expect(confirmation.querySelector('.combat-confirmation-head h3')?.textContent).toBe('Attempt ram on Little Pigs group 1')
+    expect(confirmation.querySelector('.combat-confirmation-head h3')?.textContent).toBe('Attempt ram on Group 1 - [Little Pigs]')
     expect(confirmation.querySelector('.eyebrow')?.textContent).toBe('Movement')
     expect(confirmation.querySelector('.mini-tag-live')?.textContent).toBe('confirmation')
   })
@@ -161,7 +161,7 @@ describe('BattlefieldRightRail', () => {
           isLoading: false,
           clearErrorMessage: vi.fn(),
         }}
-        combatTargetOptions={[{ id: 'group-1', kind: 'defender', q: 1, r: 1, status: 'operational', label: 'Little Pigs group 1', detail: 'Defense: 2', defense: 2, modifiers: [] }]}
+        combatTargetOptions={[{ id: 'group-1', kind: 'defender', q: 1, r: 1, status: 'operational', label: 'Group 1 - [Little Pigs]', detail: 'Defense: 2', defense: 2, modifiers: [] }]}
         onConfirmCombat={vi.fn()}
         onAttemptRam={vi.fn()}
         onDeclineRam={vi.fn()}
@@ -205,7 +205,7 @@ describe('BattlefieldRightRail', () => {
     const onDeclineRam = vi.fn()
 
     renderRightRail({
-      pendingRamPrompt: { unitId: 'onion-1', targetLabel: 'Little Pigs group 1', to: { q: 2, r: 3 } },
+      pendingRamPrompt: { unitId: 'onion-1', targetLabel: 'Group 1 - [Little Pigs]', to: { q: 2, r: 3 } },
       onAttemptRam,
       onDeclineRam,
     })
@@ -223,7 +223,7 @@ describe('BattlefieldRightRail', () => {
 
     renderRightRail({
       isInteractionLocked: true,
-      pendingRamPrompt: { unitId: 'onion-1', targetLabel: 'Little Pigs group 1', to: { q: 2, r: 3 } },
+      pendingRamPrompt: { unitId: 'onion-1', targetLabel: 'Group 1 - [Little Pigs]', to: { q: 2, r: 3 } },
       onAttemptRam,
       onDeclineRam,
     })
@@ -246,7 +246,7 @@ describe('BattlefieldRightRail', () => {
       q: 1,
       r: 1,
       status: 'operational' as const,
-      label: 'Little Pigs group 1',
+      label: 'Group 1 - [Little Pigs]',
       detail: 'Defense: 2',
       defense: 2,
       modifiers: [],

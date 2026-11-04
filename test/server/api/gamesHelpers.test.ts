@@ -22,6 +22,7 @@ function makeGameStateWithUnits(): GameState {
   const stackFixture = makeStackFixture({
     groups: {
       'group-1': makeStackGroup({
+        groupName: 'Group 1 - [Little Pigs]',
         position: { q: 1, r: 1 },
         unitIds: ['pigs-1', 'pigs-2'],
       }),
@@ -151,19 +152,19 @@ describe('buildCombatEvents', () => {
 
     expect(events[0]).toMatchObject({
       type: 'FIRE_RESOLVED',
-      attackerFriendlyNames: ['Little Pigs group 1'],
+      attackerFriendlyNames: ['Group 1 - [Little Pigs]'],
       targetFriendlyName: 'AP Gun 1',
     })
   })
 
-  it('uses the declared stack name for each stack member move event', () => {
+  it('uses the individual mover name while retaining group-level ram target details', () => {
     const events = buildMoveEvents(
       40,
       'pigs-1',
       { type: 'MOVE', unitId: 'pigs-1', to: { q: 2, r: 2 } },
       {
         success: true,
-        rammedUnitIds: [],
+        rammedUnitIds: ['pigs-2'],
         destroyedUnits: [],
         treadDamage: 0,
       },
@@ -172,8 +173,26 @@ describe('buildCombatEvents', () => {
 
     expect(events[0]).toMatchObject({
       type: 'UNIT_MOVED',
-      unitFriendlyName: 'Little Pigs group 1',
+      unitFriendlyName: 'Little Pigs 1',
       unitId: 'pigs-1',
+    })
+    expect(events.find((event) => event.type === 'MOVE_RESOLVED')).toMatchObject({
+      unitFriendlyName: 'Little Pigs 1',
+      unitId: 'pigs-1',
+      rammedUnitFriendlyNames: ['Group 1 - [Little Pigs]'],
+    })
+
+    const secondMemberEvents = buildMoveEvents(
+      42,
+      'pigs-2',
+      { type: 'MOVE', unitId: 'pigs-2', to: { q: 2, r: 2 } },
+      { success: true, rammedUnitIds: [], destroyedUnits: [], treadDamage: 0 },
+      state,
+    )
+    expect(secondMemberEvents[0]).toMatchObject({
+      type: 'UNIT_MOVED',
+      unitFriendlyName: 'Little Pigs 2',
+      unitId: 'pigs-2',
     })
   })
 
@@ -281,7 +300,7 @@ describe('buildCombatEvents', () => {
 
     expect(events[0]).toMatchObject({
       type: 'FIRE_RESOLVED',
-      targetFriendlyName: 'Little Pigs group 1',
+      targetFriendlyName: 'Group 1 - [Little Pigs]',
     })
     expect(events[1]).toMatchObject({
       type: 'UNIT_STATUS_CHANGED',
@@ -309,7 +328,7 @@ describe('buildCombatEvents', () => {
     expect(events[0]).toMatchObject({
       type: 'FIRE_RESOLVED',
       targetId: 'group-1',
-      targetFriendlyName: 'Little Pigs group 1',
+      targetFriendlyName: 'Group 1 - [Little Pigs]',
     })
   })
 
@@ -624,7 +643,7 @@ describe('buildVictoryObjectiveStates', () => {
     expect(response.state.stackRoster).toMatchObject({
       groupsById: {
         'group-1': {
-          groupName: 'Little Pigs group 1',
+          groupName: 'Group 1 - [Little Pigs]',
           unitType: 'LittlePigs',
           position: { q: 1, r: 1 },
           unitIds: ['pigs-1', 'pigs-2'],
@@ -633,7 +652,7 @@ describe('buildVictoryObjectiveStates', () => {
     })
 
     expect(response.state.stackRoster?.groupsById['group-1']).toMatchObject({
-      groupName: 'Little Pigs group 1',
+      groupName: 'Group 1 - [Little Pigs]',
       unitType: 'LittlePigs',
       position: { q: 1, r: 1 },
       unitIds: ['pigs-1', 'pigs-2'],
@@ -671,7 +690,7 @@ describe('buildVictoryObjectiveStates', () => {
     )
 
     expect(response.state.stackNaming.groupsInUse).toEqual([
-      { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+      { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
     ])
   })
 
@@ -1004,16 +1023,21 @@ describe('scenario-derived runtime contracts', () => {
       groupsById: {
         'group-1': makeStackGroup({
           unitType: derivedTypeId,
+          groupName: 'Group 1 - [Little Pigs]',
           unitIds: ['pigs-1', 'pigs-2'],
         }),
       },
     })
     const state = makeGameState({
       defenders: {
-        'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: derivedTypeId, position: { q: 1, r: 1 } }),
-        'pigs-2': makeDefender({ unitId: 'pigs-2', typeId: derivedTypeId, position: { q: 1, r: 1 } }),
+        'pigs-1': makeDefender({ unitId: 'pigs-1', typeId: derivedTypeId, position: { q: 1, r: 1 }, friendlyName: 'Little Pigs 1' }),
+        'pigs-2': makeDefender({ unitId: 'pigs-2', typeId: derivedTypeId, position: { q: 1, r: 1 }, friendlyName: 'Little Pigs 2' }),
       },
       stackRoster,
+      stackNaming: {
+        groupsInUse: [{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: derivedTypeId }],
+        usedGroupNames: ['Group 1 - [Little Pigs]'],
+      },
     })
     const match = {
       gameId: 1,

@@ -180,7 +180,7 @@ describe('HexMapUnitMarker', () => {
       ...defender,
       unitId: 'pigs-1',
       typeId: 'LittlePigs',
-      friendlyName: 'Little Pigs group 2',
+      friendlyName: 'Group 2 - [Little Pigs]',
       state: 'operational',
     }
 
@@ -217,7 +217,8 @@ describe('HexMapUnitMarker', () => {
     expect(marker.querySelector('text')).toHaveAttribute('fill', '#111111')
     expect(marker.querySelector('text')).not.toHaveClass('tone-dim')
     expect(Number(marker.querySelector('text')?.getAttribute('y'))).toBeCloseTo(52.8)
-    expect(marker.querySelectorAll('tspan')).toHaveLength(2)
+    expect(marker.querySelector('text')?.textContent?.replace(/\s+/g, '')).toBe('Group2-[LittlePigs]')
+    expect(marker.querySelectorAll('tspan').length).toBeGreaterThan(1)
   })
 
   it('shows destroyed markers and lets either player inspect them without targeting', () => {

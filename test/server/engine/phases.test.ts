@@ -203,7 +203,7 @@ describe('advancePhaseWithEvents', () => {
       expect(state.defenders['pigs-1']).toMatchObject({ unitId: 'pigs-1', state: 'destroyed' })
       expect(state.stackRoster.groupsById['group-1']).toBeUndefined()
       expect(state.stackNaming.groupsInUse).toEqual([])
-      expect(state.stackNaming.usedGroupNames).toEqual(['Little Pigs group 1'])
+      expect(state.stackNaming.usedGroupNames).toEqual(['Group 1 - [Little Pigs]'])
     })
 
     it('preserves the group name when partial destruction leaves multiple members', () => {
@@ -223,11 +223,11 @@ describe('advancePhaseWithEvents', () => {
       advanceState(state)
 
       expect(state.stackRoster.groupsById['group-1']).toMatchObject({
-        groupName: 'Little Pigs group 1',
+        groupName: 'Group 1 - [Little Pigs]',
         unitIds: ['pigs-2', 'pigs-3'],
       })
       expect(state.stackNaming.groupsInUse).toEqual([
-        { groupId: 'group-1', groupName: 'Little Pigs group 1', unitType: 'LittlePigs' },
+        { groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
       ])
     })
   })

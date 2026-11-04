@@ -167,7 +167,7 @@ describe('App UI', () => {
 		const stack = makeStackFixture({
 			groups: {
 				'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 3, r: 6 },
 					unitIds: ['pigs-1', 'pigs-2'],

@@ -49,6 +49,9 @@ acknowledgement is a UI-shell concern.
   summaries and error overlays.
 - Summaries are concise and defensively derived from payloads; additional detail
   is available on hover or keyboard focus.
+- Movement entries retain the moved member's identity and friendly name even
+  when it belongs to a named group; group-level target labels remain available
+  for grouped ram results.
 - Hovering or focusing an event highlights its referenced battlefield hex with
   a translucent white overlay while keeping terrain, unit sprites, and labels
   visible. Combat events focus the target; a weapon-subsystem target focuses its

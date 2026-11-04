@@ -29,14 +29,14 @@
 		]
 		const stackNaming: StackNamingSnapshot = {
 			groupsInUse: [
-				{ groupId: 'group-1', groupName: 'Little Pigs group', unitType: 'LittlePigs' },
+				{ groupId: 'group-1', groupName: 'Group 1 - [Little Pigs]', unitType: 'LittlePigs' },
 			],
-			usedGroupNames: ['Little Pigs group'],
+			usedGroupNames: ['Group 1 - [Little Pigs]'],
 		}
 		const stackRoster: StackRosterState = {
 			groupsById: {
 				'group-1': {
-					groupName: 'Little Pigs group',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 2, r: 2 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -237,7 +237,7 @@
 				stackRoster={{
 					groupsById: {
 						'group-1': {
-							groupName: 'Little Pigs group',
+							groupName: 'Group 1 - [Little Pigs]',
 							unitType: 'LittlePigs',
 							position: { q: 2, r: 2 },
 							unitIds: ['pigs-1', 'pigs-2'],
@@ -273,7 +273,7 @@
 				stackRoster={{
 					groupsById: {
 						'group-1': {
-							groupName: 'Little Pigs group',
+							groupName: 'Group 1 - [Little Pigs]',
 							unitType: 'LittlePigs',
 							position: { q: 2, r: 2 },
 							unitIds: ['pigs-1', 'pigs-2'],
@@ -634,7 +634,7 @@ describe('HexMapBoard', () => {
 		const stackRoster: StackRosterState = {
 			groupsById: {
 						'group-1': {
-					groupName: 'Little Pigs group',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 2, r: 2 },
 					unitIds: ['pigs-1', 'pigs-2'],
@@ -1224,7 +1224,7 @@ describe('HexMapBoard', () => {
 		const stackRoster: StackRosterState = {
 			groupsById: {
 					'group-1': {
-					groupName: 'Little Pigs group 1',
+					groupName: 'Group 1 - [Little Pigs]',
 					unitType: 'LittlePigs',
 					position: { q: 1, r: 1 },
 					unitIds: ['pigs-1', 'pigs-2'],

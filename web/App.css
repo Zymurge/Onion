@@ -1289,6 +1289,22 @@
   gap: 10px;
 }
 
+.combat-stack-identity {
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.combat-stack-type {
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .combat-stack-member-list {
   display: grid;
   gap: 6px;
@@ -1746,6 +1762,12 @@
 
 .selection-panel-header h2 {
   margin: 2px 0 0;
+}
+
+.inspector-group-label {
+  margin: -10px 0 14px;
+  color: var(--ink-muted);
+  font-size: 0.82rem;
 }
 
 .inspector-sprite-frame {
