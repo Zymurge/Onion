@@ -265,7 +265,14 @@ export interface EventEnvelope {
   type: string
   timestamp: string
   causeId?: string
+  stackLoss?: CombatStackLossSummary
   [key: string]: unknown
+}
+
+export interface CombatStackLossSummary {
+  destroyed: number
+  total: number
+  remaining: number
 }
 
 export type MoveCommand = { type: 'MOVE'; movers: ReadonlyArray<string>; to: HexPos; attemptRam?: boolean }

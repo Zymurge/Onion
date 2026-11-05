@@ -367,7 +367,7 @@ describe('useInactiveEventStream', () => {
 			createEvent({ seq: 2, type: 'ONION_MOVED', timestamp: 't2', turnNumber: 3, unitFriendlyName: 'The Onion 1', to: { q: 1, r: 2 } }),
 			createEvent({ seq: 3, type: 'UNIT_MOVED', timestamp: 't3', turnNumber: 3, unitId: 'u-2', to: { q: 4, r: 5 } }),
 			createEvent({ seq: 4, type: 'FIRE_RESOLVED', timestamp: 't4', turnNumber: 3, causeId: 'combat-1', attackers: ['Alpha', 'Bravo'], targetId: 'onion-1:treads', outcome: 'NE', odds: '2:1', roll: 6 }),
-			createEvent({ seq: 5, type: 'FIRE_RESOLVED', timestamp: 't5', turnNumber: 3, causeId: 'combat-2', targetFriendlyName: 'Enemy Unit', outcome: 'X' }),
+			createEvent({ seq: 5, type: 'FIRE_RESOLVED', timestamp: 't5', turnNumber: 3, causeId: 'combat-2', targetFriendlyName: 'Enemy Unit', outcome: 'X', stackLoss: { destroyed: 1, total: 2, remaining: 1 } }),
 			createEvent({ seq: 6, type: 'FIRE_RESOLVED', timestamp: 't6', turnNumber: 3, causeId: 'combat-3', targetId: 'main-12', outcome: 'D' }),
 			createEvent({ seq: 7, type: 'ONION_TREADS_LOST', timestamp: 't7', turnNumber: 3, causeId: 'combat-3', amount: 2, remaining: 3 }),
 			createEvent({ seq: 8, type: 'MOVE_RESOLVED', timestamp: 't8', turnNumber: 3, causeId: 'ram-1', unitFriendlyName: 'Rammy', rammedUnitFriendlyNames: ['Puss 1'], destroyedUnitFriendlyNames: ['Thing'], destroyedUnitIds: ['d-1'], treadDamage: 1 }),
@@ -415,6 +415,9 @@ describe('useInactiveEventStream', () => {
 		)
 
 		const ramEntry = result.current.entries.find((entry) => entry.summary === 'Ram on other-1: survived')
+		const destroyedStackEntry = result.current.entries.find((entry) => entry.summary === 'Fire on Enemy Unit: destroyed')
+		expect(destroyedStackEntry?.details).toContain('Stack losses: Enemy Unit: 1 of 2 destroyed, 1 remaining')
+
 		expect(ramEntry?.details).toEqual(
 			expect.arrayContaining([
 				'Unit: ram-2',

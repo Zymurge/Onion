@@ -1,6 +1,6 @@
 import { MOVE_EVENT_TYPES } from './eventFamilies'
 import type { InactiveEventPayload } from './types'
-import { resolveCombatOutcomeLabel as resolveSharedCombatOutcomeLabel } from '../combatOutcome'
+import { formatStackLossDetail, resolveCombatOutcomeLabel as resolveSharedCombatOutcomeLabel } from '../combatOutcome'
 
 function isNonEmptyString(value: unknown): value is string {
 	return typeof value === 'string' && value.trim().length > 0
@@ -202,6 +202,10 @@ export function buildEventDetails(event: InactiveEventPayload, relatedEvents: Re
 			const targetName = formatFriendlyName(event.targetFriendlyName) || formatRawValue(event.targetId)
 			if (targetName.length > 0) {
 				details.push(`Target: ${targetName}`)
+			}
+			const stackLossDetail = formatStackLossDetail(event)
+			if (stackLossDetail !== null) {
+				details.push(stackLossDetail)
 			}
 			if (event.roll !== undefined) {
 				details.push(`Roll: ${formatDetailValue(event.roll)}`)

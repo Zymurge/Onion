@@ -334,7 +334,7 @@ describe('useBattlefieldDisplayState', () => {
 		)
 
 		expect(result.current.selectedCombatAttackCount).toBe(2)
-		expect(result.current.selectedCombatAttackMemberLabels).toEqual(['Group 1 - [Little Pigs]'])
+		expect(result.current.selectedCombatAttackMemberLabels).toEqual(['Group 1 - [Little Pigs] (2 units)'])
 		expect(result.current.selectedInspectorDefender?.unitId).toBe('pigs-1')
 		expect(result.current.selectedInspectorLabel).toBeNull()
 		expect(result.current.selectedInspectorGroupHeading).toEqual({

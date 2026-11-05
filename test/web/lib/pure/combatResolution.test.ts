@@ -3,6 +3,20 @@ import { describe, expect, it } from 'vitest'
 import { buildCombatResolution } from '#web/lib/combatResolution'
 
 describe('buildCombatResolution', () => {
+	it('summarizes partial stack destruction with total and remaining counts', () => {
+		const resolution = buildCombatResolution([
+			{
+				type: 'FIRE_RESOLVED',
+				targetId: 'group-1',
+				targetFriendlyName: 'Group 1 - [Little Pigs]',
+				stackLoss: { destroyed: 1, total: 3, remaining: 2 },
+				outcome: 'D',
+			},
+		])
+
+		expect(resolution?.details).toContain('Stack losses: Group 1 - [Little Pigs]: 1 of 3 destroyed, 2 remaining')
+	})
+
 	it('summarizes combat events for a toast', () => {
 		expect(
 			buildCombatResolution([

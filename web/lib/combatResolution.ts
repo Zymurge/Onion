@@ -1,4 +1,4 @@
-import { resolveCombatOutcomeLabel } from './combatOutcome'
+import { formatStackLossDetail, resolveCombatOutcomeLabel } from './combatOutcome'
 
 export type CombatResolutionEvent = {
 	type: string
@@ -62,6 +62,10 @@ export function buildCombatResolution(events: ReadonlyArray<CombatResolutionEven
 		? combatEvent.outcome
 		: 'NE'
 	const details: string[] = []
+	const stackLossDetail = formatStackLossDetail(combatEvent)
+	if (stackLossDetail !== null) {
+		details.push(stackLossDetail)
+	}
 
 	for (const event of events) {
 		switch (event.type) {

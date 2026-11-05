@@ -534,8 +534,14 @@ WEAPON_FIRED      { weaponType: string, weaponIndex: number, targetId: string,
 FIRE_RESOLVED     { attackers: string[], targetId: string,
                     targetFriendlyName: string,
                     attackStrength: number, defenseStrength: number,
-                    roll: number, result: "NE" | "D" | "X" }
+                    roll: number, result: "NE" | "D" | "X",
+                    stackLoss?: { destroyed: number, total: number, remaining: number } }
 ```
+
+`stackLoss` is present when a FIRE action destroys members of a canonical stack.
+`total` counts live members before this action; `remaining` counts live members
+after it. This lets clients report partial stack destruction without rebuilding
+authoritative history from later snapshots.
 
 ### State Change Events
 

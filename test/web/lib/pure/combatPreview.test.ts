@@ -574,7 +574,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 	})
 
-	it('disables treads when multiple members of one defender stack are selected', () => {
+	it('allows treads when multiple members of one defender stack are selected', () => {
 		const options = buildCombatTargetOptions({
 			activeCombatRole: 'defender',
 			combatRangeHexKeys: new Set(['0,0']),
@@ -595,7 +595,7 @@ describe('buildCombatTargetOptions', () => {
 		})
 
 		expect(options.find((option) => option.id === 'onion-1:treads')).toMatchObject({
-			isUnavailable: true,
+			isUnavailable: false,
 		})
 	})
 })

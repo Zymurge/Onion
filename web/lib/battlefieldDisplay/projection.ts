@@ -156,15 +156,38 @@ export function buildBattlefieldDisplayModel({
 		})()
 	const selectedCombatAttackMemberLabels = hasValidationError
 		? []
-		: Array.from(new Set(activeCombatRole === 'onion'
-			? selectedCombatAttackerIds
+		: activeCombatRole === 'onion'
+			? Array.from(new Set(selectedCombatAttackerIds
 				.map((weaponId) => displayedOnion?.weapons.find((weapon) => weapon.id === weaponId) ?? null)
 				.filter((weapon): weapon is NonNullable<typeof weapon> => weapon !== null)
-				.map((weapon) => resolveBattlefieldWeaponName(weapon, catalog ?? undefined))
-			: selectedCombatAttackerIds
-				.map((unitId) => displayedDefenders.find((unit) => unit.unitId === unitId) ?? null)
-				.filter((unit): unit is NonNullable<typeof unit> => unit !== null)
-				.map((unit) => resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRosterIndex, catalog ?? undefined))))
+				.map((weapon) => resolveBattlefieldWeaponName(weapon, catalog ?? undefined))))
+			: (() => {
+				const labelsByGroup = new Map<string, { label: string; selectedCount: number; isStack: boolean }>()
+				for (const unitId of selectedCombatAttackerIds) {
+					const unit = displayedDefenders.find((candidate) => candidate.unitId === unitId)
+					if (unit === undefined) {
+						continue
+					}
+
+					const rosterGroup = stackRosterIndex?.getUnitGroup(unitId) ?? null
+					const key = rosterGroup?.groupId ?? unit.unitId
+					const existing = labelsByGroup.get(key)
+					if (existing !== undefined) {
+						existing.selectedCount += 1
+						continue
+					}
+
+					labelsByGroup.set(key, {
+						label: resolveBattlefieldFriendlyName(unit, stackNaming ?? undefined, stackRosterIndex, catalog ?? undefined),
+						selectedCount: 1,
+						isStack: rosterGroup !== null,
+					})
+				}
+
+				return [...labelsByGroup.values()].map(({ label, selectedCount, isStack }) =>
+					isStack ? `${label} (${selectedCount} ${selectedCount === 1 ? 'unit' : 'units'})` : label,
+				)
+			})()
 	const selectedCombatAttackGroupCount = !isCombatPhase
 		? 0
 		: activeCombatRole === 'defender'

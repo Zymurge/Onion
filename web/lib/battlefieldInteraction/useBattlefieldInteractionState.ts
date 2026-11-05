@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GameAction, ServerGameSnapshot } from '../gameClient'
-import { resolveBattlefieldStackSelectionIds } from '../stackSelection'
+import { countSelectedBattlefieldStackGroups, resolveBattlefieldStackSelectionIds } from '../stackSelection'
 import { isWeaponSelectionId, resolveSelectionOwnerUnitId } from '../selectionIds'
 import { buildMoveCommitAction } from '../commitActionBuilders'
 import { clearRightRailStackSelection, selectRightRailStackMembers, toggleRightRailStackMemberSelection } from '../rightRailSelection'
@@ -257,9 +257,10 @@ export function useBattlefieldInteractionState({
 		setSelectedUnitIds(nextSelection)
 		setHasExplicitSelection(true)
 
+		const visibleStackSourceState = buildVisibleStackSourceState(clientSnapshot, clientSnapshotPhase, catalog)
 		const selectedTargetIsInvalid = clientSnapshotPhase === 'DEFENDER_COMBAT'
 			&& parseCombatTargetId(selectedCombatTargetId ?? '')?.kind === 'treads'
-					&& new Set(nextSelection.map(resolveSelectionOwnerUnitId)).size > 1
+					&& countSelectedBattlefieldStackGroups(visibleStackSourceState, nextSelection, catalog ?? undefined) > 1
 
 		if (!isCombatSnapshotPhase(clientSnapshotPhase) || nextSelection.length === 0 || selectedTargetIsInvalid) {
 			setSelectedCombatTargetId(null)

@@ -1,7 +1,7 @@
 import type { CombatExecutionResult } from '#server/engine/combat/index'
 import type { MovementResult } from '#server/engine/movement'
 import { formatCombatTargetId, parseCombatTargetId } from '#shared/combatTarget'
-import type { Command, EventEnvelope, GameState, SingleUnitMoveCommand, TurnPhase } from '#shared/types/index'
+import type { Command, CombatStackLossSummary, EventEnvelope, GameState, SingleUnitMoveCommand, TurnPhase } from '#shared/types/index'
 import { findStackRosterGroupId } from '#shared/stackRoster/index'
 import { getOnionOrDefender } from '#shared/unitState'
 
@@ -94,6 +94,33 @@ function resolveTargetFriendlyName(state: GameState, targetId: string, ownerOnio
   return unitFriendlyName !== targetId ? unitFriendlyName : resolveWeaponFriendlyName(state, targetId, ownerOnionId)
 }
 
+function buildStackLossSummary(
+  state: GameState,
+  result: CombatExecutionResult,
+): CombatStackLossSummary | undefined {
+  const group = state.stackRoster.groupsById[result.targetId]
+  if (group === undefined) {
+    return undefined
+  }
+
+  const destroyedUnitIds = new Set(
+    (result.statusChanges ?? [])
+      .filter((statusChange) => statusChange.to === 'destroyed')
+      .map((statusChange) => statusChange.unitId),
+  )
+  const destroyed = group.unitIds.filter((unitId) => destroyedUnitIds.has(unitId)).length
+  if (destroyed === 0) {
+    return undefined
+  }
+
+  const remaining = group.unitIds.filter((unitId) => {
+    const defender = state.defenders[unitId]
+    return defender !== undefined && defender.state !== 'destroyed'
+  }).length
+
+  return { destroyed, total: destroyed + remaining, remaining }
+}
+
 /**
  * Classifies a weapon instance id for event presentation.
  *
@@ -139,6 +166,7 @@ export function buildCombatEvents(
   }
   const attackerFriendlyNames = command.attackers.map((attackerId) => resolveCombatParticipantFriendlyName(state, attackerId))
   const targetFriendlyName = resolveTargetFriendlyName(state, result.targetId, onionId)
+  const stackLoss = buildStackLossSummary(state, result)
 
   events.push({
     seq: seq++,
@@ -150,6 +178,7 @@ export function buildCombatEvents(
     attackerFriendlyNames,
     targetId: result.targetId,
     targetFriendlyName,
+    ...(stackLoss === undefined ? {} : { stackLoss }),
     roll: result.roll?.roll,
     outcome: result.roll?.result,
     odds: result.roll?.odds,

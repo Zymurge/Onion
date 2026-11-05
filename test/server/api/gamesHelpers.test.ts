@@ -399,6 +399,32 @@ describe('buildCombatEvents', () => {
       amount: 1,
     })
   })
+
+  it('includes destroyed, total, and remaining counts for a partially destroyed stack', () => {
+    state.defenders['pigs-1'].state = 'destroyed'
+
+    const events = buildCombatEvents(
+      40,
+      { type: 'FIRE', attackers: ['onion-1'], targetId: 'group-1', onionId: 'onion-1' },
+      {
+        success: true,
+        actionType: 'FIRE',
+        attackerIds: ['onion-1'],
+        onionId: 'onion-1',
+        targetId: 'group-1',
+        roll: { roll: 3, result: 'D', odds: '1:1' },
+        statusChanges: [{ unitId: 'pigs-1', from: 'operational', to: 'destroyed' }],
+      },
+      state,
+    )
+
+    expect(events[0]).toMatchObject({
+      type: 'FIRE_RESOLVED',
+      targetId: 'group-1',
+      targetFriendlyName: 'Group 1 - [Little Pigs]',
+      stackLoss: { destroyed: 1, total: 2, remaining: 1 },
+    })
+  })
 })
 
 describe('buildVictoryObjectiveStates', () => {

@@ -1177,7 +1177,7 @@ describe('combat', () => {
 		debugSpy.mockRestore()
 	})
 
-	it('clears a selected treads target when a second member of one stack is added', async () => {
+	it('allows a selected stack to target Onion treads', async () => {
 		const { defenders, stackRoster, stackNaming } = buildDefenderTree({
 			units: [
 				{ id: 'pigs-1', type: 'LittlePigs', friendlyName: 'Little Pigs 1', pos: { q: 1, r: 1 } },
@@ -1198,20 +1198,20 @@ describe('combat', () => {
 		await acknowledgeTurnIfAvailable()
 
 		fireEvent.click(await screen.findByTestId('combat-unit-pigs-1'))
-		const secondMember = await screen.findByTestId('combat-stack-member-pigs-2')
-		fireEvent.click(secondMember)
 
 		const treadsTarget = await screen.findByTestId('combat-target-onion-1:treads')
 		fireEvent.click(treadsTarget)
 		expect(treadsTarget.getAttribute('data-selected')).toBe('true')
 
-		fireEvent.click(secondMember, { ctrlKey: true })
-
-		expect(treadsTarget.getAttribute('data-selected')).toBe('false')
 		const resolveButton = screen.getByRole('button', { name: /resolve combat/i })
-		expect(resolveButton.hasAttribute('disabled')).toBe(true)
+		expect(resolveButton.hasAttribute('disabled')).toBe(false)
 		fireEvent.click(resolveButton)
-		expect(submitAction).not.toHaveBeenCalled()
+		expect(submitAction).toHaveBeenCalledWith(123, {
+			type: 'FIRE',
+			attackers: ['pigs-1', 'pigs-2'],
+			targetId: 'onion-1:treads',
+			onionId: 'onion-1',
+		})
 	})
 
 	it('greys out spent stack members after one pig has fired', async () => {

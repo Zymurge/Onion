@@ -3,6 +3,8 @@ export type CombatOutcomeEvent = {
 	outcome?: unknown
 	phase?: unknown
 	targetId?: unknown
+	targetFriendlyName?: unknown
+	stackLoss?: unknown
 	to?: unknown
 	amount?: unknown
 }
@@ -36,6 +38,24 @@ function getSquadsLost(events: ReadonlyArray<CombatOutcomeEvent>): number | null
 	}
 
 	return null
+}
+
+export function formatStackLossDetail(event: CombatOutcomeEvent): string | null {
+	if (typeof event.stackLoss !== 'object' || event.stackLoss === null || Array.isArray(event.stackLoss)) {
+		return null
+	}
+
+	const stackLoss = event.stackLoss as Record<string, unknown>
+	const { destroyed, total, remaining } = stackLoss
+	if (![destroyed, total, remaining].every((value) => Number.isInteger(value) && Number(value) >= 0)) {
+		return null
+	}
+
+	const targetName = isNonEmptyString(event.targetFriendlyName)
+		? event.targetFriendlyName
+		: isNonEmptyString(event.targetId) ? event.targetId : null
+	const targetPrefix = targetName === null ? '' : `${targetName}: `
+	return `Stack losses: ${targetPrefix}${destroyed} of ${total} destroyed, ${remaining} remaining`
 }
 
 function hasOnionTreadLoss(events: ReadonlyArray<CombatOutcomeEvent>): boolean {
