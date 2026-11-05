@@ -2,6 +2,10 @@ import type { Weapon, WeaponClass, WeaponState } from './types/index.js'
 
 export type WeaponClassCounts = Record<WeaponClass, number>
 
+export function isWeaponReady(weapon: Weapon): boolean {
+	return weapon.state === 'ready' && (weapon.ammo === undefined || weapon.ammo > 0)
+}
+
 function emptyCounts(): WeaponClassCounts {
 	return { main: 0, secondary: 0, ap: 0, missile: 0 }
 }
@@ -23,7 +27,7 @@ export class UnitWeapons {
 	}
 
 	getReadyWeapons(): Weapon[] {
-		return this.weapons.filter((weapon) => weapon.state === 'ready' && (weapon.ammo === undefined || weapon.ammo > 0))
+		return this.weapons.filter(isWeaponReady)
 	}
 
 	findByWeaponClass(weaponClass: WeaponClass): Weapon[] {

@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest'
 import type { TerrainType } from '#shared/types/index'
 import { getUnitTypeCatalog } from '#shared/unitDefinitions'
 import {
+	buildCombatExchangeInput,
 	createCombatCalculator,
 	type CombatCalculatorInput,
+	type CombatExchangeTarget,
 	type CombatStaticRules,
 } from '#shared/combatCalculator'
 import { combatParityFixtures } from '#test/utils/combatParityFixtures'
@@ -45,12 +47,67 @@ const terrainAdeptRules = {
 const terrainAdeptCalculator = createCombatCalculator(terrainAdeptRules)
 
 describe('combatCalculator', () => {
-	it.each(combatParityFixtures)('matches the shared parity contract for $name', (fixture) => {
-		const result = calculator.calculateResult(fixture.input)
+	it('maps unit and selected-weapon sources into ordered attacker contributions', () => {
+		const target: CombatExchangeTarget = {
+			kind: 'stack',
+			id: 'group-3',
+			typeId: 'LittlePigs',
+			size: 1,
+			terrainType: 'ridgeline',
+		}
 
-		expect(result).toMatchObject(fixture.expected)
-		expect(calculator.calculateCrtOddsBand(fixture.input)).toBe(result.odds)
-		expect(calculator.calculateModifiers(fixture.input)).toEqual(result.modifiers)
+		expect(buildCombatExchangeInput({
+			attackers: [
+				{
+					kind: 'unit',
+					id: 'wolf-1',
+					typeId: 'BigBadWolf',
+					weapons: [
+						{ id: 'rifle-1', typeId: 'BigBadWolf.rifle', weaponClass: 'main', friendlyName: 'Rifle 1', state: 'ready' },
+						{ id: 'launcher-1', typeId: 'BigBadWolf.missile', weaponClass: 'missile', friendlyName: 'Missile 1', state: 'ready', ammo: 0 },
+						{ id: 'rifle-2', typeId: 'BigBadWolf.rifle', weaponClass: 'main', friendlyName: 'Rifle 2', state: 'spent' },
+					],
+				},
+				{
+					kind: 'weapon',
+					id: 'main-1',
+					ownerTypeId: 'TheOnion',
+					weaponTypeId: 'TheOnion.main',
+				},
+			],
+			target,
+		})).toEqual({
+			attackers: [
+				{ id: 'wolf-1', typeId: 'BigBadWolf', weaponTypeIds: ['BigBadWolf.rifle'] },
+				{ id: 'main-1', typeId: 'TheOnion', weaponTypeIds: ['TheOnion.main'] },
+			],
+			target,
+		})
+	})
+
+	const targetBranchCases: ReadonlyArray<{ label: string; target: CombatExchangeTarget }> = [
+		{ label: 'unit', target: { kind: 'unit', id: 'puss-1', typeId: 'Puss', terrainType: 'clear' } },
+		{ label: 'single-member stack', target: { kind: 'stack', id: 'group-4', typeId: 'LittlePigs', size: 1, terrainType: 'crater' } },
+		{ label: 'Onion treads', target: { kind: 'onion-treads', id: 'onion-1:treads', typeId: 'TheOnion' } },
+		{ label: 'Onion weapon', target: { kind: 'onion-weapon', id: 'main-1', typeId: 'TheOnion', weaponTypeId: 'TheOnion.main' } },
+	]
+	targetBranchCases.forEach(({ label, target }) => {
+		it(`preserves the explicit ${label} target branch`, () => {
+			expect(buildCombatExchangeInput({ attackers: [], target })).toEqual({
+				attackers: [],
+				target,
+			})
+		})
+	})
+
+	combatParityFixtures.forEach(({ name, input, expected }) => {
+		it(`matches the shared parity contract for ${name}`, () => {
+			const result = calculator.calculateResult(input)
+
+			expect(result).toMatchObject(expected)
+			expect(calculator.calculateCrtOddsBand(input)).toBe(result.odds)
+			expect(calculator.calculateModifiers(input)).toEqual(result.modifiers)
+		})
 	})
 
 	it('exposes a working factory instance', () => {

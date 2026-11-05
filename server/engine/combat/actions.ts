@@ -3,7 +3,9 @@ import type { Command, DefenderUnit, GameState, OnionUnit } from '#shared/types/
 import type { GameMap } from '#server/engine/map'
 import { hexDistance } from '#shared/axialHex'
 import {
+  buildCombatExchangeInput,
   createCombatCalculator,
+  type CombatExchangeAttackerSource,
   type CombatExchangeInput,
 } from '#shared/combatCalculator'
 import { getRulesContext, type RulesContext } from '#shared/rulesContext'
@@ -63,86 +65,79 @@ function buildCombatCalculatorInput(
   onionId: string,
 ): CombatExchangeInput {
   const onion = requireOnion(state, onionId)
+  const attackers: CombatExchangeAttackerSource[] = state.currentPhase === 'ONION_COMBAT'
+    ? attackerIds.map((attackerId) => {
+        const weapon = onion.weapons.find((candidate) => candidate.id === attackerId)
+        if (weapon === undefined) {
+          throw new Error(`Weapon '${attackerId}' was not found on Onion '${onion.unitId}'`)
+        }
 
+        return {
+          kind: 'weapon',
+          id: attackerId,
+          ownerTypeId: onion.typeId,
+          weaponTypeId: weapon.typeId,
+        }
+      })
+    : attackerIds.map((attackerId) => {
+        const attacker = state.defenders[attackerId]
+        if (attacker === undefined) {
+          throw new Error(`Defender attacker '${attackerId}' was not found while building combat input`)
+        }
+
+        return {
+          kind: 'unit',
+          id: attackerId,
+          typeId: attacker.typeId,
+          weapons: attacker.weapons,
+        }
+      })
+
+  let exchangeTarget: CombatExchangeInput['target']
   if (state.currentPhase === 'ONION_COMBAT') {
-    const attackers = attackerIds.map((attackerId) => {
-      const weapon = onion.weapons.find((candidate) => candidate.id === attackerId)
-      if (weapon === undefined) {
-        throw new Error(`Weapon '${attackerId}' was not found on Onion '${onion.unitId}'`)
-      }
-
-      return {
-        id: attackerId,
-        typeId: onion.typeId,
-        weaponTypeIds: [weapon.typeId],
-      }
-    })
-
     const defender: DefenderUnit | undefined = state.defenders[target.id]
     if (defender) {
-      return {
-        attackers,
-        target: {
-          kind: 'unit',
-          id: defender.unitId,
-          typeId: defender.typeId,
-          terrainType: getTerrainTypeAt(map, defender.position),
-        },
+      exchangeTarget = {
+        kind: 'unit',
+        id: defender.unitId,
+        typeId: defender.typeId,
+        terrainType: getTerrainTypeAt(map, defender.position),
       }
-    }
+    } else {
+      const group = state.stackRoster?.groupsById?.[target.id]
+      if (group === undefined) {
+        throw new Error(`Defender target '${target.id}' was not found while building combat input`)
+      }
+      const liveMembers = getLiveStackMembers(state, group.unitIds)
 
-    const group = state.stackRoster?.groupsById?.[target.id]
-    if (group === undefined) {
-      throw new Error(`Defender target '${target.id}' was not found while building combat input`)
-    }
-    const liveMembers = getLiveStackMembers(state, group.unitIds)
-
-    return {
-      attackers,
-      target: {
+      exchangeTarget = {
         kind: 'stack',
         id: target.id,
         typeId: group.unitType,
         size: liveMembers.length,
         terrainType: getTerrainTypeAt(map, group.position),
-      },
+      }
     }
-  }
-
-  const attackers = attackerIds.map((attackerId) => {
-    const attacker = state.defenders[attackerId]
-    if (attacker === undefined) {
-      throw new Error(`Defender attacker '${attackerId}' was not found while building combat input`)
+  } else if (target.kind === 'treads') {
+    exchangeTarget = { kind: 'onion-treads', id: target.id, typeId: onion.typeId }
+  } else {
+    const targetWeapon = onion.weapons.find((weapon) => weapon.id === target.id)
+    if (targetWeapon === undefined) {
+      throw new Error(`Unknown weapon target: ${target.id}`)
     }
 
-    return {
-      id: attackerId,
-      typeId: attacker.typeId,
-      weaponTypeIds: getAvailableWeapons(attacker).map((weapon) => weapon.typeId),
-    }
-  })
-
-  if (target.kind === 'treads') {
-    return {
-      attackers,
-      target: { kind: 'onion-treads', id: target.id, typeId: onion.typeId },
-    }
-  }
-
-  const targetWeapon = onion.weapons.find((weapon) => weapon.id === target.id)
-  if (targetWeapon === undefined) {
-    throw new Error(`Unknown weapon target: ${target.id}`)
-  }
-
-  return {
-    attackers,
-    target: {
+    exchangeTarget = {
       kind: 'onion-weapon',
       id: target.id,
       typeId: onion.typeId,
       weaponTypeId: targetWeapon.typeId,
-    },
+    }
   }
+
+  return buildCombatExchangeInput({
+    attackers,
+    target: exchangeTarget,
+  })
 }
 
 /**

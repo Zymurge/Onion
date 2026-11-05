@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { parseUnitCatalog } from '#shared/unitDefinitions'
-import { UnitWeapons } from '#shared/unitWeapons'
+import { isWeaponReady, UnitWeapons } from '#shared/unitWeapons'
 import type { Weapon } from '#shared/types/index'
 
 function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
@@ -42,6 +42,14 @@ function makeWeaponCatalogConfig(weaponOverrides: Record<string, unknown> = {}) 
 }
 
 describe('UnitWeapons', () => {
+	it('reports readiness consistently for state and ammunition', () => {
+		expect(isWeaponReady(makeWeapon())).toBe(true)
+		expect(isWeaponReady(makeWeapon({ ammo: 2 }))).toBe(true)
+		expect(isWeaponReady(makeWeapon({ ammo: 0 }))).toBe(false)
+		expect(isWeaponReady(makeWeapon({ state: 'spent' }))).toBe(false)
+		expect(isWeaponReady(makeWeapon({ state: 'destroyed' }))).toBe(false)
+	})
+
 	it('counts weapons by class and state', () => {
 		const weapons = new UnitWeapons([
 			makeWeapon(),

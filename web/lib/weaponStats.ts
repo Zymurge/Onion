@@ -1,4 +1,5 @@
 import type { TurnPhase, UnitState, Weapon } from '../../shared/types/index.js'
+import { isWeaponReady } from '../../shared/unitWeapons.js'
 import type { Mode } from './battlefieldView.js'
 import { getSessionWeaponType, type SessionCatalog } from './sessionCatalog.js'
 
@@ -50,7 +51,7 @@ export function formatWeaponSummary(weapons: ReadonlyArray<Weapon> | undefined) 
 
 /** Reports whether a weapon is ready to fire. Empty weapons are not ready. */
 export function isBattlefieldWeaponReady(weapon: Weapon): boolean {
-  return weapon.state === 'ready' && (weapon.ammo === undefined || weapon.ammo > 0)
+  return isWeaponReady(weapon)
 }
 
 /**

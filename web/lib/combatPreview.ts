@@ -1,8 +1,9 @@
 import {
+	buildCombatExchangeInput,
 	createCombatCalculator,
+	type CombatExchangeAttackerSource,
 	type CombatExchangeInput,
-	type CombatAttackerContribution,
-	} from '../../shared/combatCalculator.js'
+} from '../../shared/combatCalculator.js'
 import { createRulesContext } from '../../shared/rulesContext.js'
 import { ONION_STATIC_RULES } from '../../shared/staticRules.js'
 import {
@@ -12,8 +13,7 @@ import {
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex, type UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
 import { resolveBattlefieldFriendlyName } from './battlefieldNaming'
-import { isBattlefieldWeaponReady, resolveBattlefieldWeaponName } from './weaponStats'
-import { getTerrainValueAt } from './battlefieldViewBuilders'
+import { resolveBattlefieldWeaponName } from './weaponStats'
 import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './selectionIds'
 import { formatCombatTargetId } from '../../shared/combatTarget'
 import { buildStackRosterIndex, canonicalizeStackRoster } from '../../shared/stackRoster/index.js'
@@ -136,32 +136,39 @@ function buildCombatCalculatorInputForDefenderTarget(
 	stackSize: number,
 	displayedScenarioMap: CombatPreviewInput['displayedScenarioMap'],
 ): CombatExchangeInput {
-	const attackers: CombatExchangeInput['attackers'] = selectedAttackerIds.map((attackerId) => {
+	const attackers = selectedAttackerIds.map((attackerId): CombatExchangeAttackerSource => {
 		const weapon = displayedOnion.weapons.find((candidate) => candidate.id === attackerId)
 		if (weapon === undefined) {
 			throw new Error(`Selected Onion weapon '${attackerId}' was not found`)
 		}
 
-		return { id: attackerId, typeId: displayedOnion.typeId, weaponTypeIds: [weapon.typeId] }
+		return {
+			kind: 'weapon',
+			id: attackerId,
+			ownerTypeId: displayedOnion.typeId,
+			weaponTypeId: weapon.typeId,
+		}
 	})
 
-	return {
+	const targetInput: CombatExchangeInput['target'] = stackSize > 1
+		? {
+				kind: 'stack',
+				id: target.unitId,
+				typeId: target.typeId,
+				size: stackSize,
+				terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
+			}
+		: {
+				kind: 'unit',
+				id: target.unitId,
+				typeId: target.typeId,
+				terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
+			}
+
+	return buildCombatExchangeInput({
 		attackers,
-		target: stackSize > 1
-			? {
-					kind: 'stack',
-					id: target.unitId,
-					typeId: target.typeId,
-					size: stackSize,
-					terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
-				}
-			: {
-					kind: 'unit',
-					id: target.unitId,
-					typeId: target.typeId,
-					terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
-				},
-	}
+		target: targetInput,
+	})
 }
 
 function buildCombatCalculatorInputForWeaponTarget(
@@ -170,21 +177,21 @@ function buildCombatCalculatorInputForWeaponTarget(
 	displayedOnion: BattlefieldOnionView,
 	weapon: Weapon,
 ): CombatExchangeInput {
-	const attackers: CombatAttackerContribution[] = []
+	const attackers: CombatExchangeAttackerSource[] = []
 
 	for (const attackerId of selectedAttackerIds) {
 		const attacker = displayedDefenders.find((unit) => unit.unitId === resolveSelectionOwnerUnitId(attackerId))
 		if (attacker !== undefined) {
-			const readyWeapons = attacker.weapons.filter(isBattlefieldWeaponReady)
 			attackers.push({
+				kind: 'unit',
 				id: attackerId,
 				typeId: attacker.typeId,
-				weaponTypeIds: readyWeapons.map((weapon) => weapon.typeId),
+				weapons: attacker.weapons,
 			})
 		}
 	}
 
-	return {
+	return buildCombatExchangeInput({
 		attackers,
 		target: {
 			kind: 'onion-weapon',
@@ -192,7 +199,7 @@ function buildCombatCalculatorInputForWeaponTarget(
 			typeId: displayedOnion.typeId,
 			weaponTypeId: weapon.typeId,
 		},
-	}
+	})
 }
 
 function buildTargetModifiers(modifiers: ReadonlyArray<{ label: string }>, extraLabels: ReadonlyArray<string>): string[] {

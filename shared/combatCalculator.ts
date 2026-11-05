@@ -1,3 +1,4 @@
+import { isWeaponReady } from './unitWeapons.js'
 import type { TerrainType, UnitTypeBase, Weapon, WeaponType } from './types/index.js'
 
 /**
@@ -56,15 +57,23 @@ export type CombatModifier = {
  * provided attacker group ids and target id.
  */
 export type CombatCombatantState = {
+	/** Static unit type id used to resolve unit and weapon rules. */
 	typeId: string
+	/** Optional display name retained for callers that build combat views. */
 	friendlyName?: string
+	/** Number of units represented by this combatant when it targets as a stack. */
 	stackSize?: number
+	/** Terrain occupied by this combatant when it is a unit or stack target. */
 	terrainType?: TerrainType
+	/** Live weapon instances used to derive ready attacker weapons or resolve a selected target weapon. */
 	weapons?: ReadonlyArray<Weapon>
+	/** Optional weapon identifiers used directly as attack weapon type ids. */
 	weaponIds?: ReadonlyArray<string>
+	/** Optional selected weapon instance id when targeting an Onion subsystem. */
 	weaponId?: string
 }
 
+/** Live combatants indexed by the caller-owned ids used in a calculation. */
 export type CombatLiveState = {
 	/** Live combatants keyed by the ids used in a calculator input. */
 	units: Record<string, CombatCombatantState>
@@ -74,10 +83,15 @@ export type CombatLiveState = {
  * Minimal terrain rule record held by the static rules source.
  */
 export type CombatTerrainRule = {
+	/** Terrain represented by this rule. */
 	terrainType: TerrainType
+	/** Flat defense added to an eligible target's base defense. */
 	defenseBonus?: number
+	/** Multiplier applied to an eligible target's base defense. */
 	defenseMultiplier?: number
+	/** Optional allowlist of unit type ids that receive this terrain rule. */
 	appliesToTypes?: ReadonlyArray<string>
+	/** Additional terrain metadata not interpreted by the combat calculator. */
 	[key: string]: unknown
 }
 
@@ -85,7 +99,9 @@ export type CombatTerrainRule = {
  * Immutable static combat data passed into the calculator factory.
  */
 export type CombatStaticRules = {
+	/** Unit and weapon definitions indexed by their catalog keys. */
 	unitTypes: Readonly<Record<string, UnitTypeBase>>
+	/** Combat terrain rules indexed by terrain type. */
 	terrainRules: Readonly<Record<TerrainType, CombatTerrainRule>>
 }
 
@@ -118,29 +134,41 @@ export type CombatExchangeTarget =
 	| {
 			/** A single defender unit target. */
 			kind: 'unit'
+			/** Caller-owned id used to identify the target in the exchange. */
 			id: string
+			/** Static unit type id used to resolve defense. */
 			typeId: string
+			/** Terrain occupied by the target, if terrain defense can apply. */
 			terrainType?: TerrainType
 		}
 	| {
 			/** A grouped defender target whose size contributes to defense. */
 			kind: 'stack'
+			/** Caller-owned id for the target stack. */
 			id: string
+			/** Static unit type id shared by the stack members. */
 			typeId: string
+			/** Number of units represented by the target stack. */
 			size: number
+			/** Terrain occupied by the target, if terrain defense can apply. */
 			terrainType?: TerrainType
 		}
 	| {
 			/** The Onion tread subsystem; its defense equals the attack strength. */
 			kind: 'onion-treads'
+			/** Caller-owned id for the targeted Onion tread subsystem. */
 			id: string
+			/** Static unit type id of the Onion. */
 			typeId: string
 		}
 	| {
 			/** An individually targetable Onion weapon subsystem. */
 			kind: 'onion-weapon'
+			/** Caller-owned id for the targeted Onion weapon. */
 			id: string
+			/** Static unit type id of the Onion. */
 			typeId: string
+			/** Static weapon type id used to resolve subsystem defense. */
 			weaponTypeId: string
 		}
 
@@ -152,6 +180,66 @@ export type CombatExchangeInput = {
 	target: CombatExchangeTarget
 	/** Additional caller-supplied modifiers appended to calculated modifiers. */
 	modifiers?: ReadonlyArray<CombatModifier>
+}
+
+/** Caller-owned source data normalized into one attacker contribution. */
+export type CombatExchangeAttackerSource =
+	| {
+			/** A unit contributes each of its ready weapons. */
+			kind: 'unit'
+			/** Caller-owned unit instance id. */
+			id: string
+			/** Static unit type that owns the weapons. */
+			typeId: string
+			/** Live weapon instances used to select ready weapon types. */
+			weapons: ReadonlyArray<Weapon>
+		}
+	| {
+			/** A single selected weapon contributes to the exchange. */
+			kind: 'weapon'
+			/** Caller-owned weapon instance id. */
+			id: string
+			/** Static unit type that owns the selected weapon. */
+			ownerTypeId: string
+			/** Static type id of the selected weapon. */
+			weaponTypeId: string
+		}
+
+/** Caller-owned attacker sources and explicit target for one exchange. */
+export type BuildCombatExchangeInput = {
+	/** Attacker contributions in the order they should appear in the exchange. */
+	attackers: ReadonlyArray<CombatExchangeAttackerSource>
+	/** Target branch and values to preserve in the normalized exchange. */
+	target: CombatExchangeTarget
+}
+
+/**
+ * Build a normalized, state-free combat exchange from caller-owned sources.
+ * Unit sources contribute their ready weapons; weapon sources contribute only
+ * the selected weapon. The target branch is preserved unchanged. This helper
+ * does not load game state or decide action legality.
+ *
+ * @param input Ordered attacker sources and the explicit target.
+ * @returns The normalized combat-exchange contract.
+ */
+export function buildCombatExchangeInput(input: BuildCombatExchangeInput): CombatExchangeInput {
+	const attackers = input.attackers.map((source) => {
+		if (source.kind === 'weapon') {
+			return {
+				id: source.id,
+				typeId: source.ownerTypeId,
+				weaponTypeIds: [source.weaponTypeId],
+			}
+		}
+
+		return {
+			id: source.id,
+			typeId: source.typeId,
+			weaponTypeIds: source.weapons.filter(isWeaponReady).map((weapon) => weapon.typeId),
+		}
+	})
+
+	return { attackers, target: input.target }
 }
 
 /** Effective strengths, CRT odds, and modifiers calculated for an exchange. */
@@ -168,13 +256,29 @@ export type CombatCalculatorResult = {
 
 /** Shared calculator API used by the server and web preview. */
 export type CombatCalculator = {
-	/** Calculate one exchange from an explicit attacker/target contract. */
+	/**
+	 * Calculate one exchange from an explicit attacker/target contract.
+	 * @param input Explicit attacker contributions and target data.
+	 * @returns Effective strengths, CRT odds, and normalized modifiers.
+	 */
 	calculate(input: CombatExchangeInput): CombatCalculatorResult
-	/** Calculate only the CRT odds for a compatibility input. */
+	/**
+	 * Calculate only the CRT odds for a compatibility input.
+	 * @param input Caller-owned live combat state and attacker/target ids.
+	 * @returns The normalized CRT odds band.
+	 */
 	calculateCrtOddsBand(input: CombatCalculatorInput): string
-	/** Calculate only the normalized modifiers for a compatibility input. */
+	/**
+	 * Calculate only the normalized modifiers for a compatibility input.
+	 * @param input Caller-owned live combat state and attacker/target ids.
+	 * @returns The modifiers applied to the exchange.
+	 */
 	calculateModifiers(input: CombatCalculatorInput): ReadonlyArray<CombatModifier>
-	/** Calculate the complete result for a compatibility input. */
+	/**
+	 * Calculate the complete result for a compatibility input.
+	 * @param input Caller-owned live combat state and attacker/target ids.
+	 * @returns Effective strengths, CRT odds, and normalized modifiers.
+	 */
 	calculateResult(input: CombatCalculatorInput): CombatCalculatorResult
 }
 
