@@ -415,4 +415,18 @@ describe('BattlefieldRightRail', () => {
 
     expect(clearErrorMessage).toHaveBeenCalledOnce()
   })
+
+  it('keeps the Inspector below the inactive event window', () => {
+    renderRightRail({
+      showInactiveEventStream: true,
+      selectedInspectorLabel: 'Puss 1',
+      selectedInspectorDefender: createDefender({ typeId: 'Puss', friendlyName: 'Puss 1' }),
+    })
+
+    const eventStream = screen.getByTestId('inactive-event-stream')
+    const inspector = screen.getByTestId('battlefield-inspector')
+    const railChildren = Array.from(eventStream.parentElement?.children ?? [])
+
+    expect(railChildren.indexOf(eventStream)).toBeLessThan(railChildren.indexOf(inspector))
+  })
 })

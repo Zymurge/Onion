@@ -63,6 +63,11 @@ acknowledgement is a UI-shell concern.
 - The stream supports scrolling, loading placeholders, and a friendly empty
   state. It opens empty when a phase changes and the local player becomes
   inactive again; only future opponent actions appear.
+- On desktop, the inactive event window is limited to one-third of the right
+  rail's height. Its event list scrolls internally while the stream heading
+  stays visible, and the Inspector remains below the event window. At narrow
+  viewport widths, the stream uses a viewport-based height cap so the Inspector
+  remains reachable in the stacked layout.
 - Event summaries and controls are keyboard-navigable and screen-reader
   friendly, with smooth updates that do not shift surrounding content.
 

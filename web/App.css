@@ -620,6 +620,12 @@
   min-height: 0;
 }
 
+.rail-right > .inactive-event-stream {
+  flex: 0 0 33.333%;
+  max-height: 33.333%;
+  overflow: hidden;
+}
+
 .inactive-event-stream.inactive-event-stream-acknowledgement-pending {
   border-color: rgba(226, 184, 0, 0.72);
   background: linear-gradient(180deg, rgba(255, 249, 230, 0.95), rgba(255, 244, 204, 0.92));
@@ -712,7 +718,7 @@
 }
 
 .inactive-event-stream-list {
-  flex: none;
+  flex: 1 1 auto;
   width: 100%;
   min-width: 0;
   margin: 0;
@@ -720,8 +726,10 @@
   list-style: none;
   display: grid;
   gap: 10px;
-  min-height: auto;
-  overflow: visible;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 4px;
 }
 
@@ -2141,6 +2149,11 @@
   .map-stage,
   .rail-right {
     overflow: visible;
+  }
+
+  .rail-right > .inactive-event-stream {
+    flex-basis: min(33vh, 18rem);
+    max-height: min(33vh, 18rem);
   }
 
   .map-stage {

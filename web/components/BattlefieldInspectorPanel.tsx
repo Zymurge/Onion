@@ -92,7 +92,7 @@ export function BattlefieldInspectorPanel({
           </div>
           <div>
             <dt>Moves</dt>
-            <dd>{selectedInspectorOnion.movesRemaining}</dd>
+            <dd>{selectedInspectorOnion.movesRemaining}/{selectedInspectorOnion.movesAllowed}</dd>
           </div>
           <div>
             <dt>Rams remaining</dt>

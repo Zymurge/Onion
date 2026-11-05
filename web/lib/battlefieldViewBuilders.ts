@@ -217,7 +217,7 @@ export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnP
   }
 
   return Object.values(authoritativeState.onions).map((onion) => {
-    const movesAllowed = activePhase === null ? 0 : getUnitMovementAllowance(onion.typeId, activePhase, onion.treads, onion.side)
+    const movesAllowed = getUnitMovementAllowance(onion.typeId, 'ONION_MOVE', onion.treads, onion.side)
     const movesRemaining = activePhase === null ? 0 : getRemainingUnitMovementAllowance(onion, activePhase)
     return buildBattlefieldOnionView(onion, { movesAllowed, movesRemaining })
   })

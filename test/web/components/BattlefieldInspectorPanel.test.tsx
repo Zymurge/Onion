@@ -215,6 +215,7 @@ describe('BattlefieldInspectorPanel', () => {
     expect(within(inspector).getByText(/heavily armed mobile fortress/i)).toBeInTheDocument()
     expect(getLabeledValue('Stack')).toBe('1')
     expect(getLabeledValue('Status')).toBe('operational')
+    expect(getLabeledValue('Moves')).toBe('2/3')
     expect(screen.queryByText(/victory conditions/i)).toBeNull()
   })
 

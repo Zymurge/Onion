@@ -160,7 +160,12 @@ describe('battlefieldViewBuilders', () => {
 
     expect(onion.movesAllowed).toBeGreaterThan(0)
     expect(onion.movesRemaining).toBe(onion.movesAllowed)
-    expect(buildLiveOnions(createLiveSnapshot(), null)[0]?.movesAllowed).toBe(0)
+    const outOfPhaseSnapshot = createLiveSnapshot()
+    outOfPhaseSnapshot.authoritativeState!.onions['onion-1'].treads = 30
+    expect(buildLiveOnions(outOfPhaseSnapshot, null)[0]).toMatchObject({
+      movesAllowed: 2,
+      movesRemaining: 0,
+    })
     expect(() => buildLiveOnions(createLiveSnapshot({ authoritativeState: undefined }), 'ONION_MOVE')).toThrow('Missing authoritative state')
     expect(() => buildLiveOnion(createLiveSnapshot({ authoritativeState: { onions: {}, defenders: {} } }), 'ONION_MOVE')).toThrow('Missing authoritative onion')
   })

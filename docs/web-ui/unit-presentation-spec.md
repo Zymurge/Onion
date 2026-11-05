@@ -133,6 +133,10 @@ group ID rather than an individual Little Pigs member ID. See the
   movement, such as `2/2` before moving and `0/2` after it is spent or outside
   that unit's movement phase. The maximum comes from the resolved session
   catalog when available.
+- Onion `Moves` is shown as remaining movement over its tread-derived Onion
+  movement allowance, such as `2/3`. The allowance is computed using the shared
+  `ONION_MOVE` rule even outside that phase; remaining movement is zero outside
+  `ONION_MOVE`, so an Onion with 30 treads shows `0/2` then.
 - Terrain always reports the selected unit's current terrain type from the
   active scenario map, including terrain types with no combat modifier.
 - Defense uses the resolved unit defense, or canonical roster size for a
