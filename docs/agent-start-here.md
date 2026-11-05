@@ -31,7 +31,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Task | Load | Code |
 | --- | --- | --- |
 | AI opponent strategy, simulation design, or policy evaluation | [ai-opponent-strategy.md](ai-opponent-strategy.md) | Proposed design only; reuse the named shared rules and backend execution owners. No AI runtime or simulator is implemented yet. |
-| Canonical stack identity, stack naming, ActionSubject, or cross-layer MOVE/FIRE action ownership | [persistence.md](persistence.md), [api-contract.md](api-contract.md), and [interaction-routing-spec.md](web-ui/interaction-routing-spec.md) | Load only the relevant contract section, then follow its named shared, server, and web owner modules |
+| Canonical stack identity, stack naming, or cross-layer MOVE/FIRE action ownership | [persistence.md](persistence.md), [api-contract.md](api-contract.md), and [interaction-routing-spec.md](web-ui/interaction-routing-spec.md) | Load only the relevant contract section, then follow its named shared, server, and web owner modules |
 | Version scope or deferred work | [v1-v2-scope.md](work-items/v1-v2-scope.md) | Read this before selecting adjacent work. Do not implement V2 items unless the user explicitly expands scope. |
 | Unit or weapon numbers, ram profile, stack-size limit, or terrain flags | `shared/config/unitCatalog.json` | `shared/unitDefinitions.ts`. Do not take these numbers from [game-rules.md](game-rules.md) |
 | Unit definitions or scenario-derived types | [scenario-schema.md](scenario-schema.md) `## 4. Unit and Weapon Definitions` | `server/engine/scenarioSchema.ts`, `server/engine/scenarioDefinitions.ts`, and `server/engine/scenarioNormalizer.ts`; `shared/rulesContext.ts` is the authoritative per-match lookup boundary. |
@@ -118,7 +118,6 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `shared/scenarioMap.ts` | Materializes an authored map and tests position membership. | |
 | `shared/unitState.ts` | Looks up live units and reports weapon availability. | `D+M`: weapon destruction mutates the unit. `DUP`: second-move, immobile, and defense helpers overlap the movement facade and combat calculator. |
 | `shared/unitWeapons.ts` | Mutates one weapon list for spend, recharge, and destroy. | `D+M` |
-| `shared/actionSubject.ts` | Resolves a unit or canonical group reference into a derived action subject view. | Never persisted; does not own roster membership. |
 | `shared/apiProtocol.ts` | Defines REST success, failure, and game-response types. | `UNCLEAR`: also contains a fetch client and debug traffic log. Production web calls use `web/lib/httpGameClient.ts`. |
 | `shared/protocolSchemas.ts` | Owns runtime Zod schemas for commands, game snapshots, action responses, and unchanged conditional-read envelopes. | |
 | `shared/websocketProtocol.ts` | Defines WebSocket message shapes. | |
