@@ -8,8 +8,7 @@ import { createRulesContext } from '../../shared/rulesContext.js'
 import { ONION_STATIC_RULES } from '../../shared/staticRules.js'
 import {
 	isTargetAllowedByRules,
-	} from '../../shared/targetRules.js'
-
+} from '../../shared/targetRules.js'
 import { getBattlefieldPosition, type BattlefieldOnionView, type BattlefieldUnit, type TerrainHex, type UnitStatus } from './battlefieldView'
 import type { Weapon } from '../../shared/types/index'
 import { resolveBattlefieldFriendlyName } from './battlefieldNaming'
