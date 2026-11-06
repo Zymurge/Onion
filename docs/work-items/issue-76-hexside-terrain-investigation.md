@@ -67,11 +67,29 @@ are out of scope.
 
 - The canonical edge records both adjacent endpoints, and runtime map snapshots
   carry a required edge array.
-- Unit classes and ridge/stream movement behavior are specified below.
+- Unit classes and ridge/stream movement behavior are specified below. The
+  class table owns class-specific mobility, terrain access, ramming, and
+  `isArmor`, and is the extension point for future class-specific behavior.
 - Ridges and streams do not affect fire from or across them; ridges provide no
-  defensive bonus.
-- All pre-existing games will be deleted before the new snapshot contract is
-  enforced. No legacy-game compatibility or translation is required.
+  defensive bonus. The inspector does not show edge terrain: it shows the
+  domain of the selected unit, and a unit cannot occupy an edge.
+- `NO_PATH` means no calculated path to that hex costs less than or equal to
+  the unit's remaining movement allowance. It is not an absolute connectivity
+  failure. Clients only need to know whether a destination is eligible; do not
+  add an edge-specific error or extra explanation.
+- The movement highlight continues to light every eligible hex within the
+  remaining allowance, treating edges as class-specific obstacles or penalties.
+- There is no legacy support. Existing games will be deleted manually from the
+  database before new games start. This implementation does not translate old
+  snapshots or old ridge hexes.
+- Scenarios are vetted during development. Update `scripts/validate-scenario.ts`
+  and the parser it calls so invalid endpoint pairings fail with the path and
+  reason. Game start uses that same check and throws; it does not repair the
+  map. Stored snapshots are assumed pre-vetted and valid.
+- Ridge and stream presentation uses one rotatable sprite per terrain kind,
+  drawn on all six hex-edge facings. Movement and firing-range overlays are a
+  removable transparent layer above the map, edges, and unit sprites.
+- Every scenario file loaded by tests is updated to this contract in this work.
 
 ## Proposed Canonical Edge Contract
 
@@ -122,14 +140,22 @@ authored scenario data.
 
 - Require endpoints to be distinct adjacent cells (`hexDistance(a, b) === 1`).
 - Require both endpoints to belong to the materialized `cells` set.
-- Reject duplicate normalized endpoint pairs, including reversed duplicates.
+- Require canonical endpoint order. Reject a reversed pair instead of sorting
+  it at game start or on snapshot read.
+- Reject duplicate endpoint pairs, including reversed duplicates.
 - Reject conflicting terrain kinds on one edge; do not silently choose one.
 - Omitted authored `edges` is allowed when a map defines no edge features;
   materialized maps and runtime snapshots always include the array.
 - Keep whole-hex terrain for terrain that genuinely occupies a cell, such as
-  craters and potential future forest terrain. Legacy ridge encodings are
-  removed; backward translation and migration are out of scope. Pre-existing
-  scenarios that define ridges will be updated outside this implementation.
+  craters and potential future forest terrain. Reject `t=1`. Keep `t=2` as
+  crater. Do not infer an edge from a legacy ridge hex.
+- `pnpm scenario:validate` (`scripts/validate-scenario.ts`) is the development
+  gate. It already delegates to `parseScenarioSnapshot`; extend that shared
+  parser and the script's error text so an endpoint-pairing failure names the
+  edge and the rule it broke. Game creation uses the same parser and throws
+  `ScenarioValidationError` with that detail. Do not add a second repair pass.
+- Snapshot readers assume the stored map was vetted. They do not re-canonicalize
+  edges, infer missing edges, or translate old ridge hexes.
 
 ## Rule Decisions
 
@@ -145,9 +171,14 @@ authored scenario data.
 ### Required Unit Classes
 
 Add a canonical unit class for every unit definition. Classes are rule
-categories, not replacements for unit type IDs. Every type inherits movement
-and ram rules from its class; unit-specific properties such as immobility and
-second-move eligibility remain explicit where needed.
+categories, not replacements for unit type IDs. The class table owns every
+class-specific attribute: whether the class can move, second-move eligibility
+when that is class-wide, terrain access and cost, ram attacker capability,
+rammed-target profile, and `isArmor`. It must be able to grow new class-specific
+behaviors without copying those rules back onto each unit type. Numeric
+movement allowance, defense, weapons, and presentation stay on the unit type,
+because those already differ inside a class. Scenario-derived types inherit
+their base type's class and cannot override class rules.
 
 Approved class assignments:
 
@@ -203,14 +234,16 @@ validation; occupancy and stacking remain hex-based.
   terrain and whole-hex terrain. Forest is an example of a future terrain type,
   not part of this implementation.
 
-Use shared rules and `RulesContext` as the lookup boundary. Unit definitions
-identify their class; a centralized class-by-terrain rules table owns crossing
-permission and cost. Unit definitions inherit those movement rules rather than
-copying per-unit terrain rules. The same class lookup should own class-based
-ram behavior. Class-level ram rules must distinguish attacker capabilities
-(such as `canRam`, capacity, and per-turn limits) from a unit's outcome profile
-when it is rammed. Both belong to class rules rather than duplicated per-unit
-terrain or ram settings.
+Use shared rules and `RulesContext` as the lookup boundary, including the
+global fallback context. Unit definitions identify their class and do not copy
+class rules. The class table owns crossing permission, edge surcharge, whole-hex
+entry rules, mobility, `isArmor`, and ram behavior. Ram rules still distinguish
+attacker capabilities (`canRam`, capacity, and per-turn limits) from the
+outcome profile when that class is rammed. Because the Onion class owns
+`canRam`, every Onion unit definition, including `TheOnionDamaged`, rams through
+that class rule rather than through a hardcoded type id. Replace the current
+`unitType === 'TheOnion'` ram check and the per-unit `terrainRules`,
+`ramProfile`, and `isArmor` copies.
 
 Approved class-by-terrain movement matrix, using edge surcharge semantics:
 
@@ -226,24 +259,24 @@ Approved class-by-terrain movement matrix, using edge surcharge semantics:
 
 Ridge permission is a barrier by class, not a movement surcharge: Infantry and
 Onion may cross, while Light Armor, Heavy Armor, and GEV may not. Command and
-Artillery units do not move under their current unit rules. Stream permissions
-and costs are the clarified requirements. An edge contributes a surcharge
-(zero by default), then the destination hex contributes its normal entry cost.
-For example, Light Armor crossing a stream into clear terrain costs
-$1 + 1 = 2$ MP. If destination terrain costs more than 1 MP, that cost is added
-too. A move is unavailable when the combined cost exceeds remaining movement
-allowance.
+Artillery are immobile as a class rule. Stream permissions and costs are the
+clarified requirements. An edge contributes a surcharge (zero by default), then
+the destination hex contributes its normal entry cost. For example, Light Armor
+crossing a stream into clear terrain costs $1 + 1 = 2$ MP. If destination
+terrain costs more than 1 MP, that cost is added too. A crater destination
+remains impassable; the edge surcharge does not make it enterable. A step is
+unavailable when the combined cost exceeds the remaining movement allowance.
 
-For path failures caused by an impassable edge, retain the existing top-level
-action error `MOVE_INVALID` and shared validation code `NO_PATH`. Add a
-specific `prohibited-edge` detail code and propagate it through the server
-movement adapter to the action response. This is preferable to a new
-top-level validation code: the move still fails because no legal path exists,
-while callers that need a specific message can distinguish an edge barrier.
-Keep generic no-route failures as `NO_PATH` without that detail. Add parity
-tests for shared validation and the API response. The current server adapter
-drops the shared validator's optional detail code, so propagation is part of
-the required change.
+`NO_PATH` means the planner found no path to that hex whose cost is less than
+or equal to the remaining movement allowance. A prohibited ridge and a stream
+surcharge are inputs to that calculation, not separate error causes. Do not add
+a `prohibited-edge` detail code, and do not add client copy that explains why
+the destination is ineligible. Keep the existing top-level `MOVE_INVALID` and
+shared `NO_PATH` when an explicit move is submitted to an unlit hex. Clients
+show eligibility by lighting every reachable hex within the remaining
+allowance. That highlight must use the same edge-aware planner as authoritative
+validation, including class obstacles, class penalties, reverse traversal, and
+GEV second moves.
 
 ### Combat Behavior (Clarified)
 
@@ -258,30 +291,46 @@ modifiers.
 Likely implementation surfaces:
 
 - `server/engine/scenarioSchema.ts`: authored edge schema and strict validation.
-- `shared/scenarioMap.ts`: authored/runtime types, edge normalization, bounds,
-  adjacency, and duplicate validation.
-- `server/api/gameHelpers/scenario.ts`: materialized scenario map.
+- `shared/scenarioMap.ts`: authored/runtime types, edge bounds, adjacency, and
+  duplicate validation. Do not sort a non-canonical pair at game start.
+- `scripts/validate-scenario.ts` and `server/api/gameHelpers/scenario.ts`:
+  development validation and game-start errors share one parser and name the
+  failing edge rule.
+- `web/public/terrain/`: rotatable ridge and stream edge sprites. Do not reuse
+  the whole-hex ridge image for an edge facing.
 - `shared/apiProtocol.ts`: canonical `ScenarioMapSnapshot` response contract.
 - `server/api/gameHelpers/stateProjection.ts` and
   `server/api/gameHelpers/actionResponses.ts`: map projection into responses.
-- `server/api/gameRoutes/actionHandlers/move.ts`: preserve edge data when
-  constructing the authoritative movement map.
+- `server/engine/map.ts` and `server/engine/movement.ts`: carry edges on the
+  engine map and into `toMoveMapSnapshot`. Updating the move handler alone
+  cannot preserve them, because `createMap` currently keeps only cells and
+  whole-hex terrain.
+- `server/api/gameRoutes/actionHandlers/move.ts`: pass the edge-bearing map
+  into authoritative validation. The fire handler does not need edge rules.
 - `web/lib/battlefieldDisplay/snapshotValidation.ts` and
   `web/lib/battlefieldViewBuilders.ts`: validate and project edge data.
+  `shared/protocolSchemas.ts` does not validate the map shape; do not treat
+  that passthrough schema as the fail-loud boundary.
+- `web/lib/battlefieldInteraction/movement.ts`: copy edges into the shared
+  planner input so highlighted hexes match the server.
+- `web/lib/gameClient.ts`: keep its scenario-map type aligned with the
+  canonical snapshot. Do not leave a second map contract without `edges`.
 - `web/components/HexMapBoard.tsx`: pass edge data to rendering and movement
   inputs.
-- Scenario schema docs, map examples, fixtures, and tests.
+- `docs/scenario-schema.md`, `docs/game-rules.md`, and the ridgeline ownership
+  row in `docs/agent-start-here.md`: record edges, class rules, and the removal
+  of ridge cover. Scenario map examples, fixtures, and tests follow the same
+  contract.
 
 The [persistence spec](../persistence.md) confirms the full scenario snapshot
 is stored on the match row as JSONB; `game_state` does not own map terrain. A
 required `edges` field does not require a relational-column migration, but it
 does change the accepted shape of stored scenario JSON and the API snapshot.
 The [snapshot policy](../snapshot-deprecation-policy.md) prohibits silent
-compatibility inference. Do not translate old ridge data. All pre-existing
-games will be deleted before the new contract is enforced, so no legacy-game
-reader or snapshot migration is needed. Treat that deletion as an operational
-rollout prerequisite; this implementation does not add data translation or
-automatic deletion logic.
+compatibility inference. Do not translate old ridge data. The user will
+manually delete all existing game rows from the database before starting games
+on the new contract. This implementation does not add a reader, a translation,
+or automatic deletion. It also does not need to call the game-delete route.
 
 ## Web Rendering Proposal
 
@@ -292,26 +341,41 @@ identity and duplicate suppression. Keep the rendering geometry in
 `web/lib/hexPixelLayout.ts` or a small adjacent pure helper; do not add another
 coordinate/orientation model.
 
-The current `HexMapCell` combines terrain, overlays, and unit markers inside
-one cell group. A board-level edge layer drawn after whole cell groups could
-cover markers; one drawn before all groups could be covered by later cell
-backgrounds. Choose an explicit SVG stacking arrangement that places edge
-strokes above terrain and below occupants/selection content, or render each
-edge at a controlled point in its owning cell group after validating overlap
-behavior. Edge strokes should not intercept map interaction. Verify clarity at
-supported zoom levels and distinguish ridge from stream without color alone.
+Draw the static map in this order: base map, whole-hex terrain, edge terrain,
+then unit sprites. Use one board-level edge layer so each canonical edge is
+drawn once, above hex terrain and below occupants. Do not draw the edge inside
+each owning cell group, and do not draw it twice from the two endpoints.
+
+Ridge and stream each have one sprite that can be rotated onto all six edge
+facings of a hex. Derive the facing from the existing pointy-top corners in
+`web/lib/hexPixelLayout.ts`; do not add a second orientation model or six
+authored files per terrain kind. The current whole-hex `/terrain/ridges.svg`
+is not that sprite. Edge sprites must not intercept map interaction. The
+inspector needs no edge treatment.
+
+Movement highlights and firing-range marks are a separate top layer, above
+unit sprites, with enough transparency to show the terrain, edges, and units
+underneath. Removing that layer must not change those underlying graphics, so
+it cannot be implemented by replacing the hex terrain fill. Keep the overlay
+`pointer-events` off. Selection and escape marks are not part of this dynamic
+layer unless a later change says otherwise.
 
 ## Migration And Test Inventory
 
 ### Authored Data
 
-- Do not migrate scenario files as part of this implementation. Pre-existing
-  scenarios defining ridges will be updated externally; the new schema and
-  runtime model do not translate legacy ridge values.
-- Update `docs/scenario-schema.md` to document the new edge and unit-class
-  contracts and remove the legacy ridge encoding.
-- Update canonical fixtures and tests to the new contract. Keep test migration
-  within scope even though authored scenario migration is external.
+- Do not translate legacy ridge hexes. There is no legacy-support window.
+  The user deletes existing game rows manually before starting new games.
+- Reject authored `t=1`. Keep `t=2` as the whole-hex crater code. Do not infer
+  an edge from an old ridge hex.
+- Update every scenario file loaded by unit, integration, or end-to-end tests
+  to the new edge contract in this work. Run `pnpm scenario:validate` on each
+  updated file. A ridge hex still cannot be mechanically converted into one
+  edge, so this is a map edit, not a codemod.
+- Update `docs/scenario-schema.md`, `docs/game-rules.md`, the ridgeline
+  ownership note in `docs/agent-start-here.md`, the ridge-cover note in
+  `docs/ai-opponent-strategy.md`, and the map-presentation spec named by
+  `docs/agent-start-here.md`.
 
 ### Focused Tests To Update Or Add
 
@@ -322,13 +386,22 @@ supported zoom levels and distinguish ridge from stream without color alone.
   approved ridge/stream permissions and costs per actual unit type.
 - [test/shared/movePlanner.test.ts](../../test/shared/movePlanner.test.ts) and
   [test/shared/moveValidator.test.ts](../../test/shared/moveValidator.test.ts):
-  edge-aware path cost, blocked path, reverse traversal, mixed routes, and
-  validation/pathfinder parity.
+  edge-aware path cost, blocked path, reverse traversal, mixed routes,
+  allowance-bounded `NO_PATH`, and validation/pathfinder parity. Do not require
+  a `prohibited-edge` detail.
+- Client reachable-hex coverage for
+  [web/lib/battlefieldInteraction/movement.ts](../../web/lib/battlefieldInteraction/movement.ts):
+  highlighted hexes match the shared planner when an edge is an obstacle or a
+  class penalty.
 - [test/server/engine/movement.test.ts](../../test/server/engine/movement.test.ts):
-  authoritative adapter behavior and preservation of edge data.
-- [test/shared/combatCalculator.test.ts](../../test/shared/combatCalculator.test.ts)
-  and [test/web/lib/pure/combatPreview.test.ts](../../test/web/lib/pure/combatPreview.test.ts):
-  only if the approved combat rule changes.
+  authoritative adapter behavior and preservation of edge data. Class-owned
+  `canRam` covers every Onion unit type that can be moved, not only the
+  `TheOnion` type id.
+- [test/shared/combatCalculator.test.ts](../../test/shared/combatCalculator.test.ts),
+  [test/shared/staticRules.test.ts](../../test/shared/staticRules.test.ts), and
+  [test/web/lib/pure/combatPreview.test.ts](../../test/web/lib/pure/combatPreview.test.ts):
+  ridge and stream add no combat modifier. Remove the old ridgeline-cover
+  parity fixture.
 - Scenario parsing, API projection, snapshot validation, and response contract
   tests: canonical edges round-trip; malformed and legacy shapes fail as
   specified.
@@ -340,39 +413,254 @@ Follow the repository testing policy: run focused Vitest files first, then the
 relevant regression suite and `pnpm exec tsc --noEmit`. No tests were run for
 this investigation document.
 
-## Suggested Implementation Slices
+## Implementation Plan: Phases And Tasks
 
-1. **Add shared unit classes and rules:** add class metadata, resolve classes
-  through `RulesContext`, and centralize movement and ram rules by class and
-  terrain type. Define extension points for future terrain such as forests;
-  do not add forest mechanics.
-2. **Add edge identity and schema:** define canonical undirected edges, validate
-  adjacency and map membership, and test compact/explicit materialization.
-3. **Implement ridge and stream movement:** make planner, validator, and server
-  adapter use edge context; combine edge cost with destination terrain entry
-  cost, propagate the `prohibited-edge` detail code, and test multi-step and GEV
-  second-move behavior.
-4. **Update snapshots and clients:** project required canonical edges through
-  API and web snapshot validation. Delete all existing games before enforcing
-  the new snapshot contract.
-5. **Render edges:** add a deterministic SVG overlay and focused rendering
-  tests; remove whole-hex ridge presentation. Do not migrate scenario files.
-6. **Remove ridge combat effects:** remove the old whole-hex defense modifier
-  and cover capability; verify combat and preview parity.
+Each phase should finish with its stated acceptance checks before the next
+phase changes the dependent layer. Phase 1 is a required documentation gate:
+implementation should not begin from an undocumented or contradictory rule.
+
+### Phase 1: Extract Rules Into Source Documentation
+
+Record the rules introduced by this change in the documents that own those
+rules. Keep this work item as the implementation plan and decision record; do
+not make it the only place where gameplay behavior is documented.
+
+Tasks:
+
+- Update `docs/game-rules.md` with the approved unit-class taxonomy and the
+  class-owned attributes: mobility, `isArmor`, edge and whole-hex terrain
+  behavior, second-move behavior where applicable, and ramming capabilities
+  and outcome profiles.
+- Replace the old whole-hex ridge movement and cover rules in
+  `docs/game-rules.md` with the undirected ridge-edge and stream-edge rules,
+  including the Light Armor surcharge formula and allowance-bounded
+  `NO_PATH` behavior.
+- Record that ridges and streams do not affect fire, that ridgeline cover is
+  removed, and that class rules are resolved through `RulesContext`.
+- Update `docs/scenario-schema.md` with the authored `edges` shape, endpoint
+  validity rules, canonical ordering, optional-authored versus required-runtime
+  `edges`, rejection of legacy `t=1`, and the scenario validator command.
+- Update the relevant ownership and presentation guidance: the movement and
+  map-contract rows in `docs/agent-start-here.md`, the stale ridgeline-cover
+  statement in `docs/ai-opponent-strategy.md`, and the named battlefield and
+  unit-presentation specifications for edge sprites and transparent dynamic
+  overlays.
+- Remove or revise every contradictory statement found by a targeted search
+  for `ridgeline`, `terrain cover`, `t=1`, and the old Onion ridge surcharge.
+
+Acceptance checks:
+
+- `docs/game-rules.md` is the authoritative gameplay summary and contains no
+  obsolete whole-hex ridge or ridgeline-cover rule.
+- `docs/scenario-schema.md` is the authoritative authoring contract and agrees
+  with the runtime edge contract in this work item.
+- The ownership router points implementers to the actual shared, server, and
+  web owners without duplicating rule definitions.
+
+### Phase 2: Build The Class-Rule Foundation
+
+Tasks:
+
+- Add stable class identifiers and a class-rule table to the shared catalog and
+  types. Include mobility, `isArmor`, second-move capability when class-wide,
+  terrain access and surcharge rules, ram attacker capability, ram capacity and
+  per-turn limits, and rammed-target outcomes.
+- Resolve class rules through `RulesContext`, including the global fallback
+  context. Preserve unit-specific movement allowance, defense, weapons, and
+  presentation metadata on unit definitions.
+- Make scenario-derived unit types inherit their base class and reject class
+  overrides. Remove duplicated per-unit `terrainRules`, `ramProfile`, and
+  `isArmor` rule ownership.
+- Replace type-id checks such as `unitType === 'TheOnion'` with class-rule
+  lookups. Verify `TheOnionDamaged` receives the same Onion class capabilities.
+- Update movement, unit-state, ramming, combat, and scenario-definition callers
+  and tests to use the class boundary.
+
+Acceptance checks:
+
+- Every catalog unit type resolves to exactly one approved class.
+- Class values and behavior remain available for namespaced scenario-derived
+  types.
+- Ramming, immobility, armor checks, and GEV second moves have no remaining
+  type-id or duplicated class-rule authority.
+
+### Phase 3: Add Canonical Edge Schema And Materialization
+
+Tasks:
+
+- Add authored and runtime edge types to `server/engine/scenarioSchema.ts`,
+  `shared/scenarioMap.ts`, and the scenario materialization path.
+- Validate endpoint membership, distinctness, adjacency, canonical ordering,
+  duplicate pairs, conflicting terrain kinds, and supported edge terrain kinds.
+- Reject legacy whole-hex `t=1` rather than translating it. Preserve `t=2` as
+  crater and normalize omitted authored `edges` to an empty runtime array.
+- Carry edges through the engine `GameMap`, movement map snapshots, API
+  `ScenarioMapSnapshot`, state projection, action responses, and the web map
+  type. Keep stored snapshots read-only and pre-vetted.
+- Update `scripts/validate-scenario.ts` and shared parser errors so malformed
+  edge records identify the edge path and violated rule. Game creation must use
+  the same parser and throw a detailed `ScenarioValidationError`.
+
+Acceptance checks:
+
+- Valid compact and explicit scenarios materialize the same canonical edge
+  shape, including `edges: []` when no features are authored.
+- Invalid endpoint pairs and legacy ridge encodings fail validation with useful
+  detail; no code path repairs or infers them.
+- Canonical edges survive API projection, engine-map construction, and snapshot
+  validation without being dropped.
+
+### Phase 4: Implement Shared Edge-Aware Movement
+
+Tasks:
+
+- Add canonical edge lookup by normalized endpoint pair and use it for both
+  traversal directions.
+- Update `movePlanner.ts` reachable-move and pathfinding algorithms to combine
+  edge surcharge with destination whole-hex entry cost, while treating
+  prohibited edges and craters as impassable.
+- Update `moveValidator.ts` to use the same planner inputs and define
+  `NO_PATH` strictly as no path within the remaining movement allowance. Keep
+  `MOVE_INVALID` and do not add an edge-specific error code or message.
+- Update the engine movement adapter to preserve edges and pass the shared
+  edge-aware map to authoritative validation and execution.
+- Verify reverse traversal, mixed ridge/stream routes, occupancy, stacking,
+  ramming, and GEV second-move allowance all use the same edge semantics.
+- Update client movement preparation and reachable-hex highlighting to call the
+  same shared edge-aware planner; an ineligible destination must not light up.
+
+Acceptance checks:
+
+- Client reachable hexes and server validation agree for every class in the
+  approved matrix.
+- Light Armor pays `1 + 1` MP across a stream into clear terrain; ridge
+  barriers and allowance limits produce ordinary `NO_PATH` failures.
+- All focused planner, validator, engine movement, and client movement tests
+  pass.
+
+### Phase 5: Complete Snapshot And API Contract Propagation
+
+Tasks:
+
+- Make `edges` required in the canonical shared and web snapshot types and
+  snapshot validation. Preserve the empty-array contract.
+- Update scenario API projection, game-state projection, action responses,
+  WebSocket snapshots, and transport fixtures so no response path drops edges.
+- Keep `shared/protocolSchemas.ts` and the passthrough response boundaries
+  consistent with the canonical map contract without adding compatibility
+  inference.
+- Add malformed, missing-edge, legacy-shape, and round-trip contract tests at
+  the scenario, API, transport, and web snapshot boundaries.
+
+Acceptance checks:
+
+- A fresh snapshot contains canonical `edges` in REST and WebSocket delivery.
+- Missing or malformed runtime edge data fails the designated snapshot
+  validation boundary clearly.
+- No old-game translation or automatic database deletion exists.
+
+### Phase 6: Render Static Edge Terrain And Dynamic Overlays
+
+Tasks:
+
+- Add ridge and stream edge sprite assets under the web terrain asset path,
+  with one rotatable sprite per terrain kind and six supported edge facings.
+- Add pure geometry helpers based on `hexPixelLayout.ts` to derive shared edge
+  segments and rotation. Render each canonical edge once in a board-level layer.
+- Render static content in this order: base map, whole-hex terrain, edge
+  terrain, then unit sprites. Keep edge sprites non-interactive.
+- Move movement and firing-range marks into a transparent top layer above unit
+  sprites. Removing that layer must leave terrain, edges, and sprites unchanged.
+- Remove whole-cell ridge presentation and preserve existing unit selection,
+  escape, and state overlays unless their stacking requires an explicit local
+  adjustment.
+
+Acceptance checks:
+
+- Each edge appears once at the correct facing for all six axial directions.
+- Ridge and stream assets remain visually distinguishable without relying on
+  color alone.
+- Dynamic overlays are transparent, removable, and do not intercept clicks or
+  mutate the underlying map graphics.
+- Focused geometry, board, cell, and screenshot-level rendering tests pass.
+
+### Phase 7: Remove Obsolete Combat Terrain Behavior
+
+Tasks:
+
+- Remove ridgeline defense multipliers and the Little Pigs terrain-cover
+  capability from `shared/staticRules.ts`, `shared/combatCalculator.ts`, and
+  related rule types.
+- Ensure combat from, across, or onto ridge and stream edges receives no
+  terrain modifier. Edge terrain must not enter line-of-fire or target-rule
+  calculations.
+- Update combat preview, parity fixtures, server combat tests, and static-rule
+  tests to the clarified behavior.
+
+Acceptance checks:
+
+- Shared combat odds, server combat, and web preview agree with no ridge or
+  stream modifier.
+- No stale ridgeline-cover fixture or static rule remains.
+
+### Phase 8: Update Scenario Fixtures And Validation Coverage
+
+Tasks:
+
+- Redesign every scenario JSON loaded by unit, integration, or end-to-end tests
+  so ridge and stream features use valid canonical edges rather than `t=1`.
+- Add focused invalid fixtures for non-adjacent, out-of-map, reversed,
+  duplicate, conflicting, and legacy ridge records.
+- Run `pnpm scenario:validate` against every updated scenario file and retain
+  the validator as a development gate.
+- Verify scenario preflight, game creation, and normalized deployment tests
+  still cover the updated maps and required `edges` field.
+
+Acceptance checks:
+
+- Every test scenario passes the validator before the game/API suites run.
+- No test fixture depends on legacy whole-hex ridge behavior.
+- Scenario placement changes preserve the intended test purpose, especially
+  movement barriers, streams, combat fixtures, and victory objectives.
+
+### Phase 9: Regression, Rollout, And Cleanup
+
+Tasks:
+
+- Run focused tests for each changed phase, then the relevant regression suite,
+  `pnpm exec tsc --noEmit`, and the scenario validator over all test maps.
+- Search for stale whole-hex ridge assumptions, old terrain-cover wording,
+  dropped map-edge fields, and type-id class checks.
+- Confirm the manual rollout prerequisite: existing game rows are deleted by
+  the user before any new game starts. Do not add deletion or migration logic.
+- Update this work item with the completed implementation status, final source
+  locations, and any residual test limitations.
+
+Acceptance checks:
+
+- Focused tests, broader regression tests, typecheck, and scenario validation
+  pass, or any unrelated pre-existing failure is recorded.
+- A fresh game can load a vetted edge-bearing scenario and round-trip its map
+  through the authoritative server and web client.
 
 ## Recommendation
 
 **Proceed with one edge-terrain and class-rules foundation, but keep forest
-mechanics and external scenario updates out of scope.** Ridge and stream
-movement rules, unit classes, endpoint representation, and combat behavior are
-specified. Delete all existing games before enforcing the required new
-snapshot contract; no compatibility translation is in scope.
+mechanics out of scope.** Ridge and stream movement rules, unit classes,
+endpoint representation, combat behavior, validation, edge sprites, and overlay
+order are specified. Update the scenarios the tests load. The user deletes
+existing game rows before starting new games; no compatibility translation is
+in scope.
 
 Implementation constraints:
 
-- Keep unit-class movement and ram rules centralized and resolved through
-  `RulesContext`.
+- Keep class mobility, terrain, ram, and `isArmor` rules centralized and
+  resolved through `RulesContext`, including its global fallback.
 - Require runtime snapshots to carry `edges`, even when empty.
-- Use `MOVE_INVALID` with `NO_PATH` and an edge-specific `prohibited-edge`
-  detail for ridge barriers.
-- Delete old game rows before rollout; do not translate old scenario snapshots.
+- Use allowance-bounded `NO_PATH` under `MOVE_INVALID`. Do not add an
+  edge-specific error detail or explanation.
+- Do not translate old games or old ridge hexes. The user deletes existing
+  game rows before new games start. Test scenarios are updated in this work
+  and must pass `pnpm scenario:validate`.
+- Reject non-canonical endpoint order at validation time. Do not sort it on
+  game start or snapshot read.
