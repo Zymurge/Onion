@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+/// <reference types="@testing-library/jest-dom/vitest" />
 import { act, fireEvent, render as renderWithTestingLibrary, screen, waitFor, within } from '@testing-library/react'
 import { cloneElement, type ComponentProps, type ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
@@ -958,7 +959,7 @@ describe('combat', () => {
 
 		const confirmationView = await screen.findByTestId('combat-confirmation-view')
 		expect(confirmationView.textContent).toContain('Attackers (1):')
-		expect(confirmationView.textContent).toContain('2:1')
+		expect(confirmationView.textContent).toContain('4:1')
 	})
 
 	it('renders a grouped Little Pigs stack in combat with summed attack', async () => {

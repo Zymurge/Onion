@@ -4,7 +4,7 @@ import { getUnitTypeCatalog } from './unitDefinitions.js'
 
 const TERRAIN_RULES: Readonly<Record<TerrainType, CombatTerrainRule>> = {
 	clear: { terrainType: 'clear' },
-	ridgeline: { terrainType: 'ridgeline', defenseMultiplier: 2 },
+	ridgeline: { terrainType: 'ridgeline' },
 	crater: { terrainType: 'crater' },
 }
 

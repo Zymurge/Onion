@@ -19,6 +19,9 @@ import {
   destroyWeapon,
 } from '#server/engine/units'
 import { getAllUnitDefinitions as getSharedUnitDefinitions } from '#shared/unitDefinitions'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { getUnitClassRule } from '#shared/classRules'
+import { createRulesContext } from '#shared/rulesContext'
 import { makeDefender as makeUnit, makeOnion, makeWeapon } from '#test/utils/gameStateUtils'
 // ─── Logger Mocking ─────────────────────────────────────────────────────────
 vi.mock('#server/logger', () => ({
@@ -102,7 +105,7 @@ describe('getUnitDefinition', () => {
     })
 
     it('is marked as armor', () => {
-      expect(getUnitDefinition('Puss').abilities.isArmor).toBe(true)
+      expect(getUnitClassRule(getUnitDefinition('Puss').unitClass).isArmor).toBe(true)
     })
 
     it('has one weapon: attack 4, range 2', () => {
@@ -119,7 +122,7 @@ describe('getUnitDefinition', () => {
 
   describe('BigBadWolf (GEV)', () => {
     it('has secondMove ability', () => {
-      expect(getUnitDefinition('BigBadWolf').abilities.secondMove).toBe(true)
+      expect(getUnitClassRule(getUnitDefinition('BigBadWolf').unitClass).secondMove.allowed).toBe(true)
     })
 
     it('has primary movement allowance of 4', () => {
@@ -127,11 +130,11 @@ describe('getUnitDefinition', () => {
     })
 
     it('has secondMoveAllowance of 3', () => {
-      expect(getUnitDefinition('BigBadWolf').abilities.secondMoveAllowance).toBe(3)
+      expect(getUnitClassRule(getUnitDefinition('BigBadWolf').unitClass).secondMove.allowance).toBe(3)
     })
 
     it('is marked as armor (cannot cross ridgelines)', () => {
-      expect(getUnitDefinition('BigBadWolf').abilities.isArmor).toBe(true)
+      expect(getUnitClassRule(getUnitDefinition('BigBadWolf').unitClass).isArmor).toBe(true)
     })
 
     it('has attack 2, range 2', () => {
@@ -153,7 +156,7 @@ describe('getUnitDefinition', () => {
     })
 
     it('is marked as armor', () => {
-      expect(getUnitDefinition('Witch').abilities.isArmor).toBe(true)
+      expect(getUnitClassRule(getUnitDefinition('Witch').unitClass).isArmor).toBe(true)
     })
   })
 
@@ -169,7 +172,7 @@ describe('getUnitDefinition', () => {
     })
 
     it('is immobile', () => {
-      expect(getUnitDefinition('Farquaad').abilities.immobile).toBe(true)
+      expect(getUnitClassRule(getUnitDefinition('Farquaad').unitClass).mobility).toBe('immobile')
     })
 
     it('has movement 0', () => {
@@ -190,7 +193,7 @@ describe('getUnitDefinition', () => {
     })
 
     it('is marked as armor', () => {
-      expect(getUnitDefinition('Pinocchio').abilities.isArmor).toBe(true)
+      expect(getUnitClassRule(getUnitDefinition('Pinocchio').unitClass).isArmor).toBe(true)
     })
   })
 
@@ -212,13 +215,13 @@ describe('getUnitDefinition', () => {
     })
 
     it('is marked as armor', () => {
-      expect(getUnitDefinition('Dragon').abilities.isArmor).toBe(true)
+      expect(getUnitClassRule(getUnitDefinition('Dragon').unitClass).isArmor).toBe(true)
     })
   })
 
   describe('LittlePigs (Infantry)', () => {
     it('can cross ridgelines', () => {
-	  expect(getUnitDefinition('LittlePigs').abilities.terrainRules?.ridgeline?.canCross).toBe(true)
+      expect(getUnitClassRule(getUnitDefinition('LittlePigs').unitClass).terrain.ridge.canCross).toBe(true)
     })
 
       it('has maxStacks of 5', () => {
@@ -255,11 +258,11 @@ describe('getUnitDefinition', () => {
     })
 
     it('is immobile', () => {
-      expect(getUnitDefinition('Swamp').abilities.immobile).toBe(true)
+      expect(getUnitClassRule(getUnitDefinition('Swamp').unitClass).mobility).toBe('immobile')
     })
 
     it('has a ramming profile', () => {
-      expect(getUnitDefinition('Swamp').abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
+      expect(getUnitClassRule(getUnitDefinition('Swamp').unitClass).ram.rammedTarget).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
     })
 
     it('is not marked stackable', () => {
@@ -361,13 +364,13 @@ describe('getAllUnitDefinitions', () => {
     expect(shared.TheOnion.weapons.find((weapon) => weapon.typeId === 'TheOnion.ap')?.friendlyNameTemplate).toBe('AP Gun {{ordinal}}')
   })
 
-  it('includes ram profiles in the shared definition source for rammed units', () => {
+  it('resolves ram profiles from the shared class-rule source for rammed units', () => {
     const shared = getSharedUnitDefinitions()
 
-    expect(shared.LittlePigs.abilities.ramProfile).toEqual({ treadLoss: 0, destroyOnRollAtMost: 4 })
-    expect(shared.Puss.abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
-    expect(shared.Dragon.abilities.ramProfile).toEqual({ treadLoss: 2, destroyOnRollAtMost: 4 })
-    expect(shared.Swamp.abilities.ramProfile).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
+    expect(getUnitClassRule(shared.LittlePigs.unitClass).ram.rammedTarget).toEqual({ treadLoss: 0, destroyOnRollAtMost: 4 })
+    expect(getUnitClassRule(shared.Puss.unitClass).ram.rammedTarget).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
+    expect(getUnitClassRule(shared.Dragon.unitClass).ram.rammedTarget).toEqual({ treadLoss: 2, destroyOnRollAtMost: 4 })
+    expect(getUnitClassRule(shared.Swamp.unitClass).ram.rammedTarget).toEqual({ treadLoss: 1, destroyOnRollAtMost: 4 })
   })
 })
 
@@ -419,6 +422,18 @@ describe('canSecondMove', () => {
   it('returns false for LittlePigs', () => {
     expect(canSecondMove(makeUnit({ typeId: 'LittlePigs' }))).toBe(false)
   })
+
+  it('uses the class rule when legacy ability fields are absent', () => {
+    const wolf = getUnitTypeCatalog().BigBadWolf
+    const rules = createRulesContext({
+      unitTypes: {
+        BigBadWolf: { ...wolf, abilities: { maxStacks: wolf.abilities.maxStacks } },
+      },
+      weaponTypes: getWeaponTypeCatalog(),
+    })
+
+    expect(canSecondMove(makeUnit({ typeId: 'BigBadWolf' }), rules)).toBe(true)
+  })
 })
 
 // ─── isImmobile ───────────────────────────────────────────────────────────────
@@ -434,6 +449,18 @@ describe('isImmobile', () => {
 
   it('returns false for BigBadWolf', () => {
     expect(isImmobile(makeUnit({ typeId: 'BigBadWolf' }))).toBe(false)
+  })
+
+  it('uses the class rule when the legacy immobile field is absent', () => {
+    const farquaad = getUnitTypeCatalog().Farquaad
+    const rules = createRulesContext({
+      unitTypes: {
+        Farquaad: { ...farquaad, abilities: { maxStacks: farquaad.abilities.maxStacks } },
+      },
+      weaponTypes: getWeaponTypeCatalog(),
+    })
+
+    expect(isImmobile(makeUnit({ typeId: 'Farquaad' }), rules)).toBe(true)
   })
 })
 

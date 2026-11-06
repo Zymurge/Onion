@@ -46,7 +46,6 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={2}
-        activeSelectedUnitCount={2}
       />,
     )
 
@@ -93,7 +92,6 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorTerrainType="clear"
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
-        activeSelectedUnitCount={1}
       />,
     )
 
@@ -110,7 +108,6 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorDefender={null}
         selectedInspectorOnion={null}
         selectedStackMemberCount={0}
-        activeSelectedUnitCount={0}
       />,
     )
 
@@ -142,7 +139,6 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorDefender={swamp}
         selectedInspectorOnion={null}
         selectedStackMemberCount={1}
-        activeSelectedUnitCount={1}
       />,
     )
 
@@ -175,7 +171,6 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorDefender={destroyedDefender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={0}
-        activeSelectedUnitCount={0}
       />,
     )
 
@@ -203,7 +198,6 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorDefender={null}
         selectedInspectorOnion={onion}
         selectedStackMemberCount={4}
-        activeSelectedUnitCount={4}
         victoryObjectives={[]}
         escapeHexes={[]}
       />,
@@ -240,7 +234,6 @@ describe('BattlefieldInspectorPanel', () => {
           selectedInspectorDefender={defender}
           selectedInspectorOnion={null}
           selectedStackMemberCount={2}
-          activeSelectedUnitCount={2}
           victoryObjectives={[]}
           escapeHexes={[]}
         />,

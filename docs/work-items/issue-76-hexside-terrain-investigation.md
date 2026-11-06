@@ -1,7 +1,7 @@
 # Issue #76: Hexside Terrain Model for Ridges and Streams
 
-**Status:** Phase 1 rule extraction complete; implementation phases remain
-pending
+**Status:** Phase 2.2 caller migration complete; canonical edge implementation
+phases remain pending
 **Issue:** [Investigate hexside terrain model for ridges and streams](https://github.com/Zymurge/Onion/issues/76)
 **Scope:** Design and impact assessment only. This document does not authorize implementation.
 
@@ -185,18 +185,18 @@ Approved class assignments:
 
 | Unit type ID | Unit class |
 | --- | --- |
-| `LittlePigs` | Infantry |
-| `Puss`, `Witch`, `Pinocchio` | Light Armor |
-| `Dragon` | Heavy Armor |
-| `BigBadWolf` | GEV |
-| `Swamp` | Command |
-| `Farquaad` | Artillery |
-| All Onion unit types | Onion |
+| `LittlePigs` | `Infantry` |
+| `Puss`, `Witch`, `Pinocchio` | `LightArmor` |
+| `Dragon` | `HeavyArmor` |
+| `BigBadWolf` | `GEV` |
+| `Swamp` | `Command` |
+| `Farquaad` | `Artillery` |
+| `TheOnion` | `Onion` |
 
-Represent these as stable class identifiers in the catalog/schema (for
-example, `infantry`, `lightArmor`, `heavyArmor`, `gev`, `command`, `artillery`,
-and `onion`) while preserving the display labels above. “All Onion unit types”
-means unit definitions in the Onion class, not a sprite-only variant.
+Represent these as stable PascalCase identifiers in TypeScript and the catalog
+(`'Infantry'`, `'LightArmor'`, `'HeavyArmor'`, `'GEV'`, `'Command'`,
+`'Artillery'`, and `'Onion'`), defined in a typed TypeScript module
+(`shared/classRules.ts`).
 
 Current per-unit ram data to consolidate by class:
 
@@ -420,7 +420,11 @@ Each phase should finish with its stated acceptance checks before the next
 phase changes the dependent layer. Phase 1 is a required documentation gate:
 implementation should not begin from an undocumented or contradictory rule.
 
-### Phase 1: Extract Rules Into Source Documentation
+### Phase 1: Extract Rules Into Source Documentation (Complete)
+
+**Phase status:** Complete. The authoritative gameplay, scenario-authoring,
+ownership, AI, and web presentation documents were updated and validated. The
+remaining phases are implementation work and are not implied by this status.
 
 Record the rules introduced by this change in the documents that own those
 rules. Keep this work item as the implementation plan and decision record; do
@@ -459,6 +463,19 @@ Acceptance checks:
   web owners without duplicating rule definitions.
 
 ### Phase 2: Build The Class-Rule Foundation
+
+**Task 2.1 status:** Complete. PascalCase class identifiers, the typed
+immutable class-rule table, and required catalog class assignments are in
+place.
+
+**Task 2.2 status:** Complete. Movement, ramming, unit-state, combat,
+scenario-definition, and initial-state normalization callers now resolve
+class-owned behavior through `RulesContext`. The duplicated per-unit ability
+fields and `ramsPerTurn` catalog/scenario metadata were removed, catalog
+parsing rejects those legacy fields, and ridgeline combat modifiers were
+removed. Focused tests, the full regression suite (1,797 tests), TypeScript,
+and ESLint pass; ESLint reports three warnings from generated coverage output
+and no errors.
 
 Tasks:
 

@@ -432,7 +432,7 @@ describe('useBattlefieldDisplayState', () => {
 	})
 
 	it.each([
-		['LittlePigs', 1, 'ridgeline', 1, 1],
+		['LittlePigs', 1, 'ridgeline', 1, null],
 		['LittlePigs', 0, 'clear', 1, null],
 		['LittlePigs', 2, 'crater', 1, null],
 		['Puss', 1, 'ridgeline', 3, null],
@@ -492,7 +492,7 @@ describe('useBattlefieldDisplayState', () => {
 
 		expect(result.current.selectedInspectorTerrainType).toBe('ridgeline')
 		expect(result.current.selectedInspectorDefense).toBe(1)
-		expect(result.current.selectedInspectorTerrainModifier).toBe(1)
+		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
 	})
 
 	it('does not project a terrain modifier when no unit is selected', () => {

@@ -166,7 +166,6 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
         <BattlefieldRightRail
           activeCombatRole={display.activeCombatRole}
           activeRole={display.activeRole}
-          activeSelectedUnitCount={display.activeSelectedUnitIds.length}
           isCombatPhase={display.isCombatPhase}
           gameOverSummary={terminalWinner === null ? null : { winner: terminalWinner, objectives: display.victoryObjectives }}
           showInactiveEventStream={gate.inactiveEventWindowVisible}

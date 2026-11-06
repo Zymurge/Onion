@@ -14,39 +14,78 @@ export type MovementSpent = Partial<Record<TurnPhase, number>>
 export type PlayerRole = 'onion' | 'defender'
 export type UnitTypeId = string
 export type UnitType = UnitTypeId
+export type UnitClass = 'Infantry' | 'LightArmor' | 'HeavyArmor' | 'GEV' | 'Command' | 'Artillery' | 'Onion'
+export type UnitClassTerrain = 'ridge' | 'stream'
+export type UnitClassMobility = 'mobile' | 'immobile'
 
 import type { TargetRules } from '../targetRules.js'
 export type { TargetRules } from '../targetRules.js'
 
 import type { StackNamingSnapshot } from '../stackNaming/index.js'
 
+/** Axial coordinates that identify a hex on the game map. */
 export interface HexPos {
+  /** Horizontal axial coordinate. */
   q: number
+  /** Vertical axial coordinate. */
   r: number
 }
 
-export interface UnitTerrainRule {
-  canCross?: boolean
-  canAccessCover?: boolean
-  ignoresUnderlyingTerrain?: boolean
-  movementCost?: number
-}
-
+/** Outcome parameters applied when a unit is rammed. */
 export interface RamProfile {
+  /** Number of tread points lost by the rammed unit. */
   treadLoss?: 0 | 1 | 2 | 3
+  /** Highest die roll that destroys the rammed unit. */
   destroyOnRollAtMost?: number
 }
 
+/** Movement rule for one terrain edge type associated with a unit class. */
+export interface UnitClassTerrainRule {
+  /** Whether the unit class may cross the terrain edge. */
+  canCross: boolean
+  /** Additional movement cost for crossing the terrain edge. */
+  movementSurcharge: number
+}
+
+/** Second-move eligibility and allowance for a unit class. */
+export interface UnitClassSecondMoveRule {
+  /** Whether the unit class may perform a second move. */
+  allowed: boolean
+  /** Movement allowance for the second move, when it is allowed. */
+  allowance?: number
+}
+
+/** Ramming capability and per-turn capacity for a unit class. */
+export interface UnitClassRamAttackerRule {
+  /** Whether the unit class may initiate a ram. */
+  canRam: boolean
+  /** Maximum number of rams the unit class may make in one turn. */
+  capacity: number
+  /** Number of rams replenished or available per turn. */
+  perTurn: number
+}
+
+/** Static gameplay rules shared by every unit of a unit class. */
+export interface UnitClassRule {
+  /** Mobility category used by movement and phase rules. */
+  mobility: UnitClassMobility
+  /** Whether the unit class uses armor combat rules. */
+  isArmor: boolean
+  /** Second-move rule for the unit class. */
+  secondMove: UnitClassSecondMoveRule
+  /** Terrain-edge rules for each supported edge terrain. */
+  terrain: Readonly<Record<UnitClassTerrain, UnitClassTerrainRule>>
+  /** Ramming rules for attackers and rammed units. */
+  ram: {
+    attacker: UnitClassRamAttackerRule
+    rammedTarget?: RamProfile
+  }
+}
+
+/** Unit-specific limits declared by a unit type; class rules are resolved separately. */
 export interface UnitAbilities {
-  secondMove?: boolean
-  secondMoveAllowance?: number
-  canRam?: boolean
-  ramCapacity?: number
-  ramProfile?: RamProfile
-  terrainRules?: Record<string, UnitTerrainRule>
+  /** Maximum number of units that may occupy the same stack. */
   maxStacks: number
-  isArmor?: boolean
-  immobile?: boolean
 }
 
 /**
@@ -99,8 +138,8 @@ export interface Weapon {
 }
 
 /**
- * The common static attributes of a unit in the game, including its movement, weapons and optional properties like squads and defensive
- * rules and capapilities. This interface is used as a base for both onion and defender unit types.
+ * The common static attributes of a unit in the game, including its movement, weapons, and unit-specific metadata.
+ * Class-owned movement, terrain, and ram rules are resolved separately from the unit definition.
  * This interface is used to represent both onion and defender units in a unified way.
  * 
  * @property typeId The unique identifier of the unit.
@@ -110,6 +149,7 @@ export interface Weapon {
  */
 export interface UnitTypeBase {
   typeId: UnitTypeId
+  unitClass: UnitClass
   name: string
   description: string
   stackable: boolean
@@ -130,7 +170,6 @@ export interface UnitTypeBase {
   targetRules?: TargetRules
   maxTreads?: number
   treadsPerMove?: number
-  ramsPerTurn?: number
   squads?: number
 }
 
@@ -139,7 +178,6 @@ export interface UnitTypeBase {
  * 
  * @property treads The current tread points of the onion unit, which can range from 0 to 45.
  * @property treadsPerMove The number of treads required per movement point (range=treads/treadsPerMove).
- * @property ramsPerTurn The number of rams allowed per turn for the onion unit.
  */
 export type OnionUnitType = UnitTypeBase
 
@@ -256,22 +294,35 @@ export interface GameState {
  * Dynamic game snapshots reference these definitions by type ID.
  */
 export interface SessionInitPayload {
+  /** Static unit definitions referenced by game-state type IDs. */
   unitTypes: UnitTypeCatalog
+  /** Static weapon definitions referenced by unit weapon type IDs. */
   weaponTypes: WeaponTypeCatalog
 }
 
+/** Common envelope for a persisted or live game event. */
 export interface EventEnvelope {
+  /** Monotonically increasing event sequence number. */
   seq: number
+  /** Event-specific type identifier. */
   type: string
+  /** ISO timestamp at which the event was created. */
   timestamp: string
+  /** Identifier of the action or event that caused this event, when available. */
   causeId?: string
+  /** Combat loss summary when the event reports stack destruction. */
   stackLoss?: CombatStackLossSummary
+  /** Additional fields defined by the specific event type. */
   [key: string]: unknown
 }
 
+/** Counts the destroyed and surviving units in a combat-affected stack. */
 export interface CombatStackLossSummary {
+  /** Number of units destroyed by the combat result. */
   destroyed: number
+  /** Number of units in the stack before the combat result. */
   total: number
+  /** Number of units remaining after the combat result. */
   remaining: number
 }
 
@@ -285,13 +336,21 @@ export type Command =
   | { type: 'END_PHASE' }
 
 export interface ActionOkResponse {
+  /** Always true for a successful action response. */
   ok: true
+  /** Sequence number of the latest event included in the response. */
   seq: number
+  /** Events produced while processing the action. */
   events: EventEnvelope[]
+  /** Authoritative game state after the action. */
   state: GameState
+  /** Current lifecycle status of the game. */
   status: 'waiting' | 'ready' | 'active' | 'completed' | 'archived'
+  /** User ID of the game host. */
   hostUserId: string
+  /** Monotonic revision of the returned snapshot. */
   snapshotRevision: number
+  /** Winning role, or null while the game has no winner. */
   winner: 'onion' | 'defender' | null
 }
 

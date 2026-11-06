@@ -109,7 +109,7 @@ export function getBattlefieldDefenderInspectionStats(
 	const terrainModifier = result.modifiers.find((candidate) => candidate.kind === 'terrain' && candidate.scope === 'defense')
 
 	return {
-		defense: result.defenseStrength - (terrainModifier?.value ?? 0),
+		defense: result.defenseStrength,
 		terrainModifier: terrainModifier?.value ?? null,
 		terrainType,
 	}

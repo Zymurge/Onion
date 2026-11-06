@@ -29,6 +29,10 @@ function resolveDerivedUnitType(
   const base = structuredClone(baseDefinition)
 
   const overrides = derivation.overrides
+  if (Object.hasOwn(overrides, 'unitClass')) {
+    throw new Error(`Scenario unit type ${unitTypeId} cannot override unitClass`)
+  }
+
   if (overrides.maxStacks !== undefined && base.abilities.maxStacks <= 1 && overrides.maxStacks > 1) {
     throw new Error(`Cannot make non-stackable unit type ${derivation.extends} stackable`)
   }
@@ -70,7 +74,7 @@ function resolveDerivedUnitType(
     ...(overrides.maxStacks === undefined ? {} : { maxStacks: overrides.maxStacks }),
   }
   const unitOverrides: Partial<UnitTypeBase> = {}
-  for (const field of ['movement', 'defense', 'maxTreads', 'treadsPerMove', 'ramsPerTurn', 'squads'] as const) {
+  for (const field of ['movement', 'defense', 'maxTreads', 'treadsPerMove', 'squads'] as const) {
     const value = overrides[field]
     if (value !== undefined) {
       unitOverrides[field] = value

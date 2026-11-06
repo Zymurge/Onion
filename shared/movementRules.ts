@@ -22,32 +22,25 @@ function getUnitDefinition(unitType: string, rules?: RulesContext): UnitTypeBase
 	return getRulesContext(rules).getUnitDefinition(unitType)
 }
 
+function getUnitClassRule(unitType: string, rules?: RulesContext) {
+	const definition = getUnitDefinition(unitType, rules)
+	return definition === undefined ? undefined : getRulesContext(rules).getUnitClassRule(definition.unitClass)
+}
+
+/** Returns whether a unit class may cross the legacy ridgeline terrain. */
 export function canCrossRidgelineByTerrainRule(unitType: string, rules?: RulesContext): boolean {
-	const definition = getUnitDefinition(unitType, rules)
-	if (definition === undefined) {
-		return false
-	}
-
-	return definition.abilities.terrainRules?.ridgeline?.canCross === true
+	return getUnitClassRule(unitType, rules)?.terrain.ridge.canCross === true
 }
 
-export function canUnitAccessTerrainCover(unitType: string, terrainType: TerrainType, rules?: RulesContext): boolean {
-	const definition = getUnitDefinition(unitType, rules)
-	if (definition === undefined) {
-		return false
-	}
-
-	return definition.abilities.terrainRules?.[terrainType]?.canAccessCover === true
-}
-
+/** Returns the legacy whole-hex movement cost for a terrain type. */
 export function getTerrainMoveCost(unitType: string, terrainType: TerrainType, rules?: RulesContext): number | null {
 	if (terrainType === 'crater') {
 		return null
 	}
 
 	if (terrainType === 'ridgeline') {
-		const terrainRule = getUnitDefinition(unitType, rules)?.abilities.terrainRules?.ridgeline
-		return canCrossRidgelineByTerrainRule(unitType, rules) ? terrainRule?.movementCost ?? 2 : null
+		const terrainRule = getUnitClassRule(unitType, rules)?.terrain.ridge
+		return terrainRule?.canCross === true ? 1 + terrainRule.movementSurcharge : null
 	}
 
 	return 1

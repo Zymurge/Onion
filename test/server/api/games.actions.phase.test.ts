@@ -56,7 +56,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
       },
       stackNaming: { groupsInUse: [], usedGroupNames: [] },
     })
-    let match: {
+    const match = {} as {
       gameId: number
       scenarioId: string
       scenarioSnapshot: {
@@ -77,7 +77,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
       persistMatchProgress: async () => {},
     })
     const onion = await register(app, 'phase-stack-onion')
-    match = {
+    Object.assign(match, {
       gameId: 1,
       scenarioId: 'phase-stack-name-repair',
       scenarioSnapshot: {
@@ -92,7 +92,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
       winner: null,
       state,
       events: [],
-    }
+    })
 
     const response = await app.inject({
       method: 'POST',

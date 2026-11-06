@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { resolveScenarioDefinitions } from '#server/engine/scenarioDefinitions'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
+import { getUnitClassRule } from '#shared/classRules'
 
 const scenarioId = 'override-contract'
 
@@ -18,6 +19,18 @@ const derivedUnitTypes = {
 } as const
 
 describe('scenario-local unit definition resolution', () => {
+  it('inherits the base class and rejects runtime class overrides', () => {
+    const resolved = resolveScenarioDefinitions(scenarioId, derivedUnitTypes)
+    expect(resolved.unitTypes['override-contract:ScenarioPuss'].unitClass).toBe('LightArmor')
+
+    expect(() => resolveScenarioDefinitions(scenarioId, {
+      ScenarioPuss: {
+        extends: 'Puss',
+        overrides: { unitClass: 'Onion' },
+      },
+    } as never)).toThrow(/unitClass/i)
+  })
+
   it('resolves a derived type into a namespaced immutable catalog entry', () => {
     const resolved = resolveScenarioDefinitions(scenarioId, derivedUnitTypes)
 
@@ -53,8 +66,8 @@ describe('scenario-local unit definition resolution', () => {
 
     expect(derived).not.toBe(getUnitTypeCatalog().Puss)
     expect(derived.abilities).not.toBe(getUnitTypeCatalog().Puss.abilities)
-    expect(derived.abilities.ramProfile).not.toBe(getUnitTypeCatalog().Puss.abilities.ramProfile)
-    expect(Object.isFrozen(derived.abilities.ramProfile)).toBe(true)
+    expect(derived.abilities).toEqual({ maxStacks: 1 })
+    expect(getUnitClassRule(derived.unitClass)).toBe(getUnitClassRule(getUnitTypeCatalog().Puss.unitClass))
   })
 
   it('does not expose mutable global entries through a resolved catalog', () => {

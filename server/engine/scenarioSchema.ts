@@ -29,7 +29,6 @@ const UnitTypeDerivationSchema = z.object({
     defense: z.number().nonnegative().optional(),
     maxTreads: z.number().int().nonnegative().optional(),
     treadsPerMove: z.number().int().positive().optional(),
-    ramsPerTurn: z.number().int().nonnegative().optional(),
     squads: z.number().int().positive().optional(),
     maxStacks: z.number().int().positive().optional(),
     weaponQuantities: z.record(z.string().min(1), z.number().int().nonnegative()).optional(),

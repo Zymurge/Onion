@@ -15,36 +15,12 @@ const staticRules = {
 	unitTypes: getUnitTypeCatalog(),
 	terrainRules: {
 		clear: { terrainType: 'clear' as TerrainType },
-		ridgeline: { terrainType: 'ridgeline' as TerrainType, defenseMultiplier: 2 },
+		ridgeline: { terrainType: 'ridgeline' as TerrainType },
 		crater: { terrainType: 'crater' as TerrainType },
 	},
 } satisfies CombatStaticRules
 
 const calculator = createCombatCalculator(staticRules)
-
-const terrainAdeptRules = {
-	unitTypes: {
-		...getUnitTypeCatalog(),
-		Puss: {
-			...getUnitTypeCatalog().Puss,
-			abilities: {
-				...getUnitTypeCatalog().Puss.abilities,
-				terrainRules: {
-					ridgeline: { canAccessCover: true },
-					clear: { canAccessCover: true },
-					crater: { canAccessCover: true },
-				},
-			},
-		},
-	},
-	terrainRules: {
-		clear: { terrainType: 'clear' as TerrainType, defenseBonus: 2 },
-		ridgeline: { terrainType: 'ridgeline' as TerrainType, defenseBonus: 1 },
-		crater: { terrainType: 'crater' as TerrainType, defenseBonus: 2 },
-	},
-} satisfies CombatStaticRules
-
-const terrainAdeptCalculator = createCombatCalculator(terrainAdeptRules)
 
 describe('combatCalculator', () => {
 	it('maps unit and selected-weapon sources into ordered attacker contributions', () => {
@@ -150,8 +126,8 @@ describe('combatCalculator', () => {
 		const result = calculator.calculateResult(input)
 
 		expect(result.attackStrength).toBe(8)
-		expect(result.defenseStrength).toBe(4)
-		expect(result.odds).toBe('2:1')
+		expect(result.defenseStrength).toBe(2)
+		expect(result.odds).toBe('4:1')
 	})
 
 	it('uses Little Pigs stack size for defense strength', () => {
@@ -172,7 +148,7 @@ describe('combatCalculator', () => {
 		expect(result.odds).toBe('2:1')
 	})
 
-	it('returns the ridgeline defense modifier for eligible target units', () => {
+	it('does not apply a ridgeline defense modifier', () => {
 		const input: CombatCalculatorInput = {
 			attackerGroupIds: ['attack-1'],
 			targetId: 'target-1',
@@ -186,20 +162,12 @@ describe('combatCalculator', () => {
 
 		const modifiers = calculator.calculateModifiers(input)
 
-		expect(modifiers).toEqual([
-			{
-				kind: 'terrain',
-				scope: 'defense',
-				label: 'Ridgeline cover: +3 defense',
-				value: 3,
-				appliesTo: 'target-1',
-			},
-		])
-		expect(calculator.calculateResult(input).defenseStrength).toBe(6)
+		expect(modifiers).toEqual([])
+		expect(calculator.calculateResult(input).defenseStrength).toBe(3)
 		expect(input.combatState.units['target-1'].friendlyName).toBe('Little Pigs 1')
 	})
 
-	it('grants the ridgeline bonus to other infantry types with cover access', () => {
+	it('does not grant ridgeline cover to other infantry types', () => {
 		const unitTypes = getUnitTypeCatalog()
 		const infantryCalculator = createCombatCalculator({
 			unitTypes: {
@@ -219,10 +187,8 @@ describe('combatCalculator', () => {
 			},
 		}
 
-		expect(infantryCalculator.calculateModifiers(input)).toMatchObject([
-			{ label: 'Ridgeline cover: +4 defense', value: 4 },
-		])
-		expect(infantryCalculator.calculateResult(input).defenseStrength).toBe(8)
+		expect(infantryCalculator.calculateModifiers(input)).toEqual([])
+		expect(infantryCalculator.calculateResult(input).defenseStrength).toBe(4)
 	})
 
 	it('does not grant ridgeline cover to units without the terrain ability', () => {
@@ -370,7 +336,7 @@ describe('combatCalculator', () => {
 		expect(() => calculator.calculateResult(input)).toThrow("Stack target 'target-1' of type 'LittlePigs' is missing stackSize in the live combat state")
 	})
 
-	it('uses terrain-eligible live combat state when calculating ridgeline cover', () => {
+	it('ignores terrain metadata when calculating combat', () => {
 		const input: CombatCalculatorInput = {
 			attackerGroupIds: ['attack-1'],
 			targetId: 'target-1',
@@ -382,16 +348,8 @@ describe('combatCalculator', () => {
 			},
 		}
 
-		expect(terrainAdeptCalculator.calculateModifiers(input)).toEqual([
-			{
-				kind: 'terrain',
-				scope: 'defense',
-				label: 'Ridgeline cover: +1 defense',
-				value: 1,
-				appliesTo: 'target-1',
-			},
-		])
-		expect(terrainAdeptCalculator.calculateResult(input).attackStrength).toBe(4)
-		expect(terrainAdeptCalculator.calculateResult(input).defenseStrength).toBe(4)
+		expect(calculator.calculateModifiers(input)).toEqual([])
+		expect(calculator.calculateResult(input).attackStrength).toBe(4)
+		expect(calculator.calculateResult(input).defenseStrength).toBe(3)
 	})
 })

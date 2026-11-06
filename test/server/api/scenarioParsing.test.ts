@@ -147,6 +147,18 @@ describe('parseScenarioSnapshot', () => {
     })).toThrow(ScenarioValidationError)
   })
 
+  it('rejects removed per-unit ramsPerTurn overrides', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      unitTypes: {
+        ScenarioOnion: {
+          extends: 'TheOnion',
+          overrides: { ramsPerTurn: 2 },
+        },
+      },
+    })).toThrow(ScenarioValidationError)
+  })
+
   it('accepts multiple authored Onions without static catalog fields', () => {
     const scenario = parseScenarioSnapshot({
       ...validScenario,

@@ -100,6 +100,32 @@ describe('validateUnitMovement', () => {
     expect(result.ok).toBe(true)
   })
 
+  it('derives Onion movement capabilities from a scenario class', () => {
+    const initial = InitialStateSchema.parse({
+      deployments: {
+        'onion-1': { type: 'ScenarioOnion', side: 'onion', position: { q: 0, r: 0 } },
+        'pigs-1': { type: 'LittlePigs', side: 'defender', position: { q: 1, r: 0 } },
+      },
+    })
+    const state = normalizeInitialStateToGameState(initial, 'movement-class-contract', {
+      ScenarioOnion: { extends: 'TheOnion', overrides: {} },
+    })
+    const rules = createScenarioRulesContext('movement-class-contract', {
+      ScenarioOnion: { extends: 'TheOnion', overrides: {} },
+    })
+
+    const result = validateUnitMovement(CLEAR_MAP, state, {
+      type: 'MOVE',
+      unitId: 'onion-1',
+      to: { q: 1, r: 0 },
+    }, rules)
+
+    expect(result).toMatchObject({
+      ok: true,
+      plan: { capabilities: { canRam: true, hasTreads: true }, rammedUnitIds: ['pigs-1'] },
+    })
+  })
+
   it('returns a validated plan for a treaded ram-capable unit', () => {
     const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })

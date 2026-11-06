@@ -22,7 +22,6 @@ type BattlefieldInspectorPanelProps = {
   selectedInspectorTerrainType?: TerrainType | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
-  activeSelectedUnitCount: number
   catalog?: SessionCatalog
   dataTestId?: string
 }
@@ -36,7 +35,6 @@ export function BattlefieldInspectorPanel({
   selectedInspectorTerrainType = null,
   selectedInspectorDefender,
   selectedInspectorOnion,
-  activeSelectedUnitCount,
   catalog,
   dataTestId = 'battlefield-inspector',
 }: BattlefieldInspectorPanelProps) {

@@ -52,7 +52,8 @@
         "printf": true,
         "tee": true,
         "awk": true,
-        "magick": true
+        "magick": true,
+        "npx eslint": true
     },
     "github.copilot.chat.localIndex.enabled": true,
     "sqltools.connections": [

@@ -3,6 +3,7 @@
     "Puss": {
       "name": "Puss",
       "description": "A nimble tank that trades durability for speed and a reliable main gun.",
+      "unitClass": "LightArmor",
       "friendlyNameTemplate": "Puss {{ordinal}}",
       "spriteKey": "puss",
       "hexMapScale": 0.55,
@@ -10,12 +11,13 @@
       "movement": 3,
       "defense": 3,
       "cost": 1,
-      "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "abilities": { "maxStacks": 1 },
       "weaponQuantities": { "Puss.main": 1 }
     },
     "BigBadWolf": {
       "name": "Big Bad Wolf",
       "description": "A fast, hard-hitting tank that can make a second move during its turn.",
+      "unitClass": "GEV",
       "friendlyNameTemplate": "Big Bad Wolf {{ordinal}}",
       "spriteKey": "big-bad-wolf",
       "hexMapScale": 0.55,
@@ -23,12 +25,13 @@
       "movement": 4,
       "defense": 4,
       "cost": 1,
-      "abilities": { "maxStacks": 1, "isArmor": true, "secondMove": true, "secondMoveAllowance": 3, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "abilities": { "maxStacks": 1 },
       "weaponQuantities": { "BigBadWolf.main": 1 }
     },
     "Witch": {
       "name": "Witch",
       "description": "A lightly defended hunter with a missile launcher built for striking at range.",
+      "unitClass": "LightArmor",
       "friendlyNameTemplate": "Witch {{ordinal}}",
       "spriteKey": "witch",
       "hexMapScale": 0.53,
@@ -36,12 +39,13 @@
       "movement": 3,
       "defense": 2,
       "cost": 1,
-      "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "abilities": { "maxStacks": 1 },
       "weaponQuantities": { "Witch.main": 1 }
     },
     "Farquaad": {
       "name": "Farquaad",
       "description": "A costly immobile artillery piece with the longest reach among the defenders.",
+      "unitClass": "Artillery",
       "friendlyNameTemplate": "Farquaad {{ordinal}}",
       "spriteKey": "farquaad",
       "hexMapScale": 0.528,
@@ -49,12 +53,13 @@
       "movement": 0,
       "defense": 0,
       "cost": 2,
-      "abilities": { "maxStacks": 1, "immobile": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "abilities": { "maxStacks": 1 },
       "weaponQuantities": { "Farquaad.main": 1 }
     },
     "Pinocchio": {
       "name": "Pinocchio",
       "description": "A modestly priced light tank with balanced movement, defense, and firepower.",
+      "unitClass": "LightArmor",
       "friendlyNameTemplate": "Pinocchio {{ordinal}}",
       "spriteKey": "pinocchio",
       "hexMapScale": 0.52,
@@ -63,12 +68,13 @@
       "movement": 2,
       "defense": 3,
       "cost": 0.5,
-      "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "abilities": { "maxStacks": 1 },
       "weaponQuantities": { "Pinocchio.main": 1 }
     },
     "Dragon": {
       "name": "Dragon",
       "description": "A powerful armored tank carrying two heavy guns and enough speed to threaten the map.",
+      "unitClass": "HeavyArmor",
       "friendlyNameTemplate": "Dragon {{ordinal}}",
       "spriteKey": "dragon",
       "hexMapScale": 0.70,
@@ -76,12 +82,13 @@
       "movement": 5,
       "defense": 3,
       "cost": 2,
-      "abilities": { "maxStacks": 1, "isArmor": true, "ramProfile": { "treadLoss": 2, "destroyOnRollAtMost": 4 } },
+      "abilities": { "maxStacks": 1 },
       "weaponQuantities": { "Dragon.main": 2 }
     },
     "LittlePigs": {
       "name": "Little Pigs",
       "description": "A stackable rifle squad that grows stronger in numbers and can cross ridgelines.",
+      "unitClass": "Infantry",
       "friendlyNameTemplate": "Little Pigs {{ordinal}}",
       "spriteKey": "little-pigs",
       "hexMapScale": 0.58,
@@ -90,24 +97,26 @@
       "movement": 2,
       "defense": 1,
       "cost": 1,
-      "abilities": { "maxStacks": 5, "ramProfile": { "treadLoss": 0, "destroyOnRollAtMost": 4 }, "terrainRules": { "ridgeline": { "canCross": true, "canAccessCover": true, "movementCost": 1 } } },
+      "abilities": { "maxStacks": 5 },
       "weaponQuantities": { "LittlePigs.rifle": 1 }
     },
     "Swamp": {
       "name": "The Swamp",
       "description": "A stationary defensive position that anchors the battlefield and cannot be moved.",
+      "unitClass": "Command",
       "friendlyNameTemplate": "The Swamp",
       "spriteKey": "swamp",
       "hexMapScale": 1,
       "hexMapOffsetY": -5,
       "movement": 0,
       "defense": 0,
-      "abilities": { "maxStacks": 1, "immobile": true, "ramProfile": { "treadLoss": 1, "destroyOnRollAtMost": 4 } },
+      "abilities": { "maxStacks": 1 },
       "weaponQuantities": {}
     },
     "TheOnion": {
       "name": "The Onion",
       "description": "The Onion is a heavily armed mobile fortress with thick treads and several weapon systems.",
+      "unitClass": "Onion",
       "friendlyNameTemplate": "The Onion {{ordinal}}",
       "spriteKey": "the-onion",
       "hexMapScale": 1.0,
@@ -116,8 +125,7 @@
       "defense": 0,
       "maxTreads": 45,
       "treadsPerMove": 15,
-      "ramsPerTurn": 2,
-      "abilities": { "maxStacks": 1, "canRam": true, "ramCapacity": 2, "terrainRules": { "ridgeline": { "canCross": true } } },
+      "abilities": { "maxStacks": 1 },
       "weaponQuantities": {
         "TheOnion.main": 1,
         "TheOnion.secondary": 4,

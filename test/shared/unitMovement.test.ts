@@ -29,11 +29,15 @@ describe('unit movement helpers', () => {
 		expect(canUnitSecondMove('Puss')).toBe(false)
 	})
 
+	it('derives ram capacity from the unit class', () => {
+		expect(getUnitRamCapacity('TheOnion')).toBe(2)
+		expect(getUnitRamCapacity('Puss')).toBe(0)
+	})
+
 	it('reports the ridge-crossing capability and immobility per unit type', () => {
 		expect(canUnitCrossRidgeline('TheOnion')).toBe(true)
 		expect(canUnitCrossRidgeline('LittlePigs')).toBe(true)
 		expect(canUnitCrossRidgeline('Puss')).toBe(false)
-		expect(getUnitRamCapacity('TheOnion')).toBe(2)
 			 expect(isUnitImmobile('Farquaad')).toBe(true)
 		expect(isUnitImmobile('Puss')).toBe(false)
 	})

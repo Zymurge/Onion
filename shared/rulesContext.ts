@@ -1,14 +1,26 @@
 import type { CombatStaticRules } from './combatCalculator.js'
+import { getUnitClassRule as getCanonicalUnitClassRule } from './classRules.js'
 import { ONION_STATIC_RULES } from './staticRules.js'
-import type { UnitType, UnitTypeBase, UnitTypeCatalog, WeaponType, WeaponTypeCatalog } from './types/index.js'
+import type {
+  UnitClass,
+  UnitClassRule,
+  UnitType,
+  UnitTypeBase,
+  UnitTypeCatalog,
+  WeaponType,
+  WeaponTypeCatalog,
+} from './types/index.js'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from './unitDefinitions.js'
 
+/** Immutable unit, weapon, and class-rule lookups for one game session. */
 export type RulesContext = {
   unitTypes: UnitTypeCatalog
   weaponTypes: WeaponTypeCatalog
   combatRules: CombatStaticRules
   getUnitDefinition(typeId: UnitType): UnitTypeBase | undefined
   getRequiredUnitDefinition(typeId: UnitType): UnitTypeBase
+  /** Returns the canonical rules shared by every unit in the class. */
+  getUnitClassRule(unitClass: UnitClass): UnitClassRule
   getWeaponType(typeId: string): WeaponType
 }
 
@@ -56,6 +68,9 @@ export function createRulesContext(
         throw new Error(`Unknown unit type: ${typeId}`)
       }
       return definition
+    },
+    getUnitClassRule(unitClass) {
+      return getCanonicalUnitClassRule(unitClass)
     },
     getWeaponType(typeId) {
       const weaponType = weaponTypes[typeId]

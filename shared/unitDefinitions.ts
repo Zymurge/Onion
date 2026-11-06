@@ -1,5 +1,6 @@
 import catalogConfig from './config/unitCatalog.json' with { type: 'json' }
 import { assertSupportedUnitSpriteKey } from './unitSpriteManifest.js'
+import { isUnitClass } from './classRules.js'
 import type {
   UnitType,
   UnitTypeBase,
@@ -33,12 +34,16 @@ function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig
     }
 
     const allowedFields = new Set([
-      'name', 'description', 'friendlyNameTemplate', 'spriteKey', 'hexMapScale', 'hexMapOffsetX', 'hexMapOffsetY', 'movement', 'defense', 'cost', 'abilities',
-      'weaponQuantities', 'targetRules', 'maxTreads', 'treadsPerMove', 'ramsPerTurn', 'squads',
+      'name', 'description', 'unitClass', 'friendlyNameTemplate', 'spriteKey', 'hexMapScale', 'hexMapOffsetX', 'hexMapOffsetY', 'movement', 'defense', 'cost', 'abilities',
+      'weaponQuantities', 'targetRules', 'maxTreads', 'treadsPerMove', 'squads',
     ])
     const unknownField = Object.keys(unitType).find((field) => !allowedFields.has(field))
     if (unknownField !== undefined) {
       throw new Error(`Unknown field ${unknownField} in unit type configuration: ${unitTypeId}`)
+    }
+
+    if (!isUnitClass(unitType.unitClass)) {
+      throw new Error(`Invalid unitClass for unit type: ${unitTypeId}`)
     }
 
     if (typeof unitType.name !== 'string' || typeof unitType.description !== 'string' || typeof unitType.movement !== 'number' || typeof unitType.defense !== 'number') {
@@ -65,11 +70,16 @@ function assertCatalogConfig(value: unknown): asserts value is UnitCatalogConfig
       throw new Error(`Invalid abilities for unit type: ${unitTypeId}`)
     }
 
+    const unknownAbilityField = Object.keys(unitType.abilities).find((field) => field !== 'maxStacks')
+    if (unknownAbilityField !== undefined) {
+      throw new Error(`Unknown ability field ${unknownAbilityField} for unit type: ${unitTypeId}`)
+    }
+
     if (!isRecord(unitType.weaponQuantities) || Object.entries(unitType.weaponQuantities).some(([weaponTypeId, quantity]) => typeof weaponTypeId !== 'string' || typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 0)) {
       throw new Error(`Invalid weapon references for unit type: ${unitTypeId}`)
     }
 
-    for (const field of ['maxTreads', 'treadsPerMove', 'ramsPerTurn', 'squads']) {
+    for (const field of ['maxTreads', 'treadsPerMove', 'squads']) {
       if (field in unitType && typeof unitType[field] !== 'number') {
         throw new Error(`Invalid ${field} for unit type: ${unitTypeId}`)
       }

@@ -12,7 +12,7 @@ import type { TerrainType, UnitTypeBase, Weapon, WeaponType } from './types/inde
  * The static bundle is responsible for:
  * - base unit values from the unit definition source
  * - base weapon values from the unit definition source
- * - terrain combat rules, including known defense modifiers
+ * - terrain classifications available to callers
  * - any other documented rules that must stay aligned between engine and UI
  *
  * The calculator instance is responsible for:
@@ -79,20 +79,10 @@ export type CombatLiveState = {
 	units: Record<string, CombatCombatantState>
 }
 
-/**
- * Minimal terrain rule record held by the static rules source.
- */
+/** Terrain classification held by the static rules source. */
 export type CombatTerrainRule = {
 	/** Terrain represented by this rule. */
 	terrainType: TerrainType
-	/** Flat defense added to an eligible target's base defense. */
-	defenseBonus?: number
-	/** Multiplier applied to an eligible target's base defense. */
-	defenseMultiplier?: number
-	/** Optional allowlist of unit type ids that receive this terrain rule. */
-	appliesToTypes?: ReadonlyArray<string>
-	/** Additional terrain metadata not interpreted by the combat calculator. */
-	[key: string]: unknown
 }
 
 /**
@@ -309,18 +299,6 @@ function findWeaponType(definition: UnitTypeBase, weaponTypeId: string): WeaponT
 		|| candidate.typeId.endsWith(`.${canonicalWeaponId}`))
 }
 
-function getTerrainRule(staticRules: CombatStaticRules, terrainType: TerrainType | undefined): CombatTerrainRule | undefined {
-	if (terrainType === undefined) {
-		return undefined
-	}
-
-	return staticRules.terrainRules[terrainType]
-}
-
-function canUseTerrainCover(definition: UnitTypeBase, terrainType: TerrainType): boolean {
-	return definition.abilities.terrainRules?.[terrainType]?.canAccessCover === true
-}
-
 function resolveExplicitAttackStrength(
 	staticRules: CombatStaticRules,
 	attackers: ReadonlyArray<CombatAttackerContribution>,
@@ -336,31 +314,6 @@ function resolveExplicitAttackStrength(
 			return attack + weapon.attack
 		}, 0)
 	}, 0)
-}
-
-function resolveExplicitTerrainModifier(
-	staticRules: CombatStaticRules,
-	target: Extract<CombatExchangeTarget, { kind: 'unit' | 'stack' }>,
-): CombatModifier | undefined {
-	if (target.terrainType === undefined) return undefined
-
-	const definition = getUnitDefinitionByType(staticRules, target.typeId)
-	if (!canUseTerrainCover(definition, target.terrainType)) return undefined
-
-	const terrainRule = getTerrainRule(staticRules, target.terrainType)
-	if (terrainRule?.defenseBonus === undefined && terrainRule?.defenseMultiplier === undefined) return undefined
-	if (terrainRule.appliesToTypes !== undefined && !terrainRule.appliesToTypes.includes(target.typeId)) return undefined
-	const baseDefense = target.kind === 'stack' ? target.size * definition.defense : definition.defense
-	const value = (terrainRule.defenseBonus ?? 0)
-		+ baseDefense * ((terrainRule.defenseMultiplier ?? 1) - 1)
-
-	return {
-		kind: 'terrain',
-		scope: 'defense',
-		label: `Ridgeline cover: ${value > 0 ? '+' : ''}${value} defense`,
-		value,
-		appliesTo: target.id,
-	}
 }
 
 function resolveExplicitDefenseStrength(
@@ -382,9 +335,9 @@ function resolveExplicitDefenseStrength(
 			return weapon.defense ?? definition.defense
 		}
 		case 'stack':
-			return target.size * definition.defense + (resolveExplicitTerrainModifier(staticRules, target)?.value ?? 0)
+			return target.size * definition.defense
 		case 'unit':
-			return definition.defense + (resolveExplicitTerrainModifier(staticRules, target)?.value ?? 0)
+			return definition.defense
 	}
 }
 
@@ -405,16 +358,12 @@ export function calculateCombatExchange(
 	input: CombatExchangeInput,
 ): CombatCalculatorResult {
 	const attackStrength = resolveExplicitAttackStrength(staticRules, input.attackers)
-	const terrainModifier = input.target.kind === 'unit' || input.target.kind === 'stack'
-		? resolveExplicitTerrainModifier(staticRules, input.target)
-		: undefined
 
 	return {
 		attackStrength,
 		defenseStrength: resolveExplicitDefenseStrength(staticRules, input.target, attackStrength),
 		odds: calculateCrtOddsBand(attackStrength, resolveExplicitDefenseStrength(staticRules, input.target, attackStrength)),
 		modifiers: [
-			...(terrainModifier === undefined ? [] : [terrainModifier]),
 			...(input.modifiers ?? []),
 		],
 	}

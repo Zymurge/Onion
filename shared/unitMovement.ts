@@ -7,36 +7,47 @@ function getDefinition(unitType: string, rules?: RulesContext) {
 	return getRulesContext(rules).getUnitDefinition(unitType)
 }
 
+function getClassRule(unitType: string, rules?: RulesContext) {
+	const definition = getDefinition(unitType, rules)
+	return definition === undefined ? undefined : getRulesContext(rules).getUnitClassRule(definition.unitClass)
+}
+
+/** Returns whether the unit class may cross the legacy ridgeline terrain. */
 export function canUnitCrossRidgeline(unitType: string, rules?: RulesContext): boolean {
 	return canCrossRidgelineByTerrainRule(unitType, rules)
 }
 
+/** Returns the maximum number of rams a unit class may initiate. */
 export function getUnitRamCapacity(unitType: string, rules?: RulesContext): number {
-	return getDefinition(unitType, rules)?.abilities.ramCapacity ?? 2
+	return getClassRule(unitType, rules)?.ram.attacker.capacity ?? 0
 }
 
+/** Returns whether the unit class may perform a second move. */
 export function canUnitSecondMove(unitType: string, rules?: RulesContext): boolean {
-	return getDefinition(unitType, rules)?.abilities.secondMove === true
+	return getClassRule(unitType, rules)?.secondMove.allowed === true
 }
 
+/** Returns whether the unit class is immobile. */
 export function isUnitImmobile(unitType: string, rules?: RulesContext): boolean {
-	return getDefinition(unitType, rules)?.abilities.immobile === true
+	return getClassRule(unitType, rules)?.mobility === 'immobile'
 }
 
+/** Returns the movement allowance for a unit in the requested phase. */
 export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, treads?: number, side?: PlayerRole, rules?: RulesContext): number {
 	const definition = getDefinition(unitType, rules)
+	const isOnionClass = definition?.unitClass === 'Onion'
 
 	if (side === 'onion') {
 		if (phase !== 'ONION_MOVE') {
 			return 0
 		}
 
-		return unitType === 'TheOnion' ? onionMovementAllowance(treads ?? 0) : definition?.movement ?? 0
+		return isOnionClass ? onionMovementAllowance(treads ?? 0) : definition?.movement ?? 0
 	}
 
 	if (side === 'defender') {
 		if (phase === 'GEV_SECOND_MOVE') {
-			return canUnitSecondMove(unitType, rules) ? definition?.abilities.secondMoveAllowance ?? 0 : 0
+			return getClassRule(unitType, rules)?.secondMove.allowance ?? 0
 		}
 
 		if (phase !== 'DEFENDER_MOVE') {
@@ -46,7 +57,7 @@ export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, tre
 		return definition?.movement ?? 0
 	}
 
-	if (unitType === 'TheOnion') {
+	if (isOnionClass) {
 		if (phase !== 'ONION_MOVE') {
 			return 0
 		}
@@ -55,7 +66,7 @@ export function getUnitMovementAllowance(unitType: string, phase: TurnPhase, tre
 	}
 
 	if (phase === 'GEV_SECOND_MOVE') {
-		return canUnitSecondMove(unitType, rules) ? definition?.abilities.secondMoveAllowance ?? 0 : 0
+		return getClassRule(unitType, rules)?.secondMove.allowance ?? 0
 	}
 
 	if (phase !== 'DEFENDER_MOVE') {

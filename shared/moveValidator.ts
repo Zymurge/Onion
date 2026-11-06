@@ -13,7 +13,7 @@ import {
 	isUnitImmobile,
 } from './unitMovement.js'
 import type { DefenderUnit, OnionUnit } from './types/index.js'
-import type { RulesContext } from './rulesContext.js'
+import { getRulesContext, type RulesContext } from './rulesContext.js'
 
 export type MoveValidationCode =
 	| 'WRONG_PHASE'
@@ -145,9 +145,12 @@ function getMoveFailureMessage(code: MoveValidationCode, detailCode?: MoveValida
 }
 
 function getCapabilities(unitType: string, rules?: RulesContext): MoveCapabilities {
+	const context = getRulesContext(rules)
+	const definition = context.getUnitDefinition(unitType)
+	const classRule = definition === undefined ? undefined : context.getUnitClassRule(definition.unitClass)
 	return {
-		canRam: unitType === 'TheOnion',
-		hasTreads: unitType === 'TheOnion',
+		canRam: classRule?.ram.attacker.canRam === true,
+		hasTreads: definition?.unitClass === 'Onion',
 		canSecondMove: canUnitSecondMove(unitType, rules),
 	}
 }

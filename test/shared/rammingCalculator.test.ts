@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { calculateRamming } from '#shared/rammingCalculator'
+import { createRulesContext } from '#shared/rulesContext'
+import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 
 describe('rammingCalculator', () => {
 	it('uses the shared ram profile for Little Pigs', () => {
@@ -16,6 +18,21 @@ describe('rammingCalculator', () => {
 	it('uses the heavier tread-loss profile for Dragon', () => {
 		expect(calculateRamming('Dragon', 4)).toEqual({ treadCost: 2, destroyed: true })
 		expect(calculateRamming('Dragon', 6)).toEqual({ treadCost: 2, destroyed: false })
+	})
+
+	it('uses the class profile when a unit has no legacy ramProfile field', () => {
+		const puss = getUnitTypeCatalog().Puss
+		const rules = createRulesContext({
+			unitTypes: {
+				Puss: {
+					...puss,
+					abilities: { ...puss.abilities, ramProfile: undefined },
+				},
+			},
+			weaponTypes: getWeaponTypeCatalog(),
+		})
+
+		expect(calculateRamming('Puss', 4, rules)).toEqual({ treadCost: 1, destroyed: true })
 	})
 
 	it('throws when the unit type has no ram profile', () => {

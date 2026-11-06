@@ -174,7 +174,7 @@ describe('buildCombatTargetOptions', () => {
 		expect(options[0]).toMatchObject({
 			id: 'group-7',
 			defense: fixture.expected.defenseStrength,
-			modifiers: ['Ridgeline cover: +3 defense'],
+			modifiers: [],
 		})
 	})
 
@@ -274,8 +274,8 @@ describe('buildCombatTargetOptions', () => {
 			expect(options[0]).toMatchObject({
 				id: 'near-1',
 				label: 'Little Pigs 1',
-				defense: 2,
-				modifiers: expect.arrayContaining(['Ridgeline cover: +1 defense']),
+				defense: 1,
+				modifiers: [],
 			})
 	})
 

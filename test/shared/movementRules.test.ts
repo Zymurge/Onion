@@ -86,7 +86,7 @@ describe('movementRules', () => {
 	it('derives ridgeline movement cost from shared terrain rules', () => {
 		expect(getTerrainMoveCost('Puss', 'ridgeline')).toBeNull()
 		expect(getTerrainMoveCost('LittlePigs', 'ridgeline')).toBe(1)
-		expect(getTerrainMoveCost('TheOnion', 'ridgeline')).toBe(2)
+		expect(getTerrainMoveCost('TheOnion', 'ridgeline')).toBe(1)
 	})
 
 	it('treats crater terrain as impassable', () => {
