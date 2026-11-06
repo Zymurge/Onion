@@ -1,6 +1,7 @@
 # Issue #76: Hexside Terrain Model for Ridges and Streams
 
-**Status:** Design decisions recorded; implementation not approved
+**Status:** Phase 1 rule extraction complete; implementation phases remain
+pending
 **Issue:** [Investigate hexside terrain model for ridges and streams](https://github.com/Zymurge/Onion/issues/76)
 **Scope:** Design and impact assessment only. This document does not authorize implementation.
 
@@ -240,8 +241,8 @@ class rules. The class table owns crossing permission, edge surcharge, whole-hex
 entry rules, mobility, `isArmor`, and ram behavior. Ram rules still distinguish
 attacker capabilities (`canRam`, capacity, and per-turn limits) from the
 outcome profile when that class is rammed. Because the Onion class owns
-`canRam`, every Onion unit definition, including `TheOnionDamaged`, rams through
-that class rule rather than through a hardcoded type id. Replace the current
+`canRam`, the Onion unit definition rams through that class rule rather than
+through a hardcoded type id. Replace the current
 `unitType === 'TheOnion'` ram check and the per-unit `terrainRules`,
 `ramProfile`, and `isArmor` copies.
 
@@ -472,7 +473,8 @@ Tasks:
   overrides. Remove duplicated per-unit `terrainRules`, `ramProfile`, and
   `isArmor` rule ownership.
 - Replace type-id checks such as `unitType === 'TheOnion'` with class-rule
-  lookups. Verify `TheOnionDamaged` receives the same Onion class capabilities.
+  lookups. Verify the Onion unit receives its capabilities through the Onion
+  class.
 - Update movement, unit-state, ramming, combat, and scenario-definition callers
   and tests to use the class boundary.
 

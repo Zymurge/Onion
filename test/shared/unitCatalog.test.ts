@@ -97,8 +97,6 @@ describe('static unit and weapon catalogs', () => {
     expect(catalog.Swamp.hexMapOffsetY).toBe(-5)
     expect(catalog.TheOnion.hexMapScale).toBe(1)
     expect(catalog.TheOnion.hexMapOffsetY).toBe(0)
-    expect(catalog.TheOnionDamaged.hexMapScale).toBe(1)
-    expect(catalog.TheOnionDamaged.hexMapOffsetY).toBe(0)
   })
 
   it('keeps default quantities on weapon types and expands the Onion loadout contract', () => {

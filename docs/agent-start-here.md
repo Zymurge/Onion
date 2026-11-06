@@ -37,9 +37,9 @@ When introducing or renaming source files it is imperative to update this docume
 | Unit definitions or scenario-derived types | [scenario-schema.md](scenario-schema.md) `## 4. Unit and Weapon Definitions` | `server/engine/scenarioSchema.ts`, `server/engine/scenarioDefinitions.ts`, and `server/engine/scenarioNormalizer.ts`; `shared/rulesContext.ts` is the authoritative per-match lookup boundary. |
 | Rules context or scenario catalog lookup | `shared/rulesContext.ts` | Trace the caller-provided `RulesContext` into the owning engine/API path; use `server/engine/scenarioDefinitions.ts` for resolution. |
 | Sprite asset lookup, map sizing/positioning, Inspector rendering, or unit-state visuals | [web-ui/unit-presentation-spec.md](web-ui/unit-presentation-spec.md) | Use the resolved session catalog for visual metadata and `shared/stackRoster` for canonical membership; use [interaction-routing-spec.md](web-ui/interaction-routing-spec.md) for combat selection and target behavior. |
-| Movement legality | `shared/movementRules.ts` | `shared/moveValidator.ts` |
+| Movement legality, including edge terrain | `shared/movementRules.ts`, `shared/movePlanner.ts` | `shared/moveValidator.ts` |
 | Stack membership, split, or merge | `shared/stackRoster/index.ts` | Do not infer membership from co-location or from [game-rules.md](game-rules.md) |
-| Combat odds and modifiers | `shared/combatCalculator.ts` | `shared/staticRules.ts` owns the ridgeline defense bonus |
+| Combat odds and modifiers | `shared/combatCalculator.ts` | `shared/staticRules.ts` owns shared static rules; ridge and stream edges add no combat modifier |
 | CRT letters | `server/engine/combat/rolls.ts` CRT constant | The table in [game-rules.md](game-rules.md) currently matches. It does not override the code |
 | Onion tread movement bands | `shared/movementAllowance.ts` | Catalog `treadsPerMove` is declared but not read by that function |
 | Stack damage or one missile per turn | `server/engine/combat/actions.ts` | [game-rules.md](game-rules.md) describes the same behavior. Do not edit the prose alone |
@@ -77,7 +77,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Action or event delivery logging | [api-contract.md](api-contract.md) | `server/api/gameHelpers/logging.ts` |
 | Game ID parsing | [api-contract.md](api-contract.md) | `server/api/gameHelpers/ids.ts` |
 | Game API helper catalog or cross-helper entry point | [api-contract.md](api-contract.md) | `server/api/gameHelpers/index.ts`, then the owning helper module |
-| Scenario map requirement | [api-contract.md](api-contract.md) `## Scenario Map` | `shared/scenarioMap.ts` |
+| Scenario map and edge requirement | [api-contract.md](api-contract.md) `## Scenario Map`, [scenario-schema.md](scenario-schema.md) | `shared/scenarioMap.ts`; authored validation remains in `server/engine/scenarioSchema.ts` and `server/api/gameHelpers/scenario.ts` |
 | Web action eligibility or availability projection | [web-ui-spec.md](web-ui-spec.md), then [web-ui/battlefield-and-combat-spec.md](web-ui/battlefield-and-combat-spec.md) `## Selection and Eligibility` | `web/lib/actionEligibility/`; keep movement and combat eligibility pure and leave shared movement, weapon, and target rules authoritative |
 | Error body or error code | [api-contract.md](api-contract.md) `## Error Response Shape` and `### Known Error Codes` | `server/api/` |
 | Board snapshot fields | [api-contract.md](api-contract.md) `## Shared Types` and `### GameState` | `shared/types/` |
@@ -110,7 +110,7 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `shared/stackRoster/index.ts` | Owns canonical membership and split, merge, move, and relocate transitions. | |
 | `shared/stackNaming/index.ts` | Owns group labels and naming snapshots. | `D+M`: `StackNamingEngine` mutates its own naming state. |
 | `shared/combatCalculator.ts` | Decides attack strength, defense strength, modifiers, and CRT odds bands. | |
-| `shared/staticRules.ts` | Owns the ridgeline defense bonus and the calculator's static rules bundle. | |
+| `shared/staticRules.ts` | Owns the calculator's static rules bundle; ridge and stream edges provide no combat modifier. | |
 | `shared/targetRules.ts` | Decides whether a weapon may target a unit type. | |
 | `shared/rammingCalculator.ts` | Decides ram tread cost and destruction outcome. | |
 | `shared/combatTarget.ts` | Formats and parses tread and subsystem target ids. | |

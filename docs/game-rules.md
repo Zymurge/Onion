@@ -84,7 +84,7 @@ The UI presents objective completion separately from overall match victory.
 ### Unit Special Abilities
 
 - **Big Bad Wolf (GEV)**: Can move 4 hexes, fire, and then move an additional 3 hexes (Second Move Phase).
-- **Little Pigs (Infantry)**: Have a base Movement Allowance of 2 and can stack up to 5 squads per hex. Their base defense is the sum of their squads' defense. Infantry units eligible for terrain cover receive doubled defense on ridgelines. Attacks of "D" on a stack reduce it by 1 squad; "X" destroys the entire stack.
+- **Little Pigs (Infantry)**: Have a base Movement Allowance of 2 and can stack up to 5 squads per hex. Their base defense is the sum of their squads' defense. Attacks of "D" on a stack reduce it by 1 squad; "X" destroys the entire stack.
 - **Farquaad (Howitzer)**: Immobile once placed.
 - **Dragon (Superheavy)**: A powerful conventional unit with two 6-strength attacks.
 - **The Swamp (Command Post)**: A scenario-defined objective unit. Defense 0;
@@ -120,16 +120,48 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
   - Ramming a normal armored unit costs the Onion **1 tread**.
   - Ramming a Superheavy (**Dragon**) costs the Onion **2 treads**.
   - The Onion rolls 1D6 for the ramming result (1-4: Target Destroyed).
-- **Terrain & Cover**:
+- Ramming capability, ramming capacity, per-turn limits, and the outcome when a
+  unit is rammed are class-owned rules. Unit types identify their class but do
+  not duplicate those rules. The class rule is resolved through `RulesContext`.
+- **Unit classes**:
+  - `Infantry`: Little Pigs.
+  - `Light Armor`: Puss, Witch, and Pinocchio.
+  - `Heavy Armor`: Dragon.
+  - `GEV`: Big Bad Wolf.
+  - `Command`: Swamp.
+  - `Artillery`: Farquaad.
+  - `Onion`: The Onion unit type.
+  - Class rules own mobility, armor classification, terrain access and cost,
+    second-move behavior where applicable, and ramming behavior. Unit-specific
+    movement allowance, defense, weapons, and presentation remain on the unit
+    type when they differ within a class.
+- **Whole-hex terrain**:
   - **Clear**: No effect on movement or combat.
   - **Craters**: Impassable to all units.
-  - **Ridgelines**:
-    - **Movement**: Impassable to armored units (Puss, Pinocchio, Dragon, Witch, Big Bad Wolf). The Onion can cross ridgelines at a cost of 1 extra movement point; Little Pigs can enter adjacent ridgeline terrain as a normal 1-point move.
-    - **Cover**: Infantry units eligible for terrain cover in a Ridgeline hex have their base Defense doubled. The additional bonus equals their base Defense and accumulates across stacks (e.g., a 3-squad Little Pigs stack goes from Defense 3 to Defense 6).
+- **Edge terrain**:
+  - A ridge or stream occupies the boundary between two adjacent hexes. Edges
+    are undirected, so crossing in either direction uses the same terrain.
+  - **Ridge**: Infantry and Onion may cross at no additional movement cost.
+    Light Armor, Heavy Armor, and GEV cannot cross. Command and Artillery are
+    immobile. Ridges provide no cover and do not modify fire from or across the
+    edge.
+  - **Stream**: Infantry, Heavy Armor, GEV, and Onion cross with no surcharge.
+    Light Armor crosses with a +1 movement-point surcharge. Command and
+    Artillery are immobile. A Light Armor move across a stream into clear
+    terrain costs 1 normal entry point plus 1 surcharge, for 2 MP total.
+    Whole-hex destination cost is added normally, and streams do not modify
+    fire from or across the edge.
+  - Movement planning and validation apply edge surcharges and barriers to
+    every path step. `NO_PATH` means no calculated path to the destination costs
+    less than or equal to the unit's remaining movement allowance; it is not an
+    absolute connectivity result.
 - **Movement and terrain modeling note**:
-  - The implementation should keep terrain effects as data, not hard-coded one-off checks. Unit descriptions should be able to declare per-terrain capabilities such as `canCrossRidgelines` or `canAccessRidgeCover`, and future terrain types should map to the same pattern.
-  - Road and bridge behavior should be modeled separately from hex terrain where needed, since some effects depend on the path of movement rather than the destination hex alone.
-  - Ramming outcomes should also live on the unit description as a structured rule, not as a plain numeric defense stat. That lets the model express destroyed, disabled, or tread-loss results without overloading one field.
+  - Terrain effects are structured shared rules, not hard-coded unit-type checks.
+    The class-by-terrain table supports both edge terrain and whole-hex terrain,
+    with future terrain types such as forests added centrally when approved.
+  - Road and bridge behavior should be modeled separately from hex terrain when
+    needed, since some effects depend on the path of movement rather than the
+    destination hex alone.
 - **Line of Sight & Angles**:
   - Engagement angles (Front/Back/Side) do **not** affect combat modifiers in standard rules. All units have 360-degree firing arcs.
 

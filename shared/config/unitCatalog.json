@@ -124,26 +124,6 @@
         "TheOnion.ap": 8,
         "TheOnion.missile": 2
       }
-    },
-    "TheOnionDamaged": {
-      "name": "The Onion (Damaged)",
-      "description": "A battered Onion with only a few treads remaining, still dangerous but close to destruction.",
-      "friendlyNameTemplate": "The Onion (Damaged) {{ordinal}}",
-      "spriteKey": "the-onion-damaged",
-      "hexMapScale": 1.0,
-      "hexMapOffsetY": 0,
-      "movement": 3,
-      "defense": 0,
-      "maxTreads": 15,
-      "treadsPerMove": 15,
-      "ramsPerTurn": 2,
-      "abilities": { "maxStacks": 1, "canRam": true, "ramCapacity": 2, "terrainRules": { "ridgeline": { "canCross": true } } },
-      "weaponQuantities": {
-        "TheOnion.main": 1,
-        "TheOnion.secondary": 4,
-        "TheOnion.ap": 8,
-        "TheOnion.missile": 2
-      }
     }
   },
   "weaponTypes": {

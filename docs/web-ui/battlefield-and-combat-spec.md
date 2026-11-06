@@ -10,6 +10,9 @@ objective display, and visual state rules.
 - The board uses the rules engine's axial coordinate system.
 - The map may be a bounded axial region revealed through scrolling.
 - Positions use axial `q`/`r` coordinates only.
+- Edge terrain uses the canonical pair of adjacent axial endpoints from the
+  scenario map. Each edge is rendered once and uses the same pointy-top hex
+  geometry as the board; a unit cannot occupy an edge.
 - Range, reachability, selection, and combat overlays use the same board
   geometry as the renderer.
 - Zoom supports mouse wheel and a floating lower-left slider overlay while
@@ -44,7 +47,8 @@ objective display, and visual state rules.
   inactive viewer may inspect the same units but does not receive actionable
   highlights.
 - The selected unit's hex is distinctly highlighted and reachable hexes use a
-  subtle green overlay.
+  subtle green overlay. Reachability uses the shared edge-aware planner, so
+  class-prohibited ridges and stream surcharges affect which hexes light up.
 - Left-click selects a unit; empty map space deselects.
 - Right-clicking a reachable hex submits the move.
 - If an Onion move traverses an occupied defender hex and rams remain, the UI
@@ -75,7 +79,9 @@ objective display, and visual state rules.
 
 ### Targeting and Confirmation
 
-- Selecting attackers shows an orange combat-range overlay.
+- Selecting attackers shows an orange combat-range overlay on a transparent
+  top layer. The overlay reveals the map, edge terrain, and unit sprites below
+  it and does not intercept map interaction.
 - The right rail shows legal targets and confirmation while attacker selection
   is active.
 - Target lists apply range and target-rule filtering; illegal targets are not
@@ -96,7 +102,10 @@ objective display, and visual state rules.
 Sprite asset lookup, map positioning, Inspector sizing, and hatch rendering are
 owned by the [unit-presentation specification](unit-presentation-spec.md).
 Map unit identity comes from the resolved sprite key; movement/range overlays
-and selected-target outlines are separate from the sprite.
+and selected-target outlines are separate from the sprite. Static map content
+is layered as base map, whole-hex terrain, edge terrain, and unit sprites;
+movement and firing-range overlays sit above the unit sprites. Ridge and stream
+edges do not affect target eligibility, range, line of fire, or combat odds.
 
 | View | Destroyed Defender presentation |
 | --- | --- |

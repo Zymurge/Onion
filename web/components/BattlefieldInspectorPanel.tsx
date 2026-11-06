@@ -60,8 +60,7 @@ export function BattlefieldInspectorPanel({
       selectedUnitDefinition?.spriteKey,
       selectedUnit.state,
       selectedUnit.role === 'onion' && (
-        selectedUnit.typeId === 'TheOnionDamaged'
-          || (selectedUnit.treads !== undefined && selectedUnit.treads < 45)
+        (selectedUnit.treads !== undefined && selectedUnit.treads < 45)
           || selectedUnit.weapons.some((weapon) => weapon.state === 'destroyed')
       ),
     )
