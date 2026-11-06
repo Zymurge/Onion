@@ -1,8 +1,8 @@
 # Issue #76: Hexside Terrain Model for Ridges and Streams
 
-**Status:** Investigation complete; design decisions and implementation not approved
+**Status:** Design decisions recorded; implementation not approved
 **Issue:** [Investigate hexside terrain model for ridges and streams](https://github.com/Zymurge/Onion/issues/76)
-**Scope:** Design and impact assessment only. Do not implement from this document without approving the open rule decisions and migration plan.
+**Scope:** Design and impact assessment only. This document does not authorize implementation.
 
 ## Summary
 
@@ -11,11 +11,12 @@ does not represent a ridge or stream that lies between two hexes. The movement
 planner, validator, combat calculator, scenario schema, snapshots, and web map
 all currently inherit the whole-hex assumption.
 
-The repository verifies current ridge behavior, but it does not define stream
-rules or establish the intended combat effect of an edge ridge. The proposed
-direction is to represent a hexside by its two adjacent endpoint hexes and
-store it once as an undirected edge. Implement ridge migration first; settle
-stream behavior before implementing stream rules.
+The repository verifies current ridge behavior, while the rules clarified for
+this work item define class-based ridge crossing and stream movement effects.
+Represent a hexside by its two adjacent endpoint hexes and store it once as an
+undirected edge. This work may establish a reusable terrain-rule model for
+future terrain such as forests, but forest behavior and scenario placements
+are out of scope.
 
 ## Evidence And Confidence
 
@@ -34,12 +35,15 @@ stream behavior before implementing stream rules.
   terrain separately before calling the pathfinder. An edge-based change must
   keep this check consistent with pathfinding.
 - [shared/movementRules.ts](../../shared/movementRules.ts) maps `t=1` to
-  `ridgeline`. Ridge movement cost and permission come from unit terrain rules;
-  crater terrain is impassable.
+  `ridgeline`. Ridge movement cost and permission currently come from
+  per-unit terrain rules; crater terrain is impassable.
 - [shared/config/unitCatalog.json](../../shared/config/unitCatalog.json)
-  grants ridge crossing to `LittlePigs`, `TheOnion`, and `TheOnionDamaged`.
-  `LittlePigs` has `movementCost: 1` and `canAccessCover: true`; the Onion
-  variants have `canCross: true`. Other listed types have no ridge rule.
+  currently attaches `terrainRules`, `isArmor`, and `ramProfile` to individual
+  unit definitions. There is no canonical unit-class field or class-level
+  movement/ram rule lookup today. Current ridge crossing is allowed for
+  `LittlePigs` and `TheOnion`; `LittlePigs` has `movementCost: 1`, while the
+  Onion uses the default ridge cost of 2. Other listed unit types have no
+  ridge crossing rule.
 - [shared/staticRules.ts](../../shared/staticRules.ts) sets a ridgeline defense
   multiplier of 2. [shared/combatCalculator.ts](../../shared/combatCalculator.ts)
   applies it to a target when the target's unit definition permits terrain
@@ -59,17 +63,15 @@ stream behavior before implementing stream rules.
   the legacy map's deprecated line-of-sight helper is not evidence for the
   intended edge semantics.
 
-### Not Established By Repository Evidence
+### Decisions Recorded For This Work Item
 
-- Stream crossing permissions, costs, or movement-phase effects.
-- Whether ridge edges affect combat, and if so, how attack direction matters.
-- Whether any unit class can cross streams or ridges beyond the current catalog
-  flags.
-- Any assertion that official Ogre rules require a particular combat outcome.
-  Verify intended rules against an approved project source before changing
-  combat behavior.
-- Whether stored matches persist an authored scenario snapshot that needs an
-  explicit storage migration. Trace this before implementation.
+- The canonical edge records both adjacent endpoints, and runtime map snapshots
+  carry a required edge array.
+- Unit classes and ridge/stream movement behavior are specified below.
+- Ridges and streams do not affect fire from or across them; ridges provide no
+  defensive bonus.
+- All pre-existing games will be deleted before the new snapshot contract is
+  enforced. No legacy-game compatibility or translation is required.
 
 ## Proposed Canonical Edge Contract
 
@@ -89,7 +91,14 @@ Treat the edge as **undirected**. Canonicalize endpoint order by ascending `q`,
 then ascending `r`, and use the normalized pair for lookup and duplicate
 detection. A step from `a` to `b` and a step from `b` to `a` must resolve to the
 same edge. Keep authored endpoints explicit; canonicalization is a shared
-validation/materialization responsibility, not client-side inference.
+validation/materialization responsibility, not client-side inference. This
+endpoint-pair representation is approved for the plan, and both endpoints are
+stored in authored and runtime edge records.
+
+The runtime map and `ScenarioMapSnapshot` always include a required
+`edges: ScenarioTerrainEdge[]` property, including an empty array when there
+are no edge features. Authored maps may omit `edges` when they define none;
+materialization normalizes that authoring form to the required runtime array.
 
 Example (illustrative shape only; not a scenario change):
 
@@ -115,14 +124,12 @@ authored scenario data.
 - Require both endpoints to belong to the materialized `cells` set.
 - Reject duplicate normalized endpoint pairs, including reversed duplicates.
 - Reject conflicting terrain kinds on one edge; do not silently choose one.
-- Decide explicitly whether omitted authored `edges` is allowed for existing
-  clear-only scenarios. Regardless of authoring defaults, runtime snapshots
-  must have one canonical shape and must not infer edge data from legacy
-  ridgeline hexes.
+- Omitted authored `edges` is allowed when a map defines no edge features;
+  materialized maps and runtime snapshots always include the array.
 - Keep whole-hex terrain for terrain that genuinely occupies a cell, such as
-  craters. Define the handling of legacy `t=1` separately: migrate the known
-  scenarios or fail validation with an actionable error; do not reinterpret
-  `t=1` silently.
+  craters and potential future forest terrain. Legacy ridge encodings are
+  removed; backward translation and migration are out of scope. Pre-existing
+  scenarios that define ridges will be updated outside this implementation.
 
 ## Rule Decisions
 
@@ -130,50 +137,121 @@ authored scenario data.
 
 | Unit type ID | Current ridge catalog data | Current implication |
 | --- | --- | --- |
-| `LittlePigs` | `canCross: true`, `movementCost: 1`, `canAccessCover: true` | Can enter a whole-hex ridge at cost 1; can receive current ridge cover modifier. |
-| `TheOnion` | `canCross: true` | Can enter a whole-hex ridge; default ridge cost is 2. |
-| `TheOnionDamaged` | `canCross: true` | Same catalog rule as `TheOnion`. |
-| `Puss`, `BigBadWolf`, `Witch`, `Pinocchio`, `Dragon` | No ridge terrain rule | Cannot enter a whole-hex ridge under current shared movement rules. |
-| `Farquaad`, `Swamp` | No ridge terrain rule; both are immobile | No practical movement crossing under their current mobility rules. |
+| `LittlePigs` | `canCross: true`, `movementCost: 1`, `canAccessCover: true` | Current whole-hex rule permits entry. The new ridge rule has no crossing cost and provides no defensive bonus. |
+| `TheOnion` | `canCross: true` | Current whole-hex rule permits entry; new ridge crossing has no movement cost. |
+| `Puss`, `BigBadWolf`, `Witch`, `Pinocchio`, `Dragon` | No ridge terrain rule | Current whole-hex rules do not permit entry; the approved class matrix also blocks these classes from crossing ridges. |
+| `Farquaad`, `Swamp` | No ridge terrain rule; both are immobile | Their approved classes are Artillery and Command; immobility currently prevents movement. |
 
-The class labels sometimes used in conversation (for example, “infantry,”
-“Ogre,” or “Superheavy”) are not substitutes for these catalog type IDs.
-Do not infer rules for streams or rename catalog capabilities based on class
-labels without an approved rules decision.
+### Required Unit Classes
+
+Add a canonical unit class for every unit definition. Classes are rule
+categories, not replacements for unit type IDs. Every type inherits movement
+and ram rules from its class; unit-specific properties such as immobility and
+second-move eligibility remain explicit where needed.
+
+Approved class assignments:
+
+| Unit type ID | Unit class |
+| --- | --- |
+| `LittlePigs` | Infantry |
+| `Puss`, `Witch`, `Pinocchio` | Light Armor |
+| `Dragon` | Heavy Armor |
+| `BigBadWolf` | GEV |
+| `Swamp` | Command |
+| `Farquaad` | Artillery |
+| All Onion unit types | Onion |
+
+Represent these as stable class identifiers in the catalog/schema (for
+example, `infantry`, `lightArmor`, `heavyArmor`, `gev`, `command`, `artillery`,
+and `onion`) while preserving the display labels above. “All Onion unit types”
+means unit definitions in the Onion class, not a sprite-only variant.
+
+Current per-unit ram data to consolidate by class:
+
+| Unit class | Current ram behavior to preserve in class rules |
+| --- | --- |
+| Infantry | Little Pigs rammed-target profile: 0 tread loss; destroyed on roll at most 4. |
+| Light Armor | Puss, Witch, and Pinocchio rammed-target profile: 1 tread loss; destroyed on roll at most 4. |
+| Heavy Armor | Dragon rammed-target profile: 2 tread loss; destroyed on roll at most 4. |
+| GEV | Big Bad Wolf rammed-target profile: 1 tread loss; destroyed on roll at most 4. |
+| Command | Swamp rammed-target profile: 1 tread loss; destroyed on roll at most 4. |
+| Artillery | Farquaad rammed-target profile: 1 tread loss; destroyed on roll at most 4. |
+| Onion | Attacker capability: can ram, capacity 2, and 2 rams per turn. Preserve Onion's separate tread-damage and ram-resolution behavior. |
 
 ### Edge-Aware Movement Contract
 
-For every path step, the shared planner should evaluate both the current and
-next cell, then look up the canonical edge between them. The destination
-whole-hex terrain remains a separate check. This applies to reachable moves,
-pathfinding, and authoritative validation; occupancy and stacking remain
-hex-based.
+For every path step, the shared planner evaluates both the current and next
+cell, looks up the canonical edge between them, and applies the class rule for
+that terrain edge. Edge effects are bidirectional. It then applies the normal
+destination-hex entry rule. Edge cost and destination-hex cost combine; a move
+is unavailable when the unit lacks enough movement allowance for both. This
+applies to reachable moves, pathfinding, GEV second moves, and authoritative
+validation; occupancy and stacking remain hex-based.
 
-Before implementation, define a shared edge rule contract that answers:
+### Clarified Terrain Behavior
 
-- Is crossing prohibited for a unit, or allowed at a modified cost?
-- Does a catalog value mean total step cost or an additional edge cost?
-- Can an edge and destination terrain penalty combine, and how?
-- Are effects symmetric in both crossing directions?
-- How do multi-step routes, movement allowance, and GEV second move treat the
-  edge?
-- How are errors distinguished when a path fails because of an edge?
+- **Ridge:** Crossing is either allowed or prohibited by unit class. Crossing
+  is bidirectional and adds no movement cost. `LittlePigs` no longer receives a
+  ridge defense bonus; ridge edges do not modify fire from or across them.
+- **Stream:** Light armor is delayed; heavy armor, infantry, GEV, and Onion are
+  unaffected. Streams do not modify fire from or across them. The numeric
+  cost is 2 MP total to enter a clear destination across a stream: normal
+  destination entry costs 1 MP and the stream adds a +1 MP surcharge. The
+  destination terrain cost is still applied normally.
+- **Future terrain:** The shared rules design should support centrally defined
+  movement behavior by terrain type and unit class, including both edge
+  terrain and whole-hex terrain. Forest is an example of a future terrain type,
+  not part of this implementation.
 
-Prefer shared rules and `RulesContext` as the lookup boundary, consistent with
-current movement ownership. Whether unit permissions stay in
-`unitCatalog.json` or move to a shared edge-rule table depends on the approved
-semantics; do not add guessed stream values to the catalog.
+Use shared rules and `RulesContext` as the lookup boundary. Unit definitions
+identify their class; a centralized class-by-terrain rules table owns crossing
+permission and cost. Unit definitions inherit those movement rules rather than
+copying per-unit terrain rules. The same class lookup should own class-based
+ram behavior. Class-level ram rules must distinguish attacker capabilities
+(such as `canRam`, capacity, and per-turn limits) from a unit's outcome profile
+when it is rammed. Both belong to class rules rather than duplicated per-unit
+terrain or ram settings.
 
-### Combat Decision (Unresolved)
+Approved class-by-terrain movement matrix, using edge surcharge semantics:
 
-Current code doubles defense for eligible targets on whole-hex ridgelines.
-Do not remove or preserve this behavior by assumption. Decide whether an edge
-ridge is movement-only or affects combat. If it affects combat, specify how
-the target side and attack line interact with the edge and identify the shared
-combat input needed to evaluate that geometry. If no approved rule supports
-edge-based cover, retain no edge-derived combat modifier. Update
-`shared/staticRules.ts`, `shared/combatCalculator.ts`, preview behavior, and
-tests only after this decision is recorded.
+| Unit class | Ridge | Stream |
+| --- | --- | --- |
+| Infantry | Allowed, +0 MP | Allowed, +0 MP |
+| Light Armor | Prohibited | Allowed, +1 MP surcharge |
+| Heavy Armor | Prohibited | Allowed, +0 MP |
+| GEV | Prohibited | Allowed, +0 MP |
+| Command | Immobile; no movement | Immobile; no movement |
+| Artillery | Immobile; no movement | Immobile; no movement |
+| Onion | Allowed, +0 MP | Allowed, +0 MP |
+
+Ridge permission is a barrier by class, not a movement surcharge: Infantry and
+Onion may cross, while Light Armor, Heavy Armor, and GEV may not. Command and
+Artillery units do not move under their current unit rules. Stream permissions
+and costs are the clarified requirements. An edge contributes a surcharge
+(zero by default), then the destination hex contributes its normal entry cost.
+For example, Light Armor crossing a stream into clear terrain costs
+$1 + 1 = 2$ MP. If destination terrain costs more than 1 MP, that cost is added
+too. A move is unavailable when the combined cost exceeds remaining movement
+allowance.
+
+For path failures caused by an impassable edge, retain the existing top-level
+action error `MOVE_INVALID` and shared validation code `NO_PATH`. Add a
+specific `prohibited-edge` detail code and propagate it through the server
+movement adapter to the action response. This is preferable to a new
+top-level validation code: the move still fails because no legal path exists,
+while callers that need a specific message can distinguish an edge barrier.
+Keep generic no-route failures as `NO_PATH` without that detail. Add parity
+tests for shared validation and the API response. The current server adapter
+drops the shared validator's optional detail code, so propagation is part of
+the required change.
+
+### Combat Behavior (Clarified)
+
+Ridges and streams do not affect fire from or across them. Remove the
+whole-hex ridgeline defense behavior, including the Little Pigs cover
+capability. Update `shared/staticRules.ts`, `shared/combatCalculator.ts`,
+combat preview behavior, and tests so combat does not receive ridge/stream
+modifiers.
 
 ## Contracts, Snapshots, And Persistence
 
@@ -194,12 +272,16 @@ Likely implementation surfaces:
   inputs.
 - Scenario schema docs, map examples, fixtures, and tests.
 
-The snapshot policy in [snapshot-deprecation-policy.md](../snapshot-deprecation-policy.md)
-prohibits silent compatibility inference. Therefore old snapshots missing a
-required canonical edge field must either be explicitly versioned/migrated or
-rejected. Before choosing, inspect how game records persist scenario data and
-which old matches can still be loaded. Do not assume a database migration is
-or is not needed based only on the API type.
+The [persistence spec](../persistence.md) confirms the full scenario snapshot
+is stored on the match row as JSONB; `game_state` does not own map terrain. A
+required `edges` field does not require a relational-column migration, but it
+does change the accepted shape of stored scenario JSON and the API snapshot.
+The [snapshot policy](../snapshot-deprecation-policy.md) prohibits silent
+compatibility inference. Do not translate old ridge data. All pre-existing
+games will be deleted before the new contract is enforced, so no legacy-game
+reader or snapshot migration is needed. Treat that deletion as an operational
+rollout prerequisite; this implementation does not add data translation or
+automatic deletion logic.
 
 ## Web Rendering Proposal
 
@@ -223,13 +305,13 @@ supported zoom levels and distinguish ridge from stream without color alone.
 
 ### Authored Data
 
-- Migrate the 14 `t=1` entries in `scenarios/onion-ring-iii.json` and the 5 in
-  `scenarios/swamp-siege-01.json` to explicit ridge edges after the map layout
-  and rule mapping are approved.
-- Update `docs/scenario-schema.md` and the example that currently documents
-  `t=1` as ridgeline.
-- Search all fixtures and snapshots before implementation; test usage is much
-  broader than the two shipped scenarios.
+- Do not migrate scenario files as part of this implementation. Pre-existing
+  scenarios defining ridges will be updated externally; the new schema and
+  runtime model do not translate legacy ridge values.
+- Update `docs/scenario-schema.md` to document the new edge and unit-class
+  contracts and remove the legacy ridge encoding.
+- Update canonical fixtures and tests to the new contract. Keep test migration
+  within scope even though authored scenario migration is external.
 
 ### Focused Tests To Update Or Add
 
@@ -260,34 +342,37 @@ this investigation document.
 
 ## Suggested Implementation Slices
 
-1. **Approve rules and edge contract:** settle ridge crossing costs, stream
-   semantics, combat impact, edge naming, and authored/runtime optionality.
-2. **Add shared edge identity and schema:** define the canonical edge type/key,
-   validate adjacency and membership, and test compact/explicit materialization.
-3. **Migrate ridge movement:** make planner, validator, and server adapter use
-   edge context; convert existing ridge scenarios and focused movement tests.
-4. **Update snapshots and clients:** project canonical edges through API and
-   web snapshot validation; resolve persisted-match compatibility explicitly.
+1. **Add shared unit classes and rules:** add class metadata, resolve classes
+  through `RulesContext`, and centralize movement and ram rules by class and
+  terrain type. Define extension points for future terrain such as forests;
+  do not add forest mechanics.
+2. **Add edge identity and schema:** define canonical undirected edges, validate
+  adjacency and map membership, and test compact/explicit materialization.
+3. **Implement ridge and stream movement:** make planner, validator, and server
+  adapter use edge context; combine edge cost with destination terrain entry
+  cost, propagate the `prohibited-edge` detail code, and test multi-step and GEV
+  second-move behavior.
+4. **Update snapshots and clients:** project required canonical edges through
+  API and web snapshot validation. Delete all existing games before enforcing
+  the new snapshot contract.
 5. **Render edges:** add a deterministic SVG overlay and focused rendering
-   tests; remove whole-hex ridge presentation after scenario migration.
-6. **Implement streams separately:** only after stream rules are approved;
-   avoid adding stream behavior or scenario placements as part of ridge-only
-   work.
-7. **Align combat if required:** remove or redesign the old whole-hex ridge
-   modifier only according to the approved combat contract.
+  tests; remove whole-hex ridge presentation. Do not migrate scenario files.
+6. **Remove ridge combat effects:** remove the old whole-hex defense modifier
+  and cover capability; verify combat and preview parity.
 
 ## Recommendation
 
-**Split the work.** First approve and implement the canonical edge contract and
-ridge migration. Keep stream movement rules and scenario placements as a
-separate follow-up because no stream semantics are currently defined in the
-repository. Treat combat as an explicit decision within the ridge phase, not
-an automatic consequence of changing the map representation.
+**Proceed with one edge-terrain and class-rules foundation, but keep forest
+mechanics and external scenario updates out of scope.** Ridge and stream
+movement rules, unit classes, endpoint representation, and combat behavior are
+specified. Delete all existing games before enforcing the required new
+snapshot contract; no compatibility translation is in scope.
 
-Before implementation, record decisions on:
+Implementation constraints:
 
-- Canonical endpoint-pair representation and runtime snapshot shape.
-- Ridge crossing semantics for current catalog types.
-- Stream permissions, costs, and any phase-specific behavior.
-- Whether ridges affect combat and the required directional inputs.
-- Legacy `t=1` rejection or migration, plus persisted-match compatibility.
+- Keep unit-class movement and ram rules centralized and resolved through
+  `RulesContext`.
+- Require runtime snapshots to carry `edges`, even when empty.
+- Use `MOVE_INVALID` with `NO_PATH` and an edge-specific `prohibited-edge`
+  detail for ridge barriers.
+- Delete old game rows before rollout; do not translate old scenario snapshots.
