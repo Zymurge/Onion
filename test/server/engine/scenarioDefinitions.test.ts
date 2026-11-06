@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveScenarioDefinitions } from '#server/engine/scenarioDefinitions'
+import { createScenarioRulesContext, resolveScenarioDefinitions } from '#server/engine/scenarioDefinitions'
 import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { getUnitClassRule } from '#shared/classRules'
 
@@ -29,6 +29,16 @@ describe('scenario-local unit definition resolution', () => {
         overrides: { unitClass: 'Onion' },
       },
     } as never)).toThrow(/unitClass/i)
+  })
+
+  it('exposes frozen class rules for scenario-derived unit types', () => {
+    const rules = createScenarioRulesContext(scenarioId, derivedUnitTypes)
+    const derived = rules.getRequiredUnitDefinition('override-contract:ScenarioPuss')
+
+    expect(rules.classRules.LightArmor).toBe(getUnitClassRule('LightArmor'))
+    expect(Object.isFrozen(rules.classRules)).toBe(true)
+    expect(Object.isFrozen(rules.classRules.LightArmor)).toBe(true)
+    expect(rules.getUnitClassRule(derived.unitClass)).toBe(rules.classRules.LightArmor)
   })
 
   it('resolves a derived type into a namespaced immutable catalog entry', () => {

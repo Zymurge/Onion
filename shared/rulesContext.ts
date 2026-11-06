@@ -1,5 +1,5 @@
 import type { CombatStaticRules } from './combatCalculator.js'
-import { getUnitClassRule as getCanonicalUnitClassRule } from './classRules.js'
+import { UNIT_CLASS_RULES } from './classRules.js'
 import { ONION_STATIC_RULES } from './staticRules.js'
 import type {
   UnitClass,
@@ -16,6 +16,7 @@ import { getUnitTypeCatalog, getWeaponTypeCatalog } from './unitDefinitions.js'
 export type RulesContext = {
   unitTypes: UnitTypeCatalog
   weaponTypes: WeaponTypeCatalog
+  classRules: Readonly<Record<UnitClass, UnitClassRule>>
   combatRules: CombatStaticRules
   getUnitDefinition(typeId: UnitType): UnitTypeBase | undefined
   getRequiredUnitDefinition(typeId: UnitType): UnitTypeBase
@@ -55,9 +56,11 @@ export function createRulesContext(
     return [unitTypeId, { ...definition, weapons, weaponQuantities }]
   })) as UnitTypeCatalog
   const weaponTypes = structuredClone(definitions.weaponTypes)
+  const classRules = UNIT_CLASS_RULES
   const context: RulesContext = {
     unitTypes,
     weaponTypes,
+    classRules,
     combatRules: { ...ONION_STATIC_RULES, unitTypes },
     getUnitDefinition(typeId) {
       return unitTypes[typeId]
@@ -70,7 +73,7 @@ export function createRulesContext(
       return definition
     },
     getUnitClassRule(unitClass) {
-      return getCanonicalUnitClassRule(unitClass)
+      return classRules[unitClass]
     },
     getWeaponType(typeId) {
       const weaponType = weaponTypes[typeId]
