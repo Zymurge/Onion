@@ -1,4 +1,7 @@
-import { createAxialRegion, hexKey, type HexPos } from './axialHex.js'
+import { createAxialRegion, hexDistance, hexKey, type HexPos } from './axialHex.js'
+import type { ScenarioTerrainEdge } from './types/index.js'
+
+export type { ScenarioEdgeTerrain, ScenarioTerrainEdge } from './types/index.js'
 
 export type ScenarioTerrainHex = {
 	q: number
@@ -11,12 +14,18 @@ export type ExplicitScenarioMap = {
 	height: number
 	cells: HexPos[]
 	hexes: ScenarioTerrainHex[]
+	edges: ScenarioTerrainEdge[]
+}
+
+type AuthoredExplicitScenarioMap = Omit<ExplicitScenarioMap, 'edges'> & {
+	edges?: ScenarioTerrainEdge[]
 }
 
 export type CompactHexScenarioMap = {
 	shape: 'hex'
 	size: number
 	hexes: ScenarioTerrainHex[]
+	edges?: ScenarioTerrainEdge[]
 }
 
 export type CompactRectangleScenarioMap = {
@@ -24,12 +33,55 @@ export type CompactRectangleScenarioMap = {
 	width: number
 	height: number
 	hexes: ScenarioTerrainHex[]
+	edges?: ScenarioTerrainEdge[]
 }
 
-export type AuthoredScenarioMap = ExplicitScenarioMap | CompactHexScenarioMap | CompactRectangleScenarioMap
+export type AuthoredScenarioMap = AuthoredExplicitScenarioMap | CompactHexScenarioMap | CompactRectangleScenarioMap
 
 function buildCellLookup(cells: ReadonlyArray<HexPos>): Set<string> {
 	return new Set(cells.map(hexKey))
+}
+
+function compareEdges(left: ScenarioTerrainEdge, right: ScenarioTerrainEdge): number {
+	if (left.a.q !== right.a.q) return left.a.q - right.a.q
+	if (left.a.r !== right.a.r) return left.a.r - right.a.r
+	if (left.b.q !== right.b.q) return left.b.q - right.b.q
+	return left.b.r - right.b.r
+}
+
+function isCanonicalEndpointOrder(edge: ScenarioTerrainEdge): boolean {
+	return edge.a.q < edge.b.q || (edge.a.q === edge.b.q && edge.a.r < edge.b.r)
+}
+
+/** Validates canonical scenario edge geometry against the materialized cells. */
+export function validateCanonicalEdges(
+	edges: ReadonlyArray<ScenarioTerrainEdge>,
+	cells: ReadonlyArray<HexPos>,
+): void {
+	const cellLookup = buildCellLookup(cells)
+
+	for (let index = 0; index < edges.length; index += 1) {
+		const edge = edges[index]
+		if (!cellLookup.has(hexKey(edge.a)) || !cellLookup.has(hexKey(edge.b))) {
+			throw new Error(`Scenario edge endpoint is outside the map at (${edge.a.q}, ${edge.a.r})-(${edge.b.q}, ${edge.b.r})`)
+		}
+		if (hexDistance(edge.a, edge.b) !== 1) {
+			throw new Error(`Scenario edge endpoints must be adjacent at (${edge.a.q}, ${edge.a.r})-(${edge.b.q}, ${edge.b.r})`)
+		}
+		if (!isCanonicalEndpointOrder(edge)) {
+			throw new Error(`Scenario edge endpoints must be in canonical order at index ${index}`)
+		}
+
+		if (index > 0) {
+			const comparison = compareEdges(edges[index - 1], edge)
+			if (comparison === 0) {
+				throw new Error(`Scenario edge endpoint pair is duplicated at index ${index}`)
+			}
+			if (comparison > 0) {
+				throw new Error(`Scenario edges must be in canonical order at index ${index}`)
+			}
+		}
+	}
 }
 
 /**
@@ -47,6 +99,7 @@ export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenar
 				height: map.height,
 				cells: map.cells,
 				hexes: map.hexes,
+				edges: map.edges ?? [],
 			}
 			: materializeCompactMap(map)
 
@@ -60,8 +113,18 @@ export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenar
 			throw new Error(`Scenario terrain hex is outside the map at (${hex.q}, ${hex.r})`)
 		}
 	}
+	validateCanonicalEdges(materialized.edges, materialized.cells)
 
-	return materialized
+	return {
+		...materialized,
+		cells: materialized.cells.map((cell) => ({ ...cell })),
+		hexes: materialized.hexes.map((hex) => ({ ...hex })),
+		edges: materialized.edges.map((edge) => ({
+			...edge,
+			a: { ...edge.a },
+			b: { ...edge.b },
+		})),
+	}
 }
 
 function materializeCompactMap(map: CompactHexScenarioMap | CompactRectangleScenarioMap): ExplicitScenarioMap {
@@ -76,6 +139,7 @@ function materializeCompactMap(map: CompactHexScenarioMap | CompactRectangleScen
 			height: map.size,
 			cells: createAxialRegion(radius, { q: radius, r: radius }).cells,
 			hexes: map.hexes.map((hex) => ({ ...hex })),
+			edges: map.edges?.map((edge) => ({ ...edge, a: { ...edge.a }, b: { ...edge.b } })) ?? [],
 		}
 	}
 
@@ -95,6 +159,7 @@ function materializeCompactMap(map: CompactHexScenarioMap | CompactRectangleScen
 		height: map.height,
 		cells,
 		hexes: map.hexes.map((hex) => ({ ...hex })),
+		edges: map.edges?.map((edge) => ({ ...edge, a: { ...edge.a }, b: { ...edge.b } })) ?? [],
 	}
 }
 

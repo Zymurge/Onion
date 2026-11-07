@@ -65,9 +65,13 @@ We use an **Axial Coordinate System** (q, r) where:
 ### Hex Terrain Types
 
 - `0`: Clear
-- `2`: Crater
-- `3`: The Swamp (Objective)
-- `1`: Legacy ridgeline encoding; rejected. Ridges are authored as edge terrain.
+- `1`: Crater
+- `2`: The Swamp (Objective)
+
+Whole-hex terrain codes are contiguous and assigned in this order. Ridge and
+stream are edge terrain types, not whole-hex terrain codes. New whole-hex
+terrain types receive the next unused code when introduced; unsupported codes
+are invalid.
 
 ### Edge Terrain
 
@@ -79,12 +83,13 @@ axial cells. An authored edge has this shape:
 ```
 
 `type` is `ridge` or `stream`. Endpoints must be distinct, adjacent cells and
-must both belong to the materialized map's `cells` set. Endpoints are stored in
-canonical order by ascending `q`, then ascending `r`; reversed authored pairs
-are invalid rather than silently sorted. Duplicate endpoint pairs, including
-reversed duplicates, and conflicting terrain kinds are invalid. Authored maps
-may omit `edges` when they have no edge terrain. Runtime and API snapshots
-always contain `edges`, including an empty array.
+must both belong to the materialized map's `cells` set. Each edge stores its
+endpoints in ascending `(q, r)` order. Edge records themselves must be sorted
+lexicographically by `(a.q, a.r, b.q, b.r)`. Reversed endpoints and
+out-of-order edge records are invalid rather than silently sorted. Duplicate
+endpoint pairs, including reversed duplicates, and conflicting terrain kinds
+are invalid. Authored maps may omit `edges` when they have no edge terrain.
+Runtime and API snapshots always contain `edges`, including an empty array.
 
 Edge terrain is movement data, not whole-hex terrain. A unit cannot occupy an
 edge, and ridges and streams do not modify combat.
@@ -120,7 +125,7 @@ polygon maps are deferred to v2. Runtime and API maps continue to use explicit
     "shape": "hex",
     "size": 15,
     "hexes": [
-      { "q": 7, "r": 7, "t": 3 }
+      { "q": 7, "r": 7, "t": 2 }
     ],
     "edges": [
       { "type": "ridge", "a": { "q": 8, "r": 0 }, "b": { "q": 9, "r": 0 } }

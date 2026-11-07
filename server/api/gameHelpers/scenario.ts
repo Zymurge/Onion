@@ -56,7 +56,8 @@ export function parseScenarioSnapshot(raw: unknown): ValidatedScenarioSnapshot {
 
     return materialized as ValidatedScenarioSnapshot
   } catch (error) {
-    throw new ScenarioValidationError('Scenario map is invalid', { cause: error })
+    const detail = error instanceof Error ? `: ${error.message}` : ''
+    throw new ScenarioValidationError(`Scenario map is invalid${detail}`, { cause: error })
   }
 }
 

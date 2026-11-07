@@ -8,11 +8,87 @@ describe('scenarioMap materialization', () => {
 
 		expect(map.width).toBe(5)
 		expect(map.height).toBe(5)
+		expect(map.edges).toEqual([])
 		expect(map.cells).toHaveLength(19)
 		expect(map.cells).toContainEqual({ q: 0, r: 2 })
 		expect(map.cells).toContainEqual({ q: 2, r: 0 })
 		expect(map.cells).toContainEqual({ q: 4, r: 0 })
 		expect(map.cells).not.toContainEqual({ q: 0, r: 0 })
+	})
+
+	it('materializes canonical edges for compact and explicit maps', () => {
+		const edges = [
+			{ type: 'ridge' as const, a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+			{ type: 'stream' as const, a: { q: 0, r: 1 }, b: { q: 1, r: 1 } },
+		]
+
+		const compact = materializeScenarioMap({ shape: 'rectangle', width: 2, height: 2, hexes: [], edges })
+		const explicit = materializeScenarioMap({
+			width: 2,
+			height: 2,
+			cells: compact.cells,
+			hexes: [],
+			edges,
+		})
+
+		expect(compact.edges).toEqual(edges)
+		expect(explicit.edges).toEqual(edges)
+	})
+
+	it('rejects edge endpoints outside the map', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 2,
+			height: 2,
+			hexes: [],
+			edges: [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 2, r: 0 } }],
+		})).toThrow('Scenario edge endpoint is outside the map')
+	})
+
+	it('rejects non-adjacent edges', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 3,
+			height: 3,
+			hexes: [],
+			edges: [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 2, r: 0 } }],
+		})).toThrow('Scenario edge endpoints must be adjacent')
+	})
+
+	it('rejects reversed endpoint order', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 2,
+			height: 2,
+			hexes: [],
+			edges: [{ type: 'ridge', a: { q: 1, r: 0 }, b: { q: 0, r: 0 } }],
+		})).toThrow('Scenario edge endpoints must be in canonical order')
+	})
+
+	it('rejects duplicate endpoint pairs and conflicting edge kinds', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 2,
+			height: 2,
+			hexes: [],
+			edges: [
+				{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+				{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+			],
+		})).toThrow('Scenario edge endpoint pair is duplicated')
+	})
+
+	it('rejects edge records that are out of canonical order', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 2,
+			height: 2,
+			hexes: [],
+			edges: [
+				{ type: 'stream', a: { q: 0, r: 1 }, b: { q: 1, r: 1 } },
+				{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+			],
+		})).toThrow('Scenario edges must be in canonical order')
 	})
 
 	it('keeps terrain and authored positions in the generated map coordinate space', () => {

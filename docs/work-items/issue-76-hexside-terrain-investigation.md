@@ -141,15 +141,21 @@ authored scenario data.
 
 - Require endpoints to be distinct adjacent cells (`hexDistance(a, b) === 1`).
 - Require both endpoints to belong to the materialized `cells` set.
-- Require canonical endpoint order. Reject a reversed pair instead of sorting
-  it at game start or on snapshot read.
+- Require canonical endpoint order and canonical edge-array order. Reject
+  reversed endpoints and out-of-order records instead of sorting them at game
+  start or on snapshot read.
+- Sort edge records lexicographically by `(a.q, a.r, b.q, b.r)` after endpoint
+  canonicalization. Endpoint-pair uniqueness means no type tie-breaker is needed.
 - Reject duplicate endpoint pairs, including reversed duplicates.
 - Reject conflicting terrain kinds on one edge; do not silently choose one.
 - Omitted authored `edges` is allowed when a map defines no edge features;
   materialized maps and runtime snapshots always include the array.
-- Keep whole-hex terrain for terrain that genuinely occupies a cell, such as
-  craters and potential future forest terrain. Reject `t=1`. Keep `t=2` as
-  crater. Do not infer an edge from a legacy ridge hex.
+- Remap whole-hex terrain codes contiguously: `0` clear, `1` crater, and `2`
+  The Swamp. Ridge and stream remain distinct edge terrain types. When updating
+  existing scenario files, convert old `t=1` ridge features to explicit edges,
+  old crater `t=2` to `t=1`, and old swamp `t=3` to `t=2`. Do not infer old
+  ridge edges at runtime; unsupported whole-hex codes are invalid until a new
+  terrain type is explicitly introduced.
 - `pnpm scenario:validate` (`scripts/validate-scenario.ts`) is the development
   gate. It already delegates to `parseScenarioSnapshot`; extend that shared
   parser and the script's error text so an endpoint-pairing failure names the
@@ -367,8 +373,9 @@ layer unless a later change says otherwise.
 
 - Do not translate legacy ridge hexes. There is no legacy-support window.
   The user deletes existing game rows manually before starting new games.
-- Reject authored `t=1`. Keep `t=2` as the whole-hex crater code. Do not infer
-  an edge from an old ridge hex.
+- Convert old `t=1` ridge features to explicit edges in scenario source data;
+  remap crater `t=2` to `t=1` and swamp `t=3` to `t=2`. Runtime parsing does
+  not infer edges from whole-hex terrain codes.
 - Update every scenario file loaded by unit, integration, or end-to-end tests
   to the new edge contract in this work. Run `pnpm scenario:validate` on each
   updated file. A ridge hex still cannot be mechanically converted into one
@@ -443,15 +450,17 @@ Tasks:
 - Record that ridges and streams do not affect fire, that ridgeline cover is
   removed, and that class rules are resolved through `RulesContext`.
 - Update `docs/scenario-schema.md` with the authored `edges` shape, endpoint
-  validity rules, canonical ordering, optional-authored versus required-runtime
-  `edges`, rejection of legacy `t=1`, and the scenario validator command.
+  validity rules, canonical endpoint and edge-array ordering, optional-authored
+  versus required-runtime `edges`, contiguous whole-hex codes, and the scenario
+  validator command.
 - Update the relevant ownership and presentation guidance: the movement and
   map-contract rows in `docs/agent-start-here.md`, the stale ridgeline-cover
   statement in `docs/ai-opponent-strategy.md`, and the named battlefield and
   unit-presentation specifications for edge sprites and transparent dynamic
   overlays.
 - Remove or revise every contradictory statement found by a targeted search
-  for `ridgeline`, `terrain cover`, `t=1`, and the old Onion ridge surcharge.
+  for `ridgeline`, `terrain cover`, old whole-hex terrain codes, and the old
+  Onion ridge surcharge.
 
 Acceptance checks:
 
@@ -511,8 +520,10 @@ Tasks:
   `shared/scenarioMap.ts`, and the scenario materialization path.
 - Validate endpoint membership, distinctness, adjacency, canonical ordering,
   duplicate pairs, conflicting terrain kinds, and supported edge terrain kinds.
-- Reject legacy whole-hex `t=1` rather than translating it. Preserve `t=2` as
-  crater and normalize omitted authored `edges` to an empty runtime array.
+- Use contiguous whole-hex codes (`0` clear, `1` crater, `2` The Swamp),
+  convert old ridge terrain to explicit edges when updating scenario files, and
+  normalize omitted authored `edges` to an empty runtime array. Edge types are
+  a separate terrain class from whole-hex numeric codes.
 - Carry edges through the engine `GameMap`, movement map snapshots, API
   `ScenarioMapSnapshot`, state projection, action responses, and the web map
   type. Keep stored snapshots read-only and pre-vetted.
@@ -524,8 +535,8 @@ Acceptance checks:
 
 - Valid compact and explicit scenarios materialize the same canonical edge
   shape, including `edges: []` when no features are authored.
-- Invalid endpoint pairs and legacy ridge encodings fail validation with useful
-  detail; no code path repairs or infers them.
+- Invalid or unsorted endpoint pairs and unsupported whole-hex codes fail
+  validation with useful detail; no code path repairs or infers them.
 - Canonical edges survive API projection, engine-map construction, and snapshot
   validation without being dropped.
 
@@ -627,9 +638,11 @@ Acceptance checks:
 Tasks:
 
 - Redesign every scenario JSON loaded by unit, integration, or end-to-end tests
-  so ridge and stream features use valid canonical edges rather than `t=1`.
+  so ridge and stream features use valid canonical edges; remap crater `t=2`
+  to `t=1` and swamp `t=3` to `t=2`.
 - Add focused invalid fixtures for non-adjacent, out-of-map, reversed,
-  duplicate, conflicting, and legacy ridge records.
+  out-of-order, duplicate, conflicting edge records, and unsupported
+  whole-hex terrain codes.
 - Run `pnpm scenario:validate` against every updated scenario file and retain
   the validator as a development gate.
 - Verify scenario preflight, game creation, and normalized deployment tests

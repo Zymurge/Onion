@@ -18,6 +18,19 @@ export type UnitClass = 'Infantry' | 'LightArmor' | 'HeavyArmor' | 'GEV' | 'Comm
 export type UnitClassTerrain = 'ridge' | 'stream'
 export type UnitClassMobility = 'mobile' | 'immobile'
 
+/** Terrain feature that occupies the boundary between two adjacent cells. */
+export type ScenarioEdgeTerrain = 'ridge' | 'stream'
+
+/** Canonical undirected edge feature between two adjacent scenario cells. */
+export interface ScenarioTerrainEdge {
+  /** First endpoint in ascending q/r order. */
+  a: HexPos
+  /** Second endpoint in ascending q/r order. */
+  b: HexPos
+  /** Edge terrain classification. */
+  type: ScenarioEdgeTerrain
+}
+
 import type { TargetRules } from '../targetRules.js'
 export type { TargetRules } from '../targetRules.js'
 

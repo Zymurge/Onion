@@ -82,7 +82,56 @@ describe('parseScenarioSnapshot', () => {
 
     expect(scenario.id).toBe('valid-scenario')
     expect(scenario.map).toMatchObject({ width: 3, height: 3 })
+    expect(scenario.map.edges).toEqual([])
     expect(scenario.initialState).toEqual(expect.objectContaining(validScenario.initialState))
+  })
+
+  it('accepts canonical edge terrain and contiguous whole-hex terrain codes', () => {
+    const scenario = parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        shape: 'rectangle',
+        width: 2,
+        height: 2,
+        hexes: [{ q: 0, r: 0, t: 1 }, { q: 1, r: 1, t: 2 }],
+        edges: [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })
+
+    expect(scenario.map.hexes).toEqual([
+      { q: 0, r: 0, t: 1 },
+      { q: 1, r: 1, t: 2 },
+    ])
+    expect(scenario.map.edges).toEqual([
+      { type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+    ])
+  })
+
+  it.each([[-1], [3], [1.5]])('rejects unsupported whole-hex terrain code %s', (terrain) => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: { ...validScenario.map, hexes: [{ q: 1, r: 1, t: terrain }] },
+    })).toThrow(ScenarioValidationError)
+  })
+
+  it('rejects unsupported edge terrain kinds', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        ...validScenario.map,
+        edges: [{ type: 'cliff', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })).toThrow(ScenarioValidationError)
+  })
+
+  it('preserves detailed edge validation errors through scenario parsing', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        ...validScenario.map,
+        edges: [{ type: 'ridge', a: { q: 2, r: 1 }, b: { q: 1, r: 1 } }],
+      },
+    })).toThrow(/canonical order/)
   })
 
   it('accepts scenario-local numeric and weapon quantity overrides', () => {

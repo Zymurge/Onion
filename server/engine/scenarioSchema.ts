@@ -10,8 +10,14 @@ const UnitStateSchema = z.enum(['operational', 'disabled', 'recovering', 'destro
 const TerrainHexSchema = z.object({
   q: z.number(),
   r: z.number(),
-  t: z.number(),
-})
+  t: z.number().int().min(0).max(2),
+}).strict()
+
+const ScenarioTerrainEdgeSchema = z.object({
+  type: z.enum(['ridge', 'stream']),
+  a: HexPosSchema,
+  b: HexPosSchema,
+}).strict()
 
 const StartingAmmoByWeaponTypeSchema = z.record(z.string().min(1), z.number().int().nonnegative())
 
@@ -66,6 +72,7 @@ const CompactHexMapSchema = z.object({
   shape: z.literal('hex'),
   size: z.number().int().positive().refine((size) => size % 2 === 1, 'Hex map size must be odd'),
   hexes: z.array(TerrainHexSchema).default([]),
+  edges: z.array(ScenarioTerrainEdgeSchema).default([]),
 }).strict()
 
 const CompactRectangleMapSchema = z.object({
@@ -73,6 +80,7 @@ const CompactRectangleMapSchema = z.object({
   width: z.number().int().positive(),
   height: z.number().int().positive(),
   hexes: z.array(TerrainHexSchema).default([]),
+  edges: z.array(ScenarioTerrainEdgeSchema).default([]),
 }).strict()
 
 export const InitialStateSchema = z
