@@ -27,23 +27,32 @@ function getUnitClassRule(unitType: string, rules?: RulesContext) {
 	return definition === undefined ? undefined : getRulesContext(rules).getUnitClassRule(definition.unitClass)
 }
 
-/** Returns whether a unit class may cross the legacy ridgeline terrain. */
-export function canCrossRidgelineByTerrainRule(unitType: string, rules?: RulesContext): boolean {
-	return getUnitClassRule(unitType, rules)?.terrain.ridge.canCross === true
+function requireTerrainRule<T>(terrainRule: T | undefined, unitType: string, terrainType: TerrainType): T {
+	if (terrainRule === undefined) {
+		throw new Error(`Missing ${terrainType} terrain rule for unit type ${unitType}`)
+	}
+	return terrainRule
 }
 
-/** Returns the legacy whole-hex movement cost for a terrain type. */
+/** Returns whether a unit class may cross ridgeline terrain. */
+export function canCrossRidgelineByTerrainRule(unitType: string, rules?: RulesContext): boolean {
+	const terrainRule = requireTerrainRule(getUnitClassRule(unitType, rules)?.terrain.ridge, unitType, 'ridgeline')
+	return terrainRule.canCross
+}
+
+/** Returns the whole-hex movement cost for a terrain type. */
 export function getTerrainMoveCost(unitType: string, terrainType: TerrainType, rules?: RulesContext): number | null {
-	if (terrainType === 'crater') {
-		return null
-	}
-
 	if (terrainType === 'ridgeline') {
-		const terrainRule = getUnitClassRule(unitType, rules)?.terrain.ridge
-		return terrainRule?.canCross === true ? 1 + terrainRule.movementSurcharge : null
+		const terrainRule = requireTerrainRule(getUnitClassRule(unitType, rules)?.terrain.ridge, unitType, terrainType)
+		return terrainRule.canCross ? 1 + terrainRule.movementSurcharge : null
 	}
 
-	return 1
+	const terrainRule = requireTerrainRule(
+		getUnitClassRule(unitType, rules)?.wholeHexTerrain[terrainType],
+		unitType,
+		terrainType,
+	)
+	return terrainRule.canEnter ? 1 + terrainRule.movementSurcharge : null
 }
 
 export function canTraverseOccupiedHex(movingRole: MoveRole, occupants: MoveOccupant[]): boolean {

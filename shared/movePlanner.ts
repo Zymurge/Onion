@@ -7,12 +7,14 @@ import {
 	type MoveRole,
 } from './movementRules.js'
 import type { RulesContext } from './rulesContext.js'
+import type { ScenarioTerrainEdge, TerrainType } from './types/index.js'
 
 export type MoveMapSnapshot = {
 	width: number
 	height: number
 	cells: ReadonlyArray<{ q: number; r: number }>
-	hexes: ReadonlyArray<{ q: number; r: number; t: number }>
+	hexes: ReadonlyArray<{ q: number; r: number; terrain: TerrainType }>
+	edges: ReadonlyArray<ScenarioTerrainEdge>
 	occupiedHexes?: ReadonlyArray<{
 		q: number
 		r: number
@@ -28,22 +30,14 @@ export type ReachableMove = {
 	cost: number
 }
 
-type TerrainType = 'clear' | 'ridgeline' | 'crater'
-
 type Occupant = MoveOccupant
-
-function terrainFromT(t: number): TerrainType {
-	if (t === 1) return 'ridgeline'
-	if (t === 2) return 'crater'
-	return 'clear'
-}
 
 function getCellLookup(map: MoveMapSnapshot): Set<string> {
 	return new Set(map.cells.map(hexKey))
 }
 
 function getTerrainLookup(map: MoveMapSnapshot): Map<string, TerrainType> {
-	return new Map(map.hexes.map((hex) => [hexKey(hex), terrainFromT(hex.t)]))
+	return new Map(map.hexes.map((hex) => [hexKey(hex), hex.terrain]))
 }
 
 function getOccupiedLookup(map: MoveMapSnapshot): Map<string, Occupant[]> {

@@ -25,15 +25,15 @@ function clearMap(): GameMap {
 
 /**
  * 5×5 map with:
- *   (2,0) ridgeline  — vertical column to test crossing
- *   (2,1) ridgeline
- *   (2,2) crater     — always impassable
+ *   (2,0) crater     — always impassable
+ *   (2,1) crater
+ *   (2,2) swamp
  */
 function terrainMap(): GameMap {
   return createMap(5, 5, [
-    { q: 2, r: 0, t: 1 }, // ridgeline
-    { q: 2, r: 1, t: 1 }, // ridgeline
-    { q: 2, r: 2, t: 2 }, // crater
+    { q: 2, r: 0, t: 1 }, // crater
+    { q: 2, r: 1, t: 1 }, // crater
+    { q: 2, r: 2, t: 2 }, // swamp
   ])
 }
 
@@ -53,12 +53,25 @@ function sparseMap(): GameMap {
       '1,1': { q: 1, r: 1, terrain: 'clear' },
       '2,1': { q: 2, r: 1, terrain: 'clear' },
     },
+    edges: [],
   }
 }
 
 // ─── createMap ────────────────────────────────────────────────────────────────
 
 describe('createMap', () => {
+  it('preserves canonical whole-hex terrain and scenario edges', () => {
+    const edges = [{ type: 'ridge' as const, a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }]
+    const map = createMap(2, 2, [
+      { q: 0, r: 0, t: 1 },
+      { q: 1, r: 1, t: 2 },
+    ], undefined, edges)
+
+    expect(map.hexes['0,0']?.terrain).toBe('crater')
+    expect(map.hexes['1,1']?.terrain).toBe('swamp')
+    expect(map.edges).toEqual(edges)
+  })
+
   it('sets width and height', () => {
     const map = createMap(15, 22, [])
     expect(map.width).toBe(15)
@@ -72,14 +85,14 @@ describe('createMap', () => {
     expect(getHex(map, { q: 2, r: 3 })?.terrain).toBe('clear')
   })
 
-  it('maps t:1 to ridgeline', () => {
+  it('maps t:1 to crater', () => {
     const map = createMap(5, 5, [{ q: 1, r: 1, t: 1 }])
-    expect(getHex(map, { q: 1, r: 1 })?.terrain).toBe('ridgeline')
+    expect(getHex(map, { q: 1, r: 1 })?.terrain).toBe('crater')
   })
 
-  it('maps t:2 to crater', () => {
+  it('maps t:2 to swamp', () => {
     const map = createMap(5, 5, [{ q: 1, r: 1, t: 2 }])
-    expect(getHex(map, { q: 1, r: 1 })?.terrain).toBe('crater')
+    expect(getHex(map, { q: 1, r: 1 })?.terrain).toBe('swamp')
   })
 
   it('maps any other t value to clear', () => {
@@ -101,7 +114,7 @@ describe('getHex', () => {
     const map = terrainMap()
     const hex = getHex(map, { q: 2, r: 0 })
     expect(hex).not.toBeNull()
-    expect(hex?.terrain).toBe('ridgeline')
+    expect(hex?.terrain).toBe('crater')
     expect(hex?.q).toBe(2)
     expect(hex?.r).toBe(0)
   })

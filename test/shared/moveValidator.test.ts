@@ -18,6 +18,7 @@ const map = {
     { q: 2, r: 2 },
   ],
   hexes: [],
+  edges: [],
 }
 
 function makeState(overrides: Partial<MoveValidationState> = {}): MoveValidationState {
@@ -188,13 +189,13 @@ describe('moveValidator', () => {
     })
   })
 
-  it('reports prohibited terrain as a path failure', () => {
+  it('reports crater terrain as a path failure', () => {
     const state = makeState()
 
     const result = validateMove(
       {
         ...map,
-        hexes: [{ q: 1, r: 0, t: 2 }],
+        hexes: [{ q: 1, r: 0, terrain: 'crater' }],
       },
       state,
       move('puss-1', { q: 1, r: 0 }),
@@ -204,6 +205,23 @@ describe('moveValidator', () => {
       valid: false,
       code: 'NO_PATH',
       detailCode: 'prohibited-terrain',
+    })
+  })
+
+  it('charges swamp entry cost in the move plan', () => {
+    const result = validateMove(
+      {
+        ...map,
+        hexes: [{ q: 1, r: 0, terrain: 'swamp' }],
+      },
+      makeState(),
+      move('puss-1', { q: 1, r: 0 }),
+    )
+
+    expect(result).toMatchObject({
+      valid: true,
+      path: [{ q: 1, r: 0 }],
+      cost: 2,
     })
   })
 })

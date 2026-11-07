@@ -8,11 +8,10 @@ import logger from '#server/logger'
 
 import type { HexPos } from '#shared/types/index'
 import { hexDistance, hexKey } from '#shared/axialHex'
+import { terrainFromT, type ScenarioTerrainEdge } from '#shared/scenarioMap'
 
-/**
- * Terrain types that can exist on hexes.
- */
-export type TerrainType = 'clear' | 'ridgeline' | 'crater'
+export type { TerrainType } from '#shared/types/index'
+import type { TerrainType } from '#shared/types/index'
 
 /**
  * A hex on the game map with position and terrain.
@@ -44,6 +43,8 @@ export interface GameMap {
   cells: HexPos[]
   /** All hexes on the map, keyed by "q,r" coordinates */
   hexes: Record<string, Hex>
+  /** Canonical undirected terrain edges on the map */
+  edges: ScenarioTerrainEdge[]
 }
 
 /**
@@ -56,17 +57,12 @@ export interface LineOfSightResult {
   distance: number
 }
 
-function terrainFromT(t: number): TerrainType {
-  if (t === 1) return 'ridgeline'
-  if (t === 2) return 'crater'
-  return 'clear'
-}
-
 export function createMap(
   width: number,
   height: number,
   hexes: Array<{ q: number; r: number; t: number }>,
   cells?: HexPos[],
+  edges: ScenarioTerrainEdge[] = [],
 ): GameMap {
   const overrides = new Map(hexes.map(h => [hexKey(h), terrainFromT(h.t)]))
   const record: Record<string, Hex> = {}
@@ -79,7 +75,13 @@ export function createMap(
     record[key] = { q: pos.q, r: pos.r, terrain: overrides.get(key) ?? 'clear' }
   }
 
-  return { width, height, cells: cellList, hexes: record }
+  return {
+    width,
+    height,
+    cells: cellList,
+    hexes: record,
+    edges: edges.map((edge) => ({ ...edge, a: { ...edge.a }, b: { ...edge.b } })),
+  }
 }
 
 function hasHex(map: GameMap, pos: HexPos): boolean {

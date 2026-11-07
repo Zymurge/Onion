@@ -6,6 +6,7 @@ const TERRAIN_RULES: Readonly<Record<TerrainType, CombatTerrainRule>> = {
 	clear: { terrainType: 'clear' },
 	ridgeline: { terrainType: 'ridgeline' },
 	crater: { terrainType: 'crater' },
+	swamp: { terrainType: 'swamp' },
 }
 
 export const ONION_STATIC_RULES: CombatStaticRules = {

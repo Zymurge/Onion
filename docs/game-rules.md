@@ -138,6 +138,10 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
 - **Whole-hex terrain**:
   - **Clear**: No effect on movement or combat.
   - **Craters**: Impassable to all units.
+  - **Swamp terrain**: Entering costs 2 MP for all unit types except Infantry
+    and GEV, which pay 1 MP. This terrain is distinct from The Swamp defender
+    Command unit. Stuck-in-swamp behavior, including becoming disabled, is
+    pending implementation.
 - **Edge terrain**:
   - A ridge or stream occupies the boundary between two adjacent hexes. Edges
     are undirected, so crossing in either direction uses the same terrain.

@@ -32,6 +32,11 @@ const CLASS_RULES: Record<UnitClass, UnitClassRule> = {
       ridge: { canCross: true, movementSurcharge: 0 },
       stream: { canCross: true, movementSurcharge: 0 },
     },
+    wholeHexTerrain: {
+      clear: { canEnter: true, movementSurcharge: 0 },
+      crater: { canEnter: false, movementSurcharge: 0 },
+      swamp: { canEnter: true, movementSurcharge: 0 },
+    },
     ram: {
       attacker: { canRam: false, capacity: 0, perTurn: 0 },
       rammedTarget: { treadLoss: 0, destroyOnRollAtMost: 4 },
@@ -44,6 +49,11 @@ const CLASS_RULES: Record<UnitClass, UnitClassRule> = {
     terrain: {
       ridge: { canCross: false, movementSurcharge: 0 },
       stream: { canCross: true, movementSurcharge: 1 },
+    },
+    wholeHexTerrain: {
+      clear: { canEnter: true, movementSurcharge: 0 },
+      crater: { canEnter: false, movementSurcharge: 0 },
+      swamp: { canEnter: true, movementSurcharge: 1 },
     },
     ram: {
       attacker: { canRam: false, capacity: 0, perTurn: 0 },
@@ -58,6 +68,11 @@ const CLASS_RULES: Record<UnitClass, UnitClassRule> = {
       ridge: { canCross: false, movementSurcharge: 0 },
       stream: { canCross: true, movementSurcharge: 0 },
     },
+    wholeHexTerrain: {
+      clear: { canEnter: true, movementSurcharge: 0 },
+      crater: { canEnter: false, movementSurcharge: 0 },
+      swamp: { canEnter: true, movementSurcharge: 1 },
+    },
     ram: {
       attacker: { canRam: false, capacity: 0, perTurn: 0 },
       rammedTarget: { treadLoss: 2, destroyOnRollAtMost: 4 },
@@ -70,6 +85,11 @@ const CLASS_RULES: Record<UnitClass, UnitClassRule> = {
     terrain: {
       ridge: { canCross: false, movementSurcharge: 0 },
       stream: { canCross: true, movementSurcharge: 0 },
+    },
+    wholeHexTerrain: {
+      clear: { canEnter: true, movementSurcharge: 0 },
+      crater: { canEnter: false, movementSurcharge: 0 },
+      swamp: { canEnter: true, movementSurcharge: 0 },
     },
     ram: {
       attacker: { canRam: false, capacity: 0, perTurn: 0 },
@@ -84,6 +104,11 @@ const CLASS_RULES: Record<UnitClass, UnitClassRule> = {
       ridge: { canCross: false, movementSurcharge: 0 },
       stream: { canCross: false, movementSurcharge: 0 },
     },
+    wholeHexTerrain: {
+      clear: { canEnter: true, movementSurcharge: 0 },
+      crater: { canEnter: false, movementSurcharge: 0 },
+      swamp: { canEnter: true, movementSurcharge: 1 },
+    },
     ram: {
       attacker: { canRam: false, capacity: 0, perTurn: 0 },
       rammedTarget: { treadLoss: 1, destroyOnRollAtMost: 4 },
@@ -97,6 +122,11 @@ const CLASS_RULES: Record<UnitClass, UnitClassRule> = {
       ridge: { canCross: false, movementSurcharge: 0 },
       stream: { canCross: false, movementSurcharge: 0 },
     },
+    wholeHexTerrain: {
+      clear: { canEnter: true, movementSurcharge: 0 },
+      crater: { canEnter: false, movementSurcharge: 0 },
+      swamp: { canEnter: true, movementSurcharge: 1 },
+    },
     ram: {
       attacker: { canRam: false, capacity: 0, perTurn: 0 },
       rammedTarget: { treadLoss: 1, destroyOnRollAtMost: 4 },
@@ -109,6 +139,11 @@ const CLASS_RULES: Record<UnitClass, UnitClassRule> = {
     terrain: {
       ridge: { canCross: true, movementSurcharge: 0 },
       stream: { canCross: true, movementSurcharge: 0 },
+    },
+    wholeHexTerrain: {
+      clear: { canEnter: true, movementSurcharge: 0 },
+      crater: { canEnter: false, movementSurcharge: 0 },
+      swamp: { canEnter: true, movementSurcharge: 1 },
     },
     ram: {
       attacker: { canRam: true, capacity: 2, perTurn: 2 },

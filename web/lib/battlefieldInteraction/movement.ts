@@ -1,4 +1,5 @@
 import { findMovePath, type MoveMapSnapshot } from '../../../shared/movePlanner'
+import { terrainFromT } from '../../../shared/scenarioMap'
 import { getRemainingUnitMovementAllowance } from '../../../shared/unitMovement'
 import type { ServerGameSnapshot } from '../gameClient'
 import { getAuthoritativeOnion } from '../stackSelection'
@@ -25,7 +26,8 @@ export function buildMoveMapSnapshot(snapshot: ServerGameSnapshot, movingUnitId:
 		width: scenarioMap.width,
 		height: scenarioMap.height,
 		cells: scenarioMap.cells,
-		hexes: scenarioMap.hexes,
+		hexes: scenarioMap.hexes.map((hex) => ({ q: hex.q, r: hex.r, terrain: terrainFromT(hex.t) })),
+		edges: scenarioMap.edges ?? [],
 		occupiedHexes,
 	}
 }

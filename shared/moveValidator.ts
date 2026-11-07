@@ -114,15 +114,9 @@ function getOccupantsAt(state: MoveValidationState, destination: HexPos, movingU
 	return occupants
 }
 
-function getTerrainAt(map: MoveMapSnapshot, destination: HexPos): 'clear' | 'ridgeline' | 'crater' {
+function getTerrainAt(map: MoveMapSnapshot, destination: HexPos): import('./types/index.js').TerrainType {
 	const hex = map.hexes.find((candidate) => candidate.q === destination.q && candidate.r === destination.r)
-	if (!hex) {
-		return 'clear'
-	}
-
-	if (hex.t === 1) return 'ridgeline'
-	if (hex.t === 2) return 'crater'
-	return 'clear'
+	return hex?.terrain ?? 'clear'
 }
 
 function getMoveFailureMessage(code: MoveValidationCode, detailCode?: MoveValidationDetailCode): string {

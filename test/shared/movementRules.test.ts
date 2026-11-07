@@ -7,6 +7,8 @@ import {
 	getStopOnOccupiedHexFailure,
 	type MoveOccupant,
 } from '#shared/movementRules'
+import { GLOBAL_RULES_CONTEXT, type RulesContext } from '#shared/rulesContext'
+import type { UnitClassRule } from '#shared/types'
 
 function occupant(overrides: Partial<MoveOccupant> = {}): MoveOccupant {
 	return {
@@ -89,9 +91,43 @@ describe('movementRules', () => {
 		expect(getTerrainMoveCost('TheOnion', 'ridgeline')).toBe(1)
 	})
 
-	it('treats crater terrain as impassable', () => {
-		expect(getTerrainMoveCost('Puss', 'crater')).toBeNull()
-		expect(getTerrainMoveCost('TheOnion', 'crater')).toBeNull()
+	it.each([
+		{ unitType: 'LittlePigs', unitClass: 'Infantry' },
+		{ unitType: 'Puss', unitClass: 'LightArmor' },
+		{ unitType: 'Dragon', unitClass: 'HeavyArmor' },
+		{ unitType: 'BigBadWolf', unitClass: 'GEV' },
+		{ unitType: 'Swamp', unitClass: 'Command' },
+		{ unitType: 'Farquaad', unitClass: 'Artillery' },
+		{ unitType: 'TheOnion', unitClass: 'Onion' },
+	])('treats crater terrain as impassable to $unitClass', ({ unitType }) => {
+		expect(getTerrainMoveCost(unitType, 'crater')).toBeNull()
+	})
+
+	it.each([
+		{ unitType: 'LittlePigs', unitClass: 'Infantry', cost: 1 },
+		{ unitType: 'Puss', unitClass: 'LightArmor', cost: 2 },
+		{ unitType: 'Dragon', unitClass: 'HeavyArmor', cost: 2 },
+		{ unitType: 'BigBadWolf', unitClass: 'GEV', cost: 1 },
+		{ unitType: 'Swamp', unitClass: 'Command', cost: 2 },
+		{ unitType: 'Farquaad', unitClass: 'Artillery', cost: 2 },
+		{ unitType: 'TheOnion', unitClass: 'Onion', cost: 2 },
+	])('charges $cost MP to enter swamp for $unitClass', ({ unitType, cost }) => {
+		expect(getTerrainMoveCost(unitType, 'swamp')).toBe(cost)
+	})
+
+	it('throws when a class terrain rule is missing', () => {
+		const rules = {
+			...GLOBAL_RULES_CONTEXT,
+			getUnitClassRule(unitClass: Parameters<RulesContext['getUnitClassRule']>[0]) {
+				return {
+					...GLOBAL_RULES_CONTEXT.getUnitClassRule(unitClass),
+					wholeHexTerrain: {} as UnitClassRule['wholeHexTerrain'],
+				}
+			},
+		} satisfies RulesContext
+
+		expect(() => getTerrainMoveCost('Puss', 'swamp', rules)).toThrow('Missing swamp terrain rule')
+		expect(() => getTerrainMoveCost('Puss', 'clear', rules)).toThrow('Missing clear terrain rule')
 	})
 
 	it('allows defenders to traverse only friendly occupied hexes', () => {

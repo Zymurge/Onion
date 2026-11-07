@@ -37,12 +37,12 @@ function makeState({ ramsRemaining = 2, ...overrides }: MovementStateOverrides =
 // ─── validateUnitMovement ────────────────────────────────────────────────────
 
 describe('validateUnitMovement', () => {
-  it('allows Little Pigs to move onto adjacent ridgeline terrain', () => {
+  it('allows Little Pigs to move onto adjacent swamp terrain', () => {
     const pigs = makeDefender({ unitId: 'pigs-1', typeId: 'LittlePigs', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'pigs-1': pigs } })
-    const ridgeMap = createMap(5, 5, [{ q: 1, r: 0, t: 1 }])
+    const swampMap = createMap(5, 5, [{ q: 1, r: 0, t: 2 }])
 
-    const result = validateUnitMovement(ridgeMap, state, {
+    const result = validateUnitMovement(swampMap, state, {
       type: 'MOVE',
       unitId: 'pigs-1',
       to: { q: 1, r: 0 },

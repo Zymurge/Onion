@@ -16,6 +16,7 @@ export type UnitTypeId = string
 export type UnitType = UnitTypeId
 export type UnitClass = 'Infantry' | 'LightArmor' | 'HeavyArmor' | 'GEV' | 'Command' | 'Artillery' | 'Onion'
 export type UnitClassTerrain = 'ridge' | 'stream'
+export type UnitClassWholeHexTerrain = 'clear' | 'crater' | 'swamp'
 export type UnitClassMobility = 'mobile' | 'immobile'
 
 /** Terrain feature that occupies the boundary between two adjacent cells. */
@@ -60,6 +61,14 @@ export interface UnitClassTerrainRule {
   movementSurcharge: number
 }
 
+/** Additional movement cost for entering a whole-hex terrain type. */
+export interface UnitClassWholeHexTerrainRule {
+  /** Whether the unit class may enter the whole-hex terrain. */
+  canEnter: boolean
+  /** Additional movement cost beyond the normal hex-entry cost. */
+  movementSurcharge: number
+}
+
 /** Second-move eligibility and allowance for a unit class. */
 export interface UnitClassSecondMoveRule {
   /** Whether the unit class may perform a second move. */
@@ -88,6 +97,8 @@ export interface UnitClassRule {
   secondMove: UnitClassSecondMoveRule
   /** Terrain-edge rules for each supported edge terrain. */
   terrain: Readonly<Record<UnitClassTerrain, UnitClassTerrainRule>>
+  /** Whole-hex terrain movement rules for each supported type. */
+  wholeHexTerrain: Readonly<Record<UnitClassWholeHexTerrain, UnitClassWholeHexTerrainRule>>
   /** Ramming rules for attackers and rammed units. */
   ram: {
     attacker: UnitClassRamAttackerRule
@@ -391,4 +402,4 @@ export interface ActionErrorResponse {
 
 export type ActionResponse = ActionOkResponse | ActionErrorResponse
 
-export type TerrainType = 'clear' | 'ridgeline' | 'crater'
+export type TerrainType = 'clear' | 'ridgeline' | 'crater' | 'swamp'

@@ -1,5 +1,5 @@
 import { createAxialRegion, hexDistance, hexKey, type HexPos } from './axialHex.js'
-import type { ScenarioTerrainEdge } from './types/index.js'
+import type { ScenarioTerrainEdge, TerrainType } from './types/index.js'
 
 export type { ScenarioEdgeTerrain, ScenarioTerrainEdge } from './types/index.js'
 
@@ -7,6 +7,13 @@ export type ScenarioTerrainHex = {
 	q: number
 	r: number
 	t: number
+}
+
+/** Decode the canonical whole-hex terrain code carried by scenario snapshots. */
+export function terrainFromT(t: number): TerrainType {
+	if (t === 1) return 'crater'
+	if (t === 2) return 'swamp'
+	return 'clear'
 }
 
 export type ExplicitScenarioMap = {

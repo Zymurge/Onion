@@ -6,7 +6,7 @@ type MoveMapSnapshot = {
 	width: number
 	height: number
 	cells: Array<{ q: number; r: number }>
-	hexes: Array<{ q: number; r: number; t: number }>
+	hexes: Array<{ q: number; r: number; terrain: 'clear' | 'crater' | 'swamp' }>
 	occupiedHexes?: Array<{
 		q: number
 		r: number
@@ -26,6 +26,7 @@ describe('movePlanner error and edge cases', () => {
 			{ q: 0, r: 2 }, { q: 1, r: 2 }, { q: 2, r: 2 },
 		],
 		hexes: [],
+		edges: [],
 	}
 
 	describe('zero-move and range', () => {
@@ -58,7 +59,7 @@ describe('movePlanner error and edge cases', () => {
 		it('still finds an alternate path around impassable terrain', () => {
 			const map = {
 				...baseMap,
-				hexes: [{ q: 1, r: 1, t: 2 }], // crater in the middle
+				hexes: [{ q: 1, r: 1, terrain: 'crater' }],
 			}
 			const result = findMovePath({
 				map,
@@ -75,7 +76,7 @@ describe('movePlanner error and edge cases', () => {
 		it('allows path through impassable terrain if another path exists', () => {
 			const map = {
 				...baseMap,
-				hexes: [{ q: 1, r: 0, t: 2 }], // crater blocks direct path
+				hexes: [{ q: 1, r: 0, terrain: 'crater' }],
 			}
 			const result = findMovePath({
 				map,
@@ -93,7 +94,7 @@ describe('movePlanner error and edge cases', () => {
 				width: 3,
 				height: 1,
 				cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }],
-				hexes: [{ q: 1, r: 0, t: 1 }], // ridgeline
+				hexes: [{ q: 1, r: 0, terrain: 'crater' }],
 			}
 			const result = findMovePath({
 				map,
@@ -109,7 +110,7 @@ describe('movePlanner error and edge cases', () => {
 		it('allows ridgeline crossing for units that can', () => {
 			const map = {
 				...baseMap,
-				hexes: [{ q: 1, r: 0, t: 1 }], // ridgeline
+				hexes: [{ q: 1, r: 0, terrain: 'swamp' }],
 			}
 			const result = findMovePath({
 				map,
