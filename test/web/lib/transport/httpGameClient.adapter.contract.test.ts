@@ -127,7 +127,7 @@ describe('http game client adapter contract', () => {
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 						hexes: [{ q: 1, r: 0, t: 1 }],
-						edges: [],
+						edges: [{ type: 'stream', a: { q: 4, r: 3 }, b: { q: 5, r: 3 } }],
 				},
 				eventSeq: 47,
 			}))
@@ -146,6 +146,7 @@ describe('http game client adapter contract', () => {
 		const loadedState = await client.getState(123)
 		expect(loadedState).toEqual({
 			snapshot: {
+				aborted: undefined,
 				authoritativeState: {
 					onion: { position: { q: 0, r: 0 }, treads: 45 },
 					defenders: {
@@ -169,13 +170,13 @@ describe('http game client adapter contract', () => {
 				players: { onion: 'onion-123', defender: 'defender-123' },
 				escapeHexes: undefined,
 				phase: 'DEFENDER_COMBAT',
+				phaseStartEventSeq: undefined,
 				scenarioMap: {
 					width: 15,
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 						hexes: [{ q: 1, r: 0, t: 1 }],
-						edges: [],
-					edges: [],
+						edges: [{ type: 'stream', a: { q: 4, r: 3 }, b: { q: 5, r: 3 } }],
 				},
 				victoryObjectives: [],
 				scenarioName: "The Siege of Shrek's Swamp",
@@ -296,7 +297,7 @@ describe('http game client adapter contract', () => {
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 						hexes: [{ q: 1, r: 0, t: 1 }],
-						edges: [],
+						edges: [{ type: 'stream', a: { q: 4, r: 3 }, b: { q: 5, r: 3 } }],
 				},
 				eventSeq: 47,
 			}),

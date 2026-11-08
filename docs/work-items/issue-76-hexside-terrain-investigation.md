@@ -1,6 +1,6 @@
 # Issue #76: Hexside Terrain Model for Ridges and Streams
 
-**Status:** Phase 4 edge-aware movement implementation and regression gate
+**Status:** Phases 4 and 5 edge-aware movement and snapshot/API contract gates
 complete; rendering, combat cleanup, and broader fixture rollout remain planned
 **Issue:** [Investigate hexside terrain model for ridges and streams](https://github.com/Zymurge/Onion/issues/76)
 **Scope:** Design and impact assessment only. This document does not authorize implementation.
@@ -737,6 +737,35 @@ Acceptance checks:
 - Missing or malformed runtime edge data fails the designated snapshot
   validation boundary clearly.
 - No old-game translation or automatic database deletion exists.
+
+### Phase 5 Completion Record
+
+Phase 5 is complete. Canonical edge propagation is covered by:
+
+- Shared snapshot contract and materialization: [shared/apiProtocol.ts](../../shared/apiProtocol.ts),
+  [shared/scenarioMap.ts](../../shared/scenarioMap.ts), and
+  [server/api/gameHelpers/scenario.ts](../../server/api/gameHelpers/scenario.ts).
+- REST and action projections: [server/api/gameHelpers/stateProjection.ts](../../server/api/gameHelpers/stateProjection.ts)
+  and [server/api/gameHelpers/actionResponses.ts](../../server/api/gameHelpers/actionResponses.ts).
+- WebSocket snapshot delivery: [server/api/gameRoutes/websocketRoutes.ts](../../server/api/gameRoutes/websocketRoutes.ts).
+- Web transport mapping and snapshot validation: [web/lib/httpGameClient.ts](../../web/lib/httpGameClient.ts),
+  [web/lib/gameClient.ts](../../web/lib/gameClient.ts), and
+  [web/lib/battlefieldDisplay/snapshotValidation.ts](../../web/lib/battlefieldDisplay/snapshotValidation.ts).
+
+Boundary tests now verify non-empty edge round trips through REST, action,
+WebSocket, and HTTP client responses, as well as missing and malformed edge
+rejection. Runtime fixtures preserve `edges: []` when no edge terrain exists.
+
+Validation completed on 2026-11-08:
+
+- Focused boundary suites: 104 tests passed.
+- Transport integration suite: 1 file, 7 tests passed.
+- Full regression: 172 files, 1,852 tests passed.
+- TypeScript validation: `pnpm exec tsc --noEmit` passed.
+
+The snapshot policy remains unchanged: existing persisted game rows require
+manual deletion before rollout. No legacy translation, compatibility inference,
+or automatic database deletion was added.
 
 ### Phase 6: Render Static Edge Terrain And Dynamic Overlays
 

@@ -29,6 +29,11 @@ describe('GET /games/:id', () => {
     expect(body).toHaveProperty('scenarioMap')
     expect(body.scenarioMap.width).toBeGreaterThan(0)
     expect(body.scenarioMap.height).toBeGreaterThan(0)
+    expect(body.scenarioMap.edges).toContainEqual({
+      type: 'stream',
+      a: { q: 4, r: 3 },
+      b: { q: 5, r: 3 },
+    })
     expect(typeof body.eventSeq).toBe('number')
     expect(typeof body.snapshotRevision).toBe('number')
   })

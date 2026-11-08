@@ -601,8 +601,9 @@ describe('buildVictoryObjectiveStates', () => {
     const scenarioMap = materializeScenarioMap({
       width: 3,
       height: 3,
-      cells: [{ q: 0, r: 0 }],
+      cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
       hexes: [],
+      edges: [{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
     })
     const terminalState = makeGameStateWithUnits()
     terminalState.onions['onion-1'].position = { q: 0, r: 0 }
@@ -644,6 +645,9 @@ describe('buildVictoryObjectiveStates', () => {
 
     expect(response.winner).toBe('onion')
     expect(response.status).toBe('completed')
+    expect(response.scenarioMap.edges).toEqual([
+      { type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+    ])
     expect(response.victoryObjectives.filter((objective) => objective.victor === 'onion').every((objective) => objective.completed)).toBe(true)
     expect(response.victoryObjectives.find((objective) => objective.victor === 'defender')?.completed).toBe(false)
   })

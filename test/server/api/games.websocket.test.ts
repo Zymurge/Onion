@@ -10,7 +10,12 @@ import type { EventEnvelope, GameState } from '#shared/types/index'
 type WebSocketTestMessage = {
 	kind: string
 	payload: { unitTypes: unknown; weaponTypes: unknown }
-	snapshot: { gameId: number; role: string; eventSeq: number }
+	snapshot: {
+		gameId: number
+		role: string
+		eventSeq: number
+		scenarioMap: { edges: Array<{ type: string; a: { q: number; r: number }; b: { q: number; r: number } }> }
+	}
 	event: EventEnvelope
 	presence: { onion: string | null; defender: string | null }
 }
@@ -188,6 +193,11 @@ describe('GET /games/:id/ws', () => {
 		expect(snapshotMessage.kind).toBe('STATE_SNAPSHOT')
 		expect(snapshotMessage.snapshot.gameId).toBe(gameId)
 		expect(snapshotMessage.snapshot.role).toBe('onion')
+		expect(snapshotMessage.snapshot.scenarioMap.edges).toContainEqual({
+		 type: 'stream',
+		 a: { q: 4, r: 3 },
+		 b: { q: 5, r: 3 },
+	})
 
 		const liveEventPromise = readWsMessage(ws)
 		await joinGame(app, gameId, fiona.token)
