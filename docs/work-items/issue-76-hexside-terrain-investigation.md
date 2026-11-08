@@ -769,12 +769,46 @@ or automatic database deletion was added.
 
 ### Phase 6: Render Static Edge Terrain And Dynamic Overlays
 
+#### Phase 6 Design Decisions
+
+- Edge visual variants are explicit authored scenario data. The canonical edge
+  record will carry a validated variant identifier alongside its terrain type;
+  the value survives materialization, persistence, API snapshots, WebSocket
+  delivery, and the web map model.
+- The renderer does not randomly choose variants and does not choose them from
+  UI state. Rendering is a pure projection of the authoritative scenario map,
+  which keeps screenshots, reloads, replays, and future editor previews stable.
+- Each terrain kind starts with three or four endpoint-compatible segment
+  variants. Variants may use different colors, textures, or small middle-section
+  curves, but their endpoint geometry must remain compatible.
+- Segments terminate at a small inset from each shared vertex. An isolated
+  segment therefore has a natural endpoint. A corner overlay covers the inset
+  gap only when exactly two same-type segments meet at that vertex.
+- A corner asset is normalized to one bend direction, rotates to all six hex
+  corners, and mirrors across its local axis for the opposite bend direction.
+  Mixed terrain joins and three-way joins render without a corner overlay.
+- Corner overlays are derived from the canonical edge topology and variant
+  data; they are not independently authored in the first phase. This keeps
+  corner selection deterministic while leaving room for explicit corner
+  overrides if a graphical editor later needs them.
+
 Tasks:
 
-- Add ridge and stream edge sprite assets under the web terrain asset path,
-  with one rotatable sprite per terrain kind and six supported edge facings.
+- Extend the authored and canonical edge contracts with explicit validated
+  variant identifiers. Reject unsupported variants at scenario validation;
+  do not infer, randomize, or silently default a missing rendered variant.
+- Add three or four simple ridge and stream segment variants under the web
+  terrain asset path. Start with rectangles and restrained color or texture
+  differences, while keeping a shared endpoint contract. Add one normalized
+  same-type corner asset per terrain kind that supports rotation and mirrored
+  bend directions.
 - Add pure geometry helpers based on `hexPixelLayout.ts` to derive shared edge
-  segments and rotation. Render each canonical edge once in a board-level layer.
+  segments, endpoint insets, corner positions, rotations, and mirrored bend
+  transforms. Add a topology helper that emits a corner only for exactly two
+  same-type incident edges.
+- Render each canonical edge once in a board-level layer, then render derived
+  compatible corner overlays above the segments. Keep both layers
+  non-interactive.
 - Render static content in this order: base map, whole-hex terrain, edge
   terrain, then unit sprites. Keep edge sprites non-interactive.
 - Move movement and firing-range marks into a transparent top layer above unit
@@ -786,11 +820,65 @@ Tasks:
 Acceptance checks:
 
 - Each edge appears once at the correct facing for all six axial directions.
+- Every authored variant is rendered deterministically and remains unchanged
+  across reloads and repeated renders.
+- Same-type segments join cleanly in both 60-degree bend directions; isolated
+  segments end cleanly; mixed-type and three-way joins do not receive a corner
+  overlay.
 - Ridge and stream assets remain visually distinguishable without relying on
   color alone.
 - Dynamic overlays are transparent, removable, and do not intercept clicks or
   mutate the underlying map graphics.
-- Focused geometry, board, cell, and screenshot-level rendering tests pass.
+- Focused variant-contract, geometry, topology, board, cell, and
+  screenshot-level rendering tests pass.
+
+#### Phase 6 Implementation Tasks
+
+1. **Define explicit variant contracts**
+   - Add the variant identifier to authored and runtime edge types and the
+     scenario schema.
+   - Define the supported variant catalog per terrain kind in shared rules or
+     configuration, not in a React component.
+   - Update materialization, snapshot validation, API/WebSocket types, and
+     canonical scenario fixtures.
+
+2. **Build edge and corner geometry**
+   - Add pure helpers for endpoint coordinates, inset segment bounds, segment
+     angle, corner orientation, and mirrored bend direction.
+   - Add topology analysis for same-type two-edge joins, mixed joins, and
+     three-way joins.
+   - Test all six edge facings and both bend directions with shared-vertex
+     tolerances.
+
+3. **Create the initial visual catalog**
+   - Add three or four rectangle-based variants for ridge and stream.
+   - Add normalized ridge and stream corner assets, using rotation and mirror
+     transforms rather than twelve authored directional files.
+   - Keep endpoint dimensions identical across variants.
+
+4. **Integrate board rendering**
+   - Add board-level segment and corner layers between whole-hex terrain and
+     occupants.
+   - Use stable React keys derived from canonical edge identity and corner
+     identity.
+   - Preserve map interaction by setting the layers to be non-interactive.
+
+5. **Separate dynamic overlays**
+   - Move movement and firing-range graphics into a removable transparent layer
+     above occupants without changing click routing or selection behavior.
+
+6. **Verify visual and interaction behavior**
+   - Add focused geometry and topology tests, board rendering tests, and a
+     small screenshot matrix covering isolated edges, same-type bends, mixed
+     joins, three-way joins, all facings, and multiple variants.
+
+#### Follow-up: Variant Authoring Assistance
+
+Add scenario-tool support for previewing candidate variants and suggesting
+variants based on neighboring edges and corner continuity. The tool may help a
+designer choose or preview values, but the saved scenario remains explicit
+authored data. Random generation at game load and UI-time variant selection
+remain intentionally out of scope.
 
 ### Phase 7: Remove Obsolete Combat Terrain Behavior
 

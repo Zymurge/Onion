@@ -25,6 +25,7 @@ import type { ActionOkResponse, EventEnvelope, TurnPhase } from '#shared/types/i
 import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
 import { validateBattlefieldSnapshot } from './battlefieldDisplay/snapshotValidation'
+import { isSupportedEdgeVariant } from '../../shared/config/edgeTerrainVariants.js'
 
 type ActionSuccessResponse = ActionOkResponse & {
 	scenarioId?: string
@@ -109,6 +110,7 @@ function requireScenarioMap(response: GameStateResponse) {
 
 	for (const [edgeIndex, edge] of response.scenarioMap.edges.entries()) {
 		if (edge === null || typeof edge !== 'object' || (edge.type !== 'ridge' && edge.type !== 'stream')
+			|| typeof edge.variant !== 'string' || !isSupportedEdgeVariant(edge.type, edge.variant)
 			|| edge.a === null || typeof edge.a !== 'object' || edge.b === null || typeof edge.b !== 'object'
 			|| typeof edge.a.q !== 'number' || typeof edge.a.r !== 'number' || typeof edge.b.q !== 'number' || typeof edge.b.r !== 'number') {
 			throw new GameClientSeamError('transport', `Invalid scenario map edge ${edgeIndex} in game state response`)

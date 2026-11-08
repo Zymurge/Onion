@@ -18,8 +18,8 @@ describe('scenarioMap materialization', () => {
 
 	it('materializes canonical edges for compact and explicit maps', () => {
 		const edges = [
-			{ type: 'ridge' as const, a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
-			{ type: 'stream' as const, a: { q: 0, r: 1 }, b: { q: 1, r: 1 } },
+			{ type: 'ridge' as const, variant: 'ridge-1' as const, a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+			{ type: 'stream' as const, variant: 'stream-1' as const, a: { q: 0, r: 1 }, b: { q: 1, r: 1 } },
 		]
 
 		const compact = materializeScenarioMap({ shape: 'rectangle', width: 2, height: 2, hexes: [], edges })
@@ -41,7 +41,7 @@ describe('scenarioMap materialization', () => {
 			width: 2,
 			height: 2,
 			hexes: [],
-			edges: [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 2, r: 0 } }],
+			edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 2, r: 0 } }],
 		})).toThrow('Scenario edge endpoint is outside the map')
 	})
 
@@ -51,7 +51,7 @@ describe('scenarioMap materialization', () => {
 			width: 3,
 			height: 3,
 			hexes: [],
-			edges: [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 2, r: 0 } }],
+			edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 2, r: 0 } }],
 		})).toThrow('Scenario edge endpoints must be adjacent')
 	})
 
@@ -61,7 +61,7 @@ describe('scenarioMap materialization', () => {
 			width: 2,
 			height: 2,
 			hexes: [],
-			edges: [{ type: 'ridge', a: { q: 1, r: 0 }, b: { q: 0, r: 0 } }],
+			edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 1, r: 0 }, b: { q: 0, r: 0 } }],
 		})).toThrow('Scenario edge endpoints must be in canonical order')
 	})
 
@@ -72,8 +72,8 @@ describe('scenarioMap materialization', () => {
 			height: 2,
 			hexes: [],
 			edges: [
-				{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
-				{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+				{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+				{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
 			],
 		})).toThrow('Scenario edge endpoint pair is duplicated')
 	})
@@ -85,8 +85,8 @@ describe('scenarioMap materialization', () => {
 			height: 2,
 			hexes: [],
 			edges: [
-				{ type: 'stream', a: { q: 0, r: 1 }, b: { q: 1, r: 1 } },
-				{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+				{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 1 }, b: { q: 1, r: 1 } },
+				{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
 			],
 		})).toThrow('Scenario edges must be in canonical order')
 	})

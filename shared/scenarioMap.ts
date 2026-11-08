@@ -1,4 +1,5 @@
 import { createAxialRegion, hexDistance, hexKey, type HexPos } from './axialHex.js'
+import { isSupportedEdgeVariant } from './config/edgeTerrainVariants.js'
 import type { ScenarioTerrainEdge, TerrainType } from './types/index.js'
 
 export type { ScenarioEdgeTerrain, ScenarioTerrainEdge } from './types/index.js'
@@ -74,6 +75,9 @@ export function validateCanonicalEdges(
 		}
 		if (hexDistance(edge.a, edge.b) !== 1) {
 			throw new Error(`Scenario edge endpoints must be adjacent at (${edge.a.q}, ${edge.a.r})-(${edge.b.q}, ${edge.b.r})`)
+		}
+		if (!isSupportedEdgeVariant(edge.type, edge.variant)) {
+			throw new Error(`Scenario edge variant ${edge.variant} is not supported for ${edge.type} at index ${index}`)
 		}
 		if (!isCanonicalEndpointOrder(edge)) {
 			throw new Error(`Scenario edge endpoints must be in canonical order at index ${index}`)

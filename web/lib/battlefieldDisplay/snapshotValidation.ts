@@ -3,6 +3,7 @@ import type { GameSessionViewState } from '../gameSessionTypes'
 import type { GameState, TurnPhase } from '../../../shared/types/index'
 import { validateStackRoster, validateStackRosterConsistency } from '../../../shared/stackRoster/index.js'
 import { isSessionUnitTypeStackable } from '../sessionCatalog'
+import { isSupportedEdgeVariant } from '../../../shared/config/edgeTerrainVariants.js'
 
 /** Human-readable labels for all supported turn phases. */
 export const turnPhaseLabels: Record<TurnPhase, string> = {
@@ -154,7 +155,9 @@ export function validateBattlefieldSnapshot(snapshot: ServerGameSnapshot): strin
 		}
 	}
 	for (const [edgeIndex, edge] of scenarioMap.edges.entries()) {
-		if (!isRecord(edge) || (edge.type !== 'ridge' && edge.type !== 'stream') || !isRecord(edge.a) || !isRecord(edge.b)
+		if (!isRecord(edge) || (edge.type !== 'ridge' && edge.type !== 'stream')
+			|| typeof edge.variant !== 'string' || !isSupportedEdgeVariant(edge.type, edge.variant)
+			|| !isRecord(edge.a) || !isRecord(edge.b)
 			|| !isFiniteNumber(edge.a.q) || !isFiniteNumber(edge.a.r) || !isFiniteNumber(edge.b.q) || !isFiniteNumber(edge.b.r)) {
 			return describeSnapshotError(snapshot, `scenarioMap.edges[${edgeIndex}] is missing a valid type or endpoint coordinates`)
 		}

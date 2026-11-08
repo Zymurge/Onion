@@ -77,7 +77,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Action or event delivery logging | [api-contract.md](api-contract.md) | `server/api/gameHelpers/logging.ts` |
 | Game ID parsing | [api-contract.md](api-contract.md) | `server/api/gameHelpers/ids.ts` |
 | Game API helper catalog or cross-helper entry point | [api-contract.md](api-contract.md) | `server/api/gameHelpers/index.ts`, then the owning helper module |
-| Scenario map and edge requirement | [api-contract.md](api-contract.md) `## Scenario Map`, [scenario-schema.md](scenario-schema.md) | `shared/scenarioMap.ts`; authored validation remains in `server/engine/scenarioSchema.ts` and `server/api/gameHelpers/scenario.ts` |
+| Scenario map and edge requirement | [api-contract.md](api-contract.md) `## Scenario Map`, [scenario-schema.md](scenario-schema.md) | `shared/scenarioMap.ts`, `shared/config/edgeTerrainVariants.ts`, `web/lib/edgeTerrainGeometry.ts`, `web/lib/edgeTerrainAssetRegistry.ts`; authored validation remains in `server/engine/scenarioSchema.ts` and `server/api/gameHelpers/scenario.ts` |
 | Web action eligibility or availability projection | [web-ui-spec.md](web-ui-spec.md), then [web-ui/battlefield-and-combat-spec.md](web-ui/battlefield-and-combat-spec.md) `## Selection and Eligibility` | `web/lib/actionEligibility/`; keep movement and combat eligibility pure and leave shared movement, weapon, and target rules authoritative |
 | Error body or error code | [api-contract.md](api-contract.md) `## Error Response Shape` and `### Known Error Codes` | `server/api/` |
 | Board snapshot fields | [api-contract.md](api-contract.md) `## Shared Types` and `### GameState` | `shared/types/` |

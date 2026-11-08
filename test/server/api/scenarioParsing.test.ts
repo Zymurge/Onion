@@ -94,7 +94,7 @@ describe('parseScenarioSnapshot', () => {
         width: 2,
         height: 2,
         hexes: [{ q: 0, r: 0, t: 1 }, { q: 1, r: 1, t: 2 }],
-        edges: [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+        edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
       },
     })
 
@@ -103,8 +103,34 @@ describe('parseScenarioSnapshot', () => {
       { q: 1, r: 1, t: 2 },
     ])
     expect(scenario.map.edges).toEqual([
-      { type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+      { type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
     ])
+  })
+
+  it('requires a supported variant for each edge terrain kind', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        ...validScenario.map,
+        edges: [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })).toThrow(ScenarioValidationError)
+
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        ...validScenario.map,
+        edges: [{ type: 'ridge', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })).toThrow(ScenarioValidationError)
+
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        ...validScenario.map,
+        edges: [{ type: 'ridge', variant: 'ridge-unknown', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })).toThrow(ScenarioValidationError)
   })
 
   it.each([[-1], [3], [1.5]])('rejects unsupported whole-hex terrain code %s', (terrain) => {
@@ -129,7 +155,7 @@ describe('parseScenarioSnapshot', () => {
       ...validScenario,
       map: {
         ...validScenario.map,
-        edges: [{ type: 'ridge', a: { q: 2, r: 1 }, b: { q: 1, r: 1 } }],
+        edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 2, r: 1 }, b: { q: 1, r: 1 } }],
       },
     })).toThrow(/canonical order/)
   })

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isSupportedEdgeVariant } from '#shared/config/edgeTerrainVariants'
 
 export const HexPosSchema = z.object({
   q: z.number(),
@@ -15,9 +16,21 @@ const TerrainHexSchema = z.object({
 
 const ScenarioTerrainEdgeSchema = z.object({
   type: z.enum(['ridge', 'stream']),
+  variant: z.enum([
+    'ridge-1', 'ridge-2', 'ridge-3', 'ridge-4',
+    'stream-1', 'stream-2', 'stream-3', 'stream-4',
+  ]),
   a: HexPosSchema,
   b: HexPosSchema,
-}).strict()
+}).strict().superRefine((edge, context) => {
+  if (!isSupportedEdgeVariant(edge.type, edge.variant)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Variant ${edge.variant} is not supported for ${edge.type}`,
+      path: ['variant'],
+    })
+  }
+})
 
 const StartingAmmoByWeaponTypeSchema = z.record(z.string().min(1), z.number().int().nonnegative())
 

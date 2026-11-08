@@ -79,10 +79,13 @@ Ridges and streams are stored once as undirected edges between two adjacent
 axial cells. An authored edge has this shape:
 
 ```json
-{ "type": "ridge", "a": { "q": 8, "r": 0 }, "b": { "q": 9, "r": 0 } }
+{ "type": "ridge", "variant": "ridge-1", "a": { "q": 8, "r": 0 }, "b": { "q": 9, "r": 0 } }
 ```
 
-`type` is `ridge` or `stream`. Endpoints must be distinct, adjacent cells and
+`type` is `ridge` or `stream`. `variant` is required and must be one of
+`ridge-1` through `ridge-4` for ridges or `stream-1` through `stream-4` for
+streams. Variants are explicit authored data; missing, unsupported, or
+cross-terrain variants are invalid. Endpoints must be distinct, adjacent cells and
 must both belong to the materialized map's `cells` set. Each edge stores its
 endpoints in ascending `(q, r)` order. Edge records themselves must be sorted
 lexicographically by `(a.q, a.r, b.q, b.r)`. Reversed endpoints and

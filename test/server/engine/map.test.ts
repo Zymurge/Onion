@@ -61,7 +61,7 @@ function sparseMap(): GameMap {
 
 describe('createMap', () => {
   it('preserves canonical whole-hex terrain and scenario edges', () => {
-    const edges = [{ type: 'ridge' as const, a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }]
+    const edges = [{ type: 'ridge' as const, variant: 'ridge-1' as const, a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }]
     const map = createMap(2, 2, [
       { q: 0, r: 0, t: 1 },
       { q: 1, r: 1, t: 2 },

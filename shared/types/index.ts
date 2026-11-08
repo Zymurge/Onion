@@ -21,6 +21,15 @@ export type UnitClassMobility = 'mobile' | 'immobile'
 
 /** Terrain feature that occupies the boundary between two adjacent cells. */
 export type ScenarioEdgeTerrain = 'ridge' | 'stream'
+export type ScenarioEdgeVariant =
+  | 'ridge-1'
+  | 'ridge-2'
+  | 'ridge-3'
+  | 'ridge-4'
+  | 'stream-1'
+  | 'stream-2'
+  | 'stream-3'
+  | 'stream-4'
 
 /** Canonical undirected edge feature between two adjacent scenario cells. */
 export interface ScenarioTerrainEdge {
@@ -30,6 +39,8 @@ export interface ScenarioTerrainEdge {
   b: HexPos
   /** Edge terrain classification. */
   type: ScenarioEdgeTerrain
+  /** Explicit visual variant selected by the scenario author. */
+  variant: ScenarioEdgeVariant
 }
 
 import type { TargetRules } from '../targetRules.js'

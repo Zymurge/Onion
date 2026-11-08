@@ -60,7 +60,7 @@ describe('validateUnitMovement', () => {
   it('rejects defender move across a ridge edge if unit cannot cross', () => {
     const tank = makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'puss-1': tank } })
-    const ridgeMap = createMap(5, 5, [], undefined, [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+    const ridgeMap = createMap(5, 5, [], undefined, [{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
 
     // Tank with 3 MP would find alternate route if unconstrained, so let movementSpent constrain to 1 MP:
     tank.movementSpent = { DEFENDER_MOVE: 2 }
@@ -81,7 +81,7 @@ describe('validateUnitMovement', () => {
   it('allows Onion to cross ridge edge and ram defender behind it', () => {
     const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender } })
-    const ridgeMap = createMap(5, 5, [], undefined, [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+    const ridgeMap = createMap(5, 5, [], undefined, [{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
 
     const result = validateUnitMovement(ridgeMap, state, {
       type: 'MOVE',
@@ -100,7 +100,7 @@ describe('validateUnitMovement', () => {
   it('charges stream surcharge for LightArmor in engine movement validation', () => {
     const tank = makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'puss-1': tank } })
-    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
 
     const result = validateUnitMovement(streamMap, state, {
       type: 'MOVE',
@@ -121,7 +121,7 @@ describe('validateUnitMovement', () => {
     // BigBadWolf is GEV: 4 base movement, canSecondMove = true, second move allowance = 3
     const gev = makeDefender({ unitId: 'w1', typeId: 'BigBadWolf', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { w1: gev } })
-    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
 
     const result = validateUnitMovement(streamMap, state, {
       type: 'MOVE',
@@ -142,7 +142,7 @@ describe('validateUnitMovement', () => {
   it('executes a stream plan using the validated edge-aware cost exactly once', () => {
     const tank = makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'puss-1': tank } })
-    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
 
     const validation = validateUnitMovement(streamMap, state, {
       type: 'MOVE',
@@ -162,7 +162,7 @@ describe('validateUnitMovement', () => {
   it('executes a GEV second-move plan with its phase allowance and edge cost', () => {
     const gev = makeDefender({ unitId: 'w1', typeId: 'BigBadWolf', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { w1: gev } })
-    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
 
     const validation = validateUnitMovement(streamMap, state, {
       type: 'MOVE',
@@ -182,7 +182,7 @@ describe('validateUnitMovement', () => {
   it('executes an edge-aware Onion ram without changing ram or tread accounting', () => {
     const defender = makeDefender({ unitId: 'd1', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
     const state = makeState({ defenders: { d1: defender }, ramsRemaining: 2 })
-    const ridgeMap = createMap(5, 5, [], undefined, [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+    const ridgeMap = createMap(5, 5, [], undefined, [{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
 
     const validation = validateUnitMovement(ridgeMap, state, {
       type: 'MOVE',

@@ -495,6 +495,11 @@ All errors include `detailCode` for granular client feedback.
 
 All routes and clients require the canonical `scenarioMap` with a non-empty `cells` array. There is no fallback or compatibility logic for missing geometry fields. All geometry and pathfinding must use the `cells` array.
 
+Each canonical `scenarioMap.edges` record contains `a`, `b`, `type`, and an
+explicit terrain-specific `variant`. Supported variants are `ridge-1` through
+`ridge-4` for ridge edges and `stream-1` through `stream-4` for stream edges.
+Runtime snapshots always preserve the authored variant.
+
 ## Event Types
 
 All events share a base envelope:

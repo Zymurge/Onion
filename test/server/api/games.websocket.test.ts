@@ -195,6 +195,7 @@ describe('GET /games/:id/ws', () => {
 		expect(snapshotMessage.snapshot.role).toBe('onion')
 		expect(snapshotMessage.snapshot.scenarioMap.edges).toContainEqual({
 		 type: 'stream',
+		 variant: 'stream-1',
 		 a: { q: 4, r: 3 },
 		 b: { q: 5, r: 3 },
 	})
