@@ -1,4 +1,4 @@
-import type { TerrainType } from './types/index.js'
+import type { HexPos, ScenarioTerrainEdge, TerrainType } from './types/index.js'
 import type { UnitTypeBase } from './types/index.js'
 import { getRulesContext, type RulesContext } from './rulesContext.js'
 
@@ -17,6 +17,92 @@ export type StopOccupationFailure =
 	| 'occupied'
 	| 'mixed-stack'
 	| 'stack-limit'
+
+export type EdgeLookup = Map<string, ScenarioTerrainEdge>
+
+/**
+ * Returns a canonical undirected key for an edge between two hex positions.
+ * Compares complete (q, r) coordinates lexicographically.
+ */
+export function canonicalEdgeKey(a: HexPos, b: HexPos): string {
+	if (a.q < b.q || (a.q === b.q && a.r <= b.r)) {
+		return `${a.q},${a.r}|${b.q},${b.r}`
+	}
+	return `${b.q},${b.r}|${a.q},${a.r}`
+}
+
+/**
+ * Builds an O(1) lookup map of edges indexed by canonical edge key.
+ */
+export function buildEdgeLookup(edges?: ReadonlyArray<ScenarioTerrainEdge>): EdgeLookup {
+	const lookup = new Map<string, ScenarioTerrainEdge>()
+	if (!edges) {
+		return lookup
+	}
+	for (const edge of edges) {
+		lookup.set(canonicalEdgeKey(edge.a, edge.b), edge)
+	}
+	return lookup
+}
+
+/**
+ * Evaluates the edge crossing effect for a step between adjacent hexes `from` and `to`.
+ * Edge effects are bidirectional and resolve through the unit's class rules.
+ */
+export function getEdgeStepEffect(
+	unitType: string,
+	from: HexPos,
+	to: HexPos,
+	edgeLookup: EdgeLookup,
+	rules?: RulesContext,
+): { canCross: boolean; surcharge: number } {
+	const edge = edgeLookup.get(canonicalEdgeKey(from, to))
+	if (edge === undefined) {
+		return { canCross: true, surcharge: 0 }
+	}
+
+	const classRule = getUnitClassRule(unitType, rules)
+	if (classRule === undefined) {
+		throw new Error(`Missing unit class rule for unit type ${unitType}`)
+	}
+
+	const terrainRule = classRule.terrain[edge.type]
+	if (terrainRule === undefined) {
+		throw new Error(`Missing ${edge.type} edge terrain rule for unit type ${unitType}`)
+	}
+
+	return {
+		canCross: terrainRule.canCross,
+		surcharge: terrainRule.movementSurcharge,
+	}
+}
+
+/**
+ * Returns the combined movement cost for stepping from `from` to `to`, or `null` if impassable or prohibited.
+ * Combines edge surcharge with destination whole-hex terrain entry cost.
+ */
+export function getStepMoveCost(input: {
+	unitType: string
+	from: HexPos
+	to: HexPos
+	terrainLookup: Map<string, TerrainType>
+	edgeLookup: EdgeLookup
+	rules?: RulesContext
+}): number | null {
+	const edgeEffect = getEdgeStepEffect(input.unitType, input.from, input.to, input.edgeLookup, input.rules)
+	if (!edgeEffect.canCross) {
+		return null
+	}
+
+	const destinationKey = `${input.to.q},${input.to.r}`
+	const destinationTerrain = input.terrainLookup.get(destinationKey) ?? 'clear'
+	const destinationCost = getTerrainMoveCost(input.unitType, destinationTerrain, input.rules)
+	if (destinationCost === null) {
+		return null
+	}
+
+	return destinationCost + edgeEffect.surcharge
+}
 
 function getUnitDefinition(unitType: string, rules?: RulesContext): UnitTypeBase | undefined {
 	return getRulesContext(rules).getUnitDefinition(unitType)

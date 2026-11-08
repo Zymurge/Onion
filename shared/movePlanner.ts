@@ -1,8 +1,9 @@
 import { getNeighbors, hexKey, type HexPos } from './axialHex.js'
 import {
+	buildEdgeLookup,
 	canStopOnOccupiedHex,
 	canTraverseOccupiedHex,
-	getTerrainMoveCost,
+	getStepMoveCost,
 	type MoveOccupant,
 	type MoveRole,
 } from './movementRules.js'
@@ -63,39 +64,72 @@ function reconstructPath(prev: Map<string, HexPos | null>, from: HexPos, to: Hex
 	return path
 }
 
-function exploreReachableMoves(
-	map: MoveMapSnapshot,
-	from: HexPos,
-	movementAllowance: number,
-	movingUnitType: string,
-	movingRole: MoveRole,
-	rules?: RulesContext,
-) {
-	const terrainLookup = getTerrainLookup(map)
-	const occupiedLookup = getOccupiedLookup(map)
-	const cellLookup = getCellLookup(map)
+function runDijkstraSearch(input: {
+	map: MoveMapSnapshot
+	from: HexPos
+	movementAllowance: number
+	movingRole: MoveRole
+	movingUnitType: string
+	target?: HexPos
+	incomingMembers?: number
+	incomingSquads?: number
+	rules?: RulesContext
+}): {
+	dist: Map<string, number>
+	prev: Map<string, HexPos | null>
+	targetReached: boolean
+} {
+	const cellLookup = getCellLookup(input.map)
+	const terrainLookup = getTerrainLookup(input.map)
+	const edgeLookup = buildEdgeLookup(input.map.edges)
+	const occupiedLookup = getOccupiedLookup(input.map)
+
 	const dist = new Map<string, number>()
 	const prev = new Map<string, HexPos | null>()
-	const queue: Array<{ pos: HexPos; cost: number }> = [{ pos: from, cost: 0 }]
+	const queue: Array<{ pos: HexPos; cost: number }> = [{ pos: input.from, cost: 0 }]
 
-	dist.set(hexKey(from), 0)
-	prev.set(hexKey(from), null)
+	dist.set(hexKey(input.from), 0)
+	prev.set(hexKey(input.from), null)
+
+	let targetReached = false
 
 	while (queue.length > 0) {
 		queue.sort((a, b) => a.cost - b.cost)
 		const { pos, cost } = queue.shift()!
 
+		if (input.target !== undefined && pos.q === input.target.q && pos.r === input.target.r) {
+			const currentOccupants = occupiedLookup.get(hexKey(pos)) ?? []
+			if (
+				canStopOnOccupiedHex({
+					movingRole: input.movingRole,
+					movingUnitType: input.movingUnitType,
+					occupants: currentOccupants,
+					incomingMembers: input.incomingMembers ?? input.incomingSquads ?? 1,
+					rules: input.rules,
+				})
+			) {
+				targetReached = true
+				break
+			}
+		}
+
 		for (const neighbor of getNeighbors(pos)) {
 			if (!cellLookup.has(hexKey(neighbor))) continue
 			const neighborOccupants = occupiedLookup.get(hexKey(neighbor)) ?? []
-			if (!canTraverseOccupiedHex(movingRole, neighborOccupants)) continue
+			if (!canTraverseOccupiedHex(input.movingRole, neighborOccupants)) continue
 
-			const terrain = terrainLookup.get(hexKey(neighbor)) ?? 'clear'
-			const stepCost = getTerrainMoveCost(movingUnitType, terrain, rules)
+			const stepCost = getStepMoveCost({
+				unitType: input.movingUnitType,
+				from: pos,
+				to: neighbor,
+				terrainLookup,
+				edgeLookup,
+				rules: input.rules,
+			})
 			if (stepCost === null) continue
 
 			const newCost = cost + stepCost
-			if (newCost > movementAllowance) continue
+			if (newCost > input.movementAllowance) continue
 
 			const key = hexKey(neighbor)
 			if (dist.has(key) && dist.get(key)! <= newCost) continue
@@ -106,7 +140,7 @@ function exploreReachableMoves(
 		}
 	}
 
-	return { dist, prev }
+	return { dist, prev, targetReached }
 }
 
 export function findMovePath(input: {
@@ -130,56 +164,24 @@ export function findMovePath(input: {
 		return { found: true, path: [], cost: 0 }
 	}
 
-	const terrainLookup = getTerrainLookup(input.map)
-	const occupiedLookup = getOccupiedLookup(input.map)
-	const dist = new Map<string, number>()
-	const prev = new Map<string, HexPos | null>()
-	const queue: Array<{ pos: HexPos; cost: number }> = [{ pos: input.from, cost: 0 }]
+	const search = runDijkstraSearch({
+		map: input.map,
+		from: input.from,
+		movementAllowance: input.movementAllowance,
+		movingRole: input.movingRole,
+		movingUnitType: input.movingUnitType,
+		target: input.to,
+		incomingMembers: input.incomingMembers,
+		incomingSquads: input.incomingSquads,
+		rules: input.rules,
+	})
 
-	dist.set(hexKey(input.from), 0)
-	prev.set(hexKey(input.from), null)
-
-	while (queue.length > 0) {
-		queue.sort((a, b) => a.cost - b.cost)
-		const { pos, cost } = queue.shift()!
-		const currentOccupants = occupiedLookup.get(hexKey(pos)) ?? []
-
-		if (
-			pos.q === input.to.q &&
-			pos.r === input.to.r &&
-			canStopOnOccupiedHex({
-				movingRole: input.movingRole,
-				movingUnitType: input.movingUnitType,
-				occupants: currentOccupants,
-				incomingMembers: input.incomingMembers ?? input.incomingSquads ?? 1,
-				rules: input.rules,
-			})
-		) {
-			return { found: true, path: reconstructPath(prev, input.from, input.to), cost }
-		}
-
-		for (const neighbor of getNeighbors(pos)) {
-			if (!cellLookup.has(hexKey(neighbor))) continue
-			const neighborOccupants = occupiedLookup.get(hexKey(neighbor)) ?? []
-			if (!canTraverseOccupiedHex(input.movingRole, neighborOccupants)) continue
-
-			const terrain = terrainLookup.get(hexKey(neighbor)) ?? 'clear'
-			const stepCost = getTerrainMoveCost(input.movingUnitType, terrain, input.rules)
-			if (stepCost === null) continue
-
-			const newCost = cost + stepCost
-			if (newCost > input.movementAllowance) continue
-
-			const key = hexKey(neighbor)
-			if (dist.has(key) && dist.get(key)! <= newCost) continue
-
-			dist.set(key, newCost)
-			prev.set(key, pos)
-			queue.push({ pos: neighbor, cost: newCost })
-		}
+	if (!search.targetReached) {
+		return { found: false, path: [], cost: 0 }
 	}
 
-	return { found: false, path: [], cost: 0 }
+	const cost = search.dist.get(hexKey(input.to)) ?? 0
+	return { found: true, path: reconstructPath(search.prev, input.from, input.to), cost }
 }
 
 export function listReachableMoves(input: {
@@ -192,11 +194,20 @@ export function listReachableMoves(input: {
 	incomingSquads?: number
 	rules?: RulesContext
 }): ReachableMove[] {
-	const { dist, prev } = exploreReachableMoves(input.map, input.from, input.movementAllowance, input.movingUnitType, input.movingRole, input.rules)
+	const search = runDijkstraSearch({
+		map: input.map,
+		from: input.from,
+		movementAllowance: input.movementAllowance,
+		movingRole: input.movingRole,
+		movingUnitType: input.movingUnitType,
+		incomingMembers: input.incomingMembers,
+		incomingSquads: input.incomingSquads,
+		rules: input.rules,
+	})
 	const occupiedLookup = getOccupiedLookup(input.map)
 
 	const moves: ReachableMove[] = []
-	for (const [key, cost] of dist.entries()) {
+	for (const [key, cost] of search.dist.entries()) {
 		if (key === hexKey(input.from)) continue
 
 		const [q, r] = key.split(',').map(Number)
@@ -214,7 +225,7 @@ export function listReachableMoves(input: {
 		moves.push({
 			to,
 			cost,
-			path: reconstructPath(prev, input.from, to),
+			path: reconstructPath(search.prev, input.from, to),
 		})
 	}
 

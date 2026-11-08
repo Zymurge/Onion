@@ -1,7 +1,7 @@
 # Issue #76: Hexside Terrain Model for Ridges and Streams
 
-**Status:** Phase 2.2 caller migration complete; canonical edge implementation
-phases remain pending
+**Status:** Phase 4 edge-aware movement implementation and regression gate
+complete; rendering, combat cleanup, and broader fixture rollout remain planned
 **Issue:** [Investigate hexside terrain model for ridges and streams](https://github.com/Zymurge/Onion/issues/76)
 **Scope:** Design and impact assessment only. This document does not authorize implementation.
 
@@ -544,29 +544,178 @@ Acceptance checks:
 
 Tasks:
 
-- Add canonical edge lookup by normalized endpoint pair and use it for both
-  traversal directions.
-- Update `movePlanner.ts` reachable-move and pathfinding algorithms to combine
-  edge surcharge with destination whole-hex entry cost, while treating
-  prohibited edges and craters as impassable.
-- Update `moveValidator.ts` to use the same planner inputs and define
-  `NO_PATH` strictly as no path within the remaining movement allowance. Keep
-  `MOVE_INVALID` and do not add an edge-specific error code or message.
-- Update the engine movement adapter to preserve edges and pass the shared
-  edge-aware map to authoritative validation and execution.
-- Verify reverse traversal, mixed ridge/stream routes, occupancy, stacking,
-  ramming, and GEV second-move allowance all use the same edge semantics.
-- Update client movement preparation and reachable-hex highlighting to call the
-  same shared edge-aware planner; an ineligible destination must not light up.
+- **4.1 Edge lookup and shared step-cost policy**
+  - Add an undirected lookup keyed by the lexicographically normalized pair of
+    endpoints. Compare complete `(q, r)` coordinates when ordering endpoints;
+    do not independently take coordinate minima. Both traversal directions
+    must resolve to the same edge.
+  - Define one shared step decision that combines edge crossing permission,
+    edge surcharge, and destination whole-hex entry cost. A prohibited edge or
+    impassable destination returns an unavailable step; otherwise the edge
+    surcharge is added exactly once to the destination cost.
+  - Resolve edge behavior through the moving unit's class in `RulesContext`.
+    An absent edge has no edge cost. Runtime maps continue to require `edges`,
+    including an empty array.
+  - Keep whole-hex crater and swamp behavior distinct from ridge and stream
+    edge behavior. Remove the obsolete whole-hex ridgeline movement branch
+    once its callers and fixtures have been migrated; do not introduce a
+    compatibility interpretation of old ridge hexes.
+  - Owning modules: `shared/movementRules.ts`, `shared/classRules.ts`, and
+    focused shared rule tests.
+  - Agent level: **strong reasoning model** for settling the shared rule
+    boundary and preventing legacy whole-hex behavior from becoming a second
+    authority; a task-appropriate coding model can implement the settled
+    contract.
+  - Dependencies: Phase 3 canonical edge contract. This is the prerequisite
+    for 4.2.
+
+- **4.2 Canonical planner traversal and search**
+  - Make every neighbor expansion evaluate the edge from the current cell to
+    the neighbor and the neighbor's whole-hex terrain using the shared step
+    decision from 4.1.
+  - Assess whether `findMovePath` and reachable-move exploration should share a
+    single Dijkstra/search kernel. Prefer one traversal and relaxation policy
+    where that preserves both APIs' stopping and occupancy behavior; document
+    any reason to retain separate search flows. Do not add a priority-queue
+    dependency or performance optimization without evidence it is needed.
+  - Preserve path reconstruction, stable reachable-move ordering, and existing
+    equal-cost behavior where possible. If the selected shortest path changes,
+    make tie-breaking explicit and test it.
+  - Keep occupied-hex traversal and destination stopping rules hex-based.
+    Movement through an occupied hex must not accidentally become equivalent to
+    stopping there; preserve existing ram path behavior.
+  - Owning module: `shared/movePlanner.ts`; focused tests in
+    `test/shared/movePlanner.test.ts`.
+  - Agent level: **strong reasoning model** for search ownership, shared-kernel
+    design, path stability, and occupancy invariants. After those decisions are
+    tested and pinned, bounded coding work can use a task-appropriate model.
+  - Dependencies: 4.1. This task unblocks validator, engine, and web parity
+    work.
+
+- **4.3 Validator parity and allowance-bounded `NO_PATH`**
+  - Use the same `MoveMapSnapshot`, remaining movement allowance, class rules,
+    occupancy, and planner decision as reachable-move calculation.
+  - Remove or narrow the destination-only terrain precheck so it cannot
+    disagree with pathfinding or reject a route when an alternate path is
+    available. The planner is the feasibility authority for the full route.
+  - Keep `NO_PATH` under the existing `MOVE_INVALID` API behavior. It means no
+    legal path to the destination costs at most the unit's remaining allowance,
+    not that the map is absolutely disconnected. Do not add an edge-specific
+    code or message.
+  - Owning module: `shared/moveValidator.ts`; focused tests in
+    `test/shared/moveValidator.test.ts`.
+  - Agent level: **task-appropriate coding model** after 4.1 and 4.2 settle the
+    planner contract.
+  - Dependencies: 4.2. Can proceed independently of engine/web integration
+    once the planner API is fixed.
+
+- **4.4 Engine execution, occupancy, ramming, and GEV second moves**
+  - Confirm the engine adapter supplies canonical edges and the phase-specific
+    remaining allowance exactly once. Movement execution must apply the
+    validated plan; it must not recalculate edge costs independently.
+  - Verify path occupants continue to drive Onion ramming, while destination
+    stacking and stop legality remain unchanged. Edge costs must not alter ram
+    capacity, tread damage, or unit identity handling.
+  - Verify GEV second moves use the second-move allowance together with the
+    same edge rules, without applying the allowance or edge surcharge twice.
+  - Owning modules: `server/engine/movement.ts` and, only if a real adapter gap
+    is found, the narrow engine caller. Tests belong in
+    `test/server/engine/movement.test.ts` and relevant API action tests.
+  - Agent level: **task-appropriate coding model**; escalate if validation and
+    execution currently have separate path/cost ownership.
+  - Dependencies: 4.2 and 4.3. Can run in parallel with 4.5 after the planner
+    contract is stable.
+
+- **4.5 Client preparation and reachable-highlight parity**
+  - Ensure client movement preparation and reachable-hex highlighting call the
+    shared planner with the same canonical edge array, unit class, role,
+    occupancy, and remaining allowance as the server.
+  - A destination rejected by the shared planner must not be highlighted as
+    eligible. Keep local preparation non-authoritative; committed movement
+    still round-trips through the backend.
+  - Verify any client ram prompt uses the edge-aware planned path and does not
+    choose a ram target from an unreachable route.
+  - Owning module: `web/lib/battlefieldInteraction/movement.ts` and the nearest
+    movement eligibility projection. Tests belong in
+    `test/web/lib/actionEligibility/movement.test.ts` and relevant interaction
+    tests.
+  - Agent level: **task-appropriate coding model** after the shared planner is
+    settled; use a stronger reasoning model if the web path is found to
+    duplicate movement eligibility rules.
+  - Dependencies: 4.2. Can run in parallel with 4.3 and 4.4 once the planner
+    contract is stable.
+
+- **4.6 Phase 4 regression and scenario gate**
+  - **Status: Complete.**
+  - Run the focused shared rule, planner, validator, engine movement, and web
+    movement tests, followed by every scenario validator, the full test suite,
+    and TypeScript validation.
+  - Update this work item with completed source locations and any residual
+    limitations. Do not broaden into rendering, combat changes, or snapshot
+    migration.
+  - Agent level: **default/lower-tier model** for mechanical execution and
+    result reporting; return to a stronger reasoning model if failures reveal
+    a cross-layer contract mismatch.
+  - Dependencies: 4.1 through 4.5. Sequential final gate.
+
+**Focused movement matrix**
+
+- Ridge: allowed classes cross at no surcharge; prohibited classes cannot
+  cross; both directions produce the same result.
+- Stream: Light Armor pays a `+1 MP` edge surcharge; Infantry, Heavy Armor,
+  GEV, and Onion pay `+0 MP`; reverse traversal has identical edge behavior.
+- Destination composition: edge surcharge plus destination terrain cost;
+  stream into crater remains impassable; stream into swamp uses both rules.
+- Search and allowance: surcharge can make a route exceed allowance; an
+  alternate path around a prohibited edge is found when affordable; otherwise
+  `NO_PATH` is allowance-bounded rather than an absolute connectivity claim.
+- Occupancy and execution: occupied intermediate hex behavior, destination
+  stacking, Onion ramming and ram capacity/tread effects, and GEV second moves
+  remain consistent with existing hex-based rules.
+- Parity and determinism: client reachable destinations agree with server
+  validation; equal-cost route selection and reachable ordering are stable.
+- Data boundary: missing or malformed edges fail at the existing snapshot or
+  scenario boundary; the planner does not infer or repair edge data.
 
 Acceptance checks:
 
 - Client reachable hexes and server validation agree for every class in the
   approved matrix.
-- Light Armor pays `1 + 1` MP across a stream into clear terrain; ridge
-  barriers and allowance limits produce ordinary `NO_PATH` failures.
-- All focused planner, validator, engine movement, and client movement tests
-  pass.
+- A Light Armor step across a stream into clear terrain costs `1 + 1` MP;
+  prohibited ridge crossings, impassable crater destinations, and allowance
+  overruns produce ordinary `NO_PATH` results.
+- Reverse edge traversal, alternate routes, occupancy, stacking, ramming, and
+  GEV second moves use the same shared step-cost and search behavior.
+- Focused planner, validator, engine movement, and client movement tests pass;
+  scenario validation, `pnpm test`, and `pnpm exec tsc --noEmit` pass.
+
+### Phase 4 Completion Record
+
+Phase 4 is complete. The implementation is owned by these locations:
+
+- Shared edge lookup and class-based step costs: [shared/movementRules.ts](../../shared/movementRules.ts)
+  and [shared/classRules.ts](../../shared/classRules.ts).
+- Canonical Dijkstra traversal, path reconstruction, and reachable moves:
+  [shared/movePlanner.ts](../../shared/movePlanner.ts).
+- Validator parity and allowance-bounded `NO_PATH`:
+  [shared/moveValidator.ts](../../shared/moveValidator.ts).
+- Engine map adaptation, validated-plan execution, ramming, and GEV second
+  moves: [server/engine/movement.ts](../../server/engine/movement.ts).
+- Client move-map preparation and ram prompting:
+  [web/lib/battlefieldInteraction/movement.ts](../../web/lib/battlefieldInteraction/movement.ts).
+- Client reachable highlighting: [web/components/HexMapBoard.tsx](../../web/components/HexMapBoard.tsx).
+
+Validation completed on 2026-11-07:
+
+- Focused Phase 4 suites: 5 files, 155 tests passed.
+- Scenario validator: all 9 files under `scenarios/*.json` passed when invoked
+  as `pnpm scenario:validate <scenario-file>`.
+- Full regression: 172 files, 1,852 tests passed.
+- TypeScript validation: `pnpm exec tsc --noEmit` passed.
+
+There are no known Phase 4 residual limitations. Static edge rendering,
+removal of obsolete combat terrain behavior, and broader scenario migration
+remain in later phases and are intentionally outside this movement gate.
 
 ### Phase 5: Complete Snapshot And API Contract Propagation
 

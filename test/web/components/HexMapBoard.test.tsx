@@ -393,7 +393,7 @@ import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinition
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 import type { BattlefieldActionEligibility } from '#web/lib/actionEligibility/projection'
 import type { StackNamingSnapshot } from '#shared/stackNaming/index'
-import type { StackRosterState } from '#shared/types/index'
+import type { ScenarioTerrainEdge, StackRosterState } from '#shared/types/index'
 import type { ComponentProps } from 'react'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
@@ -456,6 +456,7 @@ const scenarioMap = {
 	height: 5,
 	cells: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r }))).flat(),
 	hexes: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r, t: 0 } as TerrainHex))).flat(),
+	edges: [] as ScenarioTerrainEdge[],
 }
 
 const sparseScenarioMap = {
@@ -463,6 +464,7 @@ const sparseScenarioMap = {
 	height: 5,
 	cells: [{ q: 0, r: 0 }, { q: 4, r: 4 }],
 	hexes: [{ q: 4, r: 4, t: 1 } as TerrainHex],
+	edges: [] as ScenarioTerrainEdge[],
 }
 
 const onion: BattlefieldOnionView = {
@@ -682,6 +684,46 @@ describe('HexMapBoard', () => {
 		expect(selectedCell?.getAttribute('class')).toContain('hex-cell-selected')
 		expect(selectedCell?.getAttribute('class')).toContain('hex-cell-move-ready')
 		expect(reachableCell?.getAttribute('class')).toContain('hex-cell-reachable')
+	})
+
+	it('uses class-specific stream edge costs for reachable highlights', () => {
+		const streamMap = {
+			...scenarioMap,
+			edges: [{ type: 'stream', a: { q: 1, r: 1 }, b: { q: 2, r: 1 } }],
+		}
+		const oneMpPuss = { ...defenders[0], movesRemaining: 1 }
+
+		const { unmount } = render(
+			<HexMapBoard
+				scenarioMap={streamMap}
+				defenders={[oneMpPuss]}
+				onions={[onion]}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={['puss-1']}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-2-1')).not.toHaveClass('hex-cell-reachable')
+		unmount()
+
+		const oneMpPigs = { ...oneMpPuss, typeId: 'LittlePigs', unitId: 'pigs-1' }
+		render(
+			<HexMapBoard
+				scenarioMap={streamMap}
+				defenders={[oneMpPigs]}
+				onions={[onion]}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={['pigs-1']}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-2-1')).toHaveClass('hex-cell-reachable')
 	})
 
 	it('keeps defender move paths collapsed when the rendered allowance is stale', () => {

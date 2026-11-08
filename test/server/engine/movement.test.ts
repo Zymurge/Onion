@@ -57,6 +57,154 @@ describe('validateUnitMovement', () => {
     })
   })
 
+  it('rejects defender move across a ridge edge if unit cannot cross', () => {
+    const tank = makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'puss-1': tank } })
+    const ridgeMap = createMap(5, 5, [], undefined, [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+
+    // Tank with 3 MP would find alternate route if unconstrained, so let movementSpent constrain to 1 MP:
+    tank.movementSpent = { DEFENDER_MOVE: 2 }
+
+    const result = validateUnitMovement(ridgeMap, state, {
+      type: 'MOVE',
+      unitId: 'puss-1',
+      to: { q: 1, r: 0 },
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'NO_PATH',
+      error: 'No valid path to destination',
+    })
+  })
+
+  it('allows Onion to cross ridge edge and ram defender behind it', () => {
+    const defender = makeDefender({ unitId: 'd1', position: { q: 1, r: 0 } })
+    const state = makeState({ defenders: { d1: defender } })
+    const ridgeMap = createMap(5, 5, [], undefined, [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+
+    const result = validateUnitMovement(ridgeMap, state, {
+      type: 'MOVE',
+      unitId: 'onion',
+      to: { q: 1, r: 0 },
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      throw new Error(`Expected validated plan, got ${result.code}`)
+    }
+    expect(result.plan.rammedUnitIds).toEqual(['d1'])
+    expect(result.plan.ramCapacityUsed).toBe(1)
+  })
+
+  it('charges stream surcharge for LightArmor in engine movement validation', () => {
+    const tank = makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'puss-1': tank } })
+    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+
+    const result = validateUnitMovement(streamMap, state, {
+      type: 'MOVE',
+      unitId: 'puss-1',
+      to: { q: 1, r: 0 },
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      plan: {
+        to: { q: 1, r: 0 },
+        cost: 2, // 1 base + 1 stream surcharge
+      },
+    })
+  })
+
+  it('allows GEV second move across stream with surcharge when allowance suffices', () => {
+    // BigBadWolf is GEV: 4 base movement, canSecondMove = true, second move allowance = 3
+    const gev = makeDefender({ unitId: 'w1', typeId: 'BigBadWolf', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { w1: gev } })
+    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+
+    const result = validateUnitMovement(streamMap, state, {
+      type: 'MOVE',
+      unitId: 'w1',
+      to: { q: 1, r: 0 },
+    })
+
+    // GEV has class GEV, stream surcharge is 0 for GEV, base cost is 1
+    expect(result).toMatchObject({
+      ok: true,
+      plan: {
+        to: { q: 1, r: 0 },
+        cost: 1,
+      },
+    })
+  })
+
+  it('executes a stream plan using the validated edge-aware cost exactly once', () => {
+    const tank = makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'puss-1': tank } })
+    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+
+    const validation = validateUnitMovement(streamMap, state, {
+      type: 'MOVE',
+      unitId: 'puss-1',
+      to: { q: 1, r: 0 },
+    })
+    expect(validation).toMatchObject({ ok: true, plan: { cost: 2 } })
+    if (!validation.ok) throw new Error(`Expected validated plan, got ${validation.code}`)
+
+    const result = executeUnitMovement(state, validation.plan)
+
+    expect(result.success).toBe(true)
+    expect(state.defenders['puss-1'].position).toEqual({ q: 1, r: 0 })
+    expect(state.defenders['puss-1'].movementSpent).toEqual({ DEFENDER_MOVE: 2 })
+  })
+
+  it('executes a GEV second-move plan with its phase allowance and edge cost', () => {
+    const gev = makeDefender({ unitId: 'w1', typeId: 'BigBadWolf', position: { q: 0, r: 0 } })
+    const state = makeState({ currentPhase: 'GEV_SECOND_MOVE', defenders: { w1: gev } })
+    const streamMap = createMap(5, 5, [], undefined, [{ type: 'stream', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+
+    const validation = validateUnitMovement(streamMap, state, {
+      type: 'MOVE',
+      unitId: 'w1',
+      to: { q: 1, r: 0 },
+    })
+    expect(validation).toMatchObject({ ok: true, plan: { cost: 1, movementAllowance: 3 } })
+    if (!validation.ok) throw new Error(`Expected validated plan, got ${validation.code}`)
+
+    const result = executeUnitMovement(state, validation.plan)
+
+    expect(result.success).toBe(true)
+    expect(state.defenders.w1.position).toEqual({ q: 1, r: 0 })
+    expect(state.defenders.w1.movementSpent).toEqual({ GEV_SECOND_MOVE: 1 })
+  })
+
+  it('executes an edge-aware Onion ram without changing ram or tread accounting', () => {
+    const defender = makeDefender({ unitId: 'd1', typeId: 'LittlePigs', position: { q: 1, r: 0 } })
+    const state = makeState({ defenders: { d1: defender }, ramsRemaining: 2 })
+    const ridgeMap = createMap(5, 5, [], undefined, [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }])
+
+    const validation = validateUnitMovement(ridgeMap, state, {
+      type: 'MOVE',
+      unitId: 'onion',
+      to: { q: 1, r: 0 },
+    })
+    expect(validation).toMatchObject({
+      ok: true,
+      plan: { cost: 1, rammedUnitIds: ['d1'], ramCapacityUsed: 1, treadCost: 0 },
+    })
+    if (!validation.ok) throw new Error(`Expected validated plan, got ${validation.code}`)
+
+    const result = executeUnitMovement(state, validation.plan, { ramRolls: createRollQueue([6]) })
+
+    expect(result.success).toBe(true)
+    expect(state.onions.onion.position).toEqual({ q: 1, r: 0 })
+    expect(state.onions.onion.ramsRemaining).toBe(1)
+    expect(state.onions.onion.treads).toBe(45)
+    expect(state.onions.onion.movementSpent).toEqual({ ONION_MOVE: 1 })
+    expect(state.defenders.d1.state).toBe('operational')
+  })
+
   it('reports impassable ridgeline terrain instead of a generic path failure', () => {
     const tank = makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'puss-1': tank } })
