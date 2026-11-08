@@ -6,10 +6,20 @@ import { clearApiProtocolTraffic, getApiProtocolTrafficSnapshot } from '#shared/
 clearApiProtocolTraffic()
 
 function minimalJsonResponse(body: unknown, status = 200) {
+	const responseBody = body as Record<string, unknown>
+	const scenarioMap = responseBody.scenarioMap as Record<string, unknown> | undefined
+	const normalizedBody = scenarioMap !== undefined
+		&& scenarioMap !== null
+		&& !Array.isArray(scenarioMap)
+		&& scenarioMap.__missingEdges !== true
+		&& !Array.isArray(scenarioMap.edges)
+		? { ...responseBody, scenarioMap: { ...scenarioMap, edges: [] } }
+		: body
+
 	return {
 		ok: status >= 200 && status < 300,
 		status,
-		text: vi.fn().mockResolvedValue(JSON.stringify(body)),
+		text: vi.fn().mockResolvedValue(JSON.stringify(normalizedBody)),
 	}
 }
 
@@ -27,6 +37,7 @@ function minimalStateResponse(overrides: Record<string, unknown> = {}) {
 			height: 1,
 			cells: [{ q: 0, r: 0 }],
 			hexes: [{ q: 0, r: 0, t: 0 }],
+			edges: [],
 		},
 		eventSeq: 1,
 		snapshotRevision: 0,
@@ -115,7 +126,8 @@ describe('http game client adapter contract', () => {
 					width: 15,
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-					hexes: [{ q: 1, r: 0, t: 1 }],
+						hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
 				},
 				eventSeq: 47,
 			}))
@@ -161,7 +173,9 @@ describe('http game client adapter contract', () => {
 					width: 15,
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-					hexes: [{ q: 1, r: 0, t: 1 }],
+						hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
+					edges: [],
 				},
 				victoryObjectives: [],
 				scenarioName: "The Siege of Shrek's Swamp",
@@ -246,6 +260,7 @@ describe('http game client adapter contract', () => {
 					height: 22,
 					cells: [{ q: 0, r: 0 }],
 					hexes: [],
+					edges: [],
 				},
 				eventSeq: 47,
 				snapshotRevision: 0,
@@ -280,7 +295,8 @@ describe('http game client adapter contract', () => {
 					width: 15,
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-					hexes: [{ q: 1, r: 0, t: 1 }],
+						hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
 				},
 				eventSeq: 47,
 			}),
@@ -322,8 +338,9 @@ describe('http game client adapter contract', () => {
 					width: 15,
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-					hexes: [{ q: 1, r: 0, t: 1 }],
-				},
+						hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
+					},
 				escapeHexes: [{ q: 9, r: 5 }],
 				eventSeq: 47,
 			}))
@@ -347,8 +364,9 @@ describe('http game client adapter contract', () => {
 					width: 15,
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-					hexes: [{ q: 1, r: 0, t: 1 }],
-				},
+						hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
+					},
 				escapeHexes: [{ q: 9, r: 5 }],
 				eventSeq: 49,
 			}))
@@ -372,8 +390,9 @@ describe('http game client adapter contract', () => {
 				width: 15,
 				height: 22,
 				cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-				hexes: [{ q: 1, r: 0, t: 1 }],
-			},
+						hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
+					},
 			turnNumber: 8,
 			lastEventSeq: 49,
 		})
@@ -398,8 +417,9 @@ describe('http game client adapter contract', () => {
 					width: 15,
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-					hexes: [{ q: 1, r: 0, t: 1 }],
-				},
+						hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
+					},
 				escapeHexes: [{ q: 9, r: 5 }],
 				eventSeq: 47,
 			}))
@@ -453,8 +473,9 @@ describe('http game client adapter contract', () => {
 					width: 15,
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
-					hexes: [{ q: 1, r: 0, t: 1 }],
-				},
+						hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
+					},
 				escapeHexes: [{ q: 0, r: 9 }],
 				eventSeq: 14,
 			}))
@@ -470,6 +491,7 @@ describe('http game client adapter contract', () => {
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
+					edges: [],
 				},
 				victoryObjectives: [
 					{ id: 'destroy-swamp-1', label: 'Destroy The Swamp', kind: 'destroy-unit', unitId: 'swamp-1', victor: 'onion', required: true, completed: true },
@@ -516,6 +538,7 @@ describe('http game client adapter contract', () => {
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
+					edges: [],
 				},
 				eventSeq: 47,
 			}))
@@ -584,6 +607,7 @@ describe('http game client adapter contract', () => {
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
 				},
 				eventSeq: 47,
 			}))
@@ -685,6 +709,7 @@ describe('http game client adapter contract', () => {
 					height: 22,
 					cells: Array.from({ length: 22 }, (_, r) => Array.from({ length: 15 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 1, r: 0, t: 1 }],
+						edges: [],
 				},
 				turnNumber: 2,
 				lastEventSeq: 13,
@@ -1177,6 +1202,8 @@ describe('http game client adapter contract', () => {
 		['missing scenario map', { scenarioMap: undefined }, 'Missing scenario map in game state response'],
 		['missing scenario map cells', { scenarioMap: { width: 1, height: 1, hexes: [] } }, 'Missing scenario map cells in game state response'],
 		['empty scenario map cells', { scenarioMap: { width: 1, height: 1, cells: [], hexes: [] } }, 'Scenario map cells must not be empty in game state response'],
+		['missing scenario map edges', { scenarioMap: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [], __missingEdges: true } }, 'Missing scenario map edges in game state response'],
+		['invalid scenario map edge', { scenarioMap: { width: 2, height: 1, cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }], hexes: [], edges: [{ type: 'ridge', a: { q: 0, r: 0 } }] } }, 'Invalid scenario map edge 0 in game state response'],
 		['missing stack roster', { state: { onions: {}, defenders: {} } }, 'Missing stack roster in game state response'],
 		['invalid stack roster group', { state: { onions: {}, defenders: {}, stackRoster: { groupsById: { bad: { unitIds: null } } } } }, 'Invalid stack roster group shape for bad'],
 		['missing roster defender', { state: { onions: {}, defenders: {}, stackRoster: { groupsById: { bad: { unitIds: ['missing'] } } } } }, 'Missing stack roster defender missing for bad'],

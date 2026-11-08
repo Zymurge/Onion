@@ -103,6 +103,18 @@ function requireScenarioMap(response: GameStateResponse) {
 		throw new GameClientSeamError('transport', 'Scenario map cells must not be empty in game state response')
 	}
 
+	if (!Array.isArray(response.scenarioMap.edges)) {
+		throw new GameClientSeamError('transport', 'Missing scenario map edges in game state response')
+	}
+
+	for (const [edgeIndex, edge] of response.scenarioMap.edges.entries()) {
+		if (edge === null || typeof edge !== 'object' || (edge.type !== 'ridge' && edge.type !== 'stream')
+			|| edge.a === null || typeof edge.a !== 'object' || edge.b === null || typeof edge.b !== 'object'
+			|| typeof edge.a.q !== 'number' || typeof edge.a.r !== 'number' || typeof edge.b.q !== 'number' || typeof edge.b.r !== 'number') {
+			throw new GameClientSeamError('transport', `Invalid scenario map edge ${edgeIndex} in game state response`)
+		}
+	}
+
 	return response.scenarioMap
 }
 
@@ -165,7 +177,7 @@ function mapServerSnapshot(
 ): GameStateEnvelope {
 	const response = parseGameStateResponse(rawResponse)
 	const canonicalState = isCanonicalGameState(response.state)
-	const scenarioMap = canonicalState ? response.scenarioMap : requireScenarioMap(response)
+	const scenarioMap = requireScenarioMap(response)
 	if (!canonicalState) {
 		requireStackRoster(response)
 	}

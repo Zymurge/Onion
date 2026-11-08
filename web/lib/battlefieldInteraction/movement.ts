@@ -27,7 +27,7 @@ export function buildMoveMapSnapshot(snapshot: ServerGameSnapshot, movingUnitId:
 		height: scenarioMap.height,
 		cells: scenarioMap.cells,
 		hexes: scenarioMap.hexes.map((hex) => ({ q: hex.q, r: hex.r, terrain: terrainFromT(hex.t) })),
-		edges: scenarioMap.edges ?? [],
+		edges: scenarioMap.edges,
 		occupiedHexes,
 	}
 }

@@ -26,6 +26,7 @@ function createStateResponse(gameId: number, eventSeq: number, phase = 'DEFENDER
 			height: 1,
 			cells: [{ q: 0, r: 0 }],
 			hexes: [{ q: 0, r: 0, t: 0 }],
+			edges: [],
 		},
 		eventSeq,
 		snapshotRevision: 0,

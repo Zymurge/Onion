@@ -21,6 +21,7 @@ describe('apiProtocol traffic logging', () => {
 				height: 2,
 				cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 1 }],
 				hexes: [],
+				edges: [],
 			},
 		})
 
