@@ -4,6 +4,7 @@ import { resolveSelectionOwnerUnitId } from '../lib/selectionIds'
 import type { BattlefieldActionEligibility } from '../lib/actionEligibility/projection'
 import { HexMapCell } from './HexMapCell'
 import { hexKey } from '../../shared/axialHex'
+import { terrainFromT } from '../../shared/scenarioMap'
 import { listReachableMoves } from '../../shared/movePlanner'
 import { validateMove, type MoveValidationResult, type MoveValidationState } from '../../shared/moveValidator'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
@@ -20,8 +21,11 @@ import {
 import { getCombatTargetIdForOccupant, isCombatTargetSelected, isCombatTargetSelectable } from '../lib/hexMapCombatTargeting'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { buildBattlefieldRosterProjection } from '../lib/battlefieldGroupProjection'
+import { deriveEdgeCorners, edgeIdentity, edgeSegmentGeometry } from '../lib/edgeTerrainGeometry'
+import { getEdgeTerrainAsset, getEdgeTerrainCornerAsset } from '../lib/edgeTerrainAssetRegistry'
 import { useHexMapZoom } from '../lib/useHexMapZoom'
 import type { SessionCatalog } from '../lib/sessionCatalog'
+import type { ScenarioTerrainEdge } from '../../shared/types/index'
 import logger from '../lib/logger'
 import './HexMapBoard.css'
 
@@ -32,6 +36,7 @@ type HexMapBoardProps = {
     height: number
     cells: ReadonlyArray<{ q: number; r: number }>
     hexes: ReadonlyArray<TerrainHex>
+    edges?: ReadonlyArray<ScenarioTerrainEdge>
   }
   defenders: ReadonlyArray<BattlefieldUnit>
   onions: ReadonlyArray<BattlefieldOnionView>
@@ -130,6 +135,7 @@ export function HexMapBoard({
   onMoveUnit,
 }: HexMapBoardProps) {
   const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
+  const edges = scenarioMap.edges ?? []
   const renderedCells = scenarioMap.cells
   const bounds = boardPixelSize(renderedCells, HEX_SIZE, MAP_PADDING)
   const {
@@ -262,7 +268,12 @@ export function HexMapBoard({
   const reachableHexKeys = selectedIsEligible && selectedOccupant
     ? new Set(
         listReachableMoves({
-          map: { ...scenarioMap, occupiedHexes },
+          map: {
+            ...scenarioMap,
+            edges,
+            hexes: scenarioMap.hexes.map((hex) => ({ q: hex.q, r: hex.r, terrain: terrainFromT(hex.t) })),
+            occupiedHexes,
+          },
           from: getBattlefieldPosition(selectedOccupant),
           movementAllowance: selectedAllowance,
           movingRole: onions.some((onionUnit) => selectedOccupant.unitId === onionUnit.unitId) ? 'onion' : 'defender',
@@ -299,7 +310,12 @@ export function HexMapBoard({
     let validation: MoveValidationResult | null = null
     for (const unitId of moverIds) {
       validation = validateMove(
-        { ...scenarioMap, occupiedHexes },
+        {
+          ...scenarioMap,
+          edges,
+          hexes: scenarioMap.hexes.map((hex) => ({ q: hex.q, r: hex.r, terrain: terrainFromT(hex.t) })),
+          occupiedHexes,
+        },
         validationState,
         { type: 'MOVE', unitId, to },
         { incomingMembers: Math.max(incomingMembers, 1) },
@@ -345,6 +361,187 @@ export function HexMapBoard({
     }
   }
 
+  function renderMapCell(coord: { q: number; r: number }, layer: 'terrain' | 'occupants') {
+    const center = axialToPixel(coord, HEX_SIZE)
+    const polygonPoints = pointsToString(hexCorners(center, HEX_SIZE - 1))
+    const cellKey = hexKey(coord)
+    const cellOccupants = occupantMap.get(cellKey) ?? []
+    const isReachable = canSubmitMove && reachableHexKeys.has(cellKey)
+    const targetSelected = cellOccupants.some((occupant) => isCombatTargetSelected(
+      occupant,
+      activeCombatRole,
+      onion,
+      selectedCombatTargetId,
+      stackRosterIndex,
+    ))
+    const eventFocused = cellOccupants.some((occupant) => {
+      if (eventFocusedUnitIdSet.has(occupant.unitId)) {
+        return true
+      }
+
+      const groupId = stackRosterIndex?.getUnitGroup(occupant.unitId)?.groupId
+      return groupId !== undefined && eventFocusedUnitIdSet.has(groupId)
+    })
+    const targetOccupant = resolveCanonicalOccupant(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)
+    const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
+      return Boolean(playerRole && isMovementPhase && actionEligibility.movementByUnitId[occupant.unitId]?.eligible === true)
+    })
+
+    return (
+      <HexMapCell
+        key={`${coord.q}-${coord.r}-${layer}`}
+        activeCombatRole={activeCombatRole}
+        actionEligibility={actionEligibility}
+        center={center}
+        catalog={catalog}
+        cellOccupants={cellOccupants}
+        combatRange={combatRangeHexKeys?.has(cellKey) ?? false}
+        combatTargetSelected={targetSelected}
+        coord={coord}
+        escapeHex={escapeHexSet.has(cellKey)}
+        escapePatternId={escapePatternId}
+        isEventFocused={eventFocused}
+        hasSharedOccupancy={cellOccupants.length > 1}
+        isMoveReady={isMoveReady}
+        isOnion={cellOccupants.some((occupant) => occupant.unitId === onion.unitId)}
+        isReachable={isReachable}
+        isSelected={cellOccupants.some((selectedOccupant) => selectedUnitSet.has(selectedOccupant.unitId))}
+        isSelectionLocked={isSelectionLocked}
+        isInspectionOnly={isInspectionOnly}
+        isTurnHandoffLocked={isInteractionLocked}
+        onBackgroundClick={() => {
+          if (isSelectionLocked) {
+            if (isInspectionOnly) {
+              onDeselect()
+            }
+            return
+          }
+
+          const decision = routeMapInteraction({
+            viewerRole: resolvedViewerRole,
+            viewerActivity: resolvedViewerActivity,
+            phaseMode: resolvedPhaseMode,
+            surface: 'map',
+            gesture: 'primary',
+            subjectRelation: 'background',
+            subjectKind: 'background',
+            subjectCapability: { inspectable: false, moveEligible: false, attackerEligible: false, targetEligible: false },
+          })
+
+          if (decision.intent === 'clear-local-selection') {
+            onDeselect()
+          }
+        }}
+        onCellContextMenu={(event) => {
+          event.preventDefault()
+          if (isSelectionLocked) {
+            return
+          }
+
+          const validation = validateMoveTarget(coord)
+          const destinationReachable = isReachable || validation?.valid === true
+          const decision = routeMapInteraction({
+            viewerRole: resolvedViewerRole,
+            viewerActivity: resolvedViewerActivity,
+            phaseMode: resolvedPhaseMode,
+            surface: 'map',
+            gesture: 'secondary',
+            subjectRelation: cellOccupants.length > 0 ? 'opponent' : 'background',
+            subjectKind: 'hex',
+            subjectCapability: {
+              inspectable: cellOccupants.some((occupant) => occupant.state !== 'destroyed'),
+              moveEligible: selectedIsEligible,
+              attackerEligible: false,
+              targetEligible: targetOccupant !== undefined && isCombatTargetSelectable(targetOccupant, activeCombatRole, onion, combatTargetIds, stackRosterIndex),
+            },
+            interactionMode: { destinationReachable },
+          })
+
+          if (decision.intent === 'select-target' && targetOccupant !== undefined) {
+            selectCombatTarget(targetOccupant)
+            return
+          }
+
+          if (decision.intent === 'submit-move' && canSubmitMove && selectedIsEligible && selectedOccupant !== null) {
+            onMoveUnit(selectedOccupant.unitId, coord)
+            return
+          }
+
+          if (decision.intent === 'show-illegal-local-feedback' && canSubmitMove && selectedIsEligible) {
+            setMoveError(validation !== null && validation.valid === false ? validation.error : 'Illegal move')
+          }
+        }}
+        onion={onion}
+        phase={phase}
+        polygonPoints={polygonPoints}
+        renderedOccupants={collapseStackedOccupants(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)}
+        renderedTerrainType={terrain.get(cellKey)}
+        renderTerrain={layer === 'terrain'}
+        renderOccupants={layer === 'occupants'}
+        resolvedPhaseMode={resolvedPhaseMode}
+        resolvedViewerActivity={resolvedViewerActivity}
+        resolvedViewerRole={resolvedViewerRole}
+        routeMapInteraction={routeMapInteraction}
+        rosterIndex={stackRosterIndex as OccupantRosterIndex | null}
+        selectedUnitIds={selectedUnitSet}
+        stackNaming={stackNaming}
+        onDeselect={onDeselect}
+        onSelectUnit={onSelectUnit}
+      />
+    )
+  }
+
+  function renderEdgeTerrain() {
+    const corners = deriveEdgeCorners(edges, HEX_SIZE)
+
+    return (
+      <g data-testid="hex-edge-terrain" className="hex-edge-terrain-layer" pointerEvents="none">
+        {edges.map((edge) => {
+          const geometry = edgeSegmentGeometry(edge, HEX_SIZE)
+          const center = {
+            x: (geometry.start.x + geometry.end.x) / 2,
+            y: (geometry.start.y + geometry.end.y) / 2,
+          }
+          const angle = geometry.angle * (180 / Math.PI)
+
+          return (
+            <image
+              key={edgeIdentity(edge)}
+              data-testid={`hex-edge-segment-${edgeIdentity(edge)}`}
+              href={getEdgeTerrainAsset(edge.variant)}
+              x={center.x - geometry.length / 2}
+              y={center.y - 8}
+              width={geometry.length}
+              height={16}
+              preserveAspectRatio="none"
+              transform={`rotate(${angle} ${center.x} ${center.y})`}
+            />
+          )
+        })}
+        {corners.map((corner) => {
+          const angle = corner.angle * (180 / Math.PI)
+          const edgeKey = corner.edgeKeys.join('|')
+
+          return (
+            <g
+              key={edgeKey}
+              data-testid={`hex-edge-corner-${corner.cell.q}-${corner.cell.r}`}
+              transform={`translate(${corner.position.x} ${corner.position.y}) rotate(${angle})${corner.mirrored ? ' scale(-1 1)' : ''}`}
+            >
+              <image
+                href={getEdgeTerrainCornerAsset(corner.type)}
+                x={-20}
+                y={-20}
+                width={40}
+                height={40}
+              />
+            </g>
+          )
+        })}
+      </g>
+    )
+  }
+
   return (
     <div className="hex-map-shell panel-subtle">
       {moveError ? (
@@ -380,133 +577,9 @@ export function HexMapBoard({
             </pattern>
           </defs>
           <g transform={`translate(${MAP_PADDING}, ${MAP_PADDING})`}>
-            {renderedCells.map((coord) => {
-              const center = axialToPixel(coord, HEX_SIZE)
-              const polygonPoints = pointsToString(hexCorners(center, HEX_SIZE - 1))
-              const cellKey = hexKey(coord)
-              const cellOccupants = occupantMap.get(cellKey) ?? []
-              const isReachable = canSubmitMove && reachableHexKeys.has(cellKey)
-              const targetSelected = cellOccupants.some((occupant) => isCombatTargetSelected(
-                occupant,
-                activeCombatRole,
-                onion,
-                selectedCombatTargetId,
-                stackRosterIndex,
-              ))
-              const eventFocused = cellOccupants.some((occupant) => {
-                if (eventFocusedUnitIdSet.has(occupant.unitId)) {
-                  return true
-                }
-
-                const groupId = stackRosterIndex?.getUnitGroup(occupant.unitId)?.groupId
-                return groupId !== undefined && eventFocusedUnitIdSet.has(groupId)
-              })
-              const targetOccupant = resolveCanonicalOccupant(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)
-              const isMoveReady = canSubmitMove && cellOccupants.some((occupant) => {
-                return Boolean(playerRole && isMovementPhase && actionEligibility.movementByUnitId[occupant.unitId]?.eligible === true)
-              })
-
-              return (
-                <HexMapCell
-                  key={`${coord.q}-${coord.r}`}
-                  activeCombatRole={activeCombatRole}
-                  actionEligibility={actionEligibility}
-                  center={center}
-                  catalog={catalog}
-                  cellOccupants={cellOccupants}
-                  combatRange={combatRangeHexKeys?.has(cellKey) ?? false}
-                  combatTargetSelected={targetSelected}
-                  coord={coord}
-                  escapeHex={escapeHexSet.has(cellKey)}
-                  escapePatternId={escapePatternId}
-                  isEventFocused={eventFocused}
-                  hasSharedOccupancy={cellOccupants.length > 1}
-                  isMoveReady={isMoveReady}
-                  isOnion={cellOccupants.some((occupant) => occupant.unitId === onion.unitId)}
-                  isReachable={isReachable}
-                  isSelected={cellOccupants.some((occupant) => selectedUnitSet.has(occupant.unitId))}
-                  isSelectionLocked={isSelectionLocked}
-                  isInspectionOnly={isInspectionOnly}
-                  isTurnHandoffLocked={isInteractionLocked}
-                  onBackgroundClick={() => {
-                    if (isSelectionLocked) {
-                      if (isInspectionOnly) {
-                        onDeselect()
-                      }
-                      return
-                    }
-
-                    const decision = routeMapInteraction({
-                      viewerRole: resolvedViewerRole,
-                      viewerActivity: resolvedViewerActivity,
-                      phaseMode: resolvedPhaseMode,
-                      surface: 'map',
-                      gesture: 'primary',
-                      subjectRelation: 'background',
-                      subjectKind: 'background',
-                      subjectCapability: { inspectable: false, moveEligible: false, attackerEligible: false, targetEligible: false },
-                    })
-
-                    if (decision.intent === 'clear-local-selection') {
-                      onDeselect()
-                    }
-                  }}
-                  onCellContextMenu={(event) => {
-                    event.preventDefault()
-                    if (isSelectionLocked) {
-                      return
-                    }
-
-                    const validation = validateMoveTarget(coord)
-                    const destinationReachable = isReachable || validation?.valid === true
-                    const decision = routeMapInteraction({
-                      viewerRole: resolvedViewerRole,
-                      viewerActivity: resolvedViewerActivity,
-                      phaseMode: resolvedPhaseMode,
-                      surface: 'map',
-                      gesture: 'secondary',
-                      subjectRelation: cellOccupants.length > 0 ? 'opponent' : 'background',
-                      subjectKind: 'hex',
-                      subjectCapability: {
-                        inspectable: cellOccupants.some((occupant) => occupant.state !== 'destroyed'),
-                        moveEligible: selectedIsEligible,
-                        attackerEligible: false,
-                        targetEligible: targetOccupant !== undefined && isCombatTargetSelectable(targetOccupant, activeCombatRole, onion, combatTargetIds, stackRosterIndex),
-                      },
-                      interactionMode: { destinationReachable },
-                    })
-
-                    if (decision.intent === 'select-target' && targetOccupant !== undefined) {
-                      selectCombatTarget(targetOccupant)
-                      return
-                    }
-
-                    if (decision.intent === 'submit-move' && canSubmitMove && selectedIsEligible && selectedOccupant !== null) {
-                      onMoveUnit(selectedOccupant.unitId, coord)
-                      return
-                    }
-
-                    if (decision.intent === 'show-illegal-local-feedback' && canSubmitMove && selectedIsEligible) {
-                      setMoveError(validation !== null && validation.valid === false ? validation.error : 'Illegal move')
-                    }
-                  }}
-                  onion={onion}
-                  phase={phase}
-                  polygonPoints={polygonPoints}
-                  renderedOccupants={collapseStackedOccupants(cellOccupants, stackRosterIndex as OccupantRosterIndex | null)}
-                  renderedTerrainType={terrain.get(cellKey)}
-                  resolvedPhaseMode={resolvedPhaseMode}
-                  resolvedViewerActivity={resolvedViewerActivity}
-                  resolvedViewerRole={resolvedViewerRole}
-                  routeMapInteraction={routeMapInteraction}
-                  rosterIndex={stackRosterIndex as OccupantRosterIndex | null}
-                  selectedUnitIds={selectedUnitSet}
-                  stackNaming={stackNaming}
-                  onDeselect={onDeselect}
-                  onSelectUnit={onSelectUnit}
-                />
-              )
-            })}
+            {renderedCells.map((coord) => renderMapCell(coord, 'terrain'))}
+            {renderEdgeTerrain()}
+            {renderedCells.map((coord) => renderMapCell(coord, 'occupants'))}
           </g>
         </svg>
       </div>

@@ -467,6 +467,18 @@ const sparseScenarioMap = {
 	edges: [] as ScenarioTerrainEdge[],
 }
 
+const edgeTerrainScenarioMap = {
+	width: 3,
+	height: 3,
+	cells: Array.from({ length: 3 }, (_, r) => Array.from({ length: 3 }, (_, q) => ({ q, r }))).flat(),
+	hexes: Array.from({ length: 3 }, (_, r) => Array.from({ length: 3 }, (_, q) => ({ q, r, t: 0 } as TerrainHex))).flat(),
+	edges: [
+		{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 0, r: 1 } },
+		{ type: 'ridge', variant: 'ridge-2', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+		{ type: 'stream', variant: 'stream-1', a: { q: 1, r: 1 }, b: { q: 2, r: 1 } },
+	] as ScenarioTerrainEdge[],
+}
+
 const onion: BattlefieldOnionView = {
 	unitId: 'onion-1',
 	typeId: 'TheOnion',
@@ -908,6 +920,28 @@ describe('HexMapBoard', () => {
 
 		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-terrain-1')
 		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).not.toContain('hex-terrain-default')
+	})
+
+	it('renders edge segments and derived corners between terrain and occupants', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={edgeTerrainScenarioMap}
+				defenders={[]}
+				onions={[onion]}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-edge-terrain')).toHaveAttribute('pointer-events', 'none')
+		expect(screen.getAllByTestId(/^hex-edge-segment-/)).toHaveLength(3)
+		expect(screen.getAllByTestId(/^hex-edge-corner-/)).toHaveLength(1)
+		expect(screen.getByTestId('hex-edge-segment-0,0-0,1')).toHaveAttribute('href', '/terrain/edges/ridge-1.svg')
+		expect(screen.getByTestId('hex-edge-corner-0-0').querySelector('image')).toHaveAttribute('href', '/terrain/edges/ridge-corner.svg')
+		expect(screen.getByTestId('hex-unit-onion-1').compareDocumentPosition(screen.getByTestId('hex-edge-terrain'))).toBe(Node.DOCUMENT_POSITION_PRECEDING)
 	})
 
 	it('outlines escape hexes', () => {

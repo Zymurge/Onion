@@ -11,6 +11,7 @@ const terrainLabels: Record<TerrainType, string> = {
   clear: 'Clear',
   ridgeline: 'Ridgeline',
   crater: 'Crater',
+  swamp: 'Swamp',
 }
 
 type BattlefieldInspectorPanelProps = {
