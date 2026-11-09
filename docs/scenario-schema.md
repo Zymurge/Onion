@@ -37,6 +37,14 @@ This schema is designed for authoring flexibility and robust normalization. The 
 
 See also: [shared/config/unitCatalog.json] and [shared/unitDefinitions.ts] for canonical unit/weapon definitions and rules.
 
+## Scenario Catalog Layout
+
+Playable scenarios live as JSON files directly under `scenarios/`; these are
+the only files returned by the lobby scenario listing. Automated-test fixtures
+live under `scenarios/test/` and are not listed, but server lookups by scenario
+ID search that directory after the playable catalog. Keep fixture IDs stable
+for API and E2E tests.
+
 ## Validate an Authored Scenario
 
 Run the parser-backed validator with a path to one scenario JSON file:

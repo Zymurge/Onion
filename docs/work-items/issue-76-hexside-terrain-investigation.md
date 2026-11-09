@@ -1,10 +1,11 @@
 # Issue #76: Hexside Terrain Model for Ridges and Streams
 
-**Status:** Phases 4–7 edge-aware movement, snapshot/API contract,
-rendering, and combat cleanup complete; broader fixture rollout and regression
-cleanup remain planned
+**Status:** Phases 4–8 edge-aware movement, snapshot/API contract,
+rendering, combat cleanup, and test-scenario migration complete; regression,
+rollout, and cleanup remain planned
 **Issue:** [Investigate hexside terrain model for ridges and streams](https://github.com/Zymurge/Onion/issues/76)
-**Scope:** Design and impact assessment only. This document does not authorize implementation.
+**Scope:** Edge-terrain and class-rule implementation as authorized by the
+phase plan; forest mechanics remain out of scope.
 
 ## Summary
 
@@ -909,6 +910,12 @@ Acceptance checks:
 - No stale ridgeline-cover fixture or static rule remains.
 
 ### Phase 8: Update Scenario Fixtures And Validation Coverage
+
+**Status:** Complete. The two playable scenarios remain at the `scenarios/`
+root; seven test fixtures live under `scenarios/test/`. Five fixtures have
+current E2E or smoke-test references. `rapid-endgame-01` and
+`rapid-defender-endgame-01` are currently unreferenced but retained for possible
+future tests. The validator passes all nine scenario files.
 
 Tasks:
 

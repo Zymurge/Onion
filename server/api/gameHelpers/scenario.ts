@@ -142,6 +142,19 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
   assertScenarioPositionsInMap(scenarioMap, positions)
 }
 
+async function getScenarioFiles(scenariosDir: string): Promise<string[]> {
+  const files: string[] = []
+  for (const directory of [scenariosDir, join(scenariosDir, 'test')]) {
+    try {
+      const entries = await readdir(directory)
+      files.push(...entries.filter((entry) => entry.endsWith('.json')).map((entry) => join(directory, entry)))
+    } catch {
+      continue
+    }
+  }
+  return files
+}
+
 /**
  * Loads and validates a scenario by id from a directory of JSON files.
  *
@@ -151,15 +164,7 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
  * @throws ScenarioValidationError when the matching file is invalid.
  */
 export async function loadScenario(id: string, scenariosDir: string): Promise<ValidatedScenarioSnapshot | null> {
-  let files: string[]
-  try {
-    files = await readdir(scenariosDir)
-  } catch {
-    return null
-  }
-
-  for (const file of files.filter((candidate) => candidate.endsWith('.json'))) {
-    const fullPath = join(scenariosDir, file)
+  for (const fullPath of await getScenarioFiles(scenariosDir)) {
     const raw = await readFile(fullPath, 'utf8')
     let scenario: unknown
     try {

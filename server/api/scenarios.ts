@@ -27,9 +27,18 @@ async function loadAll(scenariosDir: string): Promise<ScenarioSummary[]> {
 }
 
 async function loadById(id: string, scenariosDir: string): Promise<unknown | null> {
-  const files = await readdir(scenariosDir)
-  for (const file of files.filter((f) => f.endsWith('.json'))) {
-    const raw = await readFile(join(scenariosDir, file), 'utf8')
+  const files: string[] = []
+  for (const directory of [scenariosDir, join(scenariosDir, 'test')]) {
+    try {
+      const entries = await readdir(directory)
+      files.push(...entries.filter((file) => file.endsWith('.json')).map((file) => join(directory, file)))
+    } catch {
+      continue
+    }
+  }
+
+  for (const file of files) {
+    const raw = await readFile(file, 'utf8')
     const s = JSON.parse(raw) as { id: string; name: string; displayName?: string; map: AuthoredScenarioMap }
     if (s.id === id) {
       return {

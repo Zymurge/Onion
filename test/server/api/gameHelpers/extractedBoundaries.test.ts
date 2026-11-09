@@ -139,8 +139,11 @@ describe('scenario helpers', () => {
   it('loads a matching scenario and returns null for a missing id or directory', async () => {
     const scenariosDir = join(process.cwd(), 'scenarios')
     const scenario = await loadScenario('swamp-siege-01', scenariosDir)
+    const testScenario = await loadScenario('e2e-ram-01', scenariosDir)
 
     expect(scenario?.id).toBe('swamp-siege-01')
+    expect(testScenario?.id).toBe('e2e-ram-01')
+    expect(testScenario?.map.edges).toEqual([])
     expect(await loadScenario('does-not-exist', scenariosDir)).toBeNull()
     expect(await loadScenario('swamp-siege-01', join(scenariosDir, 'missing'))).toBeNull()
   })

@@ -172,11 +172,11 @@ export class BattlefieldPage {
 	}
 
 	async selectCombatTargetByName(name: string): Promise<void> {
-		await this.page.getByTestId('combat-target-list').getByRole('button', { name: new RegExp(`^${name}`) }).click({ timeout: 8_000 })
+		await this.page.getByTestId('combat-target-list').getByRole('button', { name, exact: false }).click({ timeout: 8_000 })
 	}
 
 	async expectCombatTargetSelectedByName(name: string): Promise<void> {
-		await expect(this.page.getByTestId('combat-target-list').getByRole('button', { name: new RegExp(`^${name}`) })).toHaveAttribute('aria-pressed', 'true', { timeout: 8_000 })
+		await expect(this.page.getByTestId('combat-target-list').getByRole('button', { name, exact: false })).toHaveAttribute('aria-pressed', 'true', { timeout: 8_000 })
 	}
 
 	async expectCombatTargetSelected(targetId: string): Promise<void> {
