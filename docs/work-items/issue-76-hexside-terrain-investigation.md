@@ -1,29 +1,26 @@
 # Issue #76: Hexside Terrain Model for Ridges and Streams
 
-**Status:** Phases 4–8 edge-aware movement, snapshot/API contract,
-rendering, combat cleanup, and test-scenario migration complete; regression,
-rollout, and cleanup remain planned
+**Status:** Phases 4–9 complete. Edge-aware movement, canonical snapshot/API
+propagation, rendering, combat cleanup, test-scenario migration, and regression
+gates are complete. Existing persisted game rows still require manual deletion
+before rollout.
 **Issue:** [Investigate hexside terrain model for ridges and streams](https://github.com/Zymurge/Onion/issues/76)
 **Scope:** Edge-terrain and class-rule implementation as authorized by the
 phase plan; forest mechanics remain out of scope.
 
 ## Summary
 
-The current map model stores terrain on whole hexes. This works for craters but
-does not represent a ridge or stream that lies between two hexes. The movement
-planner, validator, combat calculator, scenario schema, snapshots, and web map
-all currently inherit the whole-hex assumption.
+Ridges and streams are represented as canonical undirected edges between
+adjacent hexes, with movement behavior resolved through unit classes. Whole-hex
+terrain remains reserved for crater and swamp. Static edge sprites are rendered
+from the authoritative scenario map; forest mechanics remain out of scope.
 
-The repository verifies current ridge behavior, while the rules clarified for
-this work item define class-based ridge crossing and stream movement effects.
-Represent a hexside by its two adjacent endpoint hexes and store it once as an
-undirected edge. This work may establish a reusable terrain-rule model for
-future terrain such as forests, but forest behavior and scenario placements
-are out of scope.
+## Investigation Evidence (Historical)
 
-## Evidence And Confidence
+The following records the repository state before implementation. It is retained
+as investigation history and does not describe the completed implementation.
 
-### Verified Current Behavior
+### Initial Repository Baseline
 
 - [shared/scenarioMap.ts](../../shared/scenarioMap.ts) materializes `cells` and
   whole-hex `hexes`; `ExplicitScenarioMap` has no edge collection.
@@ -106,6 +103,7 @@ type ScenarioTerrainEdge = {
   a: HexPos
   b: HexPos
   type: ScenarioEdgeTerrain
+  variant: ScenarioEdgeVariant
 }
 ```
 
@@ -127,9 +125,9 @@ Example (illustrative shape only; not a scenario change):
 ```json
 {
   "edges": [
-    { "type": "ridge", "a": { "q": 8, "r": 0 }, "b": { "q": 9, "r": 0 } },
-    { "type": "stream", "a": { "q": 9, "r": 0 }, "b": { "q": 9, "r": 1 } },
-    { "type": "ridge", "a": { "q": 9, "r": 0 }, "b": { "q": 10, "r": 0 } }
+    { "type": "ridge", "variant": "ridge-1", "a": { "q": 8, "r": 0 }, "b": { "q": 9, "r": 0 } },
+    { "type": "stream", "variant": "stream-1", "a": { "q": 9, "r": 0 }, "b": { "q": 9, "r": 1 } },
+    { "type": "ridge", "variant": "ridge-2", "a": { "q": 9, "r": 0 }, "b": { "q": 10, "r": 0 } }
   ]
 }
 ```
@@ -878,6 +876,10 @@ Acceptance checks:
      small screenshot matrix covering isolated edges, same-type bends, mixed
      joins, three-way joins, all facings, and multiple variants.
 
+**Status:** Complete. Canonical edge variants, segment and corner geometry,
+board rendering order, and dynamic-overlay interaction are implemented and
+covered by focused tests.
+
 #### Follow-up: Variant Authoring Assistance
 
 Add scenario-tool support for previewing candidate variants and suggesting
@@ -956,6 +958,63 @@ Acceptance checks:
   pass, or any unrelated pre-existing failure is recorded.
 - A fresh game can load a vetted edge-bearing scenario and round-trip its map
   through the authoritative server and web client.
+
+### Phase 9 Completion Record
+
+Phase 9 is complete. Final implementation ownership is:
+
+- Canonical edge types, variants, parsing, and materialization:
+  [shared/types/index.ts](../../shared/types/index.ts),
+  [shared/config/edgeTerrainVariants.ts](../../shared/config/edgeTerrainVariants.ts),
+  [server/engine/scenarioSchema.ts](../../server/engine/scenarioSchema.ts),
+  and [shared/scenarioMap.ts](../../shared/scenarioMap.ts).
+- Class-based movement rules and path validation:
+  [shared/classRules.ts](../../shared/classRules.ts),
+  [shared/movementRules.ts](../../shared/movementRules.ts),
+  [shared/movePlanner.ts](../../shared/movePlanner.ts),
+  [shared/moveValidator.ts](../../shared/moveValidator.ts), and
+  [server/engine/movement.ts](../../server/engine/movement.ts).
+- Snapshot/API propagation:
+  [server/api/gameHelpers/scenario.ts](../../server/api/gameHelpers/scenario.ts),
+  [server/api/gameHelpers/stateProjection.ts](../../server/api/gameHelpers/stateProjection.ts),
+  [server/api/gameHelpers/actionResponses.ts](../../server/api/gameHelpers/actionResponses.ts),
+  [server/api/gameRoutes/websocketRoutes.ts](../../server/api/gameRoutes/websocketRoutes.ts),
+  [web/lib/httpGameClient.ts](../../web/lib/httpGameClient.ts), and
+  [web/lib/battlefieldDisplay/snapshotValidation.ts](../../web/lib/battlefieldDisplay/snapshotValidation.ts).
+- Edge presentation:
+  [web/lib/edgeTerrainGeometry.ts](../../web/lib/edgeTerrainGeometry.ts),
+  [web/lib/edgeTerrainAssetRegistry.ts](../../web/lib/edgeTerrainAssetRegistry.ts),
+  [web/components/HexMapBoard.tsx](../../web/components/HexMapBoard.tsx),
+  and [web/components/HexMapCell.tsx](../../web/components/HexMapCell.tsx).
+- Combat and catalog behavior:
+  [shared/combatCalculator.ts](../../shared/combatCalculator.ts),
+  [shared/staticRules.ts](../../shared/staticRules.ts),
+  [server/engine/combat/actions.ts](../../server/engine/combat/actions.ts),
+  [web/lib/combatPreview.ts](../../web/lib/combatPreview.ts),
+  [server/api/scenarios.ts](../../server/api/scenarios.ts), and
+  [scenarios/test](../../scenarios/test).
+
+Validation completed on 2026-11-09:
+
+- Focused edge-map round-trip E2E and full Playwright suite: 16 tests passed.
+  The lobby lifecycle test confirms eight edges in the authoritative game
+  snapshot and eight rendered edge segments in both player clients.
+- Full regression: 174 files, 1,861 tests passed.
+- `pnpm exec tsc --noEmit`, `pnpm typecheck:e2e`, and
+  `pnpm --dir web build` passed; the web build reports a non-blocking large
+  chunk warning.
+- ESLint on changed TypeScript files, `git diff --check`, and scenario
+  validation for all nine scenario files passed.
+- Targeted searches found no remaining whole-hex ridge assumptions or
+  type-id class checks. Ridge-cover wording remains only as the rule that
+  ridges provide no cover; the stale combat-calculator comment and API map
+  example were corrected.
+
+Rollout still requires the user to delete existing game rows before starting a
+new game. No migration or automatic deletion logic was added. Edge-corner
+geometry is currently recalculated during board rendering; memoization remains
+an optional performance follow-up. Two unreferenced rapid-endgame test fixtures
+remain under `scenarios/test/` for possible future use.
 
 ## Recommendation
 

@@ -221,7 +221,7 @@ export function buildCombatExchangeInput(input: BuildCombatExchangeInput): Comba
 export type CombatCalculatorResult = {
 	/** Sum of the selected weapon attack values. */
 	attackStrength: number
-	/** Effective target defense after target-specific and terrain rules. */
+	/** Effective target defense after target-specific rules. */
 	defenseStrength: number
 	/** CRT odds band derived from effective attack and defense. */
 	odds: string
