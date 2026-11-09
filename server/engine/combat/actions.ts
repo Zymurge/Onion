@@ -25,10 +25,6 @@ import type {
 
 type FireCommand = Extract<Command, { type: 'FIRE' }>
 
-function getTerrainTypeAt(map: GameMap, position: { q: number; r: number }) {
-  return map.hexes[`${position.q},${position.r}`]?.terrain
-}
-
 /**
  * Resolve an Onion reference through the canonical Onion map.
  *
@@ -101,7 +97,6 @@ function buildCombatCalculatorInput(
         kind: 'unit',
         id: defender.unitId,
         typeId: defender.typeId,
-        terrainType: getTerrainTypeAt(map, defender.position),
       }
     } else {
       const group = state.stackRoster?.groupsById?.[target.id]
@@ -115,7 +110,6 @@ function buildCombatCalculatorInput(
         id: target.id,
         typeId: group.unitType,
         size: liveMembers.length,
-        terrainType: getTerrainTypeAt(map, group.position),
       }
     }
   } else if (target.kind === 'treads') {

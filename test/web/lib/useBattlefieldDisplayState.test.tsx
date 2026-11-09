@@ -344,7 +344,6 @@ describe('useBattlefieldDisplayState', () => {
 	})
 		expect(result.current.selectedInspectorGroupLabel).toBeNull()
 		expect(result.current.selectedInspectorDefense).toBe(2)
-		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
 		expect(result.current.selectedInspectorTerrainType).toBe('clear')
 	})
 
@@ -432,11 +431,11 @@ describe('useBattlefieldDisplayState', () => {
 	})
 
 	it.each([
-		['LittlePigs', 1, 'ridgeline', 1, null],
-		['LittlePigs', 0, 'clear', 1, null],
-		['LittlePigs', 2, 'crater', 1, null],
-		['Puss', 1, 'ridgeline', 3, null],
-	] as const)('projects defense and terrain for %s on terrain %i', (typeId, terrainValue, expectedTerrain, expectedDefense, expectedModifier) => {
+		['LittlePigs', 1, 'ridgeline', 1],
+		['LittlePigs', 0, 'clear', 1],
+		['LittlePigs', 2, 'crater', 1],
+		['Puss', 1, 'ridgeline', 3],
+	] as const)('projects base defense and terrain label for %s on terrain %i', (typeId, terrainValue, expectedTerrain, expectedDefense) => {
 		const snapshot = createSnapshot()
 		snapshot.authoritativeState!.defenders = {
 			'pigs-1': makeDefender({
@@ -460,7 +459,6 @@ describe('useBattlefieldDisplayState', () => {
 
 		expect(result.current.selectedInspectorTerrainType).toBe(expectedTerrain)
 		expect(result.current.selectedInspectorDefense).toBe(expectedDefense)
-		expect(result.current.selectedInspectorTerrainModifier).toBe(expectedModifier)
 	})
 
 	it('uses the session catalog for terrain modifiers on scenario-derived unit types', () => {
@@ -492,7 +490,6 @@ describe('useBattlefieldDisplayState', () => {
 
 		expect(result.current.selectedInspectorTerrainType).toBe('ridgeline')
 		expect(result.current.selectedInspectorDefense).toBe(1)
-		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
 	})
 
 	it('does not project a terrain modifier when no unit is selected', () => {
@@ -510,7 +507,6 @@ describe('useBattlefieldDisplayState', () => {
 
 		expect(result.current.selectedInspectorUnitId).toBeNull()
 		expect(result.current.selectedInspectorDefense).toBeNull()
-		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
 		expect(result.current.selectedInspectorTerrainType).toBeNull()
 	})
 
@@ -531,7 +527,6 @@ describe('useBattlefieldDisplayState', () => {
 		expect(result.current.error).toBeNull()
 		expect(result.current.selectedInspectorOnion?.unitId).toBe('onion-live')
 		expect(result.current.selectedInspectorDefense).toBeNull()
-		expect(result.current.selectedInspectorTerrainModifier).toBeNull()
 		expect(result.current.selectedInspectorTerrainType).toBeNull()
 	})
 

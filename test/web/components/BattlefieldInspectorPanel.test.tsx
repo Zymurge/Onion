@@ -41,7 +41,6 @@ describe('BattlefieldInspectorPanel', () => {
         }}
         selectedInspectorGroupLabel={null}
         selectedInspectorDefense={2}
-        selectedInspectorTerrainModifier={2}
         selectedInspectorTerrainType="ridgeline"
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
@@ -54,7 +53,7 @@ describe('BattlefieldInspectorPanel', () => {
     expect(within(inspector).getByText('Little Pigs')).toBeInTheDocument()
     expect(within(inspector).getByText('2 of 2 selected')).toBeInTheDocument()
     expect(within(inspector).queryByTestId('battlefield-inspector-group')).toBeNull()
-    expect(getLabeledValue('Defense')).toBe('2 (+2)')
+    expect(getLabeledValue('Defense')).toBe('2')
     expect(getLabeledValue('Terrain')).toBe('Ridgeline')
     expect(within(inspector).getByRole('img', { name: 'Group 1 Little Pigs sprite' })).toBeInTheDocument()
     expect(within(inspector).getByText(/stackable rifle squad/i)).toBeInTheDocument()
@@ -63,7 +62,7 @@ describe('BattlefieldInspectorPanel', () => {
       ['Move', '1/2'],
       ['Attack', '0'],
       ['Range', '0'],
-      ['Defense', '2 (+2)'],
+      ['Defense', '2'],
       ['Terrain', 'Ridgeline'],
     ])
     expect(within(inspector).queryByText('Selected')).toBeNull()
@@ -103,7 +102,6 @@ describe('BattlefieldInspectorPanel', () => {
       <BattlefieldInspectorPanel
         selectedInspectorLabel={null}
         selectedInspectorDefense={null}
-        selectedInspectorTerrainModifier={null}
         selectedInspectorTerrainType={null}
         selectedInspectorDefender={null}
         selectedInspectorOnion={null}
@@ -134,7 +132,6 @@ describe('BattlefieldInspectorPanel', () => {
       <BattlefieldInspectorPanel
         selectedInspectorLabel={swamp.friendlyName}
         selectedInspectorDefense={0}
-        selectedInspectorTerrainModifier={null}
         selectedInspectorTerrainType="clear"
         selectedInspectorDefender={swamp}
         selectedInspectorOnion={null}
@@ -166,7 +163,6 @@ describe('BattlefieldInspectorPanel', () => {
       <BattlefieldInspectorPanel
         selectedInspectorLabel={destroyedDefender.friendlyName}
         selectedInspectorDefense={1}
-        selectedInspectorTerrainModifier={null}
         selectedInspectorTerrainType="crater"
         selectedInspectorDefender={destroyedDefender}
         selectedInspectorOnion={null}

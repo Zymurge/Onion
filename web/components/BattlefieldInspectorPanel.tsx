@@ -19,7 +19,6 @@ type BattlefieldInspectorPanelProps = {
   selectedInspectorGroupHeading?: BattlefieldInspectorGroupHeading | null
   selectedInspectorGroupLabel?: string | null
   selectedInspectorDefense?: number | null
-  selectedInspectorTerrainModifier?: number | null
   selectedInspectorTerrainType?: TerrainType | null
   selectedInspectorDefender: BattlefieldUnit | null
   selectedInspectorOnion: BattlefieldOnionView | null
@@ -32,7 +31,6 @@ export function BattlefieldInspectorPanel({
   selectedInspectorGroupHeading = null,
   selectedInspectorGroupLabel = null,
   selectedInspectorDefense = null,
-  selectedInspectorTerrainModifier = null,
   selectedInspectorTerrainType = null,
   selectedInspectorDefender,
   selectedInspectorOnion,
@@ -111,9 +109,6 @@ export function BattlefieldInspectorPanel({
 
   if (selectedInspectorDefender !== null) {
     const attackStats = getPrimaryWeaponStats(selectedInspectorDefender.weapons, catalog)
-    const terrainAdjustment = selectedInspectorTerrainModifier === null
-      ? ''
-      : ` (${selectedInspectorTerrainModifier > 0 ? '+' : ''}${selectedInspectorTerrainModifier})`
 
     return renderInspectorPanel({
       dataTestId,
@@ -144,7 +139,7 @@ export function BattlefieldInspectorPanel({
           </div>
           <div>
             <dt>Defense</dt>
-            <dd>{selectedInspectorDefense ?? ''}{terrainAdjustment}</dd>
+            <dd>{selectedInspectorDefense ?? ''}</dd>
           </div>
           <div>
             <dt>Terrain</dt>

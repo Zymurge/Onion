@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-import type { TerrainType } from '#shared/types/index'
 import { getUnitTypeCatalog } from '#shared/unitDefinitions'
 import {
 	buildCombatExchangeInput,
@@ -13,11 +12,6 @@ import { combatParityFixtures } from '#test/utils/combatParityFixtures'
 
 const staticRules = {
 	unitTypes: getUnitTypeCatalog(),
-	terrainRules: {
-		clear: { terrainType: 'clear' as TerrainType },
-		ridgeline: { terrainType: 'ridgeline' as TerrainType },
-		crater: { terrainType: 'crater' as TerrainType },
-	},
 } satisfies CombatStaticRules
 
 const calculator = createCombatCalculator(staticRules)
@@ -29,7 +23,6 @@ describe('combatCalculator', () => {
 			id: 'group-3',
 			typeId: 'LittlePigs',
 			size: 1,
-			terrainType: 'ridgeline',
 		}
 
 		expect(buildCombatExchangeInput({
@@ -62,8 +55,8 @@ describe('combatCalculator', () => {
 	})
 
 	const targetBranchCases: ReadonlyArray<{ label: string; target: CombatExchangeTarget }> = [
-		{ label: 'unit', target: { kind: 'unit', id: 'puss-1', typeId: 'Puss', terrainType: 'clear' } },
-		{ label: 'single-member stack', target: { kind: 'stack', id: 'group-4', typeId: 'LittlePigs', size: 1, terrainType: 'crater' } },
+		{ label: 'unit', target: { kind: 'unit', id: 'puss-1', typeId: 'Puss' } },
+		{ label: 'single-member stack', target: { kind: 'stack', id: 'group-4', typeId: 'LittlePigs', size: 1 } },
 		{ label: 'Onion treads', target: { kind: 'onion-treads', id: 'onion-1:treads', typeId: 'TheOnion' } },
 		{ label: 'Onion weapon', target: { kind: 'onion-weapon', id: 'main-1', typeId: 'TheOnion', weaponTypeId: 'TheOnion.main' } },
 	]
@@ -118,7 +111,7 @@ describe('combatCalculator', () => {
 				units: {
 					'attack-1': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 1' },
 					'attack-2': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 2' },
-					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', stackSize: 2, terrainType: 'ridgeline' },
+					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', stackSize: 2 },
 				},
 			},
 		}
@@ -148,14 +141,14 @@ describe('combatCalculator', () => {
 		expect(result.odds).toBe('2:1')
 	})
 
-	it('does not apply a ridgeline defense modifier', () => {
+	it('does not apply implicit terrain modifiers to a target', () => {
 		const input: CombatCalculatorInput = {
 			attackerGroupIds: ['attack-1'],
 			targetId: 'target-1',
 			combatState: {
 				units: {
 					'attack-1': { typeId: 'Puss', friendlyName: 'Big Bad Wolf 1' },
-					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', stackSize: 3, terrainType: 'ridgeline' },
+					'target-1': { typeId: 'LittlePigs', friendlyName: 'Little Pigs 1', stackSize: 3 },
 				},
 			},
 		}
@@ -165,46 +158,6 @@ describe('combatCalculator', () => {
 		expect(modifiers).toEqual([])
 		expect(calculator.calculateResult(input).defenseStrength).toBe(3)
 		expect(input.combatState.units['target-1'].friendlyName).toBe('Little Pigs 1')
-	})
-
-	it('does not grant ridgeline cover to other infantry types', () => {
-		const unitTypes = getUnitTypeCatalog()
-		const infantryCalculator = createCombatCalculator({
-			unitTypes: {
-				...unitTypes,
-				OtherInfantry: { ...unitTypes.LittlePigs, typeId: 'OtherInfantry', defense: 2 },
-			},
-			terrainRules: staticRules.terrainRules,
-		})
-		const input: CombatCalculatorInput = {
-			attackerGroupIds: ['attack-1'],
-			targetId: 'target-1',
-			combatState: {
-				units: {
-					'attack-1': { typeId: 'Puss' },
-					'target-1': { typeId: 'OtherInfantry', stackSize: 2, terrainType: 'ridgeline' },
-				},
-			},
-		}
-
-		expect(infantryCalculator.calculateModifiers(input)).toEqual([])
-		expect(infantryCalculator.calculateResult(input).defenseStrength).toBe(4)
-	})
-
-	it('does not grant ridgeline cover to units without the terrain ability', () => {
-		const input: CombatCalculatorInput = {
-			attackerGroupIds: ['attack-1'],
-			targetId: 'target-1',
-			combatState: {
-				units: {
-					'attack-1': { typeId: 'Puss' },
-					'target-1': { typeId: 'Puss', terrainType: 'ridgeline' },
-				},
-			},
-		}
-
-		expect(calculator.calculateModifiers(input)).toEqual([])
-		expect(calculator.calculateResult(input).defenseStrength).toBe(3)
 	})
 
 	it('uses weapon defense for individually targeted Onion subsystems', () => {

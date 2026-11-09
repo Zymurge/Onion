@@ -432,7 +432,6 @@ export function buildBattlefieldDisplayModel({
 		selectedInspectorGroupLabel,
 		selectedInspectorOnion,
 		selectedInspectorLabel,
-		selectedInspectorTerrainModifier: selectedInspectorDefenderStats?.terrainModifier ?? null,
 		selectedInspectorTerrainType: selectedInspectorDefenderStats?.terrainType ?? null,
 		selectedInspectorUnitId,
 		rightRailStackPanel,

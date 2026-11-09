@@ -1,7 +1,8 @@
 # Issue #76: Hexside Terrain Model for Ridges and Streams
 
-**Status:** Phases 4 and 5 edge-aware movement and snapshot/API contract gates
-complete; rendering, combat cleanup, and broader fixture rollout remain planned
+**Status:** Phases 4–7 edge-aware movement, snapshot/API contract,
+rendering, and combat cleanup complete; broader fixture rollout and regression
+cleanup remain planned
 **Issue:** [Investigate hexside terrain model for ridges and streams](https://github.com/Zymurge/Onion/issues/76)
 **Scope:** Design and impact assessment only. This document does not authorize implementation.
 
@@ -45,10 +46,11 @@ are out of scope.
   `LittlePigs` and `TheOnion`; `LittlePigs` has `movementCost: 1`, while the
   Onion uses the default ridge cost of 2. Other listed unit types have no
   ridge crossing rule.
-- [shared/staticRules.ts](../../shared/staticRules.ts) sets a ridgeline defense
-  multiplier of 2. [shared/combatCalculator.ts](../../shared/combatCalculator.ts)
-  applies it to a target when the target's unit definition permits terrain
-  cover. This is current behavior, not a decision about future edge ridges.
+- After Phase 7, [shared/staticRules.ts](../../shared/staticRules.ts) contains
+  no combat terrain rules, and [shared/combatCalculator.ts](../../shared/combatCalculator.ts)
+  has no terrain input or terrain modifier path. Server combat regression tests
+  verify that ridgeline terrain does not change target defense. Edge terrain is
+  absent from combat range and target-rule inputs.
 - [shared/apiProtocol.ts](../../shared/apiProtocol.ts) defines the game response
   map with canonical `cells` and `hexes`. Web snapshot validation requires
   those fields, and [web/lib/battlefieldViewBuilders.ts](../../web/lib/battlefieldViewBuilders.ts)
@@ -166,7 +168,10 @@ authored scenario data.
 
 ## Rule Decisions
 
-### Current Ridge Catalog Matrix
+### Legacy Ridge Catalog Evidence (Before Class-Rule Consolidation)
+
+This matrix records the catalog state when the investigation began; it is not
+the current movement-rule source or a combat-cover contract.
 
 | Unit type ID | Current ridge catalog data | Current implication |
 | --- | --- | --- |
@@ -881,6 +886,10 @@ authored data. Random generation at game load and UI-time variant selection
 remain intentionally out of scope.
 
 ### Phase 7: Remove Obsolete Combat Terrain Behavior
+
+**Status:** Complete. Combat contracts no longer accept terrain classifications,
+static combat rules contain only unit definitions, and the Inspector shows base
+defense without a terrain adjustment.
 
 Tasks:
 

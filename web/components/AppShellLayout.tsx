@@ -181,7 +181,6 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           selectedInspectorGroupHeading={display.selectedInspectorGroupHeading}
           selectedInspectorGroupLabel={display.selectedInspectorGroupLabel}
           selectedInspectorDefense={display.selectedInspectorDefense}
-          selectedInspectorTerrainModifier={display.selectedInspectorTerrainModifier}
           selectedInspectorTerrainType={display.selectedInspectorTerrainType}
           selectedInspectorDefender={display.selectedInspectorDefender}
           selectedInspectorOnion={display.selectedInspectorOnion}

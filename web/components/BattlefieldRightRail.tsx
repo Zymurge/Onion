@@ -42,7 +42,6 @@ type BattlefieldRightRailProps = {
   selectedInspectorGroupHeading?: BattlefieldInspectorGroupHeading | null
   selectedInspectorGroupLabel?: string | null
   selectedInspectorDefense?: number | null
-  selectedInspectorTerrainModifier?: number | null
   selectedInspectorTerrainType?: TerrainType | null
   selectedInspectorDefender: BattlefieldDefenderView | null
   selectedInspectorOnion: BattlefieldOnionView | null
@@ -90,7 +89,6 @@ export function BattlefieldRightRail({
   selectedInspectorGroupHeading = null,
   selectedInspectorGroupLabel = null,
   selectedInspectorDefense = null,
-  selectedInspectorTerrainModifier = null,
   selectedInspectorTerrainType = null,
   selectedInspectorDefender,
   selectedInspectorOnion,
@@ -274,7 +272,6 @@ export function BattlefieldRightRail({
         selectedInspectorGroupHeading={selectedInspectorGroupHeading}
       selectedInspectorGroupLabel={selectedInspectorGroupLabel}
       selectedInspectorDefense={selectedInspectorDefense}
-      selectedInspectorTerrainModifier={selectedInspectorTerrainModifier}
       selectedInspectorTerrainType={selectedInspectorTerrainType}
       selectedInspectorDefender={selectedInspectorDefender}
       selectedInspectorOnion={selectedInspectorOnion}
