@@ -70,6 +70,8 @@ y = cy - size / 2 - (oy / 100) * hexDiameter
   right; positive Y moves up.
 - The map renders the scaled layout box with aspect-ratio preservation; labels,
   stack membership, hit targets, and hex coordinates remain separate layers.
+- Hex-map labels abbreviate `Big Bad Wolf` as `BBW` and `Little Pigs` as `LP`;
+  these abbreviations are map-only and must remain on one line.
 - Map metadata has no effect on the Inspector's image dimensions.
 
 ## Inspector Sizing

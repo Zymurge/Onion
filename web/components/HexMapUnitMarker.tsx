@@ -23,7 +23,7 @@ import { resolveHexMapSpriteLayout } from '../lib/hexMapSpriteLayout'
 
 const DEFENDER_LABEL_LIFT = DEFAULT_HEX_SIZE * 2 * 0.1
 
-function wrapMarkerText(text: string, maximumLineLength = 12): string[] {
+function wrapMarkerText(text: string, maximumLineLength = 16): string[] {
   const words = text.split(/\s+/)
   const lines: string[] = []
   let currentLine = ''
@@ -147,6 +147,8 @@ export function HexMapUnitMarker({
   const unitRectWidth = isSwamp ? 48 : 32
   const unitRectHeight = isSwamp ? 48 : 22
   const markerText = getUnitMarkerText(occupant, stackNaming, rosterGroup?.groupId)
+    ?.replaceAll('Big Bad Wolf', 'BBW')
+    .replaceAll('Little Pigs', 'LP') ?? null
   const markerTextLines = markerText === null ? [] : wrapMarkerText(markerText)
   function handleClick(event: MouseEvent<SVGGElement>) {
     if (isSelectionLocked && !isInspectionOnly) {

@@ -60,7 +60,7 @@
 			/>,
 		)
 
-		expect(getMarkerLabel('pigs-1')).toBe('Little Pigs 1')
+		expect(getMarkerLabel('pigs-1')).toBe('LP 1')
 		expect(screen.getByTestId('hex-cell-2-2')).toHaveClass('hex-cell-event-focused')
 		expect(screen.getByTestId('hex-cell-2-2').querySelector('.hex-event-focus-overlay')).not.toBeNull()
 		expect(screen.getByTestId('hex-unit-pigs-1').querySelector('image')).not.toBeNull()
@@ -314,6 +314,7 @@
 		expect(screen.getByTestId('hex-cell-0-0')).toHaveClass('hex-cell-shared-occupancy')
 		expect(screen.getByTestId('hex-unit-onion-1')).toBeInTheDocument()
 		expect(screen.getByTestId('hex-unit-bbw-1')).toBeInTheDocument()
+		expect(screen.getByTestId('hex-unit-bbw-1').querySelector('text')).toHaveTextContent('BBW')
 		expect(screen.getByTestId('hex-cell-0-0').querySelector('.hex-shared-occupancy-ring')).not.toBeNull()
 	})
 
@@ -670,7 +671,7 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(getMarkerLabel('pigs-1')).toBe('Little Pigs 1')
+		expect(getMarkerLabel('pigs-1')).toBe('LP 1')
 		expect(screen.queryByTestId('hex-unit-pigs-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()

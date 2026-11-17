@@ -175,7 +175,7 @@ describe('HexMapUnitMarker', () => {
     expect(hitTarget).not.toHaveClass('hex-unit-rect-selected')
   })
 
-  it('renders defender sprites without a background box and wraps their label below', () => {
+  it('renders defender sprites without a background box and keeps abbreviated group labels on one line', () => {
     const pig: BattlefieldUnit = {
       ...defender,
       unitId: 'pigs-1',
@@ -217,8 +217,8 @@ describe('HexMapUnitMarker', () => {
     expect(marker.querySelector('text')).toHaveAttribute('fill', '#111111')
     expect(marker.querySelector('text')).not.toHaveClass('tone-dim')
     expect(Number(marker.querySelector('text')?.getAttribute('y'))).toBeCloseTo(52.8)
-    expect(marker.querySelector('text')?.textContent?.replace(/\s+/g, '')).toBe('Group2-[LittlePigs]')
-    expect(marker.querySelectorAll('tspan').length).toBeGreaterThan(1)
+    expect(marker.querySelector('text')?.textContent).toBe('Group 2 - [LP]')
+    expect(marker.querySelectorAll('tspan')).toHaveLength(1)
   })
 
   it('shows destroyed markers and lets either player inspect them without targeting', () => {
