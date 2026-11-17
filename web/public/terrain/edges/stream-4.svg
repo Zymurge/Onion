@@ -1,4 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 16">
-  <path d="M2 11 C12 11 13 3 23 3 S34 11 44 11 S56 3 70 3" fill="none" stroke="#1b4e5e" stroke-width="7"/>
-  <path d="M2 8 C12 8 13 0 23 0 S34 8 44 8 S56 0 70 0" fill="none" stroke="#7bc4c1" stroke-width="2.4"/>
+  <defs>
+    <pattern id="stream-highlight" width="15" height="4" patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse">
+      <rect width="15" height="4" fill="#285d5f"/>
+      <path d="M1 1.15 C2.5 0.55 4 1.75 5.5 1.15 M8.5 3.05 C10 2.45 11.5 3.65 13 3.05" fill="none" stroke="#3e6d6f" stroke-width="0.4" stroke-linecap="round"/>
+    </pattern>
+  </defs>
+  <path d="M0 8 C10.67 8 10.67 9.4 21.33 9.4 C32 9.4 32 7.4 42.67 7.4 C53.33 7.4 53.33 8 64 8 H72" fill="none" stroke="#604b35" stroke-width="9" stroke-linecap="butt"/>
+  <path d="M0 8 C10.67 8 10.67 9.4 21.33 9.4 C32 9.4 32 7.4 42.67 7.4 C53.33 7.4 53.33 8 64 8 H72" fill="none" stroke="url(#stream-highlight)" stroke-width="5.4" stroke-linecap="butt"/>
 </svg>

@@ -54,7 +54,7 @@ type HexMapCellProps = {
 }
 
 function terrainImage(terrainType?: number): string {
-  return terrainType === 1 ? '/terrain/ridges.svg' : terrainType === 2 ? '/terrain/craters.svg' : '/terrain/default.svg'
+  return terrainType === 1 ? '/terrain/craters.svg' : '/terrain/default.svg'
 }
 
 /** Renders terrain, overlays, and occupant markers for one map cell. */

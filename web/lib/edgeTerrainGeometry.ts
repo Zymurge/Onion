@@ -1,6 +1,6 @@
 import { axialToPixel, type HexPoint } from './hexPixelLayout'
 import { hexKey } from '../../shared/axialHex.js'
-import type { HexPos, ScenarioEdgeVariant, ScenarioTerrainEdge } from '../../shared/types/index.js'
+import type { ScenarioEdgeVariant, ScenarioTerrainEdge } from '../../shared/types/index.js'
 
 export const DEFAULT_EDGE_ENDPOINT_INSET = 5
 const EDGE_POINT_TOLERANCE = 0.000001
@@ -20,13 +20,25 @@ export type EdgeSegmentGeometry = {
 }
 
 export type EdgeCornerGeometry = {
-  cell: HexPos
   position: HexPoint
   angle: number
   mirrored: boolean
   type: ScenarioTerrainEdge['type']
   variants: [ScenarioEdgeVariant, ScenarioEdgeVariant]
   edgeKeys: [string, string]
+}
+
+export type EdgeTerminalCapGeometry = {
+  position: HexPoint
+  angle: number
+  side: 'start' | 'end'
+  edgeKey: string
+  type: ScenarioTerrainEdge['type']
+}
+
+type BoundaryVertex = {
+  position: HexPoint
+  edgeIndexes: number[]
 }
 
 function assertPositiveHexSize(size: number): void {
@@ -111,23 +123,59 @@ export function edgeIdentity(edge: ScenarioTerrainEdge): string {
   return `${hexKey(edge.a)}-${hexKey(edge.b)}`
 }
 
-function findSharedBoundaryPoint(left: BoundaryEndpoints, right: BoundaryEndpoints): HexPoint | undefined {
-  const leftPoints = [left.start, left.end]
-  const rightPoints = [right.start, right.end]
+function otherBoundaryPoint(boundary: BoundaryEndpoints, shared: HexPoint): HexPoint {
+  return distance(boundary.start, shared) <= EDGE_POINT_TOLERANCE ? boundary.end : boundary.start
+}
 
-  for (const leftPoint of leftPoints) {
-    for (const rightPoint of rightPoints) {
-      if (distance(leftPoint, rightPoint) <= EDGE_POINT_TOLERANCE) {
-        return midpoint(leftPoint, rightPoint)
+function collectEdgeBoundaryVertices(edges: ReadonlyArray<ScenarioTerrainEdge>, size: number) {
+  assertPositiveHexSize(size)
+  const boundaries = edges.map((edge) => edgeBoundaryEndpoints(edge, size))
+  const vertices: BoundaryVertex[] = []
+
+  boundaries.forEach((boundary, edgeIndex) => {
+    for (const position of [boundary.start, boundary.end]) {
+      const incident = vertices.find((vertex) => distance(vertex.position, position) <= EDGE_POINT_TOLERANCE)
+      if (incident) {
+        incident.edgeIndexes.push(edgeIndex)
+      } else {
+        vertices.push({ position, edgeIndexes: [edgeIndex] })
       }
+    }
+  })
+
+  return { boundaries, vertices }
+}
+
+/** Derives a terminal overlay for each terrain edge endpoint not shared by another edge of that terrain. */
+export function deriveEdgeTerminalCaps(
+  edges: ReadonlyArray<ScenarioTerrainEdge>,
+  size: number,
+): EdgeTerminalCapGeometry[] {
+  const { boundaries, vertices } = collectEdgeBoundaryVertices(edges, size)
+  const terminals: EdgeTerminalCapGeometry[] = []
+
+  for (const { position, edgeIndexes } of vertices) {
+    for (const type of ['stream', 'ridge'] as const) {
+      const terrainIndexes = edgeIndexes.filter((index) => edges[index].type === type)
+      if (terrainIndexes.length !== 1) continue
+
+      const edgeIndex = terrainIndexes[0]
+      const edge = edges[edgeIndex]
+      const boundary = boundaries[edgeIndex]
+      const side = distance(boundary.start, position) <= EDGE_POINT_TOLERANCE ? 'start' : 'end'
+      const segment = edgeSegmentGeometry(edge, size)
+
+      terminals.push({
+        position: side === 'start' ? segment.start : segment.end,
+        angle: Math.atan2(segment.end.y - segment.start.y, segment.end.x - segment.start.x),
+        side,
+        edgeKey: edgeIdentity(edge),
+        type,
+      })
     }
   }
 
-  return undefined
-}
-
-function otherBoundaryPoint(boundary: BoundaryEndpoints, shared: HexPoint): HexPoint {
-  return distance(boundary.start, shared) <= EDGE_POINT_TOLERANCE ? boundary.end : boundary.start
+  return terminals
 }
 
 /** Derives same-terrain corner overlays from exactly two incident canonical edges. */
@@ -135,25 +183,10 @@ export function deriveEdgeCorners(
   edges: ReadonlyArray<ScenarioTerrainEdge>,
   size: number,
 ): EdgeCornerGeometry[] {
-  assertPositiveHexSize(size)
-
-  const boundaries = edges.map((edge) => edgeBoundaryEndpoints(edge, size))
-  const cells = new Map<string, { cell: HexPos; edgeIndexes: number[] }>()
-
-  edges.forEach((edge, edgeIndex) => {
-    for (const cell of [edge.a, edge.b]) {
-      const key = hexKey(cell)
-      const incident = cells.get(key)
-      if (incident) {
-        incident.edgeIndexes.push(edgeIndex)
-      } else {
-        cells.set(key, { cell, edgeIndexes: [edgeIndex] })
-      }
-    }
-  })
+  const { boundaries, vertices } = collectEdgeBoundaryVertices(edges, size)
 
   const corners: EdgeCornerGeometry[] = []
-  for (const { cell, edgeIndexes } of cells.values()) {
+  for (const { position, edgeIndexes } of vertices) {
     if (edgeIndexes.length !== 2) continue
 
     let [leftIndex, rightIndex] = edgeIndexes
@@ -165,9 +198,6 @@ export function deriveEdgeCorners(
     const rightEdge = edges[rightIndex]
     if (leftEdge.type !== rightEdge.type) continue
 
-    const position = findSharedBoundaryPoint(boundaries[leftIndex], boundaries[rightIndex])
-    if (!position) continue
-
     const leftVector = subtract(otherBoundaryPoint(boundaries[leftIndex], position), position)
     const rightVector = subtract(otherBoundaryPoint(boundaries[rightIndex], position), position)
     const cross = leftVector.x * rightVector.y - leftVector.y * rightVector.x
@@ -178,7 +208,6 @@ export function deriveEdgeCorners(
     const variants = [leftEdge.variant, rightEdge.variant] as [ScenarioEdgeVariant, ScenarioEdgeVariant]
 
     corners.push({
-      cell,
       position,
       angle: Math.atan2(bisector.y, bisector.x),
       mirrored: cross < 0,

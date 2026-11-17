@@ -21,8 +21,12 @@ import {
 import { getCombatTargetIdForOccupant, isCombatTargetSelected, isCombatTargetSelectable } from '../lib/hexMapCombatTargeting'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { buildBattlefieldRosterProjection } from '../lib/battlefieldGroupProjection'
-import { deriveEdgeCorners, edgeIdentity, edgeSegmentGeometry } from '../lib/edgeTerrainGeometry'
-import { getEdgeTerrainAsset, getEdgeTerrainCornerAsset } from '../lib/edgeTerrainAssetRegistry'
+import { deriveEdgeCorners, deriveEdgeTerminalCaps, edgeIdentity, edgeSegmentGeometry } from '../lib/edgeTerrainGeometry'
+import {
+  getEdgeTerrainAsset,
+  getEdgeTerrainCornerAsset,
+  getEdgeTerrainTerminalAsset,
+} from '../lib/edgeTerrainAssetRegistry'
 import { useHexMapZoom } from '../lib/useHexMapZoom'
 import type { SessionCatalog } from '../lib/sessionCatalog'
 import type { ScenarioTerrainEdge } from '../../shared/types/index'
@@ -493,6 +497,7 @@ export function HexMapBoard({
 
   function renderEdgeTerrain() {
     const corners = deriveEdgeCorners(edges, HEX_SIZE)
+    const terminalCaps = deriveEdgeTerminalCaps(edges, HEX_SIZE)
 
     return (
       <g data-testid="hex-edge-terrain" className="hex-edge-terrain-layer" pointerEvents="none">
@@ -518,6 +523,25 @@ export function HexMapBoard({
             />
           )
         })}
+        {terminalCaps.map((terminal) => {
+          const angle = terminal.angle * (180 / Math.PI)
+
+          return (
+            <g
+              key={`${terminal.edgeKey}-${terminal.side}`}
+              data-testid={`hex-edge-${terminal.type}-terminal-${terminal.edgeKey}-${terminal.side}`}
+              transform={`translate(${terminal.position.x} ${terminal.position.y}) rotate(${angle})${terminal.side === 'end' ? ' scale(-1 1)' : ''}`}
+            >
+              <image
+                href={getEdgeTerrainTerminalAsset(terminal.type)}
+                x={-4.5}
+                y={-4.5}
+                width={4.5}
+                height={9}
+              />
+            </g>
+          )
+        })}
         {corners.map((corner) => {
           const angle = corner.angle * (180 / Math.PI)
           const edgeKey = corner.edgeKeys.join('|')
@@ -525,8 +549,8 @@ export function HexMapBoard({
           return (
             <g
               key={edgeKey}
-              data-testid={`hex-edge-corner-${corner.cell.q}-${corner.cell.r}`}
-              transform={`translate(${corner.position.x} ${corner.position.y}) rotate(${angle})${corner.mirrored ? ' scale(-1 1)' : ''}`}
+              data-testid={`hex-edge-corner-${edgeKey}`}
+              transform={`translate(${corner.position.x} ${corner.position.y}) rotate(${angle})${corner.mirrored ? ' scale(1 -1)' : ''}`}
             >
               <image
                 href={getEdgeTerrainCornerAsset(corner.type)}

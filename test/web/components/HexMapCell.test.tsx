@@ -29,7 +29,10 @@ const emptyActionEligibility: BattlefieldActionEligibility = {
 }
 
 describe('HexMapCell', () => {
-  it('preserves cell identity and escape overlays', () => {
+  it.each([
+    { terrainType: 1, image: '/terrain/craters.svg' },
+    { terrainType: 2, image: '/terrain/default.svg' },
+  ])('preserves cell identity and escape overlays for terrain $terrainType', ({ terrainType, image }) => {
     render(
       <svg>
         <HexMapCell
@@ -54,7 +57,7 @@ describe('HexMapCell', () => {
           phase="ONION_COMBAT"
           polygonPoints="0,0 1,0 1,1"
           renderedOccupants={[onion]}
-          renderedTerrainType={1}
+          renderedTerrainType={terrainType}
           resolvedPhaseMode="combat"
           resolvedViewerActivity="active"
           resolvedViewerRole="onion"
@@ -67,9 +70,11 @@ describe('HexMapCell', () => {
       </svg>,
     )
 
-    expect(screen.getByTestId('hex-cell-2-3')).toHaveClass('hex-terrain-1', 'hex-cell-combat-range', 'hex-cell-escape')
-    expect(screen.getByTestId('hex-cell-2-3').querySelector('.hex-shape-escape-overlay')).not.toBeNull()
-    expect(screen.getByTestId('hex-cell-2-3').querySelector('[data-testid="hex-unit-onion-1"]')).not.toBeNull()
+    const cell = screen.getByTestId('hex-cell-2-3')
+    expect(cell).toHaveClass(`hex-terrain-${terrainType}`, 'hex-cell-combat-range', 'hex-cell-escape')
+    expect(cell.querySelector('image')).toHaveAttribute('href', image)
+    expect(cell.querySelector('.hex-shape-escape-overlay')).not.toBeNull()
+    expect(cell.querySelector('[data-testid="hex-unit-onion-1"]')).not.toBeNull()
     expect(screen.queryByTestId('hex-destroyed-crosshatch-2-3')).toBeNull()
   })
 

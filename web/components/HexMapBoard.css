@@ -172,18 +172,12 @@
 }
 
 .hex-terrain-1 > .hex-shape {
-  fill: url('/terrain/ridges.svg');
-  stroke: #c1ad84;
-  stroke-width: 1;
-}
-
-.hex-terrain-2 > .hex-shape {
   fill: url('/terrain/craters.svg');
   stroke: #c1ad84;
   stroke-width: 1;
 }
 
-.hex-terrain-3 > .hex-shape {
+.hex-terrain-2 > .hex-shape {
   fill: #2d5a2d;
   stroke: #c1ad84;
   stroke-width: 1;

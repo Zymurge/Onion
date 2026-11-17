@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   deriveEdgeCorners,
+  deriveEdgeTerminalCaps,
   edgeBoundaryEndpoints,
   edgeSegmentGeometry,
 } from '../../../../web/lib/edgeTerrainGeometry'
@@ -30,6 +31,11 @@ function edge(a: { q: number; r: number }, b: { q: number; r: number }, type: 'r
 }
 
 describe('edge terrain geometry', () => {
+  it('validates hex size even when no edge endpoints are present', () => {
+    expect(() => deriveEdgeCorners([], 0)).toThrow('Hex size must be a positive finite number')
+    expect(() => deriveEdgeTerminalCaps([], 0)).toThrow('Hex size must be a positive finite number')
+  })
+
   it('derives one shared boundary of the expected length for all six axial directions', () => {
     for (const neighbor of neighbors) {
       const endpoints = edgeBoundaryEndpoints(edge(origin, neighbor), size)
@@ -61,7 +67,7 @@ describe('edge terrain geometry', () => {
     expect(geometry.angle).toBeLessThan(Math.PI)
   })
 
-  it('emits corners only for exactly two same-type incident edges', () => {
+  it('emits a corner only when exactly two same-type edges meet at a vertex', () => {
     const sameType = [
       edge(origin, { q: 1, r: 0 }),
       edge(origin, { q: 0, r: 1 }),
@@ -75,7 +81,42 @@ describe('edge terrain geometry', () => {
     expect(deriveEdgeCorners([
       ...sameType,
       edge(origin, { q: 1, r: -1 }),
-    ], size)).toEqual([])
+    ], size)).toHaveLength(2)
+  })
+
+  it('derives separate joins at shared vertices when a hex has three incident edges', () => {
+    const streamEdges = [
+      edge({ q: 2, r: 11 }, { q: 3, r: 11 }, 'stream'),
+      edge({ q: 2, r: 12 }, { q: 3, r: 11 }, 'stream'),
+      edge({ q: 3, r: 11 }, { q: 3, r: 12 }, 'stream'),
+    ]
+
+    expect(deriveEdgeCorners(streamEdges, size)).toHaveLength(2)
+  })
+
+  it('derives terrain-matched terminal caps only at vertices with one incident edge of that terrain', () => {
+    const isolated = edge(origin, { q: 1, r: 0 }, 'stream')
+    const isolatedCaps = deriveEdgeTerminalCaps([isolated], size)
+
+    expect(isolatedCaps).toHaveLength(2)
+    expect(isolatedCaps.map((cap) => cap.side)).toEqual(['start', 'end'])
+    expect(isolatedCaps.every((cap) => cap.edgeKey === '0,0-1,0')).toBe(true)
+    expect(isolatedCaps.every((cap) => cap.type === 'stream')).toBe(true)
+
+    const isolatedRidgeCaps = deriveEdgeTerminalCaps([edge(origin, { q: 1, r: 0 })], size)
+    expect(isolatedRidgeCaps).toHaveLength(2)
+    expect(isolatedRidgeCaps.every((cap) => cap.type === 'ridge')).toBe(true)
+
+    const connected = [
+      isolated,
+      edge(origin, { q: 0, r: 1 }, 'stream'),
+    ]
+    expect(deriveEdgeTerminalCaps(connected, size)).toHaveLength(2)
+
+    const mixed = [isolated, edge(origin, { q: 0, r: 1 }, 'ridge')]
+    const mixedCaps = deriveEdgeTerminalCaps(mixed, size)
+    expect(mixedCaps.filter((cap) => cap.type === 'stream')).toHaveLength(2)
+    expect(mixedCaps.filter((cap) => cap.type === 'ridge')).toHaveLength(2)
   })
 
   it('reports both bend mirror directions from local edge geometry', () => {

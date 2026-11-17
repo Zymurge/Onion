@@ -45,6 +45,37 @@ describe('normalizeInitialStateToGameState', () => {
   it('normalizes the Onion Ring III scenario fixture with canonical stack names', () => {
     const scenario = ScenarioSchema.parse(JSON.parse(readFileSync(new URL('../../../scenarios/onion-ring-iii.json', import.meta.url), 'utf8')))
     const initialState = InitialStateSchema.parse(scenario.initialState)
+    const centralRidgeEdges = scenario.map.edges
+      .filter((edge) => edge.type === 'ridge' && edge.a.q >= 8 && edge.a.q <= 12 && edge.b.q <= 12)
+      .map((edge) => `${edge.a.q},${edge.a.r}-${edge.b.q},${edge.b.r}`)
+    const outerRidgeEdges = scenario.map.edges
+      .filter((edge) => edge.type === 'ridge' && (edge.a.q <= 4 || edge.a.q >= 16))
+      .map((edge) => `${edge.a.q},${edge.a.r}-${edge.b.q},${edge.b.r}`)
+
+    expect(centralRidgeEdges).toEqual([
+      '8,10-9,9',
+      '9,9-9,10',
+      '9,10-10,9',
+      '10,9-10,10',
+      '10,10-11,9',
+      '11,9-11,10',
+      '11,10-12,9',
+      '12,9-12,10',
+    ])
+    expect(outerRidgeEdges).toEqual([
+      '3,8-4,8',
+      '3,9-4,8',
+      '3,9-4,9',
+      '3,10-4,9',
+      '3,10-4,10',
+      '3,11-4,10',
+      '16,8-17,8',
+      '16,9-17,8',
+      '16,9-17,9',
+      '16,10-17,9',
+      '16,10-17,10',
+      '16,11-17,10',
+    ])
 
     expect(scenario.victoryConditions.onion?.escapeLocation).toBe('south side')
     const gameState = normalizeInitialStateToGameState(initialState, scenario.id, scenario.unitTypes)

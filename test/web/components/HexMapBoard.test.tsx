@@ -939,9 +939,64 @@ describe('HexMapBoard', () => {
 		expect(screen.getByTestId('hex-edge-terrain')).toHaveAttribute('pointer-events', 'none')
 		expect(screen.getAllByTestId(/^hex-edge-segment-/)).toHaveLength(3)
 		expect(screen.getAllByTestId(/^hex-edge-corner-/)).toHaveLength(1)
+		expect(screen.getAllByTestId(/^hex-edge-stream-terminal-/)).toHaveLength(2)
+		expect(screen.getAllByTestId(/^hex-edge-ridge-terminal-/)).toHaveLength(2)
+		expect(screen.getAllByTestId(/^hex-edge-stream-terminal-/)[0].querySelector('image'))
+			.toHaveAttribute('href', '/terrain/edges/stream-terminal.svg')
+		expect(screen.getAllByTestId(/^hex-edge-ridge-terminal-/)[0].querySelector('image'))
+			.toHaveAttribute('href', '/terrain/edges/ridge-terminal.svg')
 		expect(screen.getByTestId('hex-edge-segment-0,0-0,1')).toHaveAttribute('href', '/terrain/edges/ridge-1.svg')
-		expect(screen.getByTestId('hex-edge-corner-0-0').querySelector('image')).toHaveAttribute('href', '/terrain/edges/ridge-corner.svg')
+		expect(screen.getByTestId(/^hex-edge-corner-/).querySelector('image')).toHaveAttribute('href', '/terrain/edges/ridge-corner.svg')
 		expect(screen.getByTestId('hex-unit-onion-1').compareDocumentPosition(screen.getByTestId('hex-edge-terrain'))).toBe(Node.DOCUMENT_POSITION_PRECEDING)
+	})
+
+	it('uses a connecting corner instead of terminal overlays at shared stream vertices', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={{
+					...edgeTerrainScenarioMap,
+					edges: [
+						{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+						{ type: 'stream', variant: 'stream-2', a: { q: 0, r: 0 }, b: { q: 0, r: 1 } },
+					],
+				}}
+				defenders={[]}
+				onions={[onion]}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getAllByTestId(/^hex-edge-stream-terminal-/)).toHaveLength(2)
+		expect(screen.getAllByTestId(/^hex-edge-corner-/)).toHaveLength(1)
+		expect(screen.getByTestId(/^hex-edge-corner-/).querySelector('image'))
+			.toHaveAttribute('href', '/terrain/edges/stream-corner.svg')
+	})
+
+	it('mirrors reversed corners along the bend bisector', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={{
+					...edgeTerrainScenarioMap,
+					edges: [
+						{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 0, r: 1 } },
+						{ type: 'ridge', variant: 'ridge-2', a: { q: 0, r: 1 }, b: { q: 1, r: 0 } },
+					],
+				}}
+				defenders={[]}
+				onions={[onion]}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId(/^hex-edge-corner-/)).toHaveAttribute('transform', expect.stringContaining('scale(1 -1)'))
 	})
 
 	it('outlines escape hexes', () => {

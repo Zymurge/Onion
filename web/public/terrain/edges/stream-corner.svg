@@ -1,4 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
-  <path d="M7.5 24.1 Q21.5 24.1 27.5 13.7" fill="none" stroke="#245d68" stroke-width="9" stroke-linecap="round"/>
-  <path d="M10.625 23.075 Q21.125 23.075 25.625 15.275" fill="none" stroke="#8ed0c1" stroke-width="3" stroke-linecap="round"/>
+  <defs>
+    <pattern id="stream-highlight" patternTransform="rotate(90) scale(0.68,1)" width="12" height="4" patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse">
+      <rect width="12" height="4" fill="#285d5f"/>
+      <path d="M1 1.15 C2.5 0.55 4 1.75 5.5 1.15 M7 3.05 C8.5 2.45 10 3.65 11.5 3.05" fill="none" stroke="#3e6d6f" stroke-width="0.4" stroke-linecap="round"/>
+    </pattern>
+  </defs>
+  <path d="M22.75 15.24 Q20 20 22.75 24.76" fill="none" stroke="#604b35" stroke-width="9" stroke-linecap="butt"/>
+  <path d="M22.75 15.24 Q20 20 22.75 24.76" fill="none" stroke="url(#stream-highlight)" stroke-width="5.4" stroke-linecap="butt"/>
 </svg>

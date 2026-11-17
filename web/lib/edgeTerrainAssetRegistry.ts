@@ -16,10 +16,22 @@ export const edgeTerrainCornerAssetRegistry: Readonly<Record<ScenarioEdgeTerrain
   stream: '/terrain/edges/stream-corner.svg',
 }
 
+export const edgeTerrainTerminalAssetRegistry: Readonly<Record<ScenarioEdgeTerrain, string>> = {
+  ridge: '/terrain/edges/ridge-terminal.svg',
+  stream: '/terrain/edges/stream-terminal.svg',
+}
+
+export const edgeTerrainRidgeTerminalAsset = edgeTerrainTerminalAssetRegistry.ridge
+export const edgeTerrainStreamTerminalAsset = edgeTerrainTerminalAssetRegistry.stream
+
 export function getEdgeTerrainAsset(variant: ScenarioEdgeVariant): string {
   return edgeTerrainAssetRegistry[variant]
 }
 
 export function getEdgeTerrainCornerAsset(type: ScenarioEdgeTerrain): string {
   return edgeTerrainCornerAssetRegistry[type]
+}
+
+export function getEdgeTerrainTerminalAsset(type: ScenarioEdgeTerrain): string {
+  return edgeTerrainTerminalAssetRegistry[type]
 }

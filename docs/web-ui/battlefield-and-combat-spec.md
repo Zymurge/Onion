@@ -13,6 +13,27 @@ objective display, and visual state rules.
 - Edge terrain uses the canonical pair of adjacent axial endpoints from the
   scenario map. Each edge is rendered once and uses the same pointy-top hex
   geometry as the board; a unit cannot occupy an edge.
+- Ridge and stream segment art uses a 9-unit band: a centered 5.4-unit fill
+  with 1.8-unit dark borders on both sides. Ridges use a warm-tan center about
+  10% darker than the default hex edge color, with grouped darker-brown
+  strokes that cross the band edge to edge at irregular intervals that vary
+  between segment variants; their borders and endpoint cross-caps use the
+  stream outline color. Ridge corner texture uses finer, lighter fanned strokes
+  to follow the bend radius. Stream segment paths stay
+  open. Ridge and stream ends with a single incident same-terrain edge receive
+  a tapered terminal overlay with a short blunt tip. Shared same-terrain
+  vertices use the connecting corner overlay instead. Corner art extends
+  about 10% beyond the radius-5 segment endpoints and renders above segments.
+  Corner stripes stay open and reach their extended ends.
+- The four segment variants share that geometry and endpoint contract. Use a
+  1.40-unit primary veer followed by a 0.60-unit opposite over-correction,
+  forming an asymmetric S over 64 units of the segment. Mirror that profile,
+  then repeat both profiles shifted toward one end.
+- Stream edges use a muted green-blue base (`#285d5f`) with small, directional
+  ripple highlights 10% lighter (`#3e6d6f`) and a warm tan-brown outline
+  (`#604b35`). Segment ripples use a 15-unit repeat, reducing their density by
+  20% from the original 12-unit repeat. Corner ripples use a 12-unit repeat;
+  rotate and scale them to account for the different image dimensions.
 - Range, reachability, selection, and combat overlays use the same board
   geometry as the renderer.
 - Zoom supports mouse wheel and a floating lower-left slider overlay while
