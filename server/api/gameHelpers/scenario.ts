@@ -45,7 +45,11 @@ export class ScenarioValidationError extends Error {
 export function parseScenarioSnapshot(raw: unknown): ValidatedScenarioSnapshot {
   const parsed = ScenarioSchema.safeParse(raw)
   if (!parsed.success) {
-    throw new ScenarioValidationError('Scenario does not match the required schema', { cause: parsed.error })
+    const issues = parsed.error.issues.map((issue) => {
+      const path = issue.path.map(String).join('.')
+      return path.length > 0 ? `${path}: ${issue.message}` : issue.message
+    })
+    throw new ScenarioValidationError(`Scenario does not match the required schema: ${issues.join('; ')}`, { cause: parsed.error })
   }
 
   try {

@@ -72,6 +72,13 @@ const legacySplitScenario = {
 }
 
 describe('parseScenarioSnapshot', () => {
+  it('includes schema issue paths and messages in the validation failure', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      initialState: undefined,
+    })).toThrow(/initialState.*Invalid input: expected object, received undefined/i)
+  })
+
   it('requires compact map definitions and rejects legacy radius maps', () => {
     expect(() => parseScenarioSnapshot({ ...validScenario, map: { radius: 1, hexes: [] } })).toThrow(ScenarioValidationError)
     expect(() => parseScenarioSnapshot({ ...validScenario, map: { shape: 'hex', size: 4, hexes: [] } })).toThrow(ScenarioValidationError)
