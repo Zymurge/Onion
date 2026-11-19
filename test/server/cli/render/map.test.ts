@@ -16,12 +16,19 @@ describe('renderMap', () => {
       id: 's1',
       name: 'Test',
       description: '',
-      map: { width: 1, height: 1, hexes: [{ q: 0, r: 0, t: 1 }] },
+      map: {
+        width: 2,
+        height: 1,
+        hexes: [{ q: 0, r: 0, t: 1 }, { q: 1, r: 0, t: 2 }],
+        edges: [],
+      },
     }
     const state: GameState = makeGameState({
       onions: { 'onion-1': makeOnion({ position: { q: 0, r: 0 }, treads: 1 }) },
       defenders: {},
     })
     expect(renderMap(state, scenario)).toContain('Map')
+    const rendered = renderMap(makeGameState({ onions: {}, defenders: {} }), scenario)
+    expect(rendered).toContain('[cr][sw]')
   })
 })
