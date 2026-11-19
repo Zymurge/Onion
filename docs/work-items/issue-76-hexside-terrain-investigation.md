@@ -1,9 +1,9 @@
 # Issue #76: Hexside Terrain Model for Ridges and Streams
 
-**Status:** Phases 4–9 complete. Edge-aware movement, canonical snapshot/API
-propagation, rendering, combat cleanup, test-scenario migration, and regression
-gates are complete. Existing persisted game rows still require manual deletion
-before rollout.
+**Status:** Phases 1–9 complete. Canonical edge schema and materialization,
+class-based movement, snapshot/API propagation, rendering, combat cleanup,
+scenario migration, and regression gates are complete. Existing persisted game
+rows still require manual deletion before rollout.
 **Issue:** [Investigate hexside terrain model for ridges and streams](https://github.com/Zymurge/Onion/issues/76)
 **Scope:** Edge-terrain and class-rule implementation as authorized by the
 phase plan; forest mechanics remain out of scope.
@@ -518,6 +518,10 @@ Acceptance checks:
 
 ### Phase 3: Add Canonical Edge Schema And Materialization
 
+**Status:** Complete. Authored edges are validated and materialized without
+repair, and canonical edges survive engine, API, snapshot, and web boundaries.
+Scenario parsing reports the affected endpoint pairs and violated ordering.
+
 Tasks:
 
 - Add authored and runtime edge types to `server/engine/scenarioSchema.ts`,
@@ -995,17 +999,15 @@ Phase 9 is complete. Final implementation ownership is:
   [server/api/scenarios.ts](../../server/api/scenarios.ts), and
   [scenarios/test](../../scenarios/test).
 
-Validation completed on 2026-11-09:
+Latest validation completed on 2026-11-18:
 
-- Focused edge-map round-trip E2E and full Playwright suite: 16 tests passed.
-  The lobby lifecycle test confirms eight edges in the authoritative game
-  snapshot and eight rendered edge segments in both player clients.
-- Full regression: 174 files, 1,861 tests passed.
-- `pnpm exec tsc --noEmit`, `pnpm typecheck:e2e`, and
-  `pnpm --dir web build` passed; the web build reports a non-blocking large
-  chunk warning.
-- ESLint on changed TypeScript files, `git diff --check`, and scenario
-  validation for all nine scenario files passed.
+- Scenario validator: all nine scenario files passed.
+- Focused scenario preflight, map validation, and parsing tests: 54 tests passed.
+- Full regression: 174 files, 1,888 tests passed.
+- Full Playwright E2E suite: 16 tests passed, including the co-location rendering
+  check with the current map-only unit labels.
+- `pnpm exec tsc --noEmit` and `pnpm typecheck:e2e` passed.
+- `git diff --check` passed.
 - Targeted searches found no remaining whole-hex ridge assumptions or
   type-id class checks. Ridge-cover wording remains only as the rule that
   ridges provide no cover; the stale combat-calculator comment and API map
@@ -1017,14 +1019,12 @@ geometry is currently recalculated during board rendering; memoization remains
 an optional performance follow-up. Two unreferenced rapid-endgame test fixtures
 remain under `scenarios/test/` for possible future use.
 
-## Recommendation
+## Outcome
 
-**Proceed with one edge-terrain and class-rules foundation, but keep forest
-mechanics out of scope.** Ridge and stream movement rules, unit classes,
-endpoint representation, combat behavior, validation, edge sprites, and overlay
-order are specified. Update the scenarios the tests load. The user deletes
-existing game rows before starting new games; no compatibility translation is
-in scope.
+The Issue 76 edge-terrain and class-rules implementation is complete. Forest
+mechanics, scenario editing/viewing, and variant-authoring assistance remain
+separate follow-up work. Before rollout, the user must delete existing game
+rows; no compatibility translation or automatic deletion is in scope.
 
 Implementation constraints:
 

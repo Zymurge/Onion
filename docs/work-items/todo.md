@@ -25,6 +25,7 @@ break down into features/tasks as needed.
 
 ### Completed Features / Tasks
 
+- [x] Complete [Issue #76: hexside terrain for ridges and streams](issue-76-hexside-terrain-investigation.md), including class-based movement, canonical edge snapshots, rendering, scenario migration, and validation coverage.
 - [x] Complete Issue 36 refactor hardening across transport boundaries, controller sequencing, projection ownership, and authoritative snapshot handling.
 - [x] Expand direct component and lower-level contract coverage for battlefield rails and interaction routing, including locked/disabled paths and stack selection controls.
 - [x] Stacked unit management: canonical stack identity, split/merge naming, per-unit action selection, stack-aware combat and ramming, UI presentation, and automated regression coverage.
