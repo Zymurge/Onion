@@ -99,8 +99,9 @@ endpoints in ascending `(q, r)` order. Edge records themselves must be sorted
 lexicographically by `(a.q, a.r, b.q, b.r)`. Reversed endpoints and
 out-of-order edge records are invalid rather than silently sorted. Duplicate
 endpoint pairs, including reversed duplicates, and conflicting terrain kinds
-are invalid. Authored maps may omit `edges` when they have no edge terrain.
-Runtime and API snapshots always contain `edges`, including an empty array.
+are invalid. Authored maps must include `edges`, using an empty array when they
+have no edge terrain. Runtime and API snapshots always contain `edges`, including
+an empty array.
 
 Edge terrain is movement data, not whole-hex terrain. A unit cannot occupy an
 edge, and ridges and streams do not modify combat.

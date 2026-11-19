@@ -15,6 +15,7 @@ import { resolveBattlefieldFriendlyName } from './battlefieldNaming'
 import { resolveBattlefieldWeaponName } from './weaponStats'
 import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './selectionIds'
 import { formatCombatTargetId } from '../../shared/combatTarget'
+import { terrainFromT } from '../../shared/scenarioMap.js'
 import { buildStackRosterIndex, canonicalizeStackRoster } from '../../shared/stackRoster/index.js'
 import type { StackRosterState, TerrainType } from '../../shared/types/index'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
@@ -69,20 +70,8 @@ function getCombatCalculator(catalog?: SessionCatalog) {
 	return calculator
 }
 
-function terrainTypeFromHex(value: number | undefined): TerrainType {
-	if (value === 1) {
-		return 'ridgeline'
-	}
-
-	if (value === 2) {
-		return 'crater'
-	}
-
-	return 'clear'
-}
-
 function terrainTypeAt(scenarioMap: CombatPreviewInput['displayedScenarioMap'], q: number, r: number): TerrainType {
-	return terrainTypeFromHex(scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t)
+	return terrainFromT(scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t ?? 0)
 }
 
 export type BattlefieldDefenderInspectionStats = {

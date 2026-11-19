@@ -85,7 +85,7 @@ const CompactHexMapSchema = z.object({
   shape: z.literal('hex'),
   size: z.number().int().positive().refine((size) => size % 2 === 1, 'Hex map size must be odd'),
   hexes: z.array(TerrainHexSchema).default([]),
-  edges: z.array(ScenarioTerrainEdgeSchema).default([]),
+  edges: z.array(ScenarioTerrainEdgeSchema),
 }).strict()
 
 const CompactRectangleMapSchema = z.object({
@@ -93,7 +93,7 @@ const CompactRectangleMapSchema = z.object({
   width: z.number().int().positive(),
   height: z.number().int().positive(),
   hexes: z.array(TerrainHexSchema).default([]),
-  edges: z.array(ScenarioTerrainEdgeSchema).default([]),
+  edges: z.array(ScenarioTerrainEdgeSchema),
 }).strict()
 
 export const InitialStateSchema = z

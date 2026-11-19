@@ -10,11 +10,22 @@ export type ScenarioTerrainHex = {
 	t: number
 }
 
+const terrainByCode = {
+	0: 'clear',
+	1: 'crater',
+	2: 'swamp',
+} as const satisfies Record<number, TerrainType>
+
+export function isSupportedTerrainCode(t: unknown): t is 0 | 1 | 2 {
+	return typeof t === 'number' && Number.isInteger(t) && Object.hasOwn(terrainByCode, t)
+}
+
 /** Decode the canonical whole-hex terrain code carried by scenario snapshots. */
 export function terrainFromT(t: number): TerrainType {
-	if (t === 1) return 'crater'
-	if (t === 2) return 'swamp'
-	return 'clear'
+	if (!isSupportedTerrainCode(t)) {
+		throw new Error(`Unsupported whole-hex terrain code: ${t}`)
+	}
+	return terrainByCode[t]
 }
 
 export type ExplicitScenarioMap = {
@@ -26,14 +37,14 @@ export type ExplicitScenarioMap = {
 }
 
 type AuthoredExplicitScenarioMap = Omit<ExplicitScenarioMap, 'edges'> & {
-	edges?: ScenarioTerrainEdge[]
+	edges: ScenarioTerrainEdge[]
 }
 
 export type CompactHexScenarioMap = {
 	shape: 'hex'
 	size: number
 	hexes: ScenarioTerrainHex[]
-	edges?: ScenarioTerrainEdge[]
+	edges: ScenarioTerrainEdge[]
 }
 
 export type CompactRectangleScenarioMap = {
@@ -41,7 +52,7 @@ export type CompactRectangleScenarioMap = {
 	width: number
 	height: number
 	hexes: ScenarioTerrainHex[]
-	edges?: ScenarioTerrainEdge[]
+	edges: ScenarioTerrainEdge[]
 }
 
 export type AuthoredScenarioMap = AuthoredExplicitScenarioMap | CompactHexScenarioMap | CompactRectangleScenarioMap
@@ -107,6 +118,10 @@ export function validateCanonicalEdges(
  * runtime coordinate space and are never translated.
  */
 export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenarioMap {
+	if (!Array.isArray(map.edges)) {
+		throw new Error('Scenario map edges are missing')
+	}
+
 	const materialized =
 		'cells' in map
 			? {
@@ -114,7 +129,7 @@ export function materializeScenarioMap(map: AuthoredScenarioMap): ExplicitScenar
 				height: map.height,
 				cells: map.cells,
 				hexes: map.hexes,
-				edges: map.edges ?? [],
+				edges: map.edges,
 			}
 			: materializeCompactMap(map)
 
@@ -154,7 +169,7 @@ function materializeCompactMap(map: CompactHexScenarioMap | CompactRectangleScen
 			height: map.size,
 			cells: createAxialRegion(radius, { q: radius, r: radius }).cells,
 			hexes: map.hexes.map((hex) => ({ ...hex })),
-			edges: map.edges?.map((edge) => ({ ...edge, a: { ...edge.a }, b: { ...edge.b } })) ?? [],
+			edges: map.edges.map((edge) => ({ ...edge, a: { ...edge.a }, b: { ...edge.b } })),
 		}
 	}
 
@@ -174,7 +189,7 @@ function materializeCompactMap(map: CompactHexScenarioMap | CompactRectangleScen
 		height: map.height,
 		cells,
 		hexes: map.hexes.map((hex) => ({ ...hex })),
-		edges: map.edges?.map((edge) => ({ ...edge, a: { ...edge.a }, b: { ...edge.b } })) ?? [],
+		edges: map.edges.map((edge) => ({ ...edge, a: { ...edge.a }, b: { ...edge.b } })),
 	}
 }
 

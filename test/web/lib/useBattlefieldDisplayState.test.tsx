@@ -431,10 +431,10 @@ describe('useBattlefieldDisplayState', () => {
 	})
 
 	it.each([
-		['LittlePigs', 1, 'ridgeline', 1],
+		['LittlePigs', 1, 'crater', 1],
 		['LittlePigs', 0, 'clear', 1],
-		['LittlePigs', 2, 'crater', 1],
-		['Puss', 1, 'ridgeline', 3],
+		['LittlePigs', 2, 'swamp', 1],
+		['Puss', 1, 'crater', 3],
 	] as const)('projects base defense and terrain label for %s on terrain %i', (typeId, terrainValue, expectedTerrain, expectedDefense) => {
 		const snapshot = createSnapshot()
 		snapshot.authoritativeState!.defenders = {
@@ -488,7 +488,7 @@ describe('useBattlefieldDisplayState', () => {
 			}),
 		)
 
-		expect(result.current.selectedInspectorTerrainType).toBe('ridgeline')
+		expect(result.current.selectedInspectorTerrainType).toBe('crater')
 		expect(result.current.selectedInspectorDefense).toBe(1)
 	})
 

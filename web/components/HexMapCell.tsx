@@ -12,6 +12,7 @@ import type {
 } from '../lib/interactionRouting'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import type { SessionCatalog } from '../lib/sessionCatalog'
+import type { TerrainType } from '../../shared/types/index'
 
 type HexMapCellProps = {
   actionEligibility: BattlefieldActionEligibility
@@ -39,7 +40,7 @@ type HexMapCellProps = {
   phase: string | null
   polygonPoints: string
   renderedOccupants: ReadonlyArray<HexOccupant>
-  renderedTerrainType?: number
+  renderedTerrainType?: TerrainType
   renderTerrain?: boolean
   renderOccupants?: boolean
   resolvedPhaseMode: InteractionPhaseMode
@@ -53,8 +54,8 @@ type HexMapCellProps = {
   onSelectUnit: (unitId: string, additive?: boolean) => void
 }
 
-function terrainImage(terrainType?: number): string {
-  return terrainType === 1 ? '/terrain/craters.svg' : '/terrain/default.svg'
+function terrainImage(terrainType?: TerrainType): string {
+  return terrainType === 'crater' ? '/terrain/craters.svg' : '/terrain/default.svg'
 }
 
 /** Renders terrain, overlays, and occupant markers for one map cell. */

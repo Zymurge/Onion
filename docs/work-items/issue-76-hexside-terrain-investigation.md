@@ -66,6 +66,11 @@ as investigation history and does not describe the completed implementation.
 
 ### Decisions Recorded For This Work Item
 
+- The ridge class matrix below is an intentional Onion variant, not a claim of
+  exact Ogre rulebook fidelity. The source wording names Ogres and Superheavy
+  Tanks as ridge-crossers; Onion retains ridge crossing, Infantry also crosses,
+  and Heavy Armor (including Dragon) is blocked. The matrix is the implementation
+  contract for now. Its balance is unverified and remains subject to playtesting.
 - The canonical edge records both adjacent endpoints, and runtime map snapshots
   carry a required edge array.
 - Unit classes and ridge/stream movement behavior are specified below. The
@@ -115,10 +120,10 @@ validation/materialization responsibility, not client-side inference. This
 endpoint-pair representation is approved for the plan, and both endpoints are
 stored in authored and runtime edge records.
 
-The runtime map and `ScenarioMapSnapshot` always include a required
-`edges: ScenarioTerrainEdge[]` property, including an empty array when there
-are no edge features. Authored maps may omit `edges` when they define none;
-materialization normalizes that authoring form to the required runtime array.
+Authored maps, the runtime map, and `ScenarioMapSnapshot` all include a
+required `edges: ScenarioTerrainEdge[]` property, including an empty array
+when there are no edge features. Missing edge data is invalid rather than
+normalized at materialization or a later runtime boundary.
 
 Example (illustrative shape only; not a scenario change):
 
@@ -999,11 +1004,11 @@ Phase 9 is complete. Final implementation ownership is:
   [server/api/scenarios.ts](../../server/api/scenarios.ts), and
   [scenarios/test](../../scenarios/test).
 
-Latest validation completed on 2026-11-18:
+Local validation recorded on 2026-11-18 (not a GitHub CI result):
 
 - Scenario validator: all nine scenario files passed.
 - Focused scenario preflight, map validation, and parsing tests: 54 tests passed.
-- Full regression: 174 files, 1,888 tests passed.
+- Full regression: 174 files, 1,896 tests passed.
 - Full Playwright E2E suite: 16 tests passed, including the co-location rendering
   check with the current map-only unit labels.
 - `pnpm exec tsc --noEmit` and `pnpm typecheck:e2e` passed.

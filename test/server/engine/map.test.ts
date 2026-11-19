@@ -95,9 +95,8 @@ describe('createMap', () => {
     expect(getHex(map, { q: 1, r: 1 })?.terrain).toBe('swamp')
   })
 
-  it('maps any other t value to clear', () => {
-    const map = createMap(5, 5, [{ q: 1, r: 1, t: 3 }])
-    expect(getHex(map, { q: 1, r: 1 })?.terrain).toBe('clear')
+  it('rejects unsupported whole-hex terrain codes instead of repairing them to clear', () => {
+    expect(() => createMap(5, 5, [{ q: 1, r: 1, t: 3 }])).toThrow('Unsupported whole-hex terrain code: 3')
   })
 
   it('respects explicit cell membership when provided', () => {

@@ -37,7 +37,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Unit definitions or scenario-derived types | [scenario-schema.md](scenario-schema.md) `## 4. Unit and Weapon Definitions` | `server/engine/scenarioSchema.ts`, `server/engine/scenarioDefinitions.ts`, and `server/engine/scenarioNormalizer.ts`; `shared/rulesContext.ts` is the authoritative per-match lookup boundary. |
 | Rules context or scenario catalog lookup | `shared/rulesContext.ts` | Trace the caller-provided `RulesContext` into the owning engine/API path; use `server/engine/scenarioDefinitions.ts` for resolution. |
 | Sprite asset lookup, map sizing/positioning, Inspector rendering, or unit-state visuals | [web-ui/unit-presentation-spec.md](web-ui/unit-presentation-spec.md) | Use the resolved session catalog for visual metadata and `shared/stackRoster` for canonical membership; use [interaction-routing-spec.md](web-ui/interaction-routing-spec.md) for combat selection and target behavior. |
-| Movement legality, including edge terrain | `shared/movementRules.ts`, `shared/movePlanner.ts` | `shared/moveValidator.ts` |
+| Movement legality, whole-hex terrain costs, or edge crossing | [game-rules.md](game-rules.md) `### 1. Hexagonal Grid & Movement`; [scenario-schema.md](scenario-schema.md) `## 1. Map Configuration` for terrain codes and authored edges | `shared/classRules.ts` owns class permissions; `shared/movementRules.ts` and `shared/movePlanner.ts` calculate legal steps and paths; `shared/moveValidator.ts` validates submitted moves |
 | Stack membership, split, or merge | `shared/stackRoster/index.ts` | Do not infer membership from co-location or from [game-rules.md](game-rules.md) |
 | Combat odds and modifiers | `shared/combatCalculator.ts` | `shared/staticRules.ts` owns shared static rules; ridge and stream edges add no combat modifier |
 | CRT letters | `server/engine/combat/rolls.ts` CRT constant | The table in [game-rules.md](game-rules.md) currently matches. It does not override the code |
@@ -102,9 +102,10 @@ Edit the shared rule for a decision. Edit the execution owner only for mutation,
 | `shared/unitSpriteManifest.ts` | Defines supported authored sprite keys and validates catalog metadata against them. | The web registry owns image imports and state variants. |
 | `shared/types/index.ts` | Defines unit catalog metadata, including sprite keys and map-only sprite layout fields. | |
 | `shared/rulesContext.ts` | Provides the immutable per-match unit/weapon catalog and combat-rule lookup boundary. | `WRAP`: falls back to the global context only for callers without a scenario context. |
+| `shared/classRules.ts` | Owns immutable unit-class movement, terrain, mobility, second-move, armor, and ramming rules. | |
 | `shared/movementRules.ts` | Decides terrain access, move cost, and occupied-hex legality. | |
 | `shared/movementAllowance.ts` | Decides Onion tread-band movement allowance. | `DUP`: hardcodes the 15-tread bands instead of reading the catalog. |
-| `shared/unitMovement.ts` | Exposes phase-aware allowance and movement-spent counters. | `D+M`: spent-counter helpers mutate units. `WRAP`: ridgeline crossing delegates to `movementRules.ts`. |
+| `shared/unitMovement.ts` | Exposes phase-aware allowance and movement-spent counters. | `D+M`: spent-counter helpers mutate units. `WRAP`: ridge-edge crossing delegates to `movementRules.ts`. |
 | `shared/moveValidator.ts` | Validates one move command against the shared movement rules. | |
 | `shared/movePlanner.ts` | Finds legal paths and reachable hexes. | |
 | `shared/stackRoster/index.ts` | Owns canonical membership and split, merge, move, and relocate transitions. | |

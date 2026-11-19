@@ -30,8 +30,8 @@ const emptyActionEligibility: BattlefieldActionEligibility = {
 
 describe('HexMapCell', () => {
   it.each([
-    { terrainType: 1, image: '/terrain/craters.svg' },
-    { terrainType: 2, image: '/terrain/default.svg' },
+    { terrainType: 'crater', image: '/terrain/craters.svg' },
+    { terrainType: 'swamp', image: '/terrain/default.svg' },
   ])('preserves cell identity and escape overlays for terrain $terrainType', ({ terrainType, image }) => {
     render(
       <svg>

@@ -9,7 +9,6 @@ import type { BattlefieldInspectorGroupHeading } from '../lib/battlefieldDisplay
 
 const terrainLabels: Record<TerrainType, string> = {
   clear: 'Clear',
-  ridgeline: 'Ridgeline',
   crater: 'Crater',
   swamp: 'Swamp',
 }

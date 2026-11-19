@@ -89,12 +89,6 @@ describe('getStopOnOccupiedHexFailure', () => {
 })
 
 describe('movementRules', () => {
-	it('derives ridgeline movement cost from shared terrain rules', () => {
-		expect(getTerrainMoveCost('Puss', 'ridgeline')).toBeNull()
-		expect(getTerrainMoveCost('LittlePigs', 'ridgeline')).toBe(1)
-		expect(getTerrainMoveCost('TheOnion', 'ridgeline')).toBe(1)
-	})
-
 	it.each([
 		{ unitType: 'LittlePigs', unitClass: 'Infantry' },
 		{ unitType: 'Puss', unitClass: 'LightArmor' },
@@ -194,6 +188,10 @@ describe('movementRules', () => {
 	})
 
 	describe('edge and step move cost rules', () => {
+		it('rejects missing edge terrain data', () => {
+			expect(() => buildEdgeLookup(undefined as never)).toThrow('Scenario map edges are missing')
+		})
+
 		const ridgeEdge: ScenarioTerrainEdge = {
 			type: 'ridge',
 			a: { q: 1, r: 0 },

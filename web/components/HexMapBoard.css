@@ -165,19 +165,21 @@
 /* Default terrain (empty) - light brown */
 
 /* Use SVG images for terrain backgrounds */
-.hex-terrain-default > .hex-shape {
+.hex-terrain-default > .hex-shape,
+.hex-terrain-clear > .hex-shape,
+.hex-terrain-ridgeline > .hex-shape {
   fill: url('/terrain/default.svg');
   stroke: #c1ad84;
   stroke-width: 1;
 }
 
-.hex-terrain-1 > .hex-shape {
+.hex-terrain-crater > .hex-shape {
   fill: url('/terrain/craters.svg');
   stroke: #c1ad84;
   stroke-width: 1;
 }
 
-.hex-terrain-2 > .hex-shape {
+.hex-terrain-swamp > .hex-shape {
   fill: #2d5a2d;
   stroke: #c1ad84;
   stroke-width: 1;

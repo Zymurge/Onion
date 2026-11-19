@@ -26,6 +26,7 @@ import { buildCombatResolution } from './combatResolution'
 import { buildRamResolution } from './moveResolution'
 import { validateBattlefieldSnapshot } from './battlefieldDisplay/snapshotValidation'
 import { isSupportedEdgeVariant } from '../../shared/config/edgeTerrainVariants.js'
+import { isSupportedTerrainCode } from '../../shared/scenarioMap.js'
 
 type ActionSuccessResponse = ActionOkResponse & {
 	scenarioId?: string
@@ -106,6 +107,12 @@ function requireScenarioMap(response: GameStateResponse) {
 
 	if (!Array.isArray(response.scenarioMap.edges)) {
 		throw new GameClientSeamError('transport', 'Missing scenario map edges in game state response')
+	}
+
+	for (const hex of response.scenarioMap.hexes) {
+		if (!isSupportedTerrainCode(hex.t)) {
+			throw new GameClientSeamError('transport', `Unsupported whole-hex terrain code: ${hex.t}`)
+		}
 	}
 
 	for (const [edgeIndex, edge] of response.scenarioMap.edges.entries()) {

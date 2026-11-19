@@ -13,6 +13,7 @@ break down into features/tasks as needed.
 
 ### Features / Tasks
 
+- [ ] Playtest the intentional ridge-edge class permissions for balance and record whether the Issue #76 matrix should change.
 - [ ] Scenario viewer and rendering boundary: implement the temporary read-only scenario viewer, then extract a shared render-only map/unit boundary and migrate the game and viewer onto it. See [scenario-viewer-and-rendering-boundary.md](scenario-viewer-and-rendering-boundary.md).
 - [ ] Future multi-Onion scenarios: allow a destroyed Onion relic to remain on the battlefield as an impassable hex after the game-over condition is relaxed for scenarios with multiple Onions. Define relic persistence, selection/inspection, movement blocking, rendering, and victory interactions.
 

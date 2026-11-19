@@ -12,7 +12,7 @@ function getClassRule(unitType: string, rules?: RulesContext) {
 	return definition === undefined ? undefined : getRulesContext(rules).getUnitClassRule(definition.unitClass)
 }
 
-/** Returns whether the unit class may cross the legacy ridgeline terrain. */
+/** Returns whether the unit class may cross a ridge edge. */
 export function canUnitCrossRidgeline(unitType: string, rules?: RulesContext): boolean {
 	return canCrossRidgelineByTerrainRule(unitType, rules)
 }

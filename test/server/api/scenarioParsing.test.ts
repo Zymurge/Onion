@@ -10,6 +10,7 @@ const validScenario = {
     shape: 'hex',
     size: 3,
     hexes: [],
+    edges: [],
   },
   initialState: {
     deployments: {
@@ -33,6 +34,7 @@ const targetDeploymentScenario = {
     shape: 'hex',
     size: 5,
     hexes: [],
+    edges: [],
   },
   initialState: {
     deployments: {
@@ -82,6 +84,13 @@ describe('parseScenarioSnapshot', () => {
   it('requires compact map definitions and rejects legacy radius maps', () => {
     expect(() => parseScenarioSnapshot({ ...validScenario, map: { radius: 1, hexes: [] } })).toThrow(ScenarioValidationError)
     expect(() => parseScenarioSnapshot({ ...validScenario, map: { shape: 'hex', size: 4, hexes: [] } })).toThrow(ScenarioValidationError)
+  })
+
+  it('requires authored map edge arrays', () => {
+    const { edges: _edges, ...mapWithoutEdges } = validScenario.map
+    void _edges
+
+    expect(() => parseScenarioSnapshot({ ...validScenario, map: mapWithoutEdges })).toThrow(ScenarioValidationError)
   })
 
   it('validates and materializes a complete authored scenario', () => {

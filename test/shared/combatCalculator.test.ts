@@ -296,7 +296,7 @@ describe('combatCalculator', () => {
 			combatState: {
 				units: {
 					'attack-1': { typeId: 'Puss' },
-					'target-1': { typeId: 'Puss', terrainType: 'ridgeline' },
+					'target-1': { typeId: 'Puss', terrainType: 'crater' },
 				},
 			},
 		}

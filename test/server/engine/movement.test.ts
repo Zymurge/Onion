@@ -205,7 +205,7 @@ describe('validateUnitMovement', () => {
     expect(state.defenders.d1.state).toBe('operational')
   })
 
-  it('reports impassable ridgeline terrain instead of a generic path failure', () => {
+  it('reports impassable crater terrain instead of a generic path failure', () => {
     const tank = makeDefender({ unitId: 'puss-1', typeId: 'Puss', position: { q: 0, r: 0 } })
     const state = makeState({ currentPhase: 'DEFENDER_MOVE', defenders: { 'puss-1': tank } })
     const ridgeMap = createMap(5, 5, [{ q: 1, r: 0, t: 1 }])

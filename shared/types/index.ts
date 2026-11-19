@@ -413,4 +413,4 @@ export interface ActionErrorResponse {
 
 export type ActionResponse = ActionOkResponse | ActionErrorResponse
 
-export type TerrainType = 'clear' | 'ridgeline' | 'crater' | 'swamp'
+export type TerrainType = 'clear' | 'crater' | 'swamp'

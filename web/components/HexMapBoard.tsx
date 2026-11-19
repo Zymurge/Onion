@@ -41,7 +41,7 @@ type HexMapBoardProps = {
     height: number
     cells: ReadonlyArray<{ q: number; r: number }>
     hexes: ReadonlyArray<TerrainHex>
-    edges?: ReadonlyArray<ScenarioTerrainEdge>
+    edges: ReadonlyArray<ScenarioTerrainEdge>
   }
   defenders: ReadonlyArray<BattlefieldUnit>
   onions: ReadonlyArray<BattlefieldOnionView>
@@ -139,8 +139,8 @@ export function HexMapBoard({
   onDeselect,
   onMoveUnit,
 }: HexMapBoardProps) {
-  const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), hex.t]))
-  const edges = scenarioMap.edges ?? []
+  const terrain = new Map(scenarioMap.hexes.map((hex) => [hexKey(hex), terrainFromT(hex.t)]))
+  const edges = scenarioMap.edges
   const renderedCells = scenarioMap.cells
   const bounds = boardPixelSize(renderedCells, HEX_SIZE, MAP_PADDING)
   const {

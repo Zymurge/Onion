@@ -41,7 +41,7 @@ describe('BattlefieldInspectorPanel', () => {
         }}
         selectedInspectorGroupLabel={null}
         selectedInspectorDefense={2}
-        selectedInspectorTerrainType="ridgeline"
+        selectedInspectorTerrainType="crater"
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={2}
@@ -54,7 +54,7 @@ describe('BattlefieldInspectorPanel', () => {
     expect(within(inspector).getByText('2 of 2 selected')).toBeInTheDocument()
     expect(within(inspector).queryByTestId('battlefield-inspector-group')).toBeNull()
     expect(getLabeledValue('Defense')).toBe('2')
-    expect(getLabeledValue('Terrain')).toBe('Ridgeline')
+    expect(getLabeledValue('Terrain')).toBe('Crater')
     expect(within(inspector).getByRole('img', { name: 'Group 1 Little Pigs sprite' })).toBeInTheDocument()
     expect(within(inspector).getByText(/stackable rifle squad/i)).toBeInTheDocument()
     expect(Array.from(inspector.querySelectorAll('dl > div')).map((pair) => Array.from(pair.children).map((field) => field.textContent))).toEqual([
@@ -63,7 +63,7 @@ describe('BattlefieldInspectorPanel', () => {
       ['Attack', '0'],
       ['Range', '0'],
       ['Defense', '2'],
-      ['Terrain', 'Ridgeline'],
+      ['Terrain', 'Crater'],
     ])
     expect(within(inspector).queryByText('Selected')).toBeNull()
     expect(within(inspector).queryByText('Stack')).toBeNull()

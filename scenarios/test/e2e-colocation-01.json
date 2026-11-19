@@ -6,7 +6,8 @@
   "map": {
     "shape": "hex",
     "size": 7,
-    "hexes": []
+    "hexes": [],
+    "edges": []
   },
   "unitTypes": {
     "ScenarioWolf": {

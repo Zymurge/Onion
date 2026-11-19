@@ -34,11 +34,12 @@ export function canonicalEdgeKey(a: HexPos, b: HexPos): string {
 /**
  * Builds an O(1) lookup map of edges indexed by canonical edge key.
  */
-export function buildEdgeLookup(edges?: ReadonlyArray<ScenarioTerrainEdge>): EdgeLookup {
-	const lookup = new Map<string, ScenarioTerrainEdge>()
-	if (!edges) {
-		return lookup
+export function buildEdgeLookup(edges: ReadonlyArray<ScenarioTerrainEdge>): EdgeLookup {
+	if (!Array.isArray(edges)) {
+		throw new Error('Scenario map edges are missing')
 	}
+
+	const lookup = new Map<string, ScenarioTerrainEdge>()
 	for (const edge of edges) {
 		lookup.set(canonicalEdgeKey(edge.a, edge.b), edge)
 	}
@@ -113,14 +114,14 @@ function getUnitClassRule(unitType: string, rules?: RulesContext) {
 	return definition === undefined ? undefined : getRulesContext(rules).getUnitClassRule(definition.unitClass)
 }
 
-function requireTerrainRule<T>(terrainRule: T | undefined, unitType: string, terrainType: TerrainType): T {
+function requireTerrainRule<T>(terrainRule: T | undefined, unitType: string, terrainType: string): T {
 	if (terrainRule === undefined) {
 		throw new Error(`Missing ${terrainType} terrain rule for unit type ${unitType}`)
 	}
 	return terrainRule
 }
 
-/** Returns whether a unit class may cross ridgeline terrain. */
+/** Returns whether a unit class may cross a ridge edge. */
 export function canCrossRidgelineByTerrainRule(unitType: string, rules?: RulesContext): boolean {
 	const terrainRule = requireTerrainRule(getUnitClassRule(unitType, rules)?.terrain.ridge, unitType, 'ridgeline')
 	return terrainRule.canCross
@@ -128,11 +129,6 @@ export function canCrossRidgelineByTerrainRule(unitType: string, rules?: RulesCo
 
 /** Returns the whole-hex movement cost for a terrain type. */
 export function getTerrainMoveCost(unitType: string, terrainType: TerrainType, rules?: RulesContext): number | null {
-	if (terrainType === 'ridgeline') {
-		const terrainRule = requireTerrainRule(getUnitClassRule(unitType, rules)?.terrain.ridge, unitType, terrainType)
-		return terrainRule.canCross ? 1 + terrainRule.movementSurcharge : null
-	}
-
 	const terrainRule = requireTerrainRule(
 		getUnitClassRule(unitType, rules)?.wholeHexTerrain[terrainType],
 		unitType,

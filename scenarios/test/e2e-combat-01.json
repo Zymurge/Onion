@@ -6,7 +6,8 @@
   "map": {
     "shape": "hex",
     "size": 5,
-    "hexes": []
+    "hexes": [],
+    "edges": []
   },
   "unitTypes": {
     "ScenarioPuss": {

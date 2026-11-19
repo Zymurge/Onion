@@ -148,7 +148,11 @@ Target eligibility is data-driven and should be defined on the weapon or unit th
   - **Ridge**: Infantry and Onion may cross at no additional movement cost.
     Light Armor, Heavy Armor, and GEV cannot cross. Command and Artillery are
     immobile. Ridges provide no cover and do not modify fire from or across the
-    edge.
+    edge. This is an intentional project variant from the source Ogre wording
+    that names Ogres and Superheavy Tanks as ridge-crossers: Onion retains
+    crossing, Infantry may also cross, and Heavy Armor (including Dragon) may
+    not. The permissions are an implementation decision, not a balance result;
+    balance remains to be evaluated through playtesting.
   - **Stream**: Infantry, Heavy Armor, GEV, and Onion cross with no surcharge.
     Light Armor crosses with a +1 movement-point surcharge. Command and
     Artillery are immobile. A Light Armor move across a stream into clear

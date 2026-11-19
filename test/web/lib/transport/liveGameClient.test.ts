@@ -96,8 +96,9 @@ describe('createLiveGameClient', () => {
 				{ q: 10, r: 2, t: 1 },
 				{ q: 3, r: 8, t: 2 },
 				{ q: 4, r: 8, t: 2 },
-				{ q: 7, r: 5, t: 3 },
+				{ q: 7, r: 5, t: 0 },
 			],
+			edges: [],
 		})
 
 		const fetchImpl = vi

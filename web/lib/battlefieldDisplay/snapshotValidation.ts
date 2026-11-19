@@ -4,6 +4,7 @@ import type { GameState, TurnPhase } from '../../../shared/types/index'
 import { validateStackRoster, validateStackRosterConsistency } from '../../../shared/stackRoster/index.js'
 import { isSessionUnitTypeStackable } from '../sessionCatalog'
 import { isSupportedEdgeVariant } from '../../../shared/config/edgeTerrainVariants.js'
+import { isSupportedTerrainCode } from '../../../shared/scenarioMap.js'
 
 /** Human-readable labels for all supported turn phases. */
 export const turnPhaseLabels: Record<TurnPhase, string> = {
@@ -152,6 +153,9 @@ export function validateBattlefieldSnapshot(snapshot: ServerGameSnapshot): strin
 	for (const [hexIndex, hex] of scenarioMap.hexes.entries()) {
 		if (!isRecord(hex) || !isFiniteNumber(hex.q) || !isFiniteNumber(hex.r) || !isFiniteNumber(hex.t)) {
 			return describeSnapshotError(snapshot, `scenarioMap.hexes[${hexIndex}] is missing valid q/r/t coordinates`)
+		}
+		if (!isSupportedTerrainCode(hex.t)) {
+			return describeSnapshotError(snapshot, `Unsupported whole-hex terrain code: ${hex.t}`)
 		}
 	}
 	for (const [edgeIndex, edge] of scenarioMap.edges.entries()) {

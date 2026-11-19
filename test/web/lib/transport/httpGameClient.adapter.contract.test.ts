@@ -1205,6 +1205,7 @@ describe('http game client adapter contract', () => {
 		['empty scenario map cells', { scenarioMap: { width: 1, height: 1, cells: [], hexes: [] } }, 'Scenario map cells must not be empty in game state response'],
 		['missing scenario map edges', { scenarioMap: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [], __missingEdges: true } }, 'Missing scenario map edges in game state response'],
 		['invalid scenario map edge', { scenarioMap: { width: 2, height: 1, cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }], hexes: [], edges: [{ type: 'ridge', a: { q: 0, r: 0 } }] } }, 'Invalid scenario map edge 0 in game state response'],
+		['unsupported whole-hex terrain code', { scenarioMap: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 3 }], edges: [] } }, 'Unsupported whole-hex terrain code: 3'],
 		['missing stack roster', { state: { onions: {}, defenders: {} } }, 'Missing stack roster in game state response'],
 		['invalid stack roster group', { state: { onions: {}, defenders: {}, stackRoster: { groupsById: { bad: { unitIds: null } } } } }, 'Invalid stack roster group shape for bad'],
 		['missing roster defender', { state: { onions: {}, defenders: {}, stackRoster: { groupsById: { bad: { unitIds: ['missing'] } } } } }, 'Missing stack roster defender missing for bad'],

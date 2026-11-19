@@ -919,7 +919,7 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-terrain-1')
+		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-terrain-crater')
 		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).not.toContain('hex-terrain-default')
 	})
 
@@ -1075,6 +1075,7 @@ describe('HexMapBoard', () => {
 					height: 5,
 					cells: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 2, r: 1, t: 1 }],
+					edges: [],
 				}}
 				defenders={defenders}
 				onions={[onion]}
