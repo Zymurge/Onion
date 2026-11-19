@@ -6,7 +6,8 @@
   "map": {
     "shape": "hex",
     "size": 11,
-    "hexes": []
+    "hexes": [],
+    "edges": []
   },
   "initialState": {
     "deployments": {

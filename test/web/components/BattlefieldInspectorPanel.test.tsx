@@ -41,12 +41,10 @@ describe('BattlefieldInspectorPanel', () => {
         }}
         selectedInspectorGroupLabel={null}
         selectedInspectorDefense={2}
-        selectedInspectorTerrainModifier={2}
-        selectedInspectorTerrainType="ridgeline"
+        selectedInspectorTerrainType="crater"
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={2}
-        activeSelectedUnitCount={2}
       />,
     )
 
@@ -55,8 +53,8 @@ describe('BattlefieldInspectorPanel', () => {
     expect(within(inspector).getByText('Little Pigs')).toBeInTheDocument()
     expect(within(inspector).getByText('2 of 2 selected')).toBeInTheDocument()
     expect(within(inspector).queryByTestId('battlefield-inspector-group')).toBeNull()
-    expect(getLabeledValue('Defense')).toBe('2 (+2)')
-    expect(getLabeledValue('Terrain')).toBe('Ridgeline')
+    expect(getLabeledValue('Defense')).toBe('2')
+    expect(getLabeledValue('Terrain')).toBe('Crater')
     expect(within(inspector).getByRole('img', { name: 'Group 1 Little Pigs sprite' })).toBeInTheDocument()
     expect(within(inspector).getByText(/stackable rifle squad/i)).toBeInTheDocument()
     expect(Array.from(inspector.querySelectorAll('dl > div')).map((pair) => Array.from(pair.children).map((field) => field.textContent))).toEqual([
@@ -64,8 +62,8 @@ describe('BattlefieldInspectorPanel', () => {
       ['Move', '1/2'],
       ['Attack', '0'],
       ['Range', '0'],
-      ['Defense', '2 (+2)'],
-      ['Terrain', 'Ridgeline'],
+      ['Defense', '2'],
+      ['Terrain', 'Crater'],
     ])
     expect(within(inspector).queryByText('Selected')).toBeNull()
     expect(within(inspector).queryByText('Stack')).toBeNull()
@@ -93,7 +91,6 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorTerrainType="clear"
         selectedInspectorDefender={defender}
         selectedInspectorOnion={null}
-        activeSelectedUnitCount={1}
       />,
     )
 
@@ -105,12 +102,10 @@ describe('BattlefieldInspectorPanel', () => {
       <BattlefieldInspectorPanel
         selectedInspectorLabel={null}
         selectedInspectorDefense={null}
-        selectedInspectorTerrainModifier={null}
         selectedInspectorTerrainType={null}
         selectedInspectorDefender={null}
         selectedInspectorOnion={null}
         selectedStackMemberCount={0}
-        activeSelectedUnitCount={0}
       />,
     )
 
@@ -137,12 +132,10 @@ describe('BattlefieldInspectorPanel', () => {
       <BattlefieldInspectorPanel
         selectedInspectorLabel={swamp.friendlyName}
         selectedInspectorDefense={0}
-        selectedInspectorTerrainModifier={null}
         selectedInspectorTerrainType="clear"
         selectedInspectorDefender={swamp}
         selectedInspectorOnion={null}
         selectedStackMemberCount={1}
-        activeSelectedUnitCount={1}
       />,
     )
 
@@ -170,12 +163,10 @@ describe('BattlefieldInspectorPanel', () => {
       <BattlefieldInspectorPanel
         selectedInspectorLabel={destroyedDefender.friendlyName}
         selectedInspectorDefense={1}
-        selectedInspectorTerrainModifier={null}
         selectedInspectorTerrainType="crater"
         selectedInspectorDefender={destroyedDefender}
         selectedInspectorOnion={null}
         selectedStackMemberCount={0}
-        activeSelectedUnitCount={0}
       />,
     )
 
@@ -203,7 +194,6 @@ describe('BattlefieldInspectorPanel', () => {
         selectedInspectorDefender={null}
         selectedInspectorOnion={onion}
         selectedStackMemberCount={4}
-        activeSelectedUnitCount={4}
         victoryObjectives={[]}
         escapeHexes={[]}
       />,
@@ -240,7 +230,6 @@ describe('BattlefieldInspectorPanel', () => {
           selectedInspectorDefender={defender}
           selectedInspectorOnion={null}
           selectedStackMemberCount={2}
-          activeSelectedUnitCount={2}
           victoryObjectives={[]}
           escapeHexes={[]}
         />,

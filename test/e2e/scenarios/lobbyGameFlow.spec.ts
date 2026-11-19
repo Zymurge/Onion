@@ -2,7 +2,7 @@ import { expect, test } from '../fixtures/twoPlayerGame.js'
 import { readPlaywrightRuntime } from '../runtime/playwrightEnvironment.js'
 import { LoginPage } from '../pages/loginPage.js'
 
-test('two players complete the lobby lifecycle with dedicated game windows', async ({ browser, openTwoPlayerGame }) => {
+test('two players complete the lobby lifecycle with dedicated game windows', async ({ browser, openTwoPlayerGame, request }) => {
 	const runtime = readPlaywrightRuntime()
 	const onionContext = await browser.newContext()
 	const defenderContext = await browser.newContext()
@@ -46,6 +46,15 @@ test('two players complete the lobby lifecycle with dedicated game windows', asy
 		await expect(onionGamePage.locator('.phase-chip-state')).toHaveText('Onion Movement')
 
 		await expect(defenderGamePage.locator('.phase-chip-state')).toHaveText('Onion Movement', { timeout: 8_000 })
+
+		const snapshotResponse = await request.get(`${runtime.engineUrl}/games/${openTwoPlayerGame.gameId}`, {
+			headers: { authorization: `Bearer ${openTwoPlayerGame.onion.token}` },
+		})
+		expect(snapshotResponse.ok(), await snapshotResponse.text()).toBe(true)
+		const snapshot = await snapshotResponse.json() as { scenarioMap: { edges: unknown[] } }
+		expect(snapshot.scenarioMap.edges).toHaveLength(8)
+		await expect(onionGamePage.getByTestId('hex-edge-terrain').locator('[data-testid^="hex-edge-segment-"]')).toHaveCount(8)
+		await expect(defenderGamePage.getByTestId('hex-edge-terrain').locator('[data-testid^="hex-edge-segment-"]')).toHaveCount(8)
 	} finally {
 		await Promise.all([onionContext.close(), defenderContext.close()])
 	}

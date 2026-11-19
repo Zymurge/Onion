@@ -166,7 +166,6 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
         <BattlefieldRightRail
           activeCombatRole={display.activeCombatRole}
           activeRole={display.activeRole}
-          activeSelectedUnitCount={display.activeSelectedUnitIds.length}
           isCombatPhase={display.isCombatPhase}
           gameOverSummary={terminalWinner === null ? null : { winner: terminalWinner, objectives: display.victoryObjectives }}
           showInactiveEventStream={gate.inactiveEventWindowVisible}
@@ -182,7 +181,6 @@ export function AppShellLayout({ commands, debug, display, gate, inactiveEventSt
           selectedInspectorGroupHeading={display.selectedInspectorGroupHeading}
           selectedInspectorGroupLabel={display.selectedInspectorGroupLabel}
           selectedInspectorDefense={display.selectedInspectorDefense}
-          selectedInspectorTerrainModifier={display.selectedInspectorTerrainModifier}
           selectedInspectorTerrainType={display.selectedInspectorTerrainType}
           selectedInspectorDefender={display.selectedInspectorDefender}
           selectedInspectorOnion={display.selectedInspectorOnion}

@@ -1,10 +1,11 @@
 import type { InitialState, Deployment, Scenario } from '#server/engine/scenarioSchema'
 import type { DefenderUnit, GameState, OnionUnit, StackRosterGroupState, UnitTypeBase, Weapon, WeaponType } from '#shared/types/index'
 import logger from '#server/logger'
-import { buildFriendlyName, getUnitTypeCatalog } from '#shared/unitDefinitions'
+import { buildFriendlyName, getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinitions'
 import { createStackNamingEngine } from '#shared/stackNaming/index'
 import type { StackRosterState } from '#shared/types/index'
 import { getResolvedUnitTypeId, resolveScenarioDefinitions } from '#server/engine/scenarioDefinitions'
+import { createRulesContext, type RulesContext } from '#shared/rulesContext'
 
 type StackGroupDeployment = Extract<Deployment, { kind: 'stack-group' }>
 
@@ -72,11 +73,14 @@ function buildRuntimeUnit(
   deployment: Deployment,
   unitId: string,
   collectionRole: 'onion' | 'defender',
+  rules: RulesContext,
 ): OnionUnit | DefenderUnit {
   if (deployment.startingTreads !== undefined && definition.maxTreads !== undefined && deployment.startingTreads > definition.maxTreads) {
     throw new Error(`Deployment ${unitId} sets startingTreads to ${deployment.startingTreads}, above maxTreads ${definition.maxTreads}`)
   }
 
+  const ramAttacker = rules.getUnitClassRule(definition.unitClass).ram.attacker
+  const ramPerTurn = ramAttacker?.canRam === true ? ramAttacker.perTurn : undefined
   const unit = {
     unitId,
     typeId: definition.typeId,
@@ -87,7 +91,7 @@ function buildRuntimeUnit(
     state: deployment.status ?? 'operational',
     weapons: buildUnitWeapons(definition, unitId, deployment.startingAmmoByWeaponType),
     ...(definition.maxTreads === undefined ? {} : { treads: deployment.startingTreads ?? definition.maxTreads }),
-    ...(definition.ramsPerTurn === undefined ? {} : { ramsRemaining: definition.ramsPerTurn }),
+    ...(ramPerTurn === undefined ? {} : { ramsRemaining: ramPerTurn }),
   } satisfies Omit<OnionUnit, 'role'> & { role: 'onion' | 'defender' }
 
   return unit as OnionUnit | DefenderUnit
@@ -99,15 +103,16 @@ function addRuntimeUnit(
   definition: UnitTypeBase,
   onions: Record<string, OnionUnit>,
   defenders: Record<string, DefenderUnit>,
+  rules: RulesContext,
 ): void {
   if (Object.hasOwn(onions, unitId) || Object.hasOwn(defenders, unitId)) {
     throw new Error(`Duplicate generated unit ID: ${unitId}`)
   }
 
   if (deployment.side === 'onion') {
-    onions[unitId] = buildRuntimeUnit(definition, deployment, unitId, 'onion') as OnionUnit
+    onions[unitId] = buildRuntimeUnit(definition, deployment, unitId, 'onion', rules) as OnionUnit
   } else {
-    defenders[unitId] = buildRuntimeUnit(definition, deployment, unitId, 'defender') as DefenderUnit
+    defenders[unitId] = buildRuntimeUnit(definition, deployment, unitId, 'defender', rules) as DefenderUnit
   }
 }
 
@@ -118,8 +123,9 @@ export function normalizeInitialStateToGameState(
   scenarioUnitTypes?: Scenario['unitTypes'],
 ): GameState {
   const resolvedDefinitions = scenarioId === undefined
-    ? { unitTypes: getUnitTypeCatalog() }
+    ? { unitTypes: getUnitTypeCatalog(), weaponTypes: getWeaponTypeCatalog() }
     : resolveScenarioDefinitions(scenarioId, scenarioUnitTypes)
+  const rules = createRulesContext(resolvedDefinitions)
   const onions: Record<string, OnionUnit> = {}
   const defenders: Record<string, DefenderUnit> = {}
   const stackRoster: StackRosterState = { groupsById: {}, nextGroupOrdinal: 1 }
@@ -142,7 +148,7 @@ export function normalizeInitialStateToGameState(
     }
 
     if (!isStackGroupEntry(deployment)) {
-      addRuntimeUnit(key, deployment, definition, onions, defenders)
+      addRuntimeUnit(key, deployment, definition, onions, defenders, rules)
       continue
     }
 
@@ -151,7 +157,7 @@ export function normalizeInitialStateToGameState(
     const nextOrdinal = nextStackUnitOrdinalByType.get(typeId) ?? 0
     for (let index = 0; index < deployment.count; index += 1) {
       const unitId = `${unitIdBase}-${nextOrdinal + index + 1}`
-      addRuntimeUnit(unitId, deployment, definition, onions, defenders)
+      addRuntimeUnit(unitId, deployment, definition, onions, defenders, rules)
       unitIds.push(unitId)
     }
     nextStackUnitOrdinalByType.set(typeId, nextOrdinal + deployment.count)

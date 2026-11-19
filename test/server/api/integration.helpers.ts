@@ -6,8 +6,10 @@ import type { Command, DefenderUnit, EventEnvelope, GameState, OnionUnit, StackR
 import type { Deployment, InitialState } from '#server/engine/scenarioSchema'
 import { getUnitDefinition, onionMovementAllowance } from '#server/engine/units'
 import { listReachableMoves, type MoveMapSnapshot } from '#shared/movePlanner'
+import { terrainFromT } from '#shared/scenarioMap'
+import type { ScenarioTerrainEdge } from '#shared/types/index'
 
-export type ScenarioMap = { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: Array<{ q: number; r: number; t: number }> }
+export type ScenarioMap = { width: number; height: number; cells: Array<{ q: number; r: number }>; hexes: Array<{ q: number; r: number; t: number }>; edges: ScenarioTerrainEdge[] }
 
 type ScenarioStackRosterGroup = Pick<StackRosterGroupState, 'unitIds'>
 type ExpectedOnion = Pick<OnionUnit, 'unitId' | 'typeId' | 'state' | 'position' | 'treads'>
@@ -179,7 +181,8 @@ function buildMoveMapSnapshot(map: ScenarioMap, state: GameState, unitId: string
     width: map.width,
     height: map.height,
     cells: map.cells,
-    hexes: map.hexes,
+    hexes: map.hexes.map((hex) => ({ q: hex.q, r: hex.r, terrain: terrainFromT(hex.t) })),
+    edges: map.edges,
     occupiedHexes,
   }
 }

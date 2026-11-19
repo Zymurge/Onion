@@ -36,7 +36,7 @@ export async function handleFire(context: ActionHandlerContext, command: FireCom
 
   const scenarioMap = getScenarioMapSnapshot(match.scenarioSnapshot as ScenarioSnapshot)
   const rules = getScenarioRulesContext(match.scenarioId, match.scenarioSnapshot as ScenarioSnapshot)
-  const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
+  const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells, scenarioMap.edges)
   const state = buildEngineState(match, rules)
   const validation = validateCombatAction(map, state, command, rules)
   if (!validation.ok) {

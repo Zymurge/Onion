@@ -181,8 +181,8 @@ Guidelines:
 ### Suggested Markers
 
 - Clear: `..`
-- Ridgeline: `rd`
 - Crater: `cr`
+- Swamp terrain: `sw`
 - Onion: `ON`
 - Big Bad Wolf: `BW`
 - Puss: `PU`

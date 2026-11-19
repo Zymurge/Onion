@@ -251,7 +251,13 @@ in this response or in `GameState`.
     "width": number,
     "height": number,
     "cells": [ { "q": number, "r": number } ], // required, canonical geometry
-    "hexes": [ { "q": number, "r": number, "t": number } ]
+    "hexes": [ { "q": number, "r": number, "t": number } ],
+    "edges": [ {
+      "a": { "q": number, "r": number },
+      "b": { "q": number, "r": number },
+      "type": "ridge" | "stream",
+      "variant": "ridge-1" | "ridge-2" | "ridge-3" | "ridge-4" | "stream-1" | "stream-2" | "stream-3" | "stream-4"
+    } ] // required, including when empty
   },
   "state": GameState,
   "eventSeq":    number,  // highest event sequence number so far
@@ -307,7 +313,7 @@ Notes:
 
 **Notes:**
 
-- `scenarioMap` is always required and must include a non-empty `cells` array. There is no fallback or compatibility logic for missing geometry.
+- `scenarioMap` is always required and must include a non-empty `cells` array and an `edges` array, including when empty. There is no fallback or compatibility logic for missing geometry.
 - All clients and tests must require `cells` for board geometry.
 - `hexes` contains terrain/type info for each cell.
 - `width` and `height` are provided for convenience but are not used for geometry.
@@ -494,6 +500,11 @@ All errors include `detailCode` for granular client feedback.
 ## Scenario Map
 
 All routes and clients require the canonical `scenarioMap` with a non-empty `cells` array. There is no fallback or compatibility logic for missing geometry fields. All geometry and pathfinding must use the `cells` array.
+
+Each canonical `scenarioMap.edges` record contains `a`, `b`, `type`, and an
+explicit terrain-specific `variant`. Supported variants are `ridge-1` through
+`ridge-4` for ridge edges and `stream-1` through `stream-4` for stream edges.
+Runtime snapshots always preserve the authored variant.
 
 ## Event Types
 

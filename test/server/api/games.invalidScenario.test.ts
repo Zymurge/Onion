@@ -45,7 +45,10 @@ describe('POST /games scenario validation', () => {
     })
 
     expect(response.statusCode).toBe(400)
-    expect(response.json()).toMatchObject({ code: 'INVALID_SCENARIO' })
+    expect(response.json()).toMatchObject({
+      code: 'INVALID_SCENARIO',
+      error: expect.stringMatching(/initialState.*(required|expected|missing|invalid)/i),
+    })
     expect(createMatch).not.toHaveBeenCalled()
     await app.close()
   })

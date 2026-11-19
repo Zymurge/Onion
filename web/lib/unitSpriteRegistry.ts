@@ -23,7 +23,6 @@ export const unitSpriteRegistry: Readonly<Record<UnitSpriteKey, UnitSprite>> = {
 	'dragon': dragonSprite,
 	'little-pigs': littlePigsSprite,
 	'the-onion': { operational: onionSprite, damaged: damagedOnionSprite, destroyed: damagedOnionSprite },
-	'the-onion-damaged': damagedOnionSprite,
 	'swamp': { operational: swampIntactSprite, destroyed: swampDestroyedSprite },
 }
 

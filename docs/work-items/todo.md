@@ -13,6 +13,8 @@ break down into features/tasks as needed.
 
 ### Features / Tasks
 
+- [ ] Playtest the intentional ridge-edge class permissions for balance and record whether the Issue #76 matrix should change.
+- [ ] Scenario viewer and rendering boundary: implement the temporary read-only scenario viewer, then extract a shared render-only map/unit boundary and migrate the game and viewer onto it. See [scenario-viewer-and-rendering-boundary.md](scenario-viewer-and-rendering-boundary.md).
 - [ ] Future multi-Onion scenarios: allow a destroyed Onion relic to remain on the battlefield as an impassable hex after the game-over condition is relaxed for scenarios with multiple Onions. Define relic persistence, selection/inspection, movement blocking, rendering, and victory interactions.
 
 ## Done
@@ -24,6 +26,7 @@ break down into features/tasks as needed.
 
 ### Completed Features / Tasks
 
+- [x] Complete [Issue #76: hexside terrain for ridges and streams](issue-76-hexside-terrain-investigation.md), including class-based movement, canonical edge snapshots, rendering, scenario migration, and validation coverage.
 - [x] Complete Issue 36 refactor hardening across transport boundaries, controller sequencing, projection ownership, and authoritative snapshot handling.
 - [x] Expand direct component and lower-level contract coverage for battlefield rails and interaction routing, including locked/disabled paths and stack selection controls.
 - [x] Stacked unit management: canonical stack identity, split/merge naming, per-unit action selection, stack-aware combat and ramming, UI presentation, and automated regression coverage.

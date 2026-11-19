@@ -429,7 +429,7 @@ describe('validateCombatAction', () => {
     expect(rollCombat(result.plan.attackStrength, result.plan.defense, 1).odds).toBe(fixture.expected.odds)
   })
 
-  it('applies the configured ridgeline defense bonus to a Little Pigs stack', () => {
+  it('does not apply a ridgeline defense bonus to a Little Pigs stack', () => {
     const stack = makeStackFixture({
       groups: {
         'group-1': makeStackGroup({
@@ -451,7 +451,7 @@ describe('validateCombatAction', () => {
     expect(result).toMatchObject({
       ok: true,
       plan: {
-        defense: 6,
+        defense: 3,
       },
     })
   })

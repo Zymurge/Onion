@@ -28,6 +28,7 @@ function makeWeaponCatalogConfig(weaponOverrides: Record<string, unknown> = {}) 
 		unitTypes: {
 			TestUnit: {
 				name: 'Test Unit',
+				unitClass: 'Infantry',
 				movement: 1,
 				defense: 1,
 				abilities: { maxStacks: 1 },

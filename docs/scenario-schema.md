@@ -8,7 +8,7 @@ Core rules mechanics referenced from the public domain portions of the [OGRE Des
 
 This schema is designed for authoring flexibility and robust normalization. The backend engine materializes all runtime geometry and unit/weapon state from authored scenario JSON as follows:
 
-- **Authoring:** Scenarios specify compact map geometry with `shape` and dimensions. Supported shapes are regular `hex` maps with an odd `size` and `rectangle` maps with `width` and `height`. Only non-clear terrain needs to be listed in `hexes`.
+- **Authoring:** Scenarios specify compact map geometry with `shape` and dimensions. Supported shapes are regular `hex` maps with an odd `size` and `rectangle` maps with `width` and `height`. Only non-clear whole-hex terrain needs to be listed in `hexes`; ridges and streams are authored as `edges` between adjacent cells.
 - **Backend Normalization:**
   - The backend generates the canonical list of axial coordinates for all valid map cells.
   - Terrain, deployment, and escape positions use the same absolute, nonnegative `q`/`r` coordinates as generated cells; materialization does not translate positions.
@@ -37,6 +37,14 @@ This schema is designed for authoring flexibility and robust normalization. The 
 
 See also: [shared/config/unitCatalog.json] and [shared/unitDefinitions.ts] for canonical unit/weapon definitions and rules.
 
+## Scenario Catalog Layout
+
+Playable scenarios live as JSON files directly under `scenarios/`; these are
+the only files returned by the lobby scenario listing. Automated-test fixtures
+live under `scenarios/test/` and are not listed, but server lookups by scenario
+ID search that directory after the playable catalog. Keep fixture IDs stable
+for API and E2E tests.
+
 ## Validate an Authored Scenario
 
 Run the parser-backed validator with a path to one scenario JSON file:
@@ -47,9 +55,12 @@ pnpm run validate scenarios/swamp-siege-01.json
 
 The `scenario:validate` script name is also available as an alias.
 The command checks JSON syntax and the scenario schema, then uses the existing
-scenario parser to materialize and validate map coordinates. On success it
-prints the scenario name and ID; on failure it exits non-zero and reports the
-JSON, schema, or map validation error.
+scenario parser to materialize and validate map coordinates and edge pairings.
+On success it prints the scenario name and ID; on failure it exits non-zero and
+reports the JSON, schema, or map validation error, including the edge path and
+the violated endpoint rule when applicable. Game creation uses the same parser;
+invalid scenario data throws instead of being repaired. Stored game snapshots
+are assumed to have passed this validation.
 
 ## 1. Map Configuration (Axial Hex Coordinates)
 
@@ -62,9 +73,38 @@ We use an **Axial Coordinate System** (q, r) where:
 ### Hex Terrain Types
 
 - `0`: Clear
-- `1`: Ridgeline
-- `2`: Crater
-- `3`: The Swamp (Objective)
+- `1`: Crater
+- `2`: The Swamp (Objective)
+
+Whole-hex terrain codes are contiguous and assigned in this order. Ridge and
+stream are edge terrain types, not whole-hex terrain codes. New whole-hex
+terrain types receive the next unused code when introduced; unsupported codes
+are invalid.
+
+### Edge Terrain
+
+Ridges and streams are stored once as undirected edges between two adjacent
+axial cells. An authored edge has this shape:
+
+```json
+{ "type": "ridge", "variant": "ridge-1", "a": { "q": 8, "r": 0 }, "b": { "q": 9, "r": 0 } }
+```
+
+`type` is `ridge` or `stream`. `variant` is required and must be one of
+`ridge-1` through `ridge-4` for ridges or `stream-1` through `stream-4` for
+streams. Variants are explicit authored data; missing, unsupported, or
+cross-terrain variants are invalid. Endpoints must be distinct, adjacent cells and
+must both belong to the materialized map's `cells` set. Each edge stores its
+endpoints in ascending `(q, r)` order. Edge records themselves must be sorted
+lexicographically by `(a.q, a.r, b.q, b.r)`. Reversed endpoints and
+out-of-order edge records are invalid rather than silently sorted. Duplicate
+endpoint pairs, including reversed duplicates, and conflicting terrain kinds
+are invalid. Authored maps must include `edges`, using an empty array when they
+have no edge terrain. Runtime and API snapshots always contain `edges`, including
+an empty array.
+
+Edge terrain is movement data, not whole-hex terrain. A unit cannot occupy an
+edge, and ridges and streams do not modify combat.
 
 ### Compact Map Definitions
 
@@ -97,8 +137,10 @@ polygon maps are deferred to v2. Runtime and API maps continue to use explicit
     "shape": "hex",
     "size": 15,
     "hexes": [
-      { "q": 8, "r": 0, "t": 1 },
-      { "q": 7, "r": 7, "t": 3 }
+      { "q": 7, "r": 7, "t": 2 }
+    ],
+    "edges": [
+      { "type": "ridge", "a": { "q": 8, "r": 0 }, "b": { "q": 9, "r": 0 } }
     ]
   },
   "initialState": {

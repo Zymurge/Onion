@@ -45,7 +45,11 @@ export class ScenarioValidationError extends Error {
 export function parseScenarioSnapshot(raw: unknown): ValidatedScenarioSnapshot {
   const parsed = ScenarioSchema.safeParse(raw)
   if (!parsed.success) {
-    throw new ScenarioValidationError('Scenario does not match the required schema', { cause: parsed.error })
+    const issues = parsed.error.issues.map((issue) => {
+      const path = issue.path.map(String).join('.')
+      return path.length > 0 ? `${path}: ${issue.message}` : issue.message
+    })
+    throw new ScenarioValidationError(`Scenario does not match the required schema: ${issues.join('; ')}`, { cause: parsed.error })
   }
 
   try {
@@ -56,7 +60,8 @@ export function parseScenarioSnapshot(raw: unknown): ValidatedScenarioSnapshot {
 
     return materialized as ValidatedScenarioSnapshot
   } catch (error) {
-    throw new ScenarioValidationError('Scenario map is invalid', { cause: error })
+    const detail = error instanceof Error ? `: ${error.message}` : ''
+    throw new ScenarioValidationError(`Scenario map is invalid${detail}`, { cause: error })
   }
 }
 
@@ -141,6 +146,19 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
   assertScenarioPositionsInMap(scenarioMap, positions)
 }
 
+async function getScenarioFiles(scenariosDir: string): Promise<string[]> {
+  const files: string[] = []
+  for (const directory of [scenariosDir, join(scenariosDir, 'test')]) {
+    try {
+      const entries = await readdir(directory)
+      files.push(...entries.filter((entry) => entry.endsWith('.json')).map((entry) => join(directory, entry)))
+    } catch {
+      continue
+    }
+  }
+  return files
+}
+
 /**
  * Loads and validates a scenario by id from a directory of JSON files.
  *
@@ -150,15 +168,7 @@ export function assertScenarioStateFitsMap(scenarioMap: ScenarioMapSnapshot, sce
  * @throws ScenarioValidationError when the matching file is invalid.
  */
 export async function loadScenario(id: string, scenariosDir: string): Promise<ValidatedScenarioSnapshot | null> {
-  let files: string[]
-  try {
-    files = await readdir(scenariosDir)
-  } catch {
-    return null
-  }
-
-  for (const file of files.filter((candidate) => candidate.endsWith('.json'))) {
-    const fullPath = join(scenariosDir, file)
+  for (const fullPath of await getScenarioFiles(scenariosDir)) {
     const raw = await readFile(fullPath, 'utf8')
     let scenario: unknown
     try {

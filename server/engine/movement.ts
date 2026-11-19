@@ -131,8 +131,9 @@ function toMoveMapSnapshot(map: GameMap, state: EngineGameState, movingUnitId: s
     hexes: Object.values(map.hexes).map((hex) => ({
       q: hex.q,
       r: hex.r,
-      t: hex.terrain === 'ridgeline' ? 1 : hex.terrain === 'crater' ? 2 : 0,
+      terrain: hex.terrain,
     })),
+    edges: map.edges,
     occupiedHexes,
   }
 }

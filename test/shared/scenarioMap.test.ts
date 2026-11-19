@@ -1,13 +1,35 @@
 import { describe, expect, it } from 'vitest'
 
-import { assertScenarioPositionsInMap, materializeScenarioMap } from '#shared/scenarioMap'
+import { assertScenarioPositionsInMap, materializeScenarioMap, terrainFromT } from '#shared/scenarioMap'
+
+describe('terrainFromT', () => {
+	it('keeps clear at code 0 and maps the contiguous crater and swamp codes', () => {
+		expect(terrainFromT(0)).toBe('clear')
+		expect(terrainFromT(1)).toBe('crater')
+		expect(terrainFromT(2)).toBe('swamp')
+	})
+
+	it.each([-1, 3, 1.5, Number.NaN])('rejects unsupported whole-hex terrain code %s', (terrain) => {
+		expect(() => terrainFromT(terrain)).toThrow(`Unsupported whole-hex terrain code: ${terrain}`)
+	})
+})
 
 describe('scenarioMap materialization', () => {
+	it('rejects authored maps with missing edges', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 1,
+			height: 1,
+			hexes: [],
+		})).toThrow('Scenario map edges are missing')
+	})
+
 	it('materializes an odd-diameter hex map with non-negative absolute coordinates', () => {
-		const map = materializeScenarioMap({ shape: 'hex', size: 5, hexes: [] })
+		const map = materializeScenarioMap({ shape: 'hex', size: 5, hexes: [], edges: [] })
 
 		expect(map.width).toBe(5)
 		expect(map.height).toBe(5)
+		expect(map.edges).toEqual([])
 		expect(map.cells).toHaveLength(19)
 		expect(map.cells).toContainEqual({ q: 0, r: 2 })
 		expect(map.cells).toContainEqual({ q: 2, r: 0 })
@@ -15,11 +37,87 @@ describe('scenarioMap materialization', () => {
 		expect(map.cells).not.toContainEqual({ q: 0, r: 0 })
 	})
 
+	it('materializes canonical edges for compact and explicit maps', () => {
+		const edges = [
+			{ type: 'ridge' as const, variant: 'ridge-1' as const, a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+			{ type: 'stream' as const, variant: 'stream-1' as const, a: { q: 0, r: 1 }, b: { q: 1, r: 1 } },
+		]
+
+		const compact = materializeScenarioMap({ shape: 'rectangle', width: 2, height: 2, hexes: [], edges })
+		const explicit = materializeScenarioMap({
+			width: 2,
+			height: 2,
+			cells: compact.cells,
+			hexes: [],
+			edges,
+		})
+
+		expect(compact.edges).toEqual(edges)
+		expect(explicit.edges).toEqual(edges)
+	})
+
+	it('rejects edge endpoints outside the map', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 2,
+			height: 2,
+			hexes: [],
+			edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 2, r: 0 } }],
+		})).toThrow('Scenario edge endpoint is outside the map')
+	})
+
+	it('rejects non-adjacent edges', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 3,
+			height: 3,
+			hexes: [],
+			edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 2, r: 0 } }],
+		})).toThrow('Scenario edge endpoints must be adjacent')
+	})
+
+	it('rejects reversed endpoint order', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 2,
+			height: 2,
+			hexes: [],
+			edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 1, r: 0 }, b: { q: 0, r: 0 } }],
+		})).toThrow('Scenario edge endpoints must be in canonical order for (1, 0)-(0, 0) at index 0')
+	})
+
+	it('rejects duplicate endpoint pairs and conflicting edge kinds', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 2,
+			height: 2,
+			hexes: [],
+			edges: [
+				{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+				{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+			],
+		})).toThrow('Scenario edge endpoint pair (0, 0)-(1, 0) is duplicated at index 1')
+	})
+
+	it('rejects edge records that are out of canonical order', () => {
+		expect(() => materializeScenarioMap({
+			shape: 'rectangle',
+			width: 2,
+			height: 2,
+			hexes: [],
+			edges: [
+				{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 1 }, b: { q: 1, r: 1 } },
+				{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+			],
+		})).toThrow('Scenario edges are out of canonical order: edge (0, 0)-(1, 0) at index 1 must appear before edge (0, 1)-(1, 1) at index 0')
+	})
+
 	it('keeps terrain and authored positions in the generated map coordinate space', () => {
 		const map = materializeScenarioMap({
 			shape: 'hex',
 			size: 5,
 			hexes: [{ q: 3, r: 0, t: 1 }],
+			edges: [],
 		})
 
 		expect(map.hexes).toEqual([{ q: 3, r: 0, t: 1 }])
@@ -27,7 +125,7 @@ describe('scenarioMap materialization', () => {
 	})
 
 	it('generates rectangular maps from their dimensions', () => {
-		const map = materializeScenarioMap({ shape: 'rectangle', width: 3, height: 2, hexes: [] })
+		const map = materializeScenarioMap({ shape: 'rectangle', width: 3, height: 2, hexes: [], edges: [] })
 
 		expect(map.cells).toHaveLength(6)
 		expect(map.cells).toContainEqual({ q: 0, r: 0 })
@@ -40,28 +138,29 @@ describe('scenarioMap materialization', () => {
 			shape: 'hex',
 			size: 3,
 			hexes: [{ q: 3, r: 0, t: 1 }],
+			edges: [],
 		})).toThrow('Scenario terrain hex is outside the map at (3, 0)')
 
-		const map = materializeScenarioMap({ shape: 'rectangle', width: 2, height: 2, hexes: [] })
+		const map = materializeScenarioMap({ shape: 'rectangle', width: 2, height: 2, hexes: [], edges: [] })
 		expect(() => assertScenarioPositionsInMap(map, [{ label: 'escape hex', position: { q: 2, r: 1 } }])).toThrow(
 			'escape hex is outside the scenario map at (2, 1)',
 		)
 	})
 
 	it('rejects invalid compact map dimensions', () => {
-		expect(() => materializeScenarioMap({ shape: 'hex', size: 4, hexes: [] })).toThrow(
+		expect(() => materializeScenarioMap({ shape: 'hex', size: 4, hexes: [], edges: [] })).toThrow(
 			'Hex map size must be a positive odd integer',
 		)
-		expect(() => materializeScenarioMap({ shape: 'hex', size: 0, hexes: [] })).toThrow(
+		expect(() => materializeScenarioMap({ shape: 'hex', size: 0, hexes: [], edges: [] })).toThrow(
 			'Hex map size must be a positive odd integer',
 		)
-		expect(() => materializeScenarioMap({ shape: 'rectangle', width: 0, height: 2, hexes: [] })).toThrow(
+		expect(() => materializeScenarioMap({ shape: 'rectangle', width: 0, height: 2, hexes: [], edges: [] })).toThrow(
 			'Rectangle map dimensions must be positive integers',
 		)
 	})
 
 	it('rejects terrain outside the generated map membership', () => {
-		expect(() => materializeScenarioMap({ shape: 'hex', size: 3, hexes: [{ q: 3, r: 0, t: 1 }] })).toThrow(
+		expect(() => materializeScenarioMap({ shape: 'hex', size: 3, hexes: [{ q: 3, r: 0, t: 1 }], edges: [] })).toThrow(
 			'Scenario terrain hex is outside the map at (3, 0)',
 		)
 	})
@@ -73,12 +172,13 @@ describe('scenarioMap materialization', () => {
 				height: 1,
 				cells: [],
 				hexes: [],
+				edges: [],
 			}),
 		).toThrow('Scenario map must contain at least one cell')
 	})
 
 	it('rejects authored positions outside the map membership', () => {
-		const map = materializeScenarioMap({ shape: 'hex', size: 3, hexes: [] })
+		const map = materializeScenarioMap({ shape: 'hex', size: 3, hexes: [], edges: [] })
 
 		expect(() =>
 			assertScenarioPositionsInMap(map, [{ label: 'onion start', position: { q: 4, r: 4 } }]),

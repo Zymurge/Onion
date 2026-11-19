@@ -56,7 +56,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
       },
       stackNaming: { groupsInUse: [], usedGroupNames: [] },
     })
-    let match: {
+    const match = {} as {
       gameId: number
       scenarioId: string
       scenarioSnapshot: {
@@ -77,11 +77,11 @@ describe('POST /games/:id/actions END_PHASE', () => {
       persistMatchProgress: async () => {},
     })
     const onion = await register(app, 'phase-stack-onion')
-    match = {
+    Object.assign(match, {
       gameId: 1,
       scenarioId: 'phase-stack-name-repair',
       scenarioSnapshot: {
-        map: { width: 3, height: 3, cells: [{ q: 0, r: 0 }], hexes: [] },
+        map: { width: 3, height: 3, cells: [{ q: 0, r: 0 }], hexes: [], edges: [] },
         victoryConditions: { objectives: [] },
       },
       players: { onion: onion.userId, defender: 'defender-user' },
@@ -92,7 +92,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
       winner: null,
       state,
       events: [],
-    }
+    })
 
     const response = await app.inject({
       method: 'POST',
@@ -369,7 +369,7 @@ describe('POST /games/:id/actions END_PHASE', () => {
         gameId,
         scenarioId: 'swamp-siege-01',
         scenarioSnapshot: {
-          map: { width: 22, height: 14, cells: [{ q: 0, r: 10 }], hexes: [] },
+          map: { width: 22, height: 14, cells: [{ q: 0, r: 10 }], hexes: [], edges: [] },
           victoryConditions: { maxTurns: 20 },
         },
         players: { onion: onionId, defender: defenderId },

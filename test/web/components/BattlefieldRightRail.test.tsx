@@ -29,7 +29,6 @@ function renderRightRail(overrides: Partial<RightRailProps> = {}) {
   const props: RightRailProps = {
     activeCombatRole: null,
     activeRole: 'onion',
-    activeSelectedUnitCount: 0,
     isCombatPhase: false,
     showInactiveEventStream: false,
     isInteractionLocked: false,
@@ -95,7 +94,6 @@ describe('BattlefieldRightRail', () => {
       <BattlefieldRightRail
         activeCombatRole={null}
         activeRole="onion"
-        activeSelectedUnitCount={0}
         isCombatPhase={false}
         showInactiveEventStream={false}
         isInteractionLocked={false}
@@ -134,7 +132,6 @@ describe('BattlefieldRightRail', () => {
       <BattlefieldRightRail
 		activeCombatRole="onion"
 		activeRole="onion"
-        activeSelectedUnitCount={2}
         isCombatPhase
         showInactiveEventStream={false}
         isInteractionLocked={false}

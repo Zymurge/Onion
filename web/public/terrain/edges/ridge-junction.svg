@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <defs>
+    <g id="ridge-junction-highlight" transform="rotate(-30 20 20)" fill="none" stroke="#715d48" stroke-width="0.35" stroke-linecap="round">
+      <path d="M22.55 19.2 L22.85 20.8 M24.05 19.2 L24.35 20.8 M25.55 19.2 L25.85 20.8"/>
+    </g>
+  </defs>
+  <path d="M20 20 L13.217 16.085 M20 20 L26.783 16.085 M20 20 L20 27.83" fill="none" stroke="#604b35" stroke-width="9" stroke-linecap="butt"/>
+  <path d="M20 20 L13.217 16.085 M20 20 L26.783 16.085 M20 20 L20 27.83" fill="none" stroke="#bf9569" stroke-width="5.4" stroke-linecap="butt"/>
+  <use href="#ridge-junction-highlight"/>
+  <use href="#ridge-junction-highlight" transform="rotate(-120 20 20)"/>
+  <use href="#ridge-junction-highlight" transform="rotate(120 20 20)"/>
+</svg>

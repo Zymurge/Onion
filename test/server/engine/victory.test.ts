@@ -9,6 +9,7 @@ const scenarioMap = materializeScenarioMap({
   height: 3,
   cells: [{ q: 0, r: 0 }],
   hexes: [],
+  edges: [],
 })
 
 describe('evaluateVictoryConditions', () => {

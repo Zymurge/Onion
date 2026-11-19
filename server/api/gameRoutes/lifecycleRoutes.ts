@@ -53,8 +53,8 @@ export async function registerLifecycleRoutes(app: FastifyInstance, context: Gam
         scenarioSnapshot = await loadScenario(scenarioId, scenariosDir)
       } catch (err) {
         if (err instanceof ScenarioValidationError) {
-          logger.error({ err, scenarioId }, 'Invalid scenario definition')
-          return reply.status(400).send({ ok: false, error: 'Invalid scenario', code: 'INVALID_SCENARIO' })
+          logger.error({ scenarioId, reason: err.message }, 'Invalid scenario definition')
+          return reply.status(400).send({ ok: false, error: err.message, code: 'INVALID_SCENARIO' })
         }
         throw err
       }

@@ -1,4 +1,4 @@
-import type { EventEnvelope, GameState, TurnPhase } from './types/index.js'
+import type { EventEnvelope, GameState, ScenarioTerrainEdge, TurnPhase } from './types/index.js'
 
 export type ApiErrorBody = {
 	ok?: false
@@ -244,12 +244,14 @@ export type ScenarioMapSnapshot = {
 	 * List of all hexes with terrain/type info. Each entry must correspond to a cell.
 	 */
 	hexes: Array<{ q: number; r: number; t: number }>
+	/** Canonical undirected terrain edges. */
+	edges: ScenarioTerrainEdge[]
 }
 
 /**
  * Full game state response for GET /games/{id} and action results.
  *
- * - `scenarioMap` is always required and must include a non-empty `cells` array.
+ * - `scenarioMap` is always required and must include non-empty `cells` plus canonical `edges`.
  * - There is no compatibility logic for missing or legacy map fields.
  */
 export type GameStateResponse = {

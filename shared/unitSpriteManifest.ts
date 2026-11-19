@@ -7,7 +7,6 @@ export const SUPPORTED_UNIT_SPRITE_KEYS = [
   'dragon',
   'little-pigs',
   'the-onion',
-  'the-onion-damaged',
   'swamp',
 ] as const
 

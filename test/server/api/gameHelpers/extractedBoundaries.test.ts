@@ -25,6 +25,7 @@ const oneCellMap = materializeScenarioMap({
   height: 1,
   cells: [{ q: 0, r: 0 }],
   hexes: [],
+  edges: [],
 })
 
 const makeMatch = (state: GameState): MatchRecord => ({
@@ -105,13 +106,13 @@ describe('logging helpers', () => {
 describe('scenario helpers', () => {
   it('returns safe defaults and materializes authored maps', () => {
     expect(getScenarioEscapeHexes(undefined)).toEqual([])
-    expect(getScenarioMapSnapshot({ map: { shape: 'hex', size: 1, hexes: [] } })).toMatchObject({ width: 1, height: 1 })
+    expect(getScenarioMapSnapshot({ map: { shape: 'hex', size: 1, hexes: [], edges: [] } })).toMatchObject({ width: 1, height: 1 })
     expect(() => getScenarioMapSnapshot(undefined)).toThrow('Invalid scenario map snapshot')
   })
 
   it('preserves authored coordinates without mutating the input', () => {
     const initial = {
-      map: { shape: 'hex' as const, size: 5, hexes: [] },
+      map: { shape: 'hex' as const, size: 5, hexes: [], edges: [] },
       initialState: {
         deployments: {
           'onion-1': { type: 'TheOnion', side: 'onion' as const, position: { q: 1, r: 1 } },
@@ -139,8 +140,11 @@ describe('scenario helpers', () => {
   it('loads a matching scenario and returns null for a missing id or directory', async () => {
     const scenariosDir = join(process.cwd(), 'scenarios')
     const scenario = await loadScenario('swamp-siege-01', scenariosDir)
+    const testScenario = await loadScenario('e2e-ram-01', scenariosDir)
 
     expect(scenario?.id).toBe('swamp-siege-01')
+    expect(testScenario?.id).toBe('e2e-ram-01')
+    expect(testScenario?.map.edges).toEqual([])
     expect(await loadScenario('does-not-exist', scenariosDir)).toBeNull()
     expect(await loadScenario('swamp-siege-01', join(scenariosDir, 'missing'))).toBeNull()
   })

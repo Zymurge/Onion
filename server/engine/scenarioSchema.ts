@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isSupportedEdgeVariant } from '#shared/config/edgeTerrainVariants'
 
 export const HexPosSchema = z.object({
   q: z.number(),
@@ -10,7 +11,25 @@ const UnitStateSchema = z.enum(['operational', 'disabled', 'recovering', 'destro
 const TerrainHexSchema = z.object({
   q: z.number(),
   r: z.number(),
-  t: z.number(),
+  t: z.number().int().min(0).max(2),
+}).strict()
+
+const ScenarioTerrainEdgeSchema = z.object({
+  type: z.enum(['ridge', 'stream']),
+  variant: z.enum([
+    'ridge-1', 'ridge-2', 'ridge-3', 'ridge-4',
+    'stream-1', 'stream-2', 'stream-3', 'stream-4',
+  ]),
+  a: HexPosSchema,
+  b: HexPosSchema,
+}).strict().superRefine((edge, context) => {
+  if (!isSupportedEdgeVariant(edge.type, edge.variant)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Variant ${edge.variant} is not supported for ${edge.type}`,
+      path: ['variant'],
+    })
+  }
 })
 
 const StartingAmmoByWeaponTypeSchema = z.record(z.string().min(1), z.number().int().nonnegative())
@@ -29,7 +48,6 @@ const UnitTypeDerivationSchema = z.object({
     defense: z.number().nonnegative().optional(),
     maxTreads: z.number().int().nonnegative().optional(),
     treadsPerMove: z.number().int().positive().optional(),
-    ramsPerTurn: z.number().int().nonnegative().optional(),
     squads: z.number().int().positive().optional(),
     maxStacks: z.number().int().positive().optional(),
     weaponQuantities: z.record(z.string().min(1), z.number().int().nonnegative()).optional(),
@@ -67,6 +85,7 @@ const CompactHexMapSchema = z.object({
   shape: z.literal('hex'),
   size: z.number().int().positive().refine((size) => size % 2 === 1, 'Hex map size must be odd'),
   hexes: z.array(TerrainHexSchema).default([]),
+  edges: z.array(ScenarioTerrainEdgeSchema),
 }).strict()
 
 const CompactRectangleMapSchema = z.object({
@@ -74,6 +93,7 @@ const CompactRectangleMapSchema = z.object({
   width: z.number().int().positive(),
   height: z.number().int().positive(),
   hexes: z.array(TerrainHexSchema).default([]),
+  edges: z.array(ScenarioTerrainEdgeSchema),
 }).strict()
 
 export const InitialStateSchema = z

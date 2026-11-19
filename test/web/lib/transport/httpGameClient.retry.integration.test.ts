@@ -23,6 +23,7 @@ function stateResponse(overrides: Record<string, unknown> = {}) {
 			height: 1,
 			cells: [{ q: 0, r: 0 }],
 			hexes: [{ q: 0, r: 0, t: 0 }],
+			edges: [],
 		},
 		eventSeq: 1,
 		snapshotRevision: 0,

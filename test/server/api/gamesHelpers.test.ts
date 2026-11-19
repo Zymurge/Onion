@@ -447,6 +447,7 @@ describe('buildVictoryObjectiveStates', () => {
       height: 3,
       cells: [{ q: 0, r: 0 }],
       hexes: [],
+      edges: [],
     })
 
     const objectives = buildVictoryObjectiveStates(scenarioSnapshot as unknown as ScenarioSnapshot, scenarioMap, state, 2)
@@ -499,6 +500,7 @@ describe('buildVictoryObjectiveStates', () => {
       height: 3,
       cells: [{ q: 0, r: 0 }],
       hexes: [],
+      edges: [],
     })
 
     const objectives = buildVictoryObjectiveStates(scenarioSnapshot as unknown as ScenarioSnapshot, scenarioMap, state, 1)
@@ -538,6 +540,7 @@ describe('buildVictoryObjectiveStates', () => {
       height: 3,
       cells: [{ q: 0, r: 0 }],
       hexes: [],
+      edges: [],
     })
 
     const match = {
@@ -570,6 +573,7 @@ describe('buildVictoryObjectiveStates', () => {
       height: 3,
       cells: [{ q: 0, r: 0 }],
       hexes: [],
+      edges: [],
     })
 
     const match = {
@@ -601,8 +605,9 @@ describe('buildVictoryObjectiveStates', () => {
     const scenarioMap = materializeScenarioMap({
       width: 3,
       height: 3,
-      cells: [{ q: 0, r: 0 }],
+      cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
       hexes: [],
+      edges: [{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
     })
     const terminalState = makeGameStateWithUnits()
     terminalState.onions['onion-1'].position = { q: 0, r: 0 }
@@ -644,6 +649,9 @@ describe('buildVictoryObjectiveStates', () => {
 
     expect(response.winner).toBe('onion')
     expect(response.status).toBe('completed')
+    expect(response.scenarioMap.edges).toEqual([
+      { type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+    ])
     expect(response.victoryObjectives.filter((objective) => objective.victor === 'onion').every((objective) => objective.completed)).toBe(true)
     expect(response.victoryObjectives.find((objective) => objective.victor === 'defender')?.completed).toBe(false)
   })
@@ -653,7 +661,7 @@ describe('buildVictoryObjectiveStates', () => {
       {
         gameId: 1,
         scenarioId: 'scenario-1',
-        scenarioSnapshot: { name: 'Scenario 1', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        scenarioSnapshot: { name: 'Scenario 1', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] } },
         players: { onion: 'onion-1', defender: 'defender-1' },
         hostUserId: 'onion-1',
         status: 'active',
@@ -695,7 +703,7 @@ describe('buildVictoryObjectiveStates', () => {
         scenarioId: 'scenario-1',
         scenarioSnapshot: {
           name: 'Scenario 1',
-          map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] },
+          map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] },
         },
         players: { onion: 'onion-1', defender: 'defender-1' },
         hostUserId: 'onion-1',
@@ -733,7 +741,7 @@ describe('buildVictoryObjectiveStates', () => {
       {
         gameId: 1,
         scenarioId: 'scenario-1',
-        scenarioSnapshot: { name: 'Scenario 1', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        scenarioSnapshot: { name: 'Scenario 1', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] } },
         players: { onion: 'onion-1', defender: 'defender-1' },
         hostUserId: 'onion-1',
         status: 'active',
@@ -761,7 +769,7 @@ describe('buildVictoryObjectiveStates', () => {
         {
           gameId: 3,
           scenarioId: 'mixed-side-scenario',
-          scenarioSnapshot: { name: 'Mixed Side Scenario', map: { width: 3, height: 1, cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }], hexes: [] } },
+          scenarioSnapshot: { name: 'Mixed Side Scenario', map: { width: 3, height: 1, cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }], hexes: [], edges: [] } },
           players: { onion: 'onion-1', defender: 'defender-1' },
           hostUserId: 'onion-1',
           status: 'active',
@@ -794,7 +802,7 @@ describe('buildVictoryObjectiveStates', () => {
       {
         gameId: 2,
         scenarioId: 'scenario-2',
-        scenarioSnapshot: { name: 'Scenario 2', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        scenarioSnapshot: { name: 'Scenario 2', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] } },
         players: { onion: 'onion-1', defender: 'defender-1' },
         hostUserId: 'onion-1',
         status: 'active',
@@ -816,7 +824,7 @@ describe('buildVictoryObjectiveStates', () => {
       {
         gameId: 3,
         scenarioId: 'scenario-3',
-        scenarioSnapshot: { name: 'Scenario 3', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        scenarioSnapshot: { name: 'Scenario 3', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] } },
         players: { onion: 'onion-1', defender: 'defender-1' },
         hostUserId: 'onion-1',
         status: 'active',
@@ -838,7 +846,7 @@ describe('buildVictoryObjectiveStates', () => {
       {
         gameId: 4,
         scenarioId: 'scenario-4',
-        scenarioSnapshot: { name: 'Scenario 4', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        scenarioSnapshot: { name: 'Scenario 4', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] } },
         players: { onion: 'onion-1', defender: 'defender-1' },
         hostUserId: 'onion-1',
         status: 'active',
@@ -864,7 +872,7 @@ describe('buildVictoryObjectiveStates', () => {
       {
         gameId: 8,
         scenarioId: 'scenario-8',
-        scenarioSnapshot: { name: 'Scenario 8', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        scenarioSnapshot: { name: 'Scenario 8', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] } },
         players: { onion: 'onion-1', defender: 'defender-1' },
         phase: 'DEFENDER_MOVE',
         turnNumber: 1,
@@ -879,7 +887,7 @@ describe('buildVictoryObjectiveStates', () => {
       {
         gameId: 5,
         scenarioId: 'scenario-5',
-        scenarioSnapshot: { name: 'Scenario 5', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        scenarioSnapshot: { name: 'Scenario 5', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] } },
         players: { onion: 'onion-1', defender: 'defender-1' },
         hostUserId: 'onion-1',
         status: 'active',
@@ -910,7 +918,7 @@ describe('buildVictoryObjectiveStates', () => {
       {
         gameId: 6,
         scenarioId: 'scenario-6',
-        scenarioSnapshot: { name: 'Scenario 6', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        scenarioSnapshot: { name: 'Scenario 6', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] } },
         players: { onion: 'onion-1', defender: 'defender-1' },
         phase: 'DEFENDER_MOVE',
         turnNumber: 1,
@@ -927,7 +935,7 @@ describe('buildVictoryObjectiveStates', () => {
       {
         gameId: 7,
         scenarioId: 'scenario-7',
-        scenarioSnapshot: { name: 'Scenario 7', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }] } },
+        scenarioSnapshot: { name: 'Scenario 7', map: { width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [{ q: 0, r: 0, t: 0 }], edges: [] } },
         players: { onion: 'onion-1', defender: 'defender-1' },
         phase: 'DEFENDER_MOVE',
         turnNumber: 1,
@@ -1004,7 +1012,7 @@ describe('scenario-derived runtime contracts', () => {
     const match = {
       scenarioId: 'objective-contract',
       scenarioSnapshot: {
-        map: materializeScenarioMap({ width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [] }),
+        map: materializeScenarioMap({ width: 1, height: 1, cells: [{ q: 0, r: 0 }], hexes: [], edges: [] }),
         unitTypes: {
           ScenarioPuss: { extends: 'Puss', overrides: {} },
         },
@@ -1069,7 +1077,7 @@ describe('scenario-derived runtime contracts', () => {
       gameId: 1,
       scenarioId: 'projection-contract',
       scenarioSnapshot: {
-        map: materializeScenarioMap({ width: 2, height: 2, cells: [{ q: 1, r: 1 }], hexes: [] }),
+        map: materializeScenarioMap({ width: 2, height: 2, cells: [{ q: 1, r: 1 }], hexes: [], edges: [] }),
         unitTypes: {
           ScenarioPigs: { extends: 'LittlePigs', overrides: {} },
         },
@@ -1096,7 +1104,7 @@ describe('scenario-derived runtime contracts', () => {
       gameId: 2,
       scenarioId: 'projection-singleton-contract',
       scenarioSnapshot: {
-        map: materializeScenarioMap({ width: 2, height: 2, cells: [{ q: 1, r: 1 }], hexes: [] }),
+        map: materializeScenarioMap({ width: 2, height: 2, cells: [{ q: 1, r: 1 }], hexes: [], edges: [] }),
         unitTypes: {
           ScenarioPigs: { extends: 'LittlePigs', overrides: {} },
         },
