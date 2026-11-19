@@ -28,6 +28,15 @@ export type EdgeCornerGeometry = {
   edgeKeys: [string, string]
 }
 
+export type EdgeJunctionGeometry = {
+  position: HexPoint
+  angle: number
+  mirrored: boolean
+  type: ScenarioTerrainEdge['type']
+  variants: [ScenarioEdgeVariant, ScenarioEdgeVariant, ScenarioEdgeVariant]
+  edgeKeys: [string, string, string]
+}
+
 export type EdgeTerminalCapGeometry = {
   position: HexPoint
   angle: number
@@ -178,7 +187,68 @@ export function deriveEdgeTerminalCaps(
   return terminals
 }
 
-/** Derives same-terrain corner overlays from exactly two incident canonical edges. */
+/** Derives same-terrain junction overlays from exactly three canonical edges at one vertex. */
+export function deriveJunctionAngle(vectors: ReadonlyArray<HexPoint>): number {
+  const normalizeAngle = (angle: number) => (angle + 360) % 360
+  const circularDistance = (left: number, right: number) => {
+    const difference = Math.abs(normalizeAngle(left) - normalizeAngle(right))
+    return Math.min(difference, 360 - difference)
+  }
+  const baseDirections = [210, 90, 330]
+
+  let bestAngle = 0
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (let offset = 0; offset < 360; offset += 30) {
+    const candidates = baseDirections.map((direction) => normalizeAngle(direction + offset))
+    const distance = vectors.reduce((total, vector) => {
+      const actual = normalizeAngle(Math.atan2(vector.y, vector.x) * (180 / Math.PI))
+      return total + Math.min(...candidates.map((candidate) => circularDistance(actual, candidate)))
+    }, 0)
+
+    if (distance < bestDistance - EDGE_POINT_TOLERANCE) {
+      bestDistance = distance
+      bestAngle = offset
+    }
+  }
+
+  return bestAngle
+}
+
+export function deriveEdgeJunctions(
+  edges: ReadonlyArray<ScenarioTerrainEdge>,
+  size: number,
+): EdgeJunctionGeometry[] {
+  const { boundaries, vertices } = collectEdgeBoundaryVertices(edges, size)
+
+  const junctions: EdgeJunctionGeometry[] = []
+  for (const { position, edgeIndexes } of vertices) {
+    if (edgeIndexes.length !== 3) continue
+
+    const sortedIndexes = [...edgeIndexes].sort((left, right) =>
+      edgeIdentity(edges[left]).localeCompare(edgeIdentity(edges[right])),
+    )
+    const terrainType = edges[sortedIndexes[0]].type
+    if (sortedIndexes.some((edgeIndex) => edges[edgeIndex].type !== terrainType)) continue
+
+    const vectors = sortedIndexes.map((edgeIndex) =>
+      subtract(otherBoundaryPoint(boundaries[edgeIndex], position), position),
+    )
+    const angle = deriveJunctionAngle(vectors)
+    const mirrored = false
+
+    junctions.push({
+      position,
+      angle,
+      mirrored,
+      type: terrainType,
+      variants: sortedIndexes.map((edgeIndex) => edges[edgeIndex].variant) as [ScenarioEdgeVariant, ScenarioEdgeVariant, ScenarioEdgeVariant],
+      edgeKeys: sortedIndexes.map((edgeIndex) => edgeIdentity(edges[edgeIndex])) as [string, string, string],
+    })
+  }
+
+  return junctions
+}
+
 export function deriveEdgeCorners(
   edges: ReadonlyArray<ScenarioTerrainEdge>,
   size: number,

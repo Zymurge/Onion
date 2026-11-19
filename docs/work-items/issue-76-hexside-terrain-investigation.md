@@ -790,7 +790,8 @@ or automatic database deletion was added.
   gap only when exactly two same-type segments meet at that vertex.
 - A corner asset is normalized to one bend direction, rotates to all six hex
   corners, and mirrors across its local axis for the opposite bend direction.
-  Mixed terrain joins and three-way joins render without a corner overlay.
+  Mixed terrain joins render without a corner or junction overlay. Exactly three
+  same-type edges sharing one boundary vertex receive one normalized junction overlay.
 - Corner overlays are derived from the canonical edge topology and variant
   data; they are not independently authored in the first phase. This keeps
   corner selection deterministic while leaving room for explicit corner
@@ -805,11 +806,11 @@ Tasks:
   terrain asset path. Start with rectangles and restrained color or texture
   differences, while keeping a shared endpoint contract. Add one normalized
   same-type corner asset per terrain kind that supports rotation and mirrored
-  bend directions.
+  bend directions, plus one normalized same-type junction asset per terrain kind.
 - Add pure geometry helpers based on `hexPixelLayout.ts` to derive shared edge
   segments, endpoint insets, corner positions, rotations, and mirrored bend
-  transforms. Add a topology helper that emits a corner only for exactly two
-  same-type incident edges.
+  transforms. Add topology helpers that emit a corner for exactly two same-type
+  incident edges and a junction for exactly three same-type edges at one boundary vertex.
 - Render each canonical edge once in a board-level layer, then render derived
   compatible corner overlays above the segments. Keep both layers
   non-interactive.
@@ -827,8 +828,8 @@ Acceptance checks:
 - Every authored variant is rendered deterministically and remains unchanged
   across reloads and repeated renders.
 - Same-type segments join cleanly in both 60-degree bend directions; isolated
-  segments end cleanly; mixed-type and three-way joins do not receive a corner
-  overlay.
+  segments end cleanly; mixed-type joins do not receive a corner or junction
+  overlay; exactly three same-type edges sharing one boundary vertex receive one junction overlay.
 - Ridge and stream assets remain visually distinguishable without relying on
   color alone.
 - Dynamic overlays are transparent, removable, and do not intercept clicks or
@@ -849,15 +850,15 @@ Acceptance checks:
 2. **Build edge and corner geometry**
    - Add pure helpers for endpoint coordinates, inset segment bounds, segment
      angle, corner orientation, and mirrored bend direction.
-   - Add topology analysis for same-type two-edge joins, mixed joins, and
-     three-way joins.
+   - Add topology analysis for same-type two-edge bends, mixed joins, and
+     exactly three same-type edges sharing one boundary vertex.
    - Test all six edge facings and both bend directions with shared-vertex
      tolerances.
 
 3. **Create the initial visual catalog**
    - Add three or four rectangle-based variants for ridge and stream.
-   - Add normalized ridge and stream corner assets, using rotation and mirror
-     transforms rather than twelve authored directional files.
+   - Add normalized ridge and stream corner and junction assets, using rotation
+     and mirror transforms rather than authored directional files.
    - Keep endpoint dimensions identical across variants.
 
 4. **Integrate board rendering**
@@ -874,9 +875,9 @@ Acceptance checks:
 6. **Verify visual and interaction behavior**
    - Add focused geometry and topology tests, board rendering tests, and a
      small screenshot matrix covering isolated edges, same-type bends, mixed
-     joins, three-way joins, all facings, and multiple variants.
+     joins, two-edge bends, three-way junctions, all facings, and multiple variants.
 
-**Status:** Complete. Canonical edge variants, segment and corner geometry,
+**Status:** Complete. Canonical edge variants, segment, corner, and junction geometry,
 board rendering order, and dynamic-overlay interaction are implemented and
 covered by focused tests.
 

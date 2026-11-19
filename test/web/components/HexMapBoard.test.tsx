@@ -977,6 +977,31 @@ describe('HexMapBoard', () => {
 			.toHaveAttribute('href', '/terrain/edges/stream-corner.svg')
 	})
 
+	it('renders a three-way stream junction at a shared boundary vertex', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={{
+					...edgeTerrainScenarioMap,
+					edges: [
+						{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+						{ type: 'stream', variant: 'stream-2', a: { q: 0, r: 0 }, b: { q: 0, r: 1 } },
+						{ type: 'stream', variant: 'stream-3', a: { q: 0, r: 1 }, b: { q: 1, r: 0 } },
+					],
+				}}
+				defenders={[]}
+				onions={[onion]}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const junction = screen.getByTestId(/^hex-edge-junction-/)
+		expect(junction.querySelector('image')).toHaveAttribute('href', '/terrain/edges/stream-junction.svg')
+	})
+
 	it('mirrors reversed corners along the bend bisector', () => {
 		render(
 			<HexMapBoard

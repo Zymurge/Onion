@@ -16,6 +16,11 @@ export const edgeTerrainCornerAssetRegistry: Readonly<Record<ScenarioEdgeTerrain
   stream: '/terrain/edges/stream-corner.svg',
 }
 
+export const edgeTerrainJunctionAssetRegistry: Readonly<Record<ScenarioEdgeTerrain, string>> = {
+  ridge: '/terrain/edges/ridge-junction.svg',
+  stream: '/terrain/edges/stream-junction.svg',
+}
+
 export const edgeTerrainTerminalAssetRegistry: Readonly<Record<ScenarioEdgeTerrain, string>> = {
   ridge: '/terrain/edges/ridge-terminal.svg',
   stream: '/terrain/edges/stream-terminal.svg',
@@ -30,6 +35,10 @@ export function getEdgeTerrainAsset(variant: ScenarioEdgeVariant): string {
 
 export function getEdgeTerrainCornerAsset(type: ScenarioEdgeTerrain): string {
   return edgeTerrainCornerAssetRegistry[type]
+}
+
+export function getEdgeTerrainJunctionAsset(type: ScenarioEdgeTerrain): string {
+  return edgeTerrainJunctionAssetRegistry[type]
 }
 
 export function getEdgeTerrainTerminalAsset(type: ScenarioEdgeTerrain): string {

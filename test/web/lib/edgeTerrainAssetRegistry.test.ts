@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   edgeTerrainAssetRegistry,
   edgeTerrainCornerAssetRegistry,
+  edgeTerrainJunctionAssetRegistry,
   edgeTerrainRidgeTerminalAsset,
   edgeTerrainStreamTerminalAsset,
 } from '../../../web/lib/edgeTerrainAssetRegistry'
@@ -46,6 +47,40 @@ describe('edge terrain asset registry', () => {
   it('provides one normalized corner asset for each terrain kind', () => {
     expect(edgeTerrainCornerAssetRegistry.ridge).toBe('/terrain/edges/ridge-corner.svg')
     expect(edgeTerrainCornerAssetRegistry.stream).toBe('/terrain/edges/stream-corner.svg')
+  })
+
+  it('provides one normalized junction asset for each terrain kind', () => {
+    expect(edgeTerrainJunctionAssetRegistry.ridge).toBe('/terrain/edges/ridge-junction.svg')
+    expect(edgeTerrainJunctionAssetRegistry.stream).toBe('/terrain/edges/stream-junction.svg')
+
+    for (const asset of ['ridge-junction.svg', 'stream-junction.svg']) {
+      const svg = readFileSync(new URL(`../../../web/public/terrain/edges/${asset}`, import.meta.url), 'utf8')
+      expect(svg).toContain('viewBox="0 0 40 40"')
+      expect(svg).toContain('M20 20 L13.217 16.085 M20 20 L26.783 16.085 M20 20 L20 27.83')
+      expect(svg).not.toContain('patternTransform="rotate(90)')
+    }
+
+    const streamSvg = readFileSync(new URL('../../../web/public/terrain/edges/stream-junction.svg', import.meta.url), 'utf8')
+    expect(streamSvg).toContain('stroke="#3e6d6f"')
+    expect(streamSvg).toContain('id="stream-junction-highlight"')
+    expect(streamSvg).toContain('transform="rotate(-120 20 20)"')
+    expect(streamSvg).toContain('transform="rotate(120 20 20)"')
+    expect(streamSvg).toContain('transform="rotate(-30 20 20)"')
+    expect(streamSvg).toContain('stroke-width="0.4"')
+    expect(streamSvg).toContain('M22.4 18.7 C23.3 18.45 24.2 18.95 25.1 18.7')
+    expect(streamSvg).toContain('M22.4 20 C23.3 19.75 24.2 20.25 25.1 20')
+    expect(streamSvg).toContain('M22.4 21.3 C23.3 21.05 24.2 21.55 25.1 21.3')
+    expect(streamSvg).toContain('stroke-linecap="round"')
+
+    const ridgeSvg = readFileSync(new URL('../../../web/public/terrain/edges/ridge-junction.svg', import.meta.url), 'utf8')
+    expect(ridgeSvg).toContain('stroke="#715d48"')
+    expect(ridgeSvg).toContain('id="ridge-junction-highlight"')
+    expect(ridgeSvg).toContain('transform="rotate(-120 20 20)"')
+    expect(ridgeSvg).toContain('transform="rotate(120 20 20)"')
+    expect(ridgeSvg).toContain('stroke-width="0.35"')
+    expect(ridgeSvg).toContain('M22.55 19.2 L22.85 20.8')
+    expect(ridgeSvg).toContain('M24.05 19.2 L24.35 20.8')
+    expect(ridgeSvg).toContain('M25.55 19.2 L25.85 20.8')
   })
 
   it('provides the dedicated stream terminal overlay asset', () => {

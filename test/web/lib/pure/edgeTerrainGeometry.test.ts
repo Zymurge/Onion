@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   deriveEdgeCorners,
+  deriveEdgeJunctions,
+  deriveJunctionAngle,
   deriveEdgeTerminalCaps,
   edgeBoundaryEndpoints,
   edgeSegmentGeometry,
@@ -92,6 +94,72 @@ describe('edge terrain geometry', () => {
     ]
 
     expect(deriveEdgeCorners(streamEdges, size)).toHaveLength(2)
+  })
+
+  it('derives one same-type junction for exactly three stream edges at one boundary vertex', () => {
+    const streamEdges = [
+      edge({ q: 0, r: 0 }, { q: 1, r: 0 }, 'stream'),
+      edge({ q: 0, r: 0 }, { q: 0, r: 1 }, 'stream'),
+      edge({ q: 0, r: 1 }, { q: 1, r: 0 }, 'stream'),
+    ]
+
+    const junctions = deriveEdgeJunctions(streamEdges, size)
+
+    expect(junctions).toHaveLength(1)
+    expect(junctions[0]).toMatchObject({
+      position: expect.any(Object),
+      type: 'stream',
+      edgeKeys: expect.arrayContaining([
+        '0,0-1,0',
+        '0,0-0,1',
+        '0,1-1,0',
+      ]),
+    })
+  })
+
+  it('does not turn three same-type edges around one hex center into a junction', () => {
+    const streamEdges = [
+      edge({ q: 3, r: 12 }, { q: 4, r: 12 }, 'stream'),
+      edge({ q: 3, r: 13 }, { q: 4, r: 12 }, 'stream'),
+      edge({ q: 4, r: 12 }, { q: 4, r: 13 }, 'stream'),
+    ]
+
+    expect(deriveEdgeJunctions(streamEdges, size)).toEqual([])
+  })
+
+  it('fits junction orientation to the three boundary vectors on a 30-degree grid', () => {
+    expect(deriveJunctionAngle([
+      { x: -1, y: 0 },
+      { x: 0.5, y: -0.8660254 },
+      { x: 0.5, y: 0.8660254 },
+    ])).toBe(90)
+
+    expect(deriveJunctionAngle([
+      { x: -0.5, y: 0.8660254 },
+      { x: -0.5, y: -0.8660254 },
+      { x: 1, y: 0 },
+    ])).toBe(30)
+
+    expect(deriveJunctionAngle([
+      { x: -0.5, y: -0.8660254 },
+      { x: 1, y: 0 },
+      { x: -0.5, y: 0.8660254 },
+    ])).toBe(30)
+  })
+
+  it('derives 30-degree junction orientations at real vertices', () => {
+    const streamEdges = [
+      edge(origin, { q: 1, r: 0 }, 'stream'),
+      edge(origin, { q: 0, r: 1 }, 'stream'),
+      edge({ q: 0, r: 1 }, { q: 1, r: 0 }, 'stream'),
+      edge(origin, { q: 1, r: -1 }, 'stream'),
+      edge({ q: 1, r: -1 }, { q: 1, r: 0 }, 'stream'),
+    ]
+
+    const junctions = deriveEdgeJunctions(streamEdges, size)
+
+    expect(junctions.length).toBeGreaterThanOrEqual(2)
+    expect(junctions.every((junction) => Math.abs(junction.angle % 30) < 0.000001)).toBe(true)
   })
 
   it('derives terrain-matched terminal caps only at vertices with one incident edge of that terrain', () => {

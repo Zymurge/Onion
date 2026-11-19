@@ -21,10 +21,11 @@ import {
 import { getCombatTargetIdForOccupant, isCombatTargetSelected, isCombatTargetSelectable } from '../lib/hexMapCombatTargeting'
 import { routeInteraction, type InteractionRoutingRequest } from '../lib/interactionRouting'
 import { buildBattlefieldRosterProjection } from '../lib/battlefieldGroupProjection'
-import { deriveEdgeCorners, deriveEdgeTerminalCaps, edgeIdentity, edgeSegmentGeometry } from '../lib/edgeTerrainGeometry'
+import { deriveEdgeCorners, deriveEdgeJunctions, deriveEdgeTerminalCaps, edgeIdentity, edgeSegmentGeometry } from '../lib/edgeTerrainGeometry'
 import {
   getEdgeTerrainAsset,
   getEdgeTerrainCornerAsset,
+  getEdgeTerrainJunctionAsset,
   getEdgeTerrainTerminalAsset,
 } from '../lib/edgeTerrainAssetRegistry'
 import { useHexMapZoom } from '../lib/useHexMapZoom'
@@ -497,6 +498,7 @@ export function HexMapBoard({
 
   function renderEdgeTerrain() {
     const corners = deriveEdgeCorners(edges, HEX_SIZE)
+    const junctions = deriveEdgeJunctions(edges, HEX_SIZE)
     const terminalCaps = deriveEdgeTerminalCaps(edges, HEX_SIZE)
 
     return (
@@ -538,6 +540,26 @@ export function HexMapBoard({
                 y={-4.5}
                 width={4.5}
                 height={9}
+              />
+            </g>
+          )
+        })}
+        {junctions.map((junction) => {
+          const angle = junction.angle
+          const edgeKey = junction.edgeKeys.join('|')
+
+          return (
+            <g
+              key={edgeKey}
+              data-testid={`hex-edge-junction-${edgeKey}`}
+              transform={`translate(${junction.position.x} ${junction.position.y}) rotate(${angle})${junction.mirrored ? ' scale(1 -1)' : ''}`}
+            >
+              <image
+                href={getEdgeTerrainJunctionAsset(junction.type)}
+                x={-20}
+                y={-20}
+                width={40}
+                height={40}
               />
             </g>
           )
