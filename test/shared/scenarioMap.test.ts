@@ -62,7 +62,7 @@ describe('scenarioMap materialization', () => {
 			height: 2,
 			hexes: [],
 			edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 1, r: 0 }, b: { q: 0, r: 0 } }],
-		})).toThrow('Scenario edge endpoints must be in canonical order')
+		})).toThrow('Scenario edge endpoints must be in canonical order for (1, 0)-(0, 0) at index 0')
 	})
 
 	it('rejects duplicate endpoint pairs and conflicting edge kinds', () => {
@@ -75,7 +75,7 @@ describe('scenarioMap materialization', () => {
 				{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
 				{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
 			],
-		})).toThrow('Scenario edge endpoint pair is duplicated')
+		})).toThrow('Scenario edge endpoint pair (0, 0)-(1, 0) is duplicated at index 1')
 	})
 
 	it('rejects edge records that are out of canonical order', () => {
@@ -88,7 +88,7 @@ describe('scenarioMap materialization', () => {
 				{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 1 }, b: { q: 1, r: 1 } },
 				{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
 			],
-		})).toThrow('Scenario edges must be in canonical order')
+		})).toThrow('Scenario edges are out of canonical order: edge (0, 0)-(1, 0) at index 1 must appear before edge (0, 1)-(1, 1) at index 0')
 	})
 
 	it('keeps terrain and authored positions in the generated map coordinate space', () => {

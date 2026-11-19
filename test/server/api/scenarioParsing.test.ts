@@ -157,14 +157,20 @@ describe('parseScenarioSnapshot', () => {
     })).toThrow(ScenarioValidationError)
   })
 
-  it('preserves detailed edge validation errors through scenario parsing', () => {
+  it('identifies both affected edge pairs in scenario ordering errors', () => {
     expect(() => parseScenarioSnapshot({
       ...validScenario,
       map: {
-        ...validScenario.map,
-        edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 2, r: 1 }, b: { q: 1, r: 1 } }],
+        shape: 'rectangle',
+        width: 3,
+        height: 3,
+        hexes: [],
+        edges: [
+          { type: 'ridge', variant: 'ridge-1', a: { q: 1, r: 0 }, b: { q: 1, r: 1 } },
+          { type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+        ],
       },
-    })).toThrow(/canonical order/)
+    })).toThrow('Scenario map is invalid: Scenario edges are out of canonical order: edge (0, 0)-(1, 0) at index 1 must appear before edge (1, 0)-(1, 1) at index 0')
   })
 
   it('accepts scenario-local numeric and weapon quantity overrides', () => {

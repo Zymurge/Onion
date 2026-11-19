@@ -58,7 +58,10 @@ describe('normalizeInitialStateToGameState', () => {
       '15,14-16,13', '15,14-16,14', '15,15-16,14', '15,15-16,15', '15,15-15,16',
     ]
     const crossMapStreamEdges = [
-      '3,13-4,12', '3,13-4,13', '3,14-4,13', '4,13-4,14', '4,13-5,13', '5,12-5,13',
+      '1,11-1,12', '1,12-2,11', '1,16-1,17', '1,16-2,16', '2,11-2,12', '2,12-3,11',
+      '2,15-2,16', '2,15-3,15', '3,11-3,12', '3,12-4,11', '3,12-4,12',
+      '3,13-4,12', '3,13-4,13', '3,14-3,15', '3,14-4,13', '3,14-4,14',
+      '4,13-4,14', '4,13-5,13', '5,12-5,13',
       '5,12-6,12', '6,11-6,12', '6,12-7,11', '7,11-7,12', '7,12-8,11', '8,11-8,12',
       '8,12-9,11', '9,11-9,12', '9,12-10,11', '10,11-10,12', '10,12-11,11', '11,11-11,12',
       '11,12-12,11', '12,11-12,12', '12,12-13,11', '13,11-13,12', '13,12-14,11', '14,11-14,12',
@@ -77,6 +80,7 @@ describe('normalizeInitialStateToGameState', () => {
     ])
     expect(extendedRidgeEdges.filter((edge) => !terrainEdgeKeys.has(`ridge:${edge}`))).toEqual([])
     expect(crossMapStreamEdges.filter((edge) => !terrainEdgeKeys.has(`stream:${edge}`))).toEqual([])
+    expect(terrainEdgeKeys.has('stream:2,11-3,11')).toBe(false)
 
     expect(scenario.victoryConditions.onion?.escapeLocation).toBe('south side')
     const gameState = normalizeInitialStateToGameState(initialState, scenario.id, scenario.unitTypes)

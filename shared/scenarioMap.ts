@@ -61,6 +61,10 @@ function isCanonicalEndpointOrder(edge: ScenarioTerrainEdge): boolean {
 	return edge.a.q < edge.b.q || (edge.a.q === edge.b.q && edge.a.r < edge.b.r)
 }
 
+function formatEdgePair(edge: ScenarioTerrainEdge): string {
+	return `(${edge.a.q}, ${edge.a.r})-(${edge.b.q}, ${edge.b.r})`
+}
+
 /** Validates canonical scenario edge geometry against the materialized cells. */
 export function validateCanonicalEdges(
 	edges: ReadonlyArray<ScenarioTerrainEdge>,
@@ -77,19 +81,19 @@ export function validateCanonicalEdges(
 			throw new Error(`Scenario edge endpoints must be adjacent at (${edge.a.q}, ${edge.a.r})-(${edge.b.q}, ${edge.b.r})`)
 		}
 		if (!isSupportedEdgeVariant(edge.type, edge.variant)) {
-			throw new Error(`Scenario edge variant ${edge.variant} is not supported for ${edge.type} at index ${index}`)
+			throw new Error(`Scenario edge variant ${edge.variant} is not supported for ${edge.type} at ${formatEdgePair(edge)} (index ${index})`)
 		}
 		if (!isCanonicalEndpointOrder(edge)) {
-			throw new Error(`Scenario edge endpoints must be in canonical order at index ${index}`)
+			throw new Error(`Scenario edge endpoints must be in canonical order for ${formatEdgePair(edge)} at index ${index}`)
 		}
 
 		if (index > 0) {
 			const comparison = compareEdges(edges[index - 1], edge)
 			if (comparison === 0) {
-				throw new Error(`Scenario edge endpoint pair is duplicated at index ${index}`)
+				throw new Error(`Scenario edge endpoint pair ${formatEdgePair(edge)} is duplicated at index ${index} (first occurrence at index ${index - 1})`)
 			}
 			if (comparison > 0) {
-				throw new Error(`Scenario edges must be in canonical order at index ${index}`)
+				throw new Error(`Scenario edges are out of canonical order: edge ${formatEdgePair(edge)} at index ${index} must appear before edge ${formatEdgePair(edges[index - 1])} at index ${index - 1}`)
 			}
 		}
 	}
