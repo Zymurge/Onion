@@ -36,6 +36,22 @@ requested damaged state uses the optional `damaged` image, falling back to the
 operational image. Disabled and recovering states use the operational image
 unless the registry is extended with a specific variant.
 
+## Future Scenario Viewer And Editor Reuse
+
+Scenario presentation may be consumed outside a live match. A scenario viewer
+or editor receives a presenter model derived from the scenario's initial
+deployments and materialized map, with unit identity supplied by the authored
+deployment key or a future editor identity. It does not synthesize runtime unit
+IDs or canonical stack membership that belong to match normalization.
+
+The durable map and unit renderers are presentation-only boundaries. They receive
+resolved sprites, labels, status, position, and optional visual selection state,
+and may expose optional host callbacks. They must not own match phases,
+server snapshot authority, movement or combat legality, interaction routing, or
+scenario mutation. The game and future editor supply those policies independently.
+The two-phase implementation and done criteria are tracked in
+[scenario-viewer-and-rendering-boundary.md](../work-items/scenario-viewer-and-rendering-boundary.md).
+
 `spriteKey` is optional for intentionally non-specific unit types. An absent
 key resolves to the explicit generic unit asset. Unknown authored keys fail
 catalog and scenario-definition validation; the web resolver also uses the
