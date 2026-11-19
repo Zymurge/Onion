@@ -1,9 +1,16 @@
-import { describe, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { buildApp } from '#server/app'
 import { register } from './helpers.js'
 
-const requiredScenarioIds = ['swamp-siege-01'] as const
+const playableScenarioIds = ['onion-ring-iii', 'swamp-siege-01'] as const
+const activeTestScenarioIds = [
+	'e2e-colocation-01',
+	'e2e-combat-01',
+	'e2e-failed-ram-01',
+	'e2e-ram-01',
+	'smoke-endgame-01',
+] as const
 
 function failScenarioStep(step: string, scenarioId: string, statusCode: number, body: string): never {
 	throw new Error(`Broken scenario fixture: ${step} failed for ${scenarioId}. Status ${statusCode}. Response: ${body}`)
@@ -11,7 +18,7 @@ function failScenarioStep(step: string, scenarioId: string, statusCode: number, 
 
 describe('scenario/game preflight', () => {
 	it('loads required scenarios and can create games from them', async () => {
-		for (const scenarioId of requiredScenarioIds) {
+		for (const scenarioId of playableScenarioIds) {
 			const app = buildApp()
 			const { token } = await register(app, 'preflight-user')
 
@@ -66,6 +73,26 @@ describe('scenario/game preflight', () => {
 			if (stateRes.statusCode !== 200) {
 				failScenarioStep('GET /games/:id', scenarioId, stateRes.statusCode, stateRes.body)
 			}
+		}
+	})
+
+	it('validates actively used test scenarios without exposing them in the lobby list', async () => {
+		const app = buildApp()
+		const listedResponse = await app.inject({ method: 'GET', url: '/scenarios' })
+		const listedIds = listedResponse.json<{ id: string }[]>().map((scenario) => scenario.id)
+
+		expect(listedIds.sort()).toEqual([...playableScenarioIds].sort())
+
+		for (const scenarioId of activeTestScenarioIds) {
+			const response = await app.inject({ method: 'GET', url: `/scenarios/${scenarioId}` })
+			if (response.statusCode !== 200) {
+				failScenarioStep('GET test scenario by ID', scenarioId, response.statusCode, response.body)
+			}
+
+			const scenario = response.json<{ id: string; map?: { cells?: unknown[]; edges?: unknown[] } }>()
+			expect(scenario.id).toBe(scenarioId)
+			expect(scenario.map?.cells?.length).toBeGreaterThan(0)
+			expect(scenario.map?.edges).toBeDefined()
 		}
 	})
 })

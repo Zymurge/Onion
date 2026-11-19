@@ -3,6 +3,8 @@ import type { GameSessionViewState } from '../gameSessionTypes'
 import type { GameState, TurnPhase } from '../../../shared/types/index'
 import { validateStackRoster, validateStackRosterConsistency } from '../../../shared/stackRoster/index.js'
 import { isSessionUnitTypeStackable } from '../sessionCatalog'
+import { isSupportedEdgeVariant } from '../../../shared/config/edgeTerrainVariants.js'
+import { isSupportedTerrainCode } from '../../../shared/scenarioMap.js'
 
 /** Human-readable labels for all supported turn phases. */
 export const turnPhaseLabels: Record<TurnPhase, string> = {
@@ -140,6 +142,9 @@ export function validateBattlefieldSnapshot(snapshot: ServerGameSnapshot): strin
 	if (!Array.isArray(scenarioMap.cells) || !Array.isArray(scenarioMap.hexes)) {
 		return describeSnapshotError(snapshot, 'scenarioMap cells and hexes are missing')
 	}
+	if (!Array.isArray(scenarioMap.edges)) {
+		return describeSnapshotError(snapshot, 'scenarioMap edges are missing')
+	}
 	for (const [cellIndex, cell] of scenarioMap.cells.entries()) {
 		if (!isRecord(cell) || !isFiniteNumber(cell.q) || !isFiniteNumber(cell.r)) {
 			return describeSnapshotError(snapshot, `scenarioMap.cells[${cellIndex}] is missing valid q/r coordinates`)
@@ -148,6 +153,17 @@ export function validateBattlefieldSnapshot(snapshot: ServerGameSnapshot): strin
 	for (const [hexIndex, hex] of scenarioMap.hexes.entries()) {
 		if (!isRecord(hex) || !isFiniteNumber(hex.q) || !isFiniteNumber(hex.r) || !isFiniteNumber(hex.t)) {
 			return describeSnapshotError(snapshot, `scenarioMap.hexes[${hexIndex}] is missing valid q/r/t coordinates`)
+		}
+		if (!isSupportedTerrainCode(hex.t)) {
+			return describeSnapshotError(snapshot, `Unsupported whole-hex terrain code: ${hex.t}`)
+		}
+	}
+	for (const [edgeIndex, edge] of scenarioMap.edges.entries()) {
+		if (!isRecord(edge) || (edge.type !== 'ridge' && edge.type !== 'stream')
+			|| typeof edge.variant !== 'string' || !isSupportedEdgeVariant(edge.type, edge.variant)
+			|| !isRecord(edge.a) || !isRecord(edge.b)
+			|| !isFiniteNumber(edge.a.q) || !isFiniteNumber(edge.a.r) || !isFiniteNumber(edge.b.q) || !isFiniteNumber(edge.b.r)) {
+			return describeSnapshotError(snapshot, `scenarioMap.edges[${edgeIndex}] is missing a valid type or endpoint coordinates`)
 		}
 	}
 	if (!Array.isArray(rawSnapshot.victoryObjectives)) {

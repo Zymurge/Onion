@@ -433,6 +433,7 @@ export function makeScenarioSnapshot(options: ScenarioSnapshotOptions = {}): Tes
 			height: 8,
 			cells: Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (_, q) => ({ q, r }))).flat(),
 			hexes: [],
+			edges: [],
 			...mapOverrides,
 		},
 		...snapshotOverrides,

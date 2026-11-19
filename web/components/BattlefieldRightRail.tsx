@@ -27,7 +27,6 @@ type RamPrompt = {
 type BattlefieldRightRailProps = {
   activeCombatRole: 'onion' | 'defender' | null
   activeRole: 'onion' | 'defender' | null
-  activeSelectedUnitCount: number
   isCombatPhase: boolean
   gameOverSummary?: GameOverSummaryProps | null
   showInactiveEventStream: boolean
@@ -43,7 +42,6 @@ type BattlefieldRightRailProps = {
   selectedInspectorGroupHeading?: BattlefieldInspectorGroupHeading | null
   selectedInspectorGroupLabel?: string | null
   selectedInspectorDefense?: number | null
-  selectedInspectorTerrainModifier?: number | null
   selectedInspectorTerrainType?: TerrainType | null
   selectedInspectorDefender: BattlefieldDefenderView | null
   selectedInspectorOnion: BattlefieldOnionView | null
@@ -76,7 +74,6 @@ type BattlefieldRightRailProps = {
 export function BattlefieldRightRail({
   activeCombatRole,
   activeRole,
-  activeSelectedUnitCount,
   isCombatPhase,
   gameOverSummary = null,
   showInactiveEventStream,
@@ -92,7 +89,6 @@ export function BattlefieldRightRail({
   selectedInspectorGroupHeading = null,
   selectedInspectorGroupLabel = null,
   selectedInspectorDefense = null,
-  selectedInspectorTerrainModifier = null,
   selectedInspectorTerrainType = null,
   selectedInspectorDefender,
   selectedInspectorOnion,
@@ -276,11 +272,9 @@ export function BattlefieldRightRail({
         selectedInspectorGroupHeading={selectedInspectorGroupHeading}
       selectedInspectorGroupLabel={selectedInspectorGroupLabel}
       selectedInspectorDefense={selectedInspectorDefense}
-      selectedInspectorTerrainModifier={selectedInspectorTerrainModifier}
       selectedInspectorTerrainType={selectedInspectorTerrainType}
       selectedInspectorDefender={selectedInspectorDefender}
       selectedInspectorOnion={selectedInspectorOnion}
-      activeSelectedUnitCount={activeSelectedUnitCount}
       catalog={catalog}
     />
   ) : null

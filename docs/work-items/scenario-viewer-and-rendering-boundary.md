@@ -257,8 +257,9 @@ Editor hosts must later own:
 
 Replace the game's battlefield rendering dependencies with the extracted scene
 and marker while preserving existing phase, selection, stack, movement, combat,
-zoom, and overlay behavior. The extraction must not change the authoritative
-snapshot, engine, or API.
+zoom, and overlay behavior.
+
+The extraction must not change the authoritative snapshot, engine, or API.
 
 #### E5. Upgrade the viewer to shared components
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildFriendlyName, getUnitDefinition, getUnitTypeCatalog, getWeaponType, getWeaponTypeCatalog, parseUnitCatalog } from '#shared/unitDefinitions'
+import { getUnitClassRule } from '#shared/classRules'
 import type { UnitTypeId } from '#shared/types/index'
 
 const configuredTypeId: UnitTypeId = 'configured-unit-from-external-catalog'
@@ -8,6 +9,7 @@ const configuredTypeId: UnitTypeId = 'configured-unit-from-external-catalog'
 const validUnitCatalogEntry = {
   name: 'Test Unit',
   description: 'A test unit.',
+  unitClass: 'Infantry',
   friendlyNameTemplate: 'Test Unit {{ordinal}}',
   movement: 1,
   defense: 1,
@@ -55,6 +57,22 @@ describe('static unit and weapon catalogs', () => {
     }
   })
 
+  it('assigns each global unit type to an approved class', () => {
+    const catalog = getUnitTypeCatalog()
+
+    expect(Object.fromEntries(Object.entries(catalog).map(([typeId, unitType]) => [typeId, unitType.unitClass]))).toEqual({
+      Puss: 'LightArmor',
+      BigBadWolf: 'GEV',
+      Witch: 'LightArmor',
+      Farquaad: 'Artillery',
+      Pinocchio: 'LightArmor',
+      Dragon: 'HeavyArmor',
+      LittlePigs: 'Infantry',
+      Swamp: 'Command',
+      TheOnion: 'Onion',
+    })
+  })
+
   it('resolves legacy Lord Farquaad snapshot identifiers', () => {
     expect(getUnitDefinition('LordFarquaad')).toBe(getUnitDefinition('Farquaad'))
     expect(getWeaponType('LordFarquaad.main')).toBe(getWeaponType('Farquaad.main'))
@@ -97,8 +115,6 @@ describe('static unit and weapon catalogs', () => {
     expect(catalog.Swamp.hexMapOffsetY).toBe(-5)
     expect(catalog.TheOnion.hexMapScale).toBe(1)
     expect(catalog.TheOnion.hexMapOffsetY).toBe(0)
-    expect(catalog.TheOnionDamaged.hexMapScale).toBe(1)
-    expect(catalog.TheOnionDamaged.hexMapOffsetY).toBe(0)
   })
 
   it('keeps default quantities on weapon types and expands the Onion loadout contract', () => {
@@ -166,11 +182,10 @@ describe('static unit and weapon catalogs', () => {
     expect(catalog.TheOnion).toMatchObject({
       movement: 3,
       defense: 0,
-      abilities: expect.objectContaining({ canRam: true, ramCapacity: 2 }),
       maxTreads: 45,
       treadsPerMove: 15,
-      ramsPerTurn: 2,
     })
+    expect(getUnitClassRule(catalog.TheOnion.unitClass).ram.attacker).toEqual({ canRam: true, capacity: 2, perTurn: 2 })
     expect(catalog.LittlePigs).toMatchObject({
       movement: 2,
       defense: 1,
@@ -181,8 +196,29 @@ describe('static unit and weapon catalogs', () => {
       movement: 0,
       defense: 0,
       stackable: false,
-      abilities: expect.objectContaining({ immobile: true }),
     })
+    expect(getUnitClassRule(catalog.Swamp.unitClass).mobility).toBe('immobile')
+  })
+
+  it('keeps class-owned capabilities out of unit definitions', () => {
+    const catalog = getUnitTypeCatalog()
+    const classOwnedAbilityFields = [
+      'canRam',
+      'immobile',
+      'isArmor',
+      'ramCapacity',
+      'ramProfile',
+      'secondMove',
+      'secondMoveAllowance',
+      'terrainRules',
+    ]
+
+    for (const definition of Object.values(catalog)) {
+      for (const field of classOwnedAbilityFields) {
+        expect(definition.abilities).not.toHaveProperty(field)
+      }
+      expect(definition).not.toHaveProperty('ramsPerTurn')
+    }
   })
 
   it('resolves weapon references in their authored order', () => {
@@ -209,6 +245,32 @@ describe('static unit and weapon catalogs', () => {
     ['weaponQuantities', { ...omitField(validUnitCatalogEntry, 'weaponQuantities') }],
   ])('CAT-006 rejects malformed required unit attribute %s through the pure catalog parser', (_field, unit) => {
     expect(() => parseUnitCatalog({ unitTypes: { TestUnit: unit }, weaponTypes: {} })).toThrow(/TestUnit/)
+  })
+
+  it('requires a valid unitClass in the pure catalog parser', () => {
+    const parsed = parseUnitCatalog(makeCatalogConfig({ unitClass: 'Infantry' }))
+    expect(parsed.unitTypes.TestUnit.unitClass).toBe('Infantry')
+    expect(() => parseUnitCatalog({ unitTypes: { TestUnit: omitField(validUnitCatalogEntry, 'unitClass') }, weaponTypes: {} })).toThrow(/unitClass.*TestUnit|TestUnit.*unitClass/)
+    expect(() => parseUnitCatalog(makeCatalogConfig({ unitClass: 'infantry' }))).toThrow(/unitClass.*TestUnit|TestUnit.*unitClass/)
+  })
+
+  it.each([
+    'canRam',
+    'immobile',
+    'isArmor',
+    'ramCapacity',
+    'ramProfile',
+    'secondMove',
+    'secondMoveAllowance',
+    'terrainRules',
+  ])('rejects legacy class-owned ability field %s', (field) => {
+    expect(() => parseUnitCatalog(makeCatalogConfig({
+      abilities: { maxStacks: 1, [field]: true },
+    }))).toThrow(/TestUnit/)
+  })
+
+  it('rejects per-unit ramsPerTurn metadata', () => {
+    expect(() => parseUnitCatalog(makeCatalogConfig({ ramsPerTurn: 2 }))).toThrow(/TestUnit/)
   })
 
   it('rejects an unknown sprite key through the pure catalog parser', () => {

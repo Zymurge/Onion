@@ -10,6 +10,7 @@ const validScenario = {
     shape: 'hex',
     size: 3,
     hexes: [],
+    edges: [],
   },
   initialState: {
     deployments: {
@@ -33,6 +34,7 @@ const targetDeploymentScenario = {
     shape: 'hex',
     size: 5,
     hexes: [],
+    edges: [],
   },
   initialState: {
     deployments: {
@@ -72,9 +74,23 @@ const legacySplitScenario = {
 }
 
 describe('parseScenarioSnapshot', () => {
+  it('includes schema issue paths and messages in the validation failure', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      initialState: undefined,
+    })).toThrow(/initialState.*Invalid input: expected object, received undefined/i)
+  })
+
   it('requires compact map definitions and rejects legacy radius maps', () => {
     expect(() => parseScenarioSnapshot({ ...validScenario, map: { radius: 1, hexes: [] } })).toThrow(ScenarioValidationError)
     expect(() => parseScenarioSnapshot({ ...validScenario, map: { shape: 'hex', size: 4, hexes: [] } })).toThrow(ScenarioValidationError)
+  })
+
+  it('requires authored map edge arrays', () => {
+    const { edges: _edges, ...mapWithoutEdges } = validScenario.map
+    void _edges
+
+    expect(() => parseScenarioSnapshot({ ...validScenario, map: mapWithoutEdges })).toThrow(ScenarioValidationError)
   })
 
   it('validates and materializes a complete authored scenario', () => {
@@ -82,7 +98,88 @@ describe('parseScenarioSnapshot', () => {
 
     expect(scenario.id).toBe('valid-scenario')
     expect(scenario.map).toMatchObject({ width: 3, height: 3 })
+    expect(scenario.map.edges).toEqual([])
     expect(scenario.initialState).toEqual(expect.objectContaining(validScenario.initialState))
+  })
+
+  it('accepts canonical edge terrain and contiguous whole-hex terrain codes', () => {
+    const scenario = parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        shape: 'rectangle',
+        width: 2,
+        height: 2,
+        hexes: [{ q: 0, r: 0, t: 1 }, { q: 1, r: 1, t: 2 }],
+        edges: [{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })
+
+    expect(scenario.map.hexes).toEqual([
+      { q: 0, r: 0, t: 1 },
+      { q: 1, r: 1, t: 2 },
+    ])
+    expect(scenario.map.edges).toEqual([
+      { type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+    ])
+  })
+
+  it('requires a supported variant for each edge terrain kind', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        ...validScenario.map,
+        edges: [{ type: 'ridge', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })).toThrow(ScenarioValidationError)
+
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        ...validScenario.map,
+        edges: [{ type: 'ridge', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })).toThrow(ScenarioValidationError)
+
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        ...validScenario.map,
+        edges: [{ type: 'ridge', variant: 'ridge-unknown', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })).toThrow(ScenarioValidationError)
+  })
+
+  it.each([[-1], [3], [1.5]])('rejects unsupported whole-hex terrain code %s', (terrain) => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: { ...validScenario.map, hexes: [{ q: 1, r: 1, t: terrain }] },
+    })).toThrow(ScenarioValidationError)
+  })
+
+  it('rejects unsupported edge terrain kinds', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        ...validScenario.map,
+        edges: [{ type: 'cliff', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } }],
+      },
+    })).toThrow(ScenarioValidationError)
+  })
+
+  it('identifies both affected edge pairs in scenario ordering errors', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      map: {
+        shape: 'rectangle',
+        width: 3,
+        height: 3,
+        hexes: [],
+        edges: [
+          { type: 'ridge', variant: 'ridge-1', a: { q: 1, r: 0 }, b: { q: 1, r: 1 } },
+          { type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+        ],
+      },
+    })).toThrow('Scenario map is invalid: Scenario edges are out of canonical order: edge (0, 0)-(1, 0) at index 1 must appear before edge (1, 0)-(1, 1) at index 0')
   })
 
   it('accepts scenario-local numeric and weapon quantity overrides', () => {
@@ -142,6 +239,18 @@ describe('parseScenarioSnapshot', () => {
         ScenarioOnion: {
           extends: 'TheOnion',
           overrides: override,
+        },
+      },
+    })).toThrow(ScenarioValidationError)
+  })
+
+  it('rejects removed per-unit ramsPerTurn overrides', () => {
+    expect(() => parseScenarioSnapshot({
+      ...validScenario,
+      unitTypes: {
+        ScenarioOnion: {
+          extends: 'TheOnion',
+          overrides: { ramsPerTurn: 2 },
         },
       },
     })).toThrow(ScenarioValidationError)

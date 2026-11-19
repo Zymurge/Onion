@@ -1,5 +1,5 @@
 import logger from '#server/logger'
-import type { ActionOkResponse, Command, EventEnvelope, GameState, TurnPhase } from '#shared/types/index'
+import type { ActionOkResponse, Command, EventEnvelope, GameState, ScenarioTerrainEdge, TurnPhase } from '#shared/types/index'
 export { formatApiError } from '#shared/apiProtocol'
 import { requestJson, type ApiResult } from '#shared/apiProtocol'
 import type { SessionRole, SessionStore } from '#server/cli/session/store'
@@ -45,6 +45,7 @@ export type ScenarioDetail = {
     width: number
     height: number
     hexes: Array<{ q: number; r: number; t: number }>
+    edges: ScenarioTerrainEdge[]
   }
   initialState?: unknown
   victoryConditions?: unknown

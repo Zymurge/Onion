@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <defs>
+    <pattern id="ridge-texture" width="40" height="40" patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="#bf9569"/>
+      <path d="M19.3 16.25 L24.45 18.03 M18.68 20 H24.08 M19.3 23.75 L24.45 21.97" fill="none" stroke="#715d48" stroke-width="0.3" stroke-linecap="round"/>
+    </pattern>
+  </defs>
+  <path d="M22.75 15.24 Q20 20 22.75 24.76" fill="none" stroke="#604b35" stroke-width="9" stroke-linecap="butt"/>
+  <path d="M22.75 15.24 Q20 20 22.75 24.76" fill="none" stroke="url(#ridge-texture)" stroke-width="5.4" stroke-linecap="butt"/>
+</svg>

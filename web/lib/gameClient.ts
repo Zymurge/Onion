@@ -3,11 +3,14 @@ import type { VictoryObjectiveState } from '../../shared/apiProtocol.js'
 import type { GameRequestTransport } from './gameSessionTypes.js'
 import type { RamResolution as MoveResolution } from './moveResolution.js'
 
+import type { ScenarioTerrainEdge } from '../../shared/types/index.js'
+
 export type ScenarioMapSnapshot = {
 	width: number
 	height: number
 	cells: ReadonlyArray<{ q: number; r: number }>
 	hexes: ReadonlyArray<{ q: number; r: number; t: number }>
+	edges: ReadonlyArray<ScenarioTerrainEdge>
 }
 
 export type GamePhase = 'onion' | 'defender'

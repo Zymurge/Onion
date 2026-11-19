@@ -15,6 +15,7 @@ import { resolveBattlefieldFriendlyName } from './battlefieldNaming'
 import { resolveBattlefieldWeaponName } from './weaponStats'
 import { isWeaponSelectionId, resolveSelectionOwnerUnitId, stripWeaponSelectionId } from './selectionIds'
 import { formatCombatTargetId } from '../../shared/combatTarget'
+import { terrainFromT } from '../../shared/scenarioMap.js'
 import { buildStackRosterIndex, canonicalizeStackRoster } from '../../shared/stackRoster/index.js'
 import type { StackRosterState, TerrainType } from '../../shared/types/index'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
@@ -69,25 +70,12 @@ function getCombatCalculator(catalog?: SessionCatalog) {
 	return calculator
 }
 
-function terrainTypeFromHex(value: number | undefined): TerrainType {
-	if (value === 1) {
-		return 'ridgeline'
-	}
-
-	if (value === 2) {
-		return 'crater'
-	}
-
-	return 'clear'
-}
-
 function terrainTypeAt(scenarioMap: CombatPreviewInput['displayedScenarioMap'], q: number, r: number): TerrainType {
-	return terrainTypeFromHex(scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t)
+	return terrainFromT(scenarioMap?.hexes.find((hex) => hex.q === q && hex.r === r)?.t ?? 0)
 }
 
 export type BattlefieldDefenderInspectionStats = {
 	defense: number
-	terrainModifier: number | null
 	terrainType: TerrainType
 }
 
@@ -100,17 +88,14 @@ export function getBattlefieldDefenderInspectionStats(
 	const terrainType = terrainTypeAt(scenarioMap, unit.position.q, unit.position.r)
 	const unitDefinition = catalog?.unitTypes[unit.typeId] ?? ONION_STATIC_RULES.unitTypes[unit.typeId]
 	const target: CombatExchangeInput['target'] = (unitDefinition?.abilities.maxStacks ?? 1) > 1
-		? { kind: 'stack', id: unit.unitId, typeId: unit.typeId, size: stackSize, terrainType }
-		: { kind: 'unit', id: unit.unitId, typeId: unit.typeId, terrainType }
+		? { kind: 'stack', id: unit.unitId, typeId: unit.typeId, size: stackSize }
+		: { kind: 'unit', id: unit.unitId, typeId: unit.typeId }
 	const result = getCombatCalculator(catalog).calculate({
 		attackers: [],
 		target,
 	})
-	const terrainModifier = result.modifiers.find((candidate) => candidate.kind === 'terrain' && candidate.scope === 'defense')
-
 	return {
-		defense: result.defenseStrength - (terrainModifier?.value ?? 0),
-		terrainModifier: terrainModifier?.value ?? null,
+		defense: result.defenseStrength,
 		terrainType,
 	}
 }
@@ -133,7 +118,6 @@ function buildCombatCalculatorInputForDefenderTarget(
 	displayedOnion: BattlefieldOnionView,
 	target: BattlefieldUnit,
 	stackSize: number,
-	displayedScenarioMap: CombatPreviewInput['displayedScenarioMap'],
 ): CombatExchangeInput {
 	const attackers = selectedAttackerIds.map((attackerId): CombatExchangeAttackerSource => {
 		const weapon = displayedOnion.weapons.find((candidate) => candidate.id === attackerId)
@@ -155,13 +139,11 @@ function buildCombatCalculatorInputForDefenderTarget(
 				id: target.unitId,
 				typeId: target.typeId,
 				size: stackSize,
-				terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
 			}
 		: {
 				kind: 'unit',
 				id: target.unitId,
 				typeId: target.typeId,
-				terrainType: terrainTypeAt(displayedScenarioMap, target.position.q, target.position.r),
 			}
 
 	return buildCombatExchangeInput({
@@ -219,7 +201,6 @@ export function buildCombatTargetOptions({
 	selectedUnitIds,
 	selectedAttackStrength,
 	selectedAttackGroupCount,
-	displayedScenarioMap,
 	catalog,
 }: CombatPreviewInput): CombatTargetOption[] {
 	if (activeCombatRole === null) {
@@ -312,7 +293,7 @@ export function buildCombatTargetOptions({
 			const unitPosition = getBattlefieldPosition(unit)
 			const targetId = rosterGroup?.groupId ?? unit.unitId
 			const result = combatCalculator.calculate(
-				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, { ...unit }, stackSize, displayedScenarioMap),
+				buildCombatCalculatorInputForDefenderTarget(selectedAttackerIds, displayedOnion!, { ...unit }, stackSize),
 			)
 
 			return {

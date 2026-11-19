@@ -26,6 +26,7 @@ function createStateResponse(gameId: number, eventSeq: number, phase = 'DEFENDER
 			height: 1,
 			cells: [{ q: 0, r: 0 }],
 			hexes: [{ q: 0, r: 0, t: 0 }],
+			edges: [],
 		},
 		eventSeq,
 		snapshotRevision: 0,
@@ -95,8 +96,9 @@ describe('createLiveGameClient', () => {
 				{ q: 10, r: 2, t: 1 },
 				{ q: 3, r: 8, t: 2 },
 				{ q: 4, r: 8, t: 2 },
-				{ q: 7, r: 5, t: 3 },
+				{ q: 7, r: 5, t: 0 },
 			],
+			edges: [],
 		})
 
 		const fetchImpl = vi

@@ -331,7 +331,7 @@ describe('POST /games/:id/actions combat API contract', () => {
         gameId,
         scenarioId: 'swamp-siege-01',
         scenarioSnapshot: {
-          map: materializeScenarioMap({ shape: 'hex', size: 21, hexes: [] }),
+          map: materializeScenarioMap({ shape: 'hex', size: 21, hexes: [], edges: [] }),
           victoryConditions: { maxTurns: 20 },
         },
         players: { onion: onionId, defender: defenderId },

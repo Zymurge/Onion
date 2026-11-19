@@ -11,6 +11,11 @@ The map and Inspector use the same resolved unit catalog and canonical sprite
 assets. Map-specific scale and offsets do not change Inspector sizing or define
 how a future help or scenario-authoring surface must frame an image.
 
+This specification owns unit assets only. Ridge and stream edge sprites are
+board terrain assets owned by the battlefield presentation specification; they
+are not unit `spriteKey` values, do not enter the unit sprite manifest, and do
+not affect Inspector rendering.
+
 ## Asset Management
 
 - The resolved unit definition supplies `spriteKey`; the web client does not
@@ -81,6 +86,8 @@ y = cy - size / 2 - (oy / 100) * hexDiameter
   right; positive Y moves up.
 - The map renders the scaled layout box with aspect-ratio preservation; labels,
   stack membership, hit targets, and hex coordinates remain separate layers.
+- Hex-map labels abbreviate `Big Bad Wolf` as `BBW` and `Little Pigs` as `LP`;
+  these abbreviations are map-only and must remain on one line.
 - Map metadata has no effect on the Inspector's image dimensions.
 
 ## Inspector Sizing

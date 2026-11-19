@@ -4,11 +4,9 @@ import type { ScenarioDetail } from '#server/cli/api/client'
 function terrainCode(terrain: number | undefined): string {
   switch (terrain) {
     case 1:
-      return 'rd'
-    case 2:
       return 'cr'
-    case 3:
-      return 'CP'
+    case 2:
+      return 'sw'
     default:
       return '..'
   }

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <defs>
+    <g id="stream-junction-highlight" transform="rotate(-30 20 20)" fill="none" stroke="#3e6d6f" stroke-width="0.4" stroke-linecap="round">
+      <path d="M22.4 18.7 C23.3 18.45 24.2 18.95 25.1 18.7"/>
+      <path d="M22.4 20 C23.3 19.75 24.2 20.25 25.1 20"/>
+      <path d="M22.4 21.3 C23.3 21.05 24.2 21.55 25.1 21.3"/>
+    </g>
+  </defs>
+  <path d="M20 20 L13.217 16.085 M20 20 L26.783 16.085 M20 20 L20 27.83" fill="none" stroke="#604b35" stroke-width="9" stroke-linecap="butt"/>
+  <path d="M20 20 L13.217 16.085 M20 20 L26.783 16.085 M20 20 L20 27.83" fill="none" stroke="#285d5f" stroke-width="5.4" stroke-linecap="butt"/>
+  <use href="#stream-junction-highlight"/>
+  <use href="#stream-junction-highlight" transform="rotate(-120 20 20)"/>
+  <use href="#stream-junction-highlight" transform="rotate(120 20 20)"/>
+</svg>

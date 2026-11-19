@@ -11,7 +11,7 @@ export type CombatParityFixture = {
 
 export const combatParityFixtures: ReadonlyArray<CombatParityFixture> = [
 	{
-		name: 'Onion main weapon against a ridgeline Little Pigs stack',
+		name: 'Onion main weapon against a Little Pigs stack',
 		input: {
 			attackerGroupIds: ['main'],
 			targetId: 'group-1',
@@ -24,24 +24,15 @@ export const combatParityFixtures: ReadonlyArray<CombatParityFixture> = [
 					'group-1': {
 						typeId: 'LittlePigs',
 						stackSize: 3,
-						terrainType: 'ridgeline',
 					},
 				},
 			},
 		},
 		expected: {
 			attackStrength: 4,
-			defenseStrength: 6,
-			odds: '1:2',
-			modifiers: [
-				{
-					kind: 'terrain',
-					scope: 'defense',
-					label: 'Ridgeline cover: +3 defense',
-					value: 3,
-					appliesTo: 'group-1',
-				},
-			],
+			defenseStrength: 3,
+			odds: '1:1',
+			modifiers: [],
 		},
 	},
 	{

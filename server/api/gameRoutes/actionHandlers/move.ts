@@ -33,7 +33,7 @@ export async function handleMove(context: ActionHandlerContext, command: MoveCom
   logger.info({ gameId: match.gameId, unitId: moveUnitIds[0], stackSize: moveUnitIds.length }, 'Processing MOVE command')
   const scenarioMap = getScenarioMapSnapshot(match.scenarioSnapshot as ScenarioSnapshot)
   const rules = getScenarioRulesContext(match.scenarioId, match.scenarioSnapshot as ScenarioSnapshot)
-  const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells)
+  const map = createMap(scenarioMap.width, scenarioMap.height, scenarioMap.hexes, scenarioMap.cells, scenarioMap.edges)
   const state = buildEngineState(match, rules)
   const moveEvents: EventEnvelope[] = []
   let firstMovePlan: { from: { q: number; r: number }; to: { q: number; r: number }; cost: number } | null = null

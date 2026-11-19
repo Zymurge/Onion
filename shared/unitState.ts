@@ -31,12 +31,18 @@ export function getOnionOrDefender(unitId: string, state: GameState): UnitLookup
   return { unitId: undefined, kind: 'none' }
 }
 
+/** Returns whether a unit's class permits a second move. */
 export function canSecondMove(unit: GameUnit, rules?: RulesContext): boolean {
-  return getRulesContext(rules).getUnitDefinition(unit.typeId)?.abilities.secondMove === true
+  const context = getRulesContext(rules)
+  const definition = context.getUnitDefinition(unit.typeId)
+  return definition !== undefined && context.getUnitClassRule(definition.unitClass).secondMove.allowed
 }
 
+/** Returns whether a unit's class is immobile. */
 export function isImmobile(unit: GameUnit, rules?: RulesContext): boolean {
-  return getRulesContext(rules).getUnitDefinition(unit.typeId)?.abilities.immobile === true
+  const context = getRulesContext(rules)
+  const definition = context.getUnitDefinition(unit.typeId)
+  return definition !== undefined && context.getUnitClassRule(definition.unitClass).mobility === 'immobile'
 }
 
 export function getUnitDefense(unit: GameUnit, inCover: boolean, rules?: RulesContext): number {

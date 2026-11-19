@@ -45,6 +45,42 @@ describe('normalizeInitialStateToGameState', () => {
   it('normalizes the Onion Ring III scenario fixture with canonical stack names', () => {
     const scenario = ScenarioSchema.parse(JSON.parse(readFileSync(new URL('../../../scenarios/onion-ring-iii.json', import.meta.url), 'utf8')))
     const initialState = InitialStateSchema.parse(scenario.initialState)
+    const centralRidgeEdges = scenario.map.edges
+      .filter((edge) => edge.type === 'ridge' && edge.a.q >= 8 && edge.a.q <= 12 && edge.b.q <= 12)
+      .map((edge) => `${edge.a.q},${edge.a.r}-${edge.b.q},${edge.b.r}`)
+    const terrainEdgeKeys = new Set(scenario.map.edges.map((edge) =>
+      `${edge.type}:${edge.a.q},${edge.a.r}-${edge.b.q},${edge.b.r}`,
+    ))
+    const extendedRidgeEdges = [
+      '3,11-4,10', '4,10-4,11', '4,11-5,10', '5,10-5,11', '5,11-6,10', '6,10-6,11', '6,11-7,10',
+      '16,8-17,8', '16,8-17,7', '16,7-16,8', '15,8-16,7', '15,7-15,8', '14,8-15,7', '14,7-15,7',
+      '16,11-17,10', '16,11-17,11', '16,11-16,12', '15,12-16,12', '15,13-16,12', '15,13-16,13',
+      '15,14-16,13', '15,14-16,14', '15,15-16,14', '15,15-16,15', '15,15-15,16',
+    ]
+    const crossMapStreamEdges = [
+      '1,11-1,12', '1,12-2,11', '1,16-1,17', '1,16-2,16', '2,11-2,12', '2,12-3,11',
+      '2,15-2,16', '2,15-3,15', '3,11-3,12', '3,12-4,11', '3,12-4,12',
+      '3,13-4,12', '3,13-4,13', '3,14-3,15', '3,14-4,13', '3,14-4,14',
+      '4,13-4,14', '4,13-5,13', '5,12-5,13',
+      '5,12-6,12', '6,11-6,12', '6,12-7,11', '7,11-7,12', '7,12-8,11', '8,11-8,12',
+      '8,12-9,11', '9,11-9,12', '9,12-10,11', '10,11-10,12', '10,12-11,11', '11,11-11,12',
+      '11,12-12,11', '12,11-12,12', '12,12-13,11', '13,11-13,12', '13,12-14,11', '14,11-14,12',
+      '14,12-15,11', '15,11-15,12', '15,11-16,11',
+    ]
+
+    expect(centralRidgeEdges).toEqual([
+      '8,10-9,9',
+      '9,9-9,10',
+      '9,10-10,9',
+      '10,9-10,10',
+      '10,10-11,9',
+      '11,9-11,10',
+      '11,10-12,9',
+      '12,9-12,10',
+    ])
+    expect(extendedRidgeEdges.filter((edge) => !terrainEdgeKeys.has(`ridge:${edge}`))).toEqual([])
+    expect(crossMapStreamEdges.filter((edge) => !terrainEdgeKeys.has(`stream:${edge}`))).toEqual([])
+    expect(terrainEdgeKeys.has('stream:2,11-3,11')).toBe(false)
 
     expect(scenario.victoryConditions.onion?.escapeLocation).toBe('south side')
     const gameState = normalizeInitialStateToGameState(initialState, scenario.id, scenario.unitTypes)
@@ -191,22 +227,6 @@ describe('normalizeInitialStateToGameState', () => {
       typeId: 'scenario-test:ScenarioPuss',
       weapons: [{ typeId: 'scenario-test:ScenarioPuss:Puss.main' }],
     })
-  })
-
-  it('normalizes a damaged Onion unit type with reduced starting treads', () => {
-    const parsed = InitialStateSchema.parse({
-      deployments: {
-        'onion-1': {
-          type: 'TheOnionDamaged',
-          side: 'onion',
-          position: { q: 0, r: 0 },
-        },
-      },
-    })
-
-    const gameState = normalizeInitialStateToGameState(parsed)
-
-    expect(gameState.onions['onion-1']).toMatchObject({ typeId: 'TheOnionDamaged', treads: 15 })
   })
 
   it('defaults missing status to operational', () => {

@@ -224,7 +224,7 @@ export function buildLiveOnions(snapshot: ServerGameSnapshot, activePhase: TurnP
 }
 
 /** Validates and normalizes scenario-map data from a snapshot. */
-export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex> } | null {
+export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: number; height: number; cells: ReadonlyArray<{ q: number; r: number }>; hexes: ReadonlyArray<TerrainHex>; edges: NonNullable<ServerGameSnapshot['scenarioMap']>['edges'] } | null {
   if (snapshot === null) {
     return null
   }
@@ -237,11 +237,16 @@ export function buildScenarioMap(snapshot: ServerGameSnapshot | null): { width: 
     throw new Error('Loaded game snapshot is missing scenario map cells')
   }
 
+  if (!Array.isArray(snapshot.scenarioMap.edges)) {
+    throw new Error('Loaded game snapshot is missing scenario map edges')
+  }
+
   return {
     width: snapshot.scenarioMap.width,
     height: snapshot.scenarioMap.height,
     cells: snapshot.scenarioMap.cells,
     hexes: snapshot.scenarioMap.hexes,
+    edges: snapshot.scenarioMap.edges,
   }
 }
 

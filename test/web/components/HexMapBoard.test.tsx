@@ -60,7 +60,7 @@
 			/>,
 		)
 
-		expect(getMarkerLabel('pigs-1')).toBe('Little Pigs 1')
+		expect(getMarkerLabel('pigs-1')).toBe('LP 1')
 		expect(screen.getByTestId('hex-cell-2-2')).toHaveClass('hex-cell-event-focused')
 		expect(screen.getByTestId('hex-cell-2-2').querySelector('.hex-event-focus-overlay')).not.toBeNull()
 		expect(screen.getByTestId('hex-unit-pigs-1').querySelector('image')).not.toBeNull()
@@ -314,6 +314,7 @@
 		expect(screen.getByTestId('hex-cell-0-0')).toHaveClass('hex-cell-shared-occupancy')
 		expect(screen.getByTestId('hex-unit-onion-1')).toBeInTheDocument()
 		expect(screen.getByTestId('hex-unit-bbw-1')).toBeInTheDocument()
+		expect(screen.getByTestId('hex-unit-bbw-1').querySelector('text')).toHaveTextContent('BBW')
 		expect(screen.getByTestId('hex-cell-0-0').querySelector('.hex-shared-occupancy-ring')).not.toBeNull()
 	})
 
@@ -393,7 +394,7 @@ import { getUnitTypeCatalog, getWeaponTypeCatalog } from '#shared/unitDefinition
 import { createSessionCatalog } from '#web/lib/sessionCatalog'
 import type { BattlefieldActionEligibility } from '#web/lib/actionEligibility/projection'
 import type { StackNamingSnapshot } from '#shared/stackNaming/index'
-import type { StackRosterState } from '#shared/types/index'
+import type { ScenarioTerrainEdge, StackRosterState } from '#shared/types/index'
 import type { ComponentProps } from 'react'
 
 const sessionCatalog = createSessionCatalog(getUnitTypeCatalog(), getWeaponTypeCatalog())
@@ -456,6 +457,7 @@ const scenarioMap = {
 	height: 5,
 	cells: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r }))).flat(),
 	hexes: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r, t: 0 } as TerrainHex))).flat(),
+	edges: [] as ScenarioTerrainEdge[],
 }
 
 const sparseScenarioMap = {
@@ -463,6 +465,19 @@ const sparseScenarioMap = {
 	height: 5,
 	cells: [{ q: 0, r: 0 }, { q: 4, r: 4 }],
 	hexes: [{ q: 4, r: 4, t: 1 } as TerrainHex],
+	edges: [] as ScenarioTerrainEdge[],
+}
+
+const edgeTerrainScenarioMap = {
+	width: 3,
+	height: 3,
+	cells: Array.from({ length: 3 }, (_, r) => Array.from({ length: 3 }, (_, q) => ({ q, r }))).flat(),
+	hexes: Array.from({ length: 3 }, (_, r) => Array.from({ length: 3 }, (_, q) => ({ q, r, t: 0 } as TerrainHex))).flat(),
+	edges: [
+		{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 0, r: 1 } },
+		{ type: 'ridge', variant: 'ridge-2', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+		{ type: 'stream', variant: 'stream-1', a: { q: 1, r: 1 }, b: { q: 2, r: 1 } },
+	] as ScenarioTerrainEdge[],
 }
 
 const onion: BattlefieldOnionView = {
@@ -656,7 +671,7 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(getMarkerLabel('pigs-1')).toBe('Little Pigs 1')
+		expect(getMarkerLabel('pigs-1')).toBe('LP 1')
 		expect(screen.queryByTestId('hex-unit-pigs-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-label-2-2')).toBeNull()
 		expect(screen.queryByTestId('hex-stack-count-2-2')).toBeNull()
@@ -682,6 +697,46 @@ describe('HexMapBoard', () => {
 		expect(selectedCell?.getAttribute('class')).toContain('hex-cell-selected')
 		expect(selectedCell?.getAttribute('class')).toContain('hex-cell-move-ready')
 		expect(reachableCell?.getAttribute('class')).toContain('hex-cell-reachable')
+	})
+
+	it('uses class-specific stream edge costs for reachable highlights', () => {
+		const streamMap = {
+			...scenarioMap,
+			edges: [{ type: 'stream', a: { q: 1, r: 1 }, b: { q: 2, r: 1 } }],
+		}
+		const oneMpPuss = { ...defenders[0], movesRemaining: 1 }
+
+		const { unmount } = render(
+			<HexMapBoard
+				scenarioMap={streamMap}
+				defenders={[oneMpPuss]}
+				onions={[onion]}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={['puss-1']}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-2-1')).not.toHaveClass('hex-cell-reachable')
+		unmount()
+
+		const oneMpPigs = { ...oneMpPuss, typeId: 'LittlePigs', unitId: 'pigs-1' }
+		render(
+			<HexMapBoard
+				scenarioMap={streamMap}
+				defenders={[oneMpPigs]}
+				onions={[onion]}
+				phase="DEFENDER_MOVE"
+				selectedUnitIds={['pigs-1']}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-cell-2-1')).toHaveClass('hex-cell-reachable')
 	})
 
 	it('keeps defender move paths collapsed when the rendered allowance is stale', () => {
@@ -864,8 +919,110 @@ describe('HexMapBoard', () => {
 			/>,
 		)
 
-		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-terrain-1')
+		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).toContain('hex-terrain-crater')
 		expect(screen.getByTestId('hex-cell-1-1').getAttribute('class')).not.toContain('hex-terrain-default')
+	})
+
+	it('renders edge segments and derived corners between terrain and occupants', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={edgeTerrainScenarioMap}
+				defenders={[]}
+				onions={[onion]}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId('hex-edge-terrain')).toHaveAttribute('pointer-events', 'none')
+		expect(screen.getAllByTestId(/^hex-edge-segment-/)).toHaveLength(3)
+		expect(screen.getAllByTestId(/^hex-edge-corner-/)).toHaveLength(1)
+		expect(screen.getAllByTestId(/^hex-edge-stream-terminal-/)).toHaveLength(2)
+		expect(screen.getAllByTestId(/^hex-edge-ridge-terminal-/)).toHaveLength(2)
+		expect(screen.getAllByTestId(/^hex-edge-stream-terminal-/)[0].querySelector('image'))
+			.toHaveAttribute('href', '/terrain/edges/stream-terminal.svg')
+		expect(screen.getAllByTestId(/^hex-edge-ridge-terminal-/)[0].querySelector('image'))
+			.toHaveAttribute('href', '/terrain/edges/ridge-terminal.svg')
+		expect(screen.getByTestId('hex-edge-segment-0,0-0,1')).toHaveAttribute('href', '/terrain/edges/ridge-1.svg')
+		expect(screen.getByTestId(/^hex-edge-corner-/).querySelector('image')).toHaveAttribute('href', '/terrain/edges/ridge-corner.svg')
+		expect(screen.getByTestId('hex-unit-onion-1').compareDocumentPosition(screen.getByTestId('hex-edge-terrain'))).toBe(Node.DOCUMENT_POSITION_PRECEDING)
+	})
+
+	it('uses a connecting corner instead of terminal overlays at shared stream vertices', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={{
+					...edgeTerrainScenarioMap,
+					edges: [
+						{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+						{ type: 'stream', variant: 'stream-2', a: { q: 0, r: 0 }, b: { q: 0, r: 1 } },
+					],
+				}}
+				defenders={[]}
+				onions={[onion]}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getAllByTestId(/^hex-edge-stream-terminal-/)).toHaveLength(2)
+		expect(screen.getAllByTestId(/^hex-edge-corner-/)).toHaveLength(1)
+		expect(screen.getByTestId(/^hex-edge-corner-/).querySelector('image'))
+			.toHaveAttribute('href', '/terrain/edges/stream-corner.svg')
+	})
+
+	it('renders a three-way stream junction at a shared boundary vertex', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={{
+					...edgeTerrainScenarioMap,
+					edges: [
+						{ type: 'stream', variant: 'stream-1', a: { q: 0, r: 0 }, b: { q: 1, r: 0 } },
+						{ type: 'stream', variant: 'stream-2', a: { q: 0, r: 0 }, b: { q: 0, r: 1 } },
+						{ type: 'stream', variant: 'stream-3', a: { q: 0, r: 1 }, b: { q: 1, r: 0 } },
+					],
+				}}
+				defenders={[]}
+				onions={[onion]}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		const junction = screen.getByTestId(/^hex-edge-junction-/)
+		expect(junction.querySelector('image')).toHaveAttribute('href', '/terrain/edges/stream-junction.svg')
+	})
+
+	it('mirrors reversed corners along the bend bisector', () => {
+		render(
+			<HexMapBoard
+				scenarioMap={{
+					...edgeTerrainScenarioMap,
+					edges: [
+						{ type: 'ridge', variant: 'ridge-1', a: { q: 0, r: 0 }, b: { q: 0, r: 1 } },
+						{ type: 'ridge', variant: 'ridge-2', a: { q: 0, r: 1 }, b: { q: 1, r: 0 } },
+					],
+				}}
+				defenders={[]}
+				onions={[onion]}
+				phase="ONION_MOVE"
+				selectedUnitIds={[]}
+				onSelectUnit={vi.fn()}
+				onDeselect={vi.fn()}
+				onMoveUnit={vi.fn()}
+			/>,
+		)
+
+		expect(screen.getByTestId(/^hex-edge-corner-/)).toHaveAttribute('transform', expect.stringContaining('scale(1 -1)'))
 	})
 
 	it('outlines escape hexes', () => {
@@ -918,6 +1075,7 @@ describe('HexMapBoard', () => {
 					height: 5,
 					cells: Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, q) => ({ q, r }))).flat(),
 					hexes: [{ q: 2, r: 1, t: 1 }],
+					edges: [],
 				}}
 				defenders={defenders}
 				onions={[onion]}

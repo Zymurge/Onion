@@ -23,6 +23,14 @@ describe('GET /scenarios', () => {
     expect(swamp.displayName).toBe('The Siege of Shrek\'s Swamp')
     expect(swamp).toHaveProperty('description')
   })
+
+  it('lists only the playable scenarios from the top-level catalog', async () => {
+    const app = buildApp()
+    const res = await app.inject({ method: 'GET', url: '/scenarios' })
+    const scenarios = res.json<{ id: string }[]>()
+
+    expect(scenarios.map((scenario) => scenario.id).sort()).toEqual(['onion-ring-iii', 'swamp-siege-01'])
+  })
 })
 
 describe('GET /scenarios/:id', () => {
@@ -63,6 +71,14 @@ describe('GET /scenarios/:id', () => {
     const res = await app.inject({ method: 'GET', url: '/scenarios/no-such-scenario' })
     expect(res.statusCode).toBe(404)
     expect(res.json().code).toBe('NOT_FOUND')
+  })
+
+  it('loads test scenarios by ID without listing them in the lobby catalog', async () => {
+    const app = buildApp()
+    const res = await app.inject({ method: 'GET', url: '/scenarios/e2e-ram-01' })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().id).toBe('e2e-ram-01')
   })
   it('returns 400 for payload too large (Fastify test injector limitation)', async () => {
     const app = buildApp()

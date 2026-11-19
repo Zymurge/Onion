@@ -12,6 +12,7 @@ import type {
 } from '../lib/interactionRouting'
 import type { StackNamingSnapshot } from '../../shared/stackNaming'
 import type { SessionCatalog } from '../lib/sessionCatalog'
+import type { TerrainType } from '../../shared/types/index'
 
 type HexMapCellProps = {
   actionEligibility: BattlefieldActionEligibility
@@ -39,7 +40,9 @@ type HexMapCellProps = {
   phase: string | null
   polygonPoints: string
   renderedOccupants: ReadonlyArray<HexOccupant>
-  renderedTerrainType?: number
+  renderedTerrainType?: TerrainType
+  renderTerrain?: boolean
+  renderOccupants?: boolean
   resolvedPhaseMode: InteractionPhaseMode
   resolvedViewerActivity: InteractionViewerActivity
   resolvedViewerRole: InteractionViewerRole
@@ -51,8 +54,8 @@ type HexMapCellProps = {
   onSelectUnit: (unitId: string, additive?: boolean) => void
 }
 
-function terrainImage(terrainType?: number): string {
-  return terrainType === 1 ? '/terrain/ridges.svg' : terrainType === 2 ? '/terrain/craters.svg' : '/terrain/default.svg'
+function terrainImage(terrainType?: TerrainType): string {
+  return terrainType === 'crater' ? '/terrain/craters.svg' : '/terrain/default.svg'
 }
 
 /** Renders terrain, overlays, and occupant markers for one map cell. */
@@ -83,6 +86,8 @@ export function HexMapCell({
   polygonPoints,
   renderedOccupants,
   renderedTerrainType,
+  renderTerrain = true,
+  renderOccupants = true,
   resolvedPhaseMode,
   resolvedViewerActivity,
   resolvedViewerRole,
@@ -100,8 +105,8 @@ export function HexMapCell({
 
   return (
     <g
-      data-testid={`hex-cell-${coord.q}-${coord.r}`}
-      className={[
+      data-testid={renderTerrain ? `hex-cell-${coord.q}-${coord.r}` : undefined}
+      className={renderTerrain ? [
         'hex-cell',
         renderedTerrainType ? `hex-terrain-${renderedTerrainType}` : 'hex-terrain-default',
         isSelected ? 'hex-cell-selected' : '',
@@ -114,49 +119,56 @@ export function HexMapCell({
         isOnion ? 'hex-cell-onion' : '',
         cellOccupants.length > 0 ? 'hex-cell-occupied' : '',
         hasSharedOccupancy ? 'hex-cell-shared-occupancy' : '',
-      ].join(' ')}
-      onClick={onBackgroundClick}
+      ].join(' ') : ['hex-cell', 'hex-cell-occupant-layer', isEventFocused ? 'hex-cell-event-focused' : ''].join(' ')}
+      onClick={renderTerrain ? onBackgroundClick : undefined}
       onContextMenu={onCellContextMenu}
     >
-      <clipPath id={`hex-clip-${coord.q}-${coord.r}`}><polygon points={polygonPoints} /></clipPath>
-      <image
-        href={terrainImage(renderedTerrainType)}
-        x={center.x - 36}
-        y={center.y - 36}
-        width={imgSize}
-        height={imgSize}
-        clipPath={`url(#hex-clip-${coord.q}-${coord.r})`}
-        preserveAspectRatio="xMidYMid slice"
-      />
-      <polygon className="hex-shape" points={polygonPoints} fill="none" />
-      {isEventFocused ? (
-        <polygon className="hex-event-focus-overlay" points={polygonPoints} />
-      ) : null}
-      {escapeHex ? (
+      {renderTerrain ? (
         <>
-          <polygon
-            className="hex-shape hex-shape-escape-overlay"
-            points={polygonPoints}
-            style={{ fill: `url(#${escapePatternId})`, fillOpacity: 0.5, opacity: 0.5 }}
-            pointerEvents="none"
+          <clipPath id={`hex-clip-${coord.q}-${coord.r}`}><polygon points={polygonPoints} /></clipPath>
+          <image
+            href={terrainImage(renderedTerrainType)}
+            x={center.x - 36}
+            y={center.y - 36}
+            width={imgSize}
+            height={imgSize}
+            clipPath={`url(#hex-clip-${coord.q}-${coord.r})`}
+            preserveAspectRatio="xMidYMid slice"
           />
-          <polygon
-            className="hex-shape hex-shape-escape-ring"
-            points={polygonPoints}
-            fill="none"
-            pointerEvents="none"
-          />
+          <polygon className="hex-shape" points={polygonPoints} fill="none" />
+          {isEventFocused ? (
+            <polygon className="hex-event-focus-overlay" points={polygonPoints} />
+          ) : null}
+          {escapeHex ? (
+            <>
+              <polygon
+                className="hex-shape hex-shape-escape-overlay"
+                points={polygonPoints}
+                style={{ fill: `url(#${escapePatternId})`, fillOpacity: 0.5, opacity: 0.5 }}
+                pointerEvents="none"
+              />
+              <polygon
+                className="hex-shape hex-shape-escape-ring"
+                points={polygonPoints}
+                fill="none"
+                pointerEvents="none"
+              />
+            </>
+          ) : null}
+          {hasSharedOccupancy ? (
+            <polygon
+              className="hex-shape hex-shared-occupancy-ring"
+              points={polygonPoints}
+              fill="none"
+              pointerEvents="none"
+            />
+          ) : null}
+          <text className="hex-coord" x={center.x} y={center.y + 28} textAnchor="middle">
+            {coord.q},{coord.r}
+          </text>
         </>
       ) : null}
-      {hasSharedOccupancy ? (
-        <polygon
-          className="hex-shape hex-shared-occupancy-ring"
-          points={polygonPoints}
-          fill="none"
-          pointerEvents="none"
-        />
-      ) : null}
-      {renderedOccupants.map((occupant, index) => {
+      {renderOccupants ? renderedOccupants.map((occupant, index) => {
         const rosterGroup = rosterIndex?.getUnitGroup(occupant.unitId) ?? null
         const isOccupantSelected = rosterGroup !== null
           ? rosterGroup.unitIds.some((unitId) => selectedUnitIds.has(unitId))
@@ -196,8 +208,8 @@ export function HexMapCell({
             onSelectUnit={onSelectUnit}
           />
         )
-      })}
-      {statusHatch !== null ? (
+      }) : null}
+      {renderOccupants && statusHatch !== null ? (
         <polygon
           className={`hex-unit-${statusHatch}-crosshatch`}
           data-testid={`hex-${statusHatch}-crosshatch-${coord.q}-${coord.r}`}
@@ -206,9 +218,6 @@ export function HexMapCell({
           pointerEvents="none"
         />
       ) : null}
-      <text className="hex-coord" x={center.x} y={center.y + 28} textAnchor="middle">
-        {coord.q},{coord.r}
-      </text>
     </g>
   )
 }
