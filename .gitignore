@@ -13,6 +13,7 @@ docs/api/*
 
 # Temorary test files
 .tmp-onion-config-*/
+playwright-report/
 
 # Temporary ln during some system debugging
 captures/

@@ -1,0 +1,52 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"vitest.configSearchPatternInclude": "vitest.config.ts",
+		"vitest.configSearchPatternExclude": "**/node_modules/**,**/vendor/**,**/*.d.ts,**/vitest.integration.config.ts,**/vitest.node.config.ts,**/web/vitest.config.ts",
+		"vitest.rootConfig": "vitest.config.ts",
+		"vitest.watchOnStartup": false,
+		"chat.tools.compressOutput.enabled": true,
+		"chat.tools.terminal.autoApprove": {
+			"pnpm": true,
+			"npx vitest": true,
+			"npx tsc": true,
+			"git fetch": true,
+			"git commit": true,
+			"git worktree": true,
+			"git checkout": true,
+			"git merge": true,
+			"git -C /home/zymurge/Dev/onion": true,
+			"docker compose": true,
+			"docker exec": true,
+			"set": true,
+			"printf": true,
+			"tee": true,
+			"awk": true,
+			"magick": true,
+			"npx eslint": true
+		},
+		"github.copilot.chat.localIndex.enabled": true,
+		"sqltools.connections": [
+			{
+				"ssh": "Disabled",
+				"previewLimit": 50,
+				"server": "localhost",
+				"driver": "PostgreSQL",
+				"name": "Container Local",
+				"database": "localhost",
+				"username": "onion",
+				"password": "onionpass",
+				"connectString": "postgres://onion:onionpass@localhost:5432/onion"
+			}
+		],
+		"vitest.nodeEnv": {
+			"VITEST_VSCODE": "true",
+			"CHOKIDAR_USEPOLLING": "1",
+			"CHOKIDAR_INTERVAL": "1000"
+		}
+	}
+}
