@@ -13,7 +13,7 @@ vi.mock('#shared/apiProtocol', () => ({
 }))
 
 const authSession = {
-  apiBaseUrl: 'http://localhost:3000',
+  apiBaseUrl: 'http://localhost',
   token: 'test-token',
 } as AuthSession
 
@@ -62,7 +62,7 @@ describe('useScenarioInfo', () => {
 
     expect(requestJson).toHaveBeenCalledTimes(1)
     expect(requestJson).toHaveBeenCalledWith({
-      baseUrl: 'http://localhost:3000',
+      baseUrl: 'http://localhost',
       path: 'scenarios/swamp-siege-01',
       method: 'GET',
       token: 'test-token',

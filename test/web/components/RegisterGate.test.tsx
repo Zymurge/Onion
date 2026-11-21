@@ -27,7 +27,7 @@ describe('RegisterGate', () => {
 
 		useRegistrationGate.mockReturnValue({
 			registrationDraft: {
-				apiBaseUrl: 'http://localhost:3000',
+				apiBaseUrl: 'http://localhost',
 				username: '',
 				email: '',
 				password: '',
@@ -56,7 +56,7 @@ describe('RegisterGate', () => {
 	it('shows a separate completion state with a login link', () => {
 		useRegistrationGate.mockReturnValue({
 			registrationDraft: {
-				apiBaseUrl: 'http://localhost:3000',
+				apiBaseUrl: 'http://localhost',
 				username: 'Swamp Walker',
 				email: 'player@example.com',
 				password: '',
@@ -79,14 +79,14 @@ describe('RegisterGate', () => {
 		const user = userEvent.setup()
 		const navigate = vi.fn()
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'Swamp Walker',
 			userId: 'user-1',
 			token: 'token-1',
 		})
 		useRegistrationGate.mockReturnValue({
 			registrationDraft: {
-				apiBaseUrl: 'http://localhost:3000',
+				apiBaseUrl: 'http://localhost',
 				username: '',
 				email: '',
 				password: '',

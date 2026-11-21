@@ -32,27 +32,27 @@ describe('resolveRuntimeOptions', () => {
 	it('trims values and treats blank values as unset', () => {
 		const options = resolveRuntimeOptions({
 			E2E_DATABASE_URL: '   ',
-			E2E_ENGINE_URL: '  http://127.0.0.1:3000  ',
+			E2E_ENGINE_URL: '  http://127.0.0.1  ',
 			E2E_WEB_URL: '',
 		})
 
 		expect(options.databaseUrl).toBeUndefined()
-		expect(options.engineUrl).toBe('http://127.0.0.1:3000')
+		expect(options.engineUrl).toBe('http://127.0.0.1')
 		expect(options.webUrl).toBeUndefined()
 	})
 
 	it('normalizes trailing slashes on service urls', () => {
 		const options = resolveRuntimeOptions({
-			E2E_ENGINE_URL: 'http://127.0.0.1:3000/',
+			E2E_ENGINE_URL: 'http://127.0.0.1/',
 			E2E_WEB_URL: 'http://127.0.0.1:5173///',
 		})
 
-		expect(options.engineUrl).toBe('http://127.0.0.1:3000')
+		expect(options.engineUrl).toBe('http://127.0.0.1')
 		expect(options.webUrl).toBe('http://127.0.0.1:5173')
 	})
 
 	it('rejects service urls that are not absolute http urls', () => {
-		expect(() => resolveRuntimeOptions({ E2E_ENGINE_URL: 'localhost:3000' })).toThrow(/E2E_ENGINE_URL/)
+		expect(() => resolveRuntimeOptions({ E2E_ENGINE_URL: 'localhost' })).toThrow(/E2E_ENGINE_URL/)
 	})
 
 	it('parses boolean toggles in both directions', () => {

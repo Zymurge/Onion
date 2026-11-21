@@ -96,7 +96,7 @@ describe('DescriptorStoreImpl', () => {
 			JSON.stringify({
 				version: RUNTIME_DESCRIPTOR_VERSION,
 				pid: 1234,
-				engineUrl: 'http://localhost:3000',
+				engineUrl: 'http://localhost',
 			}),
 			'utf8',
 		)
@@ -110,7 +110,7 @@ describe('DescriptorStoreImpl', () => {
 			version: RUNTIME_DESCRIPTOR_VERSION,
 			pid: 1234,
 			startedAt: new Date().toISOString(),
-			engineUrl: 'http://localhost:3000',
+			engineUrl: 'http://localhost',
 			webUrl: 'http://localhost:5173',
 			logDir: '/tmp/logs',
 			artifactFile: '/tmp/artifacts.json',

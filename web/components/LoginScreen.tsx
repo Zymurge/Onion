@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { ConnectField } from './ConnectField'
 import { ErrorOverlay } from './ErrorOverlay'
-import type { WebRuntimeConfig } from '../lib/appBootstrap'
+import { getDefaultApiBaseUrl, type WebRuntimeConfig } from '../lib/appBootstrap'
 import { getSafeReturnTo, DEFAULT_AUTH_RETURN_TO } from '../lib/authRouting'
 import { getAuthSession, saveAuthSession, type AuthSession } from '../lib/authSession'
 import { requestJson } from '../../shared/apiProtocol'
@@ -36,7 +36,7 @@ function getReturnTo(runtimeConfig?: WebRuntimeConfig): string {
 }
 
 export function LoginScreen({ runtimeConfig, navigate }: LoginScreenProps) {
-  const apiBaseUrl = runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000'
+  const apiBaseUrl = runtimeConfig?.apiBaseUrl ?? getDefaultApiBaseUrl()
   const [returnTo] = useState(() => getReturnTo(runtimeConfig))
   const [existingSession] = useState<AuthSession | null>(() => getAuthSession())
   const [username, setUsername] = useState('')

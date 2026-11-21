@@ -3,7 +3,7 @@ import { runPlaywrightLifecycle } from './playwrightLifecycle.js'
 import type { ResolvedRuntime } from './types.js'
 
 const runtime: ResolvedRuntime = {
-	engineUrl: 'http://127.0.0.1:3000',
+	engineUrl: 'http://127.0.0.1',
 	webUrl: 'http://127.0.0.1:5173',
 	databaseUrl: undefined,
 	logDir: '/tmp/e2e/logs/run-1',

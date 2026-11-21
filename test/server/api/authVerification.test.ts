@@ -34,7 +34,7 @@ describe('verifyUserId', () => {
     const otherApp = buildApp(undefined, {
       config: {
         ...{
-          port: 3000,
+          port: Number(process.env.ENGINE_PORT),
           host: '127.0.0.1',
           databaseUrl: 'postgres://onion:onionpass@127.0.0.1:5432/onion-test',
           jwtSecret: 'another-test-jwt-secret-that-is-long-enough',

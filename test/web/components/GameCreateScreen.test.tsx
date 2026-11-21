@@ -25,7 +25,7 @@ describe('GameCreateScreen', () => {
 		const user = userEvent.setup()
 		const navigate = vi.fn()
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: 'token-1',
@@ -65,7 +65,7 @@ describe('GameCreateScreen', () => {
 		})
 		vi.stubGlobal('fetch', fetchMock)
 
-		render(<GameCreateScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost:3000' } as never} />)
+		render(<GameCreateScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost' } as never} />)
 
 		expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/user/dashboard')
 		const description = await screen.findByText((_, element) => element?.classList.contains('create-game-description'))
@@ -89,7 +89,7 @@ describe('GameCreateScreen', () => {
 		await user.click(screen.getByRole('button', { name: /create game/i }))
 
 		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
-		const createCall = fetchMock.mock.calls.find(([url]) => url === 'http://localhost:3000/games')
+		const createCall = fetchMock.mock.calls.find(([url]) => url === 'http://localhost/games')
 		expect(createCall).toBeDefined()
 		expect(JSON.parse(createCall?.[1]?.body as string)).toEqual({
 			scenarioId: 'swamp-siege-01',
@@ -103,14 +103,14 @@ describe('GameCreateScreen', () => {
 		const user = userEvent.setup()
 		const navigate = vi.fn()
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: 'token-1',
 		})
 		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response([])))
 
-		render(<GameCreateScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost:3000' } as never} />)
+		render(<GameCreateScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost' } as never} />)
 
 		await user.click(screen.getByRole('button', { name: 'Sign Out' }))
 

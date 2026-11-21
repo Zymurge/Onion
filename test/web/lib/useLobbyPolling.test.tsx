@@ -38,7 +38,7 @@ describe('useLobbyPolling', () => {
 		})
 
 		const { result } = renderHook(() => useLobbyPolling<string>({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			token: 'token-1',
 			path: 'games',
 			errorMessage: 'Unable to load games.',

@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { performance } from 'node:perf_hooks'
+import { allocateUnusedPort } from '#test/utils/allocateUnusedPort'
 
 const defaults = {
-  PORT: '3000',
-  HOST: '127.0.0.1',
+  ENGINE_PORT: process.env.ENGINE_PORT ?? String(await allocateUnusedPort()),
+  ENGINE_HOST: '127.0.0.1',
   DATABASE_URL: 'postgres://onion:onionpass@127.0.0.1:5432/onion-test',
   JWT_SECRET: 'test-jwt-secret-that-is-long-enough',
   NODE_ENV: 'test',

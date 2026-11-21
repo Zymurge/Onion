@@ -11,7 +11,7 @@ import {
 } from '#web/lib/authSession'
 
 const session: AuthSession = {
-	apiBaseUrl: 'http://localhost:3000',
+	apiBaseUrl: 'http://localhost',
 	username: 'player-1',
 	userId: 'user-1',
 	token: 'token-1',

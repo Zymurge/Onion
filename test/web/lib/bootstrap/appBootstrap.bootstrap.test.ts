@@ -7,13 +7,13 @@ describe('appBootstrap bootstrap', () => {
 		expect(
 			resolveWebRuntimeConfig(
 				{
-					VITE_ONION_API_URL: ' http://localhost:3000 ',
+					VITE_ONION_API_URL: ' http://localhost ',
 				},
 				'?gameId=123',
 				'/gameid/456',
 				),
 		).toEqual({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			gameId: 123,
 			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
@@ -25,13 +25,13 @@ describe('appBootstrap bootstrap', () => {
 		expect(
 			resolveWebRuntimeConfig(
 				{
-					VITE_ONION_API_URL: 'http://localhost:3000',
+					VITE_ONION_API_URL: 'http://localhost',
 				},
 				'',
 				'/game/42',
 				),
 		).toEqual({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			gameId: 42,
 			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
@@ -78,13 +78,13 @@ describe('appBootstrap bootstrap', () => {
 		expect(
 			resolveWebRuntimeConfig(
 				{
-					VITE_ONION_API_URL: 'http://localhost:3000',
+					VITE_ONION_API_URL: 'http://localhost',
 				},
 				'',
 				'/gameid/42',
 				),
 		).toEqual({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			gameId: 42,
 			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
@@ -96,13 +96,13 @@ describe('appBootstrap bootstrap', () => {
 		expect(
 			resolveWebRuntimeConfig(
 				{
-					VITE_ONION_API_URL: 'http://localhost:3000',
+					VITE_ONION_API_URL: 'http://localhost',
 				},
 				'',
 				'/gameid/not-a-number',
 				),
 		).toEqual({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			gameId: null,
 			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,
@@ -132,14 +132,14 @@ describe('appBootstrap bootstrap', () => {
 		expect(
 			resolveWebRuntimeConfig(
 				{
-					VITE_ONION_API_URL: 'http://localhost:3000',
+					VITE_ONION_API_URL: 'http://localhost',
 					VITE_ONION_LIVE_REFRESH_QUIET_WINDOW_MS: '750',
 				},
 				'?liveRefreshQuietWindowMs=250',
 				'/',
 			),
 		).toEqual({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			gameId: null,
 			userRoute: null,
 			liveRefreshQuietWindowMs: 250,
@@ -151,14 +151,14 @@ describe('appBootstrap bootstrap', () => {
 		expect(
 			resolveWebRuntimeConfig(
 				{
-					VITE_ONION_API_URL: 'http://localhost:3000',
+					VITE_ONION_API_URL: 'http://localhost',
 					VITE_ONION_LOG_LEVEL: 'warn',
 				},
 				'?logLevel=debug',
 				'/',
 			),
 		).toEqual({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			gameId: null,
 			userRoute: null,
 			liveRefreshQuietWindowMs: 2000,

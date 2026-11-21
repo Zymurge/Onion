@@ -15,7 +15,7 @@ describe('AccountScreen', () => {
 
   it('shows the account placeholder with lobby navigation', () => {
     saveAuthSession({
-      apiBaseUrl: 'http://localhost:3000',
+      apiBaseUrl: 'http://localhost',
       username: 'player-1',
       userId: 'user-1',
       token: 'token-1',
@@ -36,7 +36,7 @@ describe('AccountScreen', () => {
     const navigate = vi.fn()
     const user = userEvent.setup()
     saveAuthSession({
-      apiBaseUrl: 'http://localhost:3000',
+      apiBaseUrl: 'http://localhost',
       username: 'player-1',
       userId: 'user-1',
       token: 'token-1',

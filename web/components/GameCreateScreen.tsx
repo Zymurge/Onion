@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { ErrorOverlay } from './ErrorOverlay'
-import type { WebRuntimeConfig } from '../lib/appBootstrap'
+import { getDefaultApiBaseUrl, type WebRuntimeConfig } from '../lib/appBootstrap'
 import { clearAuthSession, getAuthSession } from '../lib/authSession'
 import { requestJson } from '../../shared/apiProtocol'
 import { UserSideMenu } from './UserSideMenu'
@@ -21,7 +21,7 @@ type GameCreateScreenProps = {
 }
 
 export function GameCreateScreen({ runtimeConfig, navigate }: GameCreateScreenProps) {
-  const apiBaseUrl = runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000'
+  const apiBaseUrl = runtimeConfig?.apiBaseUrl ?? getDefaultApiBaseUrl()
   const session = getAuthSession()
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([])
   const [selectedScenarioId, setSelectedScenarioId] = useState('')

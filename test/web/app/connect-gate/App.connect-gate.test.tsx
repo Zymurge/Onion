@@ -16,7 +16,7 @@ const clearApiProtocolTraffic = vi.hoisted(() => vi.fn())
 const getApiProtocolTrafficSnapshot = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const formatApiProtocolTrafficEntry = vi.hoisted(() => vi.fn().mockReturnValue([]))
 const subscribeApiProtocolTraffic = vi.hoisted(() => vi.fn().mockReturnValue(vi.fn()))
-const runtimeConfig = { apiBaseUrl: 'http://localhost:3000', gameId: 123, userRoute: 'login', liveRefreshQuietWindowMs: 5, clientLogLevel: 'info' } as WebRuntimeConfig
+const runtimeConfig = { apiBaseUrl: 'http://localhost', gameId: 123, userRoute: 'login', liveRefreshQuietWindowMs: 5, clientLogLevel: 'info' } as WebRuntimeConfig
 
 vi.mock('#web/lib/httpGameClient', () => ({
 	createHttpGameRequestTransport,
@@ -104,7 +104,7 @@ describe('App connect gate', () => {
 
 		expect(requestJson).toHaveBeenCalledWith(
 			expect.objectContaining({
-				baseUrl: 'http://localhost:3000',
+				baseUrl: 'http://localhost',
 				path: 'auth/login',
 				method: 'POST',
 				body: {
@@ -114,11 +114,11 @@ describe('App connect gate', () => {
 			}),
 		)
 		expect(createHttpGameRequestTransport).toHaveBeenCalledWith({
-			baseUrl: 'http://localhost:3000',
+			baseUrl: 'http://localhost',
 			token: 'test.jwt.token',
 		})
 		expect(createLiveEventSource).toHaveBeenCalledWith({
-			baseUrl: 'http://localhost:3000',
+			baseUrl: 'http://localhost',
 			token: 'test.jwt.token',
 		})
 
@@ -196,7 +196,7 @@ describe('App connect gate', () => {
 		createHttpGameRequestTransport.mockReturnValue(requestTransport)
 		createLiveEventSource.mockReturnValue(liveSource)
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token,
@@ -206,12 +206,12 @@ describe('App connect gate', () => {
 
 		await waitFor(() => {
 			expect(createHttpGameRequestTransport).toHaveBeenCalledWith({
-				baseUrl: 'http://localhost:3000',
+				baseUrl: 'http://localhost',
 				token: expect.any(String),
 			})
 		})
 		expect(createLiveEventSource).toHaveBeenCalledWith({
-			baseUrl: 'http://localhost:3000',
+			baseUrl: 'http://localhost',
 			token,
 		})
 	})
@@ -220,7 +220,7 @@ describe('App connect gate', () => {
 		const snapshot = createLoadedSnapshot('ONION_MOVE')
 		const injectedClient = createControlledClient(snapshot)
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: createToken(),
@@ -240,7 +240,7 @@ describe('App connect gate', () => {
 		vi.setSystemTime(new Date(1_000_000))
 		const navigate = vi.fn()
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: 'eyJhbGciOiJub25lIn0.eyJleHAiOjEwMDF9.signature',
@@ -264,7 +264,7 @@ describe('App connect gate', () => {
 			pollEvents: vi.fn().mockResolvedValue([]),
 		}
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: createToken(),

@@ -42,7 +42,7 @@ describe('GameHistoryScreen', () => {
 	})
 
 	it('lists completed matches and preserves the history navigation state', async () => {
-		saveAuthSession({ apiBaseUrl: 'http://localhost:3000', username: 'player-1', userId: 'user-1', token: 'token-1' })
+		saveAuthSession({ apiBaseUrl: 'http://localhost', username: 'player-1', userId: 'user-1', token: 'token-1' })
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response({ games: [completedGame] }))
 
 		render(<GameHistoryScreen />)
@@ -52,12 +52,12 @@ describe('GameHistoryScreen', () => {
 		expect(screen.getByText(/Onion: player-1.*Defenders: player-2/)).not.toBeNull()
 		expect(screen.getByRole('link', { name: 'Review Game' })).toHaveAttribute('href', '/game/12?returnTo=%2Fuser%2Fhistory')
 		expect(screen.getByRole('link', { name: 'History' })).toHaveAttribute('href', '/user/history')
-		expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/history?status=all&creator=any', expect.anything())
+		expect(fetchMock).toHaveBeenCalledWith('http://localhost/games/history?status=all&creator=any', expect.anything())
 	})
 
 	it('returns from review to the active history filters', async () => {
 		const user = userEvent.setup()
-		saveAuthSession({ apiBaseUrl: 'http://localhost:3000', username: 'player-1', userId: 'user-1', token: 'token-1' })
+		saveAuthSession({ apiBaseUrl: 'http://localhost', username: 'player-1', userId: 'user-1', token: 'token-1' })
 		vi.spyOn(globalThis, 'fetch').mockResolvedValue(response({ games: [completedGame] }))
 
 		render(<GameHistoryScreen />)
@@ -72,7 +72,7 @@ describe('GameHistoryScreen', () => {
 
 	it('filters by my games and supports archive and delete confirmation', async () => {
 		const user = userEvent.setup()
-		saveAuthSession({ apiBaseUrl: 'http://localhost:3000', username: 'player-1', userId: 'user-1', token: 'token-1' })
+		saveAuthSession({ apiBaseUrl: 'http://localhost', username: 'player-1', userId: 'user-1', token: 'token-1' })
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
 			const url = String(input)
 			if (url.includes('/games/12/archive')) return response({ gameId: 12, status: 'archived' })
@@ -90,6 +90,6 @@ describe('GameHistoryScreen', () => {
 		await screen.findByText('Archived')
 		await user.click(screen.getByRole('button', { name: 'Delete game' }))
 		expect(screen.getByText(/snapshot and event history will be removed/i)).not.toBeNull()
-		expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/12/archive', expect.objectContaining({ method: 'PATCH' }))
+		expect(fetchMock).toHaveBeenCalledWith('http://localhost/games/12/archive', expect.objectContaining({ method: 'PATCH' }))
 	})
 })

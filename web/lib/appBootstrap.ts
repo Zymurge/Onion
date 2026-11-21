@@ -20,6 +20,10 @@ export function resolveWebDocumentTitle(config: Pick<WebRuntimeConfig, 'gameId' 
 		: 'Onion - Lobby'
 }
 
+export function getDefaultApiBaseUrl(): string {
+	return typeof window === 'undefined' ? '' : window.location.origin
+}
+
 function parseUserRoute(pathname: string): 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | 'history' | null {
 	const normalizedPathname = pathname.replace(/\/+$/, '') || '/'
 	if (normalizedPathname === '/game/create') {

@@ -82,8 +82,8 @@ describe('startRuntimeSupervisor', () => {
 				args: ['exec', 'tsx', 'server/index.ts'],
 				env: expect.objectContaining({
 					DATABASE_URL: 'postgres://owned/onion',
-					HOST: '127.0.0.1',
-					PORT: '4100',
+					ENGINE_HOST: '127.0.0.1',
+					ENGINE_PORT: '4100',
 					JWT_SECRET: expect.stringMatching(/^[0-9a-f]{64}$/),
 					NODE_ENV: 'test',
 					LOG_LEVEL: 'error',

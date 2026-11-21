@@ -12,9 +12,9 @@ describe('parseCommand', () => {
   })
 
   it('parses config set url', () => {
-    expect(parseCommand('config set url http://localhost:3000')).toEqual({
+    expect(parseCommand('config set url http://localhost')).toEqual({
       ok: true,
-      command: { kind: 'config-set-url', url: 'http://localhost:3000' },
+      command: { kind: 'config-set-url', url: 'http://localhost' },
     })
   })
 

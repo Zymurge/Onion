@@ -29,21 +29,21 @@ describe('LoginScreen', () => {
 		const fetchMock = vi.fn().mockResolvedValue(response({ userId: 'user-1', token: 'token-1' }))
 		vi.stubGlobal('fetch', fetchMock)
 
-		render(<LoginScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost:3000' } as never} />)
+		render(<LoginScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost' } as never} />)
 		await user.type(screen.getByLabelText(/username/i), 'player-1')
 		await user.type(screen.getByLabelText(/password/i), 'secret')
 		await user.click(screen.getByRole('button', { name: /sign in/i }))
 
 		await waitFor(() => expect(navigate).toHaveBeenCalledWith('/game/create?scenario=swamp-siege-01'))
 		expect(fetchMock).toHaveBeenCalledWith(
-			'http://localhost:3000/auth/login',
+			'http://localhost/auth/login',
 			expect.objectContaining({
 				method: 'POST',
 				body: JSON.stringify({ username: 'player-1', password: 'secret' }),
 			}),
 		)
 		expect(getAuthSession()).toEqual({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: 'token-1',
@@ -56,7 +56,7 @@ describe('LoginScreen', () => {
 		window.history.replaceState({}, '', '/user/login?returnTo=https%3A%2F%2Fevil.example')
 		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ userId: 'user-1', token: 'token-1' })))
 
-		render(<LoginScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost:3000' } as never} />)
+		render(<LoginScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost' } as never} />)
 		await user.type(screen.getByLabelText(/username/i), 'player-1')
 		await user.type(screen.getByLabelText(/password/i), 'secret')
 		await user.click(screen.getByRole('button', { name: /sign in/i }))
@@ -68,7 +68,7 @@ describe('LoginScreen', () => {
 		const user = userEvent.setup()
 		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ error: 'Invalid credentials' }, 401)))
 
-		render(<LoginScreen runtimeConfig={{ apiBaseUrl: 'http://localhost:3000' } as never} />)
+		render(<LoginScreen runtimeConfig={{ apiBaseUrl: 'http://localhost' } as never} />)
 		await user.type(screen.getByLabelText(/username/i), 'player-1')
 		await user.type(screen.getByLabelText(/password/i), 'wrong')
 		await user.click(screen.getByRole('button', { name: /sign in/i }))
@@ -81,14 +81,14 @@ describe('LoginScreen', () => {
 		const navigate = vi.fn()
 		window.history.replaceState({}, '', '/user/login?returnTo=%2Fgame%2F42')
 		const session = {
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: 'token-1',
 		}
 		window.localStorage.setItem('onion.auth.session', JSON.stringify(session))
 
-		render(<LoginScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost:3000' } as never} />)
+		render(<LoginScreen navigate={navigate} runtimeConfig={{ apiBaseUrl: 'http://localhost' } as never} />)
 
 		await waitFor(() => expect(navigate).toHaveBeenCalledWith('/game/42'))
 		expect(screen.getByTestId('auth-redirecting')).not.toBeNull()

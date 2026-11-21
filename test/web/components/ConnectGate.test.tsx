@@ -25,7 +25,7 @@ describe('ConnectGate', () => {
 
 		useConnectionGate.mockReturnValue({
 			connectDraft: {
-				apiBaseUrl: 'http://localhost:3000',
+				apiBaseUrl: 'http://localhost',
 				username: 'player-1',
 				password: 'secret',
 				gameId: '123',
@@ -40,7 +40,7 @@ describe('ConnectGate', () => {
 		render(<ConnectGate onConnectedSession={vi.fn()} />)
 		expect(screen.getByRole('heading', { name: /open a live game session/i })).not.toBeNull()
 		expect(screen.getByRole('alert').textContent).toContain('Unable to connect to the backend.')
-		expect((screen.getByLabelText(/api base url/i) as HTMLInputElement).value).toBe('http://localhost:3000')
+		expect((screen.getByLabelText(/api base url/i) as HTMLInputElement).value).toBe('http://localhost')
 		expect((screen.getByLabelText(/username/i) as HTMLInputElement).value).toBe('player-1')
 		expect((screen.getByLabelText(/password/i) as HTMLInputElement).value).toBe('secret')
 		expect((screen.getByLabelText(/game id/i) as HTMLInputElement).value).toBe('123')
@@ -59,7 +59,7 @@ describe('ConnectGate', () => {
 		const submitConnectDraft = vi.fn()
 		useConnectionGate.mockReturnValue({
 			connectDraft: {
-				apiBaseUrl: 'http://localhost:3000',
+				apiBaseUrl: 'http://localhost',
 				username: '',
 				password: '',
 				gameId: '123',
@@ -74,13 +74,13 @@ describe('ConnectGate', () => {
 		render(<ConnectGate onConnectedSession={vi.fn()} />)
 		await user.click(screen.getByRole('button', { name: /login as test user 1/i }))
 		expect(setConnectDraft).toHaveBeenCalledWith({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'user1',
 			password: 'user1P4ss',
 			gameId: '123',
 		})
 		expect(submitConnectDraft).toHaveBeenCalledWith({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'user1',
 			password: 'user1P4ss',
 			gameId: '123',
@@ -88,7 +88,7 @@ describe('ConnectGate', () => {
 
 		await user.click(screen.getByRole('button', { name: /login as test user 2/i }))
 		expect(submitConnectDraft).toHaveBeenCalledWith({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'user2',
 			password: 'user2P4ss',
 			gameId: '123',

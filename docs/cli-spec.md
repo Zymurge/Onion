@@ -338,7 +338,7 @@ The following forms should be treated as the canonical CLI surface:
 help
 help move
 status
-config set url http://localhost:3000
+config set url http://localhost:<ENGINE_PORT>
 config show
 
 register shrek swamp1234

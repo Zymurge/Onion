@@ -1,8 +1,11 @@
+import { allocateUnusedPort } from '#test/utils/allocateUnusedPort'
 import { afterAll } from 'vitest'
 
+const testEnginePort = process.env.ENGINE_PORT ?? String(await allocateUnusedPort())
+
 const requiredTestEnvironment = {
-	PORT: '3000',
-	HOST: '127.0.0.1',
+	ENGINE_PORT: testEnginePort,
+	ENGINE_HOST: '127.0.0.1',
 	DATABASE_URL: 'postgres://onion:onionpass@127.0.0.1:5432/onion-test',
 	JWT_SECRET: 'test-jwt-secret-that-is-long-enough',
 	NODE_ENV: 'test',

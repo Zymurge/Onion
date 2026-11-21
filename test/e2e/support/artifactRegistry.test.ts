@@ -23,7 +23,7 @@ async function createRuntimeEnvironment(): Promise<{ environment: NodeJS.Process
 	return {
 		environment: {
 			[PLAYWRIGHT_RUNTIME_ENV.webUrl]: 'http://127.0.0.1:5173',
-			[PLAYWRIGHT_RUNTIME_ENV.engineUrl]: 'http://127.0.0.1:3000',
+			[PLAYWRIGHT_RUNTIME_ENV.engineUrl]: 'http://127.0.0.1',
 			[PLAYWRIGHT_RUNTIME_ENV.runtimeFile]: join(directory, 'runtime.json'),
 			[PLAYWRIGHT_RUNTIME_ENV.artifactFile]: artifactFile,
 			[PLAYWRIGHT_RUNTIME_ENV.logDir]: directory,

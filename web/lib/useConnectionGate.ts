@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { requestJson } from '../../shared/apiProtocol'
-import type { WebRuntimeConfig } from './appBootstrap'
+import { getDefaultApiBaseUrl, type WebRuntimeConfig } from './appBootstrap'
 import { createHttpGameRequestTransport } from './httpGameClient'
 import { createLiveEventSource } from './liveEventSource'
 import { saveAuthSession } from './authSession'
@@ -27,7 +27,7 @@ type UseConnectionGateOptions = {
 export function useConnectionGate({ runtimeConfig, onConnectedSession }: UseConnectionGateOptions) {
   const [connectError, setConnectError] = useState<string | null>(null)
   const [connectDraft, setConnectDraft] = useState<ConnectDraft>({
-    apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
+    apiBaseUrl: runtimeConfig?.apiBaseUrl ?? getDefaultApiBaseUrl(),
     username: '',
     password: '',
     gameId: runtimeConfig?.gameId?.toString() ?? '',

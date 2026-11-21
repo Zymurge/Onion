@@ -43,7 +43,7 @@ describe('discoverHealthyRuntime', () => {
 			version: RUNTIME_DESCRIPTOR_VERSION,
 			pid: 1234,
 			startedAt: new Date().toISOString(),
-			engineUrl: 'http://localhost:3000',
+			engineUrl: 'http://localhost',
 			webUrl: 'http://localhost:5173',
 			logDir: '/tmp/logs',
 			artifactFile: '/tmp/artifacts.json',
@@ -51,7 +51,7 @@ describe('discoverHealthyRuntime', () => {
 		const fakeDescriptors = new FakeDescriptorStore()
 		fakeDescriptors.stored.set('/tmp/runtime.json', descriptor)
 		const fakeHttp = new FakeHttpProbe()
-		fakeHttp.failFor('http://localhost:3000')
+		fakeHttp.failFor('http://localhost')
 		const fakeDb = new FakeDatabaseProbe()
 
 		const result = await discoverHealthyRuntime('/tmp/runtime.json', 1000, {
@@ -70,7 +70,7 @@ describe('discoverHealthyRuntime', () => {
 			version: RUNTIME_DESCRIPTOR_VERSION,
 			pid: 1234,
 			startedAt: new Date().toISOString(),
-			engineUrl: 'http://localhost:3000',
+			engineUrl: 'http://localhost',
 			webUrl: 'http://localhost:5173',
 			enginePid: 501,
 			webPid: 502,
@@ -80,7 +80,7 @@ describe('discoverHealthyRuntime', () => {
 		const fakeDescriptors = new FakeDescriptorStore()
 		fakeDescriptors.stored.set('/tmp/runtime.json', descriptor)
 		const fakeHttp = new FakeHttpProbe()
-		fakeHttp.failFor('http://localhost:3000')
+		fakeHttp.failFor('http://localhost')
 		const fakeDb = new FakeDatabaseProbe()
 		const stopSpy = vi.spyOn(processStop, 'stopRuntimeProcessGroups').mockResolvedValue()
 
@@ -100,7 +100,7 @@ describe('discoverHealthyRuntime', () => {
 			version: RUNTIME_DESCRIPTOR_VERSION,
 			pid: 1234,
 			startedAt: new Date().toISOString(),
-			engineUrl: 'http://localhost:3000',
+			engineUrl: 'http://localhost',
 			webUrl: 'http://localhost:5173',
 			logDir: '/tmp/logs',
 			artifactFile: '/tmp/artifacts.json',
@@ -126,7 +126,7 @@ describe('discoverHealthyRuntime', () => {
 			version: RUNTIME_DESCRIPTOR_VERSION,
 			pid: 1234,
 			startedAt: new Date().toISOString(),
-			engineUrl: 'http://localhost:3000',
+			engineUrl: 'http://localhost',
 			webUrl: 'http://localhost:5173',
 			databaseUrl: 'postgres://localhost:5432/onion',
 			logDir: '/tmp/logs',
@@ -153,7 +153,7 @@ describe('discoverHealthyRuntime', () => {
 			version: RUNTIME_DESCRIPTOR_VERSION,
 			pid: 1234,
 			startedAt: new Date().toISOString(),
-			engineUrl: 'http://localhost:3000',
+			engineUrl: 'http://localhost',
 			webUrl: 'http://localhost:5173',
 			databaseUrl: 'postgres://localhost:5432/onion',
 			logDir: '/tmp/logs',
@@ -178,7 +178,7 @@ describe('discoverHealthyRuntime', () => {
 			version: RUNTIME_DESCRIPTOR_VERSION,
 			pid: 1234,
 			startedAt: new Date().toISOString(),
-			engineUrl: 'http://localhost:3000',
+			engineUrl: 'http://localhost',
 			webUrl: 'http://localhost:5173',
 			logDir: '/tmp/logs',
 			artifactFile: '/tmp/artifacts.json',

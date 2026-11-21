@@ -21,8 +21,9 @@ export type SessionStore = {
 }
 
 export function createSessionStore(): SessionStore {
+  const configuredPort = process.env.ENGINE_PORT?.trim()
   return {
-    baseUrl: process.env.ONION_API_URL ?? 'http://localhost:3000',
+    baseUrl: process.env.ONION_API_URL ?? (configuredPort ? `http://localhost:${configuredPort}` : null),
     token: null,
     userId: null,
     username: null,

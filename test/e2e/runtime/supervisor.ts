@@ -29,8 +29,8 @@ function ownedEngineEnvironment(databaseUrl: string, port: number): NodeJS.Proce
 	return {
 		...process.env,
 		DATABASE_URL: databaseUrl,
-		HOST: '127.0.0.1',
-		PORT: String(port),
+		ENGINE_HOST: '127.0.0.1',
+		ENGINE_PORT: String(port),
 		JWT_SECRET: randomBytes(32).toString('hex'),
 		NODE_ENV: 'test',
 		LOG_LEVEL: 'error',
@@ -42,8 +42,8 @@ function playwrightServerEnvironment(databaseUrl: string | undefined, engineUrl:
 	const parsedEngineUrl = new URL(engineUrl)
 	return {
 		DATABASE_URL: databaseUrl ?? process.env.DATABASE_URL ?? 'postgres://e2e:e2e@127.0.0.1:5432/onion',
-		HOST: parsedEngineUrl.hostname,
-		PORT: parsedEngineUrl.port || '80',
+		ENGINE_HOST: parsedEngineUrl.hostname,
+		ENGINE_PORT: parsedEngineUrl.port || (parsedEngineUrl.protocol === 'https:' ? '443' : '80'),
 		JWT_SECRET: process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 32
 			? process.env.JWT_SECRET
 			: randomBytes(32).toString('hex'),

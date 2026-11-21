@@ -30,7 +30,7 @@ describe('RequireAuth', () => {
 
 	it('renders protected children for an active session', () => {
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: 'token-1',
@@ -63,7 +63,7 @@ describe('RequireAuth', () => {
 	it('canonicalizes an unknown authenticated URL to the dashboard', async () => {
 		window.history.replaceState({}, '', '/hey')
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: 'token-1',

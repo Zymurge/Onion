@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { loadConfig } from '#server/config/loadConfig'
 
 const validEnvironment = {
-  PORT: '4310',
-  HOST: '127.0.0.1',
+  ENGINE_PORT: process.env.ENGINE_PORT!,
+  ENGINE_HOST: '127.0.0.1',
   DATABASE_URL: 'postgres://user:password@localhost:5432/onion',
   JWT_SECRET: 'test-jwt-secret-that-is-long-enough',
   NODE_ENV: 'production',
@@ -16,7 +16,7 @@ describe('loadConfig', () => {
   it('loads and normalizes all required server values', () => {
     expect(loadConfig({
       ...validEnvironment,
-      HOST: ' 0.0.0.0 ',
+      ENGINE_HOST: ' 0.0.0.0 ',
       DATABASE_URL: ' postgres://user:password@localhost:5432/onion ',
       SCENARIOS_DIR: ' /srv/onion/scenarios ',
     })).toEqual({
@@ -41,8 +41,8 @@ describe('loadConfig', () => {
     })
   }
 
-  it('rejects an invalid port', () => {
-    expect(() => loadConfig({ ...validEnvironment, PORT: 'not-a-port' })).toThrow(/PORT/)
+  it('rejects an invalid engine port', () => {
+    expect(() => loadConfig({ ...validEnvironment, ENGINE_PORT: 'not-a-port' })).toThrow(/ENGINE_PORT/)
   })
 
   it('rejects an unsupported environment or log level', () => {
@@ -55,7 +55,7 @@ describe('loadConfig', () => {
   })
 
   it('does not supply defaults for blank required values', () => {
-    expect(() => loadConfig({ ...validEnvironment, HOST: ' ' })).toThrow(/HOST/)
+    expect(() => loadConfig({ ...validEnvironment, ENGINE_HOST: ' ' })).toThrow(/ENGINE_HOST/)
     expect(() => loadConfig({ ...validEnvironment, SCENARIOS_DIR: '' })).toThrow(/SCENARIOS_DIR/)
   })
 

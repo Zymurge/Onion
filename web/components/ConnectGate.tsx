@@ -29,7 +29,7 @@ export function ConnectGate({ runtimeConfig, onConnectedSession }: ConnectGatePr
           <ConnectField
             label="API base URL"
             value={connectDraft.apiBaseUrl}
-            placeholder="http://localhost:3000"
+            placeholder="https://api.example.com"
             onChange={(value) => setConnectDraft((draft) => ({ ...draft, apiBaseUrl: value }))}
           />
           <ConnectField

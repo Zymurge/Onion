@@ -7,7 +7,7 @@ import { AUTH_SESSION_STORAGE_KEY, clearAuthSession, saveAuthSession, type AuthS
 import { useAuthExpiryRedirect } from '#web/lib/appAuthRedirect'
 
 const session: AuthSession = {
-	apiBaseUrl: 'http://localhost:3000',
+	apiBaseUrl: 'http://localhost',
 	username: 'player-1',
 	userId: 'user-1',
 	token: 'header.eyJleHAiOjIwMDB9.signature',

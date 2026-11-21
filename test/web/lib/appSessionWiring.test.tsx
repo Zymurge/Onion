@@ -21,7 +21,7 @@ vi.mock('#web/lib/liveEventSource', () => ({
 }))
 
 const runtimeConfig: WebRuntimeConfig = {
-	apiBaseUrl: 'http://localhost:3000',
+	apiBaseUrl: 'http://localhost',
 	gameId: 123,
 	userRoute: 'games',
 	liveRefreshQuietWindowMs: 5,
@@ -138,7 +138,7 @@ describe('useAppSessionWiring', () => {
 		createHttpGameRequestTransport.mockReturnValue(persistedTransport)
 		createLiveEventSource.mockReturnValue(persistedSource)
 		saveAuthSession({
-			apiBaseUrl: 'http://localhost:3000',
+			apiBaseUrl: 'http://localhost',
 			username: 'player-1',
 			userId: 'user-1',
 			token: 'legacy-token',
@@ -151,11 +151,11 @@ describe('useAppSessionWiring', () => {
 		})
 
 		expect(createHttpGameRequestTransport).toHaveBeenCalledWith({
-			baseUrl: 'http://localhost:3000',
+			baseUrl: 'http://localhost',
 			token: 'legacy-token',
 		})
 		expect(createLiveEventSource).toHaveBeenCalledWith({
-			baseUrl: 'http://localhost:3000',
+			baseUrl: 'http://localhost',
 			token: 'legacy-token',
 		})
 		expect(result.current.authSession?.username).toBe('player-1')

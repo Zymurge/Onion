@@ -7,13 +7,13 @@ import {
 import type { ResolvedRuntime } from './types.js'
 
 const runtime: ResolvedRuntime = {
-	engineUrl: 'http://127.0.0.1:3000',
+	engineUrl: 'http://127.0.0.1',
 	webUrl: 'http://127.0.0.1:5173',
 	databaseUrl: 'postgres://test/onion',
 	serverEnvironment: {
 		DATABASE_URL: 'postgres://test/onion',
-		HOST: '127.0.0.1',
-		PORT: '3000',
+		ENGINE_HOST: '127.0.0.1',
+		ENGINE_PORT: process.env.ENGINE_PORT!,
 		JWT_SECRET: 'test-jwt-secret-that-is-at-least-32-characters-long',
 		NODE_ENV: 'test',
 		LOG_LEVEL: 'error',

@@ -24,7 +24,7 @@ describe('GamesScreen', () => {
 
   it('loads open games and shows an empty state when none are available', async () => {
     saveAuthSession({
-      apiBaseUrl: 'http://localhost:3000',
+      apiBaseUrl: 'http://localhost',
       username: 'player-1',
       userId: 'user-1',
       token: 'token-1',
@@ -34,7 +34,7 @@ describe('GamesScreen', () => {
     render(<GamesScreen />)
 
     await screen.findByText('No open games are waiting right now.')
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/open', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost/games/open', expect.objectContaining({
       headers: expect.objectContaining({ authorization: 'Bearer token-1' }),
     }))
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/user/dashboard')
@@ -44,7 +44,7 @@ describe('GamesScreen', () => {
     const user = userEvent.setup()
     const navigate = vi.fn()
     saveAuthSession({
-      apiBaseUrl: 'http://localhost:3000',
+      apiBaseUrl: 'http://localhost',
       username: 'player-1',
       userId: 'user-1',
       token: 'token-1',
@@ -74,7 +74,7 @@ describe('GamesScreen', () => {
     expect(await screen.findByText(/shrek created this game as The Onion/)).not.toBeNull()
     await user.click(await screen.findByRole('button', { name: 'Join Game' }))
 
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/12/join', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost/games/12/join', expect.objectContaining({
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: 'Bearer token-1' },
       body: '{}',
@@ -87,7 +87,7 @@ describe('GamesScreen', () => {
     const gameWindow = { focus: vi.fn(), location: { href: '' } } as unknown as Window
     const windowOpen = vi.spyOn(window, 'open').mockReturnValue(gameWindow)
     saveAuthSession({
-      apiBaseUrl: 'http://localhost:3000',
+      apiBaseUrl: 'http://localhost',
       username: 'player-1',
       userId: 'user-1',
       token: 'token-1',
@@ -123,7 +123,7 @@ describe('GamesScreen', () => {
     const user = userEvent.setup()
     const windowOpen = vi.spyOn(window, 'open').mockReturnValue(null)
     saveAuthSession({
-      apiBaseUrl: 'http://localhost:3000',
+      apiBaseUrl: 'http://localhost',
       username: 'player-1',
       userId: 'user-1',
       token: 'token-1',
@@ -154,7 +154,7 @@ describe('GamesScreen', () => {
 
   it('refreshes the open game list using the configured interval', async () => {
     saveAuthSession({
-      apiBaseUrl: 'http://localhost:3000',
+      apiBaseUrl: 'http://localhost',
       username: 'player-1',
       userId: 'user-1',
       token: 'token-1',
@@ -190,7 +190,7 @@ describe('GamesScreen', () => {
     const user = userEvent.setup()
     vi.spyOn(window, 'open').mockReturnValue({ close: vi.fn(), location: { href: '' } } as unknown as Window)
     saveAuthSession({
-      apiBaseUrl: 'http://localhost:3000',
+      apiBaseUrl: 'http://localhost',
       username: 'player-1',
       userId: 'user-1',
       token: 'token-1',
@@ -223,7 +223,7 @@ describe('GamesScreen', () => {
 
     await waitFor(() => expect(listRequestCount).toBeGreaterThan(1))
     expect(screen.queryByRole('button', { name: 'Join Game' })).toBeNull()
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/games/12/join', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost/games/12/join', expect.objectContaining({
       method: 'POST',
     }))
   })

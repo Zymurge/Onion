@@ -9,8 +9,8 @@ server startup, the Fastify app, database access, logging, and scenario routes.
 
 | Variable | Meaning | Example |
 | :--- | :--- | :--- |
-| `PORT` | HTTP and WebSocket listen port, from 1 through 65535 | `3000` |
-| `HOST` | Listen address | `0.0.0.0` |
+| `ENGINE_PORT` | HTTP and WebSocket listen port, from 1 through 65535 | Set per environment |
+| `ENGINE_HOST` | Listen address | Set per environment |
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://onion:onionpass@localhost:5432/onion` |
 | `NODE_ENV` | Runtime environment: `development`, `test`, or `production` | `development` |
 | `LOG_LEVEL` | Server log level: `trace`, `debug`, `info`, `warn`, or `error` | `info` |
@@ -20,6 +20,7 @@ server startup, the Fastify app, database access, logging, and scenario routes.
 
 Copy `.env.example` and replace values for a local deployment. Deployment manifests should
 provide every required variable explicitly; the server does not supply runtime defaults.
+Docker Compose uses `ENGINE_PORT` for the engine listen port, published host port, and image exposed-port metadata. There is no built-in port default; set `ENGINE_PORT` in the environment or `.env`.
 
 `JWT_SECRET` remains separate from this first configuration slice. It is a secret input for the
 upcoming JWT migration and must be supplied through the environment or a secret manager, never

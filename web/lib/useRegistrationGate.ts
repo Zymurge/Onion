@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { requestJson } from '../../shared/apiProtocol'
-import type { WebRuntimeConfig } from './appBootstrap'
+import { getDefaultApiBaseUrl, type WebRuntimeConfig } from './appBootstrap'
 
 type AuthResponse = {
   username: string
@@ -25,7 +25,7 @@ export function useRegistrationGate({ runtimeConfig }: UseRegistrationGateOption
   const [registrationError, setRegistrationError] = useState<string | null>(null)
   const [registeredUsername, setRegisteredUsername] = useState<string | null>(null)
   const [registrationDraft, setRegistrationDraft] = useState<RegistrationDraft>({
-    apiBaseUrl: runtimeConfig?.apiBaseUrl ?? 'http://localhost:3000',
+    apiBaseUrl: runtimeConfig?.apiBaseUrl ?? getDefaultApiBaseUrl(),
     username: '',
     email: '',
     password: '',

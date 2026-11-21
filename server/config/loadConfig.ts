@@ -3,8 +3,8 @@ import { z } from 'zod'
 export type ServerEnvironment = Record<string, string | undefined>
 
 const requiredEnvironmentKeys = [
-  'PORT',
-  'HOST',
+  'ENGINE_PORT',
+  'ENGINE_HOST',
   'DATABASE_URL',
   'JWT_SECRET',
   'NODE_ENV',
@@ -18,11 +18,11 @@ const nonEmptyString = z.preprocess(
 )
 
 export const serverConfigSchema = z.object({
-  PORT: z.preprocess(
+  ENGINE_PORT: z.preprocess(
     (value) => typeof value === 'string' ? value.trim() : value,
     z.coerce.number().int().min(1).max(65_535),
   ),
-  HOST: nonEmptyString,
+  ENGINE_HOST: nonEmptyString,
   DATABASE_URL: nonEmptyString,
   JWT_SECRET: nonEmptyString.pipe(z.string().min(32)),
   NODE_ENV: z.enum(['development', 'test', 'production']),
@@ -37,8 +37,8 @@ export const serverConfigSchema = z.object({
     z.coerce.number().int().min(0),
   ).default(3000),
 }).transform((env) => ({
-  port: env.PORT,
-  host: env.HOST,
+  port: env.ENGINE_PORT,
+  host: env.ENGINE_HOST,
   databaseUrl: env.DATABASE_URL,
   jwtSecret: env.JWT_SECRET,
   nodeEnv: env.NODE_ENV,

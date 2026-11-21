@@ -23,12 +23,12 @@ describe('useRegistrationGate', () => {
 		})
 
 		const { result } = renderHook(() => useRegistrationGate({
-			runtimeConfig: { apiBaseUrl: 'http://localhost:3000' } as never,
+			runtimeConfig: { apiBaseUrl: 'http://localhost' } as never,
 		}))
 
 		await act(async () => {
 			await result.current.submitRegistrationDraft({
-				apiBaseUrl: 'http://localhost:3000',
+				apiBaseUrl: 'http://localhost',
 				username: 'Swamp Walker',
 				email: 'player@example.com',
 				password: 'swamp 1234!',
@@ -36,7 +36,7 @@ describe('useRegistrationGate', () => {
 		})
 
 		expect(requestJson).toHaveBeenCalledWith({
-			baseUrl: 'http://localhost:3000',
+			baseUrl: 'http://localhost',
 			path: 'auth/register',
 			method: 'POST',
 			body: {
@@ -50,12 +50,12 @@ describe('useRegistrationGate', () => {
 
 	it('rejects an invalid email before contacting the backend', async () => {
 		const { result } = renderHook(() => useRegistrationGate({
-			runtimeConfig: { apiBaseUrl: 'http://localhost:3000' } as never,
+			runtimeConfig: { apiBaseUrl: 'http://localhost' } as never,
 		}))
 
 		await act(async () => {
 			await result.current.submitRegistrationDraft({
-				apiBaseUrl: 'http://localhost:3000',
+				apiBaseUrl: 'http://localhost',
 				username: 'Swamp Walker',
 				email: 'player.example.com',
 				password: 'swamp 1234!',
@@ -72,12 +72,12 @@ describe('useRegistrationGate', () => {
 		[' name', 'Username cannot start or end with spaces.'],
 	])('rejects invalid username %j before contacting the backend', async (username, message) => {
 		const { result } = renderHook(() => useRegistrationGate({
-			runtimeConfig: { apiBaseUrl: 'http://localhost:3000' } as never,
+			runtimeConfig: { apiBaseUrl: 'http://localhost' } as never,
 		}))
 
 		await act(async () => {
 			await result.current.submitRegistrationDraft({
-				apiBaseUrl: 'http://localhost:3000',
+				apiBaseUrl: 'http://localhost',
 				username,
 				email: 'player@example.com',
 				password: 'swamp 1234!',
@@ -93,12 +93,12 @@ describe('useRegistrationGate', () => {
 		['control character', 'swamp\n1234', 'Password must use printable ASCII characters only.'],
 	])('rejects invalid password %s before contacting the backend', async (_label, password, message) => {
 		const { result } = renderHook(() => useRegistrationGate({
-			runtimeConfig: { apiBaseUrl: 'http://localhost:3000' } as never,
+			runtimeConfig: { apiBaseUrl: 'http://localhost' } as never,
 		}))
 
 		await act(async () => {
 			await result.current.submitRegistrationDraft({
-				apiBaseUrl: 'http://localhost:3000',
+				apiBaseUrl: 'http://localhost',
 				username: 'Swamp Walker',
 				email: 'player@example.com',
 				password,

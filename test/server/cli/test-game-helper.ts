@@ -31,7 +31,10 @@ function applyAuth(session: SessionStore, username: string, userId: string, toke
 
 export async function bootstrapTestGame(options: TestGameBootstrapOptions = {}): Promise<number> {
 	const session = options.session ?? createSessionStore()
-	const baseUrl = options.baseUrl ?? session.baseUrl ?? 'http://localhost:3000'
+	const baseUrl = options.baseUrl ?? session.baseUrl
+	if (!baseUrl) {
+		throw new Error('Test game helper requires baseUrl, ONION_API_URL, or ENGINE_PORT.')
+	}
 	const login = options.login ?? loginUser
 	const create = options.create ?? createGame
 	const join = options.join ?? joinGame
