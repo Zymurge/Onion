@@ -1,6 +1,5 @@
 {
     "vitest.shellType": "child_process",
-    "vitest.nodeExecutable": "/home/zymurge/.nvm/versions/node/v22.22.2/bin/node",
     "vitest.configSearchPatternInclude": "vitest.config.ts",
     "vitest.configSearchPatternExclude": "**/node_modules/**,**/vendor/**,**/*.d.ts,**/vitest.integration.config.ts,**/vitest.node.config.ts,**/web/vitest.config.ts",
     "vitest.rootConfig": "vitest.config.ts",
