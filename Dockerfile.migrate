@@ -1,0 +1,2 @@
+FROM ghcr.io/amacneil/dbmate:2.36.0
+COPY server/db/migrations/ /db/migrations/

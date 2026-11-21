@@ -1,14 +1,15 @@
 services:
   migrate:
-    image: ghcr.io/amacneil/dbmate:2.36.0
+    image: onion-migrate:local
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
     command:
       - --wait
       - --wait-timeout=60s
       - --migrations-dir=/db/migrations
       - --migrations-table=dbmate_schema_migrations
       - migrate
-    volumes:
-      - ./server/db/migrations:/db/migrations:ro
     environment:
       DATABASE_URL: postgres://onion:onionpass@db:5432/onion?sslmode=disable
       DBMATE_MIGRATIONS_DIR: /db/migrations
@@ -18,16 +19,19 @@ services:
         condition: service_healthy
 
   engine:
-    build: .
+    build:
+      context: .
+      args:
+        ENGINE_PORT: ${ENGINE_PORT:?Set ENGINE_PORT in .env or the environment}
     ports:
-      - "3000:3000"
+      - "${ENGINE_PORT:?Set ENGINE_PORT in .env or the environment}:${ENGINE_PORT:?Set ENGINE_PORT in .env or the environment}"
     volumes:
       - ./scenarios:/app/scenarios:ro
     environment:
       DATABASE_URL: postgres://onion:onionpass@db:5432/onion
       JWT_SECRET: orgres are like onions, but not at all like parfait, despite what donkey says
-      HOST: 0.0.0.0
-      PORT: 3000
+      ENGINE_HOST: ${ENGINE_HOST:?Set ENGINE_HOST in .env or the environment}
+      ENGINE_PORT: ${ENGINE_PORT:?Set ENGINE_PORT in .env or the environment}
       NODE_ENV: production
       SCENARIOS_DIR: /app/scenarios
       LOG_LEVEL: ${LOG_LEVEL:-debug}

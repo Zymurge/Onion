@@ -12,7 +12,7 @@ Migration files use numeric ordering and contain both sections:
 -- development rollback
 ```
 
-The Docker Compose `migrate` service runs before `engine` and applies pending migrations. PostgreSQL's `/docker-entrypoint-initdb.d` mechanism is intentionally not used because it only runs for a brand-new data volume.
+The Docker Compose `migrate` service runs before `engine` and applies pending migrations. Its image packages the migration files, so it also works with remote Docker contexts where bind-mount paths would resolve on the server rather than on the Compose client. Rebuild the image when migration files change. PostgreSQL's `/docker-entrypoint-initdb.d` mechanism is intentionally not used because it only runs for a brand-new data volume.
 
 ## Docker workflow
 
@@ -20,6 +20,12 @@ Start or rebuild the stack normally:
 
 ```sh
 docker compose up --build -d
+```
+
+`ENGINE_PORT` sets both the engine's listen port and its published host port. If that port is already in use on the Docker host, choose another value:
+
+```sh
+ENGINE_PORT=3001 docker compose up --build -d
 ```
 
 Inspect migration state:
