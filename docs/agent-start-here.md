@@ -48,7 +48,7 @@ When introducing or renaming source files it is imperative to update this docume
 | Victory objectives | [scenario-schema.md](scenario-schema.md) | `server/engine/victory.ts` evaluates explicit, role-owned objectives. `server/api/gameHelpers/victory.ts` adapts the evaluator to API responses. The victory prose in [game-rules.md](game-rules.md) does not override the scenario |
 | Scenario JSON authoring | [scenario-schema.md](scenario-schema.md) | `scenarios/` and `server/engine/scenarioSchema.ts` |
 | Invalid snapshots or read retry | [snapshot-deprecation-policy.md](snapshot-deprecation-policy.md) | Do not also load the API or web copies |
-| Account registration or login | [user-account-spec.md](user-account-spec.md) | `server/api/auth.ts` |
+| Account registration or login | [user-account-spec.md](user-account-spec.md) | `server/api/auth.ts`; web routes are wired in `web/main.tsx`, with `RegisterGate` and `LoginScreen` public and `AccountScreen` protected at `/user/account`. |
 | Register or login transport | [api-contract.md](api-contract.md) `### POST /auth/register` and `### POST /auth/login` | `server/api/auth.ts` |
 | Game API route registration or ownership | [api-contract.md](api-contract.md) | Start at `server/api/gameRoutes/index.ts`, then load the smallest route-family module named below |
 | Create, list, join, or start a game | [api-contract.md](api-contract.md) `## Games`, using the named `POST /games`, `GET /games`, `GET /games/open`, `POST /games/{id}/join`, and `POST /games/{id}/start` headings | `server/api/gameRoutes/index.ts`, then `lifecycleRoutes.ts` or `lobbyRoutes.ts` |

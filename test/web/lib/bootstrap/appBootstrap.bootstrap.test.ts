@@ -39,10 +39,17 @@ describe('appBootstrap bootstrap', () => {
 		})
 	})
 
-	it('recognizes the dedicated account creation route', () => {
+	it('recognizes the public account registration route', () => {
 		expect(resolveWebRuntimeConfig({}, '?gameId=123', '/user/create')).toMatchObject({
 			gameId: 123,
-			userRoute: 'create',
+			userRoute: 'register',
+		})
+	})
+
+	it('recognizes the protected account management route', () => {
+		expect(resolveWebRuntimeConfig({}, '?gameId=123', '/user/account')).toMatchObject({
+			gameId: 123,
+			userRoute: 'account',
 		})
 	})
 

@@ -85,6 +85,15 @@ The minimum persistent user record is:
 No separate display name, avatar, preferences, or profile metadata is required
 for the initial lobby; the username is the display name.
 
+## Web Routes
+
+- `/user/create` is the public registration page. It must remain accessible
+  without an authenticated session so the login screen's account-creation
+  link cannot redirect back to itself.
+- `/user/account` is the authenticated account-management page.
+- Successful registration continues to sign-in and preserves a safe requested
+  destination when one was provided.
+
 ## API Surface
 
 ### `POST /auth/register`

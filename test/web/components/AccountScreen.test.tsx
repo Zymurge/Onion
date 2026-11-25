@@ -28,7 +28,7 @@ describe('AccountScreen', () => {
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/user/dashboard')
     expect(screen.getByRole('link', { name: 'Find Game' })).toHaveAttribute('href', '/games')
     expect(screen.getByRole('link', { name: 'Create Game' })).toHaveAttribute('href', '/game/create')
-    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/user/create')
+    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/user/account')
     expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'page')
   })
 

@@ -9,7 +9,7 @@ export type WebRuntimeEnv = {
 export type WebRuntimeConfig = {
 	apiBaseUrl: string | null
 	gameId: number | null
-	userRoute: 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | 'history' | null
+	userRoute: 'register' | 'login' | 'account' | 'game-create' | 'dashboard' | 'games' | 'history' | null
 	liveRefreshQuietWindowMs: number
 	clientLogLevel: 'debug' | 'info' | 'warn' | 'error'
 }
@@ -24,16 +24,19 @@ export function getDefaultApiBaseUrl(): string {
 	return typeof window === 'undefined' ? '' : window.location.origin
 }
 
-function parseUserRoute(pathname: string): 'create' | 'login' | 'game-create' | 'dashboard' | 'games' | 'history' | null {
+function parseUserRoute(pathname: string): 'register' | 'login' | 'account' | 'game-create' | 'dashboard' | 'games' | 'history' | null {
 	const normalizedPathname = pathname.replace(/\/+$/, '') || '/'
 	if (normalizedPathname === '/game/create') {
 		return 'game-create'
 	}
 	if (normalizedPathname === '/user/create') {
-		return 'create'
+		return 'register'
 	}
 	if (normalizedPathname === '/user/login') {
 		return 'login'
+	}
+	if (normalizedPathname === '/user/account') {
+		return 'account'
 	}
 	if (normalizedPathname === '/user/dashboard') {
 		return 'dashboard'

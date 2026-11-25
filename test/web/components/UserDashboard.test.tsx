@@ -43,7 +43,7 @@ describe('UserDashboard', () => {
 		expect(screen.getByRole('button', { name: 'Sign Out' })).not.toBeNull()
 		expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/user/dashboard')
 		expect(screen.getByRole('link', { name: 'Create Game' })).toHaveAttribute('href', '/game/create')
-		expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/user/create')
+		expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/user/account')
 	})
 
 	it('renders games returned for the signed-in player', async () => {

@@ -5,6 +5,7 @@ import App from './App.tsx'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { GameCreateScreen } from './components/GameCreateScreen'
 import { LoginScreen } from './components/LoginScreen'
+import { RegisterGate } from './components/RegisterGate'
 import { RequireAuth } from './components/RequireAuth'
 import { UserDashboard } from './components/UserDashboard'
 import { GamesScreen } from './components/GamesScreen'
@@ -32,7 +33,9 @@ Object.assign(window, {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppErrorBoundary>
-      {runtimeConfig.userRoute === 'create' ? (
+      {runtimeConfig.userRoute === 'register' ? (
+        <RegisterGate runtimeConfig={runtimeConfig} />
+      ) : runtimeConfig.userRoute === 'account' ? (
         <RequireAuth>
           <AccountScreen />
         </RequireAuth>

@@ -64,6 +64,17 @@ describe('LoginScreen', () => {
 		await waitFor(() => expect(navigate).toHaveBeenCalledWith('/user/dashboard'))
 	})
 
+	it('links to public account registration and keeps the requested destination', () => {
+		window.history.replaceState({}, '', '/user/login?returnTo=%2Fgame%2F42')
+
+		render(<LoginScreen runtimeConfig={{ apiBaseUrl: 'http://localhost' } as never} />)
+
+		expect(screen.getByRole('link', { name: /create an account/i })).toHaveAttribute(
+			'href',
+			'/user/create?returnTo=%2Fgame%2F42',
+		)
+	})
+
 	it('shows the server error without storing a session', async () => {
 		const user = userEvent.setup()
 		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ error: 'Invalid credentials' }, 401)))

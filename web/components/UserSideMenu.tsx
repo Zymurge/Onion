@@ -10,7 +10,7 @@ const menuItems = [
   { key: 'history', label: 'History', href: '/user/history' },
   { key: 'games', label: 'Find Game', href: '/games' },
   { key: 'create-game', label: 'Create Game', href: '/game/create' },
-  { key: 'account', label: 'Account', href: '/user/create' },
+  { key: 'account', label: 'Account', href: '/user/account' },
 ] as const
 
 export function UserSideMenu({ activeItem = 'dashboard', onSignOut }: UserSideMenuProps) {
