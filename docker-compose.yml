@@ -25,8 +25,6 @@ services:
         ENGINE_PORT: ${ENGINE_PORT:?Set ENGINE_PORT in .env or the environment}
     ports:
       - "${ENGINE_PORT:?Set ENGINE_PORT in .env or the environment}:${ENGINE_PORT:?Set ENGINE_PORT in .env or the environment}"
-    volumes:
-      - ./scenarios:/app/scenarios:ro
     environment:
       DATABASE_URL: postgres://onion:onionpass@db:5432/onion
       JWT_SECRET: orgres are like onions, but not at all like parfait, despite what donkey says
